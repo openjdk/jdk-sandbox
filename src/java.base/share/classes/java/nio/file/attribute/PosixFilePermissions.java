@@ -109,9 +109,9 @@ public final class PosixFilePermissions {
      * Suppose we require the set of permissions that indicate the owner has read,
      * write, and execute permissions, the group has read and execute permissions
      * and others have none.
-     * <pre>
-     *   Set&lt;PosixFilePermission&gt; perms = PosixFilePermissions.fromString("rwxr-x---");
-     * </pre>
+     * {@snippet : 
+     *     Set<PosixFilePermission> perms = PosixFilePermissions.fromString("rwxr-x---");
+     * }
      *
      * @param   perms
      *          string representing a set of permissions

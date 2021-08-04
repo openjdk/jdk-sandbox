@@ -1096,9 +1096,9 @@ public class Vector<E>
      * a List can be used as a range operation by operating on a subList view
      * instead of a whole List.  For example, the following idiom
      * removes a range of elements from a List:
-     * <pre>
-     *      list.subList(from, to).clear();
-     * </pre>
+     * {@snippet lang=java : 
+     *        list.subList(from, to).clear();
+     * }
      * Similar idioms may be constructed for indexOf and lastIndexOf,
      * and all of the algorithms in the Collections class can be applied to
      * a subList.

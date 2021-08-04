@@ -83,14 +83,18 @@ package java.util;
  * {@code successor(highEndpoint)}.  For example, suppose that {@code m}
  * is a map whose keys are strings.  The following idiom obtains a view
  * containing all of the key-value mappings in {@code m} whose keys are
- * between {@code low} and {@code high}, inclusive:<pre>
- *   SortedMap&lt;String, V&gt; sub = m.subMap(low, high+"\0");</pre>
+ * between {@code low} and {@code high}, inclusive:
+ * {@snippet :
+ *     SortedMap<String, V> sub = m.subMap(low, high+"\0");
+ * }
  *
  * A similar technique can be used to generate an <em>open range</em>
  * (which contains neither endpoint).  The following idiom obtains a
  * view containing all of the key-value mappings in {@code m} whose keys
- * are between {@code low} and {@code high}, exclusive:<pre>
- *   SortedMap&lt;String, V&gt; sub = m.subMap(low+"\0", high);</pre>
+ * are between {@code low} and {@code high}, exclusive:
+ * {@snippet :
+ *     SortedMap<String, V> sub = m.subMap(low+"\0", high);
+ * }
  *
  * <p>This interface is a member of the
  * <a href="{@docRoot}/java.base/java/util/package-summary.html#CollectionsFramework">

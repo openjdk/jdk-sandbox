@@ -34,14 +34,14 @@ package java.util;
  * For example, a bean which supports named properties
  * would have a two argument method signature for adding
  * a {@code PropertyChangeListener} for a property:
- * <pre>
- * public void addPropertyChangeListener(String propertyName,
- *                                       PropertyChangeListener listener)
- * </pre>
+ * {@snippet : 
+ *   public void addPropertyChangeListener(String propertyName,
+ *                                         PropertyChangeListener listener)
+ * }
  * If the bean also implemented the zero argument get listener method:
- * <pre>
- * public PropertyChangeListener[] getPropertyChangeListeners()
- * </pre>
+ * {@snippet : 
+ *   public PropertyChangeListener[] getPropertyChangeListeners()
+ * }
  * then the array may contain inner {@code PropertyChangeListeners}
  * which are also {@code PropertyChangeListenerProxy} objects.
  * <p>

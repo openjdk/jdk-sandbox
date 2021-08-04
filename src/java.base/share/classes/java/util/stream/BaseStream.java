@@ -40,12 +40,13 @@ import java.util.function.Predicate;
  * illustrates an aggregate operation using the stream types {@link Stream}
  * and {@link IntStream}, computing the sum of the weights of the red widgets:
  *
- * <pre>{@code
- *     int sum = widgets.stream()
- *                      .filter(w -> w.getColor() == RED)
- *                      .mapToInt(w -> w.getWeight())
- *                      .sum();
- * }</pre>
+ * {@snippet lang=java : 
+ *       int sum = widgets.stream()
+ *                        .filter(w -> w.getColor() == RED)
+ *                        .mapToInt(w -> w.getWeight())
+ *                        .sum();
+ *   
+ * }
  *
  * See the class documentation for {@link Stream} and the package documentation
  * for <a href="package-summary.html">java.util.stream</a> for additional

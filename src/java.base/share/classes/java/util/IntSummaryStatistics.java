@@ -34,20 +34,20 @@ import java.util.stream.Collector;
  * <p>This class is designed to work with (though does not require)
  * {@linkplain java.util.stream streams}. For example, you can compute
  * summary statistics on a stream of ints with:
- * <pre> {@code
+ * {@snippet :
  * IntSummaryStatistics stats = intStream.collect(IntSummaryStatistics::new,
  *                                                IntSummaryStatistics::accept,
  *                                                IntSummaryStatistics::combine);
- * }</pre>
+ * }
  *
  * <p>{@code IntSummaryStatistics} can be used as a
  * {@linkplain java.util.stream.Stream#collect(Collector) reduction}
  * target for a {@linkplain java.util.stream.Stream stream}. For example:
  *
- * <pre> {@code
+ * {@snippet :
  * IntSummaryStatistics stats = people.stream()
  *                                    .collect(Collectors.summarizingInt(Person::getDependents));
- *}</pre>
+ *}
  *
  * This computes, in a single pass, the count of people, as well as the minimum,
  * maximum, sum, and average of their number of dependents.

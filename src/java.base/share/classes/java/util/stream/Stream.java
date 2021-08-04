@@ -49,12 +49,13 @@ import java.util.function.UnaryOperator;
  * operations.  The following example illustrates an aggregate operation using
  * {@link Stream} and {@link IntStream}:
  *
- * <pre>{@code
- *     int sum = widgets.stream()
- *                      .filter(w -> w.getColor() == RED)
- *                      .mapToInt(w -> w.getWeight())
- *                      .sum();
- * }</pre>
+ * {@snippet lang=java : 
+ *       int sum = widgets.stream()
+ *                        .filter(w -> w.getColor() == RED)
+ *                        .mapToInt(w -> w.getWeight())
+ *                        .sum();
+ *   
+ * }
  *
  * In this example, {@code widgets} is a {@code Collection<Widget>}.  We create
  * a stream of {@code Widget} objects via {@link Collection#stream Collection.stream()},
@@ -256,16 +257,18 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * <p>If {@code orders} is a stream of purchase orders, and each purchase
      * order contains a collection of line items, then the following produces a
      * stream containing all the line items in all the orders:
-     * <pre>{@code
-     *     orders.flatMap(order -> order.getLineItems().stream())...
-     * }</pre>
+     * {@snippet : 
+ *       orders.flatMap(order -> order.getLineItems().stream())...
+ *   
+ * }
      *
      * <p>If {@code path} is the path to a file, then the following produces a
      * stream of the {@code words} contained in that file:
-     * <pre>{@code
-     *     Stream<String> lines = Files.lines(path, StandardCharsets.UTF_8);
-     *     Stream<String> words = lines.flatMap(line -> Stream.of(line.split(" +")));
-     * }</pre>
+     * {@snippet lang=java : 
+ *       Stream<String> lines = Files.lines(path, StandardCharsets.UTF_8);
+ *       Stream<String> words = lines.flatMap(line -> Stream.of(line.split(" +")));
+ *   
+ * }
      * The {@code mapper} function passed to {@code flatMap} splits a line,
      * using a simple regular expression, into an array of words, and then
      * creates a stream of words from that array.
@@ -385,35 +388,19 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *
      * <p>Given a stream of {@code Number} objects, the following
      * produces a list containing only the {@code Integer} objects:
-     * <pre>{@code
-     *     Stream<Number> numbers = ... ;
-     *     List<Integer> integers = numbers.<Integer>mapMulti((number, consumer) -> {
-     *             if (number instanceof Integer i)
-     *                 consumer.accept(i);
-     *         })
-     *         .collect(Collectors.toList());
-     * }</pre>
+     * {@snippet : 
+ *       Stream<Number> numbers = ... ;
+ *       List<Integer> integers = numbers.<Integer>mapMulti((number, consumer) -> {
+ *               if (number instanceof Integer i)
+ *                   consumer.accept(i);
+ *           })
+ *           .collect(Collectors.toList());
+ *   
+ * }
      *
      * <p>If we have an {@code Iterable<Object>} and need to recursively expand its elements
      * that are themselves of type {@code Iterable}, we can use {@code mapMulti} as follows:
-     * <pre>{@code
-     * class C {
-     *     static void expandIterable(Object e, Consumer<Object> c) {
-     *         if (e instanceof Iterable<?> elements) {
-     *             for (Object ie : elements) {
-     *                 expandIterable(ie, c);
-     *             }
-     *         } else if (e != null) {
-     *             c.accept(e);
-     *         }
-     *     }
-     *
-     *     public static void main(String[] args) {
-     *         var nestedList = List.of(1, List.of(2, List.of(3, 4)), 5);
-     *         Stream<Object> expandedStream = nestedList.stream().mapMulti(C::expandIterable);
-     *     }
-     * }
-     * }</pre>
+     * {@snippet lang=java file="StreamSnippets.java" region="snippet5"}
      *
      * @param <R> The element type of the new stream
      * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
@@ -623,14 +610,15 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *
      * @apiNote This method exists mainly to support debugging, where you want
      * to see the elements as they flow past a certain point in a pipeline:
-     * <pre>{@code
-     *     Stream.of("one", "two", "three", "four")
-     *         .filter(e -> e.length() > 3)
-     *         .peek(e -> System.out.println("Filtered value: " + e))
-     *         .map(String::toUpperCase)
-     *         .peek(e -> System.out.println("Mapped value: " + e))
-     *         .collect(Collectors.toList());
-     * }</pre>
+     * {@snippet lang=java : 
+ *       Stream.of("one", "two", "three", "four")
+ *           .filter(e -> e.length() > 3)
+ *           .peek(e -> System.out.println("Filtered value: " + e))
+ *           .map(String::toUpperCase)
+ *           .peek(e -> System.out.println("Mapped value: " + e))
+ *           .collect(Collectors.toList());
+ *   
+ * }
      *
      * <p>In cases where the stream implementation is able to optimize away the
      * production of some or all the elements (such as with short-circuiting
@@ -893,11 +881,12 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * The generator function takes an integer, which is the size of the
      * desired array, and produces an array of the desired size.  This can be
      * concisely expressed with an array constructor reference:
-     * <pre>{@code
-     *     Person[] men = people.stream()
-     *                          .filter(p -> p.getGender() == MALE)
-     *                          .toArray(Person[]::new);
-     * }</pre>
+     * {@snippet lang=java : 
+ *       Person[] men = people.stream()
+ *                            .filter(p -> p.getGender() == MALE)
+ *                            .toArray(Person[]::new);
+ *   
+ * }
      *
      * @param <A> the component type of the resulting array
      * @param generator a function which produces a new array of the desired
@@ -915,12 +904,13 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * <a href="package-summary.html#Associativity">associative</a>
      * accumulation function, and returns the reduced value.  This is equivalent
      * to:
-     * <pre>{@code
-     *     T result = identity;
-     *     for (T element : this stream)
-     *         result = accumulator.apply(result, element)
-     *     return result;
-     * }</pre>
+     * {@snippet : 
+ *       T result = identity;
+ *       for (T element : this stream)
+ *           result = accumulator.apply(result, element)
+ *       return result;
+ *   
+ * }
      *
      * but is not constrained to execute sequentially.
      *
@@ -936,15 +926,17 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * @apiNote Sum, min, max, average, and string concatenation are all special
      * cases of reduction. Summing a stream of numbers can be expressed as:
      *
-     * <pre>{@code
-     *     Integer sum = integers.reduce(0, (a, b) -> a+b);
-     * }</pre>
+     * {@snippet lang=java : 
+ *       Integer sum = integers.reduce(0, (a, b) -> a+b);
+ *   
+ * }
      *
      * or:
      *
-     * <pre>{@code
-     *     Integer sum = integers.reduce(0, Integer::sum);
-     * }</pre>
+     * {@snippet lang=java : 
+ *       Integer sum = integers.reduce(0, Integer::sum);
+ *   
+ * }
      *
      * <p>While this may seem a more roundabout way to perform an aggregation
      * compared to simply mutating a running total in a loop, reduction
@@ -966,19 +958,20 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * <a href="package-summary.html#Associativity">associative</a> accumulation
      * function, and returns an {@code Optional} describing the reduced value,
      * if any. This is equivalent to:
-     * <pre>{@code
-     *     boolean foundAny = false;
-     *     T result = null;
-     *     for (T element : this stream) {
-     *         if (!foundAny) {
-     *             foundAny = true;
-     *             result = element;
-     *         }
-     *         else
-     *             result = accumulator.apply(result, element);
-     *     }
-     *     return foundAny ? Optional.of(result) : Optional.empty();
-     * }</pre>
+     * {@snippet : 
+ *       boolean foundAny = false;
+ *       T result = null;
+ *       for (T element : this stream) {
+ *           if (!foundAny) {
+ *               foundAny = true;
+ *               result = element;
+ *           }
+ *           else
+ *               result = accumulator.apply(result, element);
+ *       }
+ *       return foundAny ? Optional.of(result) : Optional.empty();
+ *   
+ * }
      *
      * but is not constrained to execute sequentially.
      *
@@ -1004,12 +997,13 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * Performs a <a href="package-summary.html#Reduction">reduction</a> on the
      * elements of this stream, using the provided identity, accumulation and
      * combining functions.  This is equivalent to:
-     * <pre>{@code
-     *     U result = identity;
-     *     for (T element : this stream)
-     *         result = accumulator.apply(result, element)
-     *     return result;
-     * }</pre>
+     * {@snippet : 
+ *       U result = identity;
+ *       for (T element : this stream)
+ *           result = accumulator.apply(result, element)
+ *       return result;
+ *   
+ * }
      *
      * but is not constrained to execute sequentially.
      *
@@ -1018,9 +1012,10 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * is equal to {@code u}.  Additionally, the {@code combiner} function
      * must be compatible with the {@code accumulator} function; for all
      * {@code u} and {@code t}, the following must hold:
-     * <pre>{@code
-     *     combiner.apply(u, accumulator.apply(identity, t)) == accumulator.apply(u, t)
-     * }</pre>
+     * {@snippet : 
+ *       combiner.apply(u, accumulator.apply(identity, t)) == accumulator.apply(u, t)
+ *   
+ * }
      *
      * <p>This is a <a href="package-summary.html#StreamOps">terminal
      * operation</a>.
@@ -1058,12 +1053,13 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * such as an {@code ArrayList}, and elements are incorporated by updating
      * the state of the result rather than by replacing the result.  This
      * produces a result equivalent to:
-     * <pre>{@code
-     *     R result = supplier.get();
-     *     for (T element : this stream)
-     *         accumulator.accept(result, element);
-     *     return result;
-     * }</pre>
+     * {@snippet : 
+ *       R result = supplier.get();
+ *       for (T element : this stream)
+ *           accumulator.accept(result, element);
+ *       return result;
+ *   
+ * }
      *
      * <p>Like {@link #reduce(Object, BinaryOperator)}, {@code collect} operations
      * can be parallelized without requiring additional synchronization.
@@ -1074,18 +1070,20 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * @apiNote There are many existing classes in the JDK whose signatures are
      * well-suited for use with method references as arguments to {@code collect()}.
      * For example, the following will accumulate strings into an {@code ArrayList}:
-     * <pre>{@code
-     *     List<String> asList = stringStream.collect(ArrayList::new, ArrayList::add,
-     *                                                ArrayList::addAll);
-     * }</pre>
+     * {@snippet lang=java : 
+ *       List<String> asList = stringStream.collect(ArrayList::new, ArrayList::add,
+ *                                                  ArrayList::addAll);
+ *   
+ * }
      *
      * <p>The following will take a stream of strings and concatenates them into a
      * single string:
-     * <pre>{@code
-     *     String concat = stringStream.collect(StringBuilder::new, StringBuilder::append,
-     *                                          StringBuilder::append)
-     *                                 .toString();
-     * }</pre>
+     * {@snippet lang=java : 
+ *       String concat = stringStream.collect(StringBuilder::new, StringBuilder::append,
+ *                                            StringBuilder::append)
+ *                                   .toString();
+ *   
+ * }
      *
      * @param <R> the type of the mutable result container
      * @param supplier a function that creates a new mutable result container.
@@ -1137,23 +1135,26 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *
      * @apiNote
      * The following will accumulate strings into a List:
-     * <pre>{@code
-     *     List<String> asList = stringStream.collect(Collectors.toList());
-     * }</pre>
+     * {@snippet lang=java : 
+ *       List<String> asList = stringStream.collect(Collectors.toList());
+ *   
+ * }
      *
      * <p>The following will classify {@code Person} objects by city:
-     * <pre>{@code
-     *     Map<String, List<Person>> peopleByCity
-     *         = personStream.collect(Collectors.groupingBy(Person::getCity));
-     * }</pre>
+     * {@snippet lang=java : 
+ *       Map<String, List<Person>> peopleByCity
+ *           = personStream.collect(Collectors.groupingBy(Person::getCity));
+ *   
+ * }
      *
      * <p>The following will classify {@code Person} objects by state and city,
      * cascading two {@code Collector}s together:
-     * <pre>{@code
-     *     Map<String, Map<String, List<Person>>> peopleByStateAndCity
-     *         = personStream.collect(Collectors.groupingBy(Person::getState,
-     *                                                      Collectors.groupingBy(Person::getCity)));
-     * }</pre>
+     * {@snippet lang=java : 
+ *       Map<String, Map<String, List<Person>>> peopleByStateAndCity
+ *           = personStream.collect(Collectors.groupingBy(Person::getState,
+ *                                                        Collectors.groupingBy(Person::getCity)));
+ *   
+ * }
      *
      * @param <R> the type of the result
      * @param <A> the intermediate accumulation type of the {@code Collector}
@@ -1182,9 +1183,10 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * {@link Collectors#toCollection(Supplier)}.
      *
      * @implSpec The implementation in this interface returns a List produced as if by the following:
-     * <pre>{@code
-     * Collections.unmodifiableList(new ArrayList<>(Arrays.asList(this.toArray())))
-     * }</pre>
+     * {@snippet : 
+ *   Collections.unmodifiableList(new ArrayList<>(Arrays.asList(this.toArray())))
+ *   
+ * }
      *
      * @implNote Most instances of Stream will override this method and provide an implementation
      * that is highly optimized compared to the implementation in this interface.
@@ -1235,9 +1237,10 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * Returns the count of elements in this stream.  This is a special case of
      * a <a href="package-summary.html#Reduction">reduction</a> and is
      * equivalent to:
-     * <pre>{@code
-     *     return mapToLong(e -> 1L).sum();
-     * }</pre>
+     * {@snippet lang=java : 
+ *       return mapToLong(e -> 1L).sum();
+ *   
+ * }
      *
      * <p>This is a <a href="package-summary.html#StreamOps">terminal operation</a>.
      *
@@ -1249,10 +1252,11 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * Behavioral parameters with side-effects, which are strongly discouraged
      * except for harmless cases such as debugging, may be affected.  For
      * example, consider the following stream:
-     * <pre>{@code
-     *     List<String> l = Arrays.asList("A", "B", "C", "D");
-     *     long count = l.stream().peek(System.out::println).count();
-     * }</pre>
+     * {@snippet lang=java : 
+ *       List<String> l = Arrays.asList("A", "B", "C", "D");
+ *       long count = l.stream().peek(System.out::println).count();
+ *   
+ * }
      * The number of elements covered by the stream source, a {@code List}, is
      * known and the intermediate operation, {@code peek}, does not inject into
      * or remove elements from the stream (as may be the case for
@@ -1481,11 +1485,12 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *
      * <p>{@code Stream.iterate} should produce the same sequence of elements as
      * produced by the corresponding for-loop:
-     * <pre>{@code
-     *     for (T index=seed; hasNext.test(index); index = next.apply(index)) {
-     *         ...
-     *     }
-     * }</pre>
+     * {@snippet : 
+ *       for (T index=seed; hasNext.test(index); index = next.apply(index)) {
+ *           ...
+ *       }
+ *   
+ * }
      *
      * <p>The resulting sequence may be empty if the {@code hasNext} predicate
      * does not hold on the seed value.  Otherwise the first element will be the
@@ -1600,9 +1605,10 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * To concatenate more streams without binding, or without nested calls to
      * this method, try creating a stream of streams and flat-mapping with the
      * identity function, for example:
-     * <pre>{@code
-     *     Stream<T> concat = Stream.of(s1, s2, s3, s4).flatMap(s -> s);
-     * }</pre>
+     * {@snippet lang=java : 
+ *       Stream<T> concat = Stream.of(s1, s2, s3, s4).flatMap(s -> s);
+ *   
+ * }
      *
      * @param <T> The type of stream elements
      * @param a the first stream
@@ -1653,10 +1659,11 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
          *
          * @implSpec
          * The default implementation behaves as if:
-         * <pre>{@code
-         *     accept(t)
-         *     return this;
-         * }</pre>
+         * {@snippet : 
+ *       accept(t)
+ *       return this;
+ *   
+ * }
          *
          * @param t the element to add
          * @return {@code this} builder

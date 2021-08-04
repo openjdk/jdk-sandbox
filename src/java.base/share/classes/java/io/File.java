@@ -1586,9 +1586,9 @@ public class File
      * <p> An invocation of this method of the form {@code file.setWritable(arg)}
      * behaves in exactly the same way as the invocation
      *
-     * <pre>{@code
-     *     file.setWritable(arg, true)
-     * }</pre>
+     * {@snippet : 
+     *       file.setWritable(arg, true)
+     * }
      *
      * @param   writable
      *          If {@code true}, sets the access permission to allow write
@@ -1665,9 +1665,9 @@ public class File
      * <p>An invocation of this method of the form {@code file.setReadable(arg)}
      * behaves in exactly the same way as the invocation
      *
-     * <pre>{@code
-     *     file.setReadable(arg, true)
-     * }</pre>
+     * {@snippet : 
+     *       file.setReadable(arg, true)
+     * }
      *
      * @param  readable
      *          If {@code true}, sets the access permission to allow read
@@ -1747,9 +1747,9 @@ public class File
      * <p>An invocation of this method of the form {@code file.setExcutable(arg)}
      * behaves in exactly the same way as the invocation
      *
-     * <pre>{@code
-     *     file.setExecutable(arg, true)
-     * }</pre>
+     * {@snippet : 
+     *       file.setExecutable(arg, true)
+     * }
      *
      * @param   executable
      *          If {@code true}, sets the access permission to allow execute
@@ -2368,10 +2368,9 @@ public class File
      *
      * <p> The first invocation of this method works as if invoking it were
      * equivalent to evaluating the expression:
-     * <blockquote><pre>
-     * {@link java.nio.file.FileSystems#getDefault FileSystems.getDefault}().{@link
-     * java.nio.file.FileSystem#getPath getPath}(this.{@link #getPath getPath}());
-     * </pre></blockquote>
+     * {@snippet lang=java :
+     *   FileSystems.getDefault().getPath(this.getPath());
+     * }
      * Subsequent invocations of this method return the same {@code Path}.
      *
      * <p> If this abstract pathname is the empty abstract pathname then this

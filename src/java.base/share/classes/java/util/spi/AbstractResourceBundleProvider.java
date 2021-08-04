@@ -56,8 +56,9 @@ import static sun.security.util.SecurityConstants.GET_CLASSLOADER_PERMISSION;
  * implementation class of "{@code com.example.app.spi.MyResourcesProvider}"
  * as follows:
  *
- * <blockquote><pre>
- * {@code import com.example.app.spi.MyResourcesProvider;
+ *
+ * {@snippet :
+ * import com.example.app.spi.MyResourcesProvider;
  * class MyResourcesProviderImpl extends AbstractResourceBundleProvider
  *     implements MyResourcesProvider
  * {
@@ -77,7 +78,8 @@ import static sun.security.util.SecurityConstants.GET_CLASSLOADER_PERMISSION;
  *         // otherwise return null
  *         return null;
  *     }
- * }}</pre></blockquote>
+ * }
+ * }
  *
  * Refer to {@link ResourceBundleProvider} for details.
  *

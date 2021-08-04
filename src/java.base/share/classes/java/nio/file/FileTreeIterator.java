@@ -36,15 +36,15 @@ import java.nio.file.FileTreeWalker.Event;
 /**
  * An {@code Iterator} to iterate over the nodes of a file tree.
  *
- * <pre>{@code
- *     try (FileTreeIterator iterator = new FileTreeIterator(start, maxDepth, options)) {
- *         while (iterator.hasNext()) {
- *             Event ev = iterator.next();
- *             Path path = ev.file();
- *             BasicFileAttributes attrs = ev.attributes();
- *         }
- *     }
- * }</pre>
+ * {@snippet lang=java : 
+ *       try (FileTreeIterator iterator = new FileTreeIterator(start, maxDepth, options)) {
+ *           while (iterator.hasNext()) {
+ *               Event ev = iterator.next();
+ *               Path path = ev.file();
+ *               BasicFileAttributes attrs = ev.attributes();
+ *           }
+ *       }
+ * }
  */
 
 class FileTreeIterator implements Iterator<Event>, Closeable {

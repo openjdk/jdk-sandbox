@@ -52,7 +52,7 @@ import java.nio.channels.MulticastChannel;
  * <CODE>joinGroup</CODE> method, specifying the group address and
  * the network interface through which multicast datagrams will be
  * received:
- * <PRE>{@code
+ * {@snippet :
  * // join a Multicast group and send the group salutations
  * ...
  * String msg = "Hello";
@@ -72,7 +72,7 @@ import java.nio.channels.MulticastChannel;
  * ...
  * // OK, I'm done talking - leave the group...
  * s.leaveGroup(group, netIf);
- * }</PRE>
+ * }
  *
  * When one sends a message to a multicast group, <B>all</B> subscribing
  * recipients to that host and port receive the message (within the
@@ -550,12 +550,14 @@ public class MulticastSocket extends DatagramSocket {
      *
      *
      * @deprecated Use the following code or its equivalent instead:
-     *  <pre>{@code   ......
-     *  int ttl = mcastSocket.getOption(StandardSocketOptions.IP_MULTICAST_TTL);
-     *  mcastSocket.setOption(StandardSocketOptions.IP_MULTICAST_TTL, newttl);
-     *  mcastSocket.send(p);
-     *  mcastSocket.setOption(StandardSocketOptions.IP_MULTICAST_TTL, ttl);
-     *  ......}</pre>
+     *  {@snippet : 
+     *    ......
+     *    int ttl = mcastSocket.getOption(StandardSocketOptions.IP_MULTICAST_TTL);
+     *    mcastSocket.setOption(StandardSocketOptions.IP_MULTICAST_TTL, newttl);
+     *    mcastSocket.send(p);
+     *    mcastSocket.setOption(StandardSocketOptions.IP_MULTICAST_TTL, ttl);
+     *    ......
+     * }
      *
      * @see DatagramSocket#send
      * @see DatagramSocket#receive

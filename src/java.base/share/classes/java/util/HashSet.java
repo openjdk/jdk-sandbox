@@ -53,8 +53,10 @@ import jdk.internal.access.SharedSecrets;
  * If no such object exists, the set should be "wrapped" using the
  * {@link Collections#synchronizedSet Collections.synchronizedSet}
  * method.  This is best done at creation time, to prevent accidental
- * unsynchronized access to the set:<pre>
- *   Set s = Collections.synchronizedSet(new HashSet(...));</pre>
+ * unsynchronized access to the set:
+ * {@snippet :
+ *     Set s = Collections.synchronizedSet(new HashSet(...));
+ * }
  *
  * <p>The iterators returned by this class's {@code iterator} method are
  * <i>fail-fast</i>: if the set is modified at any time after the iterator is

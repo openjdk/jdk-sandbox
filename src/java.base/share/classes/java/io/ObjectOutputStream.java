@@ -72,29 +72,29 @@ import sun.reflect.misc.ReflectUtil;
  * <p>For example to write an object that can be read by the example in
  * ObjectInputStream:
  * <br>
- * <pre>
- *      FileOutputStream fos = new FileOutputStream("t.tmp");
- *      ObjectOutputStream oos = new ObjectOutputStream(fos);
- *
- *      oos.writeInt(12345);
- *      oos.writeObject("Today");
- *      oos.writeObject(new Date());
- *
- *      oos.close();
- * </pre>
+ * {@snippet lang=java : 
+ *        FileOutputStream fos = new FileOutputStream("t.tmp");
+ *        ObjectOutputStream oos = new ObjectOutputStream(fos);
+ *  
+ *        oos.writeInt(12345);
+ *        oos.writeObject("Today");
+ *        oos.writeObject(new Date());
+ *  
+ *        oos.close();
+ * }
  *
  * <p>Classes that require special handling during the serialization and
  * deserialization process must implement special methods with these exact
  * signatures:
  * <br>
- * <pre>
- * private void readObject(java.io.ObjectInputStream stream)
- *     throws IOException, ClassNotFoundException;
- * private void writeObject(java.io.ObjectOutputStream stream)
- *     throws IOException
- * private void readObjectNoData()
- *     throws ObjectStreamException;
- * </pre>
+ * {@snippet : 
+ *   private void readObject(java.io.ObjectInputStream stream)
+ *       throws IOException, ClassNotFoundException;
+ *   private void writeObject(java.io.ObjectOutputStream stream)
+ *       throws IOException
+ *   private void readObjectNoData()
+ *       throws ObjectStreamException;
+ * }
  *
  * <p>The writeObject method is responsible for writing the state of the object
  * for its particular class so that the corresponding readObject method can

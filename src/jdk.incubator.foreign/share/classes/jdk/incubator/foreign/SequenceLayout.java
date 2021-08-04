@@ -39,18 +39,18 @@ import java.util.OptionalLong;
  * A finite sequence layout can be thought of as a group layout where the sequence layout's element layout is repeated a number of times
  * that is equal to the sequence layout's element count. In other words this layout:
  *
- * <pre>{@code
-MemoryLayout.sequenceLayout(3, MemoryLayout.valueLayout(32, ByteOrder.BIG_ENDIAN));
- * }</pre>
+ * {@snippet lang=java : 
+ *  MemoryLayout.sequenceLayout(3, MemoryLayout.valueLayout(32, ByteOrder.BIG_ENDIAN));
+ * }
  *
  * is equivalent to the following layout:
  *
- * <pre>{@code
-MemoryLayout.structLayout(
-    MemoryLayout.valueLayout(32, ByteOrder.BIG_ENDIAN),
-    MemoryLayout.valueLayout(32, ByteOrder.BIG_ENDIAN),
-    MemoryLayout.valueLayout(32, ByteOrder.BIG_ENDIAN));
- * }</pre>
+ * {@snippet lang=java : 
+ *  MemoryLayout.structLayout(
+ *      MemoryLayout.valueLayout(32, ByteOrder.BIG_ENDIAN),
+ *      MemoryLayout.valueLayout(32, ByteOrder.BIG_ENDIAN),
+ *      MemoryLayout.valueLayout(32, ByteOrder.BIG_ENDIAN));
+ * }
  *
  * <p>
  * This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
@@ -121,22 +121,22 @@ public final class SequenceLayout extends AbstractLayout implements MemoryLayout
      * as the flattened projection of this sequence layout.
      * <p>
      * For instance, given a sequence layout of the kind:
-     * <pre>{@code
-    var seq = MemoryLayout.sequenceLayout(4, MemoryLayout.sequenceLayout(3, MemoryLayouts.JAVA_INT));
-     * }</pre>
+     * {@snippet lang=java : 
+     *      var seq = MemoryLayout.sequenceLayout(4, MemoryLayout.sequenceLayout(3, MemoryLayouts.JAVA_INT));
+     * }
      * calling {@code seq.reshape(2, 6)} will yield the following sequence layout:
-     * <pre>{@code
-    var reshapeSeq = MemoryLayout.sequenceLayout(2, MemoryLayout.sequenceLayout(6, MemoryLayouts.JAVA_INT));
-     * }</pre>
+     * {@snippet lang=java : 
+     *      var reshapeSeq = MemoryLayout.sequenceLayout(2, MemoryLayout.sequenceLayout(6, MemoryLayouts.JAVA_INT));
+     * }
      * <p>
      * If one of the provided element count is the special value {@code -1}, then the element
      * count in that position will be inferred from the remaining element counts and the
      * element count of the flattened projection of this layout. For instance, a layout equivalent to
      * the above {@code reshapeSeq} can also be computed in the following ways:
-     * <pre>{@code
-    var reshapeSeqImplicit1 = seq.reshape(-1, 6);
-    var reshapeSeqImplicit2 = seq.reshape(2, -1);
-     * }</pre>
+     * {@snippet lang=java : 
+     *      var reshapeSeqImplicit1 = seq.reshape(-1, 6);
+     *      var reshapeSeqImplicit2 = seq.reshape(2, -1);
+     * }
      * @param elementCounts an array of element counts, of which at most one can be {@code -1}.
      * @return a new sequence layout where element layouts in the flattened projection of this
      * sequence layout (see {@link #flatten()}) are re-arranged into one or more nested sequence layouts.
@@ -197,13 +197,13 @@ public final class SequenceLayout extends AbstractLayout implements MemoryLayout
      * This transformation preserves the layout size; nested sequence layout in this sequence layout will
      * be dropped and their element counts will be incorporated into that of the returned sequence layout.
      * For instance, given a sequence layout of the kind:
-     * <pre>{@code
-    var seq = MemoryLayout.sequenceLayout(4, MemoryLayout.sequenceLayout(3, MemoryLayouts.JAVA_INT));
-     * }</pre>
+     * {@snippet lang=java : 
+     *      var seq = MemoryLayout.sequenceLayout(4, MemoryLayout.sequenceLayout(3, MemoryLayouts.JAVA_INT));
+     * }
      * calling {@code seq.flatten()} will yield the following sequence layout:
-     * <pre>{@code
-    var flattenedSeq = MemoryLayout.sequenceLayout(12, MemoryLayouts.JAVA_INT);
-     * }</pre>
+     * {@snippet lang=java : 
+     *      var flattenedSeq = MemoryLayout.sequenceLayout(12, MemoryLayouts.JAVA_INT);
+     * }
      * @return a new sequence layout with the same size as this layout (but, possibly, with different
      * element count), whose element layout is not a sequence layout.
      * @throws UnsupportedOperationException if this sequence layout, or one of the nested sequence layouts being

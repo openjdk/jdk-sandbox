@@ -65,15 +65,15 @@ import java.lang.annotation.*;
  * warning.  Some unsafe operations do not trigger an unchecked
  * warning.  For example, the aliasing in
  *
- * <blockquote><pre>
- * &#64;SafeVarargs // Not actually safe!
- * static void m(List&lt;String&gt;... stringLists) {
- *   Object[] array = stringLists;
- *   List&lt;Integer&gt; tmpList = Arrays.asList(42);
- *   array[0] = tmpList; // Semantically invalid, but compiles without warnings
- *   String s = stringLists[0].get(0); // Oh no, ClassCastException at runtime!
+ * {@snippet : 
+ *   @SafeVarargs // Not actually safe!
+ *   static void m(List<String>... stringLists) {
+ *     Object[] array = stringLists;
+ *     List<Integer> tmpList = Arrays.asList(42);
+ *     array[0] = tmpList; // Semantically invalid, but compiles without warnings
+ *     String s = stringLists[0].get(0); // Oh no, ClassCastException at runtime!
+ *   }
  * }
- * </pre></blockquote>
  *
  * leads to a {@code ClassCastException} at runtime.
  *

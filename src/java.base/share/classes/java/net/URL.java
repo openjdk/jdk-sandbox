@@ -63,9 +63,9 @@ import sun.security.action.GetPropertyAction;
  * <p>
  * In general, a URL can be broken into several parts. Consider the
  * following example:
- * <blockquote><pre>
- *     http://www.example.com/docs/resource1.html
- * </pre></blockquote>
+ * {@snippet : 
+ *       http://www.example.com/docs/resource1.html
+ * }
  * <p>
  * The URL above indicates that the protocol to use is
  * {@code http} (HyperText Transfer Protocol) and that the
@@ -83,9 +83,9 @@ import sun.security.action.GetPropertyAction;
  * the protocol is used instead. For example, the default port for
  * {@code http} is {@code 80}. An alternative port could be
  * specified as:
- * <blockquote><pre>
- *     http://www.example.com:1080/docs/resource1.html
- * </pre></blockquote>
+ * {@snippet : 
+ *       http://www.example.com:1080/docs/resource1.html
+ * }
  * <p>
  * The syntax of {@code URL} is defined by  <a
  * href="http://www.ietf.org/rfc/rfc2396.txt"><i>RFC&nbsp;2396: Uniform
@@ -98,9 +98,9 @@ import sun.security.action.GetPropertyAction;
  * A URL may have appended to it a "fragment", also known
  * as a "ref" or a "reference". The fragment is indicated by the sharp
  * sign character "#" followed by more characters. For example,
- * <blockquote><pre>
- *     http://www.example.com/index.html#chapter1
- * </pre></blockquote>
+ * {@snippet : 
+ *       http://www.example.com/index.html#chapter1
+ * }
  * <p>
  * This fragment is not technically part of the URL. Rather, it
  * indicates that after the specified resource is retrieved, the
@@ -112,17 +112,17 @@ import sun.security.action.GetPropertyAction;
  * which contains only enough information to reach the resource
  * relative to another URL. Relative URLs are frequently used within
  * HTML pages. For example, if the contents of the URL:
- * <blockquote><pre>
- *     http://www.example.com/index.html
- * </pre></blockquote>
+ * {@snippet : 
+ *       http://www.example.com/index.html
+ * }
  * contained within it the relative URL:
- * <blockquote><pre>
- *     FAQ.html
- * </pre></blockquote>
+ * {@snippet : 
+ *       FAQ.html
+ * }
  * it would be a shorthand for:
- * <blockquote><pre>
- *     http://www.example.com/FAQ.html
- * </pre></blockquote>
+ * {@snippet : 
+ *       http://www.example.com/FAQ.html
+ * }
  * <p>
  * The relative URL need not specify all the components of a URL. If
  * the protocol, host name, or port number is missing, the value is
@@ -136,7 +136,9 @@ import sun.security.action.GetPropertyAction;
  * that are returned from URL. Furthermore, because URL has no knowledge
  * of URL escaping, it does not recognise equivalence between the encoded
  * or decoded form of the same URL. For example, the two URLs:<br>
- * <pre>    http://foo.com/hello world/ and http://foo.com/hello%20world</pre>
+ * {@snippet : 
+ *      http://foo.com/hello world/ and http://foo.com/hello%20world
+ * }
  * would be considered not equal to each other.
  * <p>
  * Note, the {@link java.net.URI} class does perform escaping of its
@@ -522,9 +524,9 @@ public final class URL implements java.io.Serializable {
      * The new URL is created from the given context URL and the spec
      * argument as described in
      * RFC2396 &quot;Uniform Resource Identifiers : Generic * Syntax&quot; :
-     * <blockquote><pre>
-     *          &lt;scheme&gt;://&lt;authority&gt;&lt;path&gt;?&lt;query&gt;#&lt;fragment&gt;
-     * </pre></blockquote>
+     * {@snippet : 
+     *            <scheme>://<authority><path>?<query>#<fragment>
+     * }
      * The reference is parsed into the scheme, authority, path, query and
      * fragment parts. If the path component is empty and the scheme,
      * authority, and query components are undefined, then the new URL is a
@@ -1148,9 +1150,9 @@ public final class URL implements java.io.Serializable {
      * Opens a connection to this {@code URL} and returns an
      * {@code InputStream} for reading from that connection. This
      * method is a shorthand for:
-     * <blockquote><pre>
-     *     openConnection().getInputStream()
-     * </pre></blockquote>
+     * {@snippet : 
+     *       openConnection().getInputStream()
+     * }
      *
      * @return     an input stream for reading from the URL connection.
      * @throws     IOException  if an I/O exception occurs.
@@ -1163,9 +1165,9 @@ public final class URL implements java.io.Serializable {
 
     /**
      * Gets the contents of this URL. This method is a shorthand for:
-     * <blockquote><pre>
-     *     openConnection().getContent()
-     * </pre></blockquote>
+     * {@snippet : 
+     *       openConnection().getContent()
+     * }
      *
      * @return     the contents of this URL.
      * @throws     IOException  if an I/O exception occurs.
@@ -1177,9 +1179,9 @@ public final class URL implements java.io.Serializable {
 
     /**
      * Gets the contents of this URL. This method is a shorthand for:
-     * <blockquote><pre>
-     *     openConnection().getContent(classes)
-     * </pre></blockquote>
+     * {@snippet : 
+     *       openConnection().getContent(classes)
+     * }
      *
      * @param classes an array of Java types
      * @return     the content object of this URL that is the first match of

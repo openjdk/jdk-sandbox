@@ -80,20 +80,20 @@ public interface Checksum {
      *
      * @implSpec The default implementation has the following behavior.<br>
      * For ByteBuffers backed by an accessible byte array.
-     * <pre>{@code
-     * update(buffer.array(),
-     *        buffer.position() + buffer.arrayOffset(),
-     *        buffer.remaining());
-     * }</pre>
-     * For ByteBuffers not backed by an accessible byte array.
-     * <pre>{@code
-     * byte[] b = new byte[Math.min(buffer.remaining(), 4096)];
-     * while (buffer.hasRemaining()) {
-     *     int length = Math.min(buffer.remaining(), b.length);
-     *     buffer.get(b, 0, length);
-     *     update(b, 0, length);
+     * {@snippet lang=java : 
+     *   update(buffer.array(),
+     *          buffer.position() + buffer.arrayOffset(),
+     *          buffer.remaining());
      * }
-     * }</pre>
+     * For ByteBuffers not backed by an accessible byte array.
+     * {@snippet lang=java : 
+     *   byte[] b = new byte[Math.min(buffer.remaining(), 4096)];
+     *   while (buffer.hasRemaining()) {
+     *       int length = Math.min(buffer.remaining(), b.length);
+     *       buffer.get(b, 0, length);
+     *       update(b, 0, length);
+     *   }
+     * }
      *
      * @param buffer the ByteBuffer to update the checksum with
      *

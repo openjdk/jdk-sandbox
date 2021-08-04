@@ -66,40 +66,7 @@ import jdk.internal.access.SharedSecrets;
  * <p>The following are examples of using the predefined collectors to perform
  * common mutable reduction tasks:
  *
- * <pre>{@code
- * // Accumulate names into a List
- * List<String> list = people.stream()
- *   .map(Person::getName)
- *   .collect(Collectors.toList());
- *
- * // Accumulate names into a TreeSet
- * Set<String> set = people.stream()
- *   .map(Person::getName)
- *   .collect(Collectors.toCollection(TreeSet::new));
- *
- * // Convert elements to strings and concatenate them, separated by commas
- * String joined = things.stream()
- *   .map(Object::toString)
- *   .collect(Collectors.joining(", "));
- *
- * // Compute sum of salaries of employee
- * int total = employees.stream()
- *   .collect(Collectors.summingInt(Employee::getSalary));
- *
- * // Group employees by department
- * Map<Department, List<Employee>> byDept = employees.stream()
- *   .collect(Collectors.groupingBy(Employee::getDepartment));
- *
- * // Compute sum of salaries by department
- * Map<Department, Integer> totalByDept = employees.stream()
- *   .collect(Collectors.groupingBy(Employee::getDepartment,
- *                                  Collectors.summingInt(Employee::getSalary)));
- *
- * // Partition students into passing and failing
- * Map<Boolean, List<Student>> passingFailing = students.stream()
- *   .collect(Collectors.partitioningBy(s -> s.getGrade() >= PASS_THRESHOLD));
- *
- * }</pre>
+ * {@snippet lang=java file="CollectorsSnippets.java" region="snippet1"}
  *
  * @since 1.8
  */
@@ -444,13 +411,14 @@ public final class Collectors {
      * multi-level reduction, such as downstream of a {@code groupingBy} or
      * {@code partitioningBy}.  For example, given a stream of
      * {@code Person}, to accumulate the set of last names in each city:
-     * <pre>{@code
-     * Map<City, Set<String>> lastNamesByCity
-     *   = people.stream().collect(
-     *     groupingBy(Person::getCity,
-     *                mapping(Person::getLastName,
-     *                        toSet())));
-     * }</pre>
+     * {@snippet lang=java : 
+ *   Map<City, Set<String>> lastNamesByCity
+ *     = people.stream().collect(
+ *       groupingBy(Person::getCity,
+ *                  mapping(Person::getLastName,
+ *                          toSet())));
+ *   
+ * }
      *
      * @param <T> the type of the input elements
      * @param <U> type of elements accepted by downstream collector
@@ -486,13 +454,14 @@ public final class Collectors {
      * multi-level reduction, such as downstream of a {@code groupingBy} or
      * {@code partitioningBy}.  For example, given a stream of
      * {@code Order}, to accumulate the set of line items for each customer:
-     * <pre>{@code
-     * Map<String, Set<LineItem>> itemsByCustomerName
-     *   = orders.stream().collect(
-     *     groupingBy(Order::getCustomerName,
-     *                flatMapping(order -> order.getLineItems().stream(),
-     *                            toSet())));
-     * }</pre>
+     * {@snippet lang=java : 
+ *   Map<String, Set<LineItem>> itemsByCustomerName
+ *     = orders.stream().collect(
+ *       groupingBy(Order::getCustomerName,
+ *                  flatMapping(order -> order.getLineItems().stream(),
+ *                              toSet())));
+ *   
+ * }
      *
      * @param <T> the type of the input elements
      * @param <U> type of elements accepted by downstream collector
@@ -532,13 +501,14 @@ public final class Collectors {
      * {@code partitioningBy}.  For example, given a stream of
      * {@code Employee}, to accumulate the employees in each department that have a
      * salary above a certain threshold:
-     * <pre>{@code
-     * Map<Department, Set<Employee>> wellPaidEmployeesByDepartment
-     *   = employees.stream().collect(
-     *     groupingBy(Employee::getDepartment,
-     *                filtering(e -> e.getSalary() > 2000,
-     *                          toSet())));
-     * }</pre>
+     * {@snippet lang=java : 
+ *   Map<Department, Set<Employee>> wellPaidEmployeesByDepartment
+ *     = employees.stream().collect(
+ *       groupingBy(Employee::getDepartment,
+ *                  filtering(e -> e.getSalary() > 2000,
+ *                            toSet())));
+ *   
+ * }
      * A filtering collector differs from a stream's {@code filter()} operation.
      * In this example, suppose there are no employees whose salary is above the
      * threshold in some department.  Using a filtering collector as shown above
@@ -574,11 +544,12 @@ public final class Collectors {
      * Adapts a {@code Collector} to perform an additional finishing
      * transformation.  For example, one could adapt the {@link #toList()}
      * collector to always produce an immutable list with:
-     * <pre>{@code
-     * List<String> list = people.stream().collect(
-     *   collectingAndThen(toList(),
-     *                     Collections::unmodifiableList));
-     * }</pre>
+     * {@snippet lang=java : 
+ *   List<String> list = people.stream().collect(
+ *     collectingAndThen(toList(),
+ *                       Collections::unmodifiableList));
+ *   
+ * }
      *
      * @param <T> the type of the input elements
      * @param <A> intermediate accumulation type of the downstream collector
@@ -615,9 +586,10 @@ public final class Collectors {
      *
      * @implSpec
      * This produces a result equivalent to:
-     * <pre>{@code
-     *     reducing(0L, e -> 1L, Long::sum)
-     * }</pre>
+     * {@snippet : 
+ *       reducing(0L, e -> 1L, Long::sum)
+ *   
+ * }
      *
      * @param <T> the type of the input elements
      * @return a {@code Collector} that counts the input elements
@@ -633,9 +605,10 @@ public final class Collectors {
      *
      * @implSpec
      * This produces a result equivalent to:
-     * <pre>{@code
-     *     reducing(BinaryOperator.minBy(comparator))
-     * }</pre>
+     * {@snippet : 
+ *       reducing(BinaryOperator.minBy(comparator))
+ *   
+ * }
      *
      * @param <T> the type of the input elements
      * @param comparator a {@code Comparator} for comparing elements
@@ -652,9 +625,10 @@ public final class Collectors {
      *
      * @implSpec
      * This produces a result equivalent to:
-     * <pre>{@code
-     *     reducing(BinaryOperator.maxBy(comparator))
-     * }</pre>
+     * {@snippet : 
+ *       reducing(BinaryOperator.maxBy(comparator))
+ *   
+ * }
      *
      * @param <T> the type of the input elements
      * @param comparator a {@code Comparator} for comparing elements
@@ -899,13 +873,14 @@ public final class Collectors {
      *
      * <p>For example, given a stream of {@code Person}, to calculate tallest
      * person in each city:
-     * <pre>{@code
-     * Comparator<Person> byHeight = Comparator.comparing(Person::getHeight);
-     * Map<City, Optional<Person>> tallestByCity
-     *   = people.stream().collect(
-     *     groupingBy(Person::getCity,
-     *                reducing(BinaryOperator.maxBy(byHeight))));
-     * }</pre>
+     * {@snippet lang=java : 
+ *   Comparator<Person> byHeight = Comparator.comparing(Person::getHeight);
+ *   Map<City, Optional<Person>> tallestByCity
+ *     = people.stream().collect(
+ *       groupingBy(Person::getCity,
+ *                  reducing(BinaryOperator.maxBy(byHeight))));
+ *   
+ * }
      *
      * @param <T> element type for the input and output of the reduction
      * @param op a {@code BinaryOperator<T>} used to reduce the input elements
@@ -954,15 +929,16 @@ public final class Collectors {
      *
      * <p>For example, given a stream of {@code Person}, to calculate the longest
      * last name of residents in each city:
-     * <pre>{@code
-     * Comparator<String> byLength = Comparator.comparing(String::length);
-     * Map<City, String> longestLastNameByCity
-     *   = people.stream().collect(
-     *     groupingBy(Person::getCity,
-     *                reducing("",
-     *                         Person::getLastName,
-     *                         BinaryOperator.maxBy(byLength))));
-     * }</pre>
+     * {@snippet lang=java : 
+ *   Comparator<String> byLength = Comparator.comparing(String::length);
+ *   Map<City, String> longestLastNameByCity
+ *     = people.stream().collect(
+ *       groupingBy(Person::getCity,
+ *                  reducing("",
+ *                           Person::getLastName,
+ *                           BinaryOperator.maxBy(byLength))));
+ *   
+ * }
      *
      * @param <T> the type of the input elements
      * @param <U> the type of the mapped values
@@ -1002,9 +978,10 @@ public final class Collectors {
      * thread-safety of the {@code Map} or {@code List} objects returned.
      * @implSpec
      * This produces a result similar to:
-     * <pre>{@code
-     *     groupingBy(classifier, toList());
-     * }</pre>
+     * {@snippet lang=java : 
+ *       groupingBy(classifier, toList());
+ *   
+ * }
      *
      * @implNote
      * The returned {@code Collector} is not concurrent.  For parallel stream
@@ -1044,13 +1021,14 @@ public final class Collectors {
      * serializability, or thread-safety of the {@code Map} returned.
      *
      * <p>For example, to compute the set of last names of people in each city:
-     * <pre>{@code
-     * Map<City, Set<String>> namesByCity
-     *   = people.stream().collect(
-     *     groupingBy(Person::getCity,
-     *                mapping(Person::getLastName,
-     *                        toSet())));
-     * }</pre>
+     * {@snippet lang=java : 
+ *   Map<City, Set<String>> namesByCity
+ *     = people.stream().collect(
+ *       groupingBy(Person::getCity,
+ *                  mapping(Person::getLastName,
+ *                          toSet())));
+ *   
+ * }
      *
      * @implNote
      * The returned {@code Collector} is not concurrent.  For parallel stream
@@ -1093,14 +1071,15 @@ public final class Collectors {
      *
      * <p>For example, to compute the set of last names of people in each city,
      * where the city names are sorted:
-     * <pre>{@code
-     * Map<City, Set<String>> namesByCity
-     *   = people.stream().collect(
-     *     groupingBy(Person::getCity,
-     *                TreeMap::new,
-     *                mapping(Person::getLastName,
-     *                        toSet())));
-     * }</pre>
+     * {@snippet lang=java : 
+ *   Map<City, Set<String>> namesByCity
+ *     = people.stream().collect(
+ *       groupingBy(Person::getCity,
+ *                  TreeMap::new,
+ *                  mapping(Person::getLastName,
+ *                          toSet())));
+ *   
+ * }
      *
      * @implNote
      * The returned {@code Collector} is not concurrent.  For parallel stream
@@ -1176,9 +1155,10 @@ public final class Collectors {
      * thread-safety of the {@code List} objects returned.
      * @implSpec
      * This produces a result similar to:
-     * <pre>{@code
-     *     groupingByConcurrent(classifier, toList());
-     * }</pre>
+     * {@snippet lang=java : 
+ *       groupingByConcurrent(classifier, toList());
+ *   
+ * }
      *
      * @param <T> the type of the input elements
      * @param <K> the type of the keys
@@ -1215,13 +1195,14 @@ public final class Collectors {
      *
      * <p>For example, to compute the set of last names of people in each city,
      * where the city names are sorted:
-     * <pre>{@code
-     * ConcurrentMap<City, Set<String>> namesByCity
-     *   = people.stream().collect(
-     *     groupingByConcurrent(Person::getCity,
-     *                          mapping(Person::getLastName,
-     *                                  toSet())));
-     * }</pre>
+     * {@snippet lang=java : 
+ *   ConcurrentMap<City, Set<String>> namesByCity
+ *     = people.stream().collect(
+ *       groupingByConcurrent(Person::getCity,
+ *                            mapping(Person::getLastName,
+ *                                    toSet())));
+ *   
+ * }
      *
      * @param <T> the type of the input elements
      * @param <K> the type of the keys
@@ -1259,14 +1240,15 @@ public final class Collectors {
      *
      * <p>For example, to compute the set of last names of people in each city,
      * where the city names are sorted:
-     * <pre>{@code
-     * ConcurrentMap<City, Set<String>> namesByCity
-     *   = people.stream().collect(
-     *     groupingByConcurrent(Person::getCity,
-     *                          ConcurrentSkipListMap::new,
-     *                          mapping(Person::getLastName,
-     *                                  toSet())));
-     * }</pre>
+     * {@snippet lang=java : 
+ *   ConcurrentMap<City, Set<String>> namesByCity
+ *     = people.stream().collect(
+ *       groupingByConcurrent(Person::getCity,
+ *                            ConcurrentSkipListMap::new,
+ *                            mapping(Person::getLastName,
+ *                                    toSet())));
+ *   
+ * }
      *
      * @param <T> the type of the input elements
      * @param <K> the type of the keys
@@ -1425,20 +1407,22 @@ public final class Collectors {
      * {@link java.util.function.Function#identity()} may be helpful.
      * For example, the following produces a {@code Map} mapping
      * students to their grade point average:
-     * <pre>{@code
-     * Map<Student, Double> studentToGPA
-     *   = students.stream().collect(
-     *     toMap(Function.identity(),
-     *           student -> computeGPA(student)));
-     * }</pre>
+     * {@snippet lang=java : 
+ *   Map<Student, Double> studentToGPA
+ *     = students.stream().collect(
+ *       toMap(Function.identity(),
+ *             student -> computeGPA(student)));
+ *   
+ * }
      * And the following produces a {@code Map} mapping a unique identifier to
      * students:
-     * <pre>{@code
-     * Map<String, Student> studentIdToStudent
-     *   = students.stream().collect(
-     *     toMap(Student::getId,
-     *           Function.identity()));
-     * }</pre>
+     * {@snippet lang=java : 
+ *   Map<String, Student> studentIdToStudent
+ *     = students.stream().collect(
+ *       toMap(Student::getId,
+ *             Function.identity()));
+ *   
+ * }
      *
      * @implNote
      * The returned {@code Collector} is not concurrent.  For parallel stream
@@ -1531,13 +1515,14 @@ public final class Collectors {
      * address, but it is possible that two persons have the same name, you can
      * do as follows to gracefully deal with these collisions, and produce a
      * {@code Map} mapping names to a concatenated list of addresses:
-     * <pre>{@code
-     * Map<String, String> phoneBook
-     *   = people.stream().collect(
-     *     toMap(Person::getName,
-     *           Person::getAddress,
-     *           (s, a) -> s + ", " + a));
-     * }</pre>
+     * {@snippet lang=java : 
+ *   Map<String, String> phoneBook
+ *     = people.stream().collect(
+ *       toMap(Person::getName,
+ *             Person::getAddress,
+ *             (s, a) -> s + ", " + a));
+ *   
+ * }
      *
      * @implNote
      * The returned {@code Collector} is not concurrent.  For parallel stream
@@ -1688,20 +1673,22 @@ public final class Collectors {
      * {@link java.util.function.Function#identity()} may be helpful.
      * For example, the following produces a {@code ConcurrentMap} mapping
      * students to their grade point average:
-     * <pre>{@code
-     * ConcurrentMap<Student, Double> studentToGPA
-     *   = students.stream().collect(
-     *     toConcurrentMap(Function.identity(),
-     *                     student -> computeGPA(student)));
-     * }</pre>
+     * {@snippet lang=java : 
+ *   ConcurrentMap<Student, Double> studentToGPA
+ *     = students.stream().collect(
+ *       toConcurrentMap(Function.identity(),
+ *                       student -> computeGPA(student)));
+ *   
+ * }
      * And the following produces a {@code ConcurrentMap} mapping a
      * unique identifier to students:
-     * <pre>{@code
-     * ConcurrentMap<String, Student> studentIdToStudent
-     *   = students.stream().collect(
-     *     toConcurrentMap(Student::getId,
-     *                     Function.identity()));
-     * }</pre>
+     * {@snippet lang=java : 
+ *   ConcurrentMap<String, Student> studentIdToStudent
+ *     = students.stream().collect(
+ *       toConcurrentMap(Student::getId,
+ *                       Function.identity()));
+ *   
+ * }
      *
      * <p>This is a {@link Collector.Characteristics#CONCURRENT concurrent} and
      * {@link Collector.Characteristics#UNORDERED unordered} Collector.
@@ -1750,13 +1737,14 @@ public final class Collectors {
      * address, but it is possible that two persons have the same name, you can
      * do as follows to gracefully deal with these collisions, and produce a
      * {@code ConcurrentMap} mapping names to a concatenated list of addresses:
-     * <pre>{@code
-     * ConcurrentMap<String, String> phoneBook
-     *   = people.stream().collect(
-     *     toConcurrentMap(Person::getName,
-     *                     Person::getAddress,
-     *                     (s, a) -> s + ", " + a));
-     * }</pre>
+     * {@snippet lang=java : 
+ *   ConcurrentMap<String, String> phoneBook
+ *     = people.stream().collect(
+ *       toConcurrentMap(Person::getName,
+ *                       Person::getAddress,
+ *                       (s, a) -> s + ", " + a));
+ *   
+ * }
      *
      * <p>This is a {@link Collector.Characteristics#CONCURRENT concurrent} and
      * {@link Collector.Characteristics#UNORDERED unordered} Collector.

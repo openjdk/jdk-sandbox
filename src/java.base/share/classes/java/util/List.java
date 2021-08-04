@@ -223,9 +223,9 @@ public interface List<E> extends Collection<E> {
      * The following code can be used to dump the list into a newly
      * allocated array of {@code String}:
      *
-     * <pre>{@code
-     *     String[] y = x.toArray(new String[0]);
-     * }</pre>
+     * {@snippet lang=java : 
+     *       String[] y = x.toArray(new String[0]);
+     * }
      *
      * Note that {@code toArray(new Object[0])} is identical in function to
      * {@code toArray()}.
@@ -415,12 +415,12 @@ public interface List<E> extends Collection<E> {
      *
      * @implSpec
      * The default implementation is equivalent to, for this {@code list}:
-     * <pre>{@code
-     *     final ListIterator<E> li = list.listIterator();
-     *     while (li.hasNext()) {
-     *         li.set(operator.apply(li.next()));
-     *     }
-     * }</pre>
+     * {@snippet lang=java : 
+     *       final ListIterator<E> li = list.listIterator();
+     *       while (li.hasNext()) {
+     *           li.set(operator.apply(li.next()));
+     *       }
+     * }
      *
      * If the list's list-iterator does not support the {@code set} operation
      * then an {@code UnsupportedOperationException} will be thrown when
@@ -546,11 +546,11 @@ public interface List<E> extends Collection<E> {
     /**
      * Returns the hash code value for this list.  The hash code of a list
      * is defined to be the result of the following calculation:
-     * <pre>{@code
-     *     int hashCode = 1;
-     *     for (E e : list)
-     *         hashCode = 31*hashCode + (e==null ? 0 : e.hashCode());
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int hashCode = 1;
+     *       for (E e : list)
+     *           hashCode = 31*hashCode + (e==null ? 0 : e.hashCode());
+     * }
      * This ensures that {@code list1.equals(list2)} implies that
      * {@code list1.hashCode()==list2.hashCode()} for any two lists,
      * {@code list1} and {@code list2}, as required by the general
@@ -717,9 +717,9 @@ public interface List<E> extends Collection<E> {
      * a list can be used as a range operation by passing a subList view
      * instead of a whole list.  For example, the following idiom
      * removes a range of elements from a list:
-     * <pre>{@code
-     *      list.subList(from, to).clear();
-     * }</pre>
+     * {@snippet lang=java :
+     *        list.subList(from, to).clear();
+     * }
      * Similar idioms may be constructed for {@code indexOf} and
      * {@code lastIndexOf}, and all of the algorithms in the
      * {@code Collections} class can be applied to a subList.<p>
@@ -1016,10 +1016,10 @@ public interface List<E> extends Collection<E> {
      * the list will be equal to the length of the array. To create a list with
      * a single element that is an array, do the following:
      *
-     * <pre>{@code
-     *     String[] array = ... ;
-     *     List<String[]> list = List.<String[]>of(array);
-     * }</pre>
+     * {@snippet : 
+     *       String[] array = ... ;
+     *       List<String[]> list = List.<String[]>of(array);
+     * }
      *
      * This will cause the {@link List#of(Object) List.of(E)} method
      * to be invoked instead.

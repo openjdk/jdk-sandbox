@@ -193,10 +193,10 @@ public final class OptionalInt {
      * @apiNote
      * This method can be used to transform a {@code Stream} of optional
      * integers to an {@code IntStream} of present integers:
-     * <pre>{@code
-     *     Stream<OptionalInt> os = ..
-     *     IntStream s = os.flatMapToInt(OptionalInt::stream)
-     * }</pre>
+     * {@snippet : 
+     *       Stream<OptionalInt> os = ..
+     *       IntStream s = os.flatMapToInt(OptionalInt::stream)
+     * }
      *
      * @return the optional value as an {@code IntStream}
      * @since 9

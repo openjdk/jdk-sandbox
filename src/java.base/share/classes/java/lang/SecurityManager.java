@@ -65,12 +65,12 @@ import sun.security.util.SecurityConstants;
  * are called by various methods in the Java libraries before those
  * methods perform certain potentially sensitive operations. The
  * invocation of such a {@code check} method typically looks like this:
- * <blockquote><pre>
+ * {@snippet :
  *     SecurityManager security = System.getSecurityManager();
  *     if (security != null) {
  *         security.check<i>XXX</i>(argument, &nbsp;.&nbsp;.&nbsp;.&nbsp;);
  *     }
- * </pre></blockquote>
+ * }
  * <p>
  * The security manager is thereby given an opportunity to prevent
  * completion of the operation by throwing an exception. A security
@@ -179,9 +179,9 @@ import sun.security.util.SecurityConstants;
  * permission should be granted or denied. The
  * default implementation calls
  *
- * <pre>
- *   AccessController.checkPermission(perm);
- * </pre>
+ * {@snippet lang=java : 
+ *     AccessController.checkPermission(perm);
+ * }
  *
  * <p>
  * If a requested access is allowed,
@@ -210,11 +210,11 @@ import sun.security.util.SecurityConstants;
  * returns an AccessControlContext object.) A sample call is
  * the following:
  *
- * <pre>
- *   Object context = null;
- *   SecurityManager sm = System.getSecurityManager();
- *   if (sm != null) context = sm.getSecurityContext();
- * </pre>
+ * {@snippet lang=java : 
+ *     Object context = null;
+ *     SecurityManager sm = System.getSecurityManager();
+ *     if (sm != null) context = sm.getSecurityContext();
+ * }
  *
  * <p>
  * The {@code checkPermission} method
@@ -227,9 +227,9 @@ import sun.security.util.SecurityConstants;
  * SecurityManager {@code sm} obtained as in the previous example,
  * is the following:
  *
- * <pre>
- *   if (sm != null) sm.checkPermission(permission, context);
- * </pre>
+ * {@snippet lang=java : 
+ *     if (sm != null) sm.checkPermission(permission, context);
+ * }
  *
  * <p>Permissions fall into these categories: File, Socket, Net,
  * Security, Runtime, Property, AWT, Reflect, and Serializable.

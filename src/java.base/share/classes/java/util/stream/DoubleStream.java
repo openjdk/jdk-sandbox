@@ -53,12 +53,13 @@ import java.util.function.Supplier;
  * {@link Stream} and {@link DoubleStream}, computing the sum of the weights of the
  * red widgets:
  *
- * <pre>{@code
- *     double sum = widgets.stream()
- *                         .filter(w -> w.getColor() == RED)
- *                         .mapToDouble(w -> w.getWeight())
- *                         .sum();
- * }</pre>
+ * {@snippet lang=java : 
+ *       double sum = widgets.stream()
+ *                           .filter(w -> w.getColor() == RED)
+ *                           .mapToDouble(w -> w.getWeight())
+ *                           .sum();
+ *   
+ * }
  *
  * See the class documentation for {@link Stream} and the package documentation
  * for <a href="package-summary.html">java.util.stream</a> for additional
@@ -239,14 +240,15 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      *
      * @apiNote This method exists mainly to support debugging, where you want
      * to see the elements as they flow past a certain point in a pipeline:
-     * <pre>{@code
-     *     DoubleStream.of(1, 2, 3, 4)
-     *         .filter(e -> e > 2)
-     *         .peek(e -> System.out.println("Filtered value: " + e))
-     *         .map(e -> e * e)
-     *         .peek(e -> System.out.println("Mapped value: " + e))
-     *         .sum();
-     * }</pre>
+     * {@snippet lang=java : 
+ *       DoubleStream.of(1, 2, 3, 4)
+ *           .filter(e -> e > 2)
+ *           .peek(e -> System.out.println("Filtered value: " + e))
+ *           .map(e -> e * e)
+ *           .peek(e -> System.out.println("Mapped value: " + e))
+ *           .sum();
+ *   
+ * }
      *
      * <p>In cases where the stream implementation is able to optimize away the
      * production of some or all the elements (such as with short-circuiting
@@ -497,12 +499,13 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      * <a href="package-summary.html#Associativity">associative</a>
      * accumulation function, and returns the reduced value.  This is equivalent
      * to:
-     * <pre>{@code
-     *     double result = identity;
-     *     for (double element : this stream)
-     *         result = accumulator.applyAsDouble(result, element)
-     *     return result;
-     * }</pre>
+     * {@snippet : 
+ *       double result = identity;
+ *       for (double element : this stream)
+ *           result = accumulator.applyAsDouble(result, element)
+ *       return result;
+ *   
+ * }
      *
      * but is not constrained to execute sequentially.
      *
@@ -518,15 +521,17 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      * @apiNote Sum, min, max, and average are all special cases of reduction.
      * Summing a stream of numbers can be expressed as:
      *
-     * <pre>{@code
-     *     double sum = numbers.reduce(0, (a, b) -> a+b);
-     * }</pre>
+     * {@snippet lang=java : 
+ *       double sum = numbers.reduce(0, (a, b) -> a+b);
+ *   
+ * }
      *
      * or more compactly:
      *
-     * <pre>{@code
-     *     double sum = numbers.reduce(0, Double::sum);
-     * }</pre>
+     * {@snippet lang=java : 
+ *       double sum = numbers.reduce(0, Double::sum);
+ *   
+ * }
      *
      * <p>While this may seem a more roundabout way to perform an aggregation
      * compared to simply mutating a running total in a loop, reduction
@@ -552,19 +557,20 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      * <a href="package-summary.html#Associativity">associative</a> accumulation
      * function, and returns an {@code OptionalDouble} describing the reduced
      * value, if any. This is equivalent to:
-     * <pre>{@code
-     *     boolean foundAny = false;
-     *     double result = null;
-     *     for (double element : this stream) {
-     *         if (!foundAny) {
-     *             foundAny = true;
-     *             result = element;
-     *         }
-     *         else
-     *             result = accumulator.applyAsDouble(result, element);
-     *     }
-     *     return foundAny ? OptionalDouble.of(result) : OptionalDouble.empty();
-     * }</pre>
+     * {@snippet : 
+ *       boolean foundAny = false;
+ *       double result = null;
+ *       for (double element : this stream) {
+ *           if (!foundAny) {
+ *               foundAny = true;
+ *               result = element;
+ *           }
+ *           else
+ *               result = accumulator.applyAsDouble(result, element);
+ *       }
+ *       return foundAny ? OptionalDouble.of(result) : OptionalDouble.empty();
+ *   
+ * }
      *
      * but is not constrained to execute sequentially.
      *
@@ -590,12 +596,13 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      * such as an {@code ArrayList}, and elements are incorporated by updating
      * the state of the result rather than by replacing the result.  This
      * produces a result equivalent to:
-     * <pre>{@code
-     *     R result = supplier.get();
-     *     for (double element : this stream)
-     *         accumulator.accept(result, element);
-     *     return result;
-     * }</pre>
+     * {@snippet : 
+ *       R result = supplier.get();
+ *       for (double element : this stream)
+ *           accumulator.accept(result, element);
+ *       return result;
+ *   
+ * }
      *
      * <p>Like {@link #reduce(double, DoubleBinaryOperator)}, {@code collect}
      * operations can be parallelized without requiring additional
@@ -636,9 +643,10 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      * floating-point summation were exact, this method would be
      * equivalent to:
      *
-     * <pre>{@code
-     *     return reduce(0, Double::sum);
-     * }</pre>
+     * {@snippet lang=java : 
+ *       return reduce(0, Double::sum);
+ *   
+ * }
      *
      * However, since floating-point summation is not exact, the above
      * code is not necessarily equivalent to the summation computation
@@ -712,9 +720,10 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      * to be strictly smaller than positive zero. This is a special case of a
      * <a href="package-summary.html#Reduction">reduction</a> and is
      * equivalent to:
-     * <pre>{@code
-     *     return reduce(Double::min);
-     * }</pre>
+     * {@snippet lang=java : 
+ *       return reduce(Double::min);
+ *   
+ * }
      *
      * <p>This is a <a href="package-summary.html#StreamOps">terminal
      * operation</a>.
@@ -733,9 +742,10 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      * special case of a
      * <a href="package-summary.html#Reduction">reduction</a> and is
      * equivalent to:
-     * <pre>{@code
-     *     return reduce(Double::max);
-     * }</pre>
+     * {@snippet lang=java : 
+ *       return reduce(Double::max);
+ *   
+ * }
      *
      * <p>This is a <a href="package-summary.html#StreamOps">terminal
      * operation</a>.
@@ -749,9 +759,10 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      * Returns the count of elements in this stream.  This is a special case of
      * a <a href="package-summary.html#Reduction">reduction</a> and is
      * equivalent to:
-     * <pre>{@code
-     *     return mapToLong(e -> 1L).sum();
-     * }</pre>
+     * {@snippet lang=java : 
+ *       return mapToLong(e -> 1L).sum();
+ *   
+ * }
      *
      * <p>This is a <a href="package-summary.html#StreamOps">terminal operation</a>.
      *
@@ -763,10 +774,11 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      * Behavioral parameters with side-effects, which are strongly discouraged
      * except for harmless cases such as debugging, may be affected.  For
      * example, consider the following stream:
-     * <pre>{@code
-     *     DoubleStream s = DoubleStream.of(1, 2, 3, 4);
-     *     long count = s.peek(System.out::println).count();
-     * }</pre>
+     * {@snippet lang=java : 
+ *       DoubleStream s = DoubleStream.of(1, 2, 3, 4);
+ *       long count = s.peek(System.out::println).count();
+ *   
+ * }
      * The number of elements covered by the stream source is known and the
      * intermediate operation, {@code peek}, does not inject into or remove
      * elements from the stream (as may be the case for {@code flatMap} or
@@ -1031,11 +1043,12 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      *
      * <p>{@code DoubleStream.iterate} should produce the same sequence of elements as
      * produced by the corresponding for-loop:
-     * <pre>{@code
-     *     for (double index=seed; hasNext.test(index); index = next.applyAsDouble(index)) {
-     *         ...
-     *     }
-     * }</pre>
+     * {@snippet : 
+ *       for (double index=seed; hasNext.test(index); index = next.applyAsDouble(index)) {
+ *           ...
+ *       }
+ *   
+ * }
      *
      * <p>The resulting sequence may be empty if the {@code hasNext} predicate
      * does not hold on the seed value.  Otherwise the first element will be the
@@ -1143,9 +1156,10 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      * To concatenate more streams without binding, or without nested calls to
      * this method, try creating a stream of streams and flat-mapping with the
      * identity function, for example:
-     * <pre>{@code
-     *     DoubleStream concat = Stream.of(s1, s2, s3, s4).flatMapToDouble(s -> s);
-     * }</pre>
+     * {@snippet lang=java : 
+ *       DoubleStream concat = Stream.of(s1, s2, s3, s4).flatMapToDouble(s -> s);
+ *   
+ * }
      *
      * @param a the first stream
      * @param b the second stream
@@ -1190,10 +1204,11 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
          *
          * @implSpec
          * The default implementation behaves as if:
-         * <pre>{@code
-         *     accept(t)
-         *     return this;
-         * }</pre>
+         * {@snippet : 
+ *       accept(t)
+ *       return this;
+ *   
+ * }
          *
          * @param t the element to add
          * @return {@code this} builder

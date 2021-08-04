@@ -57,18 +57,20 @@ import jdk.internal.util.ArraysSupport;
  *
  * <p> A typical invocation sequence is thus
  *
- * <blockquote><pre>
- * Pattern p = Pattern.{@link #compile compile}("a*b");
- * Matcher m = p.{@link #matcher matcher}("aaaaab");
- * boolean b = m.{@link Matcher#matches matches}();</pre></blockquote>
+ * {@snippet lang=java : 
+ *   Pattern p = Pattern.compile("a*b");
+ *   Matcher m = p.matcher("aaaaab");
+ *   boolean b = m.matches();
+ * }
  *
  * <p> A {@link #matches matches} method is defined by this class as a
  * convenience for when a regular expression is used just once.  This method
  * compiles an expression and matches an input sequence against it in a single
  * invocation.  The statement
  *
- * <blockquote><pre>
- * boolean b = Pattern.matches("a*b", "aaaaab");</pre></blockquote>
+ * {@snippet lang=java : 
+ *   boolean b = Pattern.matches("a*b", "aaaaab");
+ * }
  *
  * is equivalent to the three statements above, though for repeated matches it
  * is less efficient since it does not allow the compiled pattern to be reused.
@@ -1150,13 +1152,15 @@ public final class Pattern
      *
      * <p> An invocation of this convenience method of the form
      *
-     * <blockquote><pre>
-     * Pattern.matches(regex, input);</pre></blockquote>
+     * {@snippet lang=java : 
+     *   Pattern.matches(regex, input);
+     * }
      *
      * behaves in exactly the same way as the expression
      *
-     * <blockquote><pre>
-     * Pattern.compile(regex).matcher(input).matches()</pre></blockquote>
+     * {@snippet : 
+     *   Pattern.compile(regex).matcher(input).matches()
+     * }
      *
      * <p> If a pattern is to be used multiple times, compiling it once and reusing
      * it will be more efficient than invoking this method each time.  </p>
@@ -5764,9 +5768,9 @@ NEXT:       while (i <= last) {
      * This method creates a predicate that behaves as if it creates a matcher
      * from the input sequence and then calls {@code find}, for example a
      * predicate of the form:
-     * <pre>{@code
-     *   s -> matcher(s).find();
-     * }</pre>
+     * {@snippet : 
+     *     s -> matcher(s).find();
+     * }
      *
      * @return  The predicate which can be used for finding a match on a
      *          subsequence of a string
@@ -5784,9 +5788,9 @@ NEXT:       while (i <= last) {
      * This method creates a predicate that behaves as if it creates a matcher
      * from the input sequence and then calls {@code matches}, for example a
      * predicate of the form:
-     * <pre>{@code
-     *   s -> matcher(s).matches();
-     * }</pre>
+     * {@snippet : 
+     *     s -> matcher(s).matches();
+     * }
      *
      * @return  The predicate which can be used for matching an input string
      *          against this pattern.

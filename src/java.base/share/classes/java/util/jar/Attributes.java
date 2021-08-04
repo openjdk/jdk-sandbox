@@ -110,9 +110,9 @@ public class Attributes implements Map<Object,Object>, Cloneable {
      * name is case-insensitive.
      * <p>
      * This method is defined as:
-     * <pre>
-     *      return (String)get(new Attributes.Name((String)name));
-     * </pre>
+     * {@snippet lang=java : 
+     *        return (String)get(new Attributes.Name((String)name));
+     * }
      *
      * @param name the attribute name as a string
      * @return the String value of the specified attribute name, or null if
@@ -128,9 +128,9 @@ public class Attributes implements Map<Object,Object>, Cloneable {
      * attribute was not found.
      * <p>
      * This method is defined as:
-     * <pre>
-     *     return (String)get(name);
-     * </pre>
+     * {@snippet lang=java : 
+     *       return (String)get(name);
+     * }
      *
      * @param name the Attributes.Name object
      * @return the String value of the specified Attribute.Name, or null if
@@ -162,9 +162,9 @@ public class Attributes implements Map<Object,Object>, Cloneable {
      * the old value is replaced.
      * <p>
      * This method is defined as:
-     * <pre>
-     *      return (String)put(new Attributes.Name(name), value);
-     * </pre>
+     * {@snippet lang=java : 
+     *        return (String)put(new Attributes.Name(name), value);
+     * }
      *
      * @param name the attribute name as a string
      * @param value the attribute value
@@ -288,9 +288,9 @@ public class Attributes implements Map<Object,Object>, Cloneable {
 
     /**
      * Returns a copy of the Attributes, implemented as follows:
-     * <pre>
-     *     public Object clone() { return new Attributes(this); }
-     * </pre>
+     * {@snippet lang=java : 
+     *       public Object clone() { return new Attributes(this); }
+     * }
      * Since the attribute names and values are themselves immutable,
      * the Attributes returned can be safely modified without affecting
      * the original.

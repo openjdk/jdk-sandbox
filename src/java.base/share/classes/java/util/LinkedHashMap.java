@@ -47,12 +47,12 @@ import java.io.IOException;
  * without incurring the increased cost associated with {@link TreeMap}.  It
  * can be used to produce a copy of a map that has the same order as the
  * original, regardless of the original map's implementation:
- * <pre>{@code
- *     void foo(Map<String, Integer> m) {
- *         Map<String, Integer> copy = new LinkedHashMap<>(m);
- *         ...
- *     }
- * }</pre>
+ * {@snippet : 
+ *       void foo(Map<String, Integer> m) {
+ *           Map<String, Integer> copy = new LinkedHashMap<>(m);
+ *           ...
+ *       }
+ * }
  * This technique is particularly useful if a module takes a map on input,
  * copies it, and later returns results whose order is determined by that of
  * the copy.  (Clients generally appreciate having things returned in the same
@@ -106,8 +106,10 @@ import java.io.IOException;
  * If no such object exists, the map should be "wrapped" using the
  * {@link Collections#synchronizedMap Collections.synchronizedMap}
  * method.  This is best done at creation time, to prevent accidental
- * unsynchronized access to the map:<pre>
- *   Map m = Collections.synchronizedMap(new LinkedHashMap(...));</pre>
+ * unsynchronized access to the map:
+ * {@snippet :
+ *     Map m = Collections.synchronizedMap(new LinkedHashMap(...));
+ * }
  *
  * A structural modification is any operation that adds or deletes one or more
  * mappings or, in the case of access-ordered linked hash maps, affects
@@ -476,13 +478,13 @@ public class LinkedHashMap<K,V>
      * <p>Sample use: this override will allow the map to grow up to 100
      * entries and then delete the eldest entry each time a new entry is
      * added, maintaining a steady state of 100 entries.
-     * <pre>
-     *     private static final int MAX_ENTRIES = 100;
+     * {@snippet : 
+     *       private static final int MAX_ENTRIES = 100;
      *
-     *     protected boolean removeEldestEntry(Map.Entry eldest) {
-     *        return size() &gt; MAX_ENTRIES;
-     *     }
-     * </pre>
+     *       protected boolean removeEldestEntry(Map.Entry eldest) {
+     *          return size() &gt; MAX_ENTRIES;
+     *       }
+     * }
      *
      * <p>This method typically does not modify the map in any way,
      * instead allowing the map to modify itself as directed by its

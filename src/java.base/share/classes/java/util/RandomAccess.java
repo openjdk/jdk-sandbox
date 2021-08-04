@@ -48,15 +48,15 @@ package java.util;
  * should generally implement this interface.  As a rule of thumb, a
  * {@code List} implementation should implement this interface if,
  * for typical instances of the class, this loop:
- * <pre>
- *     for (int i=0, n=list.size(); i &lt; n; i++)
- *         list.get(i);
- * </pre>
+ * {@snippet : 
+ *       for (int i=0, n=list.size(); i &lt; n; i++)
+ *           list.get(i);
+ * }
  * runs faster than this loop:
- * <pre>
- *     for (Iterator i=list.iterator(); i.hasNext(); )
- *         i.next();
- * </pre>
+ * {@snippet lang=java : 
+ *       for (Iterator i=list.iterator(); i.hasNext(); )
+ *           i.next();
+ * }
  *
  * <p>This interface is a member of the
  * <a href="{@docRoot}/java.base/java/util/package-summary.html#CollectionsFramework">

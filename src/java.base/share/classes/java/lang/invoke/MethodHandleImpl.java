@@ -840,17 +840,17 @@ abstract class MethodHandleImpl {
 
     /**
      * The LambdaForm shape for catchException combinator is the following:
-     * <blockquote><pre>{@code
-     *  guardWithCatch=Lambda(a0:L,a1:L,a2:L)=>{
-     *    t3:L=BoundMethodHandle$Species_LLLLL.argL0(a0:L);
-     *    t4:L=BoundMethodHandle$Species_LLLLL.argL1(a0:L);
-     *    t5:L=BoundMethodHandle$Species_LLLLL.argL2(a0:L);
-     *    t6:L=BoundMethodHandle$Species_LLLLL.argL3(a0:L);
-     *    t7:L=BoundMethodHandle$Species_LLLLL.argL4(a0:L);
-     *    t8:L=MethodHandle.invokeBasic(t6:L,a1:L,a2:L);
-     *    t9:L=MethodHandleImpl.guardWithCatch(t3:L,t4:L,t5:L,t8:L);
-     *   t10:I=MethodHandle.invokeBasic(t7:L,t9:L);t10:I}
-     * }</pre></blockquote>
+     * {@snippet : 
+     *    guardWithCatch=Lambda(a0:L,a1:L,a2:L)=>{
+     *      t3:L=BoundMethodHandle$Species_LLLLL.argL0(a0:L);
+     *      t4:L=BoundMethodHandle$Species_LLLLL.argL1(a0:L);
+     *      t5:L=BoundMethodHandle$Species_LLLLL.argL2(a0:L);
+     *      t6:L=BoundMethodHandle$Species_LLLLL.argL3(a0:L);
+     *      t7:L=BoundMethodHandle$Species_LLLLL.argL4(a0:L);
+     *      t8:L=MethodHandle.invokeBasic(t6:L,a1:L,a2:L);
+     *      t9:L=MethodHandleImpl.guardWithCatch(t3:L,t4:L,t5:L,t8:L);
+     *     t10:I=MethodHandle.invokeBasic(t7:L,t9:L);t10:I}
+     * }
      *
      * argL0 and argL2 are target and catcher method handles. argL1 is exception class.
      * argL3 and argL4 are auxiliary method handles: argL3 boxes arguments and wraps them into Object[]
@@ -1568,15 +1568,15 @@ abstract class MethodHandleImpl {
      * generated from a template. The LambdaForm template shape for the loop combinator is as follows (assuming one
      * reference parameter passed in {@code a1}, and a reference return type, with the return value represented by
      * {@code t12}):
-     * <blockquote><pre>{@code
-     *  loop=Lambda(a0:L,a1:L)=>{
-     *    t2:L=BoundMethodHandle$Species_L3.argL0(a0:L);    // LoopClauses holding init, step, pred, fini handles
-     *    t3:L=BoundMethodHandle$Species_L3.argL1(a0:L);    // helper handle to box the arguments into an Object[]
-     *    t4:L=BoundMethodHandle$Species_L3.argL2(a0:L);    // helper handle to unbox the result
-     *    t5:L=MethodHandle.invokeBasic(t3:L,a1:L);         // box the arguments into an Object[]
-     *    t6:L=MethodHandleImpl.loop(null,t2:L,t3:L);       // call the loop executor
-     *    t7:L=MethodHandle.invokeBasic(t4:L,t6:L);t7:L}    // unbox the result; return the result
-     * }</pre></blockquote>
+     * {@snippet : 
+     *    loop=Lambda(a0:L,a1:L)=>{
+     *      t2:L=BoundMethodHandle$Species_L3.argL0(a0:L);    // LoopClauses holding init, step, pred, fini handles
+     *      t3:L=BoundMethodHandle$Species_L3.argL1(a0:L);    // helper handle to box the arguments into an Object[]
+     *      t4:L=BoundMethodHandle$Species_L3.argL2(a0:L);    // helper handle to unbox the result
+     *      t5:L=MethodHandle.invokeBasic(t3:L,a1:L);         // box the arguments into an Object[]
+     *      t6:L=MethodHandleImpl.loop(null,t2:L,t3:L);       // call the loop executor
+     *      t7:L=MethodHandle.invokeBasic(t4:L,t6:L);t7:L}    // unbox the result; return the result
+     * }
      * <p>
      * {@code argL0} is a LoopClauses instance holding, in a 2-dimensional array, the init, step, pred, and fini method
      * handles. {@code argL1} and {@code argL2} are auxiliary method handles: {@code argL1} boxes arguments and wraps
@@ -1805,16 +1805,16 @@ abstract class MethodHandleImpl {
     /**
      * The LambdaForm shape for the tryFinally combinator is as follows (assuming one reference parameter passed in
      * {@code a1}, and a reference return type, with the return value represented by {@code t8}):
-     * <blockquote><pre>{@code
-     *  tryFinally=Lambda(a0:L,a1:L)=>{
-     *    t2:L=BoundMethodHandle$Species_LLLL.argL0(a0:L);  // target method handle
-     *    t3:L=BoundMethodHandle$Species_LLLL.argL1(a0:L);  // cleanup method handle
-     *    t4:L=BoundMethodHandle$Species_LLLL.argL2(a0:L);  // helper handle to box the arguments into an Object[]
-     *    t5:L=BoundMethodHandle$Species_LLLL.argL3(a0:L);  // helper handle to unbox the result
-     *    t6:L=MethodHandle.invokeBasic(t4:L,a1:L);         // box the arguments into an Object[]
-     *    t7:L=MethodHandleImpl.tryFinally(t2:L,t3:L,t6:L); // call the tryFinally executor
-     *    t8:L=MethodHandle.invokeBasic(t5:L,t7:L);t8:L}    // unbox the result; return the result
-     * }</pre></blockquote>
+     * {@snippet : 
+     *    tryFinally=Lambda(a0:L,a1:L)=>{
+     *      t2:L=BoundMethodHandle$Species_LLLL.argL0(a0:L);  // target method handle
+     *      t3:L=BoundMethodHandle$Species_LLLL.argL1(a0:L);  // cleanup method handle
+     *      t4:L=BoundMethodHandle$Species_LLLL.argL2(a0:L);  // helper handle to box the arguments into an Object[]
+     *      t5:L=BoundMethodHandle$Species_LLLL.argL3(a0:L);  // helper handle to unbox the result
+     *      t6:L=MethodHandle.invokeBasic(t4:L,a1:L);         // box the arguments into an Object[]
+     *      t7:L=MethodHandleImpl.tryFinally(t2:L,t3:L,t6:L); // call the tryFinally executor
+     *      t8:L=MethodHandle.invokeBasic(t5:L,t7:L);t8:L}    // unbox the result; return the result
+     * }
      * <p>
      * {@code argL0} and {@code argL1} are the target and cleanup method handles.
      * {@code argL2} and {@code argL3} are auxiliary method handles: {@code argL2} boxes arguments and wraps them into

@@ -58,20 +58,20 @@ import java.lang.*;
  * create the {@code StringTokenizer} object.
  * <p>
  * The following is one example of the use of the tokenizer. The code:
- * <blockquote><pre>
- *     StringTokenizer st = new StringTokenizer("this is a test");
- *     while (st.hasMoreTokens()) {
- *         System.out.println(st.nextToken());
- *     }
- * </pre></blockquote>
+ * {@snippet lang=java : 
+ *       StringTokenizer st = new StringTokenizer("this is a test");
+ *       while (st.hasMoreTokens()) {
+ *           System.out.println(st.nextToken());
+ *       }
+ * }
  * <p>
  * prints the following output:
- * <blockquote><pre>
- *     this
- *     is
- *     a
- *     test
- * </pre></blockquote>
+ * {@snippet : 
+ *       this
+ *       is
+ *       a
+ *       test
+ * }
  *
  * <p>
  * {@code StringTokenizer} is a legacy class that is retained for
@@ -81,19 +81,19 @@ import java.lang.*;
  * <p>
  * The following example illustrates how the {@code String.split}
  * method can be used to break up a string into its basic tokens:
- * <blockquote><pre>
- *     String[] result = "this is a test".split("\\s");
- *     for (int x=0; x&lt;result.length; x++)
- *         System.out.println(result[x]);
- * </pre></blockquote>
+ * {@snippet : 
+ *       String[] result = "this is a test".split("\\s");
+ *       for (int x=0; x&lt;result.length; x++)
+ *           System.out.println(result[x]);
+ * }
  * <p>
  * prints the following output:
- * <blockquote><pre>
- *     this
- *     is
- *     a
- *     test
- * </pre></blockquote>
+ * {@snippet : 
+ *       this
+ *       is
+ *       a
+ *       test
+ * }
  *
  * @see     java.io.StreamTokenizer
  * @since   1.0

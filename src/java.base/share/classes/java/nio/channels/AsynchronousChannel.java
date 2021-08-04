@@ -32,11 +32,14 @@ import java.util.concurrent.Future;  // javadoc
  * A channel that supports asynchronous I/O operations. Asynchronous I/O
  * operations will usually take one of two forms:
  *
- * <ol>
- * <li><pre>{@link Future}&lt;V&gt; <em>operation</em>(<em>...</em>)</pre></li>
- * <li><pre>void <em>operation</em>(<em>...</em> A attachment, {@link
- *   CompletionHandler}&lt;V,? super A&gt; handler)</pre></li>
- * </ol>
+ * {@snippet :
+ *     operation(...) //@highlight regex="operation(...)" @link regex="operation" target="Future"
+ * }
+ *
+ * {@snippet :
+ *   void operation(... A attachment, //@highlight regex="...|operation"
+ *                           <V,? super A> handler) //@link regex="" target="CompletionHandler"
+ * }
  *
  * where <i>operation</i> is the name of the I/O operation (read or write for
  * example), <i>V</i> is the result type of the I/O operation, and <i>A</i> is

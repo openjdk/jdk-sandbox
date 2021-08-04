@@ -83,9 +83,9 @@ public class DataInputStream extends FilterInputStream implements DataInput {
      * unaffected.
      *
      * <p>The {@code read(b)} method has the same effect as:
-     * <blockquote><pre>
-     * read(b, 0, b.length)
-     * </pre></blockquote>
+     * {@snippet : 
+     *   read(b, 0, b.length)
+     * }
      *
      * @param      b   the buffer into which the data is read.
      * @return     the total number of bytes read into the buffer, or
@@ -489,14 +489,14 @@ public class DataInputStream extends FilterInputStream implements DataInput {
      * {@code BufferedReader.readLine()} method.  Programs that use the
      * {@code DataInputStream} class to read lines can be converted to use
      * the {@code BufferedReader} class by replacing code of the form:
-     * <blockquote><pre>
-     *     DataInputStream d =&nbsp;new&nbsp;DataInputStream(in);
-     * </pre></blockquote>
+     * {@snippet : 
+     *       DataInputStream d = new DataInputStream(in);
+     * }
      * with:
-     * <blockquote><pre>
-     *     BufferedReader d
-     *          =&nbsp;new&nbsp;BufferedReader(new&nbsp;InputStreamReader(in));
-     * </pre></blockquote>
+     * {@snippet : 
+     *       BufferedReader d
+     *            = new BufferedReader(new InputStreamReader(in));
+     * }
      *
      * @return     the next line of text from this input stream.
      * @throws     IOException  if an I/O error occurs.

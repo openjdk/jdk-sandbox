@@ -54,23 +54,7 @@ import java.util.List;
  * created, a watch key has no pending events. Typically events are retrieved
  * when the key is in the signalled state leading to the following idiom:
  *
- * <pre>
- *     for (;;) {
- *         // retrieve key
- *         WatchKey key = watcher.take();
- *
- *         // process events
- *         for (WatchEvent&lt;?&gt; event: key.pollEvents()) {
- *             :
- *         }
- *
- *         // reset the key
- *         boolean valid = key.reset();
- *         if (!valid) {
- *             // object no longer registered
- *         }
- *     }
- * </pre>
+ * {@snippet file="WatchKeySnippets.java" region="snippet1"}
  *
  * <p> Watch keys are safe for use by multiple concurrent threads. Where there
  * are several threads retrieving signalled keys from a watch service then care

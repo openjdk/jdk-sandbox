@@ -52,51 +52,51 @@ import sun.util.locale.provider.ResourceBundleBasedAdapter;
  *
  * <p>For example, this code allows a user to read a number from
  * {@code System.in}:
- * <blockquote><pre>{@code
- *     Scanner sc = new Scanner(System.in);
- *     int i = sc.nextInt();
- * }</pre></blockquote>
+ * {@snippet lang=java : 
+ *       Scanner sc = new Scanner(System.in);
+ *       int i = sc.nextInt();
+ * }
  *
  * <p>As another example, this code allows {@code long} types to be
  * assigned from entries in a file {@code myNumbers}:
- * <blockquote><pre>{@code
- *      Scanner sc = new Scanner(new File("myNumbers"));
- *      while (sc.hasNextLong()) {
- *          long aLong = sc.nextLong();
- *      }
- * }</pre></blockquote>
+ * {@snippet lang=java : 
+ *        Scanner sc = new Scanner(new File("myNumbers"));
+ *        while (sc.hasNextLong()) {
+ *            long aLong = sc.nextLong();
+ *        }
+ * }
  *
  * <p>The scanner can also use delimiters other than whitespace. This
  * example reads several items in from a string:
- * <blockquote><pre>{@code
- *     String input = "1 fish 2 fish red fish blue fish";
- *     Scanner s = new Scanner(input).useDelimiter("\\s*fish\\s*");
- *     System.out.println(s.nextInt());
- *     System.out.println(s.nextInt());
- *     System.out.println(s.next());
- *     System.out.println(s.next());
- *     s.close();
- * }</pre></blockquote>
+ * {@snippet lang=java : 
+ *       String input = "1 fish 2 fish red fish blue fish";
+ *       Scanner s = new Scanner(input).useDelimiter("\\s*fish\\s*");
+ *       System.out.println(s.nextInt());
+ *       System.out.println(s.nextInt());
+ *       System.out.println(s.next());
+ *       System.out.println(s.next());
+ *       s.close();
+ * }
  * <p>
  * prints the following output:
- * <blockquote><pre>{@code
- *     1
- *     2
- *     red
- *     blue
- * }</pre></blockquote>
+ * {@snippet : 
+ *       1
+ *       2
+ *       red
+ *       blue
+ * }
  *
  * <p>The same output can be generated with this code, which uses a regular
  * expression to parse all four tokens at once:
- * <blockquote><pre>{@code
- *     String input = "1 fish 2 fish red fish blue fish";
- *     Scanner s = new Scanner(input);
- *     s.findInLine("(\\d+) fish (\\d+) fish (\\w+) fish (\\w+)");
- *     MatchResult result = s.match();
- *     for (int i=1; i<=result.groupCount(); i++)
- *         System.out.println(result.group(i));
- *     s.close();
- * }</pre></blockquote>
+ * {@snippet lang=java : 
+ *       String input = "1 fish 2 fish red fish blue fish";
+ *       Scanner s = new Scanner(input);
+ *       s.findInLine("(\\d+) fish (\\d+) fish (\\w+) fish (\\w+)");
+ *       MatchResult result = s.match();
+ *       for (int i=1; i<=result.groupCount(); i++)
+ *           System.out.println(result.group(i));
+ *       s.close();
+ * }
  *
  * <p>The <a id="default-delimiter">default whitespace delimiter</a> used
  * by a scanner is as recognized by {@link Character#isWhitespace(char)
@@ -2759,11 +2759,11 @@ public final class Scanner implements Iterator<String>, Closeable {
      * {@code scanner.reset()} behaves in exactly the same way as the
      * invocation
      *
-     * <blockquote><pre>{@code
-     *   scanner.useDelimiter("\\p{javaWhitespace}+")
-     *          .useLocale(Locale.getDefault(Locale.Category.FORMAT))
-     *          .useRadix(10);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *     scanner.useDelimiter("\\p{javaWhitespace}+")
+     *            .useLocale(Locale.getDefault(Locale.Category.FORMAT))
+     *            .useRadix(10);
+     * }
      *
      * @return this scanner
      *
@@ -2810,12 +2810,12 @@ public final class Scanner implements Iterator<String>, Closeable {
      * For example, the following code will create a list of
      * comma-delimited tokens from a string:
      *
-     * <pre>{@code
-     * List<String> result = new Scanner("abc,def,,ghi")
-     *     .useDelimiter(",")
-     *     .tokens()
-     *     .collect(Collectors.toList());
-     * }</pre>
+     * {@snippet lang=java : 
+     *   List<String> result = new Scanner("abc,def,,ghi")
+     *       .useDelimiter(",")
+     *       .tokens()
+     *       .collect(Collectors.toList());
+     * }
      *
      * <p>The resulting list would contain {@code "abc"}, {@code "def"},
      * the empty string, and {@code "ghi"}.
@@ -2895,14 +2895,14 @@ public final class Scanner implements Iterator<String>, Closeable {
      * of all sequences of characters consisting of seven or more Latin capital
      * letters:
      *
-     * <pre>{@code
-     * try (Scanner sc = new Scanner(Path.of("input.txt"))) {
-     *     Pattern pat = Pattern.compile("[A-Z]{7,}");
-     *     List<String> capWords = sc.findAll(pat)
-     *                               .map(MatchResult::group)
-     *                               .collect(Collectors.toList());
+     * {@snippet lang=java : 
+     *   try (Scanner sc = new Scanner(Path.of("input.txt"))) {
+     *       Pattern pat = Pattern.compile("[A-Z]{7,}");
+     *       List<String> capWords = sc.findAll(pat)
+     *                                 .map(MatchResult::group)
+     *                                 .collect(Collectors.toList());
+     *   }
      * }
-     * }</pre>
      *
      * @param pattern the pattern to be matched
      * @return a sequential stream of match results
@@ -2921,9 +2921,9 @@ public final class Scanner implements Iterator<String>, Closeable {
      * Returns a stream of match results that match the provided pattern string.
      * The effect is equivalent to the following code:
      *
-     * <pre>{@code
-     *     scanner.findAll(Pattern.compile(patString))
-     * }</pre>
+     * {@snippet : 
+     *       scanner.findAll(Pattern.compile(patString))
+     * }
      *
      * @param patString the pattern string
      * @return a sequential stream of match results

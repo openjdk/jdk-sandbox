@@ -49,12 +49,12 @@ import java.util.stream.Stream;
  * a <em>scoped</em> allocator, that is, an allocator which creates segment bound by a given scope. This can be useful
  * when working inside a <em>try-with-resources</em> construct:
  *
- * <blockquote><pre>{@code
-try (ResourceScope scope = ResourceScope.newConfinedScope()) {
-   SegmentAllocator allocator = SegmentAllocator.ofScope(scope);
-   ...
-}
- * }</pre></blockquote>
+ * {@snippet : 
+ *  try (ResourceScope scope = ResourceScope.newConfinedScope()) {
+ *     SegmentAllocator allocator = SegmentAllocator.ofScope(scope);
+ *     ...
+ *  }
+ * }
  *
  * In addition, this interface also defines factories for commonly used allocators; for instance {@link #arenaAllocator(ResourceScope)}
  * and {@link #arenaAllocator(long, ResourceScope)} are arena-style native allocators. Finally {@link #ofSegment(MemorySegment)}
@@ -451,10 +451,10 @@ public interface SegmentAllocator {
      * Returns a native allocator which responds to allocation requests by allocating new segments
      * bound by the given resource scope, using the {@link MemorySegment#allocateNative(long, long, ResourceScope)}
      * factory. This code is equivalent (but likely more efficient) to the following:
-     * <blockquote><pre>{@code
-    Resource scope = ...
-    SegmentAllocator scoped = (size, align) -> MemorySegment.allocateNative(size, align, scope);
-     * }</pre></blockquote>
+     * {@snippet : 
+     *      Resource scope = ...
+     *      SegmentAllocator scoped = (size, align) -> MemorySegment.allocateNative(size, align, scope);
+     * }
      *
      * @param scope the resource scope associated with the segments created by the returned allocator.
      * @return an allocator which allocates new memory segment bound by the provided resource scope.

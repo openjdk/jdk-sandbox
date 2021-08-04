@@ -37,19 +37,19 @@ import sun.nio.fs.BasicFileAttributesHolder;
  * Walks a file tree, generating a sequence of events corresponding to the files
  * in the tree.
  *
- * <pre>{@code
- *     Path top = ...
- *     Set<FileVisitOption> options = ...
- *     int maxDepth = ...
- *
- *     try (FileTreeWalker walker = new FileTreeWalker(options, maxDepth)) {
- *         FileTreeWalker.Event ev = walker.walk(top);
- *         do {
- *             process(ev);
- *             ev = walker.next();
- *         } while (ev != null);
- *     }
- * }</pre>
+ * {@snippet : 
+ *       Path top = ...
+ *       Set<FileVisitOption> options = ...
+ *       int maxDepth = ...
+ *  
+ *       try (FileTreeWalker walker = new FileTreeWalker(options, maxDepth)) {
+ *           FileTreeWalker.Event ev = walker.walk(top);
+ *           do {
+ *               process(ev);
+ *               ev = walker.next();
+ *           } while (ev != null);
+ *       }
+ * }
  *
  * @see Files#walkFileTree
  */

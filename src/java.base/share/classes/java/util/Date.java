@@ -83,14 +83,14 @@ import sun.util.calendar.ZoneInfo;
  * global positioning system (GPS) is synchronized to UTC but is
  * <i>not</i> adjusted for leap seconds. An interesting source of
  * further information is the United States Naval Observatory (USNO):
- * <blockquote><pre>
- *     <a href="https://www.usno.navy.mil/USNO">https://www.usno.navy.mil/USNO</a>
- * </pre></blockquote>
+ * {@snippet :
+ *     https://www.usno.navy.mil/USNO">https://www.usno.navy.mil/USNO
+ * }
  * <p>
  * and the material regarding "Systems of Time" at:
- * <blockquote><pre>
- *     <a href="https://www.usno.navy.mil/USNO/time/master-clock/systems-of-time">https://www.usno.navy.mil/USNO/time/master-clock/systems-of-time</a>
- * </pre></blockquote>
+ * {@snippet :
+ *     https://www.usno.navy.mil/USNO/time/master-clock/systems-of-time">https://www.usno.navy.mil/USNO/time/master-clock/systems-of-time
+ * }
  * <p>
  * which has descriptions of various different time systems including
  * UT, UT1, and UTC.
@@ -358,10 +358,11 @@ public class Date
      * ASCII parenthesis characters {@code (} and {@code )} is ignored.
      * Parentheses may be nested. Otherwise, the only characters permitted
      * within {@code s} are these ASCII characters:
-     * <blockquote><pre>
-     * abcdefghijklmnopqrstuvwxyz
-     * ABCDEFGHIJKLMNOPQRSTUVWXYZ
-     * 0123456789,+-:/</pre></blockquote>
+     * {@snippet : 
+     *   abcdefghijklmnopqrstuvwxyz
+     *   ABCDEFGHIJKLMNOPQRSTUVWXYZ
+     *   0123456789,+-:/
+     * }
      * and whitespace characters.<p>
      * A consecutive sequence of decimal digits is treated as a decimal
      * number:<ul>
@@ -986,9 +987,9 @@ public class Date
      * exclusive OR of the two halves of the primitive {@code long}
      * value returned by the {@link Date#getTime}
      * method. That is, the hash code is the value of the expression:
-     * <blockquote><pre>{@code
-     * (int)(this.getTime()^(this.getTime() >>> 32))
-     * }</pre></blockquote>
+     * {@snippet : 
+     *   (int)(this.getTime()^(this.getTime() >>> 32))
+     * }
      *
      * @return  a hash code value for this object.
      */
@@ -1000,8 +1001,9 @@ public class Date
     /**
      * Converts this {@code Date} object to a {@code String}
      * of the form:
-     * <blockquote><pre>
-     * dow mon dd hh:mm:ss zzz yyyy</pre></blockquote>
+     * {@snippet : 
+     *   dow mon dd hh:mm:ss zzz yyyy
+     * }
      * where:<ul>
      * <li>{@code dow} is the day of the week ({@code Sun, Mon, Tue, Wed,
      *     Thu, Fri, Sat}).
@@ -1088,8 +1090,9 @@ public class Date
     /**
      * Creates a string representation of this {@code Date} object of
      * the form:
-     * <blockquote><pre>
-     * d mon yyyy hh:mm:ss GMT</pre></blockquote>
+     * {@snippet : 
+     *   d mon yyyy hh:mm:ss GMT
+     * }
      * where:<ul>
      * <li><i>d</i> is the day of the month ({@code 1} through {@code 31}),
      *     as one or two decimal digits.
@@ -1140,23 +1143,26 @@ public class Date
      * this {@code Date} object.
      * <p>
      * For example, in Massachusetts, five time zones west of Greenwich:
-     * <blockquote><pre>
-     * new Date(96, 1, 14).getTimezoneOffset() returns 300</pre></blockquote>
+     * {@snippet : 
+     *   new Date(96, 1, 14).getTimezoneOffset() returns 300
+     * }
      * because on February 14, 1996, standard time (Eastern Standard Time)
      * is in use, which is offset five hours from UTC; but:
-     * <blockquote><pre>
-     * new Date(96, 5, 1).getTimezoneOffset() returns 240</pre></blockquote>
+     * {@snippet : 
+     *   new Date(96, 5, 1).getTimezoneOffset() returns 240
+     * }
      * because on June 1, 1996, daylight saving time (Eastern Daylight Time)
      * is in use, which is offset only four hours from UTC.<p>
      * This method produces the same result as if it computed:
-     * <blockquote><pre>
-     * (this.getTime() - UTC(this.getYear(),
-     *                       this.getMonth(),
-     *                       this.getDate(),
-     *                       this.getHours(),
-     *                       this.getMinutes(),
-     *                       this.getSeconds())) / (60 * 1000)
-     * </pre></blockquote>
+     * {@snippet : 
+     *   (this.getTime() - UTC(this.getYear(),
+     *                         this.getMonth(),
+     *                         this.getDate(),
+     *                         this.getHours(),
+     *                         this.getMinutes(),
+     *                         this.getSeconds())) / (60 * 1000)
+     *
+     * }
      *
      * @return  the time-zone offset, in minutes, for the current time zone.
      * @see     java.util.Calendar#ZONE_OFFSET

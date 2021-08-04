@@ -30,7 +30,6 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 
 import static java.util.Objects.requireNonNull;
 
@@ -114,9 +113,8 @@ final class MethodTypeDescImpl implements MethodTypeDesc {
 
     @Override
     public MethodTypeDesc dropParameterTypes(int start, int end) {
-        Objects.checkIndex(start, argTypes.length);
-        Objects.checkFromToIndex(start, end, argTypes.length);
-
+        if (start < 0 || start >= argTypes.length || end < 0 || end > argTypes.length || start > end)
+            throw new IndexOutOfBoundsException();
         ClassDesc[] newArgs = new ClassDesc[argTypes.length - (end - start)];
         System.arraycopy(argTypes, 0, newArgs, 0, start);
         System.arraycopy(argTypes, end, newArgs, start, argTypes.length - end);

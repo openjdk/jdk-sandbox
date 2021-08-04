@@ -594,20 +594,20 @@ public final class Integer extends Number
      * </ul>
      *
      * <p>Examples:
-     * <blockquote><pre>
-     * parseInt("0", 10) returns 0
-     * parseInt("473", 10) returns 473
-     * parseInt("+42", 10) returns 42
-     * parseInt("-0", 10) returns 0
-     * parseInt("-FF", 16) returns -255
-     * parseInt("1100110", 2) returns 102
-     * parseInt("2147483647", 10) returns 2147483647
-     * parseInt("-2147483648", 10) returns -2147483648
-     * parseInt("2147483648", 10) throws a NumberFormatException
-     * parseInt("99", 8) throws a NumberFormatException
-     * parseInt("Kona", 10) throws a NumberFormatException
-     * parseInt("Kona", 27) returns 411787
-     * </pre></blockquote>
+     * {@snippet :
+     *  parseInt("0", 10) returns 0
+     *  parseInt("473", 10) returns 473
+     *  parseInt("+42", 10) returns 42
+     *  parseInt("-0", 10) returns 0
+     *  parseInt("-FF", 16) returns -255
+     *  parseInt("1100110", 2) returns 102
+     *  parseInt("2147483647", 10) returns 2147483647
+     *  parseInt("-2147483648", 10) returns -2147483648
+     *  parseInt("2147483648", 10) throws a NumberFormatException
+     *  parseInt("99", 8) throws a NumberFormatException
+     *  parseInt("Kona", 10) throws a NumberFormatException
+     *  parseInt("Kona", 27) returns 411787
+     *  }
      *
      * @param      s   the {@code String} containing the integer
      *                  representation to be parsed
@@ -709,8 +709,10 @@ public final class Integer extends Number
     public static int parseInt(CharSequence s, int beginIndex, int endIndex, int radix)
                 throws NumberFormatException {
         Objects.requireNonNull(s);
-        Objects.checkFromToIndex(beginIndex, endIndex, s.length());
 
+        if (beginIndex < 0 || beginIndex > endIndex || endIndex > s.length()) {
+            throw new IndexOutOfBoundsException();
+        }
         if (radix < Character.MIN_RADIX) {
             throw new NumberFormatException("radix " + radix +
                                             " less than Character.MIN_RADIX");
@@ -890,8 +892,10 @@ public final class Integer extends Number
     public static int parseUnsignedInt(CharSequence s, int beginIndex, int endIndex, int radix)
                 throws NumberFormatException {
         Objects.requireNonNull(s);
-        Objects.checkFromToIndex(beginIndex, endIndex, s.length());
 
+        if (beginIndex < 0 || beginIndex > endIndex || endIndex > s.length()) {
+            throw new IndexOutOfBoundsException();
+        }
         int start = beginIndex, len = endIndex - beginIndex;
 
         if (len > 0) {
@@ -1294,10 +1298,10 @@ public final class Integer extends Number
      *
      * but in practice it may be implemented in a manner such as:
      *
-     * <blockquote><pre>
-     * Integer result = getInteger(nm, null);
-     * return (result == null) ? new Integer(val) : result;
-     * </pre></blockquote>
+     * {@snippet lang=java : 
+     *   Integer result = getInteger(nm, null);
+     *   return (result == null) ? new Integer(val) : result;
+     * }
      *
      * to avoid the unnecessary allocation of an {@code Integer}
      * object when the default value is not needed.
@@ -1476,9 +1480,9 @@ public final class Integer extends Number
     /**
      * Compares two {@code int} values numerically.
      * The value returned is identical to what would be returned by:
-     * <pre>
-     *    Integer.valueOf(x).compareTo(Integer.valueOf(y))
-     * </pre>
+     * {@snippet : 
+     *      Integer.valueOf(x).compareTo(Integer.valueOf(y))
+     * }
      *
      * @param  x the first {@code int} to compare
      * @param  y the second {@code int} to compare

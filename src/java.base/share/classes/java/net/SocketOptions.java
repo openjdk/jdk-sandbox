@@ -51,29 +51,29 @@ public interface SocketOptions {
      * is to be enabled, and it takes an option-specific "value",  this is
      * passed in <I>value</I>.  The actual type of value is option-specific,
      * and it is an error to pass something that isn't of the expected type:
-     * <BR><PRE>
+     * {@snippet :
      * SocketImpl s;
      * ...
      * s.setOption(SO_LINGER, new Integer(10));
      *    // OK - set SO_LINGER w/ timeout of 10 sec.
      * s.setOption(SO_LINGER, new Double(10));
      *    // ERROR - expects java.lang.Integer
-     *</PRE>
+     *}
      * If the requested option is binary, it can be set using this method by
      * a java.lang.Boolean:
-     * <BR><PRE>
+     * {@snippet :
      * s.setOption(TCP_NODELAY, Boolean.TRUE);
      *    // OK - enables TCP_NODELAY, a binary option
-     * </PRE>
-     * <BR>
+     * }
+     *
      * Any option can be disabled using this method with a Boolean.FALSE:
-     * <BR><PRE>
+     * {@snippet :
      * s.setOption(TCP_NODELAY, Boolean.FALSE);
      *    // OK - disables TCP_NODELAY
      * s.setOption(SO_LINGER, Boolean.FALSE);
      *    // OK - disables SO_LINGER
-     * </PRE>
-     * <BR>
+     * }
+     *
      * For an option that has a notion of on and off, and requires
      * a non-boolean parameter, setting its value to anything other than
      * <I>Boolean.FALSE</I> implicitly enables it.
@@ -94,7 +94,7 @@ public interface SocketOptions {
      * Fetch the value of an option.
      * Binary options will return java.lang.Boolean.TRUE
      * if enabled, java.lang.Boolean.FALSE if disabled, e.g.:
-     * <BR><PRE>
+     * {@snippet :
      * SocketImpl s;
      * ...
      * Boolean noDelay = (Boolean)(s.getOption(TCP_NODELAY));
@@ -102,19 +102,19 @@ public interface SocketOptions {
      *     // true if TCP_NODELAY is enabled...
      * ...
      * }
-     * </PRE>
+     * }
      * <P>
      * For options that take a particular type as a parameter,
      * getOption(int) will return the parameter's value, else
      * it will return java.lang.Boolean.FALSE:
-     * <PRE>
+     * {@snippet :
      * Object o = s.getOption(SO_LINGER);
      * if (o instanceof Integer) {
      *     System.out.print("Linger time is " + ((Integer)o).intValue());
      * } else {
      *   // the true type of o is java.lang.Boolean.FALSE;
      * }
-     * </PRE>
+     * }
      *
      * @param  optID an {@code int} identifying the option to fetch
      * @return the value of the option
@@ -252,11 +252,11 @@ public interface SocketOptions {
     @Native public static final int SO_LINGER = 0x0080;
 
     /** Set a timeout on blocking Socket operations:
-     * <PRE>
+     * {@snippet :
      * ServerSocket.accept();
      * SocketInputStream.read();
      * DatagramSocket.receive();
-     * </PRE>
+     * }
      *
      * <P> The option must be set prior to entering a blocking
      * operation to take effect.  If the timeout expires and the

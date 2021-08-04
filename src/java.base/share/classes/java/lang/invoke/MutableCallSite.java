@@ -39,32 +39,32 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Here is an example of a mutable call site which introduces a
  * state variable into a method handle chain.
  * <!-- JavaDocExamplesTest.testMutableCallSite -->
- * <blockquote><pre>{@code
-MutableCallSite name = new MutableCallSite(MethodType.methodType(String.class));
-MethodHandle MH_name = name.dynamicInvoker();
-MethodType MT_str1 = MethodType.methodType(String.class);
-MethodHandle MH_upcase = MethodHandles.lookup()
-    .findVirtual(String.class, "toUpperCase", MT_str1);
-MethodHandle worker1 = MethodHandles.filterReturnValue(MH_name, MH_upcase);
-name.setTarget(MethodHandles.constant(String.class, "Rocky"));
-assertEquals("ROCKY", (String) worker1.invokeExact());
-name.setTarget(MethodHandles.constant(String.class, "Fred"));
-assertEquals("FRED", (String) worker1.invokeExact());
-// (mutation can be continued indefinitely)
- * }</pre></blockquote>
+ * {@snippet lang=java : 
+ *  MutableCallSite name = new MutableCallSite(MethodType.methodType(String.class));
+ *  MethodHandle MH_name = name.dynamicInvoker();
+ *  MethodType MT_str1 = MethodType.methodType(String.class);
+ *  MethodHandle MH_upcase = MethodHandles.lookup()
+ *      .findVirtual(String.class, "toUpperCase", MT_str1);
+ *  MethodHandle worker1 = MethodHandles.filterReturnValue(MH_name, MH_upcase);
+ *  name.setTarget(MethodHandles.constant(String.class, "Rocky"));
+ *  assertEquals("ROCKY", (String) worker1.invokeExact());
+ *  name.setTarget(MethodHandles.constant(String.class, "Fred"));
+ *  assertEquals("FRED", (String) worker1.invokeExact());
+ *  // (mutation can be continued indefinitely)
+ * }
  * <p>
  * The same call site may be used in several places at once.
- * <blockquote><pre>{@code
-MethodType MT_str2 = MethodType.methodType(String.class, String.class);
-MethodHandle MH_cat = lookup().findVirtual(String.class,
-  "concat", methodType(String.class, String.class));
-MethodHandle MH_dear = MethodHandles.insertArguments(MH_cat, 1, ", dear?");
-MethodHandle worker2 = MethodHandles.filterReturnValue(MH_name, MH_dear);
-assertEquals("Fred, dear?", (String) worker2.invokeExact());
-name.setTarget(MethodHandles.constant(String.class, "Wilma"));
-assertEquals("WILMA", (String) worker1.invokeExact());
-assertEquals("Wilma, dear?", (String) worker2.invokeExact());
- * }</pre></blockquote>
+ * {@snippet lang=java : 
+ *  MethodType MT_str2 = MethodType.methodType(String.class, String.class);
+ *  MethodHandle MH_cat = lookup().findVirtual(String.class,
+ *    "concat", methodType(String.class, String.class));
+ *  MethodHandle MH_dear = MethodHandles.insertArguments(MH_cat, 1, ", dear?");
+ *  MethodHandle worker2 = MethodHandles.filterReturnValue(MH_name, MH_dear);
+ *  assertEquals("Fred, dear?", (String) worker2.invokeExact());
+ *  name.setTarget(MethodHandles.constant(String.class, "Wilma"));
+ *  assertEquals("WILMA", (String) worker1.invokeExact());
+ *  assertEquals("Wilma, dear?", (String) worker2.invokeExact());
+ * }
  * <p>
  * <em>Non-synchronization of target values:</em>
  * A write to a mutable call site's target does not force other threads

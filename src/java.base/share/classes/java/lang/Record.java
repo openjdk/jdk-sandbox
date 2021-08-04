@@ -62,9 +62,9 @@ package java.lang;
  * <p>For all record classes, the following invariant must hold: if a record R's
  * components are {@code c1, c2, ... cn}, then if a record instance is copied
  * as follows:
- * <pre>
- *     R copy = new R(r.c1(), r.c2(), ..., r.cn());
- * </pre>
+ * {@snippet : 
+ *       R copy = new R(r.c1(), r.c2(), ..., r.cn());
+ * }
  * then it must be the case that {@code r.equals(copy)}.
  *
  * @apiNote
@@ -98,9 +98,9 @@ public abstract class Record {
      * record classes must further obey the invariant that when
      * a record instance is "copied" by passing the result of the record component
      * accessor methods to the canonical constructor, as follows:
-     * <pre>
-     *     R copy = new R(r.c1(), r.c2(), ..., r.cn());
-     * </pre>
+     * {@snippet : 
+     *       R copy = new R(r.c1(), r.c2(), ..., r.cn());
+     * }
      * then it must be the case that {@code r.equals(copy)}.
      *
      * @implSpec

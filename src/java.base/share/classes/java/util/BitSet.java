@@ -696,13 +696,14 @@ public class BitSet implements Cloneable, java.io.Serializable {
      * <p>To iterate over the {@code true} bits in a {@code BitSet},
      * use the following loop:
      *
-     *  <pre> {@code
+     * {@snippet :
      * for (int i = bs.nextSetBit(0); i >= 0; i = bs.nextSetBit(i+1)) {
      *     // operate on index i here
      *     if (i == Integer.MAX_VALUE) {
      *         break; // or (i+1) would overflow
      *     }
-     * }}</pre>
+     * }
+     * }
      *
      * @param  fromIndex the index to start checking from (inclusive)
      * @return the index of the next set bit, or {@code -1} if there
@@ -772,10 +773,11 @@ public class BitSet implements Cloneable, java.io.Serializable {
      * <p>To iterate over the {@code true} bits in a {@code BitSet},
      * use the following loop:
      *
-     *  <pre> {@code
+     * {@snippet :
      * for (int i = bs.length(); (i = bs.previousSetBit(i-1)) >= 0; ) {
      *     // operate on index i here
-     * }}</pre>
+     * }
+     * }
      *
      * @param  fromIndex the index to start checking from (inclusive)
      * @return the index of the previous set bit, or {@code -1} if there
@@ -1020,14 +1022,15 @@ public class BitSet implements Cloneable, java.io.Serializable {
      *
      * <p>The hash code is defined to be the result of the following
      * calculation:
-     *  <pre> {@code
+     * {@snippet :
      * public int hashCode() {
      *     long h = 1234;
      *     long[] words = toLongArray();
      *     for (int i = words.length; --i >= 0; )
      *         h ^= words[i] * (i + 1);
      *     return (int)((h >> 32) ^ h);
-     * }}</pre>
+     * }
+     * }
      * Note that the hash code changes if the set of bits is altered.
      *
      * @return the hash code value for this bit set
@@ -1057,7 +1060,9 @@ public class BitSet implements Cloneable, java.io.Serializable {
      * not {@code null} and is a {@code BitSet} object that has
      * exactly the same set of bits set to {@code true} as this bit
      * set. That is, for every nonnegative {@code int} index {@code k},
-     * <pre>((BitSet)obj).get(k) == this.get(k)</pre>
+     * {@snippet : 
+     *  ((BitSet)obj).get(k) == this.get(k)
+     * }
      * must be true. The current sizes of the two bit sets are not compared.
      *
      * @param  obj the object to compare with
@@ -1168,15 +1173,18 @@ public class BitSet implements Cloneable, java.io.Serializable {
      * notation for a set of integers.
      *
      * <p>Example:
-     * <pre>
-     * BitSet drPepper = new BitSet();</pre>
+     * {@snippet lang=java : 
+     *   BitSet drPepper = new BitSet();
+     * }
      * Now {@code drPepper.toString()} returns "{@code {}}".
-     * <pre>
-     * drPepper.set(2);</pre>
+     * {@snippet lang=java : 
+     *   drPepper.set(2);
+     * }
      * Now {@code drPepper.toString()} returns "{@code {2}}".
-     * <pre>
-     * drPepper.set(4);
-     * drPepper.set(10);</pre>
+     * {@snippet lang=java : 
+     *   drPepper.set(4);
+     *   drPepper.set(10);
+     * }
      * Now {@code drPepper.toString()} returns "{@code {2, 4, 10}}".
      *
      * @return a string representation of this bit set

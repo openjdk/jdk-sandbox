@@ -114,9 +114,9 @@ public sealed interface MemoryAddress extends Addressable permits MemoryAddressI
      * have no visible effect, or cause an unspecified exception to be thrown.
      * <p>
      * This method is equivalent to the following code:
-     * <pre>{@code
-    asSegment(byteSize, null, scope);
-     * }</pre>
+     * {@snippet lang=java : 
+     *      asSegment(byteSize, null, scope);
+     * }
      * <p>
      * This method is <a href="package-summary.html#restricted"><em>restricted</em></a>.
      * Restricted methods are unsafe, and, if used incorrectly, their use might crash

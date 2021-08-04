@@ -44,10 +44,10 @@ package java.io;
  * to wrap a BufferedWriter around any Writer whose write() operations may be
  * costly, such as FileWriters and OutputStreamWriters.  For example,
  *
- * <pre>
- * PrintWriter out
- *   = new PrintWriter(new BufferedWriter(new FileWriter("foo.out")));
- * </pre>
+ * {@snippet lang=java : 
+ *   PrintWriter out
+ *     = new PrintWriter(new BufferedWriter(new FileWriter("foo.out")));
+ * }
  *
  * will buffer the PrintWriter's output to the file.  Without buffering, each
  * invocation of a print() method would cause characters to be converted into

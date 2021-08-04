@@ -54,17 +54,17 @@ import static java.lang.invoke.MethodHandleStatics.*;
  * The result of the lambda is defined as one of the names, often the last one.
  * <p>
  * Here is an approximate grammar:
- * <blockquote><pre>{@code
- * LambdaForm = "(" ArgName* ")=>{" TempName* Result "}"
- * ArgName = "a" N ":" T
- * TempName = "t" N ":" T "=" Function "(" Argument* ");"
- * Function = ConstantValue
- * Argument = NameRef | ConstantValue
- * Result = NameRef | "void"
- * NameRef = "a" N | "t" N
- * N = (any whole number)
- * T = "L" | "I" | "J" | "F" | "D" | "V"
- * }</pre></blockquote>
+ * {@snippet : 
+ *   LambdaForm = "(" ArgName* ")=>{" TempName* Result "}"
+ *   ArgName = "a" N ":" T
+ *   TempName = "t" N ":" T "=" Function "(" Argument* ");"
+ *   Function = ConstantValue
+ *   Argument = NameRef | ConstantValue
+ *   Result = NameRef | "void"
+ *   NameRef = "a" N | "t" N
+ *   N = (any whole number)
+ *   T = "L" | "I" | "J" | "F" | "D" | "V"
+ * }
  * Names are numbered consecutively from left to right starting at zero.
  * (The letters are merely a taste of syntax sugar.)
  * Thus, the first temporary (if any) is always numbered N (where N=arity).
@@ -93,31 +93,31 @@ import static java.lang.invoke.MethodHandleStatics.*;
  * encoded by using temporary expressions which call type-transformed identity functions.
  * <p>
  * Examples:
- * <blockquote><pre>{@code
+ * {@snippet :
  * (a0:J)=>{ a0 }
- *     == identity(long)
- * (a0:I)=>{ t1:V = System.out#println(a0); void }
- *     == System.out#println(int)
- * (a0:L)=>{ t1:V = System.out#println(a0); a0 }
- *     == identity, with printing side-effect
- * (a0:L, a1:L)=>{ t2:L = BoundMethodHandle#argument(a0);
- *                 t3:L = BoundMethodHandle#target(a0);
- *                 t4:L = MethodHandle#invoke(t3, t2, a1); t4 }
- *     == general invoker for unary insertArgument combination
- * (a0:L, a1:L)=>{ t2:L = FilterMethodHandle#filter(a0);
- *                 t3:L = MethodHandle#invoke(t2, a1);
- *                 t4:L = FilterMethodHandle#target(a0);
- *                 t5:L = MethodHandle#invoke(t4, t3); t5 }
- *     == general invoker for unary filterArgument combination
- * (a0:L, a1:L)=>{ ...(same as previous example)...
- *                 t5:L = MethodHandle#invoke(t4, t3, a1); t5 }
- *     == general invoker for unary/unary foldArgument combination
- * (a0:L, a1:I)=>{ t2:I = identity(long).asType((int)->long)(a1); t2 }
- *     == invoker for identity method handle which performs i2l
- * (a0:L, a1:L)=>{ t2:L = BoundMethodHandle#argument(a0);
- *                 t3:L = Class#cast(t2,a1); t3 }
- *     == invoker for identity method handle which performs cast
- * }</pre></blockquote>
+ *      == identity(long)
+ *  (a0:I)=>{ t1:V = System.out#println(a0); void }
+ *      == System.out#println(int)
+ *  (a0:L)=>{ t1:V = System.out#println(a0); a0 }
+ *      == identity, with printing side-effect
+ *  (a0:L, a1:L)=>{ t2:L = BoundMethodHandle#argument(a0);
+ *                  t3:L = BoundMethodHandle#target(a0);
+ *                  t4:L = MethodHandle#invoke(t3, t2, a1); t4 }
+ *      == general invoker for unary insertArgument combination
+ *  (a0:L, a1:L)=>{ t2:L = FilterMethodHandle#filter(a0);
+ *                  t3:L = MethodHandle#invoke(t2, a1);
+ *                  t4:L = FilterMethodHandle#target(a0);
+ *                  t5:L = MethodHandle#invoke(t4, t3); t5 }
+ *      == general invoker for unary filterArgument combination
+ *  (a0:L, a1:L)=>{ ...(same as previous example)...
+ *                  t5:L = MethodHandle#invoke(t4, t3, a1); t5 }
+ *      == general invoker for unary/unary foldArgument combination
+ *  (a0:L, a1:I)=>{ t2:I = identity(long).asType((int)->long)(a1); t2 }
+ *      == invoker for identity method handle which performs i2l
+ *  (a0:L, a1:L)=>{ t2:L = BoundMethodHandle#argument(a0);
+ *                  t3:L = Class#cast(t2,a1); t3 }
+ *      == invoker for identity method handle which performs cast
+ * }
  * <p>
  * @author John Rose, JSR 292 EG
  */

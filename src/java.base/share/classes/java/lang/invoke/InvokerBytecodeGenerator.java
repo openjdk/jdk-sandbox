@@ -1123,12 +1123,12 @@ class InvokerBytecodeGenerator {
      * Emit bytecode for the selectAlternative idiom.
      *
      * The pattern looks like (Cf. MethodHandleImpl.makeGuardWithTest):
-     * <blockquote><pre>{@code
-     *   Lambda(a0:L,a1:I)=>{
-     *     t2:I=foo.test(a1:I);
-     *     t3:L=MethodHandleImpl.selectAlternative(t2:I,(MethodHandle(int)int),(MethodHandle(int)int));
-     *     t4:I=MethodHandle.invokeBasic(t3:L,a1:I);t4:I}
-     * }</pre></blockquote>
+     * {@snippet : 
+     *     Lambda(a0:L,a1:I)=>{
+     *       t2:I=foo.test(a1:I);
+     *       t3:L=MethodHandleImpl.selectAlternative(t2:I,(MethodHandle(int)int),(MethodHandle(int)int));
+     *       t4:I=MethodHandle.invokeBasic(t3:L,a1:I);t4:I}
+     * }
      */
     private Name emitSelectAlternative(Name selectAlternativeName, Name invokeBasicName) {
         assert isStaticallyInvocable(invokeBasicName);
@@ -1174,21 +1174,22 @@ class InvokerBytecodeGenerator {
      * Emit bytecode for the guardWithCatch idiom.
      *
      * The pattern looks like (Cf. MethodHandleImpl.makeGuardWithCatch):
-     * <blockquote><pre>{@code
-     *  guardWithCatch=Lambda(a0:L,a1:L,a2:L,a3:L,a4:L,a5:L,a6:L,a7:L)=>{
-     *    t8:L=MethodHandle.invokeBasic(a4:L,a6:L,a7:L);
-     *    t9:L=MethodHandleImpl.guardWithCatch(a1:L,a2:L,a3:L,t8:L);
-     *   t10:I=MethodHandle.invokeBasic(a5:L,t9:L);t10:I}
-     * }</pre></blockquote>
+     * {@snippet : 
+     *    guardWithCatch=Lambda(a0:L,a1:L,a2:L,a3:L,a4:L,a5:L,a6:L,a7:L)=>{
+     *      t8:L=MethodHandle.invokeBasic(a4:L,a6:L,a7:L);
+     *      t9:L=MethodHandleImpl.guardWithCatch(a1:L,a2:L,a3:L,t8:L);
+     *     t10:I=MethodHandle.invokeBasic(a5:L,t9:L);t10:I}
+     * }
      *
      * It is compiled into bytecode equivalent of the following code:
-     * <blockquote><pre>{@code
-     *  try {
-     *      return a1.invokeBasic(a6, a7);
-     *  } catch (Throwable e) {
-     *      if (!a2.isInstance(e)) throw e;
-     *      return a3.invokeBasic(ex, a6, a7);
-     *  }}</pre></blockquote>
+     * {@snippet lang=java : 
+     *    try {
+     *        return a1.invokeBasic(a6, a7);
+     *    } catch (Throwable e) {
+     *        if (!a2.isInstance(e)) throw e;
+     *        return a3.invokeBasic(ex, a6, a7);
+     *    }
+     * }
      */
     private Name emitGuardWithCatch(int pos) {
         Name args    = lambdaForm.names[pos];
@@ -1249,61 +1250,61 @@ class InvokerBytecodeGenerator {
      * Emit bytecode for the tryFinally idiom.
      * <p>
      * The pattern looks like (Cf. MethodHandleImpl.makeTryFinally):
-     * <blockquote><pre>{@code
-     * // a0: BMH
-     * // a1: target, a2: cleanup
-     * // a3: box, a4: unbox
-     * // a5 (and following): arguments
-     * tryFinally=Lambda(a0:L,a1:L,a2:L,a3:L,a4:L,a5:L)=>{
-     *   t6:L=MethodHandle.invokeBasic(a3:L,a5:L);         // box the arguments into an Object[]
-     *   t7:L=MethodHandleImpl.tryFinally(a1:L,a2:L,t6:L); // call the tryFinally executor
-     *   t8:L=MethodHandle.invokeBasic(a4:L,t7:L);t8:L}    // unbox the result; return the result
-     * }</pre></blockquote>
+     * {@snippet : 
+     *   // a0: BMH
+     *   // a1: target, a2: cleanup
+     *   // a3: box, a4: unbox
+     *   // a5 (and following): arguments
+     *   tryFinally=Lambda(a0:L,a1:L,a2:L,a3:L,a4:L,a5:L)=>{
+     *     t6:L=MethodHandle.invokeBasic(a3:L,a5:L);         // box the arguments into an Object[]
+     *     t7:L=MethodHandleImpl.tryFinally(a1:L,a2:L,t6:L); // call the tryFinally executor
+     *     t8:L=MethodHandle.invokeBasic(a4:L,t7:L);t8:L}    // unbox the result; return the result
+     * }
      * <p>
      * It is compiled into bytecode equivalent to the following code:
-     * <blockquote><pre>{@code
-     * Throwable t;
-     * Object r;
-     * try {
-     *     r = a1.invokeBasic(a5);
-     * } catch (Throwable thrown) {
-     *     t = thrown;
-     *     throw t;
-     * } finally {
-     *     r = a2.invokeBasic(t, r, a5);
+     * {@snippet lang=java : 
+     *   Throwable t;
+     *   Object r;
+     *   try {
+     *       r = a1.invokeBasic(a5);
+     *   } catch (Throwable thrown) {
+     *       t = thrown;
+     *       throw t;
+     *   } finally {
+     *       r = a2.invokeBasic(t, r, a5);
+     *   }
+     *   return r;
      * }
-     * return r;
-     * }</pre></blockquote>
      * <p>
      * Specifically, the bytecode will have the following form (the stack effects are given for the beginnings of
      * blocks, and for the situations after executing the given instruction - the code will have a slightly different
      * shape if the return type is {@code void}):
-     * <blockquote><pre>{@code
+     * {@snippet :
      * TRY:                 (--)
-     *                      load target                             (-- target)
-     *                      load args                               (-- args... target)
-     *                      INVOKEVIRTUAL MethodHandle.invokeBasic  (depends)
-     * FINALLY_NORMAL:      (-- r_2nd* r)
-     *                      store returned value                    (--)
-     *                      load cleanup                            (-- cleanup)
-     *                      ACONST_NULL                             (-- t cleanup)
-     *                      load returned value                     (-- r_2nd* r t cleanup)
-     *                      load args                               (-- args... r_2nd* r t cleanup)
-     *                      INVOKEVIRTUAL MethodHandle.invokeBasic  (-- r_2nd* r)
-     *                      GOTO DONE
-     * CATCH:               (-- t)
-     *                      DUP                                     (-- t t)
-     * FINALLY_EXCEPTIONAL: (-- t t)
-     *                      load cleanup                            (-- cleanup t t)
-     *                      SWAP                                    (-- t cleanup t)
-     *                      load default for r                      (-- r_2nd* r t cleanup t)
-     *                      load args                               (-- args... r_2nd* r t cleanup t)
-     *                      INVOKEVIRTUAL MethodHandle.invokeBasic  (-- r_2nd* r t)
-     *                      POP/POP2*                               (-- t)
-     *                      ATHROW
-     * DONE:                (-- r)
-     * }</pre></blockquote>
-     * * = depends on whether the return type takes up 2 stack slots.
+     *                       load target                             (-- target)
+     *                       load args                               (-- args... target)
+     *                       INVOKEVIRTUAL MethodHandle.invokeBasic  (depends)
+     *  FINALLY_NORMAL:      (-- r_2nd* r)
+     *                       store returned value                    (--)
+     *                       load cleanup                            (-- cleanup)
+     *                       ACONST_NULL                             (-- t cleanup)
+     *                       load returned value                     (-- r_2nd* r t cleanup)
+     *                       load args                               (-- args... r_2nd* r t cleanup)
+     *                       INVOKEVIRTUAL MethodHandle.invokeBasic  (-- r_2nd* r)
+     *                       GOTO DONE
+     *  CATCH:               (-- t)
+     *                       DUP                                     (-- t t)
+     *  FINALLY_EXCEPTIONAL: (-- t t)
+     *                       load cleanup                            (-- cleanup t t)
+     *                       SWAP                                    (-- t cleanup t)
+     *                       load default for r                      (-- r_2nd* r t cleanup t)
+     *                       load args                               (-- args... r_2nd* r t cleanup t)
+     *                       INVOKEVIRTUAL MethodHandle.invokeBasic  (-- r_2nd* r t)
+     *                       POP/POP2*                               (-- t)
+     *                       ATHROW
+     *  DONE:                (-- r)
+     * }
+     * = depends on whether the return type takes up 2 stack slots.
      */
     private Name emitTryFinally(int pos) {
         Name args    = lambdaForm.names[pos];
@@ -1443,16 +1444,16 @@ class InvokerBytecodeGenerator {
      * Emit bytecode for the loop idiom.
      * <p>
      * The pattern looks like (Cf. MethodHandleImpl.loop):
-     * <blockquote><pre>{@code
-     * // a0: BMH
-     * // a1: LoopClauses (containing an array of arrays: inits, steps, preds, finis)
-     * // a2: box, a3: unbox
-     * // a4 (and following): arguments
-     * loop=Lambda(a0:L,a1:L,a2:L,a3:L,a4:L)=>{
-     *   t5:L=MethodHandle.invokeBasic(a2:L,a4:L);          // box the arguments into an Object[]
-     *   t6:L=MethodHandleImpl.loop(bt:L,a1:L,t5:L);        // call the loop executor (with supplied types in bt)
-     *   t7:L=MethodHandle.invokeBasic(a3:L,t6:L);t7:L}     // unbox the result; return the result
-     * }</pre></blockquote>
+     * {@snippet : 
+     *   // a0: BMH
+     *   // a1: LoopClauses (containing an array of arrays: inits, steps, preds, finis)
+     *   // a2: box, a3: unbox
+     *   // a4 (and following): arguments
+     *   loop=Lambda(a0:L,a1:L,a2:L,a3:L,a4:L)=>{
+     *     t5:L=MethodHandle.invokeBasic(a2:L,a4:L);          // box the arguments into an Object[]
+     *     t6:L=MethodHandleImpl.loop(bt:L,a1:L,t5:L);        // call the loop executor (with supplied types in bt)
+     *     t7:L=MethodHandle.invokeBasic(a3:L,t6:L);t7:L}     // unbox the result; return the result
+     * }
      * <p>
      * It is compiled into bytecode equivalent to the code seen in {@link MethodHandleImpl#loop(BasicType[],
      * MethodHandleImpl.LoopClauses, Object...)}, with the difference that no arrays
@@ -1461,65 +1462,65 @@ class InvokerBytecodeGenerator {
      * Bytecode generation applies an unrolling scheme to enable better bytecode generation regarding local state type
      * handling. The generated bytecode will have the following form ({@code void} types are ignored for convenience).
      * Assume there are {@code C} clauses in the loop.
-     * <blockquote><pre>{@code
-     * PREINIT: ALOAD_1
-     *          CHECKCAST LoopClauses
-     *          GETFIELD LoopClauses.clauses
-     *          ASTORE clauseDataIndex          // place the clauses 2-dimensional array on the stack
-     * INIT:    (INIT_SEQ for clause 1)
-     *          ...
-     *          (INIT_SEQ for clause C)
-     * LOOP:    (LOOP_SEQ for clause 1)
-     *          ...
-     *          (LOOP_SEQ for clause C)
-     *          GOTO LOOP
-     * DONE:    ...
-     * }</pre></blockquote>
+     * {@snippet :
+     *  PREINIT: ALOAD_1
+     *           CHECKCAST LoopClauses
+     *           GETFIELD LoopClauses.clauses
+     *           ASTORE clauseDataIndex          // place the clauses 2-dimensional array on the stack
+     *  INIT:    (INIT_SEQ for clause 1)
+     *           ...
+     *           (INIT_SEQ for clause C)
+     *  LOOP:    (LOOP_SEQ for clause 1)
+     *           ...
+     *           (LOOP_SEQ for clause C)
+     *           GOTO LOOP
+     *  DONE:    ...
+     *  }
      * <p>
      * The {@code INIT_SEQ_x} sequence for clause {@code x} (with {@code x} ranging from {@code 0} to {@code C-1}) has
      * the following shape. Assume slot {@code vx} is used to hold the state for clause {@code x}.
-     * <blockquote><pre>{@code
-     * INIT_SEQ_x:  ALOAD clauseDataIndex
-     *              ICONST_0
-     *              AALOAD      // load the inits array
-     *              ICONST x
-     *              AALOAD      // load the init handle for clause x
-     *              load args
-     *              INVOKEVIRTUAL MethodHandle.invokeBasic
-     *              store vx
-     * }</pre></blockquote>
+     * {@snippet : 
+     *   INIT_SEQ_x:  ALOAD clauseDataIndex
+     *                ICONST_0
+     *                AALOAD      // load the inits array
+     *                ICONST x
+     *                AALOAD      // load the init handle for clause x
+     *                load args
+     *                INVOKEVIRTUAL MethodHandle.invokeBasic
+     *                store vx
+     * }
      * <p>
      * The {@code LOOP_SEQ_x} sequence for clause {@code x} (with {@code x} ranging from {@code 0} to {@code C-1}) has
      * the following shape. Again, assume slot {@code vx} is used to hold the state for clause {@code x}.
-     * <blockquote><pre>{@code
+     * {@snippet :
      * LOOP_SEQ_x:  ALOAD clauseDataIndex
-     *              ICONST_1
-     *              AALOAD              // load the steps array
-     *              ICONST x
-     *              AALOAD              // load the step handle for clause x
-     *              load locals
-     *              load args
-     *              INVOKEVIRTUAL MethodHandle.invokeBasic
-     *              store vx
-     *              ALOAD clauseDataIndex
-     *              ICONST_2
-     *              AALOAD              // load the preds array
-     *              ICONST x
-     *              AALOAD              // load the pred handle for clause x
-     *              load locals
-     *              load args
-     *              INVOKEVIRTUAL MethodHandle.invokeBasic
-     *              IFNE LOOP_SEQ_x+1   // predicate returned false -> jump to next clause
-     *              ALOAD clauseDataIndex
-     *              ICONST_3
-     *              AALOAD              // load the finis array
-     *              ICONST x
-     *              AALOAD              // load the fini handle for clause x
-     *              load locals
-     *              load args
-     *              INVOKEVIRTUAL MethodHandle.invokeBasic
-     *              GOTO DONE           // jump beyond end of clauses to return from loop
-     * }</pre></blockquote>
+     *               ICONST_1
+     *               AALOAD              // load the steps array
+     *               ICONST x
+     *               AALOAD              // load the step handle for clause x
+     *               load locals
+     *               load args
+     *               INVOKEVIRTUAL MethodHandle.invokeBasic
+     *               store vx
+     *               ALOAD clauseDataIndex
+     *               ICONST_2
+     *               AALOAD              // load the preds array
+     *               ICONST x
+     *               AALOAD              // load the pred handle for clause x
+     *               load locals
+     *               load args
+     *               INVOKEVIRTUAL MethodHandle.invokeBasic
+     *               IFNE LOOP_SEQ_x+1   // predicate returned false -> jump to next clause
+     *               ALOAD clauseDataIndex
+     *               ICONST_3
+     *               AALOAD              // load the finis array
+     *               ICONST x
+     *               AALOAD              // load the fini handle for clause x
+     *               load locals
+     *               load args
+     *               INVOKEVIRTUAL MethodHandle.invokeBasic
+     *               GOTO DONE           // jump beyond end of clauses to return from loop
+     * }
      */
     private Name emitLoop(int pos) {
         Name args    = lambdaForm.names[pos];

@@ -777,9 +777,9 @@ public class Runtime {
      * methods are to be used in the implementation of a class, a standard
      * strategy is to put the native code in a library file (call it
      * {@code LibFile}) and then to put a static initializer:
-     * <blockquote><pre>
-     * static { System.loadLibrary("LibFile"); }
-     * </pre></blockquote>
+     * {@snippet lang=java : 
+     *   static { System.loadLibrary("LibFile"); }
+     * }
      * within the class declaration. When the class is loaded and
      * initialized, the necessary native code implementation for the native
      * methods will then be loaded as well.
@@ -849,16 +849,16 @@ public class Runtime {
      * element in a version number must not be zero.  When an element is
      * incremented, all subsequent elements are removed.  The format is: </p>
      *
-     * <blockquote><pre>
-     * [1-9][0-9]*((\.0)*\.[1-9][0-9]*)*
-     * </pre></blockquote>
+     * {@snippet : 
+     *   [1-9][0-9]*((\.0)*\.[1-9][0-9]*)*
+     * }
      *
      * <p> The sequence may be of arbitrary length but the first four elements
      * are assigned specific meanings, as follows:</p>
      *
-     * <blockquote><pre>
-     * $FEATURE.$INTERIM.$UPDATE.$PATCH
-     * </pre></blockquote>
+     * {@snippet : 
+     *   $FEATURE.$INTERIM.$UPDATE.$PATCH
+     * }
      *
      * <ul>
      *
@@ -906,11 +906,11 @@ public class Runtime {
      * $VNUM}, as described above, optionally followed by pre-release and build
      * information, in one of the following formats: </p>
      *
-     * <blockquote><pre>
-     *     $VNUM(-$PRE)?\+$BUILD(-$OPT)?
-     *     $VNUM-$PRE(-$OPT)?
-     *     $VNUM(\+-$OPT)?
-     * </pre></blockquote>
+     * {@snippet : 
+     *       $VNUM(-$PRE)?\+$BUILD(-$OPT)?
+     *       $VNUM-$PRE(-$OPT)?
+     *       $VNUM(\+-$OPT)?
+     * }
      *
      * <p> where: </p>
      *
@@ -949,9 +949,9 @@ public class Runtime {
      * less formal contexts, is a version number optionally followed by a
      * pre-release identifier:</p>
      *
-     * <blockquote><pre>
-     *     $VNUM(-$PRE)?
-     * </pre></blockquote>
+     * {@snippet : 
+     *       $VNUM(-$PRE)?
+     * }
      *
      * <p>This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>
      * class; programmers should treat instances that are

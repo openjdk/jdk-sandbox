@@ -234,12 +234,12 @@ public final class Optional<T> {
      * yet been processed, and creates a path from that URI, returning
      * an {@code Optional<Path>}:
      *
-     * <pre>{@code
-     *     Optional<Path> p =
-     *         uris.stream().filter(uri -> !isProcessedYet(uri))
-     *                       .findFirst()
-     *                       .map(Paths::get);
-     * }</pre>
+     * {@snippet lang=java : 
+     *       Optional<Path> p =
+     *           uris.stream().filter(uri -> !isProcessedYet(uri))
+     *                         .findFirst()
+     *                         .map(Paths::get);
+     * }
      *
      * Here, {@code findFirst} returns an {@code Optional<URI>}, and then
      * {@code map} returns an {@code Optional<Path>} for the desired
@@ -322,10 +322,10 @@ public final class Optional<T> {
      * @apiNote
      * This method can be used to transform a {@code Stream} of optional
      * elements to a {@code Stream} of present value elements:
-     * <pre>{@code
-     *     Stream<Optional<T>> os = ..
-     *     Stream<T> s = os.flatMap(Optional::stream)
-     * }</pre>
+     * {@snippet : 
+     *       Stream<Optional<T>> os = ..
+     *       Stream<T> s = os.flatMap(Optional::stream)
+     * }
      *
      * @return the optional value as a {@code Stream}
      * @since 9

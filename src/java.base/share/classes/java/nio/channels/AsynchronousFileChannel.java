@@ -268,10 +268,9 @@ public abstract class AsynchronousFileChannel
      *
      * <p> An invocation of this method behaves in exactly the same way as the
      * invocation
-     * <pre>
-     *     ch.{@link #open(Path,Set,ExecutorService,FileAttribute[])
-     *       open}(file, opts, null, new FileAttribute&lt;?&gt;[0]);
-     * </pre>
+     * {@snippet : 
+     *       ch.open(file, opts, null, new FileAttribute&lt;?&gt;[0]);
+     * }
      * where {@code opts} is a {@code Set} containing the options specified to
      * this method.
      *
@@ -493,9 +492,9 @@ public abstract class AsynchronousFileChannel
      *
      * <p> An invocation of this method of the form {@code ch.lock(att,handler)}
      * behaves in exactly the same way as the invocation
-     * <pre>
-     *     ch.{@link #lock(long,long,boolean,Object,CompletionHandler) lock}(0L, Long.MAX_VALUE, false, att, handler)
-     * </pre>
+     * {@snippet : 
+     *       ch.lock(0L, Long.MAX_VALUE, false, att, handler)
+     * }
      *
      * @param   <A>
      *          The type of the attachment
@@ -563,9 +562,9 @@ public abstract class AsynchronousFileChannel
      *
      * <p> An invocation of this method behaves in exactly the same way as the
      * invocation
-     * <pre>
-     *     ch.{@link #lock(long,long,boolean) lock}(0L, Long.MAX_VALUE, false)
-     * </pre>
+     * {@snippet : 
+     *       ch.lock(0L, Long.MAX_VALUE, false)
+     * }
      *
      * @return  a {@code Future} object representing the pending result
      *
@@ -634,8 +633,9 @@ public abstract class AsynchronousFileChannel
      * <p> An invocation of this method of the form {@code ch.tryLock()}
      * behaves in exactly the same way as the invocation
      *
-     * <pre>
-     *     ch.{@link #tryLock(long,long,boolean) tryLock}(0L, Long.MAX_VALUE, false) </pre>
+     * {@snippet : 
+     *       ch.tryLock(0L, Long.MAX_VALUE, false)
+     * }
      *
      * @return  A lock object representing the newly-acquired lock,
      *          or {@code null} if the lock could not be acquired

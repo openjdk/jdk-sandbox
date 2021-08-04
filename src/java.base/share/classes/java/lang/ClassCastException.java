@@ -29,10 +29,11 @@ package java.lang;
  * Thrown to indicate that the code has attempted to cast an object
  * to a subclass of which it is not an instance. For example, the
  * following code generates a {@code ClassCastException}:
- * <blockquote><pre>
- *     Object x = new Integer(0);
- *     System.out.println((String)x);
- * </pre></blockquote>
+ * {@snippet lang=java : 
+ *       Object x = new Integer(0);
+ *       System.out.println((String)x);
+ *   
+ * }
  *
  * @since   1.0
  */

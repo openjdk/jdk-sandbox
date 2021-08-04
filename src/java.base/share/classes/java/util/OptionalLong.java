@@ -193,10 +193,10 @@ public final class OptionalLong {
      * @apiNote
      * This method can be used to transform a {@code Stream} of optional longs
      * to an {@code LongStream} of present longs:
-     * <pre>{@code
-     *     Stream<OptionalLong> os = ..
-     *     LongStream s = os.flatMapToLong(OptionalLong::stream)
-     * }</pre>
+     * {@snippet : 
+     *       Stream<OptionalLong> os = ..
+     *       LongStream s = os.flatMapToLong(OptionalLong::stream)
+     * }
      *
      * @return the optional value as an {@code LongStream}
      * @since 9

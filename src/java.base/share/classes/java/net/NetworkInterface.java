@@ -367,10 +367,10 @@ public final class NetworkInterface {
      * @apiNote this method can be used in combination with
      * {@link #inetAddresses()}} to obtain a stream of all IP addresses for
      * this node, for example:
-     * <pre> {@code
+     * {@snippet :
      * Stream<InetAddress> addrs = NetworkInterface.networkInterfaces()
      *     .flatMap(NetworkInterface::inetAddresses);
-     * }</pre>
+     * }
      *
      * @return a Stream of NetworkInterfaces found on this machine
      * @throws     SocketException  if an I/O error occurs,

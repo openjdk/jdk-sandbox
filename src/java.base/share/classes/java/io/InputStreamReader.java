@@ -47,10 +47,10 @@ import sun.nio.cs.StreamDecoder;
  * <p> For top efficiency, consider wrapping an InputStreamReader within a
  * BufferedReader.  For example:
  *
- * <pre>
- * BufferedReader in
- *   = new BufferedReader(new InputStreamReader(anInputStream));
- * </pre>
+ * {@snippet lang=java : 
+ *   BufferedReader in
+ *     = new BufferedReader(new InputStreamReader(anInputStream));
+ * }
  *
  * @see BufferedReader
  * @see InputStream

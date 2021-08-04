@@ -67,16 +67,16 @@ import jdk.internal.util.random.RandomSupport.RandomGeneratorProperties;
  * {@link RandomGeneratorFactory#create()} is used for random seed
  * construction. Example;
  *
- * <pre>{@code
- *    RandomGeneratorFactory<RandomGenerator> factory = RandomGeneratorFactory.of("Random");
- *
- *     for (int i = 0; i < 10; i++) {
- *         new Thread(() -> {
- *             RandomGenerator random = factory.create(100L);
- *             System.out.println(random.nextDouble());
- *         }).start();
- *     }
- * }</pre>
+ * {@snippet lang=java : 
+ *      RandomGeneratorFactory<RandomGenerator> factory = RandomGeneratorFactory.of("Random");
+ *  
+ *       for (int i = 0; i < 10; i++) {
+ *           new Thread(() -> {
+ *               RandomGenerator random = factory.create(100L);
+ *               System.out.println(random.nextDouble());
+ *           }).start();
+ *       }
+ * }
  *
  * RandomGeneratorFactory also provides methods describing the attributes (or properties)
  * of a generator and can be used to select random number generator
@@ -87,16 +87,16 @@ import jdk.internal.util.random.RandomSupport.RandomGeneratorProperties;
  * {@link RandomGenerator RandomGenerators}
  * with the highest number of state bits.
  *
- * <pre>{@code
- *     RandomGeneratorFactory<RandomGenerator> best = RandomGeneratorFactory.all()
- *         .sorted(Comparator.comparingInt(RandomGenerator::stateBits).reversed())
- *         .findFirst()
- *         .orElse(RandomGeneratorFactory.of("Random"));
- *     System.out.println(best.name() + " in " + best.group() + " was selected");
- *
- *     RandomGenerator rng = best.create();
- *     System.out.println(rng.nextLong());
- * }</pre>
+ * {@snippet lang=java : 
+ *       RandomGeneratorFactory<RandomGenerator> best = RandomGeneratorFactory.all()
+ *           .sorted(Comparator.comparingInt(RandomGenerator::stateBits).reversed())
+ *           .findFirst()
+ *           .orElse(RandomGeneratorFactory.of("Random"));
+ *       System.out.println(best.name() + " in " + best.group() + " was selected");
+ *  
+ *       RandomGenerator rng = best.create();
+ *       System.out.println(rng.nextLong());
+ * }
  *
  * @since 17
  *
@@ -374,7 +374,7 @@ public final class RandomGeneratorFactory<T extends RandomGenerator> {
     /**
      * Returns a non-empty stream of available {@link RandomGeneratorFactory RandomGeneratorFactory(s)}.
      *
-     * RandomGenerators that are marked as deprecated are not included in the result.
+     * RandomGenerators that are marked as deprecated or are not properly configured are not included in the result.
      *
      * @implSpec Availability is determined by RandomGeneratorFactory using the service provider API
      * to locate implementations of the RandomGenerator interface.

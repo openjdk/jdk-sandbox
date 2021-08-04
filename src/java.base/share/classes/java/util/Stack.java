@@ -39,8 +39,9 @@ package java.util;
  * <p>A more complete and consistent set of LIFO stack operations is
  * provided by the {@link Deque} interface and its implementations, which
  * should be used in preference to this class.  For example:
- * <pre>   {@code
- *   Deque<Integer> stack = new ArrayDeque<Integer>();}</pre>
+ * {@snippet :
+ *   Deque<Integer> stack = new ArrayDeque<Integer>();
+ * }
  *
  * @author  Jonathan Payne
  * @since   1.0
@@ -55,8 +56,9 @@ public class Stack<E> extends Vector<E> {
     /**
      * Pushes an item onto the top of this stack. This has exactly
      * the same effect as:
-     * <blockquote><pre>
-     * addElement(item)</pre></blockquote>
+     * {@snippet : 
+ *   addElement(item)
+ * }
      *
      * @param   item   the item to be pushed onto this stack.
      * @return  the {@code item} argument.

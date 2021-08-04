@@ -54,12 +54,13 @@ import java.util.function.Supplier;
  * {@link Stream} and {@link LongStream}, computing the sum of the weights of the
  * red widgets:
  *
- * <pre>{@code
- *     long sum = widgets.stream()
- *                       .filter(w -> w.getColor() == RED)
- *                       .mapToLong(w -> w.getWeight())
- *                       .sum();
- * }</pre>
+ * {@snippet lang=java : 
+ *       long sum = widgets.stream()
+ *                         .filter(w -> w.getColor() == RED)
+ *                         .mapToLong(w -> w.getWeight())
+ *                         .sum();
+ *   
+ * }
  *
  * See the class documentation for {@link Stream} and the package documentation
  * for <a href="package-summary.html">java.util.stream</a> for additional
@@ -237,14 +238,15 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      *
      * @apiNote This method exists mainly to support debugging, where you want
      * to see the elements as they flow past a certain point in a pipeline:
-     * <pre>{@code
-     *     LongStream.of(1, 2, 3, 4)
-     *         .filter(e -> e > 2)
-     *         .peek(e -> System.out.println("Filtered value: " + e))
-     *         .map(e -> e * e)
-     *         .peek(e -> System.out.println("Mapped value: " + e))
-     *         .sum();
-     * }</pre>
+     * {@snippet lang=java : 
+ *       LongStream.of(1, 2, 3, 4)
+ *           .filter(e -> e > 2)
+ *           .peek(e -> System.out.println("Filtered value: " + e))
+ *           .map(e -> e * e)
+ *           .peek(e -> System.out.println("Mapped value: " + e))
+ *           .sum();
+ *   
+ * }
      *
      * <p>In cases where the stream implementation is able to optimize away the
      * production of some or all the elements (such as with short-circuiting
@@ -495,12 +497,13 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      * <a href="package-summary.html#Associativity">associative</a>
      * accumulation function, and returns the reduced value.  This is equivalent
      * to:
-     * <pre>{@code
-     *     long result = identity;
-     *     for (long element : this stream)
-     *         result = accumulator.applyAsLong(result, element)
-     *     return result;
-     * }</pre>
+     * {@snippet : 
+ *       long result = identity;
+ *       for (long element : this stream)
+ *           result = accumulator.applyAsLong(result, element)
+ *       return result;
+ *   
+ * }
      *
      * but is not constrained to execute sequentially.
      *
@@ -516,15 +519,17 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      * @apiNote Sum, min, max, and average are all special cases of reduction.
      * Summing a stream of numbers can be expressed as:
      *
-     * <pre>{@code
-     *     long sum = integers.reduce(0, (a, b) -> a+b);
-     * }</pre>
+     * {@snippet lang=java : 
+ *       long sum = integers.reduce(0, (a, b) -> a+b);
+ *   
+ * }
      *
      * or more compactly:
      *
-     * <pre>{@code
-     *     long sum = integers.reduce(0, Long::sum);
-     * }</pre>
+     * {@snippet lang=java : 
+ *       long sum = integers.reduce(0, Long::sum);
+ *   
+ * }
      *
      * <p>While this may seem a more roundabout way to perform an aggregation
      * compared to simply mutating a running total in a loop, reduction
@@ -550,19 +555,20 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      * <a href="package-summary.html#Associativity">associative</a> accumulation
      * function, and returns an {@code OptionalLong} describing the reduced value,
      * if any. This is equivalent to:
-     * <pre>{@code
-     *     boolean foundAny = false;
-     *     long result = null;
-     *     for (long element : this stream) {
-     *         if (!foundAny) {
-     *             foundAny = true;
-     *             result = element;
-     *         }
-     *         else
-     *             result = accumulator.applyAsLong(result, element);
-     *     }
-     *     return foundAny ? OptionalLong.of(result) : OptionalLong.empty();
-     * }</pre>
+     * {@snippet : 
+ *       boolean foundAny = false;
+ *       long result = null;
+ *       for (long element : this stream) {
+ *           if (!foundAny) {
+ *               foundAny = true;
+ *               result = element;
+ *           }
+ *           else
+ *               result = accumulator.applyAsLong(result, element);
+ *       }
+ *       return foundAny ? OptionalLong.of(result) : OptionalLong.empty();
+ *   
+ * }
      *
      * but is not constrained to execute sequentially.
      *
@@ -588,12 +594,13 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      * such as an {@code ArrayList}, and elements are incorporated by updating
      * the state of the result rather than by replacing the result.  This
      * produces a result equivalent to:
-     * <pre>{@code
-     *     R result = supplier.get();
-     *     for (long element : this stream)
-     *         accumulator.accept(result, element);
-     *     return result;
-     * }</pre>
+     * {@snippet : 
+ *       R result = supplier.get();
+ *       for (long element : this stream)
+ *           accumulator.accept(result, element);
+ *       return result;
+ *   
+ * }
      *
      * <p>Like {@link #reduce(long, LongBinaryOperator)}, {@code collect} operations
      * can be parallelized without requiring additional synchronization.
@@ -629,9 +636,10 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      * Returns the sum of elements in this stream.  This is a special case
      * of a <a href="package-summary.html#Reduction">reduction</a>
      * and is equivalent to:
-     * <pre>{@code
-     *     return reduce(0, Long::sum);
-     * }</pre>
+     * {@snippet lang=java : 
+ *       return reduce(0, Long::sum);
+ *   
+ * }
      *
      * <p>This is a <a href="package-summary.html#StreamOps">terminal
      * operation</a>.
@@ -645,9 +653,10 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      * stream, or an empty optional if this stream is empty.  This is a special
      * case of a <a href="package-summary.html#Reduction">reduction</a>
      * and is equivalent to:
-     * <pre>{@code
-     *     return reduce(Long::min);
-     * }</pre>
+     * {@snippet lang=java : 
+ *       return reduce(Long::min);
+ *   
+ * }
      *
      * <p>This is a <a href="package-summary.html#StreamOps">terminal operation</a>.
      *
@@ -661,9 +670,10 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      * stream, or an empty optional if this stream is empty.  This is a special
      * case of a <a href="package-summary.html#Reduction">reduction</a>
      * and is equivalent to:
-     * <pre>{@code
-     *     return reduce(Long::max);
-     * }</pre>
+     * {@snippet lang=java : 
+ *       return reduce(Long::max);
+ *   
+ * }
      *
      * <p>This is a <a href="package-summary.html#StreamOps">terminal
      * operation</a>.
@@ -677,9 +687,10 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      * Returns the count of elements in this stream.  This is a special case of
      * a <a href="package-summary.html#Reduction">reduction</a> and is
      * equivalent to:
-     * <pre>{@code
-     *     return map(e -> 1L).sum();
-     * }</pre>
+     * {@snippet lang=java : 
+ *       return map(e -> 1L).sum();
+ *   
+ * }
      *
      * <p>This is a <a href="package-summary.html#StreamOps">terminal operation</a>.
      *
@@ -691,10 +702,11 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      * Behavioral parameters with side-effects, which are strongly discouraged
      * except for harmless cases such as debugging, may be affected.  For
      * example, consider the following stream:
-     * <pre>{@code
-     *     LongStream s = LongStream.of(1, 2, 3, 4);
-     *     long count = s.peek(System.out::println).count();
-     * }</pre>
+     * {@snippet lang=java : 
+ *       LongStream s = LongStream.of(1, 2, 3, 4);
+ *       long count = s.peek(System.out::println).count();
+ *   
+ * }
      * The number of elements covered by the stream source is known and the
      * intermediate operation, {@code peek}, does not inject into or remove
      * elements from the stream (as may be the case for {@code flatMap} or
@@ -961,11 +973,12 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      *
      * <p>{@code LongStream.iterate} should produce the same sequence of elements as
      * produced by the corresponding for-loop:
-     * <pre>{@code
-     *     for (long index=seed; hasNext.test(index); index = next.applyAsLong(index)) {
-     *         ...
-     *     }
-     * }</pre>
+     * {@snippet : 
+ *       for (long index=seed; hasNext.test(index); index = next.applyAsLong(index)) {
+ *           ...
+ *       }
+ *   
+ * }
      *
      * <p>The resulting sequence may be empty if the {@code hasNext} predicate
      * does not hold on the seed value.  Otherwise the first element will be the
@@ -1056,9 +1069,10 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      * @apiNote
      * <p>An equivalent sequence of increasing values can be produced
      * sequentially using a {@code for} loop as follows:
-     * <pre>{@code
-     *     for (long i = startInclusive; i < endExclusive ; i++) { ... }
-     * }</pre>
+     * {@snippet : 
+ *       for (long i = startInclusive; i < endExclusive ; i++) { ... }
+ *   
+ * }
      *
      * @param startInclusive the (inclusive) initial value
      * @param endExclusive the exclusive upper bound
@@ -1089,9 +1103,10 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      * @apiNote
      * <p>An equivalent sequence of increasing values can be produced
      * sequentially using a {@code for} loop as follows:
-     * <pre>{@code
-     *     for (long i = startInclusive; i <= endInclusive ; i++) { ... }
-     * }</pre>
+     * {@snippet : 
+ *       for (long i = startInclusive; i <= endInclusive ; i++) { ... }
+ *   
+ * }
      *
      * @param startInclusive the (inclusive) initial value
      * @param endInclusive the inclusive upper bound
@@ -1140,9 +1155,10 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      * To concatenate more streams without binding, or without nested calls to
      * this method, try creating a stream of streams and flat-mapping with the
      * identity function, for example:
-     * <pre>{@code
-     *     LongStream concat = Stream.of(s1, s2, s3, s4).flatMapToLong(s -> s);
-     * }</pre>
+     * {@snippet lang=java : 
+ *       LongStream concat = Stream.of(s1, s2, s3, s4).flatMapToLong(s -> s);
+ *   
+ * }
      *
      * @param a the first stream
      * @param b the second stream
@@ -1187,10 +1203,11 @@ public interface LongStream extends BaseStream<Long, LongStream> {
          *
          * @implSpec
          * The default implementation behaves as if:
-         * <pre>{@code
-         *     accept(t)
-         *     return this;
-         * }</pre>
+         * {@snippet : 
+ *       accept(t)
+ *       return this;
+ *   
+ * }
          *
          * @param t the element to add
          * @return {@code this} builder

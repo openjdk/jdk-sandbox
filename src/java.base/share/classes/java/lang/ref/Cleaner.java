@@ -84,35 +84,7 @@ import java.util.function.Function;
  * {@code close} method calls the cleaning action.
  * If the {@code close} method is not called, the cleaning action is called
  * by the Cleaner when the CleaningExample instance has become phantom reachable.
- * <pre>{@code
- * public class CleaningExample implements AutoCloseable {
- *        // A cleaner, preferably one shared within a library
- *        private static final Cleaner cleaner = <cleaner>;
- *
- *        static class State implements Runnable {
- *
- *            State(...) {
- *                // initialize State needed for cleaning action
- *            }
- *
- *            public void run() {
- *                // cleanup action accessing State, executed at most once
- *            }
- *        }
- *
- *        private final State state;
- *        private final Cleaner.Cleanable cleanable;
- *
- *        public CleaningExample() {
- *            this.state = new State(...);
- *            this.cleanable = cleaner.register(this, state);
- *        }
- *
- *        public void close() {
- *            cleanable.clean();
- *        }
- *    }
- * }</pre>
+ * {@snippet file="CleanerSnippets.java" region="snippet1"}
  * The cleaning action could be a lambda but all too easily will capture
  * the object reference, by referring to fields of the object being cleaned,
  * preventing the object from becoming phantom reachable.

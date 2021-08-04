@@ -55,13 +55,14 @@ import java.util.function.LongConsumer;
  * (such as filtering or mapping), and a terminal stage, such as reduction or
  * for-each.  For concreteness, consider the pipeline:
  *
- * <pre>{@code
- *     int longestStringLengthStartingWithA
- *         = strings.stream()
- *                  .filter(s -> s.startsWith("A"))
- *                  .mapToInt(String::length)
- *                  .max();
- * }</pre>
+ * {@snippet lang=java : 
+ *       int longestStringLengthStartingWithA
+ *           = strings.stream()
+ *                    .filter(s -> s.startsWith("A"))
+ *                    .mapToInt(String::length)
+ *                    .max();
+ *   
+ * }
  *
  * <p>Here, we have three stages, filtering, mapping, and reducing.  The
  * filtering stage consumes strings and emits a subset of those strings; the
@@ -96,13 +97,14 @@ import java.util.function.LongConsumer;
  * intermediate operations will use these chaining wrappers.  For example, the
  * mapping stage in the above example would look like:
  *
- * <pre>{@code
- *     IntSink is = new Sink.ChainedReference<U>(sink) {
- *         public void accept(U u) {
- *             downstream.accept(mapper.applyAsInt(u));
- *         }
- *     };
- * }</pre>
+ * {@snippet lang=java : 
+ *       IntSink is = new Sink.ChainedReference<U>(sink) {
+ *           public void accept(U u) {
+ *               downstream.accept(mapper.applyAsInt(u));
+ *           }
+ *       };
+ *   
+ * }
  *
  * <p>Here, we implement {@code Sink.ChainedReference<U>}, meaning that we expect
  * to receive elements of type {@code U} as input, and pass the downstream sink

@@ -51,7 +51,6 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import jdk.internal.util.Preconditions;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.vm.annotation.Stable;
@@ -70,22 +69,22 @@ import sun.nio.cs.UTF_8;
  * Strings are constant; their values cannot be changed after they
  * are created. String buffers support mutable strings.
  * Because String objects are immutable they can be shared. For example:
- * <blockquote><pre>
- *     String str = "abc";
- * </pre></blockquote><p>
+ * {@snippet lang=java : 
+ *       String str = "abc";
+ * }<p>
  * is equivalent to:
- * <blockquote><pre>
- *     char data[] = {'a', 'b', 'c'};
- *     String str = new String(data);
- * </pre></blockquote><p>
+ * {@snippet lang=java : 
+ *       char data[] = {'a', 'b', 'c'};
+ *       String str = new String(data);
+ * }<p>
  * Here are some more examples of how strings can be used:
- * <blockquote><pre>
- *     System.out.println("abc");
- *     String cde = "cde";
- *     System.out.println("abc" + cde);
- *     String c = "abc".substring(2, 3);
- *     String d = cde.substring(1, 2);
- * </pre></blockquote>
+ * {@snippet lang=java : 
+ *       System.out.println("abc");
+ *       String cde = "cde";
+ *       System.out.println("abc" + cde);
+ *       String c = "abc".substring(2, 3);
+ *       String d = cde.substring(1, 2);
+ * }
  * <p>
  * The class {@code String} includes methods for examining
  * individual characters of the sequence, for comparing strings, for
@@ -1572,7 +1571,9 @@ public final class String
      */
     public int codePointBefore(int index) {
         int i = index - 1;
-        checkIndex(i, length());
+        if (i < 0 || i >= length()) {
+            throw new StringIndexOutOfBoundsException(index);
+        }
         if (isLatin1()) {
             return (value[i] & 0xff);
         }
@@ -1601,7 +1602,10 @@ public final class String
      * @since  1.5
      */
     public int codePointCount(int beginIndex, int endIndex) {
-        Objects.checkFromToIndex(beginIndex, endIndex, length());
+        if (beginIndex < 0 || beginIndex > endIndex ||
+            endIndex > length()) {
+            throw new IndexOutOfBoundsException();
+        }
         if (isLatin1()) {
             return endIndex - beginIndex;
         }
@@ -1645,9 +1649,9 @@ public final class String
      * {@code srcEnd-srcBegin}). The characters are copied into the
      * subarray of {@code dst} starting at index {@code dstBegin}
      * and ending at index:
-     * <blockquote><pre>
-     *     dstBegin + (srcEnd-srcBegin) - 1
-     * </pre></blockquote>
+     * {@snippet : 
+     *       dstBegin + (srcEnd-srcBegin) - 1
+     * }
      *
      * @param      srcBegin   index of the first character in the string
      *                        to copy.
@@ -1687,9 +1691,9 @@ public final class String
      * characters, converted to bytes, are copied into the subarray of {@code
      * dst} starting at index {@code dstBegin} and ending at index:
      *
-     * <blockquote><pre>
-     *     dstBegin + (srcEnd-srcBegin) - 1
-     * </pre></blockquote>
+     * {@snippet : 
+     *       dstBegin + (srcEnd-srcBegin) - 1
+     * }
      *
      * @deprecated  This method does not properly convert characters into
      * bytes.  As of JDK&nbsp;1.1, the preferred way to do this is via the
@@ -1982,16 +1986,16 @@ public final class String
      * other string. In this case, {@code compareTo} returns the
      * difference of the two character values at position {@code k} in
      * the two string -- that is, the value:
-     * <blockquote><pre>
-     * this.charAt(k)-anotherString.charAt(k)
-     * </pre></blockquote>
+     * {@snippet : 
+     *   this.charAt(k)-anotherString.charAt(k)
+     * }
      * If there is no index position at which they differ, then the shorter
      * string lexicographically precedes the longer string. In this case,
      * {@code compareTo} returns the difference of the lengths of the
      * strings -- that is, the value:
-     * <blockquote><pre>
-     * this.length()-anotherString.length()
-     * </pre></blockquote>
+     * {@snippet : 
+     *   this.length()-anotherString.length()
+     * }
      *
      * <p>For finer-grained String comparison, refer to
      * {@link java.text.Collator}.
@@ -2241,9 +2245,9 @@ public final class String
      *          negative or greater than the length of this
      *          {@code String} object; otherwise the result is the same
      *          as the result of the expression
-     *          <pre>
-     *          this.substring(toffset).startsWith(prefix)
-     *          </pre>
+     *          {@snippet : 
+     *            this.substring(toffset).startsWith(prefix)
+     * }
      */
     public boolean startsWith(String prefix, int toffset) {
         // Note: toffset might be near -1>>>1.
@@ -2311,9 +2315,9 @@ public final class String
     /**
      * Returns a hash code for this string. The hash code for a
      * {@code String} object is computed as
-     * <blockquote><pre>
-     * s[0]*31^(n-1) + s[1]*31^(n-2) + ... + s[n-1]
-     * </pre></blockquote>
+     * {@snippet : 
+     *   s[0]*31^(n-1) + s[1]*31^(n-2) + ... + s[n-1]
+     * }
      * using {@code int} arithmetic, where {@code s[i]} is the
      * <i>i</i>th character of the string, {@code n} is the length of
      * the string, and {@code ^} indicates exponentiation.
@@ -2486,9 +2490,9 @@ public final class String
      * specified substring.
      *
      * <p>The returned index is the smallest value {@code k} for which:
-     * <pre>{@code
-     * this.startsWith(str, k)
-     * }</pre>
+     * {@snippet : 
+     *   this.startsWith(str, k)
+     * }
      * If no such value of {@code k} exists, then {@code -1} is returned.
      *
      * @param   str   the substring to search for.
@@ -2512,10 +2516,10 @@ public final class String
      * specified substring, starting at the specified index.
      *
      * <p>The returned index is the smallest value {@code k} for which:
-     * <pre>{@code
-     *     k >= Math.min(fromIndex, this.length()) &&
-     *                   this.startsWith(str, k)
-     * }</pre>
+     * {@snippet : 
+     *       k >= Math.min(fromIndex, this.length()) &&
+     *                     this.startsWith(str, k)
+     * }
      * If no such value of {@code k} exists, then {@code -1} is returned.
      *
      * @param   str         the substring to search for.
@@ -2575,9 +2579,9 @@ public final class String
      * is considered to occur at the index value {@code this.length()}.
      *
      * <p>The returned index is the largest value {@code k} for which:
-     * <pre>{@code
-     * this.startsWith(str, k)
-     * }</pre>
+     * {@snippet : 
+     *   this.startsWith(str, k)
+     * }
      * If no such value of {@code k} exists, then {@code -1} is returned.
      *
      * @param   str   the substring to search for.
@@ -2593,10 +2597,10 @@ public final class String
      * specified substring, searching backward starting at the specified index.
      *
      * <p>The returned index is the largest value {@code k} for which:
-     * <pre>{@code
-     *     k <= Math.min(fromIndex, this.length()) &&
-     *                   this.startsWith(str, k)
-     * }</pre>
+     * {@snippet : 
+     *       k <= Math.min(fromIndex, this.length()) &&
+     *                     this.startsWith(str, k)
+     * }
      * If no such value of {@code k} exists, then {@code -1} is returned.
      *
      * @param   str         the substring to search for.
@@ -2657,11 +2661,11 @@ public final class String
      * substring begins with the character at the specified index and
      * extends to the end of this string. <p>
      * Examples:
-     * <blockquote><pre>
-     * "unhappy".substring(2) returns "happy"
-     * "Harbison".substring(3) returns "bison"
-     * "emptiness".substring(9) returns "" (an empty string)
-     * </pre></blockquote>
+     * {@snippet : 
+     *   "unhappy".substring(2) returns "happy"
+     *   "Harbison".substring(3) returns "bison"
+     *   "emptiness".substring(9) returns "" (an empty string)
+     * }
      *
      * @param      beginIndex   the beginning index, inclusive.
      * @return     the specified substring.
@@ -2680,10 +2684,10 @@ public final class String
      * Thus the length of the substring is {@code endIndex-beginIndex}.
      * <p>
      * Examples:
-     * <blockquote><pre>
-     * "hamburger".substring(4, 8) returns "urge"
-     * "smiles".substring(1, 5) returns "mile"
-     * </pre></blockquote>
+     * {@snippet : 
+     *   "hamburger".substring(4, 8) returns "urge"
+     *   "smiles".substring(1, 5) returns "mile"
+     * }
      *
      * @param      beginIndex   the beginning index, inclusive.
      * @param      endIndex     the ending index, exclusive.
@@ -2711,13 +2715,15 @@ public final class String
      *
      * <p> An invocation of this method of the form
      *
-     * <blockquote><pre>
-     * str.subSequence(begin,&nbsp;end)</pre></blockquote>
+     * {@snippet : 
+     *   str.subSequence(begin,&nbsp;end)
+     * }
      *
      * behaves in exactly the same way as the invocation
      *
-     * <blockquote><pre>
-     * str.substring(begin,&nbsp;end)</pre></blockquote>
+     * {@snippet : 
+     *   str.substring(begin,&nbsp;end)
+     * }
      *
      * @apiNote
      * This method is defined so that the {@code String} class can implement
@@ -2748,10 +2754,10 @@ public final class String
      * represented by this {@code String} object and the character
      * sequence represented by the argument string.<p>
      * Examples:
-     * <blockquote><pre>
-     * "cares".concat("s") returns "caress"
-     * "to".concat("get").concat("her") returns "together"
-     * </pre></blockquote>
+     * {@snippet : 
+     *   "cares".concat("s") returns "caress"
+     *   "to".concat("get").concat("her") returns "together"
+     * }
      *
      * @param   str   the {@code String} that is concatenated to the end
      *                of this {@code String}.
@@ -2779,15 +2785,15 @@ public final class String
      * of {@code newChar}.
      * <p>
      * Examples:
-     * <blockquote><pre>
-     * "mesquite in your cellar".replace('e', 'o')
-     *         returns "mosquito in your collar"
-     * "the war of baronets".replace('r', 'y')
-     *         returns "the way of bayonets"
-     * "sparring with a purple porpoise".replace('p', 't')
-     *         returns "starring with a turtle tortoise"
-     * "JonL".replace('q', 'x') returns "JonL" (no change)
-     * </pre></blockquote>
+     * {@snippet : 
+     *   "mesquite in your cellar".replace('e', 'o')
+     *           returns "mosquito in your collar"
+     *   "the war of baronets".replace('r', 'y')
+     *           returns "the way of bayonets"
+     *   "sparring with a purple porpoise".replace('p', 't')
+     *           returns "starring with a turtle tortoise"
+     *   "JonL".replace('q', 'x') returns "JonL" (no change)
+     * }
      *
      * @param   oldChar   the old character.
      * @param   newChar   the new character.
@@ -3197,11 +3203,11 @@ public final class String
      * {@code CharSequence elements} joined together with a copy of
      * the specified {@code delimiter}.
      *
-     * <blockquote>For example,
-     * <pre>{@code
-     *     String message = String.join("-", "Java", "is", "cool");
-     *     // message returned is: "Java-is-cool"
-     * }</pre></blockquote>
+     * For example,
+     * {@snippet lang=java : 
+     *       String message = String.join("-", "Java", "is", "cool");
+     *       // message returned is: "Java-is-cool"
+     * }
      *
      * Note that if an element is null, then {@code "null"} is added.
      *
@@ -3281,17 +3287,18 @@ public final class String
      * {@code CharSequence elements} joined together with a copy of the
      * specified {@code delimiter}.
      *
-     * <blockquote>For example,
-     * <pre>{@code
-     *     List<String> strings = List.of("Java", "is", "cool");
-     *     String message = String.join(" ", strings);
-     *     // message returned is: "Java is cool"
+     * For example,
+     * {@snippet lang=java : 
+     *       List<String> strings = List.of("Java", "is", "cool");
+     *       String message = String.join(" ", strings);
+     *       // message returned is: "Java is cool"
      *
-     *     Set<String> strings =
-     *         new LinkedHashSet<>(List.of("Java", "is", "very", "cool"));
-     *     String message = String.join("-", strings);
-     *     // message returned is: "Java-is-very-cool"
-     * }</pre></blockquote>
+     *       Set<String> strings =
+     *           new LinkedHashSet<>(List.of("Java", "is", "very", "cool"));
+     *       String message = String.join("-", strings);
+     *       // message returned is: "Java-is-very-cool"
+     *
+     * }
      *
      * Note that if an individual element is {@code null}, then {@code "null"} is added.
      *
@@ -3741,26 +3748,26 @@ public final class String
      * is often present in a text block to align the content with the opening
      * delimiter. For example, in the following code, dots represent incidental
      * {@linkplain Character#isWhitespace(int) white space}:
-     * <blockquote><pre>
-     * String html = """
-     * ..............&lt;html&gt;
-     * ..............    &lt;body&gt;
-     * ..............        &lt;p&gt;Hello, world&lt;/p&gt;
-     * ..............    &lt;/body&gt;
-     * ..............&lt;/html&gt;
-     * ..............""";
-     * </pre></blockquote>
+     * {@snippet lang=java : 
+     *   String html = """
+     *   ..............&lt;html&gt;
+     *   ..............    &lt;body&gt;
+     *   ..............        &lt;p&gt;Hello, world&lt;/p&gt;
+     *   ..............    &lt;/body&gt;
+     *   ..............&lt;/html&gt;
+     *   ..............""";
+     * }
      * This method treats the incidental
      * {@linkplain Character#isWhitespace(int) white space} as indentation to be
      * stripped, producing a string that preserves the relative indentation of
      * the content. Using | to visualize the start of each line of the string:
-     * <blockquote><pre>
-     * |&lt;html&gt;
-     * |    &lt;body&gt;
-     * |        &lt;p&gt;Hello, world&lt;/p&gt;
-     * |    &lt;/body&gt;
-     * |&lt;/html&gt;
-     * </pre></blockquote>
+     * {@snippet :
+     *   |<html>
+     *   |    <body>
+     *   |        <p>Hello, world</p>
+     *   |    </body>
+     *   |</html>
+     * }
      * First, the individual lines of this string are extracted. A <i>line</i>
      * is a sequence of zero or more characters followed by either a line
      * terminator or the end of the string.
@@ -4552,7 +4559,10 @@ public final class String
      * negative or greater than or equal to {@code length}.
      */
     static void checkIndex(int index, int length) {
-        Preconditions.checkIndex(index, length, Preconditions.SIOOBE_FORMATTER);
+        if (index < 0 || index >= length) {
+            throw new StringIndexOutOfBoundsException("index " + index +
+                                                      ", length " + length);
+        }
     }
 
     /*
@@ -4560,7 +4570,10 @@ public final class String
      * is negative or greater than {@code length}.
      */
     static void checkOffset(int offset, int length) {
-        Preconditions.checkFromToIndex(offset, length, length, Preconditions.SIOOBE_FORMATTER);
+        if (offset < 0 || offset > length) {
+            throw new StringIndexOutOfBoundsException("offset " + offset +
+                                                      ", length " + length);
+        }
     }
 
     /*
@@ -4572,7 +4585,10 @@ public final class String
      *          or {@code offset} is greater than {@code length - count}
      */
     static void checkBoundsOffCount(int offset, int count, int length) {
-        Preconditions.checkFromIndexSize(offset, count, length, Preconditions.SIOOBE_FORMATTER);
+        if (offset < 0 || count < 0 || offset > length - count) {
+            throw new StringIndexOutOfBoundsException(
+                "offset " + offset + ", count " + count + ", length " + length);
+        }
     }
 
     /*
@@ -4584,7 +4600,10 @@ public final class String
      *          {@code end}, or {@code end} is greater than {@code length}.
      */
     static void checkBoundsBeginEnd(int begin, int end, int length) {
-        Preconditions.checkFromToIndex(begin, end, length, Preconditions.SIOOBE_FORMATTER);
+        if (begin < 0 || begin > end || end > length) {
+            throw new StringIndexOutOfBoundsException(
+                "begin " + begin + ", end " + end + ", length " + length);
+        }
     }
 
     /**

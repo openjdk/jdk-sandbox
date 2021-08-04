@@ -332,9 +332,9 @@ public final class Constructor<T> extends Executable {
      * followed by the fully-qualified name of the declaring class,
      * followed by a parenthesized, comma-separated list of the
      * constructor's formal parameter types.  For example:
-     * <pre>{@code
-     *    public java.util.HashMap(int,float)
-     * }</pre>
+     * {@snippet : 
+     *      public java.util.HashMap(int,float)
+     * }
      *
      * <p>If the constructor is declared to throw exceptions, the
      * parameter list is followed by a space, followed by the word

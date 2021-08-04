@@ -41,18 +41,18 @@ import jdk.internal.access.SharedSecrets;
  * <p> The layout of a variant 2 (Leach-Salz) UUID is as follows:
  *
  * The most significant long consists of the following unsigned fields:
- * <pre>
- * 0xFFFFFFFF00000000 time_low
- * 0x00000000FFFF0000 time_mid
- * 0x000000000000F000 version
- * 0x0000000000000FFF time_hi
- * </pre>
+ * {@snippet : 
+ *   0xFFFFFFFF00000000 time_low
+ *   0x00000000FFFF0000 time_mid
+ *   0x000000000000F000 version
+ *   0x0000000000000FFF time_hi
+ * }
  * The least significant long consists of the following unsigned fields:
- * <pre>
- * 0xC000000000000000 variant
- * 0x3FFF000000000000 clock_seq
- * 0x0000FFFFFFFFFFFF node
- * </pre>
+ * {@snippet : 
+ *   0xC000000000000000 variant
+ *   0x3FFF000000000000 clock_seq
+ *   0x0000FFFFFFFFFFFF node
+ * }
  *
  * <p> The variant field contains a value which identifies the layout of the
  * {@code UUID}.  The bit layout described above is valid only for a {@code
@@ -436,8 +436,7 @@ public final class UUID implements java.io.Serializable, Comparable<UUID> {
      * Returns a {@code String} object representing this {@code UUID}.
      *
      * <p> The UUID string representation is as described by this BNF:
-     * <blockquote><pre>
-     * {@code
+     * {@snippet :
      * UUID                   = <time_low> "-" <time_mid> "-"
      *                          <time_high_and_version> "-"
      *                          <variant_and_sequence> "-"
@@ -452,7 +451,7 @@ public final class UUID implements java.io.Serializable, Comparable<UUID> {
      *       "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
      *       | "a" | "b" | "c" | "d" | "e" | "f"
      *       | "A" | "B" | "C" | "D" | "E" | "F"
-     * }</pre></blockquote>
+     * }
      *
      * @return  A string representation of this {@code UUID}
      */

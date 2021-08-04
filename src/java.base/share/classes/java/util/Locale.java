@@ -243,13 +243,11 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  * <h4>Constructors</h4>
  *
  * <p>The {@code Locale} class provides three constructors:
- * <blockquote>
- * <pre>
- *     {@link #Locale(String language)}
- *     {@link #Locale(String language, String country)}
- *     {@link #Locale(String language, String country, String variant)}
- * </pre>
- * </blockquote>
+ * {@snippet lang=java :
+ * Locale(String language) //@link regex="Locale(String language)" target="#Locale(String language)"
+ * Locale(String language, String country) //@link regex="Locale(String language, String country)" target="#Locale(String language, String country)"
+ * Locale(String language, String country, String variant) //@link regex="Locale(String language, String country, String variant)" target="#Locale(String language, String country, String variant)"
+ * }
  * These constructors allow you to create a {@code Locale} object
  * with language, country and variant, but you cannot specify
  * script or extensions.
@@ -265,11 +263,9 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  * that you can use to create {@code Locale} objects for commonly used
  * locales. For example, the following creates a {@code Locale} object
  * for the United States:
- * <blockquote>
- * <pre>
- *     Locale.US
- * </pre>
- * </blockquote>
+ * {@snippet : 
+ *       Locale.US
+ * }
  *
  * <h3><a id="LocaleMatching">Locale Matching</a></h3>
  *
@@ -323,15 +319,13 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  * {@code "zh-Hant-TW"} and {@code "en-US"}, in prioritized order, lookup
  * method progressively searches the language tags below in order to find the
  * best matching language tag.
- * <blockquote>
- * <pre>
- *    1. zh-Hant-TW
- *    2. zh-Hant
- *    3. zh
- *    4. en-US
- *    5. en
- * </pre>
- * </blockquote>
+ * {@snippet : 
+ *      1. zh-Hant-TW
+ *      2. zh-Hant
+ *      3. zh
+ *      4. en-US
+ *      5. en
+ * }
  * If there is a language tag which matches completely to a language range
  * above, the language tag is returned.
  *
@@ -363,23 +357,19 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  * for creating a default object of that type. For example, the
  * {@code NumberFormat} class provides these three convenience methods
  * for creating a default {@code NumberFormat} object:
- * <blockquote>
- * <pre>
- *     NumberFormat.getInstance()
- *     NumberFormat.getCurrencyInstance()
- *     NumberFormat.getPercentInstance()
- * </pre>
- * </blockquote>
+ * {@snippet : 
+ *       NumberFormat.getInstance()
+ *       NumberFormat.getCurrencyInstance()
+ *       NumberFormat.getPercentInstance()
+ * }
  * Each of these methods has two variants; one with an explicit locale
  * and one without; the latter uses the default
  * {@link Locale.Category#FORMAT FORMAT} locale:
- * <blockquote>
- * <pre>
- *     NumberFormat.getInstance(myLocale)
- *     NumberFormat.getCurrencyInstance(myLocale)
- *     NumberFormat.getPercentInstance(myLocale)
- * </pre>
- * </blockquote>
+ * {@snippet : 
+ *       NumberFormat.getInstance(myLocale)
+ *       NumberFormat.getCurrencyInstance(myLocale)
+ *       NumberFormat.getPercentInstance(myLocale)
+ * }
  * A {@code Locale} is the mechanism for identifying the kind of object
  * ({@code NumberFormat}) that you would like to get. The locale is
  * <STRONG>just</STRONG> a mechanism for identifying objects,
@@ -1523,8 +1513,9 @@ public final class Locale implements Cloneable, Serializable {
      * method is well-formed (satisfies the syntax requirements
      * defined by the IETF BCP 47 specification), it is not
      * necessarily a valid BCP 47 language tag.  For example,
-     * <pre>
-     *   new Locale("xx", "YY").toLanguageTag();</pre>
+     * {@snippet lang=java : 
+     *     new Locale("xx", "YY").toLanguageTag();
+     * }
      *
      * will return "xx-YY", but the language subtag "xx" and the
      * region subtag "YY" are invalid because they are not registered
@@ -1614,25 +1605,25 @@ public final class Locale implements Cloneable, Serializable {
      * result locale (without case normalization).  If it is then
      * empty, the private use subtag is discarded:
      *
-     * <pre>
-     *     Locale loc;
-     *     loc = Locale.forLanguageTag("en-US-x-lvariant-POSIX");
-     *     loc.getVariant(); // returns "POSIX"
-     *     loc.getExtension('x'); // returns null
+     * {@snippet lang=java : 
+     *       Locale loc;
+     *       loc = Locale.forLanguageTag("en-US-x-lvariant-POSIX");
+     *       loc.getVariant(); // returns "POSIX"
+     *       loc.getExtension('x'); // returns null
      *
-     *     loc = Locale.forLanguageTag("de-POSIX-x-URP-lvariant-Abc-Def");
-     *     loc.getVariant(); // returns "POSIX_Abc_Def"
-     *     loc.getExtension('x'); // returns "urp"
-     * </pre>
+     *       loc = Locale.forLanguageTag("de-POSIX-x-URP-lvariant-Abc-Def");
+     *       loc.getVariant(); // returns "POSIX_Abc_Def"
+     *       loc.getExtension('x'); // returns "urp"
+     * }
      *
      * <li>When the languageTag argument contains an extlang subtag,
      * the first such subtag is used as the language, and the primary
      * language subtag and other extlang subtags are ignored:
      *
-     * <pre>
-     *     Locale.forLanguageTag("ar-aao").getLanguage(); // returns "aao"
-     *     Locale.forLanguageTag("en-abc-def-us").toString(); // returns "abc_US"
-     * </pre>
+     * {@snippet lang=java : 
+     *       Locale.forLanguageTag("ar-aao").getLanguage(); // returns "aao"
+     *       Locale.forLanguageTag("en-abc-def-us").toString(); // returns "abc_US"
+     * }
      *
      * <li>Case is normalized except for variant tags, which are left
      * unchanged.  Language is normalized to lower case, script to
@@ -1643,12 +1634,12 @@ public final class Locale implements Cloneable, Serializable {
      * ja_JP_JP or th_TH_TH with no extensions, the appropriate
      * extensions are added as though the constructor had been called:
      *
-     * <pre>
-     *    Locale.forLanguageTag("ja-JP-x-lvariant-JP").toLanguageTag();
-     *    // returns "ja-JP-u-ca-japanese-x-lvariant-JP"
-     *    Locale.forLanguageTag("th-TH-x-lvariant-TH").toLanguageTag();
-     *    // returns "th-TH-u-nu-thai-x-lvariant-TH"
-     * </pre></ul>
+     * {@snippet lang=java : 
+     *      Locale.forLanguageTag("ja-JP-x-lvariant-JP").toLanguageTag();
+     *      // returns "ja-JP-u-ca-japanese-x-lvariant-JP"
+     *      Locale.forLanguageTag("th-TH-x-lvariant-TH").toLanguageTag();
+     *      // returns "th-TH-u-nu-thai-x-lvariant-TH"
+     * }</ul>
      *
      * <p>This implements the 'Language-Tag' production of BCP47, and
      * so supports legacy (regular and irregular, referred to as
@@ -2525,11 +2516,9 @@ public final class Locale implements Cloneable, Serializable {
      *
      * <p>The following example shows how to create a {@code Locale} object
      * with the {@code Builder}.
-     * <blockquote>
-     * <pre>
-     *     Locale aLocale = new Builder().setLanguage("sr").setScript("Latn").setRegion("RS").build();
-     * </pre>
-     * </blockquote>
+     * {@snippet lang=java : 
+     *       Locale aLocale = new Builder().setLanguage("sr").setScript("Latn").setRegion("RS").build();
+     * }
      *
      * <p>Builders can be reused; {@code clear()} resets all
      * fields to their default values.
@@ -2858,15 +2847,15 @@ public final class Locale implements Cloneable, Serializable {
      * <p>As an example, think of two Language Priority Lists each of which
      * includes only one language range and a set of following language tags:
      *
-     * <pre>
-     *    de (German)
-     *    de-DE (German, Germany)
-     *    de-Deva (German, in Devanagari script)
-     *    de-Deva-DE (German, in Devanagari script, Germany)
-     *    de-DE-1996 (German, Germany, orthography of 1996)
-     *    de-Latn-DE (German, in Latin script, Germany)
-     *    de-Latn-DE-1996 (German, in Latin script, Germany, orthography of 1996)
-     * </pre>
+     * {@snippet : 
+     *      de (German)
+     *      de-DE (German, Germany)
+     *      de-Deva (German, in Devanagari script)
+     *      de-Deva-DE (German, in Devanagari script, Germany)
+     *      de-DE-1996 (German, Germany, orthography of 1996)
+     *      de-Latn-DE (German, in Latin script, Germany)
+     *      de-Latn-DE-1996 (German, in Latin script, Germany, orthography of 1996)
+     * }
      *
      * The filtering method will behave as follows:
      *
@@ -2998,14 +2987,12 @@ public final class Locale implements Cloneable, Serializable {
      * <p>There are two types of language ranges: basic and extended. In RFC
      * 4647, the syntax of language ranges is expressed in
      * <a href="http://tools.ietf.org/html/rfc4234">ABNF</a> as follows:
-     * <blockquote>
-     * <pre>
-     *     basic-language-range    = (1*8ALPHA *("-" 1*8alphanum)) / "*"
-     *     extended-language-range = (1*8ALPHA / "*")
-     *                               *("-" (1*8alphanum / "*"))
-     *     alphanum                = ALPHA / DIGIT
-     * </pre>
-     * </blockquote>
+     * {@snippet : 
+     *       basic-language-range    = (1*8ALPHA *("-" 1*8alphanum)) / "*"
+     *       extended-language-range = (1*8ALPHA / "*")
+     *                                 *("-" (1*8alphanum / "*"))
+     *       alphanum                = ALPHA / DIGIT
+     * }
      * For example, {@code "en"} (English), {@code "ja-JP"} (Japanese, Japan),
      * {@code "*"} (special language range which matches any language tag) are
      * basic language ranges, whereas {@code "*-CH"} (any languages,
@@ -3155,11 +3142,11 @@ public final class Locale implements Cloneable, Serializable {
          * <p>The {@code ranges} to be given can take one of the following
          * forms:
          *
-         * <pre>
-         *   "Accept-Language: ja,en;q=0.4"  (weighted list with Accept-Language prefix)
-         *   "ja,en;q=0.4"                   (weighted list)
-         *   "ja,en"                         (prioritized list)
-         * </pre>
+         * {@snippet : 
+         *     "Accept-Language: ja,en;q=0.4"  (weighted list with Accept-Language prefix)
+         *     "ja,en;q=0.4"                   (weighted list)
+         *     "ja,en"                         (prioritized list)
+         * }
          *
          * In a weighted list, each language range is given a weight value.
          * The weight value is identical to the "quality value" in

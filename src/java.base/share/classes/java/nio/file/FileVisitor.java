@@ -36,61 +36,11 @@ import java.io.IOException;
  * <p> <b>Usage Examples:</b>
  * Suppose we want to delete a file tree. In that case, each directory should
  * be deleted after the entries in the directory are deleted.
- * <pre>
- *     Path start = ...
- *     Files.walkFileTree(start, new SimpleFileVisitor&lt;Path&gt;() {
- *         &#64;Override
- *         public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
- *             throws IOException
- *         {
- *             Files.delete(file);
- *             return FileVisitResult.CONTINUE;
- *         }
- *         &#64;Override
- *         public FileVisitResult postVisitDirectory(Path dir, IOException e)
- *             throws IOException
- *         {
- *             if (e == null) {
- *                 Files.delete(dir);
- *                 return FileVisitResult.CONTINUE;
- *             } else {
- *                 // directory iteration failed
- *                 throw e;
- *             }
- *         }
- *     });
- * </pre>
+ * {@snippet file="FileVisitorSnippets.java" region="snippet1"}
  * <p> Furthermore, suppose we want to copy a file tree to a target location.
  * In that case, symbolic links should be followed and the target directory
  * should be created before the entries in the directory are copied.
- * <pre>
- *     final Path source = ...
- *     final Path target = ...
- *
- *     Files.walkFileTree(source, EnumSet.of(FileVisitOption.FOLLOW_LINKS), Integer.MAX_VALUE,
- *         new SimpleFileVisitor&lt;Path&gt;() {
- *             &#64;Override
- *             public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
- *                 throws IOException
- *             {
- *                 Path targetdir = target.resolve(source.relativize(dir));
- *                 try {
- *                     Files.copy(dir, targetdir);
- *                 } catch (FileAlreadyExistsException e) {
- *                      if (!Files.isDirectory(targetdir))
- *                          throw e;
- *                 }
- *                 return CONTINUE;
- *             }
- *             &#64;Override
- *             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
- *                 throws IOException
- *             {
- *                 Files.copy(file, target.resolve(source.relativize(file)));
- *                 return CONTINUE;
- *             }
- *         });
- * </pre>
+ * {@snippet file="FileVisitorSnippets.java" region="snippet2"}
  *
  * @since 1.7
  */

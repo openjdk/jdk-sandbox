@@ -40,17 +40,17 @@ import java.security.Permission;
  * The range of method and header names is not restricted by this class.
  * <p><b>The url</b><p>
  * The url string has the following expected structure.
- * <pre>
- *     scheme : // authority [ / path ] [ ignored-query-or-fragment ]
- * </pre>
+ * {@snippet : 
+ *       scheme : // authority [ / path ] [ ignored-query-or-fragment ]
+ * }
  * <i>scheme</i> will typically be http or https, but is not restricted by this
  * class.
  * <i>authority</i> is specified as:
- * <pre>
- *     authority = [ userinfo @ ] hostrange [ : portrange ]
- *     portrange = portnumber | -portnumber | portnumber-[portnumber] | *
- *     hostrange = ([*.] dnsname) | IPv4address | IPv6address
- * </pre>
+ * {@snippet : 
+ *       authority = [ userinfo @ ] hostrange [ : portrange ]
+ *       portrange = portnumber | -portnumber | portnumber-[portnumber] | *
+ *       hostrange = ([*.] dnsname) | IPv4address | IPv6address
+ * }
  * <i>dnsname</i> is a standard DNS host or domain name, i.e. one or more labels
  * separated by ".". <i>IPv4address</i> is a standard literal IPv4 address and
  * <i>IPv6address</i> is as defined in <a href="http://www.ietf.org/rfc/rfc2732.txt">
@@ -111,9 +111,9 @@ import java.security.Permission;
  * <p>
  * <i>ignored-query-or-fragment</i> refers to any query or fragment which appears after the
  * path component, and which is ignored by the constructors of this class. It is defined as:
- * <pre>
- *     ignored-query-or-fragment = [ ? query ] [ # fragment ]
- * </pre>
+ * {@snippet : 
+ *       ignored-query-or-fragment = [ ? query ] [ # fragment ]
+ * }
  * where <i>query</i> and <i>fragment</i> are as defined in
  * <a href="http://www.ietf.org/rfc/rfc2296.txt">RFC2396</a>. {@link #getName() getName()} therefore returns
  * only the <i>scheme</i>, <i>authority</i> and <i>path</i> components of the url string that
@@ -245,9 +245,9 @@ public final class URLPermission extends Permission {
     /**
      * Returns the normalized method list and request
      * header list, in the form:
-     * <pre>
-     *      "method-names : header-names"
-     * </pre>
+     * {@snippet : 
+     *        "method-names : header-names"
+     * }
      * <p>
      * where method-names is the list of methods separated by commas
      * and header-names is the list of permitted headers separated by commas.

@@ -58,10 +58,10 @@ import jdk.internal.access.SharedSecrets;
  * method.  This is best done at creation time, to prevent accidental
  * unsynchronized access:
  *
- * <pre>
- *     Map&lt;EnumKey, V&gt; m
- *         = Collections.synchronizedMap(new EnumMap&lt;EnumKey, V&gt;(...));
- * </pre>
+ * {@snippet : 
+ *       Map<EnumKey, V> m
+ *           = Collections.synchronizedMap(new EnumMap<EnumKey, V>(...));
+ * }
  *
  * <p>Implementation note: All basic operations execute in constant time.
  * They are likely (though not guaranteed) to be faster than their

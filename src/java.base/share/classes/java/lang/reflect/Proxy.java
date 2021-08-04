@@ -68,12 +68,13 @@ import static java.lang.module.ModuleDescriptor.Modifier.SYNTHETIC;
  * {@code Proxy} provides static methods for creating objects that act like instances
  * of interfaces but allow for customized method invocation.
  * To create a proxy instance for some interface {@code Foo}:
- * <pre>{@code
- *     InvocationHandler handler = new MyInvocationHandler(...);
- *     Foo f = (Foo) Proxy.newProxyInstance(Foo.class.getClassLoader(),
- *                                          new Class<?>[] { Foo.class },
- *                                          handler);
- * }</pre>
+ * {@snippet : 
+ *       InvocationHandler handler = new MyInvocationHandler(...);
+ *       Foo f = (Foo) Proxy.newProxyInstance(Foo.class.getClassLoader(),
+ *                                            new Class<?>[] { Foo.class },
+ *                                            handler);
+ *   
+ * }
  *
  * <p>
  * A <em>proxy class</em> is a class created at runtime that implements a specified
@@ -131,14 +132,17 @@ import static java.lang.module.ModuleDescriptor.Modifier.SYNTHETIC;
  * <li>Given a proxy instance {@code proxy} and one of the
  * interfaces, {@code Foo}, implemented by its proxy class, the
  * following expression will return true:
- * <pre>
- *     {@code proxy instanceof Foo}
- * </pre>
+ *
+ * {@snippet :
+ * proxy instanceof Foo
+ * }
+ *
  * and the following cast operation will succeed (rather than throwing
  * a {@code ClassCastException}):
- * <pre>
- *     {@code (Foo) proxy}
- * </pre>
+ * {@snippet :
+ * (Foo) proxy
+ * }
+ *
  *
  * <li>Each proxy instance has an associated invocation handler, the one
  * that was passed to its constructor.  The static

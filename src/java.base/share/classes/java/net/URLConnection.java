@@ -123,9 +123,9 @@ import sun.security.action.GetPropertyAction;
  * <p>
  * More information on the request properties and header fields of
  * an {@code http} connection can be found at:
- * <blockquote><pre>
- * <a href="http://www.ietf.org/rfc/rfc2616.txt">http://www.ietf.org/rfc/rfc2616.txt</a>
- * </pre></blockquote>
+ * {@snippet :
+ * href="http://www.ietf.org/rfc/rfc2616.txt">http://www.ietf.org/rfc/rfc2616.txt
+ * }
  *
  * Invoking the {@code close()} methods on the {@code InputStream} or {@code OutputStream} of an
  * {@code URLConnection} after a request may free network resources associated with this
@@ -1340,11 +1340,11 @@ public abstract class URLConnection {
      * a vertical-bar delimited set of class prefixes to search through in
      * addition by defining the {@value #contentPathProp} property.
      * The class name must be of the form:
-     * <pre>
-     *     {package-prefix}.{major}.{minor}
-     * e.g.
-     *     YoyoDyne.experimental.text.plain
-     * </pre>
+     * {@snippet : 
+     *       {package-prefix}.{major}.{minor}
+     *   e.g.
+     *       YoyoDyne.experimental.text.plain
+     * }
      */
     private ContentHandler lookupContentHandlerClassFor(String contentType) {
         String contentHandlerClassName = typeToPackageName(contentType);

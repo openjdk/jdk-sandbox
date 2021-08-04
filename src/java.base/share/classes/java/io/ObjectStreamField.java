@@ -227,18 +227,18 @@ public class ObjectStreamField
 
     /**
      * Returns character encoding of field type.  The encoding is as follows:
-     * <blockquote><pre>
-     * B            byte
-     * C            char
-     * D            double
-     * F            float
-     * I            int
-     * J            long
-     * L            class or interface
-     * S            short
-     * Z            boolean
-     * [            array
-     * </pre></blockquote>
+     * {@snippet : 
+     *   B            byte
+     *   C            char
+     *   D            double
+     *   F            float
+     *   I            int
+     *   J            long
+     *   L            class or interface
+     *   S            short
+     *   Z            boolean
+     *   [            array
+     * }
      *
      * @return  the typecode of the serializable field
      */

@@ -34,7 +34,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 
 import static java.lang.constant.ConstantDescs.BSM_EXPLICIT_CAST;
@@ -8828,9 +8827,9 @@ class Character implements java.io.Serializable, Comparable<Character>, Constabl
      * Unicode surrogate pair</a>.
      *
      * <p>This method is equivalent to the expression:
-     * <blockquote><pre>{@code
-     * isHighSurrogate(high) && isLowSurrogate(low)
-     * }</pre></blockquote>
+     * {@snippet : 
+     *   isHighSurrogate(high) && isLowSurrogate(low)
+     * }
      *
      * @param  high the high-surrogate code value to be tested
      * @param  low the low-surrogate code value to be tested
@@ -9250,7 +9249,10 @@ class Character implements java.io.Serializable, Comparable<Character>, Constabl
      * @since  1.5
      */
     public static int codePointCount(CharSequence seq, int beginIndex, int endIndex) {
-        Objects.checkFromToIndex(beginIndex, endIndex, seq.length());
+        int length = seq.length();
+        if (beginIndex < 0 || endIndex > length || beginIndex > endIndex) {
+            throw new IndexOutOfBoundsException();
+        }
         int n = endIndex - beginIndex;
         for (int i = beginIndex; i < endIndex; ) {
             if (isHighSurrogate(seq.charAt(i++)) && i < endIndex &&
@@ -9282,7 +9284,9 @@ class Character implements java.io.Serializable, Comparable<Character>, Constabl
      * @since  1.5
      */
     public static int codePointCount(char[] a, int offset, int count) {
-        Objects.checkFromIndexSize(count, offset, a.length);
+        if (count > a.length - offset || offset < 0 || count < 0) {
+            throw new IndexOutOfBoundsException();
+        }
         return codePointCountImpl(a, offset, count);
     }
 
@@ -9436,13 +9440,13 @@ class Character implements java.io.Serializable, Comparable<Character>, Constabl
      * Other_Lowercase as defined by the Unicode Standard.
      * <p>
      * The following are examples of lowercase characters:
-     * <blockquote><pre>
-     * a b c d e f g h i j k l m n o p q r s t u v w x y z
-     * '&#92;u00DF' '&#92;u00E0' '&#92;u00E1' '&#92;u00E2' '&#92;u00E3' '&#92;u00E4' '&#92;u00E5' '&#92;u00E6'
-     * '&#92;u00E7' '&#92;u00E8' '&#92;u00E9' '&#92;u00EA' '&#92;u00EB' '&#92;u00EC' '&#92;u00ED' '&#92;u00EE'
-     * '&#92;u00EF' '&#92;u00F0' '&#92;u00F1' '&#92;u00F2' '&#92;u00F3' '&#92;u00F4' '&#92;u00F5' '&#92;u00F6'
-     * '&#92;u00F8' '&#92;u00F9' '&#92;u00FA' '&#92;u00FB' '&#92;u00FC' '&#92;u00FD' '&#92;u00FE' '&#92;u00FF'
-     * </pre></blockquote>
+     * {@snippet : 
+     *   a b c d e f g h i j k l m n o p q r s t u v w x y z
+     *   '\u00DF' '\u00E0' '\u00E1' '\u00E2' '\u00E3' '\u00E4' '\u00E5' '\u00E6'
+     *   '\u00E7' '\u00E8' '\u00E9' '\u00EA' '\u00EB' '\u00EC' '\u00ED' '\u00EE'
+     *   '\u00EF' '\u00F0' '\u00F1' '\u00F2' '\u00F3' '\u00F4' '\u00F5' '\u00F6'
+     *   '\u00F8' '\u00F9' '\u00FA' '\u00FB' '\u00FC' '\u00FD' '\u00FE' '\u00FF'
+     * }
      * <p> Many other Unicode characters are lowercase too.
      *
      * <p><b>Note:</b> This method cannot handle <a
@@ -9472,13 +9476,14 @@ class Character implements java.io.Serializable, Comparable<Character>, Constabl
      * Other_Lowercase as defined by the Unicode Standard.
      * <p>
      * The following are examples of lowercase characters:
-     * <blockquote><pre>
-     * a b c d e f g h i j k l m n o p q r s t u v w x y z
-     * '&#92;u00DF' '&#92;u00E0' '&#92;u00E1' '&#92;u00E2' '&#92;u00E3' '&#92;u00E4' '&#92;u00E5' '&#92;u00E6'
-     * '&#92;u00E7' '&#92;u00E8' '&#92;u00E9' '&#92;u00EA' '&#92;u00EB' '&#92;u00EC' '&#92;u00ED' '&#92;u00EE'
-     * '&#92;u00EF' '&#92;u00F0' '&#92;u00F1' '&#92;u00F2' '&#92;u00F3' '&#92;u00F4' '&#92;u00F5' '&#92;u00F6'
-     * '&#92;u00F8' '&#92;u00F9' '&#92;u00FA' '&#92;u00FB' '&#92;u00FC' '&#92;u00FD' '&#92;u00FE' '&#92;u00FF'
-     * </pre></blockquote>
+     * {@snippet : 
+     *   a b c d e f g h i j k l m n o p q r s t u v w x y z
+     *   '\u00DF' '\u00E0' '\u00E1' '\u00E2' '\u00E3' '\u00E4' '\u00E5' '\u00E6'
+     *   '\u00E7' '\u00E8' '\u00E9' '\u00EA' '\u00EB' '\u00EC' '\u00ED' '\u00EE'
+     *   '\u00EF' '\u00F0' '\u00F1' '\u00F2' '\u00F3' '\u00F4' '\u00F5' '\u00F6'
+     *   '\u00F8' '\u00F9' '\u00FA' '\u00FB' '\u00FC' '\u00FD' '\u00FE' '\u00FF'
+     *
+     * }
      * <p> Many other Unicode characters are lowercase too.
      *
      * @param   codePoint the character (Unicode code point) to be tested.
@@ -9502,13 +9507,13 @@ class Character implements java.io.Serializable, Comparable<Character>, Constabl
      * or it has contributory property Other_Uppercase as defined by the Unicode Standard.
      * <p>
      * The following are examples of uppercase characters:
-     * <blockquote><pre>
-     * A B C D E F G H I J K L M N O P Q R S T U V W X Y Z
-     * '&#92;u00C0' '&#92;u00C1' '&#92;u00C2' '&#92;u00C3' '&#92;u00C4' '&#92;u00C5' '&#92;u00C6' '&#92;u00C7'
-     * '&#92;u00C8' '&#92;u00C9' '&#92;u00CA' '&#92;u00CB' '&#92;u00CC' '&#92;u00CD' '&#92;u00CE' '&#92;u00CF'
-     * '&#92;u00D0' '&#92;u00D1' '&#92;u00D2' '&#92;u00D3' '&#92;u00D4' '&#92;u00D5' '&#92;u00D6' '&#92;u00D8'
-     * '&#92;u00D9' '&#92;u00DA' '&#92;u00DB' '&#92;u00DC' '&#92;u00DD' '&#92;u00DE'
-     * </pre></blockquote>
+     * {@snippet : 
+     *   A B C D E F G H I J K L M N O P Q R S T U V W X Y Z
+     *   '\u00C0' '\u00C1' '\u00C2' '\u00C3' '\u00C4' '\u00C5' '\u00C6' '\u00C7'
+     *   '\u00C8' '\u00C9' '\u00CA' '\u00CB' '\u00CC' '\u00CD' '\u00CE' '\u00CF'
+     *   '\u00D0' '\u00D1' '\u00D2' '\u00D3' '\u00D4' '\u00D5' '\u00D6' '\u00D8'
+     *   '\u00D9' '\u00DA' '\u00DB' '\u00DC' '\u00DD' '\u00DE'
+     * }
      * <p> Many other Unicode characters are uppercase too.
      *
      * <p><b>Note:</b> This method cannot handle <a
@@ -9537,13 +9542,13 @@ class Character implements java.io.Serializable, Comparable<Character>, Constabl
      * or it has contributory property Other_Uppercase as defined by the Unicode Standard.
      * <p>
      * The following are examples of uppercase characters:
-     * <blockquote><pre>
-     * A B C D E F G H I J K L M N O P Q R S T U V W X Y Z
-     * '&#92;u00C0' '&#92;u00C1' '&#92;u00C2' '&#92;u00C3' '&#92;u00C4' '&#92;u00C5' '&#92;u00C6' '&#92;u00C7'
-     * '&#92;u00C8' '&#92;u00C9' '&#92;u00CA' '&#92;u00CB' '&#92;u00CC' '&#92;u00CD' '&#92;u00CE' '&#92;u00CF'
-     * '&#92;u00D0' '&#92;u00D1' '&#92;u00D2' '&#92;u00D3' '&#92;u00D4' '&#92;u00D5' '&#92;u00D6' '&#92;u00D8'
-     * '&#92;u00D9' '&#92;u00DA' '&#92;u00DB' '&#92;u00DC' '&#92;u00DD' '&#92;u00DE'
-     * </pre></blockquote>
+     * {@snippet : 
+     *   A B C D E F G H I J K L M N O P Q R S T U V W X Y Z
+     *   '\u00C0' '\u00C1' '\u00C2' '\u00C3' '\u00C4' '\u00C5' '\u00C6' '\u00C7'
+     *   '\u00C8' '\u00C9' '\u00CA' '\u00CB' '\u00CC' '\u00CD' '\u00CE' '\u00CF'
+     *   '\u00D0' '\u00D1' '\u00D2' '\u00D3' '\u00D4' '\u00D5' '\u00D6' '\u00D8'
+     *   '\u00D9' '\u00DA' '\u00DB' '\u00DC' '\u00DD' '\u00DE'
+     * }
      * <p> Many other Unicode characters are uppercase too.
      *
      * @param   codePoint the character (Unicode code point) to be tested.
@@ -10153,9 +10158,9 @@ class Character implements java.io.Serializable, Comparable<Character>, Constabl
      * This method conforms to <a href="https://unicode.org/reports/tr31/#R1">
      * UAX31-R1: Default Identifiers</a> requirement of the Unicode Standard,
      * with the following profile of UAX31:
-     * <pre>
-     * Start := ID_Start + 'VERTICAL TILDE' (U+2E2F)
-     * </pre>
+     * {@snippet : 
+     *   Start := ID_Start + 'VERTICAL TILDE' (U+2E2F)
+     * }
      * {@code 'VERTICAL TILDE'} is added to {@code Start} for backward
      * compatibility.
      *
@@ -10194,9 +10199,9 @@ class Character implements java.io.Serializable, Comparable<Character>, Constabl
      * This method conforms to <a href="https://unicode.org/reports/tr31/#R1">
      * UAX31-R1: Default Identifiers</a> requirement of the Unicode Standard,
      * with the following profile of UAX31:
-     * <pre>
-     * Start := ID_Start + 'VERTICAL TILDE' (U+2E2F)
-     * </pre>
+     * {@snippet : 
+     *   Start := ID_Start + 'VERTICAL TILDE' (U+2E2F)
+     * }
      * {@code 'VERTICAL TILDE'} is added to {@code Start} for backward
      * compatibility.
      *
@@ -10236,11 +10241,11 @@ class Character implements java.io.Serializable, Comparable<Character>, Constabl
      * This method conforms to <a href="https://unicode.org/reports/tr31/#R1">
      * UAX31-R1: Default Identifiers</a> requirement of the Unicode Standard,
      * with the following profile of UAX31:
-     * <pre>
-     * Continue := Start + ID_Continue + ignorable
-     * Medial := empty
-     * ignorable := isIdentifierIgnorable(char) returns true for the character
-     * </pre>
+     * {@snippet : 
+     *   Continue := Start + ID_Continue + ignorable
+     *   Medial := empty
+     *   ignorable := isIdentifierIgnorable(char) returns true for the character
+     * }
      * {@code ignorable} is added to {@code Continue} for backward
      * compatibility.
      *
@@ -10286,11 +10291,11 @@ class Character implements java.io.Serializable, Comparable<Character>, Constabl
      * This method conforms to <a href="https://unicode.org/reports/tr31/#R1">
      * UAX31-R1: Default Identifiers</a> requirement of the Unicode Standard,
      * with the following profile of UAX31:
-     * <pre>
-     * Continue := Start + ID_Continue + ignorable
-     * Medial := empty
-     * ignorable := isIdentifierIgnorable(int) returns true for the character
-     * </pre>
+     * {@snippet : 
+     *   Continue := Start + ID_Continue + ignorable
+     *   Medial := empty
+     *   ignorable := isIdentifierIgnorable(int) returns true for the character
+     * }
      * {@code ignorable} is added to {@code Continue} for backward
      * compatibility.
      *
@@ -11213,9 +11218,9 @@ class Character implements java.io.Serializable, Comparable<Character>, Constabl
     /**
      * Compares two {@code char} values numerically.
      * The value returned is identical to what would be returned by:
-     * <pre>
-     *    Character.valueOf(x).compareTo(Character.valueOf(y))
-     * </pre>
+     * {@snippet : 
+     *      Character.valueOf(x).compareTo(Character.valueOf(y))
+     * }
      *
      * @param  x the first {@code char} to compare
      * @param  y the second {@code char} to compare

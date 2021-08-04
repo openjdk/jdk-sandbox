@@ -212,10 +212,10 @@ public abstract class CalendarNameProvider extends LocaleServiceProvider {
      * {@link Calendar#NARROW_FORMAT}, or {@link Calendar#NARROW_STANDALONE}.
      *
      * <p>For example, the following call will return {@code "Sunday"}.
-     * <pre>
-     * getDisplayName("gregory", Calendar.DAY_OF_WEEK, Calendar.SUNDAY,
-     *                Calendar.LONG_STANDALONE, Locale.ENGLISH);
-     * </pre>
+     * {@snippet lang=java : 
+     *   getDisplayName("gregory", Calendar.DAY_OF_WEEK, Calendar.SUNDAY,
+     *                  Calendar.LONG_STANDALONE, Locale.ENGLISH);
+     * }
      *
      * @param calendarType
      *              the calendar type. (Any calendar type given by {@code locale}
@@ -273,9 +273,9 @@ public abstract class CalendarNameProvider extends LocaleServiceProvider {
      * {@code "January"} to {@link Calendar#JANUARY}, {@code "Jan"} to {@link
      * Calendar#JANUARY}, {@code "February"} to {@link Calendar#FEBRUARY},
      * {@code "Feb"} to {@link Calendar#FEBRUARY}, and so on.
-     * <pre>
-     * getDisplayNames("gregory", Calendar.MONTH, Calendar.ALL_STYLES, Locale.ENGLISH);
-     * </pre>
+     * {@snippet lang=java : 
+     *   getDisplayNames("gregory", Calendar.MONTH, Calendar.ALL_STYLES, Locale.ENGLISH);
+     * }
      *
      * @param calendarType
      *              the calendar type. (Any calendar type given by {@code locale}

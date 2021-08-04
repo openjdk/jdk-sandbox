@@ -179,7 +179,7 @@ import java.util.function.LongConsumer;
  * are held in even locations, and unrelated tag data are held in odd
  * locations. Its Spliterator ignores the tags.
  *
- * <pre> {@code
+ * {@snippet :
  * class TaggedArray<T> {
  *   private final Object[] elements; // immutable after construction
  *   TaggedArray(T[] data, Object[] tags) {
@@ -239,7 +239,8 @@ import java.util.function.LongConsumer;
  *       return ORDERED | SIZED | IMMUTABLE | SUBSIZED;
  *     }
  *   }
- * }}</pre>
+ * }
+ * }
  *
  * <p>As an example how a parallel computation framework, such as the
  * {@code java.util.stream} package, would use Spliterator in a parallel
@@ -252,36 +253,7 @@ import java.util.function.LongConsumer;
  * example uses a {@link java.util.concurrent.CountedCompleter};
  * similar usages apply to other parallel task constructions.
  *
- * <pre>{@code
- * static <T> void parEach(TaggedArray<T> a, Consumer<T> action) {
- *   Spliterator<T> s = a.spliterator();
- *   long targetBatchSize = s.estimateSize() / (ForkJoinPool.getCommonPoolParallelism() * 8);
- *   new ParEach(null, s, action, targetBatchSize).invoke();
- * }
- *
- * static class ParEach<T> extends CountedCompleter<Void> {
- *   final Spliterator<T> spliterator;
- *   final Consumer<T> action;
- *   final long targetBatchSize;
- *
- *   ParEach(ParEach<T> parent, Spliterator<T> spliterator,
- *           Consumer<T> action, long targetBatchSize) {
- *     super(parent);
- *     this.spliterator = spliterator; this.action = action;
- *     this.targetBatchSize = targetBatchSize;
- *   }
- *
- *   public void compute() {
- *     Spliterator<T> sub;
- *     while (spliterator.estimateSize() > targetBatchSize &&
- *            (sub = spliterator.trySplit()) != null) {
- *       addToPendingCount(1);
- *       new ParEach<>(this, sub, action, targetBatchSize).fork();
- *     }
- *     spliterator.forEachRemaining(action);
- *     propagateCompletion();
- *   }
- * }}</pre>
+ * {@snippet lang=java file="SpliteratorSnippets.java" region="snippet1"}
  *
  * @implNote
  * If the boolean system property {@systemProperty org.openjdk.java.util.stream.tripwire}

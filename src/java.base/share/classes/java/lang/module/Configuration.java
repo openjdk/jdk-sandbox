@@ -83,20 +83,7 @@ import jdk.internal.vm.annotation.Stable;
  * parent configuration. It prints the name of each resolved module and the
  * names of the modules that each module reads. </p>
  *
- * <pre>{@code
- *    ModuleFinder finder = ModuleFinder.of(dir1, dir2, dir3);
- *
- *    Configuration parent = ModuleLayer.boot().configuration();
- *
- *    Configuration cf = parent.resolve(finder, ModuleFinder.of(), Set.of("myapp"));
- *    cf.modules().forEach(m -> {
- *        System.out.format("%s -> %s%n",
- *            m.name(),
- *            m.reads().stream()
- *                .map(ResolvedModule::name)
- *                .collect(Collectors.joining(", ")));
- *    });
- * }</pre>
+ * {@snippet lang=java file="ConfigurationSnippets.java" region="snippet1"}
  *
  * @since 9
  * @see java.lang.ModuleLayer
@@ -222,9 +209,9 @@ public final class Configuration {
      * method when invoked with this configuration as the parent. In other words,
      * if this configuration is {@code cf} then this method is equivalent to
      * invoking:
-     * <pre> {@code
+     * {@snippet :
      *     Configuration.resolve(before, List.of(cf), after, roots);
-     * }</pre>
+     * }
      *
      * @param  before
      *         The <em>before</em> module finder to find modules
@@ -264,9 +251,9 @@ public final class Configuration {
      * resolveAndBind} method when invoked with this configuration
      * as the parent. In other words, if this configuration is {@code cf} then
      * this method is equivalent to invoking:
-     * <pre> {@code
+     * {@snippet :
      *     Configuration.resolveAndBind(before, List.of(cf), after, roots);
-     * }</pre>
+     * }
      *
      *
      * @param  before

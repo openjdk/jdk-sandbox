@@ -97,8 +97,10 @@ import jdk.internal.access.SharedSecrets;
  * If no such object exists, the map should be "wrapped" using the
  * {@link Collections#synchronizedMap Collections.synchronizedMap}
  * method.  This is best done at creation time, to prevent accidental
- * unsynchronized access to the map:<pre>
- *   Map m = Collections.synchronizedMap(new HashMap(...));</pre>
+ * unsynchronized access to the map:
+ * {@snippet :
+ *     Map m = Collections.synchronizedMap(new HashMap(...));
+ * }
  *
  * <p>The iterators returned by all of this class's "collection view methods"
  * are <i>fail-fast</i>: if the map is structurally modified at any time after

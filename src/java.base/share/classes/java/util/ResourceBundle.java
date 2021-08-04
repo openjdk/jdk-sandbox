@@ -125,32 +125,28 @@ import static sun.security.util.SecurityConstants.GET_CLASSLOADER_PERMISSION;
  * the {@code ResourceBundle} class using the
  * {@link #getBundle(java.lang.String, java.util.Locale) getBundle}
  * method:
- * <blockquote>
- * <pre>
- * ResourceBundle myResources =
- *      ResourceBundle.getBundle("MyResources", currentLocale);
- * </pre>
- * </blockquote>
+ * {@snippet lang=java : 
+ *   ResourceBundle myResources =
+ *        ResourceBundle.getBundle("MyResources", currentLocale);
+ * }
  *
  * <P>
  * Resource bundles contain key/value pairs. The keys uniquely
  * identify a locale-specific object in the bundle. Here's an
  * example of a {@code ListResourceBundle} that contains
  * two key/value pairs:
- * <blockquote>
- * <pre>
- * public class MyResources extends ListResourceBundle {
- *     protected Object[][] getContents() {
- *         return new Object[][] {
- *             // LOCALIZE THE SECOND STRING OF EACH ARRAY (e.g., "OK")
- *             {"OkKey", "OK"},
- *             {"CancelKey", "Cancel"},
- *             // END OF MATERIAL TO LOCALIZE
- *        };
- *     }
+ * {@snippet lang=java : 
+ *   public class MyResources extends ListResourceBundle {
+ *       protected Object[][] getContents() {
+ *           return new Object[][] {
+ *               // LOCALIZE THE SECOND STRING OF EACH ARRAY (e.g., "OK")
+ *               {"OkKey", "OK"},
+ *               {"CancelKey", "Cancel"},
+ *               // END OF MATERIAL TO LOCALIZE
+ *          };
+ *       }
+ *   }
  * }
- * </pre>
- * </blockquote>
  * Keys are always {@code String}s.
  * In this example, the keys are "OkKey" and "CancelKey".
  * In the above example, the values
@@ -161,12 +157,10 @@ import static sun.security.util.SecurityConstants.GET_CLASSLOADER_PERMISSION;
  * You retrieve an object from resource bundle using the appropriate
  * getter method. Because "OkKey" and "CancelKey"
  * are both strings, you would use {@code getString} to retrieve them:
- * <blockquote>
- * <pre>
- * button1 = new Button(myResources.getString("OkKey"));
- * button2 = new Button(myResources.getString("CancelKey"));
- * </pre>
- * </blockquote>
+ * {@snippet lang=java : 
+ *   button1 = new Button(myResources.getString("OkKey"));
+ *   button2 = new Button(myResources.getString("CancelKey"));
+ * }
  * The getter methods all require the key as an argument and return
  * the object if found. If the object is not found, the getter method
  * throws a {@code MissingResourceException}.
@@ -177,11 +171,9 @@ import static sun.security.util.SecurityConstants.GET_CLASSLOADER_PERMISSION;
  * as well as a generic {@code getObject} method for any other
  * type of object. When using {@code getObject}, you'll
  * have to cast the result to the appropriate type. For example:
- * <blockquote>
- * <pre>
- * int[] myIntegers = (int[]) myResources.getObject("intList");
- * </pre>
- * </blockquote>
+ * {@snippet lang=java : 
+ *   int[] myIntegers = (int[]) myResources.getObject("intList");
+ * }
  *
  * <P>
  * The Java Platform provides two subclasses of {@code ResourceBundle},
@@ -325,41 +317,7 @@ import static sun.security.util.SecurityConstants.GET_CLASSLOADER_PERMISSION;
  * Notice that you don't need to supply a value if
  * a "parent-level" {@code ResourceBundle} handles the same
  * key with the same value (as for the okKey below).
- * <blockquote>
- * <pre>
- * // default (English language, United States)
- * public class MyResources extends ResourceBundle {
- *     public Object handleGetObject(String key) {
- *         if (key.equals("okKey")) return "Ok";
- *         if (key.equals("cancelKey")) return "Cancel";
- *         return null;
- *     }
- *
- *     public Enumeration&lt;String&gt; getKeys() {
- *         return Collections.enumeration(keySet());
- *     }
- *
- *     // Overrides handleKeySet() so that the getKeys() implementation
- *     // can rely on the keySet() value.
- *     protected Set&lt;String&gt; handleKeySet() {
- *         return new HashSet&lt;String&gt;(Arrays.asList("okKey", "cancelKey"));
- *     }
- * }
- *
- * // German language
- * public class MyResources_de extends MyResources {
- *     public Object handleGetObject(String key) {
- *         // don't need okKey, since parent level handles it.
- *         if (key.equals("cancelKey")) return "Abbrechen";
- *         return null;
- *     }
- *
- *     protected Set&lt;String&gt; handleKeySet() {
- *         return new HashSet&lt;String&gt;(Arrays.asList("cancelKey"));
- *     }
- * }
- * </pre>
- * </blockquote>
+ * {@snippet file="ResourceBundleSnippets.java" region="snippet5"}
  * You do not have to restrict yourself to using a single family of
  * {@code ResourceBundle}s. For example, you could have a set of bundles for
  * exception messages, {@code ExceptionResources}
@@ -863,10 +821,10 @@ public abstract class ResourceBundle {
      * Returns a resource bundle using the specified base name, the
      * default locale and the specified control. Calling this method
      * is equivalent to calling
-     * <pre>
-     * getBundle(baseName, Locale.getDefault(),
-     *           this.getClass().getClassLoader(), control),
-     * </pre>
+     * {@snippet : 
+     *   getBundle(baseName, Locale.getDefault(),
+     *             this.getClass().getClassLoader(), control),
+     * }
      * except that {@code getClassLoader()} is run with the security
      * privileges of {@code ResourceBundle}.  See {@link
      * #getBundle(String, Locale, ClassLoader, Control) getBundle} for the
@@ -1019,10 +977,10 @@ public abstract class ResourceBundle {
      * Returns a resource bundle using the specified base name, target
      * locale and control, and the caller's class loader. Calling this
      * method is equivalent to calling
-     * <pre>
-     * getBundle(baseName, targetLocale, this.getClass().getClassLoader(),
-     *           control),
-     * </pre>
+     * {@snippet : 
+     *   getBundle(baseName, targetLocale, this.getClass().getClassLoader(),
+     *             control),
+     * }
      * except that {@code getClassLoader()} is run with the security
      * privileges of {@code ResourceBundle}.  See {@link
      * #getBundle(String, Locale, ClassLoader, Control) getBundle} for the
@@ -1070,14 +1028,14 @@ public abstract class ResourceBundle {
      * <p>When this method is called from a named module and the given
      * loader is the class loader of the caller module, this is equivalent
      * to calling:
-     * <blockquote><pre>
-     * getBundle(baseName, targetLocale, callerModule)
-     * </pre></blockquote>
+     * {@snippet : 
+     *   getBundle(baseName, targetLocale, callerModule)
+     * }
      *
      * otherwise, this is equivalent to calling:
-     * <blockquote><pre>
-     * getBundle(baseName, targetLocale, loader, control)
-     * </pre></blockquote>
+     * {@snippet : 
+     *   getBundle(baseName, targetLocale, loader, control)
+     * }
      * where {@code control} is the default instance of {@link Control} unless
      * a {@code Control} instance is provided by
      * {@link ResourceBundleControlProvider} SPI.  Refer to the
@@ -1097,14 +1055,14 @@ public abstract class ResourceBundle {
      * specified locale (language, script, country and variant) and appended to
      * the base name.  Typically, this will look like the following:
      *
-     * <pre>
-     *     baseName + "_" + language + "_" + script + "_" + country + "_" + variant
-     *     baseName + "_" + language + "_" + script + "_" + country
-     *     baseName + "_" + language + "_" + script
-     *     baseName + "_" + language + "_" + country + "_" + variant
-     *     baseName + "_" + language + "_" + country
-     *     baseName + "_" + language
-     * </pre>
+     * {@snippet : 
+     *       baseName + "_" + language + "_" + script + "_" + country + "_" + variant
+     *       baseName + "_" + language + "_" + script + "_" + country
+     *       baseName + "_" + language + "_" + script
+     *       baseName + "_" + language + "_" + country + "_" + variant
+     *       baseName + "_" + language + "_" + country
+     *       baseName + "_" + language
+     * }
      *
      * <p>Candidate bundle names where the final component is an empty string
      * are omitted, along with the underscore.  For example, if country is an
@@ -1114,10 +1072,10 @@ public abstract class ResourceBundle {
      * and variant "JAVA" will produce candidate names with base name
      * "MyResource" below.
      *
-     * <pre>
-     *     MyResource_de__JAVA
-     *     MyResource_de
-     * </pre>
+     * {@snippet : 
+     *       MyResource_de__JAVA
+     *       MyResource_de
+     * }
      *
      * In the case that the variant contains one or more underscores ('_'), a
      * sequence of bundle names generated by truncating the last underscore and
@@ -1126,16 +1084,16 @@ public abstract class ResourceBundle {
      * "Latn, country "US" and variant "WINDOWS_VISTA", and bundle base name
      * "MyResource", the list of candidate bundle names below is generated:
      *
-     * <pre>
-     * MyResource_en_Latn_US_WINDOWS_VISTA
-     * MyResource_en_Latn_US_WINDOWS
-     * MyResource_en_Latn_US
-     * MyResource_en_Latn
-     * MyResource_en_US_WINDOWS_VISTA
-     * MyResource_en_US_WINDOWS
-     * MyResource_en_US
-     * MyResource_en
-     * </pre>
+     * {@snippet : 
+     *   MyResource_en_Latn_US_WINDOWS_VISTA
+     *   MyResource_en_Latn_US_WINDOWS
+     *   MyResource_en_Latn_US
+     *   MyResource_en_Latn
+     *   MyResource_en_US_WINDOWS_VISTA
+     *   MyResource_en_US_WINDOWS
+     *   MyResource_en_US
+     *   MyResource_en
+     * }
      *
      * <blockquote><b>Note:</b> For some {@code Locale}s, the list of
      * candidate bundle names contains extra names, or the order of bundle names
@@ -2416,14 +2374,14 @@ public abstract class ResourceBundle {
      * <p>The following code lets {@code ResourceBundle.getBundle} look
      * up only properties-based resources.
      *
-     * <pre>
-     * import java.util.*;
-     * import static java.util.ResourceBundle.Control.*;
-     * ...
-     * ResourceBundle bundle =
-     *   ResourceBundle.getBundle("MyResources", new Locale("fr", "CH"),
-     *                            ResourceBundle.Control.getControl(FORMAT_PROPERTIES));
-     * </pre>
+     * {@snippet : 
+     *   import java.util.*;
+     *   import static java.util.ResourceBundle.Control.*;
+     *   ...
+     *   ResourceBundle bundle =
+     *     ResourceBundle.getBundle("MyResources", new Locale("fr", "CH"),
+     *                              ResourceBundle.Control.getControl(FORMAT_PROPERTIES));
+     * }
      *
      * Given the resource bundles in the <a
      * href="./ResourceBundle.html#default_behavior_example">example</a> in
@@ -2440,70 +2398,7 @@ public abstract class ResourceBundle {
      * using {@link Properties#loadFromXML(java.io.InputStream)
      * Properties.loadFromXML}.
      *
-     * <pre>
-     * ResourceBundle rb = ResourceBundle.getBundle("Messages",
-     *     new ResourceBundle.Control() {
-     *         public List&lt;String&gt; getFormats(String baseName) {
-     *             if (baseName == null)
-     *                 throw new NullPointerException();
-     *             return Arrays.asList("xml");
-     *         }
-     *         public ResourceBundle newBundle(String baseName,
-     *                                         Locale locale,
-     *                                         String format,
-     *                                         ClassLoader loader,
-     *                                         boolean reload)
-     *                          throws IllegalAccessException,
-     *                                 InstantiationException,
-     *                                 IOException {
-     *             if (baseName == null || locale == null
-     *                   || format == null || loader == null)
-     *                 throw new NullPointerException();
-     *             ResourceBundle bundle = null;
-     *             if (format.equals("xml")) {
-     *                 String bundleName = toBundleName(baseName, locale);
-     *                 String resourceName = toResourceName(bundleName, format);
-     *                 InputStream stream = null;
-     *                 if (reload) {
-     *                     URL url = loader.getResource(resourceName);
-     *                     if (url != null) {
-     *                         URLConnection connection = url.openConnection();
-     *                         if (connection != null) {
-     *                             // Disable caches to get fresh data for
-     *                             // reloading.
-     *                             connection.setUseCaches(false);
-     *                             stream = connection.getInputStream();
-     *                         }
-     *                     }
-     *                 } else {
-     *                     stream = loader.getResourceAsStream(resourceName);
-     *                 }
-     *                 if (stream != null) {
-     *                     BufferedInputStream bis = new BufferedInputStream(stream);
-     *                     bundle = new XMLResourceBundle(bis);
-     *                     bis.close();
-     *                 }
-     *             }
-     *             return bundle;
-     *         }
-     *     });
-     *
-     * ...
-     *
-     * private static class XMLResourceBundle extends ResourceBundle {
-     *     private Properties props;
-     *     XMLResourceBundle(InputStream stream) throws IOException {
-     *         props = new Properties();
-     *         props.loadFromXML(stream);
-     *     }
-     *     protected Object handleGetObject(String key) {
-     *         return props.getProperty(key);
-     *     }
-     *     public Enumeration&lt;String&gt; getKeys() {
-     *         ...
-     *     }
-     * }
-     * </pre>
+     * {@snippet file="ResourceBundleSnippets.java" region="snippet14"}
      *
      * @apiNote {@code ResourceBundle.Control} is not supported
      * in named modules. If the {@code ResourceBundle.getBundle} method with
@@ -2835,17 +2730,17 @@ public abstract class ResourceBundle {
          * and the given {@code locale} is
          * <code>Locale("ja",&nbsp;"",&nbsp;"XX")</code>, then a
          * {@code List} of {@code Locale}s:
-         * <pre>
-         *     Locale("ja", "", "XX")
-         *     Locale("ja")
-         *     Locale.ROOT
-         * </pre>
+         * {@snippet : 
+         *       Locale("ja", "", "XX")
+         *       Locale("ja")
+         *       Locale.ROOT
+         * }
          * is returned. And if the resource bundles for the "ja" and
          * "" {@code Locale}s are found, then the runtime resource
          * lookup path (parent chain) is:
-         * <pre>{@code
-         *     Messages_ja -> Messages
-         * }</pre>
+         * {@snippet : 
+         *       Messages_ja -> Messages
+         * }
          *
          * @param baseName
          *        the base name of the resource bundle, a fully
@@ -3408,9 +3303,9 @@ public abstract class ResourceBundle {
          * methods.
          *
          * <p>This implementation returns the following value:
-         * <pre>
-         *     baseName + "_" + language + "_" + script + "_" + country + "_" + variant
-         * </pre>
+         * {@snippet : 
+         *       baseName + "_" + language + "_" + script + "_" + country + "_" + variant
+         * }
          * where {@code language}, {@code script}, {@code country},
          * and {@code variant} are the language, script, country, and variant
          * values of {@code locale}, respectively. Final component values that

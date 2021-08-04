@@ -78,15 +78,15 @@ import sun.security.action.GetPropertyAction;
  * manually zero the returned character array after processing to minimize the
  * lifetime of sensitive data in memory.
  *
- * <blockquote><pre>{@code
- * Console cons;
- * char[] passwd;
- * if ((cons = System.console()) != null &&
- *     (passwd = cons.readPassword("[%s]", "Password:")) != null) {
- *     ...
- *     java.util.Arrays.fill(passwd, ' ');
+ * {@snippet : 
+ *   Console cons;
+ *   char[] passwd;
+ *   if ((cons = System.console()) != null &&
+ *       (passwd = cons.readPassword("[%s]", "Password:")) != null) {
+ *       ...
+ *       java.util.Arrays.fill(passwd, ' ');
+ *   }
  * }
- * }</pre></blockquote>
  *
  * @author  Xueming Shen
  * @since   1.6
@@ -111,13 +111,13 @@ public final class Console implements Flushable
     * This method is intended to be used by sophisticated applications, for
     * example, a {@link java.util.Scanner} object which utilizes the rich
     * parsing/scanning functionality provided by the {@code Scanner}:
-    * <blockquote><pre>
-    * Console con = System.console();
-    * if (con != null) {
-    *     Scanner sc = new Scanner(con.reader());
-    *     ...
-    * }
-    * </pre></blockquote>
+    * {@snippet : 
+     *   Console con = System.console();
+     *   if (con != null) {
+     *       Scanner sc = new Scanner(con.reader());
+     *       ...
+     *   }
+     * }
     * <p>
     * For simple applications requiring only line-oriented reading, use
     * {@link #readLine}.
@@ -181,7 +181,9 @@ public final class Console implements Flushable
     * <p> An invocation of this method of the form
     * {@code con.printf(format, args)} behaves in exactly the same way
     * as the invocation of
-    * <pre>con.format(format, args)</pre>.
+    * {@snippet : 
+    *  con.format(format, args)
+    * }.
     *
     * @param  format
     *         A format string as described in <a

@@ -780,10 +780,10 @@ public sealed interface CLinker permits AbstractCLinker {
         /**
          * The layout attribute name associated with this classification kind. Clients can retrieve the type kind
          * of a layout using the following code:
-         * <blockquote><pre>{@code
-        ValueLayout layout = ...
-        TypeKind = layout.attribute(TypeKind.ATTR_NAME).orElse(null);
-         * }</pre></blockquote>
+         * {@snippet : 
+         *          ValueLayout layout = ...
+         *          TypeKind = layout.attribute(TypeKind.ATTR_NAME).orElse(null);
+         * }
          */
         public static final String ATTR_NAME = "abi/kind";
     }

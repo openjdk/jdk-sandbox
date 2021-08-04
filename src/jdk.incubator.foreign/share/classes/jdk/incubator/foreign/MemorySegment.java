@@ -102,13 +102,13 @@ import java.util.stream.Stream;
  * the {@link #scope()} method. As for all resources associated with a resource scope, a segment cannot be
  * accessed after its corresponding scope has been closed. For instance, the following code will result in an
  * exception:
- * <blockquote><pre>{@code
-MemorySegment segment = null;
-try (ResourceScope scope = ResourceScope.newConfinedScope()) {
-    segment = MemorySegment.allocateNative(8, 1, scope);
-}
-MemoryAccess.getLong(segment); // already closed!
- * }</pre></blockquote>
+ * {@snippet lang=java : 
+ *  MemorySegment segment = null;
+ *  try (ResourceScope scope = ResourceScope.newConfinedScope()) {
+ *      segment = MemorySegment.allocateNative(8, 1, scope);
+ *  }
+ *  MemoryAccess.getLong(segment); // already closed!
+ * }
  * Additionally, access to a memory segment is subject to the thread-confinement checks enforced by the owning scope; that is,
  * if the segment is associated with a shared scope, it can be accessed by multiple threads; if it is associated with a confined
  * scope, it can only be accessed by the thread which owns the scope.
@@ -119,10 +119,10 @@ MemoryAccess.getLong(segment); // already closed!
  * <h2>Memory segment views</h2>
  *
  * Memory segments support <em>views</em>. For instance, it is possible to create an <em>immutable</em> view of a memory segment, as follows:
- * <blockquote><pre>{@code
-MemorySegment segment = ...
-MemorySegment roSegment = segment.asReadOnly();
- * }</pre></blockquote>
+ * {@snippet : 
+ *  MemorySegment segment = ...
+ *  MemorySegment roSegment = segment.asReadOnly();
+ * }
  * It is also possible to create views whose spatial bounds are stricter than the ones of the original segment
  * (see {@link MemorySegment#asSlice(long, long)}).
  * <p>
@@ -141,16 +141,16 @@ MemorySegment roSegment = segment.asReadOnly();
  * (to do this, the segment has to be associated with a shared scope). The following code can be used to sum all int
  * values in a memory segment in parallel:
  *
- * <blockquote><pre>{@code
-try (ResourceScope scope = ResourceScope.newSharedScope()) {
-    SequenceLayout SEQUENCE_LAYOUT = MemoryLayout.sequenceLayout(1024, MemoryLayouts.JAVA_INT);
-    MemorySegment segment = MemorySegment.allocateNative(SEQUENCE_LAYOUT, scope);
-    VarHandle VH_int = SEQUENCE_LAYOUT.elementLayout().varHandle(int.class);
-    int sum = segment.elements(MemoryLayouts.JAVA_INT).parallel()
-                           .mapToInt(s -> (int)VH_int.get(s.address()))
-                           .sum();
-}
- * }</pre></blockquote>
+ * {@snippet lang=java : 
+ *  try (ResourceScope scope = ResourceScope.newSharedScope()) {
+ *      SequenceLayout SEQUENCE_LAYOUT = MemoryLayout.sequenceLayout(1024, MemoryLayouts.JAVA_INT);
+ *      MemorySegment segment = MemorySegment.allocateNative(SEQUENCE_LAYOUT, scope);
+ *      VarHandle VH_int = SEQUENCE_LAYOUT.elementLayout().varHandle(int.class);
+ *      int sum = segment.elements(MemoryLayouts.JAVA_INT).parallel()
+ *                             .mapToInt(s -> (int)VH_int.get(s.address()))
+ *                             .sum();
+ *  }
+ * }
  *
  * @implSpec
  * Implementations of this interface are immutable, thread-safe and <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>.
@@ -189,9 +189,9 @@ public sealed interface MemorySegment extends Addressable permits AbstractMemory
     /**
      * Returns a sequential {@code Stream} over disjoint slices (whose size matches that of the specified layout)
      * in this segment. Calling this method is equivalent to the following code:
-     * <blockquote><pre>{@code
-    StreamSupport.stream(segment.spliterator(elementLayout), false);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      StreamSupport.stream(segment.spliterator(elementLayout), false);
+     * }
      *
      * @param elementLayout the layout to be used for splitting.
      * @return a sequential {@code Stream} over disjoint slices in this segment.
@@ -231,9 +231,9 @@ public sealed interface MemorySegment extends Addressable permits AbstractMemory
      * Obtains a new memory segment view whose base address is the given address, and whose new size is specified by the given argument.
      * <p>
      * Equivalent to the following code:
-     * <pre>{@code
-    asSlice(newBase.segmentOffset(this), newSize);
-     * }</pre>
+     * {@snippet lang=java : 
+     *      asSlice(newBase.segmentOffset(this), newSize);
+     * }
      *
      * @see #asSlice(long)
      * @see #asSlice(MemoryAddress)
@@ -254,9 +254,9 @@ public sealed interface MemorySegment extends Addressable permits AbstractMemory
      * and whose new size is computed by subtracting the specified offset from this segment size.
      * <p>
      * Equivalent to the following code:
-     * <pre>{@code
-    asSlice(offset, byteSize() - offset);
-     * }</pre>
+     * {@snippet lang=java : 
+     *      asSlice(offset, byteSize() - offset);
+     * }
      *
      * @see #asSlice(MemoryAddress)
      * @see #asSlice(MemoryAddress, long)
@@ -275,9 +275,9 @@ public sealed interface MemorySegment extends Addressable permits AbstractMemory
      * the address offset relative to this segment (see {@link MemoryAddress#segmentOffset(MemorySegment)}) from this segment size.
      * <p>
      * Equivalent to the following code:
-     * <pre>{@code
-    asSlice(newBase.segmentOffset(this));
-     * }</pre>
+     * {@snippet lang=java : 
+     *      asSlice(newBase.segmentOffset(this));
+     * }
      *
      * @see #asSlice(long)
      * @see #asSlice(MemoryAddress, long)
@@ -330,13 +330,13 @@ public sealed interface MemorySegment extends Addressable permits AbstractMemory
      * More specifically, the given value is filled into each address of this
      * segment. Equivalent to (but likely more efficient than) the following code:
      *
-     * <pre>{@code
-byteHandle = MemoryLayout.ofSequence(MemoryLayouts.JAVA_BYTE)
-         .varHandle(byte.class, MemoryLayout.PathElement.sequenceElement());
-for (long l = 0; l < segment.byteSize(); l++) {
-     byteHandle.set(segment.address(), l, value);
-}
-     * }</pre>
+     * {@snippet lang=java : 
+     *  byteHandle = MemoryLayout.ofSequence(MemoryLayouts.JAVA_BYTE)
+     *           .varHandle(byte.class, MemoryLayout.PathElement.sequenceElement());
+     *  for (long l = 0; l < segment.byteSize(); l++) {
+     *       byteHandle.set(segment.address(), l, value);
+     *  }
+     * }
      *
      * without any regard or guarantees on the ordering of particular memory
      * elements being set.
@@ -675,9 +675,9 @@ for (long l = 0; l < segment.byteSize(); l++) {
      * when the segment is no longer in use. Failure to do so will result in off-heap memory leaks.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    allocateNative(layout.bytesSize(), layout.bytesAlignment(), scope);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      allocateNative(layout.bytesSize(), layout.bytesAlignment(), scope);
+     * }
      * <p>
      * The block of off-heap memory associated with the returned native memory segment is initialized to zero.
      *
@@ -700,9 +700,9 @@ for (long l = 0; l < segment.byteSize(); l++) {
      * when the segment is no longer in use. Failure to do so will result in off-heap memory leaks.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    allocateNative(bytesSize, 1, scope);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      allocateNative(bytesSize, 1, scope);
+     * }
      * <p>
      * The block of off-heap memory associated with the returned native memory segment is initialized to zero.
      *
@@ -799,9 +799,9 @@ for (long l = 0; l < segment.byteSize(); l++) {
      * This method can be very useful when dereferencing memory addresses obtained when interacting with native libraries.
      * The returned segment is associated with the <em>global</em> resource scope (see {@link ResourceScope#globalScope()}).
      * Equivalent to (but likely more efficient than) the following code:
-     * <pre>{@code
-    MemoryAddress.NULL.asSegment(Long.MAX_VALUE)
-     * }</pre>
+     * {@snippet : 
+     *      MemoryAddress.NULL.asSegment(Long.MAX_VALUE)
+     * }
      * <p>
      * This method is <a href="package-summary.html#restricted"><em>restricted</em></a>.
      * Restricted methods are unsafe, and, if used incorrectly, their use might crash

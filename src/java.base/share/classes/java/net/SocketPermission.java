@@ -55,10 +55,10 @@ import sun.security.util.Debug;
  * A SocketPermission consists of a
  * host specification and a set of "actions" specifying ways to
  * connect to that host. The host is specified as
- * <pre>
- *    host = (hostname | IPv4address | iPv6reference) [:portrange]
- *    portrange = portnumber | -portnumber | portnumber-[portnumber]
- * </pre>
+ * {@snippet : 
+ *      host = (hostname | IPv4address | iPv6reference) [:portrange]
+ *      portrange = portnumber | -portnumber | portnumber-[portnumber]
+ * }
  * The host is expressed as a DNS name, as a numerical IP address,
  * or as "localhost" (for the local machine).
  * The wildcard "*" may be included once in a DNS name host
@@ -68,24 +68,24 @@ import sun.security.util.Debug;
  * The format of the IPv6reference should follow that specified in <a
  * href="http://www.ietf.org/rfc/rfc2732.txt"><i>RFC&nbsp;2732: Format
  * for Literal IPv6 Addresses in URLs</i></a>:
- * <pre>
- *    ipv6reference = "[" IPv6address "]"
- *</pre>
+ * {@snippet : 
+ *      ipv6reference = "[" IPv6address "]
+ * }
  * For example, you can construct a SocketPermission instance
  * as the following:
- * <pre>
- *    String hostAddress = inetaddress.getHostAddress();
- *    if (inetaddress instanceof Inet6Address) {
- *        sp = new SocketPermission("[" + hostAddress + "]:" + port, action);
- *    } else {
- *        sp = new SocketPermission(hostAddress + ":" + port, action);
- *    }
- * </pre>
+ * {@snippet lang=java : 
+ *      String hostAddress = inetaddress.getHostAddress();
+ *      if (inetaddress instanceof Inet6Address) {
+ *          sp = new SocketPermission("[" + hostAddress + "]:" + port, action);
+ *      } else {
+ *          sp = new SocketPermission(hostAddress + ":" + port, action);
+ *      }
+ * }
  * or
- * <pre>
- *    String host = url.getHost();
- *    sp = new SocketPermission(host + ":" + port, action);
- * </pre>
+ * {@snippet lang=java : 
+ *      String host = url.getHost();
+ *      sp = new SocketPermission(host + ":" + port, action);
+ * }
  * <p>
  * The <A HREF="Inet6Address.html#lform">full uncompressed form</A> of
  * an IPv6 literal address is also valid.
@@ -99,12 +99,12 @@ import sun.security.util.Debug;
  * allocate dynamic ports from. The actual range may be system dependent.
  * <p>
  * The possible ways to connect to the host are
- * <pre>
- * accept
- * connect
- * listen
- * resolve
- * </pre>
+ * {@snippet : 
+ *   accept
+ *   connect
+ *   listen
+ *   resolve
+ * }
  * The "listen" action is only meaningful when used with "localhost" and
  * means the ability to bind to a specified port.
  * The "resolve" action is implied when any of the other actions are present.
@@ -114,18 +114,18 @@ import sun.security.util.Debug;
  * <p>As an example of the creation and meaning of SocketPermissions,
  * note that if the following permission:
  *
- * <pre>
- *   p1 = new SocketPermission("foo.example.com:7777", "connect,accept");
- * </pre>
+ * {@snippet lang=java : 
+ *     p1 = new SocketPermission("foo.example.com:7777", "connect,accept");
+ * }
  *
  * is granted to some code, it allows that code to connect to port 7777 on
  * {@code foo.example.com}, and to accept connections on that port.
  *
  * <p>Similarly, if the following permission:
  *
- * <pre>
- *   p2 = new SocketPermission("localhost:1024-", "accept,connect,listen");
- * </pre>
+ * {@snippet lang=java : 
+ *     p2 = new SocketPermission("localhost:1024-", "accept,connect,listen");
+ * }
  *
  * is granted to some code, it allows that code to
  * accept connections on, connect to, or listen on any port between
@@ -275,15 +275,15 @@ public final class SocketPermission extends Permission
      * when any of the other three are specified.
      * <p>
      * Examples of SocketPermission instantiation are the following:
-     * <pre>
-     *    nr = new SocketPermission("www.example.com", "connect");
-     *    nr = new SocketPermission("www.example.com:80", "connect");
-     *    nr = new SocketPermission("*.example.com", "connect");
-     *    nr = new SocketPermission("*.edu", "resolve");
-     *    nr = new SocketPermission("204.160.241.0", "connect");
-     *    nr = new SocketPermission("localhost:1024-65535", "listen");
-     *    nr = new SocketPermission("204.160.241.0:1024-65535", "connect");
-     * </pre>
+     * {@snippet lang=java : 
+     *      nr = new SocketPermission("www.example.com", "connect");
+     *      nr = new SocketPermission("www.example.com:80", "connect");
+     *      nr = new SocketPermission("*.example.com", "connect");
+     *      nr = new SocketPermission("*.edu", "resolve");
+     *      nr = new SocketPermission("204.160.241.0", "connect");
+     *      nr = new SocketPermission("localhost:1024-65535", "listen");
+     *      nr = new SocketPermission("204.160.241.0:1024-65535", "connect");
+     * }
      *
      * @param host the hostname or IP address of the computer, optionally
      * including a colon followed by a port or port range.

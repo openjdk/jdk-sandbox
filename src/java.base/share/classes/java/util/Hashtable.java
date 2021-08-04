@@ -70,19 +70,21 @@ import jdk.internal.access.SharedSecrets;
  *
  * This example creates a hashtable of numbers. It uses the names of
  * the numbers as keys:
- * <pre>   {@code
+ * {@snippet :
  *   Hashtable<String, Integer> numbers
  *     = new Hashtable<String, Integer>();
  *   numbers.put("one", 1);
  *   numbers.put("two", 2);
- *   numbers.put("three", 3);}</pre>
+ *   numbers.put("three", 3);
+ *   }
  *
  * <p>To retrieve a number, use the following code:
- * <pre>   {@code
+ * {@snippet :
  *   Integer n = numbers.get("two");
  *   if (n != null) {
  *     System.out.println("two = " + n);
- *   }}</pre>
+ *   }
+ * }
  *
  * <p>The iterators returned by the {@code iterator} method of the collections
  * returned by all of this class's "collection view methods" are

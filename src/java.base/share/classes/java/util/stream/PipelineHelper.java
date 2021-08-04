@@ -98,9 +98,10 @@ abstract class PipelineHelper<P_OUT> {
      *
      * @implSpec
      * The implementation behaves as if:
-     * <pre>{@code
-     *     copyInto(wrapSink(sink), spliterator);
-     * }</pre>
+     * {@snippet lang=java : 
+ *       copyInto(wrapSink(sink), spliterator);
+ *   
+ * }
      *
      * @param sink the {@code Sink} to receive the results
      * @param spliterator the spliterator describing the source input to process
@@ -187,9 +188,10 @@ abstract class PipelineHelper<P_OUT> {
      * and then returned). This reduces copying for a pipeline consisting of a
      * stateful operation followed by a terminal operation that returns an
      * array, such as:
-     * <pre>{@code
-     *     stream.sorted().toArray();
-     * }</pre>
+     * {@snippet lang=java : 
+ *       stream.sorted().toArray();
+ *   
+ * }
      *
      * @param spliterator the source {@code Spliterator}
      * @param flatten if true and the pipeline is a parallel pipeline then the

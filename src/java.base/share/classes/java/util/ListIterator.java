@@ -36,10 +36,10 @@ package java.util;
  * returned by a call to {@code next()}.
  * An iterator for a list of length {@code n} has {@code n+1} possible
  * cursor positions, as illustrated by the carets ({@code ^}) below:
- * <PRE>
+ * {@snippet :
  *                      Element(0)   Element(1)   Element(2)   ... Element(n-1)
  * cursor positions:  ^            ^            ^            ^                  ^
- * </PRE>
+ * }
  * Note that the {@link #remove} and {@link #set(Object)} methods are
  * <i>not</i> defined in terms of the cursor position;  they are defined to
  * operate on the last element returned by a call to {@link #next} or

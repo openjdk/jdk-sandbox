@@ -219,9 +219,9 @@ public interface MethodHandleInfo {
      * Such members are represented by method handles that are varargs collectors.
      * @implSpec
      * This produces a result equivalent to:
-     * <pre>{@code
-     *     getReferenceKind() >= REF_invokeVirtual && Modifier.isTransient(getModifiers())
-     * }</pre>
+     * {@snippet : 
+     *       getReferenceKind() >= REF_invokeVirtual && Modifier.isTransient(getModifiers())
+     * }
      *
      *
      * @return {@code true} if and only if the underlying member was declared with variable arity.
@@ -269,9 +269,9 @@ public interface MethodHandleInfo {
      *
      * @implSpec
      * This produces a result equivalent to:
-     * <pre>{@code
-     *     String.format("%s %s.%s:%s", referenceKindToString(kind), defc.getName(), name, type)
-     * }</pre>
+     * {@snippet : 
+     *       String.format("%s %s.%s:%s", referenceKindToString(kind), defc.getName(), name, type)
+     * }
      *
      * @param kind the {@linkplain #getReferenceKind reference kind} part of the symbolic reference
      * @param defc the {@linkplain #getDeclaringClass declaring class} part of the symbolic reference

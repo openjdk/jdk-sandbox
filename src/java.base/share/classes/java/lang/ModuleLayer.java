@@ -129,19 +129,19 @@ import sun.security.util.SecurityConstants;
  * then creates a new layer with the modules in this configuration. All modules
  * are defined to the same class loader. </p>
  *
- * <pre>{@code
- *     ModuleFinder finder = ModuleFinder.of(dir1, dir2, dir3);
- *
- *     ModuleLayer parent = ModuleLayer.boot();
- *
- *     Configuration cf = parent.configuration().resolve(finder, ModuleFinder.of(), Set.of("myapp"));
- *
- *     ClassLoader scl = ClassLoader.getSystemClassLoader();
- *
- *     ModuleLayer layer = parent.defineModulesWithOneLoader(cf, scl);
- *
- *     Class<?> c = layer.findLoader("myapp").loadClass("app.Main");
- * }</pre>
+ * {@snippet lang=java : 
+ *       ModuleFinder finder = ModuleFinder.of(dir1, dir2, dir3);
+ *  
+ *       ModuleLayer parent = ModuleLayer.boot();
+ *  
+ *       Configuration cf = parent.configuration().resolve(finder, ModuleFinder.of(), Set.of("myapp"));
+ *  
+ *       ClassLoader scl = ClassLoader.getSystemClassLoader();
+ *  
+ *       ModuleLayer layer = parent.defineModulesWithOneLoader(cf, scl);
+ *  
+ *       Class<?> c = layer.findLoader("myapp").loadClass("app.Main");
+ * }
  *
  * @since 9
  * @see Module#getLayer()

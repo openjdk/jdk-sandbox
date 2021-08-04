@@ -557,52 +557,7 @@ public final class Double extends Number
      * a {@code NumberFormatException} be thrown, the regular
      * expression below can be used to screen the input string:
      *
-     * <pre>{@code
-     *  final String Digits     = "(\\p{Digit}+)";
-     *  final String HexDigits  = "(\\p{XDigit}+)";
-     *  // an exponent is 'e' or 'E' followed by an optionally
-     *  // signed decimal integer.
-     *  final String Exp        = "[eE][+-]?"+Digits;
-     *  final String fpRegex    =
-     *      ("[\\x00-\\x20]*"+  // Optional leading "whitespace"
-     *       "[+-]?(" + // Optional sign character
-     *       "NaN|" +           // "NaN" string
-     *       "Infinity|" +      // "Infinity" string
-     *
-     *       // A decimal floating-point string representing a finite positive
-     *       // number without a leading sign has at most five basic pieces:
-     *       // Digits . Digits ExponentPart FloatTypeSuffix
-     *       //
-     *       // Since this method allows integer-only strings as input
-     *       // in addition to strings of floating-point literals, the
-     *       // two sub-patterns below are simplifications of the grammar
-     *       // productions from section 3.10.2 of
-     *       // The Java Language Specification.
-     *
-     *       // Digits ._opt Digits_opt ExponentPart_opt FloatTypeSuffix_opt
-     *       "((("+Digits+"(\\.)?("+Digits+"?)("+Exp+")?)|"+
-     *
-     *       // . Digits ExponentPart_opt FloatTypeSuffix_opt
-     *       "(\\.("+Digits+")("+Exp+")?)|"+
-     *
-     *       // Hexadecimal strings
-     *       "((" +
-     *        // 0[xX] HexDigits ._opt BinaryExponent FloatTypeSuffix_opt
-     *        "(0[xX]" + HexDigits + "(\\.)?)|" +
-     *
-     *        // 0[xX] HexDigits_opt . HexDigits BinaryExponent FloatTypeSuffix_opt
-     *        "(0[xX]" + HexDigits + "?(\\.)" + HexDigits + ")" +
-     *
-     *        ")[pP][+-]?" + Digits + "))" +
-     *       "[fFdD]?))" +
-     *       "[\\x00-\\x20]*");// Optional trailing "whitespace"
-     *
-     *  if (Pattern.matches(fpRegex, myString))
-     *      Double.valueOf(myString); // Will not throw NumberFormatException
-     *  else {
-     *      // Perform suitable alternative action
-     *  }
-     * }</pre>
+     * {@snippet lang=java file="DoubleSnippets.java" region="snippet1"}
      *
      * @param      s   the string to be parsed.
      * @return     a {@code Double} object holding the value
@@ -1016,13 +971,13 @@ public final class Double extends Number
      * <p>In all other cases, let <i>s</i>, <i>e</i>, and <i>m</i> be three
      * values that can be computed from the argument:
      *
-     * <blockquote><pre>{@code
-     * int s = ((bits >> 63) == 0) ? 1 : -1;
-     * int e = (int)((bits >> 52) & 0x7ffL);
-     * long m = (e == 0) ?
-     *                 (bits & 0xfffffffffffffL) << 1 :
-     *                 (bits & 0xfffffffffffffL) | 0x10000000000000L;
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *   int s = ((bits >> 63) == 0) ? 1 : -1;
+     *   int e = (int)((bits >> 52) & 0x7ffL);
+     *   long m = (e == 0) ?
+     *                   (bits & 0xfffffffffffffL) << 1 :
+     *                   (bits & 0xfffffffffffffL) | 0x10000000000000L;
+     * }
      *
      * Then the floating-point result equals the value of the mathematical
      * expression <i>s</i>&middot;<i>m</i>&middot;2<sup><i>e</i>-1075</sup>.
@@ -1101,9 +1056,9 @@ public final class Double extends Number
      * Compares the two specified {@code double} values. The sign
      * of the integer value returned is the same as that of the
      * integer that would be returned by the call:
-     * <pre>
-     *    new Double(d1).compareTo(new Double(d2))
-     * </pre>
+     * {@snippet : 
+     *      new Double(d1).compareTo(new Double(d2))
+     * }
      *
      * @param   d1        the first {@code double} to compare
      * @param   d2        the second {@code double} to compare

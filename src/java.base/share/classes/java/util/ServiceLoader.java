@@ -90,36 +90,36 @@ import jdk.internal.reflect.Reflection;
  * <p> As an example, suppose the service is {@code com.example.CodecFactory}, an
  * interface that defines methods for producing encoders and decoders:
  *
- * <pre>{@code
- *     package com.example;
- *     public interface CodecFactory {
- *         Encoder getEncoder(String encodingName);
- *         Decoder getDecoder(String encodingName);
- *     }
- * }</pre>
+ * {@snippet lang=java : 
+ *       package com.example;
+ *       public interface CodecFactory {
+ *           Encoder getEncoder(String encodingName);
+ *           Decoder getDecoder(String encodingName);
+ *       }
+ * }
  *
  * <p> The following code obtains a service loader for the {@code CodecFactory}
  * service, then uses its iterator (created automatically by the enhanced-for
  * loop) to yield instances of the service providers that are located:
  *
- * <pre>{@code
- *     ServiceLoader<CodecFactory> loader = ServiceLoader.load(CodecFactory.class);
- *     for (CodecFactory factory : loader) {
- *         Encoder enc = factory.getEncoder("PNG");
- *         if (enc != null)
- *             ... use enc to encode a PNG file
- *             break;
- *         }
- * }</pre>
+ * {@snippet : 
+ *       ServiceLoader<CodecFactory> loader = ServiceLoader.load(CodecFactory.class);
+ *       for (CodecFactory factory : loader) {
+ *           Encoder enc = factory.getEncoder("PNG");
+ *           if (enc != null)
+ *               ... use enc to encode a PNG file
+ *               break;
+ *           }
+ * }
  *
  * <p> If this code resides in a module, then in order to refer to the
  * {@code com.example.CodecFactory} interface, the module declaration would
  * require the module which exports the interface. The module declaration would
  * also specify use of {@code com.example.CodecFactory}:
- * <pre>{@code
- *     requires com.example.codec.core;
- *     uses com.example.CodecFactory;
- * }</pre>
+ * {@snippet : 
+ *       requires com.example.codec.core;
+ *       uses com.example.CodecFactory;
+ * }
  *
  * <p> Sometimes an application may wish to inspect a service provider before
  * instantiating it, in order to determine if an instance of that service
@@ -128,14 +128,14 @@ import jdk.internal.reflect.Reflection;
  * with {@code @PNG}. The following code uses service loader's {@code stream}
  * method to yield instances of {@code Provider<CodecFactory>} in contrast to
  * how the iterator yields instances of {@code CodecFactory}:
- * <pre>{@code
- *     ServiceLoader<CodecFactory> loader = ServiceLoader.load(CodecFactory.class);
- *     Set<CodecFactory> pngFactories = loader
- *            .stream()                                              // Note a below
- *            .filter(p -> p.type().isAnnotationPresent(PNG.class))  // Note b
- *            .map(Provider::get)                                    // Note c
- *            .collect(Collectors.toSet());
- * }</pre>
+ * {@snippet lang=java : 
+ *       ServiceLoader<CodecFactory> loader = ServiceLoader.load(CodecFactory.class);
+ *       Set<CodecFactory> pngFactories = loader
+ *              .stream()                                              // Note a below
+ *              .filter(p -> p.type().isAnnotationPresent(PNG.class))  // Note b
+ *              .map(Provider::get)                                    // Note c
+ *              .collect(Collectors.toSet());
+ * }
  * <ol type="a">
  *   <li> A stream of {@code Provider<CodecFactory>} objects </li>
  *   <li> {@code p.type()} yields a {@code Class<CodecFactory>} </li>
@@ -228,10 +228,10 @@ import jdk.internal.reflect.Reflection;
  * support for a provider method in this case.
  *
  * <p> As an example, suppose a module specifies the following directive:
- * <pre>{@code
- *     provides com.example.CodecFactory with com.example.impl.StandardCodecs,
- *              com.example.impl.ExtendedCodecsFactory;
- * }</pre>
+ * {@snippet : 
+ *       provides com.example.CodecFactory with com.example.impl.StandardCodecs,
+ *                com.example.impl.ExtendedCodecsFactory;
+ * }
  *
  * <p> where
  *
@@ -1435,16 +1435,16 @@ public final class ServiceLoader<S>
      * a stream of {@code CodecFactory} objects, the second example is the same
      * except that it sorts the providers by provider class name (and so locate
      * all providers).
-     * <pre>{@code
-     *    Stream<CodecFactory> providers = ServiceLoader.load(CodecFactory.class)
-     *            .stream()
-     *            .map(Provider::get);
+     * {@snippet lang=java : 
+     *      Stream<CodecFactory> providers = ServiceLoader.load(CodecFactory.class)
+     *              .stream()
+     *              .map(Provider::get);
      *
-     *    Stream<CodecFactory> providers = ServiceLoader.load(CodecFactory.class)
-     *            .stream()
-     *            .sorted(Comparator.comparing(p -> p.type().getName()))
-     *            .map(Provider::get);
-     * }</pre>
+     *      Stream<CodecFactory> providers = ServiceLoader.load(CodecFactory.class)
+     *              .stream()
+     *              .sorted(Comparator.comparing(p -> p.type().getName()))
+     *              .map(Provider::get);
+     * }
      *
      * @return  A stream that lazily loads providers for this loader's service
      *
@@ -1659,15 +1659,15 @@ public final class ServiceLoader<S>
      * context class loader}.
      *
      * <p> An invocation of this convenience method of the form
-     * <pre>{@code
-     *     ServiceLoader.load(service)
-     * }</pre>
+     * {@snippet : 
+     *       ServiceLoader.load(service)
+     * }
      *
      * is equivalent to
      *
-     * <pre>{@code
-     *     ServiceLoader.load(service, Thread.currentThread().getContextClassLoader())
-     * }</pre>
+     * {@snippet : 
+     *       ServiceLoader.load(service, Thread.currentThread().getContextClassLoader())
+     * }
      *
      * @apiNote Service loader objects obtained with this method should not be
      * cached VM-wide. For example, different applications in the same VM may
@@ -1703,9 +1703,9 @@ public final class ServiceLoader<S>
      *
      * <p> This convenience method is equivalent to: </p>
      *
-     * <pre>{@code
-     *     ServiceLoader.load(service, ClassLoader.getPlatformClassLoader())
-     * }</pre>
+     * {@snippet : 
+     *       ServiceLoader.load(service, ClassLoader.getPlatformClassLoader())
+     * }
      *
      * <p> This method is intended for use when only installed providers are
      * desired.  The resulting service will only find and load providers that
@@ -1792,11 +1792,11 @@ public final class ServiceLoader<S>
      *
      * <p> The following example loads the first available service provider. If
      * no service providers are located then it uses a default implementation.
-     * <pre>{@code
-     *    CodecFactory factory = ServiceLoader.load(CodecFactory.class)
-     *                                        .findFirst()
-     *                                        .orElse(DEFAULT_CODECSET_FACTORY);
-     * }</pre>
+     * {@snippet lang=java : 
+     *      CodecFactory factory = ServiceLoader.load(CodecFactory.class)
+     *                                          .findFirst()
+     *                                          .orElse(DEFAULT_CODECSET_FACTORY);
+     * }
      * @return The first service provider or empty {@code Optional} if no
      *         service providers are located
      *

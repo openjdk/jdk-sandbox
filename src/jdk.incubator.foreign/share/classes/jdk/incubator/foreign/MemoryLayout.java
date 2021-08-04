@@ -58,24 +58,24 @@ import java.util.stream.Stream;
  * <p>
  * For instance, consider the following struct declaration in C:
  *
- * <blockquote><pre>{@code
- typedef struct {
-     char kind;
-     int value;
- } TaggedValues[5];
- * }</pre></blockquote>
+ * {@snippet : 
+ *   typedef struct {
+ *       char kind;
+ *       int value;
+ *   } TaggedValues[5];
+ * }
  *
  * The above declaration can be modelled using a layout object, as follows:
  *
- * <blockquote><pre>{@code
-SequenceLayout taggedValues = MemoryLayout.sequenceLayout(5,
-    MemoryLayout.structLayout(
-        MemoryLayout.valueLayout(8, ByteOrder.nativeOrder()).withName("kind"),
-        MemoryLayout.paddingLayout(24),
-        MemoryLayout.valueLayout(32, ByteOrder.nativeOrder()).withName("value")
-    )
-).withName("TaggedValues");
- * }</pre></blockquote>
+ * {@snippet lang=java : 
+ *  SequenceLayout taggedValues = MemoryLayout.sequenceLayout(5,
+ *      MemoryLayout.structLayout(
+ *          MemoryLayout.valueLayout(8, ByteOrder.nativeOrder()).withName("kind"),
+ *          MemoryLayout.paddingLayout(24),
+ *          MemoryLayout.valueLayout(32, ByteOrder.nativeOrder()).withName("value")
+ *      )
+ *  ).withName("TaggedValues");
+ * }
  * <p>
  * All implementations of this interface must be <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>;
  * programmers should treat instances that are {@linkplain #equals(Object) equal} as interchangeable and should not
@@ -131,43 +131,43 @@ SequenceLayout taggedValues = MemoryLayout.sequenceLayout(5,
  * Such <em>layout paths</em> can be constructed programmatically using the methods in this class.
  * For instance, given the {@code taggedValues} layout instance constructed as above, we can obtain the offset,
  * in bits, of the member layout named <code>value</code> in the <em>first</em> sequence element, as follows:
- * <blockquote><pre>{@code
-long valueOffset = taggedValues.bitOffset(PathElement.sequenceElement(0),
-                                          PathElement.groupElement("value")); // yields 32
- * }</pre></blockquote>
+ * {@snippet lang=java : 
+ *  long valueOffset = taggedValues.bitOffset(PathElement.sequenceElement(0),
+ *                                            PathElement.groupElement("value")); // yields 32
+ * }
  *
  * Similarly, we can select the member layout named {@code value}, as follows:
- * <blockquote><pre>{@code
-MemoryLayout value = taggedValues.select(PathElement.sequenceElement(),
-                                         PathElement.groupElement("value"));
- * }</pre></blockquote>
+ * {@snippet lang=java : 
+ *  MemoryLayout value = taggedValues.select(PathElement.sequenceElement(),
+ *                                           PathElement.groupElement("value"));
+ * }
  *
  * And, we can also replace the layout named {@code value} with another layout, as follows:
- * <blockquote><pre>{@code
-MemoryLayout taggedValuesWithHole = taggedValues.map(l -> MemoryLayout.paddingLayout(32),
-                                            PathElement.sequenceElement(), PathElement.groupElement("value"));
- * }</pre></blockquote>
+ * {@snippet lang=java : 
+ *  MemoryLayout taggedValuesWithHole = taggedValues.map(l -> MemoryLayout.paddingLayout(32),
+ *                                              PathElement.sequenceElement(), PathElement.groupElement("value"));
+ * }
  *
  * That is, the above declaration is identical to the following, more verbose one:
- * <blockquote><pre>{@code
-MemoryLayout taggedValuesWithHole = MemoryLayout.sequenceLayout(5,
-    MemoryLayout.structLayout(
-        MemoryLayout.valueLayout(8, ByteOrder.nativeOrder()).withName("kind"),
-        MemoryLayout.paddingLayout(32),
-        MemoryLayout.paddingLayout(32)
-));
- * }</pre></blockquote>
+ * {@snippet lang=java : 
+ *  MemoryLayout taggedValuesWithHole = MemoryLayout.sequenceLayout(5,
+ *      MemoryLayout.structLayout(
+ *          MemoryLayout.valueLayout(8, ByteOrder.nativeOrder()).withName("kind"),
+ *          MemoryLayout.paddingLayout(32),
+ *          MemoryLayout.paddingLayout(32)
+ *  ));
+ * }
  *
  * Layout paths can feature one or more <em>free dimensions</em>. For instance, a layout path traversing
  * an unspecified sequence element (that is, where one of the path component was obtained with the
  * {@link PathElement#sequenceElement()} method) features an additional free dimension, which will have to be bound at runtime.
  * This is important when obtaining memory access var handle from layouts, as in the following code:
  *
- * <blockquote><pre>{@code
-VarHandle valueHandle = taggedValues.varHandle(int.class,
-                                               PathElement.sequenceElement(),
-                                               PathElement.groupElement("value"));
- * }</pre></blockquote>
+ * {@snippet lang=java : 
+ *  VarHandle valueHandle = taggedValues.varHandle(int.class,
+ *                                                 PathElement.sequenceElement(),
+ *                                                 PathElement.groupElement("value"));
+ * }
  *
  * Since the layout path constructed in the above example features exactly one free dimension (as it doesn't specify
  * <em>which</em> member layout named {@code value} should be selected from the enclosing sequence layout),
@@ -180,12 +180,12 @@ VarHandle valueHandle = taggedValues.varHandle(int.class,
  * offsets of elements of a sequence at different indices, by supplying these indices when invoking the method handle.
  * For instance:
  *
- * <blockquote><pre>{@code
-MethodHandle offsetHandle = taggedValues.byteOffsetHandle(PathElement.sequenceElement(),
-                                                          PathElement.groupElement("kind"));
-long offset1 = (long) offsetHandle.invokeExact(1L); // 8
-long offset2 = (long) offsetHandle.invokeExact(2L); // 16
- * }</pre></blockquote>
+ * {@snippet lang=java : 
+ *  MethodHandle offsetHandle = taggedValues.byteOffsetHandle(PathElement.sequenceElement(),
+ *                                                            PathElement.groupElement("kind"));
+ *  long offset1 = (long) offsetHandle.invokeExact(1L); // 8
+ *  long offset2 = (long) offsetHandle.invokeExact(2L); // 16
+ * }
  *
  * <h2>Layout attributes</h2>
  *
@@ -245,9 +245,9 @@ public sealed interface MemoryLayout extends Constable permits AbstractLayout, S
      * Return the <em>name</em> (if any) associated with this layout.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    attribute(LAYOUT_NAME).map(String.class::cast);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      attribute(LAYOUT_NAME).map(String.class::cast);
+     * }
      *
      * @return the layout <em>name</em> (if any).
      * @see MemoryLayout#withName(String)
@@ -258,9 +258,9 @@ public sealed interface MemoryLayout extends Constable permits AbstractLayout, S
      * Creates a new layout which features the desired layout <em>name</em>.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    withAttribute(LAYOUT_NAME, name);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      withAttribute(LAYOUT_NAME, name);
+     * }
      *
      * @param name the layout name.
      * @return a new layout which is the same as this layout, except for the <em>name</em> associated with it.
@@ -373,9 +373,9 @@ public sealed interface MemoryLayout extends Constable permits AbstractLayout, S
      *
      * <p>The final offset returned by the method handle is computed as follows:
      *
-     * <blockquote><pre>{@code
-    offset = c_1 + c_2 + ... + c_m + (x_1 * s_1) + (x_2 * s_2) + ... + (x_n * s_n)
-     * }</pre></blockquote>
+     * {@snippet : 
+     *      offset = c_1 + c_2 + ... + c_m + (x_1 * s_1) + (x_2 * s_2) + ... + (x_n * s_n)
+     * }
      *
      * where {@code x_1}, {@code x_2}, ... {@code x_n} are <em>dynamic</em> values provided as {@code long}
      * arguments, whereas {@code c_1}, {@code c_2}, ... {@code c_m} are <em>static</em> offset constants
@@ -424,10 +424,10 @@ public sealed interface MemoryLayout extends Constable permits AbstractLayout, S
      *
      * <p>The final offset returned by the method handle is computed as follows:
      *
-     * <blockquote><pre>{@code
-    bitOffset = c_1 + c_2 + ... + c_m + (x_1 * s_1) + (x_2 * s_2) + ... + (x_n * s_n)
-    offset = bitOffset / 8
-     * }</pre></blockquote>
+     * {@snippet : 
+     *      bitOffset = c_1 + c_2 + ... + c_m + (x_1 * s_1) + (x_2 * s_2) + ... + (x_n * s_n)
+     *      offset = bitOffset / 8
+     * }
      *
      * where {@code x_1}, {@code x_2}, ... {@code x_n} are <em>dynamic</em> values provided as {@code long}
      * arguments, whereas {@code c_1}, {@code c_2}, ... {@code c_m} are <em>static</em> offset constants
@@ -456,17 +456,17 @@ public sealed interface MemoryLayout extends Constable permits AbstractLayout, S
      * <p>
      * The final memory location accessed by the returned memory access var handle can be computed as follows:
      *
-     * <blockquote><pre>{@code
-    address = base + offset
-     * }</pre></blockquote>
+     * {@snippet : 
+     *      address = base + offset
+     * }
      *
      * where {@code base} denotes the base address expressed by the {@link MemorySegment} access coordinate
      * (see {@link MemorySegment#address()} and {@link MemoryAddress#toRawLongValue()}) and {@code offset}
      * can be expressed in the following form:
      *
-     * <blockquote><pre>{@code
-    offset = c_1 + c_2 + ... + c_m + (x_1 * s_1) + (x_2 * s_2) + ... + (x_n * s_n)
-     * }</pre></blockquote>
+     * {@snippet : 
+     *      offset = c_1 + c_2 + ... + c_m + (x_1 * s_1) + (x_2 * s_2) + ... + (x_n * s_n)
+     * }
      *
      * where {@code x_1}, {@code x_2}, ... {@code x_n} are <em>dynamic</em> values provided as {@code long}
      * arguments, whereas {@code c_1}, {@code c_2}, ... {@code c_m} are <em>static</em> offset constants
@@ -505,10 +505,10 @@ public sealed interface MemoryLayout extends Constable permits AbstractLayout, S
      *
      * <p>The offset of the returned segment is computed as follows:
      *
-     * <blockquote><pre>{@code
-    bitOffset = c_1 + c_2 + ... + c_m + (x_1 * s_1) + (x_2 * s_2) + ... + (x_n * s_n)
-    offset = bitOffset / 8
-     * }</pre></blockquote>
+     * {@snippet : 
+     *      bitOffset = c_1 + c_2 + ... + c_m + (x_1 * s_1) + (x_2 * s_2) + ... + (x_n * s_n)
+     *      offset = bitOffset / 8
+     * }
      *
      * where {@code x_1}, {@code x_2}, ... {@code x_n} are <em>dynamic</em> values provided as {@code long}
      * arguments, whereas {@code c_1}, {@code c_2}, ... {@code c_m} are <em>static</em> offset constants
@@ -516,9 +516,9 @@ public sealed interface MemoryLayout extends Constable permits AbstractLayout, S
      * the layout path.
      *
      * <p>After the offset is computed, the returned segment is create as if by calling:
-     * <blockquote><pre>{@code
-    segment.asSlice(offset, layout.byteSize());
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      segment.asSlice(offset, layout.byteSize());
+     * }
      *
      * where {@code segment} is the segment to be sliced, and where {@code layout} is the layout selected by the given
      * layout path, as per {@link MemoryLayout#select(PathElement...)}.
@@ -648,9 +648,9 @@ public sealed interface MemoryLayout extends Constable permits AbstractLayout, S
          * the number of free dimensions of the resulting path will be {@code 1 + n}. If the free dimension associated
          * with this path is bound by an index {@code I}, the resulting accessed offset can be obtained with the following
          * formula:
-         * <blockquote><pre>{@code
-E * (S + I * F)
-         * }</pre></blockquote>
+         * {@snippet : 
+         *  E * (S + I * F)
+         * }
          * where {@code E} is the size (in bytes) of the sequence element layout.
          *
          * @param start the index of the first sequence element to be selected.

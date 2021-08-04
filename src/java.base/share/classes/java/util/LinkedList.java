@@ -48,8 +48,10 @@ import java.util.function.Consumer;
  * If no such object exists, the list should be "wrapped" using the
  * {@link Collections#synchronizedList Collections.synchronizedList}
  * method.  This is best done at creation time, to prevent accidental
- * unsynchronized access to the list:<pre>
- *   List list = Collections.synchronizedList(new LinkedList(...));</pre>
+ * unsynchronized access to the list:
+ * {@snippet :
+ *     List list = Collections.synchronizedList(new LinkedList(...));
+ * }
  *
  * <p>The iterators returned by this class's {@code iterator} and
  * {@code listIterator} methods are <i>fail-fast</i>: if the list is
@@ -1081,8 +1083,9 @@ public class LinkedList<E>
      * The following code can be used to dump the list into a newly
      * allocated array of {@code String}:
      *
-     * <pre>
-     *     String[] y = x.toArray(new String[0]);</pre>
+     * {@snippet lang=java : 
+     *       String[] y = x.toArray(new String[0]);
+     * }
      *
      * Note that {@code toArray(new Object[0])} is identical in function to
      * {@code toArray()}.

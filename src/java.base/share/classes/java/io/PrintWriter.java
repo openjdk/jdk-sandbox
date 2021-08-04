@@ -848,9 +848,9 @@ public class PrintWriter extends Writer {
      * {@code out.printf(format, args)}
      * behaves in exactly the same way as the invocation
      *
-     * <pre>{@code
-     *     out.format(format, args)
-     * }</pre>
+     * {@snippet : 
+     *       out.format(format, args)
+     * }
      *
      * @param  format
      *         A format string as described in <a
@@ -896,9 +896,9 @@ public class PrintWriter extends Writer {
      * {@code out.printf(l, format, args)}
      * behaves in exactly the same way as the invocation
      *
-     * <pre>{@code
-     *     out.format(l, format, args)
-     * }</pre>
+     * {@snippet : 
+     *       out.format(l, format, args)
+     * }
      *
      * @param  l
      *         The {@linkplain java.util.Locale locale} to apply during
@@ -1064,9 +1064,9 @@ public class PrintWriter extends Writer {
      * <p> An invocation of this method of the form {@code out.append(csq)}
      * behaves in exactly the same way as the invocation
      *
-     * <pre>{@code
-     *     out.write(csq.toString())
-     * }</pre>
+     * {@snippet : 
+     *       out.write(csq.toString())
+     * }
      *
      * <p> Depending on the specification of {@code toString} for the
      * character sequence {@code csq}, the entire sequence may not be
@@ -1096,9 +1096,9 @@ public class PrintWriter extends Writer {
      * when {@code csq} is not {@code null}, behaves in
      * exactly the same way as the invocation
      *
-     * <pre>{@code
-     *     out.write(csq.subSequence(start, end).toString())
-     * }</pre>
+     * {@snippet : 
+     *       out.write(csq.subSequence(start, end).toString())
+     * }
      *
      * @param  csq
      *         The character sequence from which a subsequence will be
@@ -1133,9 +1133,9 @@ public class PrintWriter extends Writer {
      * <p> An invocation of this method of the form {@code out.append(c)}
      * behaves in exactly the same way as the invocation
      *
-     * <pre>{@code
-     *     out.write(c)
-     * }</pre>
+     * {@snippet : 
+     *       out.write(c)
+     * }
      *
      * @param  c
      *         The 16-bit character to append

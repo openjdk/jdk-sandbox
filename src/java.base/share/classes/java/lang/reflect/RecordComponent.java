@@ -228,10 +228,10 @@ public final class RecordComponent implements AnnotatedElement {
      * the record component type, followed by a space, followed by the name
      * of the record component.
      * For example:
-     * <pre>
-     *    java.lang.String name
-     *    int age
-     * </pre>
+     * {@snippet : 
+     *      java.lang.String name
+     *      int age
+     * }
      *
      * @return a string describing this record component
      */

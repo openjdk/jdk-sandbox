@@ -124,16 +124,16 @@ import sun.security.action.GetIntegerAction;
  * <p>For example to read from a stream as written by the example in
  * ObjectOutputStream:
  * <br>
- * <pre>
- *      FileInputStream fis = new FileInputStream("t.tmp");
- *      ObjectInputStream ois = new ObjectInputStream(fis);
- *
- *      int i = ois.readInt();
- *      String today = (String) ois.readObject();
- *      Date date = (Date) ois.readObject();
- *
- *      ois.close();
- * </pre>
+ * {@snippet lang=java : 
+ *        FileInputStream fis = new FileInputStream("t.tmp");
+ *        ObjectInputStream ois = new ObjectInputStream(fis);
+ *  
+ *        int i = ois.readInt();
+ *        String today = (String) ois.readObject();
+ *        Date date = (Date) ois.readObject();
+ *  
+ *        ois.close();
+ * }
  *
  * <p>Classes control how they are serialized by implementing either the
  * java.io.Serializable or java.io.Externalizable interfaces.
@@ -148,14 +148,14 @@ import sun.security.action.GetIntegerAction;
  * serialization and deserialization process should implement the following
  * methods:
  *
- * <pre>
- * private void writeObject(java.io.ObjectOutputStream stream)
- *     throws IOException;
- * private void readObject(java.io.ObjectInputStream stream)
- *     throws IOException, ClassNotFoundException;
- * private void readObjectNoData()
- *     throws ObjectStreamException;
- * </pre>
+ * {@snippet lang=java : 
+ *   private void writeObject(java.io.ObjectOutputStream stream)
+ *       throws IOException;
+ *   private void readObject(java.io.ObjectInputStream stream)
+ *       throws IOException, ClassNotFoundException;
+ *   private void readObjectNoData()
+ *       throws ObjectStreamException;
+ * }
  *
  * <p>The readObject method is responsible for reading and restoring the state
  * of the object for its particular class using data written to the stream by
@@ -747,9 +747,9 @@ public class ObjectInputStream
      *
      * <p>The default implementation of this method in
      * {@code ObjectInputStream} returns the result of calling
-     * <pre>
-     *     Class.forName(desc.getName(), false, loader)
-     * </pre>
+     * {@snippet : 
+     *       Class.forName(desc.getName(), false, loader)
+     * }
      * where {@code loader} is the first class loader on the current
      * thread's stack (starting from the currently executing method) that is
      * neither the {@linkplain ClassLoader#getPlatformClassLoader() platform
@@ -809,9 +809,9 @@ public class ObjectInputStream
      * objects for the interfaces that are named in the {@code interfaces}
      * parameter.  The {@code Class} object for each interface name
      * {@code i} is the value returned by calling
-     * <pre>
-     *     Class.forName(i, false, loader)
-     * </pre>
+     * {@snippet : 
+     *       Class.forName(i, false, loader)
+     * }
      * where {@code loader} is the first class loader on the current
      * thread's stack (starting from the currently executing method) that is
      * neither the {@linkplain ClassLoader#getPlatformClassLoader() platform

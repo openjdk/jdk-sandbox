@@ -212,14 +212,15 @@ public abstract class FileSystem
      *
      * <p> <b>Usage Example:</b>
      * Suppose we want to print the space usage for all file stores:
-     * <pre>
-     *     for (FileStore store: FileSystems.getDefault().getFileStores()) {
-     *         long total = store.getTotalSpace() / 1024;
-     *         long used = (store.getTotalSpace() - store.getUnallocatedSpace()) / 1024;
-     *         long avail = store.getUsableSpace() / 1024;
-     *         System.out.format("%-20s %12d %12d %12d%n", store, total, used, avail);
-     *     }
-     * </pre>
+     * {@snippet lang=java : 
+ *       for (FileStore store: FileSystems.getDefault().getFileStores()) {
+ *           long total = store.getTotalSpace() / 1024;
+ *           long used = (store.getTotalSpace() - store.getUnallocatedSpace()) / 1024;
+ *           long avail = store.getUsableSpace() / 1024;
+ *           System.out.format("%-20s %12d %12d %12d%n", store, total, used, avail);
+ *       }
+ *   
+ * }
      *
      * @return  An object to iterate over the backing file stores
      */
@@ -301,9 +302,9 @@ public abstract class FileSystem
      *
      * The {@code syntaxAndPattern} parameter identifies the syntax and the
      * pattern and takes the form:
-     * <blockquote><pre>
-     * <i>syntax</i><b>:</b><i>pattern</i>
-     * </pre></blockquote>
+     * {@snippet :
+     * syntax:pattern //@highlight regex="syntax|pattern" type="italic" @highlight regex=":"
+     * }
      * where {@code ':'} stands for itself.
      *
      * <p> A {@code FileSystem} implementation supports the "{@code glob}" and
@@ -443,10 +444,11 @@ public abstract class FileSystem
      *
      * <p> <b>Usage Example:</b>
      * Suppose we want to make "joe" the owner of a file:
-     * <pre>
-     *     UserPrincipalLookupService lookupService = FileSystems.getDefault().getUserPrincipalLookupService();
-     *     Files.setOwner(path, lookupService.lookupPrincipalByName("joe"));
-     * </pre>
+     * {@snippet lang=java : 
+ *       UserPrincipalLookupService lookupService = FileSystems.getDefault().getUserPrincipalLookupService();
+ *       Files.setOwner(path, lookupService.lookupPrincipalByName("joe"));
+ *   
+ * }
      *
      * @throws  UnsupportedOperationException
      *          If this {@code FileSystem} does not does have a lookup service

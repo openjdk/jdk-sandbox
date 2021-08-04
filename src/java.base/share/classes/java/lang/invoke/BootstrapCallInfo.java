@@ -65,20 +65,7 @@ import java.lang.invoke.MethodHandles.Lookup;
  * static arguments, and invokes the popped method in push mode.
  * The callee has no way of telling that it was not called directly
  * from the JVM.
- * <blockquote><pre>{@code
-static Object genericBSM(Lookup lookup, BootstrapCallInfo<Object> bsci)
-    throws Throwable {
-  ArrayList<Object> args = new ArrayList<>();
-  args.add(lookup);
-  args.add(bsci.invocationName());
-  args.add(bsci.invocationType());
-  MethodHandle bsm = (MethodHandle) bsci.get(0);
-  List<Object> restOfArgs = bsci.asList().subList(1, bsci.size();
-  // the next line eagerly resolves all remaining static arguments:
-  args.addAll(restOfArgs);
-  return bsm.invokeWithArguments(args);
-}
- * }</pre></blockquote>
+ * {@snippet file="BootstrapCallInfoSnippets.java" region="snippet1"}
  *
  * <p>
  * In the other direction, here is a combinator which pops
@@ -92,15 +79,15 @@ static Object genericBSM(Lookup lookup, BootstrapCallInfo<Object> bsci)
  * callee will not be able to catch the resulting error,
  * since the error will be thrown by the JVM before the
  * bootstrap method is entered.
- * <blockquote><pre>{@code
-static Object genericBSM(Lookup lookup, String name, Object type,
-                         MethodHandle bsm, Object... args)
-    throws Throwable {
-  ConstantGroup cons = ConstantGroup.makeConstantGroup(Arrays.asList(args));
-  BootstrapCallInfo<Object> bsci = makeBootstrapCallInfo(bsm, name, type, cons);
-  return bsm.invoke(lookup, bsci);
-}
- * }</pre></blockquote>
+ * {@snippet lang=java : 
+ *  static Object genericBSM(Lookup lookup, String name, Object type,
+ *                           MethodHandle bsm, Object... args)
+ *      throws Throwable {
+ *    ConstantGroup cons = ConstantGroup.makeConstantGroup(Arrays.asList(args));
+ *    BootstrapCallInfo<Object> bsci = makeBootstrapCallInfo(bsm, name, type, cons);
+ *    return bsm.invoke(lookup, bsci);
+ *  }
+ * }
  *
  * @since 1.10
  */

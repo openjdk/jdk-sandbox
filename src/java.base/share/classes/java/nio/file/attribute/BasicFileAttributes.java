@@ -33,10 +33,10 @@ package java.nio.file.attribute;
  * interface.
  *
  * <p> <b>Usage Example:</b>
- * <pre>
- *    Path file = ...
- *    BasicFileAttributes attrs = Files.readAttributes(file, BasicFileAttributes.class);
- * </pre>
+ * {@snippet : 
+ *      Path file = ...
+ *      BasicFileAttributes attrs = Files.readAttributes(file, BasicFileAttributes.class);
+ * }
  *
  * @since 1.7
  *

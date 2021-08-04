@@ -647,17 +647,17 @@ public final class Long extends Number
      * </ul>
      *
      * <p>Examples:
-     * <blockquote><pre>
-     * parseLong("0", 10) returns 0L
-     * parseLong("473", 10) returns 473L
-     * parseLong("+42", 10) returns 42L
-     * parseLong("-0", 10) returns 0L
-     * parseLong("-FF", 16) returns -255L
-     * parseLong("1100110", 2) returns 102L
-     * parseLong("99", 8) throws a NumberFormatException
-     * parseLong("Hazelnut", 10) throws a NumberFormatException
-     * parseLong("Hazelnut", 36) returns 1356099454469L
-     * </pre></blockquote>
+     * {@snippet : 
+     *   parseLong("0", 10) returns 0L
+     *   parseLong("473", 10) returns 473L
+     *   parseLong("+42", 10) returns 42L
+     *   parseLong("-0", 10) returns 0L
+     *   parseLong("-FF", 16) returns -255L
+     *   parseLong("1100110", 2) returns 102L
+     *   parseLong("99", 8) throws a NumberFormatException
+     *   parseLong("Hazelnut", 10) throws a NumberFormatException
+     *   parseLong("Hazelnut", 36) returns 1356099454469L
+     * }
      *
      * @param      s       the {@code String} containing the
      *                     {@code long} representation to be parsed.
@@ -752,8 +752,10 @@ public final class Long extends Number
     public static long parseLong(CharSequence s, int beginIndex, int endIndex, int radix)
                 throws NumberFormatException {
         Objects.requireNonNull(s);
-        Objects.checkFromToIndex(beginIndex, endIndex, s.length());
 
+        if (beginIndex < 0 || beginIndex > endIndex || endIndex > s.length()) {
+            throw new IndexOutOfBoundsException();
+        }
         if (radix < Character.MIN_RADIX) {
             throw new NumberFormatException("radix " + radix +
                     " less than Character.MIN_RADIX");
@@ -996,8 +998,10 @@ public final class Long extends Number
     public static long parseUnsignedLong(CharSequence s, int beginIndex, int endIndex, int radix)
                 throws NumberFormatException {
         Objects.requireNonNull(s);
-        Objects.checkFromToIndex(beginIndex, endIndex, s.length());
 
+        if (beginIndex < 0 || beginIndex > endIndex || endIndex > s.length()) {
+            throw new IndexOutOfBoundsException();
+        }
         int start = beginIndex, len = endIndex - beginIndex;
 
         if (len > 0) {
@@ -1517,10 +1521,10 @@ public final class Long extends Number
      *
      * but in practice it may be implemented in a manner such as:
      *
-     * <blockquote><pre>
-     * Long result = getLong(nm, null);
-     * return (result == null) ? new Long(val) : result;
-     * </pre></blockquote>
+     * {@snippet lang=java : 
+     *   Long result = getLong(nm, null);
+     *   return (result == null) ? new Long(val) : result;
+     * }
      *
      * to avoid the unnecessary allocation of a {@code Long} object when
      * the default value is not needed.
@@ -1617,9 +1621,9 @@ public final class Long extends Number
     /**
      * Compares two {@code long} values numerically.
      * The value returned is identical to what would be returned by:
-     * <pre>
-     *    Long.valueOf(x).compareTo(Long.valueOf(y))
-     * </pre>
+     * {@snippet : 
+     *      Long.valueOf(x).compareTo(Long.valueOf(y))
+     * }
      *
      * @param  x the first {@code long} to compare
      * @param  y the second {@code long} to compare

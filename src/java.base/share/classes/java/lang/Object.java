@@ -167,18 +167,18 @@ public class Object {
      * Creates and returns a copy of this object.  The precise meaning
      * of "copy" may depend on the class of the object. The general
      * intent is that, for any object {@code x}, the expression:
-     * <blockquote>
-     * <pre>
-     * x.clone() != x</pre></blockquote>
+     * {@snippet : 
+     *   x.clone() != x
+     * }
      * will be true, and that the expression:
-     * <blockquote>
-     * <pre>
-     * x.clone().getClass() == x.getClass()</pre></blockquote>
+     * {@snippet : 
+     *   x.clone().getClass() == x.getClass()
+     * }
      * will be {@code true}, but these are not absolute requirements.
      * While it is typically the case that:
-     * <blockquote>
-     * <pre>
-     * x.clone().equals(x)</pre></blockquote>
+     * {@snippet : 
+     *   x.clone().equals(x)
+     * }
      * will be {@code true}, this is not an absolute requirement.
      * <p>
      * By convention, the returned object should be obtained by calling
@@ -245,10 +245,9 @@ public class Object {
      * the unsigned hexadecimal representation of the hash code of the
      * object. In other words, this method returns a string equal to the
      * value of:
-     * <blockquote>
-     * <pre>
-     * getClass().getName() + '@' + Integer.toHexString(hashCode())
-     * </pre></blockquote>
+     * {@snippet : 
+     *   getClass().getName() + '@' + Integer.toHexString(hashCode())
+     * }
      *
      * @return  a string representation of the object.
      */
@@ -430,16 +429,16 @@ public class Object {
      * below. Among other things, this approach avoids problems that can be caused
      * by spurious wakeups.
      *
-     * <pre>{@code
-     *     synchronized (obj) {
-     *         while (<condition does not hold> and <timeout not exceeded>) {
-     *             long timeoutMillis = ... ; // recompute timeout values
-     *             int nanos = ... ;
-     *             obj.wait(timeoutMillis, nanos);
-     *         }
-     *         ... // Perform action appropriate to condition or timeout
-     *     }
-     * }</pre>
+     * {@snippet : 
+     *       synchronized (obj) {
+     *           while (<condition does not hold> and <timeout not exceeded>) {
+     *               long timeoutMillis = ... ; // recompute timeout values
+     *               int nanos = ... ;
+     *               obj.wait(timeoutMillis, nanos);
+     *           }
+     *           ... // Perform action appropriate to condition or timeout
+     *       }
+     * }
      *
      * @param  timeoutMillis the maximum time to wait, in milliseconds
      * @param  nanos   additional time, in nanoseconds, in the range 0-999999 inclusive
@@ -533,15 +532,16 @@ public class Object {
      * To guard against exceptions prematurely terminating the finalize chain,
      * the subclass should use a {@code try-finally} block to ensure
      * {@code super.finalize()} is always invoked. For example,
-     * <pre>{@code      @Override
-     *     protected void finalize() throws Throwable {
-     *         try {
-     *             ... // cleanup subclass state
-     *         } finally {
-     *             super.finalize();
-     *         }
-     *     }
-     * }</pre>
+     * {@snippet : 
+     *       @Override
+     *       protected void finalize() throws Throwable {
+     *           try {
+     *               ... // cleanup subclass state
+     *           } finally {
+     *               super.finalize();
+     *           }
+     *       }
+     * }
      *
      * @deprecated The finalization mechanism is inherently problematic.
      * Finalization can lead to performance issues, deadlocks, and hangs.

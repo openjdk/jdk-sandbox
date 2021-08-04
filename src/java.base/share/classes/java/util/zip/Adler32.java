@@ -28,7 +28,7 @@ package java.util.zip;
 import java.lang.ref.Reference;
 import java.nio.ByteBuffer;
 import sun.nio.ch.DirectBuffer;
-import jdk.internal.util.Preconditions;
+
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 /**
@@ -74,7 +74,9 @@ public class Adler32 implements Checksum {
         if (b == null) {
             throw new NullPointerException();
         }
-        Preconditions.checkFromIndexSize(len, off, b.length, Preconditions.AIOOBE_FORMATTER);
+        if (off < 0 || len < 0 || off > b.length - len) {
+            throw new ArrayIndexOutOfBoundsException();
+        }
         adler = updateBytes(adler, b, off, len);
     }
 

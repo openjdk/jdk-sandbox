@@ -512,14 +512,14 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
          *
          * A concrete species subclass roughly matches the following schema:
          *
-         * <pre>
-         * class Species_[[types]] extends [[T]] {
-         *     final [[S]] speciesData() { return ... }
-         *     static [[T]] make([[fields]]) { return ... }
-         *     [[fields]]
-         *     final [[T]] transform([[args]]) { return ... }
+         * {@snippet : 
+         *   class Species_[[types]] extends [[T]] {
+         *       final [[S]] speciesData() { return ... }
+         *       static [[T]] make([[fields]]) { return ... }
+         *       [[fields]]
+         *       final [[T]] transform([[args]]) { return ... }
+         *   }
          * }
-         * </pre>
          *
          * The {@code [[types]]} signature is precisely the key for the species.
          *
@@ -530,37 +530,37 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
          * For example, a concrete species for two references and one integral bound value
          * has a shape like the following:
          *
-         * <pre>
+         * {@snippet :
          * class TopClass {
-         *     ...
-         *     private static final class Species_LLI extends TopClass {
-         *         final Object argL0;
-         *         final Object argL1;
-         *         final int argI2;
-         *         private Species_LLI(CT ctarg, ..., Object argL0, Object argL1, int argI2) {
-         *             super(ctarg, ...);
-         *             this.argL0 = argL0;
-         *             this.argL1 = argL1;
-         *             this.argI2 = argI2;
-         *         }
-         *         final SpeciesData speciesData() { return BMH_SPECIES; }
-         *         &#64;Stable static SpeciesData BMH_SPECIES; // injected afterwards
-         *         static TopClass make(CT ctarg, ..., Object argL0, Object argL1, int argI2) {
-         *             return new Species_LLI(ctarg, ..., argL0, argL1, argI2);
-         *         }
-         *         final TopClass copyWith(CT ctarg, ...) {
-         *             return new Species_LLI(ctarg, ..., argL0, argL1, argI2);
-         *         }
-         *         // two transforms, for the sake of illustration:
-         *         final TopClass copyWithExtendL(CT ctarg, ..., Object narg) {
-         *             return BMH_SPECIES.transform(L_TYPE).invokeBasic(ctarg, ..., argL0, argL1, argI2, narg);
-         *         }
-         *         final TopClass copyWithExtendI(CT ctarg, ..., int narg) {
-         *             return BMH_SPECIES.transform(I_TYPE).invokeBasic(ctarg, ..., argL0, argL1, argI2, narg);
-         *         }
-         *     }
+         *      ////@replace regex="//" replacement="..."
+         *      private static final class Species_LLI extends TopClass {
+         *          final Object argL0;
+         *          final Object argL1;
+         *          final int argI2;
+         *          private Species_LLI(CT ctarg, ..., Object argL0, Object argL1, int argI2) {
+         *              super(ctarg, ...);
+         *              this.argL0 = argL0;
+         *              this.argL1 = argL1;
+         *              this.argI2 = argI2;
+         *          }
+         *          final SpeciesData speciesData() { return BMH_SPECIES; }
+         *          @Stable static SpeciesData BMH_SPECIES; // injected afterwards
+         *          static TopClass make(CT ctarg, ..., Object argL0, Object argL1, int argI2) {
+         *              return new Species_LLI(ctarg, ..., argL0, argL1, argI2);
+         *          }
+         *          final TopClass copyWith(CT ctarg, ...) {
+         *              return new Species_LLI(ctarg, ..., argL0, argL1, argI2);
+         *          }
+         *          // two transforms, for the sake of illustration:
+         *          final TopClass copyWithExtendL(CT ctarg, ..., Object narg) {
+         *              return BMH_SPECIES.transform(L_TYPE).invokeBasic(ctarg, ..., argL0, argL1, argI2, narg);
+         *          }
+         *          final TopClass copyWithExtendI(CT ctarg, ..., int narg) {
+         *              return BMH_SPECIES.transform(I_TYPE).invokeBasic(ctarg, ..., argL0, argL1, argI2, narg);
+         *          }
+         *      }
+         *  }
          * }
-         * </pre>
          *
          * @param className of the species
          * @param speciesData what species we are generating

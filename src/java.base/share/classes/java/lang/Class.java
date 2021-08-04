@@ -123,12 +123,12 @@ import sun.reflect.misc.ReflectUtil;
  * <p> The following example uses a {@code Class} object to print the
  * class name of an object:
  *
- * <blockquote><pre>
- *     void printClassName(Object obj) {
- *         System.out.println("The class of " + obj +
- *                            " is " + obj.getClass().getName());
- *     }
- * </pre></blockquote>
+ * {@snippet lang=java : 
+ *       void printClassName(Object obj) {
+ *           System.out.println("The class of " + obj +
+ *                              " is " + obj.getClass().getName());
+ *       }
+ * }
  *
  * It is also possible to get the {@code Class} object for a named
  * class or interface (or for {@code void}) using a <i>class literal</i>.
@@ -566,15 +566,15 @@ public final class Class<T> implements java.io.Serializable,
      *
      * <p>The call
      *
-     * <pre>{@code
-     * clazz.newInstance()
-     * }</pre>
+     * {@snippet : 
+     *   clazz.newInstance()
+     * }
      *
      * can be replaced by
      *
-     * <pre>{@code
-     * clazz.getDeclaredConstructor().newInstance()
-     * }</pre>
+     * {@snippet : 
+     *   clazz.getDeclaredConstructor().newInstance()
+     * }
      *
      * The latter sequence of calls is inferred to be able to throw
      * the additional exception types {@link
@@ -843,16 +843,16 @@ public final class Class<T> implements java.io.Serializable,
      * keyword which corresponds to the primitive type or {@code void}.
      *
      * <p> Examples:
-     * <blockquote><pre>
-     * String.class.getName()
-     *     returns "java.lang.String"
-     * byte.class.getName()
-     *     returns "byte"
-     * (new Object[3]).getClass().getName()
-     *     returns "[Ljava.lang.Object;"
-     * (new int[3][4][5][6][7][8][9]).getClass().getName()
-     *     returns "[[[[[[[I"
-     * </pre></blockquote>
+     * {@snippet : 
+     *   String.class.getName()
+     *       returns "java.lang.String"
+     *   byte.class.getName()
+     *       returns "byte"
+     *   (new Object[3]).getClass().getName()
+     *       returns "[Ljava.lang.Object;"
+     *   (new int[3][4][5][6][7][8][9]).getClass().getName()
+     *       returns "[[[[[[[I"
+     * }
      *
      * @return  the name of the class, interface, or other entity
      *          represented by this {@code Class} object.
@@ -2386,15 +2386,16 @@ public final class Class<T> implements java.io.Serializable,
      * @apiNote
      * <p> The following method can be used to find the record canonical constructor:
      *
-     * <pre>{@code
-     * static <T extends Record> Constructor<T> getCanonicalConstructor(Class<T> cls)
-     *     throws NoSuchMethodException {
-     *   Class<?>[] paramTypes =
-     *     Arrays.stream(cls.getRecordComponents())
-     *           .map(RecordComponent::getType)
-     *           .toArray(Class<?>[]::new);
-     *   return cls.getDeclaredConstructor(paramTypes);
-     * }}</pre>
+     * {@snippet lang=java : 
+     *   static <T extends Record> Constructor<T> getCanonicalConstructor(Class<T> cls)
+     *       throws NoSuchMethodException {
+     *     Class<?>[] paramTypes =
+     *       Arrays.stream(cls.getRecordComponents())
+     *             .map(RecordComponent::getType)
+     *             .toArray(Class<?>[]::new);
+     *     return cls.getDeclaredConstructor(paramTypes);
+     *   }
+     * }
      *
      * @return  An array of {@code RecordComponent} objects representing all the
      *          record components of this record class, or {@code null} if this

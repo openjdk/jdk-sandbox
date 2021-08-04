@@ -66,14 +66,14 @@ package java.io;
  * deserialization process must implement special methods with these exact
  * signatures:
  *
- * <PRE>
+ * {@snippet :
  * private void writeObject(java.io.ObjectOutputStream out)
  *     throws IOException
  * private void readObject(java.io.ObjectInputStream in)
  *     throws IOException, ClassNotFoundException;
  * private void readObjectNoData()
  *     throws ObjectStreamException;
- * </PRE>
+ * }
  *
  * <p>The writeObject method is responsible for writing the state of the
  * object for its particular class so that the corresponding
@@ -112,9 +112,9 @@ package java.io;
  * used when writing an object to the stream should implement this
  * special method with the exact signature:
  *
- * <PRE>
+ * {@snippet :
  * ANY-ACCESS-MODIFIER Object writeReplace() throws ObjectStreamException;
- * </PRE><p>
+ * }<p>
  *
  * This writeReplace method is invoked by serialization if the method
  * exists and it would be accessible from a method defined within the
@@ -126,9 +126,9 @@ package java.io;
  * is read from the stream should implement this special method with the
  * exact signature.
  *
- * <PRE>
+ * {@snippet :
  * ANY-ACCESS-MODIFIER Object readResolve() throws ObjectStreamException;
- * </PRE><p>
+ * }<p>
  *
  * This readResolve method follows the same invocation rules and
  * accessibility rules as writeReplace.<p>
@@ -156,9 +156,9 @@ package java.io;
  * declaring a field named {@code "serialVersionUID"} that must be static,
  * final, and of type {@code long}:
  *
- * <PRE>
+ * {@snippet :
  * ANY-ACCESS-MODIFIER static final long serialVersionUID = 42L;
- * </PRE>
+ * }
  *
  * If a serializable class does not explicitly declare a serialVersionUID, then
  * the serialization runtime will calculate a default serialVersionUID value

@@ -114,11 +114,12 @@ public final class Objects {
     * example, if an object that has three fields, {@code x}, {@code
     * y}, and {@code z}, one could write:
     *
-    * <blockquote><pre>
-    * &#064;Override public int hashCode() {
-    *     return Objects.hash(x, y, z);
-    * }
-    * </pre></blockquote>
+    * {@snippet : 
+     *   @Override
+    *   public int hashCode() {
+     *       return Objects.hash(x, y, z);
+     *   }
+     * }
     *
     * <b>Warning: When a single object reference is supplied, the returned
     * value does not equal the hash code of that object reference.</b> This
@@ -192,11 +193,11 @@ public final class Objects {
      * Checks that the specified object reference is not {@code null}. This
      * method is designed primarily for doing parameter validation in methods
      * and constructors, as demonstrated below:
-     * <blockquote><pre>
-     * public Foo(Bar bar) {
-     *     this.bar = Objects.requireNonNull(bar);
+     * {@snippet : 
+     *   public Foo(Bar bar) {
+     *       this.bar = Objects.requireNonNull(bar);
+     *   }
      * }
-     * </pre></blockquote>
      *
      * @param obj the object reference to check for nullity
      * @param <T> the type of the reference
@@ -214,12 +215,12 @@ public final class Objects {
      * throws a customized {@link NullPointerException} if it is. This method
      * is designed primarily for doing parameter validation in methods and
      * constructors with multiple parameters, as demonstrated below:
-     * <blockquote><pre>
-     * public Foo(Bar bar, Baz baz) {
-     *     this.bar = Objects.requireNonNull(bar, "bar must not be null");
-     *     this.baz = Objects.requireNonNull(baz, "baz must not be null");
+     * {@snippet : 
+     *   public Foo(Bar bar, Baz baz) {
+     *       this.bar = Objects.requireNonNull(bar, "bar must not be null");
+     *       this.baz = Objects.requireNonNull(baz, "baz must not be null");
+     *   }
      * }
-     * </pre></blockquote>
      *
      * @param obj     the object reference to check for nullity
      * @param message detail message to be used in the event that a {@code

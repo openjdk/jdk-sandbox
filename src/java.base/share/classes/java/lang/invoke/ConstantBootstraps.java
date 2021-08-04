@@ -382,12 +382,12 @@ public final class ConstantBootstraps {
      * </ol>
      * <p>
      * The result is the same as when using the following code:
-     * <blockquote><pre>{@code
-     * MethodHandle id = MethodHandles.identity(dstType);
-     * MethodType mt = MethodType.methodType(dstType, Object.class);
-     * MethodHandle conv = MethodHandles.explicitCastArguments(id, mt);
-     * return conv.invoke(value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *   MethodHandle id = MethodHandles.identity(dstType);
+     *   MethodType mt = MethodType.methodType(dstType, Object.class);
+     *   MethodHandle conv = MethodHandles.explicitCastArguments(id, mt);
+     *   return conv.invoke(value);
+     * }
      *
      * @param lookup unused
      * @param name unused

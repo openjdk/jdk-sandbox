@@ -338,9 +338,9 @@ public abstract class SelectionKey {
      * <p> An invocation of this method of the form {@code k.isReadable()}
      * behaves in exactly the same way as the expression
      *
-     * <blockquote><pre>{@code
-     * k.readyOps() & OP_READ != 0
-     * }</pre></blockquote>
+     * {@snippet : 
+     *   k.readyOps() & OP_READ != 0
+     * }
      *
      * <p> If this key's channel does not support read operations then this
      * method always returns {@code false}.  </p>
@@ -361,9 +361,9 @@ public abstract class SelectionKey {
      * <p> An invocation of this method of the form {@code k.isWritable()}
      * behaves in exactly the same way as the expression
      *
-     * <blockquote><pre>{@code
-     * k.readyOps() & OP_WRITE != 0
-     * }</pre></blockquote>
+     * {@snippet : 
+     *   k.readyOps() & OP_WRITE != 0
+     * }
      *
      * <p> If this key's channel does not support write operations then this
      * method always returns {@code false}.  </p>
@@ -385,9 +385,9 @@ public abstract class SelectionKey {
      * <p> An invocation of this method of the form {@code k.isConnectable()}
      * behaves in exactly the same way as the expression
      *
-     * <blockquote><pre>{@code
-     * k.readyOps() & OP_CONNECT != 0
-     * }</pre></blockquote>
+     * {@snippet : 
+     *   k.readyOps() & OP_CONNECT != 0
+     * }
      *
      * <p> If this key's channel does not support socket-connect operations
      * then this method always returns {@code false}.  </p>
@@ -409,9 +409,9 @@ public abstract class SelectionKey {
      * <p> An invocation of this method of the form {@code k.isAcceptable()}
      * behaves in exactly the same way as the expression
      *
-     * <blockquote><pre>{@code
-     * k.readyOps() & OP_ACCEPT != 0
-     * }</pre></blockquote>
+     * {@snippet : 
+     *   k.readyOps() & OP_ACCEPT != 0
+     * }
      *
      * <p> If this key's channel does not support socket-accept operations then
      * this method always returns {@code false}.  </p>

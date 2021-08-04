@@ -73,19 +73,24 @@ import java.util.*;
  * BigDecimal} objects must be the same.<p>
  *
  * For the mathematically inclined, the <i>relation</i> that defines
- * the natural ordering on a given class C is:<pre>{@code
- *       {(x, y) such that x.compareTo(y) <= 0}.
- * }</pre> The <i>quotient</i> for this total order is: <pre>{@code
- *       {(x, y) such that x.compareTo(y) == 0}.
- * }</pre>
+ * the natural ordering on a given class C is:
+ * {@snippet :
+ *         {(x, y) such that x.compareTo(y) <= 0}.
+ * }
+ * The <i>quotient</i> for this total order is:
+ * {@snippet :
+ *         {(x, y) such that x.compareTo(y) == 0}.
+ * }
  *
  * It follows immediately from the contract for {@code compareTo} that the
  * quotient is an <i>equivalence relation</i> on {@code C}, and that the
  * natural ordering is a <i>total order</i> on {@code C}.  When we say that a
  * class's natural ordering is <i>consistent with equals</i>, we mean that the
  * quotient for the natural ordering is the equivalence relation defined by
- * the class's {@link Object#equals(Object) equals(Object)} method:<pre>
- *     {(x, y) such that x.equals(y)}. </pre><p>
+ * the class's {@link Object#equals(Object) equals(Object)} method:
+ * {@snippet :
+ *       {(x, y) such that x.equals(y)}. 
+ * }<p>
  *
  * In other words, when a class's natural ordering is consistent with
  * equals, the equivalence classes defined by the equivalence relation

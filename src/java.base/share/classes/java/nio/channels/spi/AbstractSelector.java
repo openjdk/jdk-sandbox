@@ -47,14 +47,15 @@ import sun.nio.ch.SelectorImpl;
  * invoked, these methods should be used within a
  * {@code try}&nbsp;...&nbsp;{@code finally} block:
  *
- * <blockquote><pre id="be">
+ * {@snippet id="be" :
  * try {
  *     begin();
  *     // Perform blocking I/O operation here
  *     ...
  * } finally {
  *     end();
- * }</pre></blockquote>
+ * }
+ * }
  *
  * <p> This class also defines methods for maintaining a selector's
  * cancelled-key set and for removing a key from its channel's key set, and

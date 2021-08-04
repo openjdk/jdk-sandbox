@@ -49,11 +49,12 @@ import java.util.ResourceBundle;
  * {@code com.example.app.MyResources} must be
  * {@code com.example.app.spi.MyResourcesProvider}:
  *
- * <blockquote><pre>
- * {@code package com.example.app.spi;
+ *
+ * {@snippet :
+ * package com.example.app.spi;
  * public interface MyResourcesProvider extends ResourceBundleProvider {
  * }
- * }</pre></blockquote>
+ * }
  *
  * <h2>Deploying resource bundle service providers</h2>
  *
@@ -62,8 +63,9 @@ import java.util.ResourceBundle;
  * named "{@code com.example.app.spi.MyResourcesProvider}"
  * has the following implementation class:
  *
- * <blockquote><pre>
- * {@code import com.example.app.spi.MyResourcesProvider;
+ *
+ * {@snippet :
+ * import com.example.app.spi.MyResourcesProvider;
  * class MyResourcesProviderImpl extends AbstractResourceBundleProvider
  *     implements MyResourcesProvider
  * {
@@ -83,7 +85,8 @@ import java.util.ResourceBundle;
  *         // otherwise return null
  *         return null;
  *     }
- * }}</pre></blockquote>
+ * }
+ * }
  *
  * This example provides "{@code com.example.app.MyResources}"
  * resource bundle of the French locale.  Traditionally resource bundles of
@@ -110,18 +113,18 @@ import java.util.ResourceBundle;
  *
  * <p>The module declaration of this provider module specifies the following
  * directive:
- * <pre>
- *     provides com.example.app.spi.MyResourcesProvider with com.example.impl.MyResourcesProviderImpl;
- * </pre>
+ * {@snippet : 
+ *       provides com.example.app.spi.MyResourcesProvider with com.example.impl.MyResourcesProviderImpl;
+ * }
  *
  * <h2><a id="obtain-resource-bundle">Obtaining resource bundles from providers</a></h2>
  *
  * The module declaration of the <em>consumer module</em> that calls one of the
  * {@code ResourceBundle.getBundle} factory methods to obtain a resource
  * bundle from service providers must specify the following directive:
- * <pre>
- *     uses com.example.app.spi.MyResourcesProvider;
- * </pre>
+ * {@snippet : 
+ *       uses com.example.app.spi.MyResourcesProvider;
+ * }
  *
  * {@link ResourceBundle#getBundle(String, Locale)
  * ResourceBundle.getBundle("com.example.app.MyResource", locale)}

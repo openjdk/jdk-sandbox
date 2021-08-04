@@ -361,29 +361,29 @@ public final class LambdaMetafactory {
      * parameter that contains additional parameters.  The declared argument
      * list for this method is:
      *
-     * <pre>{@code
-     *  CallSite altMetafactory(MethodHandles.Lookup caller,
-     *                          String interfaceMethodName,
-     *                          MethodType factoryType,
-     *                          Object... args)
-     * }</pre>
+     * {@snippet : 
+     *    CallSite altMetafactory(MethodHandles.Lookup caller,
+     *                            String interfaceMethodName,
+     *                            MethodType factoryType,
+     *                            Object... args)
+     * }
      *
      * <p>but it behaves as if the argument list is as follows:
      *
-     * <pre>{@code
-     *  CallSite altMetafactory(MethodHandles.Lookup caller,
-     *                          String interfaceMethodName,
-     *                          MethodType factoryType,
-     *                          MethodType interfaceMethodType,
-     *                          MethodHandle implementation,
-     *                          MethodType dynamicMethodType,
-     *                          int flags,
-     *                          int altInterfaceCount,        // IF flags has MARKERS set
-     *                          Class... altInterfaces,       // IF flags has MARKERS set
-     *                          int altMethodCount,           // IF flags has BRIDGES set
-     *                          MethodType... altMethods      // IF flags has BRIDGES set
-     *                          )
-     * }</pre>
+     * {@snippet :
+     * CallSite altMetafactory(MethodHandles.Lookup caller,
+     *                           String interfaceMethodName,
+     *                           MethodType factoryType,
+     *                           MethodType interfaceMethodType,
+     *                           MethodHandle implementation,
+     *                           MethodType dynamicMethodType,
+     *                           int flags,
+     *                           int altInterfaceCount,        // IF flags has MARKERS set
+     *                           Class... altInterfaces,       // IF flags has MARKERS set
+     *                           int altMethodCount,           // IF flags has BRIDGES set
+     *                           MethodType... altMethods      // IF flags has BRIDGES set
+     *                           )
+     * }
      *
      * <p>Arguments that appear in the argument list for
      * {@link #metafactory(MethodHandles.Lookup, String, MethodType, MethodType, MethodHandle, MethodType)}

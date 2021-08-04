@@ -82,42 +82,42 @@ import java.nio.charset.StandardCharsets;
  * For example, an individual byte is converted to a string of hexadecimal digits using
  * {@link HexFormat#toHexDigits(int) toHexDigits(int)} and converted from a string to a
  * primitive value using {@link HexFormat#fromHexDigits(CharSequence) fromHexDigits(string)}.
- * <pre>{@code
- *     HexFormat hex = HexFormat.of();
- *     byte b = 127;
- *     String byteStr = hex.toHexDigits(b);
- *
- *     byte byteVal = (byte)hex.fromHexDigits(byteStr);
- *     assert(byteStr.equals("7f"));
- *     assert(b == byteVal);
- *
- *     // The hexadecimal digits are: "7f"
- * }</pre>
+ * {@snippet lang=java : 
+ *       HexFormat hex = HexFormat.of();
+ *       byte b = 127;
+ *       String byteStr = hex.toHexDigits(b);
+ *  
+ *       byte byteVal = (byte)hex.fromHexDigits(byteStr);
+ *       assert(byteStr.equals("7f"));
+ *       assert(b == byteVal);
+ *  
+ *       // The hexadecimal digits are: "7f"
+ * }
  * <p>
  * For a comma ({@code ", "}) separated format with a prefix ({@code "#"})
  * using lowercase hex digits the {@code HexFormat} is:
- * <pre>{@code
- *     HexFormat commaFormat = HexFormat.ofDelimiter(", ").withPrefix("#");
- *     byte[] bytes = {0, 1, 2, 3, 124, 125, 126, 127};
- *     String str = commaFormat.formatHex(bytes);
- *
- *     byte[] parsed = commaFormat.parseHex(str);
- *     assert(Arrays.equals(bytes, parsed));
- *
- *     // The formatted string is: "#00, #01, #02, #03, #7c, #7d, #7e, #7f"
- * }</pre>
+ * {@snippet lang=java : 
+ *       HexFormat commaFormat = HexFormat.ofDelimiter(", ").withPrefix("#");
+ *       byte[] bytes = {0, 1, 2, 3, 124, 125, 126, 127};
+ *       String str = commaFormat.formatHex(bytes);
+ *  
+ *       byte[] parsed = commaFormat.parseHex(str);
+ *       assert(Arrays.equals(bytes, parsed));
+ *  
+ *       // The formatted string is: "#00, #01, #02, #03, #7c, #7d, #7e, #7f"
+ * }
  * <p>
  * For a fingerprint of byte values that uses the delimiter colon ({@code ":"})
  * and uppercase characters the {@code HexFormat} is:
- * <pre>{@code
- *     HexFormat formatFingerprint = HexFormat.ofDelimiter(":").withUpperCase();
- *     byte[] bytes = {0, 1, 2, 3, 124, 125, 126, 127};
- *     String str = formatFingerprint.formatHex(bytes);
- *     byte[] parsed = formatFingerprint.parseHex(str);
- *     assert(Arrays.equals(bytes, parsed));
- *
- *     // The formatted string is: "00:01:02:03:7C:7D:7E:7F"
- * }</pre>
+ * {@snippet lang=java : 
+ *       HexFormat formatFingerprint = HexFormat.ofDelimiter(":").withUpperCase();
+ *       byte[] bytes = {0, 1, 2, 3, 124, 125, 126, 127};
+ *       String str = formatFingerprint.formatHex(bytes);
+ *       byte[] parsed = formatFingerprint.parseHex(str);
+ *       assert(Arrays.equals(bytes, parsed));
+ *  
+ *       // The formatted string is: "00:01:02:03:7C:7D:7E:7F"
+ * }
  *
  * <p>
  * This is a <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>

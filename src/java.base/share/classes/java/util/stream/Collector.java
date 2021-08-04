@@ -145,11 +145,12 @@ import java.util.function.Supplier;
  * can be used to construct collectors.  For example, you could create a collector
  * that accumulates widgets into a {@code TreeSet} with:
  *
- * <pre>{@code
- *     Collector<Widget, ?, TreeSet<Widget>> intoSet =
- *         Collector.of(TreeSet::new, TreeSet::add,
- *                      (left, right) -> { left.addAll(right); return left; });
- * }</pre>
+ * {@snippet lang=java : 
+ *       Collector<Widget, ?, TreeSet<Widget>> intoSet =
+ *           Collector.of(TreeSet::new, TreeSet::add,
+ *                        (left, right) -> { left.addAll(right); return left; });
+ *   
+ * }
  *
  * (This behavior is also implemented by the predefined collector
  * {@link Collectors#toCollection(Supplier)}).
@@ -157,12 +158,13 @@ import java.util.function.Supplier;
  * @apiNote
  * Performing a reduction operation with a {@code Collector} should produce a
  * result equivalent to:
- * <pre>{@code
- *     A container = collector.supplier().get();
- *     for (T t : data)
- *         collector.accumulator().accept(container, t);
- *     return collector.finisher().apply(container);
- * }</pre>
+ * {@snippet lang=java : 
+ *       A container = collector.supplier().get();
+ *       for (T t : data)
+ *           collector.accumulator().accept(container, t);
+ *       return collector.finisher().apply(container);
+ *   
+ * }
  *
  * <p>However, the library is free to partition the input, perform the reduction
  * on the partitions, and then use the combiner function to combine the partial
@@ -175,19 +177,21 @@ import java.util.function.Supplier;
  * a new collector.  For example, given the following collector that computes
  * the sum of the salaries of a stream of employees:
  *
- * <pre>{@code
- *     Collector<Employee, ?, Integer> summingSalaries
- *         = Collectors.summingInt(Employee::getSalary))
- * }</pre>
+ * {@snippet : 
+ *       Collector<Employee, ?, Integer> summingSalaries
+ *           = Collectors.summingInt(Employee::getSalary))
+ *   
+ * }
  *
  * If we wanted to create a collector to tabulate the sum of salaries by
  * department, we could reuse the "sum of salaries" logic using
  * {@link Collectors#groupingBy(Function, Collector)}:
  *
- * <pre>{@code
- *     Collector<Employee, ?, Map<Department, Integer>> summingSalariesByDept
- *         = Collectors.groupingBy(Employee::getDepartment, summingSalaries);
- * }</pre>
+ * {@snippet lang=java : 
+ *       Collector<Employee, ?, Map<Department, Integer>> summingSalariesByDept
+ *           = Collectors.groupingBy(Employee::getDepartment, summingSalaries);
+ *   
+ * }
  *
  * @see Stream#collect(Collector)
  * @see Collectors

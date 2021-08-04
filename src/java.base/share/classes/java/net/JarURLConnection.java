@@ -39,9 +39,9 @@ import sun.net.www.ParseUtil;
  *
  * <p>The syntax of a JAR URL is:
  *
- * <pre>
- * jar:&lt;url&gt;!/{entry}
- * </pre>
+ * {@snippet : 
+ *   jar:<url>!/{entry}
+ * }
  *
  * <p>for example:
  *
@@ -58,11 +58,11 @@ import sun.net.www.ParseUtil;
  * JarURLConnection when they know that the URL they created is a JAR
  * URL, and they need JAR-specific functionality. For example:
  *
- * <pre>
- * URL url = new URL("jar:file:/home/duke/duke.jar!/");
- * JarURLConnection jarConnection = (JarURLConnection)url.openConnection();
- * Manifest manifest = jarConnection.getManifest();
- * </pre>
+ * {@snippet lang=java : 
+ *   URL url = new URL("jar:file:/home/duke/duke.jar!/");
+ *   JarURLConnection jarConnection = (JarURLConnection)url.openConnection();
+ *   Manifest manifest = jarConnection.getManifest();
+ * }
  *
  * <p>JarURLConnection instances can only be used to read from JAR files.
  * It is not possible to get a {@link java.io.OutputStream} to modify or write

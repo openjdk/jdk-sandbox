@@ -53,14 +53,14 @@ import sun.nio.ch.DefaultSelectorProvider;
  * a DatagramSocket is bound to a more specific address.
  * <p>
  * Example:
- * <pre>{@code
- *              DatagramSocket s = new DatagramSocket(null);
- *              s.bind(new InetSocketAddress(8888));
- * }</pre>
+ * {@snippet lang=java : 
+ *                DatagramSocket s = new DatagramSocket(null);
+ *                s.bind(new InetSocketAddress(8888));
+ * }
  * Which is equivalent to:
- * <pre>{@code
- *              DatagramSocket s = new DatagramSocket(8888);
- * }</pre>
+ * {@snippet lang=java : 
+ *                DatagramSocket s = new DatagramSocket(8888);
+ * }
  * Both cases will create a DatagramSocket able to receive broadcasts on
  * UDP port 8888.
  *
@@ -168,25 +168,7 @@ import sun.nio.ch.DefaultSelectorProvider;
  * {@link #setOption(SocketOption, Object) setOption} and
  * {@link StandardSocketOptions#IP_MULTICAST_IF}:
  *
- * <pre>{@code
- *    DatagramSocket sender = new DatagramSocket(new InetSocketAddress(0));
- *    NetworkInterface outgoingIf = NetworkInterface.getByName("en0");
- *    sender.setOption(StandardSocketOptions.IP_MULTICAST_IF, outgoingIf);
- *
- *    // optionally configure multicast TTL; the TTL defines the scope of a
- *    // multicast datagram, for example, confining it to host local (0) or
- *    // link local (1) etc...
- *    int ttl = ...; // a number betwen 0 and 255
- *    sender.setOption(StandardSocketOptions.IP_MULTICAST_TTL, ttl);
- *
- *    // send a packet to a multicast group
- *    byte[] msgBytes = ...;
- *    InetAddress mcastaddr = InetAddress.getByName("228.5.6.7");
- *    int port = 6789;
- *    InetSocketAddress dest = new InetSocketAddress(mcastaddr, port);
- *    DatagramPacket hi = new DatagramPacket(msgBytes, msgBytes.length, dest);
- *    sender.send(hi);
- * }</pre>
+ * {@snippet file="DatagramSocketSnippets.java" region="snippet3"}
  *
  * <p> An instance of {@code DatagramSocket} can also be used to receive
  * multicast datagram packets. A {@code DatagramSocket} that is created
@@ -194,23 +176,7 @@ import sun.nio.ch.DefaultSelectorProvider;
  * <i>unbound</i>. Before binding the socket, {@link #setReuseAddress(boolean)
  * setReuseAddress(true)} should be configured:
  *
- * <pre>{@code
- *    DatagramSocket socket = new DatagramSocket(null); // unbound
- *    socket.setReuseAddress(true); // set reuse address before binding
- *    socket.bind(new InetSocketAddress(6789)); // bind
- *
- *    // joinGroup 228.5.6.7
- *    InetAddress mcastaddr = InetAddress.getByName("228.5.6.7");
- *    InetSocketAddress group = new InetSocketAddress(mcastaddr, 0);
- *    NetworkInterface netIf = NetworkInterface.getByName("en0");
- *    socket.joinGroup(group, netIf);
- *    byte[] msgBytes = new byte[1024]; // up to 1024 bytes
- *    DatagramPacket packet = new DatagramPacket(msgBytes, msgBytes.length);
- *    socket.receive(packet);
- *    ....
- *    // eventually leave group
- *    socket.leaveGroup(group, netIf);
- * }</pre>
+ * {@snippet file="DatagramSocketSnippets.java" region="snippet4"}
  *
  * <p><a id="PlatformDependencies"></a><b>Platform dependencies</b>
  * <p>The multicast implementation is intended to map directly to the native

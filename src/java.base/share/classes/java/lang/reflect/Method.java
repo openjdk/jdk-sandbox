@@ -391,9 +391,9 @@ public final class Method extends Executable {
      * space, followed by the word "{@code throws}" followed by a
      * comma-separated list of the thrown exception types.
      * For example:
-     * <pre>
-     *    public boolean java.lang.Object.equals(java.lang.Object)
-     * </pre>
+     * {@snippet : 
+     *      public boolean java.lang.Object.equals(java.lang.Object)
+     * }
      *
      * <p>The access modifiers are placed in canonical order as
      * specified by "The Java Language Specification".  This is
@@ -591,10 +591,14 @@ public final class Method extends Executable {
      * Object#clone() clone} method inherited from {@code
      * java.lang.Object} is overridden and declared to return the type
      * of the class. For example, {@code Object} declares
-     * <pre>{@code protected Object clone() throws CloneNotSupportedException {...}}</pre>
+     * {@snippet : 
+     *  protected Object clone() throws CloneNotSupportedException {...}
+     * }
      * and {@code EnumSet<E>} declares its language-level {@linkplain
      * java.util.EnumSet#clone() covariant override}
-     * <pre>{@code public EnumSet<E> clone() {...}}</pre>
+     * {@snippet : 
+     *  public EnumSet<E> clone() {...}
+     * }
      * If this technique was being used, the resulting class file for
      * {@code EnumSet} would have two {@code clone} methods, one
      * returning {@code EnumSet<E>} and the second a bridge method

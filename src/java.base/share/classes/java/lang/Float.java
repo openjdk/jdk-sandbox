@@ -842,13 +842,13 @@ public final class Float extends Number
      * <p>In all other cases, let <i>s</i>, <i>e</i>, and <i>m</i> be three
      * values that can be computed from the argument:
      *
-     * <blockquote><pre>{@code
-     * int s = ((bits >> 31) == 0) ? 1 : -1;
-     * int e = ((bits >> 23) & 0xff);
-     * int m = (e == 0) ?
-     *                 (bits & 0x7fffff) << 1 :
-     *                 (bits & 0x7fffff) | 0x800000;
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *   int s = ((bits >> 31) == 0) ? 1 : -1;
+     *   int e = ((bits >> 23) & 0xff);
+     *   int m = (e == 0) ?
+     *                   (bits & 0x7fffff) << 1 :
+     *                   (bits & 0x7fffff) | 0x800000;
+     * }
      *
      * Then the floating-point result equals the value of the mathematical
      * expression <i>s</i>&middot;<i>m</i>&middot;2<sup><i>e</i>-150</sup>.
@@ -927,9 +927,10 @@ public final class Float extends Number
      * Compares the two specified {@code float} values. The sign
      * of the integer value returned is the same as that of the
      * integer that would be returned by the call:
-     * <pre>
-     *    new Float(f1).compareTo(new Float(f2))
-     * </pre>
+     * {@snippet : 
+ *      new Float(f1).compareTo(new Float(f2))
+ *   
+ * }
      *
      * @param   f1        the first {@code float} to compare.
      * @param   f2        the second {@code float} to compare.

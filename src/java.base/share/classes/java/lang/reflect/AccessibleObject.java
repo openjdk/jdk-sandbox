@@ -233,8 +233,8 @@ public class AccessibleObject implements AnnotatedElement {
      * the code below successfully sets the {@code accessible} flag
      * to {@code true}.
      *
-     * <pre>
-     * {@code
+     *
+     * {@snippet :
      *     p.T obj = ....;  // instance of p.T
      *     :
      *     Method m = p.T.class.getDeclaredMethod("privateMethod");
@@ -244,7 +244,7 @@ public class AccessibleObject implements AnnotatedElement {
      *         // package p is not opened to the caller to access private member of T
      *         ...
      *     }
-     * }</pre>
+     * }
      *
      * <p> If there is a security manager, its {@code checkPermission} method
      * is first called with a {@code ReflectPermission("suppressAccessChecks")}

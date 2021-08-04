@@ -71,9 +71,9 @@ public final class ResolvedModule {
      * Returns the module descriptor.
      *
      * This convenience method is the equivalent to invoking:
-     * <pre> {@code
+     * {@snippet :
      *     reference().descriptor()
-     * }</pre>
+     * }
      *
      * @return The module descriptor
      */
@@ -85,9 +85,9 @@ public final class ResolvedModule {
      * Returns the module name.
      *
      * This convenience method is the equivalent to invoking:
-     * <pre> {@code
+     * {@snippet :
      *     reference().descriptor().name()
-     * }</pre>
+     * }
      *
      * @return The module name
      */

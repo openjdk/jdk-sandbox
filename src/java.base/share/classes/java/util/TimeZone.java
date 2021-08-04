@@ -62,9 +62,9 @@ import sun.util.locale.provider.TimeZoneNameUtility;
  * along with a time zone ID. For instance, the time zone ID for the
  * U.S. Pacific Time zone is "America/Los_Angeles". So, you can get a
  * U.S. Pacific Time {@code TimeZone} object with:
- * <blockquote><pre>
- * TimeZone tz = TimeZone.getTimeZone("America/Los_Angeles");
- * </pre></blockquote>
+ * {@snippet lang=java : 
+ *   TimeZone tz = TimeZone.getTimeZone("America/Los_Angeles");
+ * }
  * You can use the {@code getAvailableIDs} method to iterate through
  * all the supported time zone IDs. You can then choose a
  * supported ID to get a {@code TimeZone}.
@@ -302,10 +302,10 @@ public abstract class TimeZone implements Serializable, Cloneable {
      * presentation to the user in the default locale.
      *
      * <p>This method is equivalent to:
-     * <blockquote><pre>
-     * getDisplayName(false, {@link #LONG},
-     *                Locale.getDefault({@link Locale.Category#DISPLAY}))
-     * </pre></blockquote>
+     * {@snippet : 
+     *   getDisplayName(false, ,
+     *                  Locale.getDefault())
+     * }
      *
      * @return the human-readable name of this time zone in the default locale.
      * @since 1.2
@@ -323,9 +323,9 @@ public abstract class TimeZone implements Serializable, Cloneable {
      * presentation to the user in the specified {@code locale}.
      *
      * <p>This method is equivalent to:
-     * <blockquote><pre>
-     * getDisplayName(false, {@link #LONG}, locale)
-     * </pre></blockquote>
+     * {@snippet : 
+     *   getDisplayName(false, , locale)
+     * }
      *
      * @param locale the locale in which to supply the display name.
      * @return the human-readable name of this time zone in the given locale.
@@ -345,10 +345,10 @@ public abstract class TimeZone implements Serializable, Cloneable {
      * Time). Otherwise, a Standard Time name is returned.
      *
      * <p>This method is equivalent to:
-     * <blockquote><pre>
-     * getDisplayName(daylight, style,
-     *                Locale.getDefault({@link Locale.Category#DISPLAY}))
-     * </pre></blockquote>
+     * {@snippet : 
+     *   getDisplayName(daylight, style,
+     *                  Locale.getDefault())
+     * }
      *
      * @param daylight {@code true} specifying a Daylight Saving Time name, or
      *                 {@code false} specifying a Standard Time name

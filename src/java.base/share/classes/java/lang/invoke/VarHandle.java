@@ -111,11 +111,11 @@ import static java.lang.invoke.MethodHandleStatics.UNSAFE;
  * Such a VarHandle instance may be produced by the
  * {@link MethodHandles#arrayElementVarHandle(Class) array factory method} and
  * access array elements as follows:
- * <pre> {@code
+ * {@snippet :
  * String[] sa = ...
  * VarHandle avh = MethodHandles.arrayElementVarHandle(String[].class);
  * boolean r = avh.compareAndSet(sa, 10, "expected", "new");
- * }</pre>
+ * }
  *
  * <p>Access modes control atomicity and consistency properties.
  * <em>Plain</em> read ({@code get}) and write ({@code set})
@@ -289,12 +289,12 @@ import static java.lang.invoke.MethodHandleStatics.UNSAFE;
  * VarHandle instance as the leading argument.  More specifically, the
  * following, where {@code {access-mode}} corresponds to the access mode method
  * name:
- * <pre> {@code
+ * {@snippet :
  * VarHandle vh = ..
  * R r = (R) vh.{access-mode}(p1, p2, ..., pN);
- * }</pre>
+ * }
  * behaves as if:
- * <pre> {@code
+ * {@snippet :
  * VarHandle vh = ..
  * VarHandle.AccessMode am = VarHandle.AccessMode.valueFromMethodName("{access-mode}");
  * MethodHandle mh = MethodHandles.varHandleExactInvoker(
@@ -302,17 +302,17 @@ import static java.lang.invoke.MethodHandleStatics.UNSAFE;
  *                       vh.accessModeType(am));
  *
  * R r = (R) mh.invoke(vh, p1, p2, ..., pN)
- * }</pre>
+ * }
  * (modulo access mode methods do not declare throwing of {@code Throwable}).
  * This is equivalent to:
- * <pre> {@code
+ * {@snippet :
  * MethodHandle mh = MethodHandles.lookup().findVirtual(
  *                       VarHandle.class,
  *                       "{access-mode}",
  *                       MethodType.methodType(R, p1, p2, ..., pN));
  *
  * R r = (R) mh.invokeExact(vh, p1, p2, ..., pN)
- * }</pre>
+ * }
  * where the desired method type is the symbolic type descriptor and a
  * {@link MethodHandle#invokeExact} is performed, since before invocation of the
  * target, the handle will apply reference casts as necessary and box, unbox, or
@@ -320,13 +320,13 @@ import static java.lang.invoke.MethodHandleStatics.UNSAFE;
  * {@link MethodHandles#varHandleInvoker}).
  *
  * More concisely, such behavior is equivalent to:
- * <pre> {@code
+ * {@snippet :
  * VarHandle vh = ..
  * VarHandle.AccessMode am = VarHandle.AccessMode.valueFromMethodName("{access-mode}");
  * MethodHandle mh = vh.toMethodHandle(am);
  *
  * R r = (R) mh.invoke(p1, p2, ..., pN)
- * }</pre>
+ * }
  * Where, in this case, the method handle is bound to the VarHandle instance.
  *
  * <p id="invoke-exact-behavior">
@@ -335,12 +335,12 @@ import static java.lang.invoke.MethodHandleStatics.UNSAFE;
  * where the receiving method handle accepts the VarHandle instance as the leading argument.
  * More specifically, the following, where {@code {access-mode}} corresponds to the access mode method
  * name:
- * <pre> {@code
+ * {@snippet :
  * VarHandle vh = ..
  * R r = (R) vh.{access-mode}(p1, p2, ..., pN);
- * }</pre>
+ * }
  * behaves as if:
- * <pre> {@code
+ * {@snippet :
  * VarHandle vh = ..
  * VarHandle.AccessMode am = VarHandle.AccessMode.valueFromMethodName("{access-mode}");
  * MethodHandle mh = MethodHandles.varHandleExactInvoker(
@@ -348,17 +348,17 @@ import static java.lang.invoke.MethodHandleStatics.UNSAFE;
  *                       vh.accessModeType(am));
  *
  * R r = (R) mh.invokeExact(vh, p1, p2, ..., pN)
- * }</pre>
+ * }
  * (modulo access mode methods do not declare throwing of {@code Throwable}).
  *
  * More concisely, such behavior is equivalent to:
- * <pre> {@code
+ * {@snippet :
  * VarHandle vh = ..
  * VarHandle.AccessMode am = VarHandle.AccessMode.valueFromMethodName("{access-mode}");
  * MethodHandle mh = vh.toMethodHandle(am);
  *
  * R r = (R) mh.invokeExact(p1, p2, ..., pN)
- * }</pre>
+ * }
  * Where, in this case, the method handle is bound to the VarHandle instance.
  *
  * <h2>Invocation checking</h2>
@@ -2092,12 +2092,12 @@ public abstract class VarHandle implements Constable {
      * {@code {access-mode}}, returns a method handle that is equivalent to
      * method handle {@code bmh} in the following code (though it may be more
      * efficient):
-     * <pre>{@code
-     * MethodHandle mh = MethodHandles.varHandleExactInvoker(
-     *                       vh.accessModeType(VarHandle.AccessMode.{access-mode}));
+     * {@snippet : 
+     *   MethodHandle mh = MethodHandles.varHandleExactInvoker(
+     *                         vh.accessModeType(VarHandle.AccessMode.{access-mode}));
      *
-     * MethodHandle bmh = mh.bindTo(vh);
-     * }</pre>
+     *   MethodHandle bmh = mh.bindTo(vh);
+     * }
      *
      * @param accessMode the access mode, corresponding to the
      * signature-polymorphic method of the same name
@@ -2178,6 +2178,15 @@ public abstract class VarHandle implements Constable {
         UNSAFE.putReference(this, VFORM_OFFSET, newVForm);
         UNSAFE.fullFence();
     }
+
+    static final BiFunction<String, List<Number>, ArrayIndexOutOfBoundsException>
+            AIOOBE_SUPPLIER = Preconditions.outOfBoundsExceptionFormatter(
+            new Function<String, ArrayIndexOutOfBoundsException>() {
+                @Override
+                public ArrayIndexOutOfBoundsException apply(String s) {
+                    return new ArrayIndexOutOfBoundsException(s);
+                }
+            });
 
     private static final long VFORM_OFFSET;
 

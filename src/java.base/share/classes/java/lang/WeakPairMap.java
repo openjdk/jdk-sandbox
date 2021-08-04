@@ -231,20 +231,18 @@ final class WeakPairMap<K1, K2, V> {
         /**
          * A Pair where both keys are weakly-referenced.
          * It is composed of two instances of {@link WeakRefPeer}s:
-         * <pre>{@code
-         *
+         * {@snippet :
          *     +-referent-> [K1]                +-referent-> [K2]
-         *     |                                |
-         *   +----------------+               +----------------+
-         *   | Pair.Weak <:   |-----peer----->| (anonymous) <: |
-         *   | WeakRefPeer,   |               | WeakRefPeer    |
-         *   | Pair           |<--weakPair()--|                |
-         *   +----------------+               +----------------+
-         *     |            ^
-         *     |            |
-         *     +-weakPair()-+
-         *
-         * }</pre>
+         *      |                                |
+         *    +----------------+               +----------------+
+         *    | Pair.Weak <:   |-----peer----->| (anonymous) <: |
+         *    | WeakRefPeer,   |               | WeakRefPeer    |
+         *    | Pair           |<--weakPair()--|                |
+         *    +----------------+               +----------------+
+         *      |            ^
+         *      |            |
+         *      +-weakPair()-+
+         * }
          * <p>
          * Pair.Weak is used for CHM keys. Both peers are associated with the
          * same {@link ReferenceQueue} so when either of their referents

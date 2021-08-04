@@ -69,8 +69,10 @@ import jdk.internal.util.ArraysSupport;
  * If no such object exists, the list should be "wrapped" using the
  * {@link Collections#synchronizedList Collections.synchronizedList}
  * method.  This is best done at creation time, to prevent accidental
- * unsynchronized access to the list:<pre>
- *   List list = Collections.synchronizedList(new ArrayList(...));</pre>
+ * unsynchronized access to the list:
+ * {@snippet :
+ *     List list = Collections.synchronizedList(new ArrayList(...));
+ * }
  *
  * <p id="fail-fast">
  * The iterators returned by this class's {@link #iterator() iterator} and
@@ -1088,9 +1090,9 @@ public class ArrayList<E> extends AbstractList<E>
      * a list can be used as a range operation by passing a subList view
      * instead of a whole list.  For example, the following idiom
      * removes a range of elements from a list:
-     * <pre>
-     *      list.subList(from, to).clear();
-     * </pre>
+     * {@snippet lang=java : 
+     *        list.subList(from, to).clear();
+     * }
      * Similar idioms may be constructed for {@link #indexOf(Object)} and
      * {@link #lastIndexOf(Object)}, and all of the algorithms in the
      * {@link Collections} class can be applied to a subList.

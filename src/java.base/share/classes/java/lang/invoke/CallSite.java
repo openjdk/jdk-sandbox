@@ -61,26 +61,7 @@ import jdk.internal.vm.annotation.Stable;
  * <p>
  * Here is a sample use of call sites and bootstrap methods which links every
  * dynamic call site to print its arguments:
-<blockquote><pre>{@code
-static void test() throws Throwable {
-    // THE FOLLOWING LINE IS PSEUDOCODE FOR A JVM INSTRUCTION
-    InvokeDynamic[#bootstrapDynamic].baz("baz arg", 2, 3.14);
-}
-private static void printArgs(Object... args) {
-  System.out.println(java.util.Arrays.deepToString(args));
-}
-private static final MethodHandle printArgs;
-static {
-  MethodHandles.Lookup lookup = MethodHandles.lookup();
-  Class thisClass = lookup.lookupClass();  // (who am I?)
-  printArgs = lookup.findStatic(thisClass,
-      "printArgs", MethodType.methodType(void.class, Object[].class));
-}
-private static CallSite bootstrapDynamic(MethodHandles.Lookup caller, String name, MethodType type) {
-  // ignore caller and name, but match the type:
-  return new ConstantCallSite(printArgs.asType(type));
-}
-}</pre></blockquote>
+ * {@snippet file="CallSiteSnippets.java" region="snippet1"}
  * @author John Rose, JSR 292 EG
  * @since 1.7
  */
@@ -208,12 +189,12 @@ public class CallSite {
      * which has been linked to this call site.
      * <p>
      * This method is equivalent to the following code:
-     * <blockquote><pre>{@code
-     * MethodHandle getTarget, invoker, result;
-     * getTarget = MethodHandles.publicLookup().bind(this, "getTarget", MethodType.methodType(MethodHandle.class));
-     * invoker = MethodHandles.exactInvoker(this.type());
-     * result = MethodHandles.foldArguments(invoker, getTarget)
-     * }</pre></blockquote>
+     * {@snippet : 
+     *   MethodHandle getTarget, invoker, result;
+     *   getTarget = MethodHandles.publicLookup().bind(this, "getTarget", MethodType.methodType(MethodHandle.class));
+     *   invoker = MethodHandles.exactInvoker(this.type());
+     *   result = MethodHandles.foldArguments(invoker, getTarget)
+     * }
      *
      * @return a method handle which always invokes this call site's current target
      */

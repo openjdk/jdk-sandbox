@@ -81,11 +81,9 @@ import sun.util.spi.CalendarProvider;
  * object of this type. {@code Calendar}'s {@code getInstance} method
  * returns a {@code Calendar} object whose
  * calendar fields have been initialized with the current date and time:
- * <blockquote>
- * <pre>
- *     Calendar rightNow = Calendar.getInstance();
- * </pre>
- * </blockquote>
+ * {@snippet lang=java : 
+ *       Calendar rightNow = Calendar.getInstance();
+ * }
  *
  * <p>A {@code Calendar} object can produce all the calendar field values
  * needed to implement the date-time formatting for a particular language and
@@ -167,21 +165,19 @@ import sun.util.spi.CalendarProvider;
  * most recently set single field, will be used.
  *
  * <p><a id="date_resolution">For the date fields</a>:
- * <blockquote>
- * <pre>
- * YEAR + MONTH + DAY_OF_MONTH
- * YEAR + MONTH + WEEK_OF_MONTH + DAY_OF_WEEK
- * YEAR + MONTH + DAY_OF_WEEK_IN_MONTH + DAY_OF_WEEK
- * YEAR + DAY_OF_YEAR
- * YEAR + DAY_OF_WEEK + WEEK_OF_YEAR
- * </pre></blockquote>
+ * {@snippet : 
+ *   YEAR + MONTH + DAY_OF_MONTH
+ *   YEAR + MONTH + WEEK_OF_MONTH + DAY_OF_WEEK
+ *   YEAR + MONTH + DAY_OF_WEEK_IN_MONTH + DAY_OF_WEEK
+ *   YEAR + DAY_OF_YEAR
+ *   YEAR + DAY_OF_WEEK + WEEK_OF_YEAR
+ * }
  *
  * <a id="time_resolution">For the time of day fields</a>:
- * <blockquote>
- * <pre>
- * HOUR_OF_DAY
- * AM_PM + HOUR
- * </pre></blockquote>
+ * {@snippet : 
+ *   HOUR_OF_DAY
+ *   AM_PM + HOUR
+ * }
  *
  * <p>If there are any calendar fields whose values haven't been set in the selected
  * field combination, {@code Calendar} uses their default values. The default
@@ -1064,15 +1060,17 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * (Gregorian) because Monday is the first day of a week with the <a
      * href="GregorianCalendar.html#iso8601_compatible_setting"> ISO 8601
      * compatible week parameters</a>.
-     * <pre>
-     *   Calendar cal = new Calendar.Builder().setCalendarType("iso8601")
-     *                        .setWeekDate(2013, 1, MONDAY).build();</pre>
+     * {@snippet lang=java : 
+     *     Calendar cal = new Calendar.Builder().setCalendarType("iso8601")
+     *                          .setWeekDate(2013, 1, MONDAY).build();
+     * }
      * <p>The following code produces a Japanese {@code Calendar} with date
      * 1989-01-08 (Gregorian), assuming that the default {@link Calendar#ERA ERA}
      * is <em>Heisei</em> that started on that day.
-     * <pre>
-     *   Calendar cal = new Calendar.Builder().setCalendarType("japanese")
-     *                        .setFields(YEAR, 1, DAY_OF_YEAR, 1).build();</pre>
+     * {@snippet lang=java : 
+     *     Calendar cal = new Calendar.Builder().setCalendarType("japanese")
+     *                          .setFields(YEAR, 1, DAY_OF_YEAR, 1).build();
+     * }
      *
      * @since 1.8
      * @see Calendar#getInstance(TimeZone, Locale)
@@ -1178,16 +1176,18 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
          * Sets field parameters to their values given by
          * {@code fieldValuePairs} that are pairs of a field and its value.
          * For example,
-         * <pre>
-         *   setFields(Calendar.YEAR, 2013,
-         *             Calendar.MONTH, Calendar.DECEMBER,
-         *             Calendar.DAY_OF_MONTH, 23);</pre>
+         * {@snippet lang=java : 
+         *     setFields(Calendar.YEAR, 2013,
+         *               Calendar.MONTH, Calendar.DECEMBER,
+         *               Calendar.DAY_OF_MONTH, 23);
+         * }
          * is equivalent to the sequence of the following
          * {@link #set(int, int) set} calls:
-         * <pre>
-         *   set(Calendar.YEAR, 2013)
-         *   .set(Calendar.MONTH, Calendar.DECEMBER)
-         *   .set(Calendar.DAY_OF_MONTH, 23);</pre>
+         * {@snippet lang=java : 
+         *     set(Calendar.YEAR, 2013)
+         *     .set(Calendar.MONTH, Calendar.DECEMBER)
+         *     .set(Calendar.DAY_OF_MONTH, 23);
+         * }
          *
          * @param fieldValuePairs field-value pairs
          * @return this {@code Calendar.Builder}
@@ -1225,10 +1225,11 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
          * Sets the date field parameters to the values given by {@code year},
          * {@code month}, and {@code dayOfMonth}. This method is equivalent to
          * a call to:
-         * <pre>
-         *   setFields(Calendar.YEAR, year,
-         *             Calendar.MONTH, month,
-         *             Calendar.DAY_OF_MONTH, dayOfMonth);</pre>
+         * {@snippet lang=java : 
+         *     setFields(Calendar.YEAR, year,
+         *               Calendar.MONTH, month,
+         *               Calendar.DAY_OF_MONTH, dayOfMonth);
+         * }
          *
          * @param year       the {@link Calendar#YEAR YEAR} value
          * @param month      the {@link Calendar#MONTH MONTH} value
@@ -1244,8 +1245,9 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
          * Sets the time of day field parameters to the values given by
          * {@code hourOfDay}, {@code minute}, and {@code second}. This method is
          * equivalent to a call to:
-         * <pre>
-         *   setTimeOfDay(hourOfDay, minute, second, 0);</pre>
+         * {@snippet lang=java : 
+         *     setTimeOfDay(hourOfDay, minute, second, 0);
+         * }
          *
          * @param hourOfDay the {@link Calendar#HOUR_OF_DAY HOUR_OF_DAY} value
          *                  (24-hour clock)
@@ -1261,11 +1263,12 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
          * Sets the time of day field parameters to the values given by
          * {@code hourOfDay}, {@code minute}, {@code second}, and
          * {@code millis}. This method is equivalent to a call to:
-         * <pre>
-         *   setFields(Calendar.HOUR_OF_DAY, hourOfDay,
-         *             Calendar.MINUTE, minute,
-         *             Calendar.SECOND, second,
-         *             Calendar.MILLISECOND, millis);</pre>
+         * {@snippet lang=java : 
+         *     setFields(Calendar.HOUR_OF_DAY, hourOfDay,
+         *               Calendar.MINUTE, minute,
+         *               Calendar.SECOND, second,
+         *               Calendar.MILLISECOND, millis);
+         * }
          *
          * @param hourOfDay the {@link Calendar#HOUR_OF_DAY HOUR_OF_DAY} value
          *                  (24-hour clock)
@@ -2738,9 +2741,9 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * Returns whether this {@code Calendar} represents a time
      * before the time represented by the specified
      * {@code Object}. This method is equivalent to:
-     * <pre>{@code
-     *         compareTo(when) < 0
-     * }</pre>
+     * {@snippet :
+     *           compareTo(when) < 0
+     * }
      * if and only if {@code when} is a {@code Calendar}
      * instance. Otherwise, the method returns {@code false}.
      *
@@ -2759,9 +2762,9 @@ public abstract class Calendar implements Serializable, Cloneable, Comparable<Ca
      * Returns whether this {@code Calendar} represents a time
      * after the time represented by the specified
      * {@code Object}. This method is equivalent to:
-     * <pre>{@code
-     *         compareTo(when) > 0
-     * }</pre>
+     * {@snippet : 
+     *           compareTo(when) > 0
+     * }
      * if and only if {@code when} is a {@code Calendar}
      * instance. Otherwise, the method returns {@code false}.
      *

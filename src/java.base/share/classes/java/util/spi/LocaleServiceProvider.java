@@ -65,14 +65,14 @@ import java.util.Locale;
  * For example, an implementation of the
  * {@link java.text.spi.DateFormatProvider DateFormatProvider} class should
  * take the form of a jar file which contains the file:
- * <pre>
- * META-INF/services/java.text.spi.DateFormatProvider
- * </pre>
+ * {@snippet : 
+ *   META-INF/services/java.text.spi.DateFormatProvider
+ * }
  * And the file {@code java.text.spi.DateFormatProvider} should have
  * a line such as:
- * <pre>
- * {@code com.foo.DateFormatProviderImpl}
- * </pre>
+ * {@snippet :
+ * com.foo.DateFormatProviderImpl
+ * }
  * which is the fully qualified class name of the class implementing
  * {@code DateFormatProvider}.
  * <h3>Invocation of Locale Sensitive Services</h3>
@@ -135,9 +135,9 @@ import java.util.Locale;
  * </ul>
  * <p>
  * For example, if the following is specified in the property:
- * <pre>
- * java.locale.providers=SPI,CLDR,COMPAT
- * </pre>
+ * {@snippet : 
+ *   java.locale.providers=SPI,CLDR,COMPAT
+ * }
  * the locale sensitive services in the SPI providers are looked up first. If the
  * desired locale sensitive service is not available, then the runtime looks for CLDR,
  * COMPAT in that order.

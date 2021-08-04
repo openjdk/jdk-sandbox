@@ -180,9 +180,9 @@ public abstract class AsynchronousSocketChannel
      * <p> This method returns an asynchronous socket channel that is bound to
      * the <em>default group</em>.This method is equivalent to evaluating the
      * expression:
-     * <blockquote><pre>
-     * open((AsynchronousChannelGroup)null);
-     * </pre></blockquote>
+     * {@snippet lang=java : 
+     *   open((AsynchronousChannelGroup)null);
+     * }
      *
      * @return  A new asynchronous socket channel
      *
@@ -449,10 +449,11 @@ public abstract class AsynchronousSocketChannel
      * where <i>r</i> is the total number of bytes remaining in the specified
      * subsequence of the given buffer array, that is,
      *
-     * <blockquote><pre>
-     * dsts[offset].remaining()
-     *     + dsts[offset+1].remaining()
-     *     + ... + dsts[offset+length-1].remaining()</pre></blockquote>
+     * {@snippet : 
+     *   dsts[offset].remaining()
+     *       + dsts[offset+1].remaining()
+     *       + ... + dsts[offset+length-1].remaining()
+     * }
      *
      * at the moment that the read is attempted.
      *
@@ -603,10 +604,11 @@ public abstract class AsynchronousSocketChannel
      * where <i>r</i> is the total number of bytes remaining in the specified
      * subsequence of the given buffer array, that is,
      *
-     * <blockquote><pre>
-     * srcs[offset].remaining()
-     *     + srcs[offset+1].remaining()
-     *     + ... + srcs[offset+length-1].remaining()</pre></blockquote>
+     * {@snippet : 
+     *   srcs[offset].remaining()
+     *       + srcs[offset+1].remaining()
+     *       + ... + srcs[offset+length-1].remaining()
+     * }
      *
      * at the moment that the write is attempted.
      *

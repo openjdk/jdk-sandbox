@@ -224,19 +224,19 @@ public class ByteArrayOutputStream extends OutputStream {
      *
      * <p> An invocation of this method of the form
      *
-     * <pre> {@code
+     * {@snippet :
      *      ByteArrayOutputStream b = ...
      *      b.toString("UTF-8")
-     *      }
-     * </pre>
+     * }
+     *
      *
      * behaves in exactly the same way as the expression
      *
-     * <pre> {@code
+     * {@snippet :
      *      ByteArrayOutputStream b = ...
      *      b.toString(StandardCharsets.UTF_8)
-     *      }
-     * </pre>
+     * }
+     *
      *
      *
      * @param  charsetName  the name of a supported
@@ -278,9 +278,9 @@ public class ByteArrayOutputStream extends OutputStream {
      * copied into it. Each character <i>c</i> in the resulting string is
      * constructed from the corresponding element <i>b</i> in the byte
      * array such that:
-     * <blockquote><pre>{@code
-     *     c == (char)(((hibyte & 0xff) << 8) | (b & 0xff))
-     * }</pre></blockquote>
+     * {@snippet : 
+     *       c == (char)(((hibyte & 0xff) << 8) | (b & 0xff))
+     * }
      *
      * @deprecated This method does not properly convert bytes into characters.
      * As of JDK&nbsp;1.1, the preferred way to do this is via the

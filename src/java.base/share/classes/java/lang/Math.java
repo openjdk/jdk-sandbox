@@ -851,10 +851,10 @@ public final class Math {
      * is {@code Math.nextDown(1.0)}, a value {@code x} in the closed range
      * {@code [x1,x2]} where {@code x1<=x2} may be defined by the statements
      *
-     * <blockquote><pre>{@code
-     * double f = Math.random()/Math.nextDown(1.0);
-     * double x = x1*(1.0 - f) + x2*f;
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *   double f = Math.random()/Math.nextDown(1.0);
+     *   double x = x1*(1.0 - f) + x2*f;
+     * }
      *
      * @return  a pseudorandom {@code double} greater than or equal
      * to {@code 0.0} and less than {@code 1.0}.
@@ -1527,8 +1527,7 @@ public final class Math {
      */
     @IntrinsicCandidate
     public static float abs(float a) {
-        // Convert to bit field form, zero the sign bit, and convert back
-        return Float.intBitsToFloat(Float.floatToRawIntBits(a) & FloatConsts.MAG_BIT_MASK);
+        return (a <= 0.0F) ? 0.0F - a : a;
     }
 
     /**
@@ -1553,9 +1552,7 @@ public final class Math {
      */
     @IntrinsicCandidate
     public static double abs(double a) {
-        // Convert to bit field form, zero the sign bit, and convert back
-        return Double.longBitsToDouble(Double.doubleToRawLongBits(a) & DoubleConsts.MAG_BIT_MASK);
-
+        return (a <= 0.0D) ? 0.0D - a : a;
     }
 
     /**

@@ -505,9 +505,9 @@ public final class Short extends Number implements Comparable<Short>, Constable 
     /**
      * Compares two {@code short} values numerically.
      * The value returned is identical to what would be returned by:
-     * <pre>
-     *    Short.valueOf(x).compareTo(Short.valueOf(y))
-     * </pre>
+     * {@snippet : 
+     *      Short.valueOf(x).compareTo(Short.valueOf(y))
+     * }
      *
      * @param  x the first {@code short} to compare
      * @param  y the second {@code short} to compare

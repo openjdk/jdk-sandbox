@@ -32,9 +32,10 @@ package java.util;
  * series.
  * <p>
  * For example, to print all elements of a {@code Vector<E>} <i>v</i>:
- * <pre>
- *   for (Enumeration&lt;E&gt; e = v.elements(); e.hasMoreElements();)
- *       System.out.println(e.nextElement());</pre>
+ * {@snippet : 
+ *     for (Enumeration<E> e = v.elements(); e.hasMoreElements();)
+ *         System.out.println(e.nextElement());
+ * }
  * <p>
  * Methods are provided to enumerate through the elements of a
  * vector, the keys of a hashtable, and the values in a hashtable.
@@ -93,10 +94,10 @@ public interface Enumeration<E> {
      * This can be turned into an {@code Iterator}, and then the
      * {@code forEachRemaining()} method can be used:
      *
-     * <pre>{@code
-     *     JarFile jarFile = ... ;
-     *     jarFile.entries().asIterator().forEachRemaining(entry -> { ... });
-     * }</pre>
+     * {@snippet : 
+     *       JarFile jarFile = ... ;
+     *       jarFile.entries().asIterator().forEachRemaining(entry -> { ... });
+     * }
      *
      * (Note that there is also a {@link java.util.jar.JarFile#stream()
      * JarFile.stream()} method that returns a {@code Stream} of entries,

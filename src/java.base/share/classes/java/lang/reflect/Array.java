@@ -51,12 +51,10 @@ class Array {
      * length.
      * Invoking this method is equivalent to creating an array
      * as follows:
-     * <blockquote>
-     * <pre>
-     * int[] x = {length};
-     * Array.newInstance(componentType, x);
-     * </pre>
-     * </blockquote>
+     * {@snippet lang=java : 
+     *   int[] x = {length};
+     *   Array.newInstance(componentType, x);
+     * }
      *
      * <p>The number of dimensions of the new array must not
      * exceed 255.

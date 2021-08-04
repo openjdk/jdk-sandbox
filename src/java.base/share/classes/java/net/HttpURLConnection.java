@@ -501,10 +501,10 @@ public abstract class HttpURLConnection extends URLConnection {
     /**
      * Gets the status code from an HTTP response message.
      * For example, in the case of the following status lines:
-     * <PRE>
+     * {snippet :
      * HTTP/1.0 200 OK
      * HTTP/1.0 401 Unauthorized
-     * </PRE>
+     * }
      * It will return 200 and 401 respectively.
      * Returns -1 if no code can be discerned
      * from the response (i.e., the response is not valid HTTP).
@@ -581,10 +581,10 @@ public abstract class HttpURLConnection extends URLConnection {
     /**
      * Gets the HTTP response message, if any, returned along with the
      * response code from a server.  From responses like:
-     * <PRE>
+     * {snippet :
      * HTTP/1.0 200 OK
      * HTTP/1.0 404 Not Found
-     * </PRE>
+     * }
      * Extracts the Strings "OK" and "Not Found" respectively.
      * Returns null if none could be discerned from the responses
      * (the result was not valid HTTP).

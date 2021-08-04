@@ -118,9 +118,9 @@ public interface Annotation {
      * Returns a string representation of this annotation.  The details
      * of the representation are implementation-dependent, but the following
      * may be regarded as typical:
-     * <pre>
-     *   &#064;com.example.Name(first="Duke", middle="of", last="Java")
-     * </pre>
+     * {@snippet : 
+     *     @com.example.Name(first="Duke", middle="of", last="Java")
+     * }
      *
      * @return a string representation of this annotation
      */

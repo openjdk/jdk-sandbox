@@ -132,9 +132,9 @@ public final class MemoryLayouts {
      * A value layout constant whose size is the same as that of a Java {@code long}, and byte order set to {@link ByteOrder#nativeOrder()}.
      * The alignment of this layout (see {@link MemoryLayout#byteAlignment()} is platform-dependent, so that the following
      * invariant holds:
-     * <blockquote><pre>{@code
-    MemoryLayouts.JAVA_LONG.byteAlignment() == MemoryLayouts.ADDRESS.byteSize();
-     * }</pre></blockquote>
+     * {@snippet : 
+     *      MemoryLayouts.JAVA_LONG.byteAlignment() == MemoryLayouts.ADDRESS.byteSize();
+     * }
      */
     public static final ValueLayout JAVA_LONG = MemoryLayout.valueLayout(64, ByteOrder.nativeOrder())
             .withBitAlignment(ADDRESS.bitSize());
@@ -148,9 +148,9 @@ public final class MemoryLayouts {
      * A value layout constant whose size is the same as that of a Java {@code double}, and byte order set to {@link ByteOrder#nativeOrder()}.
      * The alignment of this layout (see {@link MemoryLayout#byteAlignment()} is platform-dependent, so that the following
      * invariant holds:
-     * <blockquote><pre>{@code
-    MemoryLayouts.JAVA_DOUBLE.byteAlignment() == MemoryLayouts.ADDRESS.byteSize();
-     * }</pre></blockquote>
+     * {@snippet : 
+     *      MemoryLayouts.JAVA_DOUBLE.byteAlignment() == MemoryLayouts.ADDRESS.byteSize();
+     * }
      */
     public static final ValueLayout JAVA_DOUBLE = MemoryLayout.valueLayout(64, ByteOrder.nativeOrder())
             .withBitAlignment(ADDRESS.bitSize());

@@ -115,28 +115,28 @@ public interface InvocationHandler {
      * implementation of method {@code m}. Interface {@code C} extends {@code A}
      * and inherits the default method {@code m} from its superinterface {@code A}.
      *
-     * <blockquote><pre>{@code
-     * interface A {
-     *     default T m(A a) { return t1; }
+     * {@snippet lang=java : 
+     *   interface A {
+     *       default T m(A a) { return t1; }
+     *   }
+     *   interface B {
+     *       default T m(A a) { return t2; }
+     *   }
+     *   interface C extends A {}
      * }
-     * interface B {
-     *     default T m(A a) { return t2; }
-     * }
-     * interface C extends A {}
-     * }</pre></blockquote>
      *
      * The following creates a proxy instance that implements {@code A}
      * and invokes the default method {@code A::m}.
      *
-     * <blockquote><pre>{@code
-     * Object proxy = Proxy.newProxyInstance(loader, new Class<?>[] { A.class },
-     *         (o, m, params) -> {
-     *             if (m.isDefault()) {
-     *                 // if it's a default method, invoke it
-     *                 return InvocationHandler.invokeDefault(o, m, params);
-     *             }
-     *         });
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *   Object proxy = Proxy.newProxyInstance(loader, new Class<?>[] { A.class },
+     *           (o, m, params) -> {
+     *               if (m.isDefault()) {
+     *                   // if it's a default method, invoke it
+     *                   return InvocationHandler.invokeDefault(o, m, params);
+     *               }
+     *           });
+     * }
      *
      * If a proxy instance implements both {@code A} and {@code B}, both
      * of which provides the default implementation of method {@code m},
@@ -145,16 +145,16 @@ public interface InvocationHandler {
      * For example, the following code delegates the method invocation
      * to {@code B::m}.
      *
-     * <blockquote><pre>{@code
-     * Object proxy = Proxy.newProxyInstance(loader, new Class<?>[] { A.class, B.class },
-     *         (o, m, params) -> {
-     *             if (m.getName().equals("m")) {
-     *                 // invoke B::m instead of A::m
-     *                 Method bMethod = B.class.getMethod(m.getName(), m.getParameterTypes());
-     *                 return InvocationHandler.invokeDefault(o, bMethod, params);
-     *             }
-     *         });
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *   Object proxy = Proxy.newProxyInstance(loader, new Class<?>[] { A.class, B.class },
+     *           (o, m, params) -> {
+     *               if (m.getName().equals("m")) {
+     *                   // invoke B::m instead of A::m
+     *                   Method bMethod = B.class.getMethod(m.getName(), m.getParameterTypes());
+     *                   return InvocationHandler.invokeDefault(o, bMethod, params);
+     *               }
+     *           });
+     * }
      *
      * If a proxy instance implements {@code C} that inherits the default
      * method {@code m} from its superinterface {@code A}, then
@@ -163,15 +163,15 @@ public interface InvocationHandler {
      * method with the {@code Method} object argument representing the
      * default method {@code A::m}.
      *
-     * <blockquote><pre>{@code
-     * Object proxy = Proxy.newProxyInstance(loader, new Class<?>[] { C.class },
-     *        (o, m, params) -> {
-     *             if (m.isDefault()) {
-     *                 // behaves as if calling C.super.m(params)
-     *                 return InvocationHandler.invokeDefault(o, m, params);
-     *             }
-     *        });
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *   Object proxy = Proxy.newProxyInstance(loader, new Class<?>[] { C.class },
+     *          (o, m, params) -> {
+     *               if (m.isDefault()) {
+     *                   // behaves as if calling C.super.m(params)
+     *                   return InvocationHandler.invokeDefault(o, m, params);
+     *               }
+     *          });
+     * }
      *
      * The invocation of method {@code "m"} on this {@code proxy} will behave
      * as if {@code C.super::m} is called and that is resolved to invoking
@@ -184,11 +184,11 @@ public interface InvocationHandler {
      * For example, if {@code C} is modified to implement a default method
      * {@code m}:
      *
-     * <blockquote><pre>{@code
-     * interface C extends A {
-     *     default T m(A a) { return t3; }
+     * {@snippet lang=java : 
+     *   interface C extends A {
+     *       default T m(A a) { return t3; }
+     *   }
      * }
-     * }</pre></blockquote>
      *
      * The code above that creates proxy instance {@code proxy} with
      * the modified {@code C} will run with no exception and it will result in
@@ -198,18 +198,18 @@ public interface InvocationHandler {
      * and the invocation handler calls the {@code invokeDefault} method
      * to invoke {@code A::m}:
      *
-     * <blockquote><pre>{@code
-     * C c = (C) Proxy.newProxyInstance(loader, new Class<?>[] { C.class },
-     *         (o, m, params) -> {
-     *             if (m.getName().equals("m")) {
-     *                 // IllegalArgumentException thrown as {@code A::m} is not a method
-     *                 // inherited from its proxy interface C
-     *                 Method aMethod = A.class.getMethod(m.getName(), m.getParameterTypes());
-     *                 return InvocationHandler.invokeDefault(o, aMethod params);
-     *             }
-     *         });
-     * c.m(...);
-     * }</pre></blockquote>
+     * {@snippet : 
+     *   C c = (C) Proxy.newProxyInstance(loader, new Class<?>[] { C.class },
+     *           (o, m, params) -> {
+     *               if (m.getName().equals("m")) {
+     *                   // IllegalArgumentException thrown as {@code A::m} is not a method
+     *                   // inherited from its proxy interface C
+     *                   Method aMethod = A.class.getMethod(m.getName(), m.getParameterTypes());
+     *                   return InvocationHandler.invokeDefault(o, aMethod params);
+     *               }
+     *           });
+     *   c.m(...);
+     * }
      *
      * The above code runs successfully with the old version of {@code C} and
      * {@code A::m} is invoked.  When running with the new version of {@code C},

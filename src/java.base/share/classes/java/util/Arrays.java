@@ -4094,17 +4094,17 @@ public class Arrays {
      * APIs, in combination with {@link Collection#toArray}.
      *
      * <p>This method provides a way to wrap an existing array:
-     * <pre>{@code
-     *     Integer[] numbers = ...
-     *     ...
-     *     List<Integer> values = Arrays.asList(numbers);
-     * }</pre>
+     * {@snippet : 
+     *       Integer[] numbers = ...
+     *       ...
+     *       List<Integer> values = Arrays.asList(numbers);
+     * }
      *
      * <p>This method also provides a convenient way to create a fixed-size
      * list initialized to contain several elements:
-     * <pre>{@code
-     *     List<String> stooges = Arrays.asList("Larry", "Moe", "Curly");
-     * }</pre>
+     * {@snippet lang=java : 
+     *       List<String> stooges = Arrays.asList("Larry", "Moe", "Curly");
+     * }
      *
      * <p><em>The list returned by this method is modifiable.</em>
      * To create an unmodifiable list, use
@@ -5044,10 +5044,10 @@ public class Arrays {
      * @apiNote
      * Setting a subrange of an array, using a generator function to compute
      * each element, can be written as follows:
-     * <pre>{@code
-     * IntStream.range(startInclusive, endExclusive)
-     *          .forEach(i -> array[i] = generator.apply(i));
-     * }</pre>
+     * {@snippet lang=java : 
+     *   IntStream.range(startInclusive, endExclusive)
+     *            .forEach(i -> array[i] = generator.apply(i));
+     * }
      *
      * @param <T> type of elements of the array
      * @param array array to be initialized
@@ -5073,11 +5073,11 @@ public class Arrays {
      * @apiNote
      * Setting a subrange of an array, in parallel, using a generator function
      * to compute each element, can be written as follows:
-     * <pre>{@code
-     * IntStream.range(startInclusive, endExclusive)
-     *          .parallel()
-     *          .forEach(i -> array[i] = generator.apply(i));
-     * }</pre>
+     * {@snippet lang=java : 
+     *   IntStream.range(startInclusive, endExclusive)
+     *            .parallel()
+     *            .forEach(i -> array[i] = generator.apply(i));
+     * }
      *
      * @param <T> type of elements of the array
      * @param array array to be initialized
@@ -5101,10 +5101,10 @@ public class Arrays {
      * @apiNote
      * Setting a subrange of an array, using a generator function to compute
      * each element, can be written as follows:
-     * <pre>{@code
-     * IntStream.range(startInclusive, endExclusive)
-     *          .forEach(i -> array[i] = generator.applyAsInt(i));
-     * }</pre>
+     * {@snippet lang=java : 
+     *   IntStream.range(startInclusive, endExclusive)
+     *            .forEach(i -> array[i] = generator.applyAsInt(i));
+     * }
      *
      * @param array array to be initialized
      * @param generator a function accepting an index and producing the desired
@@ -5129,11 +5129,11 @@ public class Arrays {
      * @apiNote
      * Setting a subrange of an array, in parallel, using a generator function
      * to compute each element, can be written as follows:
-     * <pre>{@code
-     * IntStream.range(startInclusive, endExclusive)
-     *          .parallel()
-     *          .forEach(i -> array[i] = generator.applyAsInt(i));
-     * }</pre>
+     * {@snippet lang=java : 
+     *   IntStream.range(startInclusive, endExclusive)
+     *            .parallel()
+     *            .forEach(i -> array[i] = generator.applyAsInt(i));
+     * }
      *
      * @param array array to be initialized
      * @param generator a function accepting an index and producing the desired
@@ -5156,10 +5156,10 @@ public class Arrays {
      * @apiNote
      * Setting a subrange of an array, using a generator function to compute
      * each element, can be written as follows:
-     * <pre>{@code
-     * IntStream.range(startInclusive, endExclusive)
-     *          .forEach(i -> array[i] = generator.applyAsLong(i));
-     * }</pre>
+     * {@snippet lang=java : 
+     *   IntStream.range(startInclusive, endExclusive)
+     *            .forEach(i -> array[i] = generator.applyAsLong(i));
+     * }
      *
      * @param array array to be initialized
      * @param generator a function accepting an index and producing the desired
@@ -5184,11 +5184,11 @@ public class Arrays {
      * @apiNote
      * Setting a subrange of an array, in parallel, using a generator function
      * to compute each element, can be written as follows:
-     * <pre>{@code
-     * IntStream.range(startInclusive, endExclusive)
-     *          .parallel()
-     *          .forEach(i -> array[i] = generator.applyAsLong(i));
-     * }</pre>
+     * {@snippet lang=java : 
+     *   IntStream.range(startInclusive, endExclusive)
+     *            .parallel()
+     *            .forEach(i -> array[i] = generator.applyAsLong(i));
+     * }
      *
      * @param array array to be initialized
      * @param generator a function accepting an index and producing the desired
@@ -5211,10 +5211,10 @@ public class Arrays {
      * @apiNote
      * Setting a subrange of an array, using a generator function to compute
      * each element, can be written as follows:
-     * <pre>{@code
-     * IntStream.range(startInclusive, endExclusive)
-     *          .forEach(i -> array[i] = generator.applyAsDouble(i));
-     * }</pre>
+     * {@snippet lang=java : 
+     *   IntStream.range(startInclusive, endExclusive)
+     *            .forEach(i -> array[i] = generator.applyAsDouble(i));
+     * }
      *
      * @param array array to be initialized
      * @param generator a function accepting an index and producing the desired
@@ -5239,11 +5239,11 @@ public class Arrays {
      * @apiNote
      * Setting a subrange of an array, in parallel, using a generator function
      * to compute each element, can be written as follows:
-     * <pre>{@code
-     * IntStream.range(startInclusive, endExclusive)
-     *          .parallel()
-     *          .forEach(i -> array[i] = generator.applyAsDouble(i));
-     * }</pre>
+     * {@snippet lang=java : 
+     *   IntStream.range(startInclusive, endExclusive)
+     *            .parallel()
+     *            .forEach(i -> array[i] = generator.applyAsDouble(i));
+     * }
      *
      * @param array array to be initialized
      * @param generator a function accepting an index and producing the desired
@@ -5560,18 +5560,18 @@ public class Arrays {
      *
      * <p>The comparison is consistent with {@link #equals(boolean[], boolean[]) equals},
      * more specifically the following holds for arrays {@code a} and {@code b}:
-     * <pre>{@code
-     *     Arrays.equals(a, b) == (Arrays.compare(a, b) == 0)
-     * }</pre>
+     * {@snippet : 
+     *       Arrays.equals(a, b) == (Arrays.compare(a, b) == 0)
+     * }
      *
      * @apiNote
      * <p>This method behaves as if (for non-{@code null} array references):
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, b);
-     *     if (i >= 0 && i < Math.min(a.length, b.length))
-     *         return Boolean.compare(a[i], b[i]);
-     *     return a.length - b.length;
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, b);
+     *       if (i >= 0 && i < Math.min(a.length, b.length))
+     *           return Boolean.compare(a[i], b[i]);
+     *       return a.length - b.length;
+     * }
      *
      * @param a the first array to compare
      * @param b the second array to compare
@@ -5617,20 +5617,20 @@ public class Arrays {
      * specifically the following holds for arrays {@code a} and {@code b} with
      * specified ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively:
-     * <pre>{@code
-     *     Arrays.equals(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) ==
-     *         (Arrays.compare(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) == 0)
-     * }</pre>
+     * {@snippet : 
+     *       Arrays.equals(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) ==
+     *           (Arrays.compare(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) == 0)
+     * }
      *
      * @apiNote
      * <p>This method behaves as if:
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, aFromIndex, aToIndex,
-     *                             b, bFromIndex, bToIndex);
-     *     if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
-     *         return Boolean.compare(a[aFromIndex + i], b[bFromIndex + i]);
-     *     return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, aFromIndex, aToIndex,
+     *                               b, bFromIndex, bToIndex);
+     *       if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
+     *           return Boolean.compare(a[aFromIndex + i], b[bFromIndex + i]);
+     *       return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
+     * }
      *
      * @param a the first array to compare
      * @param aFromIndex the index (inclusive) of the first element in the
@@ -5696,18 +5696,18 @@ public class Arrays {
      *
      * <p>The comparison is consistent with {@link #equals(byte[], byte[]) equals},
      * more specifically the following holds for arrays {@code a} and {@code b}:
-     * <pre>{@code
-     *     Arrays.equals(a, b) == (Arrays.compare(a, b) == 0)
-     * }</pre>
+     * {@snippet : 
+     *       Arrays.equals(a, b) == (Arrays.compare(a, b) == 0)
+     * }
      *
      * @apiNote
      * <p>This method behaves as if (for non-{@code null} array references):
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, b);
-     *     if (i >= 0 && i < Math.min(a.length, b.length))
-     *         return Byte.compare(a[i], b[i]);
-     *     return a.length - b.length;
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, b);
+     *       if (i >= 0 && i < Math.min(a.length, b.length))
+     *           return Byte.compare(a[i], b[i]);
+     *       return a.length - b.length;
+     * }
      *
      * @param a the first array to compare
      * @param b the second array to compare
@@ -5752,20 +5752,20 @@ public class Arrays {
      * specifically the following holds for arrays {@code a} and {@code b} with
      * specified ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively:
-     * <pre>{@code
-     *     Arrays.equals(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) ==
-     *         (Arrays.compare(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) == 0)
-     * }</pre>
+     * {@snippet : 
+     *       Arrays.equals(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) ==
+     *           (Arrays.compare(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) == 0)
+     * }
      *
      * @apiNote
      * <p>This method behaves as if:
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, aFromIndex, aToIndex,
-     *                             b, bFromIndex, bToIndex);
-     *     if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
-     *         return Byte.compare(a[aFromIndex + i], b[bFromIndex + i]);
-     *     return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, aFromIndex, aToIndex,
+     *                               b, bFromIndex, bToIndex);
+     *       if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
+     *           return Byte.compare(a[aFromIndex + i], b[bFromIndex + i]);
+     *       return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
+     * }
      *
      * @param a the first array to compare
      * @param aFromIndex the index (inclusive) of the first element in the
@@ -5830,12 +5830,12 @@ public class Arrays {
      *
      * @apiNote
      * <p>This method behaves as if (for non-{@code null} array references):
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, b);
-     *     if (i >= 0 && i < Math.min(a.length, b.length))
-     *         return Byte.compareUnsigned(a[i], b[i]);
-     *     return a.length - b.length;
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, b);
+     *       if (i >= 0 && i < Math.min(a.length, b.length))
+     *           return Byte.compareUnsigned(a[i], b[i]);
+     *       return a.length - b.length;
+     * }
      *
      * @param a the first array to compare
      * @param b the second array to compare
@@ -5879,13 +5879,13 @@ public class Arrays {
      *
      * @apiNote
      * <p>This method behaves as if:
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, aFromIndex, aToIndex,
-     *                             b, bFromIndex, bToIndex);
-     *     if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
-     *         return Byte.compareUnsigned(a[aFromIndex + i], b[bFromIndex + i]);
-     *     return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, aFromIndex, aToIndex,
+     *                               b, bFromIndex, bToIndex);
+     *       if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
+     *           return Byte.compareUnsigned(a[aFromIndex + i], b[bFromIndex + i]);
+     *       return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
+     * }
      *
      * @param a the first array to compare
      * @param aFromIndex the index (inclusive) of the first element in the
@@ -5951,18 +5951,18 @@ public class Arrays {
      *
      * <p>The comparison is consistent with {@link #equals(short[], short[]) equals},
      * more specifically the following holds for arrays {@code a} and {@code b}:
-     * <pre>{@code
-     *     Arrays.equals(a, b) == (Arrays.compare(a, b) == 0)
-     * }</pre>
+     * {@snippet : 
+     *       Arrays.equals(a, b) == (Arrays.compare(a, b) == 0)
+     * }
      *
      * @apiNote
      * <p>This method behaves as if (for non-{@code null} array references):
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, b);
-     *     if (i >= 0 && i < Math.min(a.length, b.length))
-     *         return Short.compare(a[i], b[i]);
-     *     return a.length - b.length;
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, b);
+     *       if (i >= 0 && i < Math.min(a.length, b.length))
+     *           return Short.compare(a[i], b[i]);
+     *       return a.length - b.length;
+     * }
      *
      * @param a the first array to compare
      * @param b the second array to compare
@@ -6007,20 +6007,20 @@ public class Arrays {
      * specifically the following holds for arrays {@code a} and {@code b} with
      * specified ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively:
-     * <pre>{@code
-     *     Arrays.equals(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) ==
-     *         (Arrays.compare(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) == 0)
-     * }</pre>
+     * {@snippet : 
+     *       Arrays.equals(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) ==
+     *           (Arrays.compare(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) == 0)
+     * }
      *
      * @apiNote
      * <p>This method behaves as if:
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, aFromIndex, aToIndex,
-     *                             b, bFromIndex, bToIndex);
-     *     if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
-     *         return Short.compare(a[aFromIndex + i], b[bFromIndex + i]);
-     *     return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, aFromIndex, aToIndex,
+     *                               b, bFromIndex, bToIndex);
+     *       if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
+     *           return Short.compare(a[aFromIndex + i], b[bFromIndex + i]);
+     *       return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
+     * }
      *
      * @param a the first array to compare
      * @param aFromIndex the index (inclusive) of the first element in the
@@ -6085,12 +6085,12 @@ public class Arrays {
      *
      * @apiNote
      * <p>This method behaves as if (for non-{@code null} array references):
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, b);
-     *     if (i >= 0 && i < Math.min(a.length, b.length))
-     *         return Short.compareUnsigned(a[i], b[i]);
-     *     return a.length - b.length;
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, b);
+     *       if (i >= 0 && i < Math.min(a.length, b.length))
+     *           return Short.compareUnsigned(a[i], b[i]);
+     *       return a.length - b.length;
+     * }
      *
      * @param a the first array to compare
      * @param b the second array to compare
@@ -6133,13 +6133,13 @@ public class Arrays {
      *
      * @apiNote
      * <p>This method behaves as if:
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, aFromIndex, aToIndex,
-     *                             b, bFromIndex, bToIndex);
-     *     if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
-     *         return Short.compareUnsigned(a[aFromIndex + i], b[bFromIndex + i]);
-     *     return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, aFromIndex, aToIndex,
+     *                               b, bFromIndex, bToIndex);
+     *       if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
+     *           return Short.compareUnsigned(a[aFromIndex + i], b[bFromIndex + i]);
+     *       return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
+     * }
      *
      * @param a the first array to compare
      * @param aFromIndex the index (inclusive) of the first element in the
@@ -6205,18 +6205,18 @@ public class Arrays {
      *
      * <p>The comparison is consistent with {@link #equals(char[], char[]) equals},
      * more specifically the following holds for arrays {@code a} and {@code b}:
-     * <pre>{@code
-     *     Arrays.equals(a, b) == (Arrays.compare(a, b) == 0)
-     * }</pre>
+     * {@snippet : 
+     *       Arrays.equals(a, b) == (Arrays.compare(a, b) == 0)
+     * }
      *
      * @apiNote
      * <p>This method behaves as if (for non-{@code null} array references):
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, b);
-     *     if (i >= 0 && i < Math.min(a.length, b.length))
-     *         return Character.compare(a[i], b[i]);
-     *     return a.length - b.length;
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, b);
+     *       if (i >= 0 && i < Math.min(a.length, b.length))
+     *           return Character.compare(a[i], b[i]);
+     *       return a.length - b.length;
+     * }
      *
      * @param a the first array to compare
      * @param b the second array to compare
@@ -6261,20 +6261,20 @@ public class Arrays {
      * specifically the following holds for arrays {@code a} and {@code b} with
      * specified ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively:
-     * <pre>{@code
-     *     Arrays.equals(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) ==
-     *         (Arrays.compare(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) == 0)
-     * }</pre>
+     * {@snippet : 
+     *       Arrays.equals(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) ==
+     *           (Arrays.compare(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) == 0)
+     * }
      *
      * @apiNote
      * <p>This method behaves as if:
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, aFromIndex, aToIndex,
-     *                             b, bFromIndex, bToIndex);
-     *     if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
-     *         return Character.compare(a[aFromIndex + i], b[bFromIndex + i]);
-     *     return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, aFromIndex, aToIndex,
+     *                               b, bFromIndex, bToIndex);
+     *       if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
+     *           return Character.compare(a[aFromIndex + i], b[bFromIndex + i]);
+     *       return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
+     * }
      *
      * @param a the first array to compare
      * @param aFromIndex the index (inclusive) of the first element in the
@@ -6340,18 +6340,18 @@ public class Arrays {
      *
      * <p>The comparison is consistent with {@link #equals(int[], int[]) equals},
      * more specifically the following holds for arrays {@code a} and {@code b}:
-     * <pre>{@code
-     *     Arrays.equals(a, b) == (Arrays.compare(a, b) == 0)
-     * }</pre>
+     * {@snippet : 
+     *       Arrays.equals(a, b) == (Arrays.compare(a, b) == 0)
+     * }
      *
      * @apiNote
      * <p>This method behaves as if (for non-{@code null} array references):
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, b);
-     *     if (i >= 0 && i < Math.min(a.length, b.length))
-     *         return Integer.compare(a[i], b[i]);
-     *     return a.length - b.length;
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, b);
+     *       if (i >= 0 && i < Math.min(a.length, b.length))
+     *           return Integer.compare(a[i], b[i]);
+     *       return a.length - b.length;
+     * }
      *
      * @param a the first array to compare
      * @param b the second array to compare
@@ -6396,20 +6396,20 @@ public class Arrays {
      * specifically the following holds for arrays {@code a} and {@code b} with
      * specified ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively:
-     * <pre>{@code
-     *     Arrays.equals(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) ==
-     *         (Arrays.compare(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) == 0)
-     * }</pre>
+     * {@snippet : 
+     *       Arrays.equals(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) ==
+     *           (Arrays.compare(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) == 0)
+     * }
      *
      * @apiNote
      * <p>This method behaves as if:
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, aFromIndex, aToIndex,
-     *                             b, bFromIndex, bToIndex);
-     *     if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
-     *         return Integer.compare(a[aFromIndex + i], b[bFromIndex + i]);
-     *     return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, aFromIndex, aToIndex,
+     *                               b, bFromIndex, bToIndex);
+     *       if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
+     *           return Integer.compare(a[aFromIndex + i], b[bFromIndex + i]);
+     *       return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
+     * }
      *
      * @param a the first array to compare
      * @param aFromIndex the index (inclusive) of the first element in the
@@ -6474,12 +6474,12 @@ public class Arrays {
      *
      * @apiNote
      * <p>This method behaves as if (for non-{@code null} array references):
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, b);
-     *     if (i >= 0 && i < Math.min(a.length, b.length))
-     *         return Integer.compareUnsigned(a[i], b[i]);
-     *     return a.length - b.length;
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, b);
+     *       if (i >= 0 && i < Math.min(a.length, b.length))
+     *           return Integer.compareUnsigned(a[i], b[i]);
+     *       return a.length - b.length;
+     * }
      *
      * @param a the first array to compare
      * @param b the second array to compare
@@ -6522,13 +6522,13 @@ public class Arrays {
      *
      * @apiNote
      * <p>This method behaves as if:
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, aFromIndex, aToIndex,
-     *                             b, bFromIndex, bToIndex);
-     *     if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
-     *         return Integer.compareUnsigned(a[aFromIndex + i], b[bFromIndex + i]);
-     *     return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, aFromIndex, aToIndex,
+     *                               b, bFromIndex, bToIndex);
+     *       if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
+     *           return Integer.compareUnsigned(a[aFromIndex + i], b[bFromIndex + i]);
+     *       return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
+     * }
      *
      * @param a the first array to compare
      * @param aFromIndex the index (inclusive) of the first element in the
@@ -6594,18 +6594,18 @@ public class Arrays {
      *
      * <p>The comparison is consistent with {@link #equals(long[], long[]) equals},
      * more specifically the following holds for arrays {@code a} and {@code b}:
-     * <pre>{@code
-     *     Arrays.equals(a, b) == (Arrays.compare(a, b) == 0)
-     * }</pre>
+     * {@snippet : 
+     *       Arrays.equals(a, b) == (Arrays.compare(a, b) == 0)
+     * }
      *
      * @apiNote
      * <p>This method behaves as if (for non-{@code null} array references):
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, b);
-     *     if (i >= 0 && i < Math.min(a.length, b.length))
-     *         return Long.compare(a[i], b[i]);
-     *     return a.length - b.length;
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, b);
+     *       if (i >= 0 && i < Math.min(a.length, b.length))
+     *           return Long.compare(a[i], b[i]);
+     *       return a.length - b.length;
+     * }
      *
      * @param a the first array to compare
      * @param b the second array to compare
@@ -6650,20 +6650,20 @@ public class Arrays {
      * specifically the following holds for arrays {@code a} and {@code b} with
      * specified ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively:
-     * <pre>{@code
-     *     Arrays.equals(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) ==
-     *         (Arrays.compare(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) == 0)
-     * }</pre>
+     * {@snippet : 
+     *       Arrays.equals(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) ==
+     *           (Arrays.compare(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) == 0)
+     * }
      *
      * @apiNote
      * <p>This method behaves as if:
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, aFromIndex, aToIndex,
-     *                             b, bFromIndex, bToIndex);
-     *     if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
-     *         return Long.compare(a[aFromIndex + i], b[bFromIndex + i]);
-     *     return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, aFromIndex, aToIndex,
+     *                               b, bFromIndex, bToIndex);
+     *       if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
+     *           return Long.compare(a[aFromIndex + i], b[bFromIndex + i]);
+     *       return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
+     * }
      *
      * @param a the first array to compare
      * @param aFromIndex the index (inclusive) of the first element in the
@@ -6728,12 +6728,12 @@ public class Arrays {
      *
      * @apiNote
      * <p>This method behaves as if (for non-{@code null} array references):
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, b);
-     *     if (i >= 0 && i < Math.min(a.length, b.length))
-     *         return Long.compareUnsigned(a[i], b[i]);
-     *     return a.length - b.length;
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, b);
+     *       if (i >= 0 && i < Math.min(a.length, b.length))
+     *           return Long.compareUnsigned(a[i], b[i]);
+     *       return a.length - b.length;
+     * }
      *
      * @param a the first array to compare
      * @param b the second array to compare
@@ -6776,13 +6776,13 @@ public class Arrays {
      *
      * @apiNote
      * <p>This method behaves as if:
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, aFromIndex, aToIndex,
-     *                             b, bFromIndex, bToIndex);
-     *     if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
-     *         return Long.compareUnsigned(a[aFromIndex + i], b[bFromIndex + i]);
-     *     return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, aFromIndex, aToIndex,
+     *                               b, bFromIndex, bToIndex);
+     *       if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
+     *           return Long.compareUnsigned(a[aFromIndex + i], b[bFromIndex + i]);
+     *       return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
+     * }
      *
      * @param a the first array to compare
      * @param aFromIndex the index (inclusive) of the first element in the
@@ -6848,18 +6848,18 @@ public class Arrays {
      *
      * <p>The comparison is consistent with {@link #equals(float[], float[]) equals},
      * more specifically the following holds for arrays {@code a} and {@code b}:
-     * <pre>{@code
-     *     Arrays.equals(a, b) == (Arrays.compare(a, b) == 0)
-     * }</pre>
+     * {@snippet : 
+     *       Arrays.equals(a, b) == (Arrays.compare(a, b) == 0)
+     * }
      *
      * @apiNote
      * <p>This method behaves as if (for non-{@code null} array references):
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, b);
-     *     if (i >= 0 && i < Math.min(a.length, b.length))
-     *         return Float.compare(a[i], b[i]);
-     *     return a.length - b.length;
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, b);
+     *       if (i >= 0 && i < Math.min(a.length, b.length))
+     *           return Float.compare(a[i], b[i]);
+     *       return a.length - b.length;
+     * }
      *
      * @param a the first array to compare
      * @param b the second array to compare
@@ -6904,20 +6904,20 @@ public class Arrays {
      * specifically the following holds for arrays {@code a} and {@code b} with
      * specified ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively:
-     * <pre>{@code
-     *     Arrays.equals(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) ==
-     *         (Arrays.compare(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) == 0)
-     * }</pre>
+     * {@snippet : 
+     *       Arrays.equals(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) ==
+     *           (Arrays.compare(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) == 0)
+     * }
      *
      * @apiNote
      * <p>This method behaves as if:
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, aFromIndex, aToIndex,
-     *                             b, bFromIndex, bToIndex);
-     *     if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
-     *         return Float.compare(a[aFromIndex + i], b[bFromIndex + i]);
-     *     return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, aFromIndex, aToIndex,
+     *                               b, bFromIndex, bToIndex);
+     *       if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
+     *           return Float.compare(a[aFromIndex + i], b[bFromIndex + i]);
+     *       return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
+     * }
      *
      * @param a the first array to compare
      * @param aFromIndex the index (inclusive) of the first element in the
@@ -6983,18 +6983,18 @@ public class Arrays {
      *
      * <p>The comparison is consistent with {@link #equals(double[], double[]) equals},
      * more specifically the following holds for arrays {@code a} and {@code b}:
-     * <pre>{@code
-     *     Arrays.equals(a, b) == (Arrays.compare(a, b) == 0)
-     * }</pre>
+     * {@snippet : 
+     *       Arrays.equals(a, b) == (Arrays.compare(a, b) == 0)
+     * }
      *
      * @apiNote
      * <p>This method behaves as if (for non-{@code null} array references):
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, b);
-     *     if (i >= 0 && i < Math.min(a.length, b.length))
-     *         return Double.compare(a[i], b[i]);
-     *     return a.length - b.length;
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, b);
+     *       if (i >= 0 && i < Math.min(a.length, b.length))
+     *           return Double.compare(a[i], b[i]);
+     *       return a.length - b.length;
+     * }
      *
      * @param a the first array to compare
      * @param b the second array to compare
@@ -7039,20 +7039,20 @@ public class Arrays {
      * specifically the following holds for arrays {@code a} and {@code b} with
      * specified ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively:
-     * <pre>{@code
-     *     Arrays.equals(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) ==
-     *         (Arrays.compare(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) == 0)
-     * }</pre>
+     * {@snippet : 
+     *       Arrays.equals(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) ==
+     *           (Arrays.compare(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) == 0)
+     * }
      *
      * @apiNote
      * <p>This method behaves as if:
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, aFromIndex, aToIndex,
-     *                             b, bFromIndex, bToIndex);
-     *     if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
-     *         return Double.compare(a[aFromIndex + i], b[bFromIndex + i]);
-     *     return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, aFromIndex, aToIndex,
+     *                               b, bFromIndex, bToIndex);
+     *       if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
+     *           return Double.compare(a[aFromIndex + i], b[bFromIndex + i]);
+     *       return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
+     * }
      *
      * @param a the first array to compare
      * @param aFromIndex the index (inclusive) of the first element in the
@@ -7108,10 +7108,10 @@ public class Arrays {
      * comparison is the result of comparing two elements of type {@code T} at
      * an index {@code i} within the respective arrays that is the prefix
      * length, as if by:
-     * <pre>{@code
-     *     Comparator.nullsFirst(Comparator.<T>naturalOrder()).
-     *         compare(a[i], b[i])
-     * }</pre>
+     * {@snippet : 
+     *       Comparator.nullsFirst(Comparator.<T>naturalOrder()).
+     *           compare(a[i], b[i])
+     * }
      * Otherwise, one array is a proper prefix of the other and, lexicographic
      * comparison is the result of comparing the two array lengths.
      * (See {@link #mismatch(Object[], Object[])} for the definition of a common
@@ -7126,19 +7126,19 @@ public class Arrays {
      *
      * <p>The comparison is consistent with {@link #equals(Object[], Object[]) equals},
      * more specifically the following holds for arrays {@code a} and {@code b}:
-     * <pre>{@code
-     *     Arrays.equals(a, b) == (Arrays.compare(a, b) == 0)
-     * }</pre>
+     * {@snippet : 
+     *       Arrays.equals(a, b) == (Arrays.compare(a, b) == 0)
+     * }
      *
      * @apiNote
      * <p>This method behaves as if (for non-{@code null} array references
      * and elements):
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, b);
-     *     if (i >= 0 && i < Math.min(a.length, b.length))
-     *         return a[i].compareTo(b[i]);
-     *     return a.length - b.length;
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, b);
+     *       if (i >= 0 && i < Math.min(a.length, b.length))
+     *           return a[i].compareTo(b[i]);
+     *       return a.length - b.length;
+     * }
      *
      * @param a the first array to compare
      * @param b the second array to compare
@@ -7184,10 +7184,10 @@ public class Arrays {
      * then the lexicographic comparison is the result of comparing two
      * elements of type {@code T} at a relative index {@code i} within the
      * respective arrays that is the prefix length, as if by:
-     * <pre>{@code
-     *     Comparator.nullsFirst(Comparator.<T>naturalOrder()).
-     *         compare(a[aFromIndex + i, b[bFromIndex + i])
-     * }</pre>
+     * {@snippet : 
+     *       Comparator.nullsFirst(Comparator.<T>naturalOrder()).
+     *           compare(a[aFromIndex + i, b[bFromIndex + i])
+     * }
      * Otherwise, one array is a proper prefix of the other and, lexicographic
      * comparison is the result of comparing the two range lengths.
      * (See {@link #mismatch(Object[], int, int, Object[], int, int)} for the
@@ -7198,20 +7198,20 @@ public class Arrays {
      * specifically the following holds for arrays {@code a} and {@code b} with
      * specified ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively:
-     * <pre>{@code
-     *     Arrays.equals(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) ==
-     *         (Arrays.compare(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) == 0)
-     * }</pre>
+     * {@snippet : 
+     *       Arrays.equals(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) ==
+     *           (Arrays.compare(a, aFromIndex, aToIndex, b, bFromIndex, bToIndex) == 0)
+     * }
      *
      * @apiNote
      * <p>This method behaves as if (for non-{@code null} array elements):
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, aFromIndex, aToIndex,
-     *                             b, bFromIndex, bToIndex);
-     *     if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
-     *         return a[aFromIndex + i].compareTo(b[bFromIndex + i]);
-     *     return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, aFromIndex, aToIndex,
+     *                               b, bFromIndex, bToIndex);
+     *       if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
+     *           return a[aFromIndex + i].compareTo(b[bFromIndex + i]);
+     *       return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
+     * }
      *
      * @param a the first array to compare
      * @param aFromIndex the index (inclusive) of the first element in the
@@ -7285,12 +7285,12 @@ public class Arrays {
      *
      * @apiNote
      * <p>This method behaves as if (for non-{@code null} array references):
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, b, cmp);
-     *     if (i >= 0 && i < Math.min(a.length, b.length))
-     *         return cmp.compare(a[i], b[i]);
-     *     return a.length - b.length;
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, b, cmp);
+     *       if (i >= 0 && i < Math.min(a.length, b.length))
+     *           return cmp.compare(a[i], b[i]);
+     *       return a.length - b.length;
+     * }
      *
      * @param a the first array to compare
      * @param b the second array to compare
@@ -7344,13 +7344,13 @@ public class Arrays {
      *
      * @apiNote
      * <p>This method behaves as if (for non-{@code null} array elements):
-     * <pre>{@code
-     *     int i = Arrays.mismatch(a, aFromIndex, aToIndex,
-     *                             b, bFromIndex, bToIndex, cmp);
-     *     if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
-     *         return cmp.compare(a[aFromIndex + i], b[bFromIndex + i]);
-     *     return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
-     * }</pre>
+     * {@snippet lang=java : 
+     *       int i = Arrays.mismatch(a, aFromIndex, aToIndex,
+     *                               b, bFromIndex, bToIndex, cmp);
+     *       if (i >= 0 && i < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
+     *           return cmp.compare(a[aFromIndex + i], b[bFromIndex + i]);
+     *       return (aToIndex - aFromIndex) - (bToIndex - bFromIndex);
+     * }
      *
      * @param a the first array to compare
      * @param aFromIndex the index (inclusive) of the first element in the
@@ -7428,22 +7428,22 @@ public class Arrays {
      *
      * <p>Two non-{@code null} arrays, {@code a} and {@code b}, share a common
      * prefix of length {@code pl} if the following expression is true:
-     * <pre>{@code
-     *     pl >= 0 &&
-     *     pl < Math.min(a.length, b.length) &&
-     *     Arrays.equals(a, 0, pl, b, 0, pl) &&
-     *     a[pl] != b[pl]
-     * }</pre>
+     * {@snippet : 
+     *       pl >= 0 &&
+     *       pl < Math.min(a.length, b.length) &&
+     *       Arrays.equals(a, 0, pl, b, 0, pl) &&
+     *       a[pl] != b[pl]
+     * }
      * Note that a common prefix length of {@code 0} indicates that the first
      * elements from each array mismatch.
      *
      * <p>Two non-{@code null} arrays, {@code a} and {@code b}, share a proper
      * prefix if the following expression is true:
-     * <pre>{@code
-     *     a.length != b.length &&
-     *     Arrays.equals(a, 0, Math.min(a.length, b.length),
-     *                   b, 0, Math.min(a.length, b.length))
-     * }</pre>
+     * {@snippet : 
+     *       a.length != b.length &&
+     *       Arrays.equals(a, 0, Math.min(a.length, b.length),
+     *                     b, 0, Math.min(a.length, b.length))
+     * }
      *
      * @param a the first array to be tested for a mismatch
      * @param b the second array to be tested for a mismatch
@@ -7482,12 +7482,12 @@ public class Arrays {
      * ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively, share a common
      * prefix of length {@code pl} if the following expression is true:
-     * <pre>{@code
-     *     pl >= 0 &&
-     *     pl < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex) &&
-     *     Arrays.equals(a, aFromIndex, aFromIndex + pl, b, bFromIndex, bFromIndex + pl) &&
-     *     a[aFromIndex + pl] != b[bFromIndex + pl]
-     * }</pre>
+     * {@snippet : 
+     *       pl >= 0 &&
+     *       pl < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex) &&
+     *       Arrays.equals(a, aFromIndex, aFromIndex + pl, b, bFromIndex, bFromIndex + pl) &&
+     *       a[aFromIndex + pl] != b[bFromIndex + pl]
+     * }
      * Note that a common prefix length of {@code 0} indicates that the first
      * elements from each array mismatch.
      *
@@ -7495,11 +7495,11 @@ public class Arrays {
      * ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively, share a proper
      * prefix if the following expression is true:
-     * <pre>{@code
-     *     (aToIndex - aFromIndex) != (bToIndex - bFromIndex) &&
-     *     Arrays.equals(a, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex),
-     *                   b, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
-     * }</pre>
+     * {@snippet : 
+     *       (aToIndex - aFromIndex) != (bToIndex - bFromIndex) &&
+     *       Arrays.equals(a, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex),
+     *                     b, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
+     * }
      *
      * @param a the first array to be tested for a mismatch
      * @param aFromIndex the index (inclusive) of the first element in the
@@ -7555,22 +7555,22 @@ public class Arrays {
      *
      * <p>Two non-{@code null} arrays, {@code a} and {@code b}, share a common
      * prefix of length {@code pl} if the following expression is true:
-     * <pre>{@code
-     *     pl >= 0 &&
-     *     pl < Math.min(a.length, b.length) &&
-     *     Arrays.equals(a, 0, pl, b, 0, pl) &&
-     *     a[pl] != b[pl]
-     * }</pre>
+     * {@snippet : 
+     *       pl >= 0 &&
+     *       pl < Math.min(a.length, b.length) &&
+     *       Arrays.equals(a, 0, pl, b, 0, pl) &&
+     *       a[pl] != b[pl]
+     * }
      * Note that a common prefix length of {@code 0} indicates that the first
      * elements from each array mismatch.
      *
      * <p>Two non-{@code null} arrays, {@code a} and {@code b}, share a proper
      * prefix if the following expression is true:
-     * <pre>{@code
-     *     a.length != b.length &&
-     *     Arrays.equals(a, 0, Math.min(a.length, b.length),
-     *                   b, 0, Math.min(a.length, b.length))
-     * }</pre>
+     * {@snippet : 
+     *       a.length != b.length &&
+     *       Arrays.equals(a, 0, Math.min(a.length, b.length),
+     *                     b, 0, Math.min(a.length, b.length))
+     * }
      *
      * @param a the first array to be tested for a mismatch
      * @param b the second array to be tested for a mismatch
@@ -7609,12 +7609,12 @@ public class Arrays {
      * ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively, share a common
      * prefix of length {@code pl} if the following expression is true:
-     * <pre>{@code
-     *     pl >= 0 &&
-     *     pl < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex) &&
-     *     Arrays.equals(a, aFromIndex, aFromIndex + pl, b, bFromIndex, bFromIndex + pl) &&
-     *     a[aFromIndex + pl] != b[bFromIndex + pl]
-     * }</pre>
+     * {@snippet : 
+     *       pl >= 0 &&
+     *       pl < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex) &&
+     *       Arrays.equals(a, aFromIndex, aFromIndex + pl, b, bFromIndex, bFromIndex + pl) &&
+     *       a[aFromIndex + pl] != b[bFromIndex + pl]
+     * }
      * Note that a common prefix length of {@code 0} indicates that the first
      * elements from each array mismatch.
      *
@@ -7622,11 +7622,11 @@ public class Arrays {
      * ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively, share a proper
      * prefix if the following expression is true:
-     * <pre>{@code
-     *     (aToIndex - aFromIndex) != (bToIndex - bFromIndex) &&
-     *     Arrays.equals(a, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex),
-     *                   b, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
-     * }</pre>
+     * {@snippet : 
+     *       (aToIndex - aFromIndex) != (bToIndex - bFromIndex) &&
+     *       Arrays.equals(a, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex),
+     *                     b, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
+     * }
      *
      * @param a the first array to be tested for a mismatch
      * @param aFromIndex the index (inclusive) of the first element in the
@@ -7682,22 +7682,22 @@ public class Arrays {
      *
      * <p>Two non-{@code null} arrays, {@code a} and {@code b}, share a common
      * prefix of length {@code pl} if the following expression is true:
-     * <pre>{@code
-     *     pl >= 0 &&
-     *     pl < Math.min(a.length, b.length) &&
-     *     Arrays.equals(a, 0, pl, b, 0, pl) &&
-     *     a[pl] != b[pl]
-     * }</pre>
+     * {@snippet : 
+     *       pl >= 0 &&
+     *       pl < Math.min(a.length, b.length) &&
+     *       Arrays.equals(a, 0, pl, b, 0, pl) &&
+     *       a[pl] != b[pl]
+     * }
      * Note that a common prefix length of {@code 0} indicates that the first
      * elements from each array mismatch.
      *
      * <p>Two non-{@code null} arrays, {@code a} and {@code b}, share a proper
      * prefix if the following expression is true:
-     * <pre>{@code
-     *     a.length != b.length &&
-     *     Arrays.equals(a, 0, Math.min(a.length, b.length),
-     *                   b, 0, Math.min(a.length, b.length))
-     * }</pre>
+     * {@snippet : 
+     *       a.length != b.length &&
+     *       Arrays.equals(a, 0, Math.min(a.length, b.length),
+     *                     b, 0, Math.min(a.length, b.length))
+     * }
      *
      * @param a the first array to be tested for a mismatch
      * @param b the second array to be tested for a mismatch
@@ -7736,12 +7736,12 @@ public class Arrays {
      * ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively, share a common
      * prefix of length {@code pl} if the following expression is true:
-     * <pre>{@code
-     *     pl >= 0 &&
-     *     pl < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex) &&
-     *     Arrays.equals(a, aFromIndex, aFromIndex + pl, b, bFromIndex, bFromIndex + pl) &&
-     *     a[aFromIndex + pl] != b[bFromIndex + pl]
-     * }</pre>
+     * {@snippet : 
+     *       pl >= 0 &&
+     *       pl < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex) &&
+     *       Arrays.equals(a, aFromIndex, aFromIndex + pl, b, bFromIndex, bFromIndex + pl) &&
+     *       a[aFromIndex + pl] != b[bFromIndex + pl]
+     * }
      * Note that a common prefix length of {@code 0} indicates that the first
      * elements from each array mismatch.
      *
@@ -7749,11 +7749,11 @@ public class Arrays {
      * ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively, share a proper
      * prefix if the following expression is true:
-     * <pre>{@code
-     *     (aToIndex - aFromIndex) != (bToIndex - bFromIndex) &&
-     *     Arrays.equals(a, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex),
-     *                   b, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
-     * }</pre>
+     * {@snippet : 
+     *       (aToIndex - aFromIndex) != (bToIndex - bFromIndex) &&
+     *       Arrays.equals(a, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex),
+     *                     b, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
+     * }
      *
      * @param a the first array to be tested for a mismatch
      * @param aFromIndex the index (inclusive) of the first element in the
@@ -7809,22 +7809,22 @@ public class Arrays {
      *
      * <p>Two non-{@code null} arrays, {@code a} and {@code b}, share a common
      * prefix of length {@code pl} if the following expression is true:
-     * <pre>{@code
-     *     pl >= 0 &&
-     *     pl < Math.min(a.length, b.length) &&
-     *     Arrays.equals(a, 0, pl, b, 0, pl) &&
-     *     a[pl] != b[pl]
-     * }</pre>
+     * {@snippet : 
+     *       pl >= 0 &&
+     *       pl < Math.min(a.length, b.length) &&
+     *       Arrays.equals(a, 0, pl, b, 0, pl) &&
+     *       a[pl] != b[pl]
+     * }
      * Note that a common prefix length of {@code 0} indicates that the first
      * elements from each array mismatch.
      *
      * <p>Two non-{@code null} arrays, {@code a} and {@code b}, share a proper
      * prefix if the following expression is true:
-     * <pre>{@code
-     *     a.length != b.length &&
-     *     Arrays.equals(a, 0, Math.min(a.length, b.length),
-     *                   b, 0, Math.min(a.length, b.length))
-     * }</pre>
+     * {@snippet : 
+     *       a.length != b.length &&
+     *       Arrays.equals(a, 0, Math.min(a.length, b.length),
+     *                     b, 0, Math.min(a.length, b.length))
+     * }
      *
      * @param a the first array to be tested for a mismatch
      * @param b the second array to be tested for a mismatch
@@ -7863,12 +7863,12 @@ public class Arrays {
      * ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively, share a common
      * prefix of length {@code pl} if the following expression is true:
-     * <pre>{@code
-     *     pl >= 0 &&
-     *     pl < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex) &&
-     *     Arrays.equals(a, aFromIndex, aFromIndex + pl, b, bFromIndex, bFromIndex + pl) &&
-     *     a[aFromIndex + pl] != b[bFromIndex + pl]
-     * }</pre>
+     * {@snippet : 
+     *       pl >= 0 &&
+     *       pl < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex) &&
+     *       Arrays.equals(a, aFromIndex, aFromIndex + pl, b, bFromIndex, bFromIndex + pl) &&
+     *       a[aFromIndex + pl] != b[bFromIndex + pl]
+     * }
      * Note that a common prefix length of {@code 0} indicates that the first
      * elements from each array mismatch.
      *
@@ -7876,11 +7876,11 @@ public class Arrays {
      * ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively, share a proper
      * prefix if the following expression is true:
-     * <pre>{@code
-     *     (aToIndex - aFromIndex) != (bToIndex - bFromIndex) &&
-     *     Arrays.equals(a, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex),
-     *                   b, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
-     * }</pre>
+     * {@snippet : 
+     *       (aToIndex - aFromIndex) != (bToIndex - bFromIndex) &&
+     *       Arrays.equals(a, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex),
+     *                     b, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
+     * }
      *
      * @param a the first array to be tested for a mismatch
      * @param aFromIndex the index (inclusive) of the first element in the
@@ -7936,22 +7936,22 @@ public class Arrays {
      *
      * <p>Two non-{@code null} arrays, {@code a} and {@code b}, share a common
      * prefix of length {@code pl} if the following expression is true:
-     * <pre>{@code
-     *     pl >= 0 &&
-     *     pl < Math.min(a.length, b.length) &&
-     *     Arrays.equals(a, 0, pl, b, 0, pl) &&
-     *     a[pl] != b[pl]
-     * }</pre>
+     * {@snippet : 
+     *       pl >= 0 &&
+     *       pl < Math.min(a.length, b.length) &&
+     *       Arrays.equals(a, 0, pl, b, 0, pl) &&
+     *       a[pl] != b[pl]
+     * }
      * Note that a common prefix length of {@code 0} indicates that the first
      * elements from each array mismatch.
      *
      * <p>Two non-{@code null} arrays, {@code a} and {@code b}, share a proper
      * prefix if the following expression is true:
-     * <pre>{@code
-     *     a.length != b.length &&
-     *     Arrays.equals(a, 0, Math.min(a.length, b.length),
-     *                   b, 0, Math.min(a.length, b.length))
-     * }</pre>
+     * {@snippet : 
+     *       a.length != b.length &&
+     *       Arrays.equals(a, 0, Math.min(a.length, b.length),
+     *                     b, 0, Math.min(a.length, b.length))
+     * }
      *
      * @param a the first array to be tested for a mismatch
      * @param b the second array to be tested for a mismatch
@@ -7990,12 +7990,12 @@ public class Arrays {
      * ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively, share a common
      * prefix of length {@code pl} if the following expression is true:
-     * <pre>{@code
-     *     pl >= 0 &&
-     *     pl < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex) &&
-     *     Arrays.equals(a, aFromIndex, aFromIndex + pl, b, bFromIndex, bFromIndex + pl) &&
-     *     a[aFromIndex + pl] != b[bFromIndex + pl]
-     * }</pre>
+     * {@snippet : 
+     *       pl >= 0 &&
+     *       pl < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex) &&
+     *       Arrays.equals(a, aFromIndex, aFromIndex + pl, b, bFromIndex, bFromIndex + pl) &&
+     *       a[aFromIndex + pl] != b[bFromIndex + pl]
+     * }
      * Note that a common prefix length of {@code 0} indicates that the first
      * elements from each array mismatch.
      *
@@ -8003,11 +8003,11 @@ public class Arrays {
      * ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively, share a proper
      * prefix if the following expression is true:
-     * <pre>{@code
-     *     (aToIndex - aFromIndex) != (bToIndex - bFromIndex) &&
-     *     Arrays.equals(a, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex),
-     *                   b, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
-     * }</pre>
+     * {@snippet : 
+     *       (aToIndex - aFromIndex) != (bToIndex - bFromIndex) &&
+     *       Arrays.equals(a, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex),
+     *                     b, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
+     * }
      *
      * @param a the first array to be tested for a mismatch
      * @param aFromIndex the index (inclusive) of the first element in the
@@ -8063,22 +8063,22 @@ public class Arrays {
      *
      * <p>Two non-{@code null} arrays, {@code a} and {@code b}, share a common
      * prefix of length {@code pl} if the following expression is true:
-     * <pre>{@code
-     *     pl >= 0 &&
-     *     pl < Math.min(a.length, b.length) &&
-     *     Arrays.equals(a, 0, pl, b, 0, pl) &&
-     *     a[pl] != b[pl]
-     * }</pre>
+     * {@snippet : 
+     *       pl >= 0 &&
+     *       pl < Math.min(a.length, b.length) &&
+     *       Arrays.equals(a, 0, pl, b, 0, pl) &&
+     *       a[pl] != b[pl]
+     * }
      * Note that a common prefix length of {@code 0} indicates that the first
      * elements from each array mismatch.
      *
      * <p>Two non-{@code null} arrays, {@code a} and {@code b}, share a proper
      * prefix if the following expression is true:
-     * <pre>{@code
-     *     a.length != b.length &&
-     *     Arrays.equals(a, 0, Math.min(a.length, b.length),
-     *                   b, 0, Math.min(a.length, b.length))
-     * }</pre>
+     * {@snippet : 
+     *       a.length != b.length &&
+     *       Arrays.equals(a, 0, Math.min(a.length, b.length),
+     *                     b, 0, Math.min(a.length, b.length))
+     * }
      *
      * @param a the first array to be tested for a mismatch
      * @param b the second array to be tested for a mismatch
@@ -8117,12 +8117,12 @@ public class Arrays {
      * ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively, share a common
      * prefix of length {@code pl} if the following expression is true:
-     * <pre>{@code
-     *     pl >= 0 &&
-     *     pl < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex) &&
-     *     Arrays.equals(a, aFromIndex, aFromIndex + pl, b, bFromIndex, bFromIndex + pl) &&
-     *     a[aFromIndex + pl] != b[bFromIndex + pl]
-     * }</pre>
+     * {@snippet : 
+     *       pl >= 0 &&
+     *       pl < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex) &&
+     *       Arrays.equals(a, aFromIndex, aFromIndex + pl, b, bFromIndex, bFromIndex + pl) &&
+     *       a[aFromIndex + pl] != b[bFromIndex + pl]
+     * }
      * Note that a common prefix length of {@code 0} indicates that the first
      * elements from each array mismatch.
      *
@@ -8130,11 +8130,11 @@ public class Arrays {
      * ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively, share a proper
      * prefix if the following expression is true:
-     * <pre>{@code
-     *     (aToIndex - aFromIndex) != (bToIndex - bFromIndex) &&
-     *     Arrays.equals(a, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex),
-     *                   b, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
-     * }</pre>
+     * {@snippet : 
+     *       (aToIndex - aFromIndex) != (bToIndex - bFromIndex) &&
+     *       Arrays.equals(a, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex),
+     *                     b, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
+     * }
      *
      * @param a the first array to be tested for a mismatch
      * @param aFromIndex the index (inclusive) of the first element in the
@@ -8190,22 +8190,22 @@ public class Arrays {
      *
      * <p>Two non-{@code null} arrays, {@code a} and {@code b}, share a common
      * prefix of length {@code pl} if the following expression is true:
-     * <pre>{@code
-     *     pl >= 0 &&
-     *     pl < Math.min(a.length, b.length) &&
-     *     Arrays.equals(a, 0, pl, b, 0, pl) &&
-     *     Float.compare(a[pl], b[pl]) != 0
-     * }</pre>
+     * {@snippet : 
+     *       pl >= 0 &&
+     *       pl < Math.min(a.length, b.length) &&
+     *       Arrays.equals(a, 0, pl, b, 0, pl) &&
+     *       Float.compare(a[pl], b[pl]) != 0
+     * }
      * Note that a common prefix length of {@code 0} indicates that the first
      * elements from each array mismatch.
      *
      * <p>Two non-{@code null} arrays, {@code a} and {@code b}, share a proper
      * prefix if the following expression is true:
-     * <pre>{@code
-     *     a.length != b.length &&
-     *     Arrays.equals(a, 0, Math.min(a.length, b.length),
-     *                   b, 0, Math.min(a.length, b.length))
-     * }</pre>
+     * {@snippet : 
+     *       a.length != b.length &&
+     *       Arrays.equals(a, 0, Math.min(a.length, b.length),
+     *                     b, 0, Math.min(a.length, b.length))
+     * }
      *
      * @param a the first array to be tested for a mismatch
      * @param b the second array to be tested for a mismatch
@@ -8244,12 +8244,12 @@ public class Arrays {
      * ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively, share a common
      * prefix of length {@code pl} if the following expression is true:
-     * <pre>{@code
-     *     pl >= 0 &&
-     *     pl < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex) &&
-     *     Arrays.equals(a, aFromIndex, aFromIndex + pl, b, bFromIndex, bFromIndex + pl) &&
-     *     Float.compare(a[aFromIndex + pl], b[bFromIndex + pl]) != 0
-     * }</pre>
+     * {@snippet : 
+     *       pl >= 0 &&
+     *       pl < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex) &&
+     *       Arrays.equals(a, aFromIndex, aFromIndex + pl, b, bFromIndex, bFromIndex + pl) &&
+     *       Float.compare(a[aFromIndex + pl], b[bFromIndex + pl]) != 0
+     * }
      * Note that a common prefix length of {@code 0} indicates that the first
      * elements from each array mismatch.
      *
@@ -8257,11 +8257,11 @@ public class Arrays {
      * ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively, share a proper
      * prefix if the following expression is true:
-     * <pre>{@code
-     *     (aToIndex - aFromIndex) != (bToIndex - bFromIndex) &&
-     *     Arrays.equals(a, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex),
-     *                   b, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
-     * }</pre>
+     * {@snippet : 
+     *       (aToIndex - aFromIndex) != (bToIndex - bFromIndex) &&
+     *       Arrays.equals(a, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex),
+     *                     b, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
+     * }
      *
      * @param a the first array to be tested for a mismatch
      * @param aFromIndex the index (inclusive) of the first element in the
@@ -8317,22 +8317,22 @@ public class Arrays {
      *
      * <p>Two non-{@code null} arrays, {@code a} and {@code b}, share a common
      * prefix of length {@code pl} if the following expression is true:
-     * <pre>{@code
-     *     pl >= 0 &&
-     *     pl < Math.min(a.length, b.length) &&
-     *     Arrays.equals(a, 0, pl, b, 0, pl) &&
-     *     Double.compare(a[pl], b[pl]) != 0
-     * }</pre>
+     * {@snippet : 
+     *       pl >= 0 &&
+     *       pl < Math.min(a.length, b.length) &&
+     *       Arrays.equals(a, 0, pl, b, 0, pl) &&
+     *       Double.compare(a[pl], b[pl]) != 0
+     * }
      * Note that a common prefix length of {@code 0} indicates that the first
      * elements from each array mismatch.
      *
      * <p>Two non-{@code null} arrays, {@code a} and {@code b}, share a proper
      * prefix if the following expression is true:
-     * <pre>{@code
-     *     a.length != b.length &&
-     *     Arrays.equals(a, 0, Math.min(a.length, b.length),
-     *                   b, 0, Math.min(a.length, b.length))
-     * }</pre>
+     * {@snippet : 
+     *       a.length != b.length &&
+     *       Arrays.equals(a, 0, Math.min(a.length, b.length),
+     *                     b, 0, Math.min(a.length, b.length))
+     * }
      *
      * @param a the first array to be tested for a mismatch
      * @param b the second array to be tested for a mismatch
@@ -8371,12 +8371,12 @@ public class Arrays {
      * ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively, share a common
      * prefix of length {@code pl} if the following expression is true:
-     * <pre>{@code
-     *     pl >= 0 &&
-     *     pl < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex) &&
-     *     Arrays.equals(a, aFromIndex, aFromIndex + pl, b, bFromIndex, bFromIndex + pl) &&
-     *     Double.compare(a[aFromIndex + pl], b[bFromIndex + pl]) != 0
-     * }</pre>
+     * {@snippet : 
+     *       pl >= 0 &&
+     *       pl < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex) &&
+     *       Arrays.equals(a, aFromIndex, aFromIndex + pl, b, bFromIndex, bFromIndex + pl) &&
+     *       Double.compare(a[aFromIndex + pl], b[bFromIndex + pl]) != 0
+     * }
      * Note that a common prefix length of {@code 0} indicates that the first
      * elements from each array mismatch.
      *
@@ -8384,11 +8384,11 @@ public class Arrays {
      * ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively, share a proper
      * prefix if the following expression is true:
-     * <pre>{@code
-     *     (aToIndex - aFromIndex) != (bToIndex - bFromIndex) &&
-     *     Arrays.equals(a, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex),
-     *                   b, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
-     * }</pre>
+     * {@snippet : 
+     *       (aToIndex - aFromIndex) != (bToIndex - bFromIndex) &&
+     *       Arrays.equals(a, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex),
+     *                     b, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
+     * }
      *
      * @param a the first array to be tested for a mismatch
      * @param aFromIndex the index (inclusive) of the first element in the
@@ -8444,22 +8444,22 @@ public class Arrays {
      *
      * <p>Two non-{@code null} arrays, {@code a} and {@code b}, share a common
      * prefix of length {@code pl} if the following expression is true:
-     * <pre>{@code
-     *     pl >= 0 &&
-     *     pl < Math.min(a.length, b.length) &&
-     *     Arrays.equals(a, 0, pl, b, 0, pl) &&
-     *     !Objects.equals(a[pl], b[pl])
-     * }</pre>
+     * {@snippet : 
+     *       pl >= 0 &&
+     *       pl < Math.min(a.length, b.length) &&
+     *       Arrays.equals(a, 0, pl, b, 0, pl) &&
+     *       !Objects.equals(a[pl], b[pl])
+     * }
      * Note that a common prefix length of {@code 0} indicates that the first
      * elements from each array mismatch.
      *
      * <p>Two non-{@code null} arrays, {@code a} and {@code b}, share a proper
      * prefix if the following expression is true:
-     * <pre>{@code
-     *     a.length != b.length &&
-     *     Arrays.equals(a, 0, Math.min(a.length, b.length),
-     *                   b, 0, Math.min(a.length, b.length))
-     * }</pre>
+     * {@snippet : 
+     *       a.length != b.length &&
+     *       Arrays.equals(a, 0, Math.min(a.length, b.length),
+     *                     b, 0, Math.min(a.length, b.length))
+     * }
      *
      * @param a the first array to be tested for a mismatch
      * @param b the second array to be tested for a mismatch
@@ -8502,12 +8502,12 @@ public class Arrays {
      * ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively, share a common
      * prefix of length {@code pl} if the following expression is true:
-     * <pre>{@code
-     *     pl >= 0 &&
-     *     pl < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex) &&
-     *     Arrays.equals(a, aFromIndex, aFromIndex + pl, b, bFromIndex, bFromIndex + pl) &&
-     *     !Objects.equals(a[aFromIndex + pl], b[bFromIndex + pl])
-     * }</pre>
+     * {@snippet : 
+     *       pl >= 0 &&
+     *       pl < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex) &&
+     *       Arrays.equals(a, aFromIndex, aFromIndex + pl, b, bFromIndex, bFromIndex + pl) &&
+     *       !Objects.equals(a[aFromIndex + pl], b[bFromIndex + pl])
+     * }
      * Note that a common prefix length of {@code 0} indicates that the first
      * elements from each array mismatch.
      *
@@ -8515,11 +8515,11 @@ public class Arrays {
      * ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively, share a proper
      * prefix if the following expression is true:
-     * <pre>{@code
-     *     (aToIndex - aFromIndex) != (bToIndex - bFromIndex) &&
-     *     Arrays.equals(a, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex),
-     *                   b, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
-     * }</pre>
+     * {@snippet : 
+     *       (aToIndex - aFromIndex) != (bToIndex - bFromIndex) &&
+     *       Arrays.equals(a, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex),
+     *                     b, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex))
+     * }
      *
      * @param a the first array to be tested for a mismatch
      * @param aFromIndex the index (inclusive) of the first element in the
@@ -8579,23 +8579,23 @@ public class Arrays {
      *
      * <p>Two non-{@code null} arrays, {@code a} and {@code b}, share a common
      * prefix of length {@code pl} if the following expression is true:
-     * <pre>{@code
-     *     pl >= 0 &&
-     *     pl < Math.min(a.length, b.length) &&
-     *     Arrays.equals(a, 0, pl, b, 0, pl, cmp)
-     *     cmp.compare(a[pl], b[pl]) != 0
-     * }</pre>
+     * {@snippet : 
+     *       pl >= 0 &&
+     *       pl < Math.min(a.length, b.length) &&
+     *       Arrays.equals(a, 0, pl, b, 0, pl, cmp)
+     *       cmp.compare(a[pl], b[pl]) != 0
+     * }
      * Note that a common prefix length of {@code 0} indicates that the first
      * elements from each array mismatch.
      *
      * <p>Two non-{@code null} arrays, {@code a} and {@code b}, share a proper
      * prefix if the following expression is true:
-     * <pre>{@code
-     *     a.length != b.length &&
-     *     Arrays.equals(a, 0, Math.min(a.length, b.length),
-     *                   b, 0, Math.min(a.length, b.length),
-     *                   cmp)
-     * }</pre>
+     * {@snippet : 
+     *       a.length != b.length &&
+     *       Arrays.equals(a, 0, Math.min(a.length, b.length),
+     *                     b, 0, Math.min(a.length, b.length),
+     *                     cmp)
+     * }
      *
      * @param a the first array to be tested for a mismatch
      * @param b the second array to be tested for a mismatch
@@ -8648,12 +8648,12 @@ public class Arrays {
      * ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively, share a common
      * prefix of length {@code pl} if the following expression is true:
-     * <pre>{@code
-     *     pl >= 0 &&
-     *     pl < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex) &&
-     *     Arrays.equals(a, aFromIndex, aFromIndex + pl, b, bFromIndex, bFromIndex + pl, cmp) &&
-     *     cmp.compare(a[aFromIndex + pl], b[bFromIndex + pl]) != 0
-     * }</pre>
+     * {@snippet : 
+     *       pl >= 0 &&
+     *       pl < Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex) &&
+     *       Arrays.equals(a, aFromIndex, aFromIndex + pl, b, bFromIndex, bFromIndex + pl, cmp) &&
+     *       cmp.compare(a[aFromIndex + pl], b[bFromIndex + pl]) != 0
+     * }
      * Note that a common prefix length of {@code 0} indicates that the first
      * elements from each array mismatch.
      *
@@ -8661,12 +8661,12 @@ public class Arrays {
      * ranges [{@code aFromIndex}, {@code atoIndex}) and
      * [{@code bFromIndex}, {@code btoIndex}) respectively, share a proper
      * prefix if the following expression is true:
-     * <pre>{@code
-     *     (aToIndex - aFromIndex) != (bToIndex - bFromIndex) &&
-     *     Arrays.equals(a, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex),
-     *                   b, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex),
-     *                   cmp)
-     * }</pre>
+     * {@snippet : 
+     *       (aToIndex - aFromIndex) != (bToIndex - bFromIndex) &&
+     *       Arrays.equals(a, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex),
+     *                     b, 0, Math.min(aToIndex - aFromIndex, bToIndex - bFromIndex),
+     *                     cmp)
+     * }
      *
      * @param a the first array to be tested for a mismatch
      * @param aFromIndex the index (inclusive) of the first element in the

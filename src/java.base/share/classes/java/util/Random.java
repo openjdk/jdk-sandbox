@@ -76,7 +76,6 @@ import jdk.internal.misc.Unsafe;
  * @author  Frank Yellin
  * @since   1.0
  */
-@SuppressWarnings("exports")
 @RandomGeneratorProperties(
         name = "Random",
         i = 48, j = 0, k = 0,
@@ -129,10 +128,10 @@ public class Random implements RandomGenerator, java.io.Serializable {
      * number generator which is maintained by method {@link #next}.
      *
      * @implSpec The invocation {@code new Random(seed)} is equivalent to:
-     * <pre>{@code
-     * Random rnd = new Random();
-     * rnd.setSeed(seed);
-     * }</pre>
+     * {@snippet lang=java : 
+     *   Random rnd = new Random();
+     *   rnd.setSeed(seed);
+     * }
      *
      * @param seed the initial seed
      * @see   #setSeed(long)
@@ -159,7 +158,9 @@ public class Random implements RandomGenerator, java.io.Serializable {
      * created with the argument {@code seed} as a seed. The method
      * {@code setSeed} is implemented by class {@code Random} by
      * atomically updating the seed to
-     *  <pre>{@code (seed ^ 0x5DEECE66DL) & ((1L << 48) - 1)}</pre>
+     *  {@snippet : 
+     *  (seed ^ 0x5DEECE66DL) & ((1L << 48) - 1)
+     * }
      * and clearing the {@code haveNextNextGaussian} flag used by {@link
      * #nextGaussian}.
      *
@@ -186,9 +187,13 @@ public class Random implements RandomGenerator, java.io.Serializable {
      * chosen bit values, each of which is (approximately) equally
      * likely to be {@code 0} or {@code 1}. The method {@code next} is
      * implemented by class {@code Random} by atomically updating the seed to
-     *  <pre>{@code (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1)}</pre>
+     *  {@snippet : 
+     *  (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1)
+     * }
      * and returning
-     *  <pre>{@code (int)(seed >>> (48 - bits))}.</pre>
+     *  {@snippet :
+     *  (int)(seed >>> (48 - bits))
+     *  }
      *
      * This is a linear congruential pseudorandom number generator, as
      * defined by D. H. Lehmer and described by Donald E. Knuth in
@@ -217,13 +222,14 @@ public class Random implements RandomGenerator, java.io.Serializable {
      *
      * @implSpec The method {@code nextBytes} is
      * implemented by class {@code Random} as if by:
-     * <pre>{@code
-     * public void nextBytes(byte[] bytes) {
-     *   for (int i = 0; i < bytes.length; )
-     *     for (int rnd = nextInt(), n = Math.min(bytes.length - i, 4);
-     *          n-- > 0; rnd >>= 8)
-     *       bytes[i++] = (byte)rnd;
-     * }}</pre>
+     * {@snippet lang=java : 
+     *   public void nextBytes(byte[] bytes) {
+     *     for (int i = 0; i < bytes.length; )
+     *       for (int rnd = nextInt(), n = Math.min(bytes.length - i, 4);
+     *            n-- > 0; rnd >>= 8)
+     *         bytes[i++] = (byte)rnd;
+     *   }
+     * }
      *
      * @param  bytes the byte array to fill with random bytes
      * @throws NullPointerException if the byte array is null
@@ -247,10 +253,11 @@ public class Random implements RandomGenerator, java.io.Serializable {
      *
      * @implSpec The method {@code nextInt} is
      * implemented by class {@code Random} as if by:
-     * <pre>{@code
-     * public int nextInt() {
-     *   return next(32);
-     * }}</pre>
+     * {@snippet lang=java : 
+     *   public int nextInt() {
+     *     return next(32);
+     *   }
+     * }
      *
      * @return the next pseudorandom, uniformly distributed {@code int}
      *         value from this random number generator's sequence
@@ -271,21 +278,7 @@ public class Random implements RandomGenerator, java.io.Serializable {
      *
      * @implSpec The method {@code nextInt(int bound)} is implemented by
      * class {@code Random} as if by:
-     * <pre>{@code
-     * public int nextInt(int bound) {
-     *   if (bound <= 0)
-     *     throw new IllegalArgumentException("bound must be positive");
-     *
-     *   if ((bound & -bound) == bound)  // i.e., bound is a power of 2
-     *     return (int)((bound * (long)next(31)) >> 31);
-     *
-     *   int bits, val;
-     *   do {
-     *       bits = next(31);
-     *       val = bits % bound;
-     *   } while (bits - val + (bound-1) < 0);
-     *   return val;
-     * }}</pre>
+     * {@snippet lang=java file="RandomSnippets.java" region="snippet6"}
      *
      * <p>The hedge "approximately" is used in the foregoing description only
      * because the next method is only approximately an unbiased source of
@@ -340,10 +333,11 @@ public class Random implements RandomGenerator, java.io.Serializable {
      *
      * @implSpec The method {@code nextLong} is implemented by class {@code Random}
      * as if by:
-     * <pre>{@code
-     * public long nextLong() {
-     *   return ((long)next(32) << 32) + next(32);
-     * }}</pre>
+     * {@snippet lang=java : 
+     *   public long nextLong() {
+     *     return ((long)next(32) << 32) + next(32);
+     *   }
+     * }
      *
      * Because class {@code Random} uses a seed with only 48 bits,
      * this algorithm will not return all possible {@code long} values.
@@ -367,10 +361,11 @@ public class Random implements RandomGenerator, java.io.Serializable {
      *
      * @implSpec The method {@code nextBoolean} is implemented by class
      * {@code Random} as if by:
-     * <pre>{@code
-     * public boolean nextBoolean() {
-     *   return next(1) != 0;
-     * }}</pre>
+     * {@snippet lang=java : 
+     *   public boolean nextBoolean() {
+     *     return next(1) != 0;
+     *   }
+     * }
      *
      * @return the next pseudorandom, uniformly distributed
      *         {@code boolean} value from this random number generator's
@@ -397,17 +392,20 @@ public class Random implements RandomGenerator, java.io.Serializable {
      *
      * @implSpec The method {@code nextFloat} is implemented by class
      * {@code Random} as if by:
-     * <pre>{@code
-     * public float nextFloat() {
-     *   return next(24) / ((float)(1 << 24));
-     * }}</pre>
+     * {@snippet lang=java : 
+     *   public float nextFloat() {
+     *     return next(24) / ((float)(1 << 24));
+     *   }
+     * }
      * <p>The hedge "approximately" is used in the foregoing description only
      * because the next method is only approximately an unbiased source of
      * independently chosen bits. If it were a perfect source of randomly
      * chosen bits, then the algorithm shown would choose {@code float}
      * values from the stated range with perfect uniformity.<p>
      * [In early versions of Java, the result was incorrectly calculated as:
-     *  <pre> {@code return next(30) / ((float)(1 << 30));}</pre>
+     * {@snippet :
+     * return next(30) / ((float)(1 << 30));
+     * }
      * This might seem to be equivalent, if not better, but in fact it
      * introduced a slight nonuniformity because of the bias in the rounding
      * of floating-point numbers: it was slightly more likely that the
@@ -434,18 +432,21 @@ public class Random implements RandomGenerator, java.io.Serializable {
      *
      * @implSpec The method {@code nextDouble} is implemented by class
      * {@code Random} as if by:
-     * <pre>{@code
-     * public double nextDouble() {
-     *   return (((long)next(26) << 27) + next(27))
-     *     / (double)(1L << 53);
-     * }}</pre>
+     * {@snippet lang=java : 
+     *   public double nextDouble() {
+     *     return (((long)next(26) << 27) + next(27))
+     *       / (double)(1L << 53);
+     *   }
+     * }
      * <p>The hedge "approximately" is used in the foregoing description only
      * because the {@code next} method is only approximately an unbiased source
      * of independently chosen bits. If it were a perfect source of randomly
      * chosen bits, then the algorithm shown would choose {@code double} values
      * from the stated range with perfect uniformity.
      * <p>[In early versions of Java, the result was incorrectly calculated as:
-     * <pre> {@code return (((long)next(27) << 27) + next(27)) / (double)(1L << 54);}</pre>
+     * {@snippet :
+     * return (((long)next(27) << 27) + next(27)) / (double)(1L << 54);
+     * }
      * This might seem to be equivalent, if not better, but in fact it
      * introduced a large nonuniformity because of the bias in the rounding of
      * floating-point numbers: it was three times as likely that the low-order
@@ -478,27 +479,7 @@ public class Random implements RandomGenerator, java.io.Serializable {
      *
      * @implSpec The method {@code nextGaussian} is implemented by class
      * {@code Random} as if by a threadsafe version of the following:
-     * <pre>{@code
-     * private double nextNextGaussian;
-     * private boolean haveNextNextGaussian = false;
-     *
-     * public double nextGaussian() {
-     *   if (haveNextNextGaussian) {
-     *     haveNextNextGaussian = false;
-     *     return nextNextGaussian;
-     *   } else {
-     *     double v1, v2, s;
-     *     do {
-     *       v1 = 2 * nextDouble() - 1;   // between -1.0 and 1.0
-     *       v2 = 2 * nextDouble() - 1;   // between -1.0 and 1.0
-     *       s = v1 * v1 + v2 * v2;
-     *     } while (s >= 1 || s == 0);
-     *     double multiplier = StrictMath.sqrt(-2 * StrictMath.log(s)/s);
-     *     nextNextGaussian = v2 * multiplier;
-     *     haveNextNextGaussian = true;
-     *     return v1 * multiplier;
-     *   }
-     * }}</pre>
+     * {@snippet lang=java file="RandomSnippets.java" region="snippet11"}
      *
      * This uses the <i>polar method</i> of G. E. P. Box, M. E. Muller, and
      * G. Marsaglia, as described by Donald E. Knuth in <cite>The Art of
@@ -654,7 +635,7 @@ public class Random implements RandomGenerator, java.io.Serializable {
      *
      * <p>A pseudorandom {@code int} value is generated as if it's the result of
      * calling the following method with the origin and bound:
-     * <pre> {@code
+     * {@snippet :
      * int nextInt(int origin, int bound) {
      *   int n = bound - origin;
      *   if (n > 0) {
@@ -667,7 +648,8 @@ public class Random implements RandomGenerator, java.io.Serializable {
      *     } while (r < origin || r >= bound);
      *     return r;
      *   }
-     * }}</pre>
+     * }
+     * }
      *
      * @param streamSize the number of values to generate
      * @param randomNumberOrigin the origin (inclusive) of each random value
@@ -691,7 +673,7 @@ public class Random implements RandomGenerator, java.io.Serializable {
      *
      * <p>A pseudorandom {@code int} value is generated as if it's the result of
      * calling the following method with the origin and bound:
-     * <pre> {@code
+     * {@snippet :
      * int nextInt(int origin, int bound) {
      *   int n = bound - origin;
      *   if (n > 0) {
@@ -704,7 +686,8 @@ public class Random implements RandomGenerator, java.io.Serializable {
      *     } while (r < origin || r >= bound);
      *     return r;
      *   }
-     * }}</pre>
+     * }
+     * }
      *
      * @implNote This method is implemented to be equivalent to {@code
      * ints(Long.MAX_VALUE, randomNumberOrigin, randomNumberBound)}.
@@ -765,7 +748,7 @@ public class Random implements RandomGenerator, java.io.Serializable {
      *
      * <p>A pseudorandom {@code long} value is generated as if it's the result
      * of calling the following method with the origin and bound:
-     * <pre> {@code
+     * {@snippet :
      * long nextLong(long origin, long bound) {
      *   long r = nextLong();
      *   long n = bound - origin, m = n - 1;
@@ -783,7 +766,8 @@ public class Random implements RandomGenerator, java.io.Serializable {
      *       r = nextLong();
      *   }
      *   return r;
-     * }}</pre>
+     * }
+     * }
      *
      * @param streamSize the number of values to generate
      * @param randomNumberOrigin the origin (inclusive) of each random value
@@ -807,7 +791,7 @@ public class Random implements RandomGenerator, java.io.Serializable {
      *
      * <p>A pseudorandom {@code long} value is generated as if it's the result
      * of calling the following method with the origin and bound:
-     * <pre> {@code
+     * {@snippet :
      * long nextLong(long origin, long bound) {
      *   long r = nextLong();
      *   long n = bound - origin, m = n - 1;
@@ -825,7 +809,8 @@ public class Random implements RandomGenerator, java.io.Serializable {
      *       r = nextLong();
      *   }
      *   return r;
-     * }}</pre>
+     * }
+     * }
      *
      * @implNote This method is implemented to be equivalent to {@code
      * longs(Long.MAX_VALUE, randomNumberOrigin, randomNumberBound)}.
@@ -888,14 +873,15 @@ public class Random implements RandomGenerator, java.io.Serializable {
      *
      * <p>A pseudorandom {@code double} value is generated as if it's the result
      * of calling the following method with the origin and bound:
-     * <pre> {@code
+     * {@snippet :
      * double nextDouble(double origin, double bound) {
      *   double r = nextDouble();
      *   r = r * (bound - origin) + origin;
      *   if (r >= bound) // correct for rounding
      *     r = Math.nextDown(bound);
      *   return r;
-     * }}</pre>
+     * }
+    * }
      *
      * @param streamSize the number of values to generate
      * @param randomNumberOrigin the origin (inclusive) of each random value
@@ -920,14 +906,15 @@ public class Random implements RandomGenerator, java.io.Serializable {
      *
      * <p>A pseudorandom {@code double} value is generated as if it's the result
      * of calling the following method with the origin and bound:
-     * <pre> {@code
+     * {@snippet :
      * double nextDouble(double origin, double bound) {
      *   double r = nextDouble();
      *   r = r * (bound - origin) + origin;
      *   if (r >= bound) // correct for rounding
      *     r = Math.nextDown(bound);
      *   return r;
-     * }}</pre>
+     * }
+     * }
      *
      * @implNote This method is implemented to be equivalent to {@code
      * doubles(Long.MAX_VALUE, randomNumberOrigin, randomNumberBound)}.

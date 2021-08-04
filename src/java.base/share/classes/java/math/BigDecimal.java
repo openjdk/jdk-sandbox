@@ -38,12 +38,11 @@ import java.util.Objects;
  * Immutable, arbitrary-precision signed decimal numbers.  A {@code
  * BigDecimal} consists of an arbitrary precision integer
  * <i>{@linkplain unscaledValue() unscaled value}</i> and a 32-bit
- * integer <i>{@linkplain scale() scale}</i>.  If the
- * scale is zero or positive, the scale is the number of digits to
- * the right of the decimal point.  If the scale is negative, the
- * unscaled value of the number is multiplied by ten to the power of
- * the negation of the scale.  The value of the number represented by
- * the {@code BigDecimal} is therefore
+ * integer <i>{@linkplain scale() scale}</i>.  If zero or positive,
+ * the scale is the number of digits to the right of the decimal
+ * point.  If negative, the unscaled value of the number is multiplied
+ * by ten to the power of the negation of the scale.  The value of the
+ * number represented by the {@code BigDecimal} is therefore
  * <code>(unscaledValue &times; 10<sup>-scale</sup>)</code>.
  *
  * <p>The {@code BigDecimal} class provides operations for
@@ -863,22 +862,7 @@ public class BigDecimal extends Number implements Comparable<BigDecimal> {
      * <i>significand</i> &times; 10<sup>&nbsp;<i>exponent</i></sup>.
      * For each string on the left, the resulting representation
      * [{@code BigInteger}, {@code scale}] is shown on the right.
-     * <pre>
-     * "0"            [0,0]
-     * "0.00"         [0,2]
-     * "123"          [123,0]
-     * "-123"         [-123,0]
-     * "1.23E3"       [123,-1]
-     * "1.23E+3"      [123,-1]
-     * "12.3E+7"      [123,-6]
-     * "12.0"         [120,1]
-     * "12.3"         [123,1]
-     * "0.00123"      [123,5]
-     * "-1.23E-12"    [-123,14]
-     * "1234.5E-4"    [12345,5]
-     * "0E+7"         [0,-7]
-     * "-0"           [0,0]
-     * </pre>
+     * {@snippet file="BigDecimalSnippets.java" region="snippet1"}
      *
      * @apiNote For values other than {@code float} and
      * {@code double} NaN and &plusmn;Infinity, this constructor is
@@ -3332,16 +3316,16 @@ public class BigDecimal extends Number implements Comparable<BigDecimal> {
      * <p><b>Examples:</b>
      * <p>For each representation [<i>unscaled value</i>, <i>scale</i>]
      * on the left, the resulting string is shown on the right.
-     * <pre>
-     * [123,0]      "123"
-     * [-123,0]     "-123"
-     * [123,-1]     "1.23E+3"
-     * [123,-3]     "1.23E+5"
-     * [123,1]      "12.3"
-     * [123,5]      "0.00123"
-     * [123,10]     "1.23E-8"
-     * [-123,12]    "-1.23E-10"
-     * </pre>
+     * {@snippet : 
+     *   [123,0]      "123"
+     *   [-123,0]     "-123"
+     *   [123,-1]     "1.23E+3"
+     *   [123,-3]     "1.23E+5"
+     *   [123,1]      "12.3"
+     *   [123,5]      "0.00123"
+     *   [123,10]     "1.23E-8"
+     *   [-123,12]    "-1.23E-10"
+     * }
      *
      * <b>Notes:</b>
      * <ol>

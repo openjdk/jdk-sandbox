@@ -202,8 +202,9 @@ public interface Set<E> extends Collection<E> {
      * The following code can be used to dump the set into a newly allocated
      * array of {@code String}:
      *
-     * <pre>
-     *     String[] y = x.toArray(new String[0]);</pre>
+     * {@snippet lang=java : 
+     *       String[] y = x.toArray(new String[0]);
+     * }
      *
      * Note that {@code toArray(new Object[0])} is identical in function to
      * {@code toArray()}.
@@ -674,10 +675,10 @@ public interface Set<E> extends Collection<E> {
      * the set will be equal to the length of the array. To create a set with
      * a single element that is an array, do the following:
      *
-     * <pre>{@code
-     *     String[] array = ... ;
-     *     Set<String[]> list = Set.<String[]>of(array);
-     * }</pre>
+     * {@snippet : 
+     *       String[] array = ... ;
+     *       Set<String[]> list = Set.<String[]>of(array);
+     * }
      *
      * This will cause the {@link Set#of(Object) Set.of(E)} method
      * to be invoked instead.

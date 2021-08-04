@@ -65,19 +65,19 @@ import java.util.stream.Stream;
  * Examples
  *
  * <p>1. To find the first caller filtering a known list of implementation class:
- * <pre>{@code
- *     StackWalker walker = StackWalker.getInstance(Option.RETAIN_CLASS_REFERENCE);
- *     Optional<Class<?>> callerClass = walker.walk(s ->
- *         s.map(StackFrame::getDeclaringClass)
- *          .filter(interestingClasses::contains)
- *          .findFirst());
- * }</pre>
+ * {@snippet lang=java : 
+ *       StackWalker walker = StackWalker.getInstance(Option.RETAIN_CLASS_REFERENCE);
+ *       Optional<Class<?>> callerClass = walker.walk(s ->
+ *           s.map(StackFrame::getDeclaringClass)
+ *            .filter(interestingClasses::contains)
+ *            .findFirst());
+ * }
  *
  * <p>2. To snapshot the top 10 stack frames of the current thread,
- * <pre>{@code
- *     List<StackFrame> stack = StackWalker.getInstance().walk(s ->
- *         s.limit(10).collect(Collectors.toList()));
- * }</pre>
+ * {@snippet lang=java : 
+ *       List<StackFrame> stack = StackWalker.getInstance().walk(s ->
+ *           s.limit(10).collect(Collectors.toList()));
+ * }
  *
  * Unless otherwise noted, passing a {@code null} argument to a
  * constructor or method in this {@code StackWalker} class
@@ -451,13 +451,12 @@ public final class StackWalker {
      * @apiNote
      * For example, to find the first 10 calling frames, first skipping those frames
      * whose declaring class is in package {@code com.foo}:
-     * <blockquote>
-     * <pre>{@code
-     * List<StackFrame> frames = StackWalker.getInstance().walk(s ->
-     *     s.dropWhile(f -> f.getClassName().startsWith("com.foo."))
-     *      .limit(10)
-     *      .collect(Collectors.toList()));
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *   List<StackFrame> frames = StackWalker.getInstance().walk(s ->
+     *       s.dropWhile(f -> f.getClassName().startsWith("com.foo."))
+     *        .limit(10)
+     *        .collect(Collectors.toList()));
+     * }
      *
      * <p>This method takes a {@code Function} accepting a {@code Stream<StackFrame>},
      * rather than returning a {@code Stream<StackFrame>} and allowing the
@@ -548,33 +547,18 @@ public final class StackWalker {
      * the class loader to load the resource bundle. The caller class
      * in this example is {@code MyTool}.
      *
-     * <pre>{@code
-     * class Util {
-     *     private final StackWalker walker = StackWalker.getInstance(Option.RETAIN_CLASS_REFERENCE);
-     *     public ResourceBundle getResourceBundle(String bundleName) {
-     *         Class<?> caller = walker.getCallerClass();
-     *         return ResourceBundle.getBundle(bundleName, Locale.getDefault(), caller.getClassLoader());
-     *     }
-     * }
-     *
-     * class MyTool {
-     *     private final Util util = new Util();
-     *     private void init() {
-     *         ResourceBundle rb = util.getResourceBundle("mybundle");
-     *     }
-     * }
-     * }</pre>
+     * {@snippet lang=java file="StackWalkerSnippets.java" region="snippet4"}
      *
      * An equivalent way to find the caller class using the
      * {@link StackWalker#walk walk} method is as follows
      * (filtering the reflection frames, {@code MethodHandle} and hidden frames
      * not shown below):
-     * <pre>{@code
-     *     Optional<Class<?>> caller = walker.walk(s ->
-     *         s.map(StackFrame::getDeclaringClass)
-     *          .skip(2)
-     *          .findFirst());
-     * }</pre>
+     * {@snippet lang=java : 
+     *       Optional<Class<?>> caller = walker.walk(s ->
+     *           s.map(StackFrame::getDeclaringClass)
+     *            .skip(2)
+     *            .findFirst());
+     * }
      *
      * When the {@code getCallerClass} method is called from a method that
      * is the bottom most frame on the stack,

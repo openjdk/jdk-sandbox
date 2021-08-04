@@ -655,9 +655,9 @@ final class Resolver {
 
     /**
      * Equivalent to
-     * <pre>{@code
+     * {@snippet :
      *     map.computeIfAbsent(name, k -> new ResolvedModule(cf, mref))
-     * </pre>}
+     * }
      */
     private ResolvedModule computeIfAbsent(Map<String, ResolvedModule> map,
                                            String name,

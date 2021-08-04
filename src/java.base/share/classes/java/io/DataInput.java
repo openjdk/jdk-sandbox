@@ -329,8 +329,9 @@ public interface DataInput {
      * be the second byte. The value
      * returned
      * is:
-     * <pre>{@code (short)((a << 8) | (b & 0xff))
-     * }</pre>
+     * {@snippet : 
+     *  (short)((a << 8) | (b & 0xff))
+     * }
      * This method
      * is suitable for reading the bytes written
      * by the {@code writeShort} method of
@@ -350,8 +351,9 @@ public interface DataInput {
      * be the first byte read and
      * {@code b}
      * be the second byte. The value returned is:
-     * <pre>{@code (((a & 0xff) << 8) | (b & 0xff))
-     * }</pre>
+     * {@snippet : 
+     *  (((a & 0xff) << 8) | (b & 0xff))
+     * }
      * This method is suitable for reading the bytes
      * written by the {@code writeShort} method
      * of interface {@code DataOutput}  if
@@ -372,8 +374,9 @@ public interface DataInput {
      * be the first byte read and {@code b}
      * be the second byte. The value
      * returned is:
-     * <pre>{@code (char)((a << 8) | (b & 0xff))
-     * }</pre>
+     * {@snippet : 
+     *  (char)((a << 8) | (b & 0xff))
+     * }
      * This method
      * is suitable for reading bytes written by
      * the {@code writeChar} method of interface
@@ -390,10 +393,10 @@ public interface DataInput {
      * Reads four input bytes and returns an
      * {@code int} value. Let {@code a-d}
      * be the first through fourth bytes read. The value returned is:
-     * <pre>{@code
-     * (((a & 0xff) << 24) | ((b & 0xff) << 16) |
-     *  ((c & 0xff) <<  8) | (d & 0xff))
-     * }</pre>
+     * {@snippet : 
+     *   (((a & 0xff) << 24) | ((b & 0xff) << 16) |
+     *    ((c & 0xff) <<  8) | (d & 0xff))
+     * }
      * This method is suitable
      * for reading bytes written by the {@code writeInt}
      * method of interface {@code DataOutput}.
@@ -410,16 +413,16 @@ public interface DataInput {
      * a {@code long} value. Let {@code a-h}
      * be the first through eighth bytes read.
      * The value returned is:
-     * <pre>{@code
-     * (((long)(a & 0xff) << 56) |
-     *  ((long)(b & 0xff) << 48) |
-     *  ((long)(c & 0xff) << 40) |
-     *  ((long)(d & 0xff) << 32) |
-     *  ((long)(e & 0xff) << 24) |
-     *  ((long)(f & 0xff) << 16) |
-     *  ((long)(g & 0xff) <<  8) |
-     *  ((long)(h & 0xff)))
-     * }</pre>
+     * {@snippet : 
+     *   (((long)(a & 0xff) << 56) |
+     *    ((long)(b & 0xff) << 48) |
+     *    ((long)(c & 0xff) << 40) |
+     *    ((long)(d & 0xff) << 32) |
+     *    ((long)(e & 0xff) << 24) |
+     *    ((long)(f & 0xff) << 16) |
+     *    ((long)(g & 0xff) <<  8) |
+     *    ((long)(h & 0xff)))
+     * }
      * <p>
      * This method is suitable
      * for reading bytes written by the {@code writeLong}
@@ -554,8 +557,9 @@ public interface DataInput {
      * then a {@code UTFDataFormatException}
      * is thrown. Otherwise, the group is converted
      * to the character:
-     * <pre>{@code (char)(((a & 0x1F) << 6) | (b & 0x3F))
-     * }</pre>
+     * {@snippet : 
+     *  (char)(((a & 0x1F) << 6) | (b & 0x3F))
+     * }
      * If the first byte of a group
      * matches the bit pattern {@code 1110xxxx},
      * then the group consists of that byte {@code a}
@@ -568,9 +572,9 @@ public interface DataInput {
      * then a {@code UTFDataFormatException}
      * is thrown. Otherwise, the group is converted
      * to the character:
-     * <pre>{@code
-     * (char)(((a & 0x0F) << 12) | ((b & 0x3F) << 6) | (c & 0x3F))
-     * }</pre>
+     * {@snippet : 
+     *   (char)(((a & 0x0F) << 12) | ((b & 0x3F) << 6) | (c & 0x3F))
+     * }
      * If the first byte of a group matches the
      * pattern {@code 1111xxxx} or the pattern
      * {@code 10xxxxxx}, then a {@code UTFDataFormatException}

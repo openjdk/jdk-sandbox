@@ -76,11 +76,15 @@ import java.util.Comparators;
  *
  * For the mathematically inclined, the <i>relation</i> that defines the
  * <i>imposed ordering</i> that a given comparator {@code c} imposes on a
- * given set of objects {@code S} is:<pre>
- *       {(x, y) such that c.compare(x, y) &lt;= 0}.
- * </pre> The <i>quotient</i> for this total order is:<pre>
- *       {(x, y) such that c.compare(x, y) == 0}.
- * </pre>
+ * given set of objects {@code S} is:
+ * {@snippet :
+ *         {(x, y) such that c.compare(x, y) <= 0}
+ * }
+ *   
+ * } The <i>quotient</i> for this total order is:
+ * {@snippet :
+ *         {(x, y) such that c.compare(x, y) == 0}
+ * }
  *
  * It follows immediately from the contract for {@code compare} that the
  * quotient is an <i>equivalence relation</i> on {@code S}, and that the
@@ -88,8 +92,10 @@ import java.util.Comparators;
  * the ordering imposed by {@code c} on {@code S} is <i>consistent with
  * equals</i>, we mean that the quotient for the ordering is the equivalence
  * relation defined by the objects' {@link Object#equals(Object)
- * equals(Object)} method(s):<pre>
- *     {(x, y) such that x.equals(y)}. </pre>
+ * equals(Object)} method(s):
+ * {@snippet :
+ *       {(x, y) such that x.equals(y)}
+ * }
  *
  * In other words, when the imposed ordering is consistent with
  * equals, the equivalence classes defined by the equivalence relation
@@ -202,10 +208,10 @@ public interface Comparator<T> {
      * and then case-insensitive natural ordering, the comparator can be
      * composed using following code,
      *
-     * <pre>{@code
-     *     Comparator<String> cmp = Comparator.comparingInt(String::length)
-     *             .thenComparing(String.CASE_INSENSITIVE_ORDER);
-     * }</pre>
+     * {@snippet lang=java : 
+     *       Comparator<String> cmp = Comparator.comparingInt(String::length)
+     *               .thenComparing(String.CASE_INSENSITIVE_ORDER);
+     * }
      *
      * @param  other the other comparator to be used when this comparator
      *         compares two objects that are equal.
@@ -415,11 +421,11 @@ public interface Comparator<T> {
      * For example, to obtain a {@code Comparator} that compares {@code
      * Person} objects by their last name ignoring case differences,
      *
-     * <pre>{@code
-     *     Comparator<Person> cmp = Comparator.comparing(
-     *             Person::getLastName,
-     *             String.CASE_INSENSITIVE_ORDER);
-     * }</pre>
+     * {@snippet lang=java : 
+     *       Comparator<Person> cmp = Comparator.comparing(
+     *               Person::getLastName,
+     *               String.CASE_INSENSITIVE_ORDER);
+     * }
      *
      * @param  <T> the type of element to be compared
      * @param  <U> the type of the sort key
@@ -453,9 +459,9 @@ public interface Comparator<T> {
      * For example, to obtain a {@code Comparator} that compares {@code
      * Person} objects by their last name,
      *
-     * <pre>{@code
-     *     Comparator<Person> byLastName = Comparator.comparing(Person::getLastName);
-     * }</pre>
+     * {@snippet lang=java : 
+     *       Comparator<Person> byLastName = Comparator.comparing(Person::getLastName);
+     * }
      *
      * @param  <T> the type of element to be compared
      * @param  <U> the type of the {@code Comparable} sort key

@@ -134,10 +134,10 @@ public interface DataOutput {
      * stream to represent the value of the argument.
      * The byte values to be written, in the  order
      * shown, are:
-     * <pre>{@code
-     * (byte)(0xff & (v >> 8))
-     * (byte)(0xff & v)
-     * }</pre> <p>
+     * {@snippet : 
+     *   (byte)(0xff & (v >> 8))
+     *   (byte)(0xff & v)
+     * } <p>
      * The bytes written by this method may be
      * read by the {@code readShort} method
      * of interface {@code DataInput}, which
@@ -155,10 +155,10 @@ public interface DataOutput {
      * output stream.
      * The byte values to be written, in the  order
      * shown, are:
-     * <pre>{@code
-     * (byte)(0xff & (v >> 8))
-     * (byte)(0xff & v)
-     * }</pre><p>
+     * {@snippet : 
+     *   (byte)(0xff & (v >> 8))
+     *   (byte)(0xff & v)
+     * }<p>
      * The bytes written by this method may be
      * read by the {@code readChar} method
      * of interface {@code DataInput}, which
@@ -175,12 +175,12 @@ public interface DataOutput {
      * comprised of four bytes, to the output stream.
      * The byte values to be written, in the  order
      * shown, are:
-     * <pre>{@code
-     * (byte)(0xff & (v >> 24))
-     * (byte)(0xff & (v >> 16))
-     * (byte)(0xff & (v >>  8))
-     * (byte)(0xff & v)
-     * }</pre><p>
+     * {@snippet : 
+     *   (byte)(0xff & (v >> 24))
+     *   (byte)(0xff & (v >> 16))
+     *   (byte)(0xff & (v >>  8))
+     *   (byte)(0xff & v)
+     * }<p>
      * The bytes written by this method may be read
      * by the {@code readInt} method of interface
      * {@code DataInput}, which will then
@@ -196,16 +196,16 @@ public interface DataOutput {
      * comprised of eight bytes, to the output stream.
      * The byte values to be written, in the  order
      * shown, are:
-     * <pre>{@code
-     * (byte)(0xff & (v >> 56))
-     * (byte)(0xff & (v >> 48))
-     * (byte)(0xff & (v >> 40))
-     * (byte)(0xff & (v >> 32))
-     * (byte)(0xff & (v >> 24))
-     * (byte)(0xff & (v >> 16))
-     * (byte)(0xff & (v >>  8))
-     * (byte)(0xff & v)
-     * }</pre><p>
+     * {@snippet : 
+     *   (byte)(0xff & (v >> 56))
+     *   (byte)(0xff & (v >> 48))
+     *   (byte)(0xff & (v >> 40))
+     *   (byte)(0xff & (v >> 32))
+     *   (byte)(0xff & (v >> 24))
+     *   (byte)(0xff & (v >> 16))
+     *   (byte)(0xff & (v >>  8))
+     *   (byte)(0xff & v)
+     * }<p>
      * The bytes written by this method may be
      * read by the {@code readLong} method
      * of interface {@code DataInput}, which
@@ -314,23 +314,26 @@ public interface DataOutput {
      * is in the range <code>&#92;u0001</code> through
      * <code>&#92;u007f</code>, it is represented
      * by one byte:
-     * <pre>(byte)c </pre>  <p>
+     * {@snippet : 
+     *  (byte)c
+     * }  <p>
      * If a character {@code c} is <code>&#92;u0000</code>
      * or is in the range <code>&#92;u0080</code>
      * through <code>&#92;u07ff</code>, then it is
      * represented by two bytes, to be written
-     * in the order shown: <pre>{@code
-     * (byte)(0xc0 | (0x1f & (c >> 6)))
-     * (byte)(0x80 | (0x3f & c))
-     * }</pre> <p> If a character
+     * in the order shown:
+     * {@snippet :
+     *   (byte)(0xc0 | (0x1f & (c >> 6)))
+     *   (byte)(0x80 | (0x3f & c))
+     * } <p> If a character
      * {@code c} is in the range <code>&#92;u0800</code>
      * through {@code uffff}, then it is
      * represented by three bytes, to be written
-     * in the order shown: <pre>{@code
-     * (byte)(0xe0 | (0x0f & (c >> 12)))
-     * (byte)(0x80 | (0x3f & (c >>  6)))
-     * (byte)(0x80 | (0x3f & c))
-     * }</pre>  <p> First,
+     * in the order shown: {@snippet : 
+     *   (byte)(0xe0 | (0x0f & (c >> 12)))
+     *   (byte)(0x80 | (0x3f & (c >>  6)))
+     *   (byte)(0x80 | (0x3f & c))
+     * }  <p> First,
      * the total number of bytes needed to represent
      * all the characters of {@code s} is
      * calculated. If this number is larger than

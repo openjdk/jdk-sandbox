@@ -106,27 +106,13 @@ import jdk.internal.util.xml.PropertiesDefaultHandler;
  * are required to support UTF-8 and UTF-16 and may support other encodings.
  * An XML properties document has the following DOCTYPE declaration:
  *
- * <pre>
- * &lt;!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd"&gt;
- * </pre>
+ * {@snippet : 
+ *   <!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+ * }
  * Note that the system URI (http://java.sun.com/dtd/properties.dtd) is
  * <i>not</i> accessed when exporting or importing properties; it merely
  * serves as a string to uniquely identify the DTD, which is:
- * <pre>
- *    &lt;?xml version="1.0" encoding="UTF-8"?&gt;
- *
- *    &lt;!-- DTD for properties --&gt;
- *
- *    &lt;!ELEMENT properties ( comment?, entry* ) &gt;
- *
- *    &lt;!ATTLIST properties version CDATA #FIXED "1.0"&gt;
- *
- *    &lt;!ELEMENT comment (#PCDATA) &gt;
- *
- *    &lt;!ELEMENT entry (#PCDATA) &gt;
- *
- *    &lt;!ATTLIST entry key CDATA #REQUIRED&gt;
- * </pre>
+ * {@snippet file="PropertiesSnippets.java" region="snippet2"}
  *
  * <p>This class is thread-safe: multiple threads can share a single
  * {@code Properties} object without the need for external synchronization.
@@ -307,20 +293,22 @@ public class Properties extends Hashtable<Object,Object> {
      * As an example, each of the following three lines specifies the key
      * {@code "Truth"} and the associated element value
      * {@code "Beauty"}:
-     * <pre>
-     * Truth = Beauty
-     *  Truth:Beauty
-     * Truth                    :Beauty
-     * </pre>
+     * {@snippet : 
+     *   Truth = Beauty
+     *    Truth:Beauty
+     *   Truth                    :Beauty
+     * }
      * As another example, the following three lines specify a single
      * property:
-     * <pre>
-     * fruits                           apple, banana, pear, \
-     *                                  cantaloupe, watermelon, \
-     *                                  kiwi, mango
-     * </pre>
+     * {@snippet : 
+     *   fruits                           apple, banana, pear, \
+     *                                    cantaloupe, watermelon, \
+     *                                    kiwi, mango
+     * }
      * The key is {@code "fruits"} and the associated element is:
-     * <pre>"apple, banana, pear, cantaloupe, watermelon, kiwi, mango"</pre>
+     * {@snippet : 
+     *  "apple, banana, pear, cantaloupe, watermelon, kiwi, mango"
+     * }
      * Note that a space appears before each {@code \} so that a space
      * will appear after each comma in the final result; the {@code \},
      * line terminator, and leading white space on the continuation line are
@@ -328,8 +316,9 @@ public class Properties extends Hashtable<Object,Object> {
      * characters.
      * <p>
      * As a third example, the line:
-     * <pre>cheeses
-     * </pre>
+     * {@snippet : 
+     *  cheeses
+     * }
      * specifies that the key is {@code "cheeses"} and the associated
      * element is the empty string {@code ""}.
      * <p>
@@ -926,9 +915,9 @@ public class Properties extends Hashtable<Object,Object> {
      * specified input stream into this properties table.
      *
      * <p>The XML document must have the following DOCTYPE declaration:
-     * <pre>
-     * &lt;!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd"&gt;
-     * </pre>
+     * {@snippet : 
+     *   <!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+     * }
      * Furthermore, the document must satisfy the properties DTD described
      * above.
      *
@@ -992,9 +981,9 @@ public class Properties extends Hashtable<Object,Object> {
      * in this table, using the specified encoding.
      *
      * <p>The XML document will have the following DOCTYPE declaration:
-     * <pre>
-     * &lt;!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd"&gt;
-     * </pre>
+     * {@snippet : 
+     *   <!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+     * }
      *
      * <p>If the specified comment is {@code null} then no comment
      * will be stored in the document.
@@ -1048,9 +1037,9 @@ public class Properties extends Hashtable<Object,Object> {
      * in this table, using the specified encoding.
      *
      * <p>The XML document will have the following DOCTYPE declaration:
-     * <pre>
-     * &lt;!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd"&gt;
-     * </pre>
+     * {@snippet : 
+     *   <!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+     * }
      *
      * <p>If the specified comment is {@code null} then no comment
      * will be stored in the document.

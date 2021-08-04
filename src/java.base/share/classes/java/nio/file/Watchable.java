@@ -97,9 +97,9 @@ public interface Watchable {
      *
      * <p> An invocation of this method behaves in exactly the same way as the
      * invocation
-     * <pre>
-     *     watchable.{@link #register(WatchService,WatchEvent.Kind[],WatchEvent.Modifier[]) register}(watcher, events, new WatchEvent.Modifier[0]);
-     * </pre>
+     * {@snippet lang=java : 
+     *       watchable.register(watcher, events, new WatchEvent.Modifier[0]);
+     * }
      *
      * @param   watcher
      *          the watch service to which this object is to be registered

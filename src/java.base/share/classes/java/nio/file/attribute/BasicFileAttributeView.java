@@ -153,11 +153,11 @@ public interface BasicFileAttributeView
      *
      * <p> <b>Usage Example:</b>
      * Suppose we want to change a file's last access time.
-     * <pre>
-     *    Path path = ...
-     *    FileTime time = ...
-     *    Files.getFileAttributeView(path, BasicFileAttributeView.class).setTimes(null, time, null);
-     * </pre>
+     * {@snippet : 
+     *      Path path = ...
+     *      FileTime time = ...
+     *      Files.getFileAttributeView(path, BasicFileAttributeView.class).setTimes(null, time, null);
+     * }
      *
      * @param   lastModifiedTime
      *          the new last modified time, or {@code null} to not change the

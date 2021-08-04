@@ -35,20 +35,20 @@ import java.util.stream.Collector;
  * <p>This class is designed to work with (though does not require)
  * {@linkplain java.util.stream streams}. For example, you can compute
  * summary statistics on a stream of longs with:
- * <pre> {@code
+ * {@snippet :
  * LongSummaryStatistics stats = longStream.collect(LongSummaryStatistics::new,
  *                                                  LongSummaryStatistics::accept,
  *                                                  LongSummaryStatistics::combine);
- * }</pre>
+ * }
  *
  * <p>{@code LongSummaryStatistics} can be used as a
  * {@linkplain java.util.stream.Stream#collect(Collector) reduction}
  * target for a {@linkplain java.util.stream.Stream stream}. For example:
  *
- * <pre> {@code
+ * {@snippet :
  * LongSummaryStatistics stats = people.stream()
  *                                     .collect(Collectors.summarizingLong(Person::getAge));
- *}</pre>
+ *}
  *
  * This computes, in a single pass, the count of people, as well as the minimum,
  * maximum, sum, and average of their ages.

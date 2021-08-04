@@ -1265,10 +1265,10 @@ class MethodType
      * Instead, the return type and parameter type arrays are written directly
      * from the {@code writeObject} method, using two calls to {@code s.writeObject}
      * as follows:
-     * <blockquote><pre>{@code
-s.writeObject(this.returnType());
-s.writeObject(this.parameterArray());
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *  s.writeObject(this.returnType());
+     *  s.writeObject(this.parameterArray());
+     * }
      * <p>
      * The deserialized field values are checked as if they were
      * provided to the factory method {@link #methodType(Class,Class[]) methodType}.

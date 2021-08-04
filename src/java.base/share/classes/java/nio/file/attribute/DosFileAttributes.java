@@ -30,10 +30,10 @@ package java.nio.file.attribute;
  * legacy "DOS" attributes.
  *
  * <p> <b>Usage Example:</b>
- * <pre>
- *    Path file = ...
- *    DosFileAttributes attrs = Files.readAttributes(file, DosFileAttributes.class);
- * </pre>
+ * {@snippet : 
+ *      Path file = ...
+ *      DosFileAttributes attrs = Files.readAttributes(file, DosFileAttributes.class);
+ * }
  *
  * @since 1.7
  */

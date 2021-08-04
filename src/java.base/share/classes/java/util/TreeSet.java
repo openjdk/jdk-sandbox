@@ -54,8 +54,10 @@ package java.util;
  * If no such object exists, the set should be "wrapped" using the
  * {@link Collections#synchronizedSortedSet Collections.synchronizedSortedSet}
  * method.  This is best done at creation time, to prevent accidental
- * unsynchronized access to the set: <pre>
- *   SortedSet s = Collections.synchronizedSortedSet(new TreeSet(...));</pre>
+ * unsynchronized access to the set:
+ * {@snippet :
+ *     SortedSet s = Collections.synchronizedSortedSet(new TreeSet(...));
+ * }
  *
  * <p>The iterators returned by this class's {@code iterator} method are
  * <i>fail-fast</i>: if the set is modified at any time after the iterator is

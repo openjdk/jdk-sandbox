@@ -869,15 +869,16 @@ public final class Matcher implements MatchResult {
      * methods.  The following code, for example, writes {@code one dog two dogs
      * in the yard} to the standard-output stream: </p>
      *
-     * <blockquote><pre>
-     * Pattern p = Pattern.compile("cat");
-     * Matcher m = p.matcher("one cat two cats in the yard");
-     * StringBuffer sb = new StringBuffer();
-     * while (m.find()) {
-     *     m.appendReplacement(sb, "dog");
+     * {@snippet lang=java : 
+     *   Pattern p = Pattern.compile("cat");
+     *   Matcher m = p.matcher("one cat two cats in the yard");
+     *   StringBuffer sb = new StringBuffer();
+     *   while (m.find()) {
+     *       m.appendReplacement(sb, "dog");
+     *   }
+     *   m.appendTail(sb);
+     *   System.out.println(sb.toString());
      * }
-     * m.appendTail(sb);
-     * System.out.println(sb.toString());</pre></blockquote>
      *
      * @param  sb
      *         The target string buffer
@@ -962,15 +963,16 @@ public final class Matcher implements MatchResult {
      * {@link #find() find} methods. The following code, for example, writes
      * {@code one dog two dogs in the yard} to the standard-output stream: </p>
      *
-     * <blockquote><pre>
-     * Pattern p = Pattern.compile("cat");
-     * Matcher m = p.matcher("one cat two cats in the yard");
-     * StringBuilder sb = new StringBuilder();
-     * while (m.find()) {
-     *     m.appendReplacement(sb, "dog");
+     * {@snippet lang=java : 
+     *   Pattern p = Pattern.compile("cat");
+     *   Matcher m = p.matcher("one cat two cats in the yard");
+     *   StringBuilder sb = new StringBuilder();
+     *   while (m.find()) {
+     *       m.appendReplacement(sb, "dog");
+     *   }
+     *   m.appendTail(sb);
+     *   System.out.println(sb.toString());
      * }
-     * m.appendTail(sb);
-     * System.out.println(sb.toString());</pre></blockquote>
      *
      * @param  sb
      *         The target string builder

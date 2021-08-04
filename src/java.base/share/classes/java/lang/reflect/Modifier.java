@@ -197,9 +197,9 @@ public class Modifier {
     /**
      * Return a string describing the access modifier flags in
      * the specified modifier. For example:
-     * <blockquote><pre>
-     *    public final synchronized strictfp
-     * </pre></blockquote>
+     * {@snippet : 
+     *      public final synchronized strictfp
+     * }
      * The modifier names are returned in an order consistent with the
      * suggested modifier orderings given in sections 8.1.1, 8.3.1, 8.4.3, 8.8.3, and 9.1.1 of
      * <cite>The Java Language Specification</cite>.

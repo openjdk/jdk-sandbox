@@ -59,9 +59,9 @@ import jdk.internal.access.SharedSecrets;
  * method.  This is best done at creation time, to prevent accidental
  * unsynchronized access:
  *
- * <pre>
- * Set&lt;MyEnum&gt; s = Collections.synchronizedSet(EnumSet.noneOf(MyEnum.class));
- * </pre>
+ * {@snippet : 
+ *   Set<MyEnum> s = Collections.synchronizedSet(EnumSet.noneOf(MyEnum.class));
+ * }
  *
  * <p>Implementation note: All basic operations execute in constant time.
  * They are likely (though not guaranteed) to be much faster than their

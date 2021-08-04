@@ -386,9 +386,9 @@ public final class FileTime
      * Returns the string representation of this {@code FileTime}. The string
      * is returned in the <a
      * href="http://www.w3.org/TR/NOTE-datetime">ISO&nbsp;8601</a> format:
-     * <pre>
-     *     YYYY-MM-DDThh:mm:ss[.s+]Z
-     * </pre>
+     * {@snippet : 
+     *       YYYY-MM-DDThh:mm:ss[.s+]Z
+     * }
      * where "{@code [.s+]}" represents a dot followed by one of more digits
      * for the decimal fraction of a second. It is only present when the decimal
      * fraction of a second is not zero. For example, {@code

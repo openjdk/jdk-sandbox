@@ -80,30 +80,7 @@ import sun.util.ResourceBundleEnumeration;
  * keys are entirely up to your choice, so long as they are the same as
  * the keys you use in your program to retrieve the objects from the bundle.
  * Keys are case-sensitive.
- * <blockquote>
- * <pre>
- * # MessageFormat pattern
- * s1=Die Platte \"{1}\" enth&auml;lt {0}.
- *
- * # location of {0} in pattern
- * s2=1
- *
- * # sample disk name
- * s3=Meine Platte
- *
- * # first ChoiceFormat choice
- * s4=keine Dateien
- *
- * # second ChoiceFormat choice
- * s5=eine Datei
- *
- * # third ChoiceFormat choice
- * s6={0,number} Dateien
- *
- * # sample date
- * s7=3. M&auml;rz 1996
- * </pre>
- * </blockquote>
+ * {@snippet file="PropertyResourceBundleSnippets.java" region="snippet1"}
  *
  * @apiNote
  * {@code PropertyResourceBundle} can be constructed either

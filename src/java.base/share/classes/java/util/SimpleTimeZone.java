@@ -109,7 +109,7 @@ import sun.util.calendar.Gregorian;
  * for an <em>end-rule</em> means the same thing as the daylight time.
  * <p>
  * The following are examples of parameters for constructing time zone objects.
- * <pre><code>
+ * {@snippet :
  *      // Base GMT offset: -8:00
  *      // DST starts:      at 2:00am in standard time
  *      //                  on the first Sunday in April
@@ -137,7 +137,7 @@ import sun.util.calendar.Gregorian;
  *                     Calendar.OCTOBER, -1, Calendar.SUNDAY,
  *                     3600000, SimpleTimeZone.UTC_TIME,
  *                     3600000)
- * </code></pre>
+ * }
  * These parameter rules are also applicable to the set rule methods, such as
  * {@code setStartRule}.
  *
@@ -171,7 +171,7 @@ public class SimpleTimeZone extends TimeZone {
      * represented in the wall clock time. The amount of daylight saving is
      * assumed to be 3600000 milliseconds (i.e., one hour). This constructor is
      * equivalent to:
-     * <pre><code>
+     * {@snippet :
      *     SimpleTimeZone(rawOffset,
      *                    ID,
      *                    startMonth,
@@ -185,7 +185,7 @@ public class SimpleTimeZone extends TimeZone {
      *                    endTime,
      *                    SimpleTimeZone.{@link #WALL_TIME},
      *                    3600000)
-     * </code></pre>
+     * }
      *
      * @param rawOffset       The given base time zone offset from GMT.
      * @param ID              The time zone ID which is given to this object.
@@ -228,7 +228,7 @@ public class SimpleTimeZone extends TimeZone {
      * time.
      * Both {@code startTime} and {@code endTime} are assumed to be
      * represented in the wall clock time. This constructor is equivalent to:
-     * <pre><code>
+     * {@snippet :
      *     SimpleTimeZone(rawOffset,
      *                    ID,
      *                    startMonth,
@@ -242,7 +242,7 @@ public class SimpleTimeZone extends TimeZone {
      *                    endTime,
      *                    SimpleTimeZone.{@link #WALL_TIME},
      *                    dstSavings)
-     * </code></pre>
+     * }
      *
      * @param rawOffset       The given base time zone offset from GMT.
      * @param ID              The time zone ID which is given to this object.
@@ -369,7 +369,9 @@ public class SimpleTimeZone extends TimeZone {
      * Sets the daylight saving time start rule. For example, if daylight saving
      * time starts on the first Sunday in April at 2 am in local wall clock
      * time, you can set the start rule by calling:
-     * <pre>{@code setStartRule(Calendar.APRIL, 1, Calendar.SUNDAY, 2*60*60*1000);}</pre>
+     * {@snippet lang=java : 
+     *  setStartRule(Calendar.APRIL, 1, Calendar.SUNDAY, 2*60*60*1000);
+     * }
      *
      * @param startMonth      The daylight saving time starting month. Month is
      *                        a {@link Calendar#MONTH MONTH} field
@@ -397,7 +399,9 @@ public class SimpleTimeZone extends TimeZone {
     /**
      * Sets the daylight saving time start rule to a fixed date within a month.
      * This method is equivalent to:
-     * <pre>{@code setStartRule(startMonth, startDay, 0, startTime)}</pre>
+     * {@snippet : 
+     *  setStartRule(startMonth, startDay, 0, startTime)
+     * }
      *
      * @param startMonth      The daylight saving time starting month. Month is
      *                        a {@link Calendar#MONTH MONTH} field
@@ -478,7 +482,9 @@ public class SimpleTimeZone extends TimeZone {
     /**
      * Sets the daylight saving time end rule to a fixed date within a month.
      * This method is equivalent to:
-     * <pre>{@code setEndRule(endMonth, endDay, 0, endTime)}</pre>
+     * {@snippet : 
+     *  setEndRule(endMonth, endDay, 0, endTime)
+     * }
      *
      * @param endMonth        The daylight saving time ending month. Month is
      *                        a {@link Calendar#MONTH MONTH} field
@@ -1346,14 +1352,14 @@ public class SimpleTimeZone extends TimeZone {
      * expected to be in encoded form, which represents the various rule modes
      * by negating or zeroing certain values.  Representation formats are:
      * <p>
-     * <pre>
-     *            DOW_IN_MONTH  DOM    DOW>=DOM  DOW<=DOM  no DST
-     *            ------------  -----  --------  --------  ----------
-     * month       0..11        same    same      same     don't care
-     * day        -5..5         1..31   1..31    -1..-31   0
-     * dayOfWeek   1..7         0      -1..-7    -1..-7    don't care
-     * time        0..ONEDAY    same    same      same     don't care
-     * </pre>
+     * {@snippet : 
+     *              DOW_IN_MONTH  DOM    DOW>=DOM  DOW=DOM  no DST
+     *              ------------  -----  --------  --------  ----------
+     *   month       0..11        same    same      same     don't care
+     *   day        -5..5         1..31   1..31    -1..-31   0
+     *   dayOfWeek   1..7         0      -1..-7    -1..-7    don't care
+     *   time        0..ONEDAY    same    same      same     don't care
+     * }
      * The range for month does not include UNDECIMBER since this class is
      * really specific to GregorianCalendar, which does not use that month.
      * The range for time includes ONEDAY (vs. ending at ONEDAY-1) because the

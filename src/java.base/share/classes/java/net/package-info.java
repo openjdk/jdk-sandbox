@@ -130,11 +130,11 @@
  *    {@link java.net.URLConnection} for fine control, or get directly the
  *    InputStream.
  * <p>Here is an example:</p>
- * <pre>
- * URI uri = new URI("http://www.example.com/");
- * URL url = uri.toURL();
- * InputStream in = url.openStream();
- * </pre>
+ * {@snippet lang=java : 
+ *   URI uri = new URI("http://www.example.com/");
+ *   URL url = uri.toURL();
+ *   InputStream in = url.openStream();
+ * }
  * <h2>Protocol Handlers</h2>
  * As mentioned, URL and URLConnection rely on protocol handlers which must be
  * present, otherwise an Exception is thrown. This is the major difference with

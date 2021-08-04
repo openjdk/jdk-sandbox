@@ -46,10 +46,10 @@ import sun.nio.cs.StreamEncoder;
  * <p> For top efficiency, consider wrapping an OutputStreamWriter within a
  * BufferedWriter so as to avoid frequent converter invocations.  For example:
  *
- * <pre>
- * Writer out
- *   = new BufferedWriter(new OutputStreamWriter(System.out));
- * </pre>
+ * {@snippet lang=java : 
+ *   Writer out
+ *     = new BufferedWriter(new OutputStreamWriter(System.out));
+ * }
  *
  * <p> A <i>surrogate pair</i> is a character represented by a sequence of two
  * {@code char} values: A <i>high</i> surrogate in the range '&#92;uD800' to

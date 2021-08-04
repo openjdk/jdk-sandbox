@@ -174,11 +174,11 @@ import sun.security.util.SecurityConstants;
  * <p> For example, an application could create a network class loader to
  * download class files from a server.  Sample code might look like:
  *
- * <blockquote><pre>
- *   ClassLoader loader&nbsp;= new NetworkClassLoader(host,&nbsp;port);
- *   Object main&nbsp;= loader.loadClass("Main", true).newInstance();
- *       &nbsp;.&nbsp;.&nbsp;.
- * </pre></blockquote>
+ * {@snippet : 
+ *     ClassLoader loader&nbsp;= new NetworkClassLoader(host,&nbsp;port);
+ *     Object main&nbsp;= loader.loadClass("Main", true).newInstance();
+ *     ...
+ * }
  *
  * <p> The network class loader subclass must define the methods {@link
  * #findClass findClass} and {@code loadClassData} to load a class
@@ -186,22 +186,7 @@ import sun.security.util.SecurityConstants;
  * it should use the method {@link #defineClass defineClass} to
  * create a class instance.  A sample implementation is:
  *
- * <blockquote><pre>
- *     class NetworkClassLoader extends ClassLoader {
- *         String host;
- *         int port;
- *
- *         public Class findClass(String name) {
- *             byte[] b = loadClassData(name);
- *             return defineClass(name, b, 0, b.length);
- *         }
- *
- *         private byte[] loadClassData(String name) {
- *             // load the class data from the connection
- *             &nbsp;.&nbsp;.&nbsp;.
- *         }
- *     }
- * </pre></blockquote>
+ * {@snippet file="ClassLoaderSnippets.java" region="snippet2"}
  *
  * <h3> <a id="binary-name">Binary names</a> </h3>
  *
@@ -210,12 +195,12 @@ import sun.security.util.SecurityConstants;
  * <cite>The Java Language Specification</cite>.
  *
  * <p> Examples of valid class names include:
- * <blockquote><pre>
- *   "java.lang.String"
- *   "javax.swing.JSpinner$DefaultEditor"
- *   "java.security.KeyStore$Builder$FileBuilder$1"
- *   "java.net.URLClassLoader$3$1"
- * </pre></blockquote>
+ * {@snippet : 
+ *     "java.lang.String"
+ *     "javax.swing.JSpinner$DefaultEditor"
+ *     "java.security.KeyStore$Builder$FileBuilder$1"
+ *     "java.net.URLClassLoader$3$1"
+ * }
  *
  * <p> Any package name provided as a {@code String} parameter to methods in
  * {@code ClassLoader} must be either the empty string (denoting an unnamed package)

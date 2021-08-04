@@ -180,22 +180,7 @@ public final class Files {
      * regular-file} to a size of {@code 0} if it exists.
      *
      * <p> <b>Usage Examples:</b>
-     * <pre>
-     *     Path path = ...
-     *
-     *     // truncate and overwrite an existing file, or create the file if
-     *     // it doesn't initially exist
-     *     OutputStream out = Files.newOutputStream(path);
-     *
-     *     // append to an existing file, fail if the file does not exist
-     *     out = Files.newOutputStream(path, APPEND);
-     *
-     *     // append to an existing file, create file if it doesn't initially exist
-     *     out = Files.newOutputStream(path, CREATE, APPEND);
-     *
-     *     // always create new file, failing if it already exists
-     *     out = Files.newOutputStream(path, CREATE_NEW);
-     * </pre>
+     * {@snippet file="FilesSnippets.java" region="snippet1"}
      *
      * @param   path
      *          the path to the file to open or create
@@ -321,21 +306,7 @@ public final class Files {
      * is a {@link java.nio.channels.FileChannel}.
      *
      * <p> <b>Usage Examples:</b>
-     * <pre>{@code
-     *     Path path = ...
-     *
-     *     // open file for reading
-     *     ReadableByteChannel rbc = Files.newByteChannel(path, EnumSet.of(READ)));
-     *
-     *     // open file for writing to the end of an existing file, creating
-     *     // the file if it doesn't already exist
-     *     WritableByteChannel wbc = Files.newByteChannel(path, EnumSet.of(CREATE,APPEND));
-     *
-     *     // create file with initial permissions, opening it for both reading and writing
-     *     FileAttribute<Set<PosixFilePermission>> perms = ...
-     *     SeekableByteChannel sbc =
-     *         Files.newByteChannel(path, EnumSet.of(CREATE_NEW,READ,WRITE), perms);
-     * }</pre>
+     * {@snippet file="FilesSnippets.java" region="snippet2"}
      *
      * @param   path
      *          the path to the file to open or create
@@ -494,12 +465,12 @@ public final class Files {
      *
      * <p> For example, suppose we want to iterate over the files ending with
      * ".java" in a directory:
-     * <pre>
-     *     Path dir = ...
-     *     try (DirectoryStream&lt;Path&gt; stream = Files.newDirectoryStream(dir, "*.java")) {
-     *         :
-     *     }
-     * </pre>
+     * {@snippet : 
+     *       Path dir = ...
+     *       try (DirectoryStream&lt;Path&gt; stream = Files.newDirectoryStream(dir, "*.java")) {
+     *           :
+     *       }
+     * }
      *
      * <p> The globbing pattern is specified by the {@link
      * FileSystem#getPathMatcher getPathMatcher} method.
@@ -578,17 +549,17 @@ public final class Files {
      * <p> <b>Usage Example:</b>
      * Suppose we want to iterate over the files in a directory that are
      * larger than 8K.
-     * <pre>
-     *     DirectoryStream.Filter&lt;Path&gt; filter = new DirectoryStream.Filter&lt;Path&gt;() {
-     *         public boolean accept(Path file) throws IOException {
-     *             return (Files.size(file) &gt; 8192L);
-     *         }
-     *     };
-     *     Path dir = ...
-     *     try (DirectoryStream&lt;Path&gt; stream = Files.newDirectoryStream(dir, filter)) {
-     *         :
-     *     }
-     * </pre>
+     * {@snippet : 
+     *       DirectoryStream.Filter&lt;Path&gt; filter = new DirectoryStream.Filter&lt;Path&gt;() {
+     *           public boolean accept(Path file) throws IOException {
+     *               return (Files.size(file) &gt; 8192L);
+     *           }
+     *       };
+     *       Path dir = ...
+     *       try (DirectoryStream&lt;Path&gt; stream = Files.newDirectoryStream(dir, filter)) {
+     *           :
+     *       }
+     * }
      *
      * @param   dir
      *          the path to the directory
@@ -1259,11 +1230,11 @@ public final class Files {
      * <p> <b>Usage Example:</b>
      * Suppose we want to copy a file into a directory, giving it the same file
      * name as the source file:
-     * <pre>
-     *     Path source = ...
-     *     Path newdir = ...
-     *     Files.copy(source, newdir.resolve(source.getFileName());
-     * </pre>
+     * {@snippet : 
+     *       Path source = ...
+     *       Path newdir = ...
+     *       Files.copy(source, newdir.resolve(source.getFileName());
+     * }
      *
      * @param   source
      *          the path to the file to copy
@@ -1378,18 +1349,18 @@ public final class Files {
      * <p> <b>Usage Examples:</b>
      * Suppose we want to rename a file to "newname", keeping the file in the
      * same directory:
-     * <pre>
-     *     Path source = ...
-     *     Files.move(source, source.resolveSibling("newname"));
-     * </pre>
+     * {@snippet : 
+     *       Path source = ...
+     *       Files.move(source, source.resolveSibling("newname"));
+     * }
      * Alternatively, suppose we want to move a file to new directory, keeping
      * the same file name, and replacing any existing file of that name in the
      * directory:
-     * <pre>
-     *     Path source = ...
-     *     Path newdir = ...
-     *     Files.move(source, newdir.resolve(source.getFileName()), REPLACE_EXISTING);
-     * </pre>
+     * {@snippet : 
+     *       Path source = ...
+     *       Path newdir = ...
+     *       Files.move(source, newdir.resolve(source.getFileName()), REPLACE_EXISTING);
+     * }
      *
      * @param   source
      *          the path to the file to move
@@ -1760,14 +1731,14 @@ public final class Files {
      *
      * <p> <b>Usage Example:</b>
      * Suppose we want read or set a file's ACL, if supported:
-     * <pre>
-     *     Path path = ...
-     *     AclFileAttributeView view = Files.getFileAttributeView(path, AclFileAttributeView.class);
-     *     if (view != null) {
-     *         List&lt;AclEntry&gt; acl = view.getAcl();
-     *         :
-     *     }
-     * </pre>
+     * {@snippet : 
+     *       Path path = ...
+     *       AclFileAttributeView view = Files.getFileAttributeView(path, AclFileAttributeView.class);
+     *       if (view != null) {
+     *           List<AclEntry> acl = view.getAcl();
+     *           :
+     *       }
+     * }
      *
      * @param   <V>
      *          The {@code FileAttributeView} type
@@ -1809,16 +1780,16 @@ public final class Files {
      *
      * <p> <b>Usage Example:</b>
      * Suppose we want to read a file's attributes in bulk:
-     * <pre>
-     *    Path path = ...
-     *    BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
-     * </pre>
+     * {@snippet : 
+     *      Path path = ...
+     *      BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
+     * }
      * Alternatively, suppose we want to read file's POSIX attributes without
      * following symbolic links:
-     * <pre>
-     *    PosixFileAttributes attrs =
-     *        Files.readAttributes(path, PosixFileAttributes.class, NOFOLLOW_LINKS);
-     * </pre>
+     * {@snippet lang=java : 
+     *      PosixFileAttributes attrs =
+     *          Files.readAttributes(path, PosixFileAttributes.class, NOFOLLOW_LINKS);
+     * }
      *
      * @param   <A>
      *          The {@code BasicFileAttributes} type
@@ -1877,10 +1848,10 @@ public final class Files {
      *
      * <p> <b>Usage Example:</b>
      * Suppose we want to set the DOS "hidden" attribute:
-     * <pre>
-     *    Path path = ...
-     *    Files.setAttribute(path, "dos:hidden", true);
-     * </pre>
+     * {@snippet : 
+     *      Path path = ...
+     *      Files.setAttribute(path, "dos:hidden", true);
+     * }
      *
      * @param   path
      *          the path to the file
@@ -1946,10 +1917,10 @@ public final class Files {
      * <p> <b>Usage Example:</b>
      * Suppose we require the user ID of the file owner on a system that
      * supports a "{@code unix}" view:
-     * <pre>
-     *    Path path = ...
-     *    int uid = (Integer)Files.getAttribute(path, "unix:uid");
-     * </pre>
+     * {@snippet : 
+     *      Path path = ...
+     *      int uid = (Integer)Files.getAttribute(path, "unix:uid");
+     * }
      *
      * @param   path
      *          the path to the file
@@ -2211,13 +2182,13 @@ public final class Files {
      *
      * <p> <b>Usage Example:</b>
      * Suppose we want to make "joe" the owner of a file:
-     * <pre>
-     *     Path path = ...
-     *     UserPrincipalLookupService lookupService =
-     *         provider(path).getUserPrincipalLookupService();
-     *     UserPrincipal joe = lookupService.lookupPrincipalByName("joe");
-     *     Files.setOwner(path, joe);
-     * </pre>
+     * {@snippet : 
+     *       Path path = ...
+     *       UserPrincipalLookupService lookupService =
+     *           provider(path).getUserPrincipalLookupService();
+     *       UserPrincipal joe = lookupService.lookupPrincipalByName("joe");
+     *       Files.setOwner(path, joe);
+     * }
      *
      * @param   path
      *          The path to the file
@@ -2413,11 +2384,11 @@ public final class Files {
      *
      * <p> <b>Usage Example:</b>
      * Suppose we want to set the last modified time to the current time:
-     * <pre>
-     *    Path path = ...
-     *    FileTime now = FileTime.fromMillis(System.currentTimeMillis());
-     *    Files.setLastModifiedTime(path, now);
-     * </pre>
+     * {@snippet : 
+     *      Path path = ...
+     *      FileTime now = FileTime.fromMillis(System.currentTimeMillis());
+     *      Files.setLastModifiedTime(path, now);
+     * }
      *
      * @param   path
      *          the path to the file
@@ -3084,13 +3055,13 @@ public final class Files {
      *
      * <p> <b>Usage example</b>: Suppose we want to capture a web page and save
      * it to a file:
-     * <pre>
-     *     Path path = ...
-     *     URI u = URI.create("http://www.example.com/");
-     *     try (InputStream in = u.toURL().openStream()) {
-     *         Files.copy(in, path);
-     *     }
-     * </pre>
+     * {@snippet : 
+     *       Path path = ...
+     *       URI u = URI.create("http://www.example.com/");
+     *       try (InputStream in = u.toURL().openStream()) {
+     *           Files.copy(in, path);
+     *       }
+     * }
      *
      * @param   in
      *          the input stream to read from
@@ -3470,11 +3441,11 @@ public final class Files {
      * <p> <b>Usage example</b>: By default the method creates a new file or
      * overwrites an existing file. Suppose you instead want to append bytes
      * to an existing file:
-     * <pre>
-     *     Path path = ...
-     *     byte[] bytes = ...
-     *     Files.write(path, bytes, StandardOpenOption.APPEND);
-     * </pre>
+     * {@snippet : 
+     *       Path path = ...
+     *       byte[] bytes = ...
+     *       Files.write(path, bytes, StandardOpenOption.APPEND);
+     * }
      *
      * @param   path
      *          the path to the file

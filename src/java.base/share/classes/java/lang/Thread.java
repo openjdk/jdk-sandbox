@@ -79,25 +79,25 @@ import sun.security.util.SecurityConstants;
  * {@code Thread}. An instance of the subclass can then be
  * allocated and started. For example, a thread that computes primes
  * larger than a stated value could be written as follows:
- * <hr><blockquote><pre>
- *     class PrimeThread extends Thread {
- *         long minPrime;
- *         PrimeThread(long minPrime) {
- *             this.minPrime = minPrime;
- *         }
- *
- *         public void run() {
- *             // compute primes larger than minPrime
- *             &nbsp;.&nbsp;.&nbsp;.
- *         }
- *     }
- * </pre></blockquote><hr>
+ * <hr>{@snippet : 
+ *       class PrimeThread extends Thread {
+ *           long minPrime;
+ *           PrimeThread(long minPrime) {
+ *               this.minPrime = minPrime;
+ *           }
+ *  
+ *           public void run() {
+ *               // compute primes larger than minPrime
+ *               &nbsp;.&nbsp;.&nbsp;.
+ *           }
+ *       }
+ * }<hr>
  * <p>
  * The following code would then create a thread and start it running:
- * <blockquote><pre>
- *     PrimeThread p = new PrimeThread(143);
- *     p.start();
- * </pre></blockquote>
+ * {@snippet lang=java : 
+ *       PrimeThread p = new PrimeThread(143);
+ *       p.start();
+ * }
  * <p>
  * The other way to create a thread is to declare a class that
  * implements the {@code Runnable} interface. That class then
@@ -105,25 +105,25 @@ import sun.security.util.SecurityConstants;
  * then be allocated, passed as an argument when creating
  * {@code Thread}, and started. The same example in this other
  * style looks like the following:
- * <hr><blockquote><pre>
- *     class PrimeRun implements Runnable {
- *         long minPrime;
- *         PrimeRun(long minPrime) {
- *             this.minPrime = minPrime;
- *         }
- *
- *         public void run() {
- *             // compute primes larger than minPrime
- *             &nbsp;.&nbsp;.&nbsp;.
- *         }
- *     }
- * </pre></blockquote><hr>
+ * <hr>{@snippet : 
+ *       class PrimeRun implements Runnable {
+ *           long minPrime;
+ *           PrimeRun(long minPrime) {
+ *               this.minPrime = minPrime;
+ *           }
+ *  
+ *           public void run() {
+ *               // compute primes larger than minPrime
+ *               &nbsp;.&nbsp;.&nbsp;.
+ *           }
+ *       }
+ * }<hr>
  * <p>
  * The following code would then create a thread and start it running:
- * <blockquote><pre>
- *     PrimeRun p = new PrimeRun(143);
- *     new Thread(p).start();
- * </pre></blockquote>
+ * {@snippet lang=java : 
+ *       PrimeRun p = new PrimeRun(143);
+ *       new Thread(p).start();
+ * }
  * <p>
  * Every thread has a name for identification purposes. More than
  * one thread may have the same name. If a name is not specified when
@@ -349,22 +349,7 @@ public class Thread implements Runnable {
      * As an example consider a method in a class that spins in a loop until
      * some flag is set outside of that method. A call to the {@code onSpinWait}
      * method should be placed inside the spin loop.
-     * <pre>{@code
-     *     class EventHandler {
-     *         volatile boolean eventNotificationNotReceived;
-     *         void waitForEventAndHandleIt() {
-     *             while ( eventNotificationNotReceived ) {
-     *                 java.lang.Thread.onSpinWait();
-     *             }
-     *             readAndProcessEvent();
-     *         }
-     *
-     *         void readAndProcessEvent() {
-     *             // Read event from some source and process it
-     *              . . .
-     *         }
-     *     }
-     * }</pre>
+     * {@snippet file="ThreadSnippets.java" region="snippet5"}
      * <p>
      * The code above would remain correct even if the {@code onSpinWait}
      * method was not called at all. However on some architectures the Java
@@ -1533,9 +1518,9 @@ public class Thread implements Runnable {
      *
      * <p>This method is designed to allow a program to assert that
      * the current thread already holds a specified lock:
-     * <pre>
-     *     assert Thread.holdsLock(obj);
-     * </pre>
+     * {@snippet lang=java : 
+     *       assert Thread.holdsLock(obj);
+     * }
      *
      * @param  obj the object on which to test lock ownership
      * @throws NullPointerException if obj is {@code null}

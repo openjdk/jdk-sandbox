@@ -43,27 +43,7 @@ import java.util.function.Supplier;
  * thread.
  * A thread's id is assigned the first time it invokes {@code ThreadId.get()}
  * and remains unchanged on subsequent calls.
- * <pre>
- * import java.util.concurrent.atomic.AtomicInteger;
- *
- * public class ThreadId {
- *     // Atomic integer containing the next thread ID to be assigned
- *     private static final AtomicInteger nextId = new AtomicInteger(0);
- *
- *     // Thread local variable containing each thread's ID
- *     private static final ThreadLocal&lt;Integer&gt; threadId =
- *         new ThreadLocal&lt;Integer&gt;() {
- *             &#64;Override protected Integer initialValue() {
- *                 return nextId.getAndIncrement();
- *         }
- *     };
- *
- *     // Returns the current thread's unique ID, assigning it if necessary
- *     public static int get() {
- *         return threadId.get();
- *     }
- * }
- * </pre>
+ * {@snippet file="ThreadLocalSnippets.java" region="snippet1"}
  * <p>Each thread holds an implicit reference to its copy of a thread-local
  * variable as long as the thread is alive and the {@code ThreadLocal}
  * instance is accessible; after a thread goes away, all of its copies of

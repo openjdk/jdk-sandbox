@@ -78,8 +78,9 @@ public interface Appendable {
      * when {@code csq} is not {@code null}, behaves in
      * exactly the same way as the invocation
      *
-     * <pre>
-     *     out.append(csq.subSequence(start, end)) </pre>
+     * {@snippet : 
+     *       out.append(csq.subSequence(start, end))
+     * }
      *
      * @param  csq
      *         The character sequence from which a subsequence will be

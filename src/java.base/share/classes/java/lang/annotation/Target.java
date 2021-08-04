@@ -42,33 +42,34 @@ package java.lang.annotation;
  * <p>For example, this {@code @Target} meta-annotation indicates that the
  * declared interface is itself a meta-annotation interface.  It can only be
  * used on annotation interface declarations:
- * <pre>
- *    &#064;Target(ElementType.ANNOTATION_TYPE)
- *    public &#064;interface MetaAnnotationType {
- *        ...
- *    }
- * </pre>
+ * {@snippet : 
+ *      @Target(ElementType.ANNOTATION_TYPE)
+ *      public @interface MetaAnnotationType {
+ *          ...
+ *      }
+ * }
  *
  * <p>This {@code @Target} meta-annotation indicates that the declared class or
  * interface is intended solely for use as a member class or interface in
  * complex annotation interface declarations.  It cannot be used to annotate
  * anything directly:
- * <pre>
- *    &#064;Target({})
- *    public &#064;interface MemberInterface {
- *        ...
- *    }
- * </pre>
+ * {@snippet : 
+ *      @Target({})
+ *      public @interface MemberInterface {
+ *          ...
+ *      }
+ * }
  *
  * <p>It is a compile-time error for a single {@code ElementType} constant to
  * appear more than once in an {@code @Target} annotation.  For example, the
  * following {@code @Target} meta-annotation is illegal:
- * <pre>
- *    &#064;Target({ElementType.FIELD, ElementType.METHOD, ElementType.FIELD})
- *    public &#064;interface Bogus {
- *        ...
- *    }
- * </pre>
+ * {@snippet : 
+ *      @Target({ElementType.FIELD, ElementType.METHOD, ElementType.FIELD})
+ *      public @interface Bogus {
+ *          ...
+ *      }
+ *   
+ * }
  *
  * @since 1.5
  * @jls 9.6.4.1 @Target

@@ -350,10 +350,11 @@ public interface Collection<E> extends Iterable<E> {
      * The following code can be used to dump the collection into a previously
      * allocated {@code String} array:
      *
-     * <pre>
-     *     String[] y = new String[SIZE];
-     *     ...
-     *     y = x.toArray(y);</pre>
+     * {@snippet : 
+     *       String[] y = new String[SIZE];
+     *       ...
+     *       y = x.toArray(y);
+     * }
      *
      * <p>The return value is reassigned to the variable {@code y}, because a
      * new array will be allocated and returned if the collection {@code x} has
@@ -392,8 +393,9 @@ public interface Collection<E> extends Iterable<E> {
      * The following code can be used to dump the collection into a newly
      * allocated array of {@code String}:
      *
-     * <pre>
-     *     String[] y = x.toArray(String[]::new);</pre>
+     * {@snippet lang=java : 
+     *       String[] y = x.toArray(String[]::new);
+     * }
      *
      * @implSpec
      * The default implementation calls the generator function with zero
@@ -688,9 +690,9 @@ public interface Collection<E> extends Iterable<E> {
      * and should override the {@link #stream()} and {@link #parallelStream()}
      * methods to create streams using a {@code Supplier} of the spliterator,
      * as in:
-     * <pre>{@code
-     *     Stream<E> s = StreamSupport.stream(() -> spliterator(), spliteratorCharacteristics)
-     * }</pre>
+     * {@snippet : 
+     *       Stream<E> s = StreamSupport.stream(() -> spliterator(), spliteratorCharacteristics)
+     * }
      * <p>These requirements ensure that streams produced by the
      * {@link #stream()} and {@link #parallelStream()} methods will reflect the
      * contents of the collection as of initiation of the terminal stream

@@ -500,9 +500,9 @@ public final class Byte extends Number implements Comparable<Byte>, Constable {
     /**
      * Compares two {@code byte} values numerically.
      * The value returned is identical to what would be returned by:
-     * <pre>
-     *    Byte.valueOf(x).compareTo(Byte.valueOf(y))
-     * </pre>
+     * {@snippet : 
+     *      Byte.valueOf(x).compareTo(Byte.valueOf(y))
+     * }
      *
      * @param  x the first {@code byte} to compare
      * @param  y the second {@code byte} to compare

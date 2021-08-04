@@ -38,10 +38,11 @@ import sun.util.logging.PlatformLogger;
  *
  * @apiNote
  * Typical usage would be for boxing code to do:
- * <pre>{@code
- *     if (Tripwire.ENABLED)
- *         Tripwire.trip(getClass(), "{0} calling Sink.OfInt.accept(Integer)");
- * }</pre>
+ * {@snippet lang=java : 
+ *       if (Tripwire.ENABLED)
+ *           Tripwire.trip(getClass(), "{0} calling Sink.OfInt.accept(Integer)");
+ *   
+ * }
  *
  * @since 1.8
  */

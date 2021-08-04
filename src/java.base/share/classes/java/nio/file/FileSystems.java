@@ -255,10 +255,10 @@ public final class FileSystems {
      * <p> <b>Usage Example:</b>
      * Suppose there is a provider identified by the scheme {@code "memory"}
      * installed:
-     * <pre>
-     *  FileSystem fs = FileSystems.newFileSystem(URI.create("memory:///?name=logfs"),
-     *                                            Map.of("capacity", "16G", "blockSize", "4k"));
-     * </pre>
+     * {@snippet lang=java : 
+     *    FileSystem fs = FileSystems.newFileSystem(URI.create("memory:///?name=logfs"),
+     *                                              Map.of("capacity", "16G", "blockSize", "4k"));
+     * }
      *
      * @param   uri
      *          the URI identifying the file system

@@ -66,8 +66,10 @@ import java.util.function.Function;
  * If no such object exists, the map should be "wrapped" using the
  * {@link Collections#synchronizedSortedMap Collections.synchronizedSortedMap}
  * method.  This is best done at creation time, to prevent accidental
- * unsynchronized access to the map: <pre>
- *   SortedMap m = Collections.synchronizedSortedMap(new TreeMap(...));</pre>
+ * unsynchronized access to the map:
+ * {@snippet :
+ *     SortedMap m = Collections.synchronizedSortedMap(new TreeMap(...));
+ * }
  *
  * <p>The iterators returned by the {@code iterator} method of the collections
  * returned by all of this class's "collection view methods" are

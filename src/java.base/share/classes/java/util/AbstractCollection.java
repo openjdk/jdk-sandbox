@@ -129,12 +129,12 @@ public abstract class AbstractCollection<E> implements Collection<E> {
      *
      * <p>This method is equivalent to:
      *
-     *  <pre> {@code
+     * {@snippet :
      * List<E> list = new ArrayList<E>(size());
      * for (E e : this)
      *     list.add(e);
      * return list.toArray();
-     * }</pre>
+     * }
      */
     public Object[] toArray() {
         // Estimate size of array; be prepared to see more or fewer elements
@@ -166,12 +166,12 @@ public abstract class AbstractCollection<E> implements Collection<E> {
      *
      * <p>This method is equivalent to:
      *
-     *  <pre> {@code
+     * {@snippet :
      * List<E> list = new ArrayList<E>(size());
      * for (E e : this)
      *     list.add(e);
      * return list.toArray(a);
-     * }</pre>
+     * }
      *
      * @throws ArrayStoreException  {@inheritDoc}
      * @throws NullPointerException {@inheritDoc}

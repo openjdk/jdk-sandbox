@@ -75,23 +75,7 @@ import java.io.IOException;
  * Additional (implementation specific) options may also be supported.
  *
  * <p> <b>Usage Example:</b>
- * <pre>
- *  final AsynchronousServerSocketChannel listener =
- *      AsynchronousServerSocketChannel.open().bind(new InetSocketAddress(5000));
- *
- *  listener.accept(null, new CompletionHandler&lt;AsynchronousSocketChannel,Void&gt;() {
- *      public void completed(AsynchronousSocketChannel ch, Void att) {
- *          // accept the next connection
- *          listener.accept(null, this);
- *
- *          // handle this connection
- *          handle(ch);
- *      }
- *      public void failed(Throwable exc, Void att) {
- *          ...
- *      }
- *  });
- * </pre>
+ * {@snippet file="AsynchronousServerSocketChannelSnippets.java" region="snippet1"}
  *
  * @since 1.7
  */
@@ -156,9 +140,9 @@ public abstract class AsynchronousServerSocketChannel
      * <p> This method returns an asynchronous server socket channel that is
      * bound to the <em>default group</em>. This method is equivalent to evaluating
      * the expression:
-     * <blockquote><pre>
-     * open((AsynchronousChannelGroup)null);
-     * </pre></blockquote>
+     * {@snippet lang=java : 
+     *   open((AsynchronousChannelGroup)null);
+     * }
      *
      * @return  A new asynchronous server socket channel
      *
@@ -176,9 +160,9 @@ public abstract class AsynchronousServerSocketChannel
      * listen for connections.
      *
      * <p> An invocation of this method is equivalent to the following:
-     * <blockquote><pre>
-     * bind(local, 0);
-     * </pre></blockquote>
+     * {@snippet lang=java : 
+     *   bind(local, 0);
+     * }
      *
      * @param   local
      *          The local address to bind the socket, or {@code null} to bind

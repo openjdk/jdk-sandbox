@@ -122,9 +122,9 @@ public final class MemoryAccess {
      * Reads a char from given segment and offset, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    getCharAtOffset(segment, offset, ByteOrder.nativeOrder());
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      getCharAtOffset(segment, offset, ByteOrder.nativeOrder());
+     * }
      * @param segment the segment to be dereferenced.
      * @param offset offset in bytes (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(offset)}.
      * @return a char value read from {@code segment}.
@@ -138,9 +138,9 @@ public final class MemoryAccess {
      * Writes a char at given segment and offset, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setCharAtOffset(segment, offset, ByteOrder.nativeOrder(), value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setCharAtOffset(segment, offset, ByteOrder.nativeOrder(), value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param offset offset in bytes (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(offset)}.
      * @param value the char value to be written.
@@ -154,9 +154,9 @@ public final class MemoryAccess {
      * Reads a short from given segment and offset, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    getShortAtOffset(segment, offset, ByteOrder.nativeOrder());
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      getShortAtOffset(segment, offset, ByteOrder.nativeOrder());
+     * }
      * @param segment the segment to be dereferenced.
      * @param offset offset in bytes (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(offset)}.
      * @return a short value read from {@code segment}.
@@ -170,9 +170,9 @@ public final class MemoryAccess {
      * Writes a short at given segment and offset, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setShortAtOffset(segment, offset, ByteOrder.nativeOrder(), value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setShortAtOffset(segment, offset, ByteOrder.nativeOrder(), value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param offset offset in bytes (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(offset)}.
      * @param value the short value to be written.
@@ -186,9 +186,9 @@ public final class MemoryAccess {
      * Reads an int from given segment and offset, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    getIntAtOffset(segment, offset, ByteOrder.nativeOrder());
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      getIntAtOffset(segment, offset, ByteOrder.nativeOrder());
+     * }
      * @param segment the segment to be dereferenced.
      * @param offset offset in bytes (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(offset)}.
      * @return an int value read from {@code segment}.
@@ -202,9 +202,9 @@ public final class MemoryAccess {
      * Writes an int at given segment and offset, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setIntAtOffset(segment, offset, ByteOrder.nativeOrder(), value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setIntAtOffset(segment, offset, ByteOrder.nativeOrder(), value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param offset offset in bytes (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(offset)}.
      * @param value the int value to be written.
@@ -218,9 +218,9 @@ public final class MemoryAccess {
      * Reads a float from given segment and offset, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    getFloatAtOffset(segment, offset, ByteOrder.nativeOrder());
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      getFloatAtOffset(segment, offset, ByteOrder.nativeOrder());
+     * }
      * @param segment the segment to be dereferenced.
      * @param offset offset in bytes (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(offset)}.
      * @return a float value read from {@code segment}.
@@ -234,9 +234,9 @@ public final class MemoryAccess {
      * Writes a float at given segment and offset, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setFloatAtOffset(segment, offset, ByteOrder.nativeOrder(), value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setFloatAtOffset(segment, offset, ByteOrder.nativeOrder(), value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param offset offset in bytes (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(offset)}.
      * @param value the float value to be written.
@@ -250,9 +250,9 @@ public final class MemoryAccess {
      * Reads a long from given segment and offset, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    getLongAtOffset(segment, offset, ByteOrder.nativeOrder());
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      getLongAtOffset(segment, offset, ByteOrder.nativeOrder());
+     * }
      * @param segment the segment to be dereferenced.
      * @param offset offset in bytes (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(offset)}.
      * @return a long value read from {@code segment}.
@@ -266,9 +266,9 @@ public final class MemoryAccess {
      * Writes a long at given segment and offset, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setLongAtOffset(segment, offset, ByteOrder.nativeOrder(), value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setLongAtOffset(segment, offset, ByteOrder.nativeOrder(), value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param offset offset in bytes (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(offset)}.
      * @param value the long value to be written.
@@ -282,9 +282,9 @@ public final class MemoryAccess {
      * Reads a double from given segment and offset, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    getDoubleAtOffset(segment, offset, ByteOrder.nativeOrder());
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      getDoubleAtOffset(segment, offset, ByteOrder.nativeOrder());
+     * }
      * @param segment the segment to be dereferenced.
      * @param offset offset in bytes (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(offset)}.
      * @return a double value read from {@code segment}.
@@ -298,9 +298,9 @@ public final class MemoryAccess {
      * Writes a double at given segment and offset, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setDoubleAtOffset(segment, offset, ByteOrder.nativeOrder(), value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setDoubleAtOffset(segment, offset, ByteOrder.nativeOrder(), value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param offset offset in bytes (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(offset)}.
      * @param value the double value to be written.
@@ -314,10 +314,10 @@ public final class MemoryAccess {
      * Reads a memory address from given segment and offset, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent (e.g. on a 64-bit platform) to the following code:
-     * <blockquote><pre>{@code
-    VarHandle handle = MemoryHandles.asAddressHandle(MemoryHandles.varHandle(long.class, ByteOrder.nativeOrder()));
-    MemoryAddress value = (MemoryAddress)handle.get(segment, offset);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      VarHandle handle = MemoryHandles.asAddressHandle(MemoryHandles.varHandle(long.class, ByteOrder.nativeOrder()));
+     *      MemoryAddress value = (MemoryAddress)handle.get(segment, offset);
+     * }
      * @param segment the segment to be dereferenced.
      * @param offset offset in bytes (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(offset)}.
      * @return a memory address read from {@code segment}.
@@ -332,10 +332,10 @@ public final class MemoryAccess {
      * Writes a memory address at given segment and offset, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent (e.g. on a 64-bit platform) to the following code:
-     * <blockquote><pre>{@code
-    VarHandle handle = MemoryHandles.asAddressHandle(MemoryHandles.varHandle(long.class, ByteOrder.nativeOrder()));
-    handle.set(segment, offset, value.address());
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      VarHandle handle = MemoryHandles.asAddressHandle(MemoryHandles.varHandle(long.class, ByteOrder.nativeOrder()));
+     *      handle.set(segment, offset, value.address());
+     * }
      * @param segment the segment to be dereferenced.
      * @param offset offset in bytes (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(offset)}.
      * @param value the memory address to be written (expressed as an {@link Addressable} instance).
@@ -351,10 +351,10 @@ public final class MemoryAccess {
      * Reads a char from given segment and offset with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    VarHandle handle = MemoryHandles.varHandle(char.class, 1, order);
-    char value = (char)handle.get(segment, offset);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      VarHandle handle = MemoryHandles.varHandle(char.class, 1, order);
+     *      char value = (char)handle.get(segment, offset);
+     * }
      * @param segment the segment to be dereferenced.
      * @param offset offset in bytes (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(offset)}.
      * @param order the specified byte order.
@@ -371,10 +371,10 @@ public final class MemoryAccess {
      * Writes a char at given segment and offset with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    VarHandle handle = MemoryHandles.varHandle(char.class, 1, order);
-    handle.set(segment, offset, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      VarHandle handle = MemoryHandles.varHandle(char.class, 1, order);
+     *      handle.set(segment, offset, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param offset offset in bytes (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(offset)}.
      * @param order the specified byte order.
@@ -391,10 +391,10 @@ public final class MemoryAccess {
      * Reads a short from given segment and offset with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    VarHandle handle = MemoryHandles.varHandle(short.class, 1, order);
-    short value = (short)handle.get(segment, offset);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      VarHandle handle = MemoryHandles.varHandle(short.class, 1, order);
+     *      short value = (short)handle.get(segment, offset);
+     * }
      * @param segment the segment to be dereferenced.
      * @param offset offset in bytes (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(offset)}.
      * @param order the specified byte order.
@@ -411,10 +411,10 @@ public final class MemoryAccess {
      * Writes a short at given segment and offset with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    VarHandle handle = MemoryHandles.varHandle(short.class, 1, order);
-    handle.set(segment, offset, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      VarHandle handle = MemoryHandles.varHandle(short.class, 1, order);
+     *      handle.set(segment, offset, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param offset offset in bytes (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(offset)}.
      * @param order the specified byte order.
@@ -431,10 +431,10 @@ public final class MemoryAccess {
      * Reads an int from given segment and offset with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    VarHandle handle = MemoryHandles.varHandle(int.class, 1, order);
-    int value = (int)handle.get(segment, offset);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      VarHandle handle = MemoryHandles.varHandle(int.class, 1, order);
+     *      int value = (int)handle.get(segment, offset);
+     * }
      * @param segment the segment to be dereferenced.
      * @param offset offset in bytes (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(offset)}.
      * @param order the specified byte order.
@@ -451,10 +451,10 @@ public final class MemoryAccess {
      * Writes an int at given segment and offset with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    VarHandle handle = MemoryHandles.varHandle(int.class, 1, order);
-    handle.set(segment, offset, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      VarHandle handle = MemoryHandles.varHandle(int.class, 1, order);
+     *      handle.set(segment, offset, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param offset offset in bytes (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(offset)}.
      * @param order the specified byte order.
@@ -471,10 +471,10 @@ public final class MemoryAccess {
      * Reads a float from given segment and offset with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    VarHandle handle = MemoryHandles.varHandle(float.class, 1, order);
-    float value = (float)handle.get(segment, offset);
-     * }</pre></blockquote>
+     * {@snippet lang=java :
+     *      VarHandle handle = MemoryHandles.varHandle(float.class, 1, order);
+     *      float value = (float)handle.get(segment, offset);
+     * }
      * @param segment the segment to be dereferenced.
      * @param offset offset in bytes (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(offset)}.
      * @param order the specified byte order.
@@ -491,10 +491,10 @@ public final class MemoryAccess {
      * Writes a float at given segment and offset with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    VarHandle handle = MemoryHandles.varHandle(float.class, 1, order);
-    handle.set(segment, offset, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      VarHandle handle = MemoryHandles.varHandle(float.class, 1, order);
+     *      handle.set(segment, offset, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param offset offset in bytes (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(offset)}.
      * @param order the specified byte order.
@@ -511,10 +511,10 @@ public final class MemoryAccess {
      * Reads a long from given segment and offset with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    VarHandle handle = MemoryHandles.varHandle(long.class, 1, order);
-    long value = (long)handle.get(segment, offset);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      VarHandle handle = MemoryHandles.varHandle(long.class, 1, order);
+     *      long value = (long)handle.get(segment, offset);
+     * }
      * @param segment the segment to be dereferenced.
      * @param offset offset in bytes (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(offset)}.
      * @param order the specified byte order.
@@ -531,10 +531,10 @@ public final class MemoryAccess {
      * Writes a long at given segment and offset with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    VarHandle handle = MemoryHandles.varHandle(long.class, 1, order);
-    handle.set(segment, offset, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      VarHandle handle = MemoryHandles.varHandle(long.class, 1, order);
+     *      handle.set(segment, offset, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param offset offset in bytes (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(offset)}.
      * @param order the specified byte order.
@@ -551,10 +551,10 @@ public final class MemoryAccess {
      * Reads a double from given segment and offset with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    VarHandle handle = MemoryHandles.varHandle(double.class, 1, order);
-    double value = (double)handle.get(segment, offset);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      VarHandle handle = MemoryHandles.varHandle(double.class, 1, order);
+     *      double value = (double)handle.get(segment, offset);
+     * }
      * @param segment the segment to be dereferenced.
      * @param offset offset in bytes (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(offset)}.
      * @param order the specified byte order.
@@ -571,10 +571,10 @@ public final class MemoryAccess {
      * Writes a double at given segment and offset with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    VarHandle handle = MemoryHandles.varHandle(double.class, 1, order);
-    handle.set(segment, offset, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      VarHandle handle = MemoryHandles.varHandle(double.class, 1, order);
+     *      handle.set(segment, offset, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param offset offset in bytes (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(offset)}.
      * @param order the specified byte order.
@@ -591,9 +591,9 @@ public final class MemoryAccess {
      * Reads a byte from given segment.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    byte value = getByteAtOffset(segment, 0L);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      byte value = getByteAtOffset(segment, 0L);
+     * }
      *
      * @param segment the segment to be dereferenced.
      * @return a byte value read from {@code segment}.
@@ -607,9 +607,9 @@ public final class MemoryAccess {
      * Writes a byte at given segment.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setByteAtOffset(segment, 0L, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setByteAtOffset(segment, 0L, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param value the byte value to be written.
      */
@@ -622,9 +622,9 @@ public final class MemoryAccess {
      * Reads a char from given segment, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    char value = getCharAtOffset(segment, 0L);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      char value = getCharAtOffset(segment, 0L);
+     * }
      * @param segment the segment to be dereferenced.
      * @return a char value read from {@code segment}.
      */
@@ -637,9 +637,9 @@ public final class MemoryAccess {
      * Writes a char at given segment, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setCharAtOffset(segment, 0L, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setCharAtOffset(segment, 0L, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param value the char value to be written.
      */
@@ -652,9 +652,9 @@ public final class MemoryAccess {
      * Reads a short from given segment, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    short value = getShortAtOffset(segment, 0L);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      short value = getShortAtOffset(segment, 0L);
+     * }
      * @param segment the segment to be dereferenced.
      * @return a short value read from {@code segment}.
      */
@@ -667,9 +667,9 @@ public final class MemoryAccess {
      * Writes a short at given segment, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setShortAtOffset(segment, 0L, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setShortAtOffset(segment, 0L, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param value the short value to be written.
      */
@@ -682,9 +682,9 @@ public final class MemoryAccess {
      * Reads an int from given segment, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    int value = getIntAtOffset(segment, 0L);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      int value = getIntAtOffset(segment, 0L);
+     * }
      * @param segment the segment to be dereferenced.
      * @return an int value read from {@code segment}.
      */
@@ -697,9 +697,9 @@ public final class MemoryAccess {
      * Writes an int at given segment, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setIntAtOffset(segment, 0L, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setIntAtOffset(segment, 0L, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param value the int value to be written.
      */
@@ -712,9 +712,9 @@ public final class MemoryAccess {
      * Reads a float from given segment, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    float value = getFloatAtOffset(segment, 0L);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      float value = getFloatAtOffset(segment, 0L);
+     * }
      * @param segment the segment to be dereferenced.
      * @return a float value read from {@code segment}.
      */
@@ -727,9 +727,9 @@ public final class MemoryAccess {
      * Writes a float at given segment, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setFloatAtOffset(segment, 0L, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setFloatAtOffset(segment, 0L, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param value the float value to be written.
      */
@@ -742,9 +742,9 @@ public final class MemoryAccess {
      * Reads a long from given segment, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    long value = getLongAtOffset(segment, 0L);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      long value = getLongAtOffset(segment, 0L);
+     * }
      * @param segment the segment to be dereferenced.
      * @return a long value read from {@code segment}.
      */
@@ -757,9 +757,9 @@ public final class MemoryAccess {
      * Writes a long at given segment, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setLongAtOffset(segment, 0L, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setLongAtOffset(segment, 0L, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param value the long value to be written.
      */
@@ -772,9 +772,9 @@ public final class MemoryAccess {
      * Reads a double from given segment, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    double value = getDoubleAtOffset(segment, 0L);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      double value = getDoubleAtOffset(segment, 0L);
+     * }
      * @param segment the segment to be dereferenced.
      * @return a double value read from {@code segment}.
      */
@@ -787,9 +787,9 @@ public final class MemoryAccess {
      * Writes a double at given segment, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setDoubleAtOffset(segment, 0L, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setDoubleAtOffset(segment, 0L, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param value the double value to be written.
      */
@@ -802,9 +802,9 @@ public final class MemoryAccess {
      * Reads a memory address from given segment, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    MemoryAddress value = getAddressAtOffset(segment, 0L);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      MemoryAddress value = getAddressAtOffset(segment, 0L);
+     * }
      * @param segment the segment to be dereferenced.
      * @return a memory address read from {@code segment}.
      */
@@ -817,9 +817,9 @@ public final class MemoryAccess {
      * Writes a memory address at given segment, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setAddressAtOffset(segment, 0L, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setAddressAtOffset(segment, 0L, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param value the memory address to be written (expressed as an {@link Addressable} instance).
      */
@@ -832,9 +832,9 @@ public final class MemoryAccess {
      * Reads a char from given segment, with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    char value = getCharAtOffset(segment, 0L, order);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      char value = getCharAtOffset(segment, 0L, order);
+     * }
      * @param segment the segment to be dereferenced.
      * @param order the specified byte order.
      * @return a char value read from {@code segment}.
@@ -848,9 +848,9 @@ public final class MemoryAccess {
      * Writes a char at given segment, with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setCharAtOffset(segment, 0L, order, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setCharAtOffset(segment, 0L, order, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param order the specified byte order.
      * @param value the char value to be written.
@@ -864,9 +864,9 @@ public final class MemoryAccess {
      * Reads a short from given segment, with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    short value = getShortAtOffset(segment, 0L, order);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      short value = getShortAtOffset(segment, 0L, order);
+     * }
      * @param segment the segment to be dereferenced.
      * @param order the specified byte order.
      * @return a short value read from {@code segment}.
@@ -880,9 +880,9 @@ public final class MemoryAccess {
      * Writes a short at given segment, with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setShortAtOffset(segment, 0L, order, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setShortAtOffset(segment, 0L, order, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param order the specified byte order.
      * @param value the short value to be written.
@@ -896,9 +896,9 @@ public final class MemoryAccess {
      * Reads an int from given segment, with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    int value = getIntAtOffset(segment, 0L, order);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      int value = getIntAtOffset(segment, 0L, order);
+     * }
      * @param segment the segment to be dereferenced.
      * @param order the specified byte order.
      * @return an int value read from {@code segment}.
@@ -912,9 +912,9 @@ public final class MemoryAccess {
      * Writes an int at given segment, with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setIntAtOffset(segment, 0L, order, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setIntAtOffset(segment, 0L, order, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param order the specified byte order.
      * @param value the int value to be written.
@@ -928,9 +928,9 @@ public final class MemoryAccess {
      * Reads a float from given segment, with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    float value = getFloatAtOffset(segment, 0L, order);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      float value = getFloatAtOffset(segment, 0L, order);
+     * }
      * @param segment the segment to be dereferenced.
      * @param order the specified byte order.
      * @return a float value read from {@code segment}.
@@ -944,9 +944,9 @@ public final class MemoryAccess {
      * Writes a float at given segment, with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setFloatAtOffset(segment, 0L, order, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setFloatAtOffset(segment, 0L, order, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param order the specified byte order.
      * @param value the float value to be written.
@@ -960,9 +960,9 @@ public final class MemoryAccess {
      * Reads a long from given segment, with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    long value = getLongAtOffset(segment, 0L, order);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      long value = getLongAtOffset(segment, 0L, order);
+     * }
      * @param segment the segment to be dereferenced.
      * @param order the specified byte order.
      * @return a long value read from {@code segment}.
@@ -976,9 +976,9 @@ public final class MemoryAccess {
      * Writes a long at given segment, with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setLongAtOffset(segment, 0L, order, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setLongAtOffset(segment, 0L, order, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param order the specified byte order.
      * @param value the long value to be written.
@@ -992,9 +992,9 @@ public final class MemoryAccess {
      * Reads a double from given segment, with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    double value = getDoubleAtOffset(segment, 0L, order);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      double value = getDoubleAtOffset(segment, 0L, order);
+     * }
      * @param segment the segment to be dereferenced.
      * @param order the specified byte order.
      * @return a double value read from {@code segment}.
@@ -1008,9 +1008,9 @@ public final class MemoryAccess {
      * Writes a double at given segment, with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setDoubleAtOffset(segment, 0L, order, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setDoubleAtOffset(segment, 0L, order, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param order the specified byte order.
      * @param value the double value to be written.
@@ -1024,9 +1024,9 @@ public final class MemoryAccess {
      * Reads a char from given segment and element index, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    char value = getCharAtOffset(segment, 2 * index);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      char value = getCharAtOffset(segment, 2 * index);
+     * }
      * @param segment the segment to be dereferenced.
      * @param index element index (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(index * 2)}.
      * @return a char value read from {@code segment} at the element index specified by {@code index}.
@@ -1040,9 +1040,9 @@ public final class MemoryAccess {
      * Writes a char at given segment and element index, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setCharAtOffset(segment, 2 * index, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setCharAtOffset(segment, 2 * index, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param index element index (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(index * 2)}.
      * @param value the char value to be written.
@@ -1056,9 +1056,9 @@ public final class MemoryAccess {
      * Reads a short from given segment and element index, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    short value = getShortAtOffset(segment, 2 * index);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      short value = getShortAtOffset(segment, 2 * index);
+     * }
      * @param segment the segment to be dereferenced.
      * @param index element index (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(index * 2)}.
      * @return a short value read from {@code segment} at the element index specified by {@code index}.
@@ -1072,9 +1072,9 @@ public final class MemoryAccess {
      * Writes a short at given segment and element index, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setShortAtOffset(segment, 2 * index, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setShortAtOffset(segment, 2 * index, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param index element index (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(index * 2)}.
      * @param value the short value to be written.
@@ -1088,9 +1088,9 @@ public final class MemoryAccess {
      * Reads an int from given segment and element index, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    int value = getIntAtOffset(segment, 4 * index);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      int value = getIntAtOffset(segment, 4 * index);
+     * }
      * @param segment the segment to be dereferenced.
      * @param index element index (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(index * 4)}.
      * @return an int value read from {@code segment} at the element index specified by {@code index}.
@@ -1104,9 +1104,9 @@ public final class MemoryAccess {
      * Writes an int at given segment and element index, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setIntAtOffset(segment, 4 * index, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setIntAtOffset(segment, 4 * index, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param index element index (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(index * 4)}.
      * @param value the int value to be written.
@@ -1120,9 +1120,9 @@ public final class MemoryAccess {
      * Reads a float from given segment and element index, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    float value = getFloatAtOffset(segment, 4 * index);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      float value = getFloatAtOffset(segment, 4 * index);
+     * }
      * @param segment the segment to be dereferenced.
      * @param index element index (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(index * 4)}.
      * @return a float value read from {@code segment} at the element index specified by {@code index}.
@@ -1136,9 +1136,9 @@ public final class MemoryAccess {
      * Writes a float at given segment and element index, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setFloatAtOffset(segment, 4 * index, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setFloatAtOffset(segment, 4 * index, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param index element index (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(index * 4)}.
      * @param value the float value to be written.
@@ -1152,9 +1152,9 @@ public final class MemoryAccess {
      * Reads a long from given segment and element index, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    return getLongAtOffset(segment, 8 * index);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      return getLongAtOffset(segment, 8 * index);
+     * }
      * @param segment the segment to be dereferenced.
      * @param index element index (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(index * 8)}.
      * @return a long value read from {@code segment} at the element index specified by {@code index}.
@@ -1168,9 +1168,9 @@ public final class MemoryAccess {
      * Writes a long at given segment and element index, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setLongAtOffset(segment, 8 * index, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setLongAtOffset(segment, 8 * index, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param index element index (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(index * 8)}.
      * @param value the long value to be written.
@@ -1184,9 +1184,9 @@ public final class MemoryAccess {
      * Reads a double from given segment and element index, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    return getDoubleAtOffset(segment, 8 * index);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      return getDoubleAtOffset(segment, 8 * index);
+     * }
      * @param segment the segment to be dereferenced.
      * @param index element index (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(index * 8)}.
      * @return a double value read from {@code segment} at the element index specified by {@code index}.
@@ -1200,9 +1200,9 @@ public final class MemoryAccess {
      * Writes a double at given segment and element index, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setDoubleAtOffset(segment, 8 * index, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setDoubleAtOffset(segment, 8 * index, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param index element index (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(index * 8)}.
      * @param value the double value to be written.
@@ -1216,9 +1216,9 @@ public final class MemoryAccess {
      * Reads a memory address from given segment and element index, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    return getAddressAtOffset(segment, index * MemoryLayouts.ADDRESS.byteSize());
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      return getAddressAtOffset(segment, index * MemoryLayouts.ADDRESS.byteSize());
+     * }
      * @param segment the segment to be dereferenced.
      * @param index element index (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(index * 8)}.
      * @return a memory address read from {@code segment} at the element index specified by {@code index}.
@@ -1232,9 +1232,9 @@ public final class MemoryAccess {
      * Writes a memory address at given segment and element index, with byte order set to {@link ByteOrder#nativeOrder()}.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setAddressAtOffset(segment, index * MemoryLayouts.ADDRESS.byteSize(), value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setAddressAtOffset(segment, index * MemoryLayouts.ADDRESS.byteSize(), value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param index element index (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(index * 8)}.
      * @param value the memory address to be written (expressed as an {@link Addressable} instance).
@@ -1248,9 +1248,9 @@ public final class MemoryAccess {
      * Reads a char from given segment and element index, with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    char value = getCharAtOffset(segment, 2 * index, order);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      char value = getCharAtOffset(segment, 2 * index, order);
+     * }
      * @param segment the segment to be dereferenced.
      * @param index element index (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(index * 2)}.
      * @param order the specified byte order.
@@ -1265,9 +1265,9 @@ public final class MemoryAccess {
      * Writes a char at given segment and element index, with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setCharAtOffset(segment, 2 * index, order, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setCharAtOffset(segment, 2 * index, order, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param index element index (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(index * 2)}.
      * @param order the specified byte order.
@@ -1282,9 +1282,9 @@ public final class MemoryAccess {
      * Reads a short from given segment and element index, with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    short value = getShortAtOffset(segment, 2 * index, order);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      short value = getShortAtOffset(segment, 2 * index, order);
+     * }
      * @param segment the segment to be dereferenced.
      * @param index element index (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(index * 2)}.
      * @param order the specified byte order.
@@ -1299,9 +1299,9 @@ public final class MemoryAccess {
      * Writes a short at given segment and element index, with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setShortAtOffset(segment, 2 * index, order, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setShortAtOffset(segment, 2 * index, order, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param index element index (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(index * 2)}.
      * @param order the specified byte order.
@@ -1316,9 +1316,9 @@ public final class MemoryAccess {
      * Reads an int from given segment and element index, with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    int value = getIntAtOffset(segment, 4 * index, order);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      int value = getIntAtOffset(segment, 4 * index, order);
+     * }
      * @param segment the segment to be dereferenced.
      * @param index element index (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(index * 4)}.
      * @param order the specified byte order.
@@ -1333,9 +1333,9 @@ public final class MemoryAccess {
      * Writes an int at given segment and element index, with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setIntAtOffset(segment, 4 * index, order, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setIntAtOffset(segment, 4 * index, order, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param index element index (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(index * 4)}.
      * @param order the specified byte order.
@@ -1350,9 +1350,9 @@ public final class MemoryAccess {
      * Reads a float from given segment and element index, with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    float value = getFloatAtOffset(segment, 4 * index, order);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      float value = getFloatAtOffset(segment, 4 * index, order);
+     * }
      * @param segment the segment to be dereferenced.
      * @param index element index (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(index * 4)}.
      * @param order the specified byte order.
@@ -1367,9 +1367,9 @@ public final class MemoryAccess {
      * Writes a float at given segment and element index, with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setFloatAtOffset(segment, 4 * index, order, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setFloatAtOffset(segment, 4 * index, order, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param index element index (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(index * 4)}.
      * @param order the specified byte order.
@@ -1384,9 +1384,9 @@ public final class MemoryAccess {
      * Reads a long from given segment and element index, with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    return getLongAtOffset(segment, 8 * index, order);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      return getLongAtOffset(segment, 8 * index, order);
+     * }
      * @param segment the segment to be dereferenced.
      * @param index element index (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(index * 8)}.
      * @param order the specified byte order.
@@ -1401,9 +1401,9 @@ public final class MemoryAccess {
      * Writes a long at given segment and element index, with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setLongAtOffset(segment, 8 * index, order, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setLongAtOffset(segment, 8 * index, order, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param index element index (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(index * 8)}.
      * @param order the specified byte order.
@@ -1418,9 +1418,9 @@ public final class MemoryAccess {
      * Reads a double from given segment and element index, with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    return getDoubleAtOffset(segment, 8 * index, order);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      return getDoubleAtOffset(segment, 8 * index, order);
+     * }
      * @param segment the segment to be dereferenced.
      * @param index element index (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(index * 8)}.
      * @param order the specified byte order.
@@ -1435,9 +1435,9 @@ public final class MemoryAccess {
      * Writes a double at given segment and element index, with given byte order.
      * <p>
      * This is equivalent to the following code:
-     * <blockquote><pre>{@code
-    setDoubleAtOffset(segment, 8 * index, order, value);
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *      setDoubleAtOffset(segment, 8 * index, order, value);
+     * }
      * @param segment the segment to be dereferenced.
      * @param index element index (relative to {@code segment}). The final address of this read operation can be expressed as {@code segment.address().addOffset(index * 8)}.
      * @param order the specified byte order.

@@ -41,7 +41,7 @@ import sun.util.logging.PlatformLogger;
  *
  * <p> The HTTP cookie management in java.net package looks like:
  * <blockquote>
- * <pre>{@code
+ * {@snippet :
  *                  use
  * CookieHandler <------- HttpURLConnection
  *       ^
@@ -58,7 +58,7 @@ import sun.util.logging.PlatformLogger;
  *                            | impl
  *                            |
  *                  Internal in-memory implementation
- * }</pre>
+ * }
  * <ul>
  *   <li>
  *     CookieHandler is at the core of cookie management. User can call
@@ -93,18 +93,18 @@ import sun.util.logging.PlatformLogger;
  *   <li>Let CookieManager be the default {@link CookieHandler} implementation,
  *       but implement user's own {@link CookieStore} and {@link CookiePolicy}
  *       and tell default CookieManager to use them:
- *     <blockquote><pre>
- *       // this should be done at the beginning of an HTTP session
- *       CookieHandler.setDefault(new CookieManager(new MyCookieStore(), new MyCookiePolicy()));
- *     </pre></blockquote>
+ *     {@snippet lang=java : 
+ *         // this should be done at the beginning of an HTTP session
+ *         CookieHandler.setDefault(new CookieManager(new MyCookieStore(), new MyCookiePolicy()));
+ * }
  *   <li>Let CookieManager be the default {@link CookieHandler} implementation, but
  *       use customized {@link CookiePolicy}:
- *     <blockquote><pre>
- *       // this should be done at the beginning of an HTTP session
- *       CookieHandler.setDefault(new CookieManager());
- *       // this can be done at any point of an HTTP session
- *       ((CookieManager)CookieHandler.getDefault()).setCookiePolicy(new MyCookiePolicy());
- *     </pre></blockquote>
+ *     {@snippet lang=java : 
+ *         // this should be done at the beginning of an HTTP session
+ *         CookieHandler.setDefault(new CookieManager());
+ *         // this can be done at any point of an HTTP session
+ *         ((CookieManager)CookieHandler.getDefault()).setCookiePolicy(new MyCookiePolicy());
+ * }
  * </ul>
  * </blockquote>
  *

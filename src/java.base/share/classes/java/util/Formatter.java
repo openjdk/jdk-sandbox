@@ -88,56 +88,35 @@ import sun.util.locale.provider.ResourceBundleBasedAdapter;
  *
  * <p> Examples of expected usage:
  *
- * <blockquote><pre>
- *   StringBuilder sb = new StringBuilder();
- *   // Send all output to the Appendable object sb
- *   Formatter formatter = new Formatter(sb, Locale.US);
- *
- *   // Explicit argument indices may be used to re-order output.
- *   formatter.format("%4$2s %3$2s %2$2s %1$2s", "a", "b", "c", "d")
- *   // -&gt; " d  c  b  a"
- *
- *   // Optional locale as the first argument can be used to get
- *   // locale-specific formatting of numbers.  The precision and width can be
- *   // given to round and align the value.
- *   formatter.format(Locale.FRANCE, "e = %+10.4f", Math.E);
- *   // -&gt; "e =    +2,7183"
- *
- *   // The '(' numeric flag may be used to format negative numbers with
- *   // parentheses rather than a minus sign.  Group separators are
- *   // automatically inserted.
- *   formatter.format("Amount gained or lost since last statement: $ %(,.2f",
- *                    balanceDelta);
- *   // -&gt; "Amount gained or lost since last statement: $ (6,217.58)"
- * </pre></blockquote>
+ * {@snippet file="FormatterSnippets.java" region="snippet1"}
  *
  * <p> Convenience methods for common formatting requests exist as illustrated
  * by the following invocations:
  *
- * <blockquote><pre>
- *   // Writes a formatted string to System.out.
- *   System.out.format("Local time: %tT", Calendar.getInstance());
- *   // -&gt; "Local time: 13:34:18"
- *
- *   // Writes formatted output to System.err.
- *   System.err.printf("Unable to open file '%1$s': %2$s",
- *                     fileName, exception.getMessage());
- *   // -&gt; "Unable to open file 'food': No such file or directory"
- * </pre></blockquote>
+ * {@snippet lang=java : 
+ *     // Writes a formatted string to System.out.
+ *     System.out.format("Local time: %tT", Calendar.getInstance());
+ *     // -> "Local time: 13:34:18"
+ *  
+ *     // Writes formatted output to System.err.
+ *     System.err.printf("Unable to open file '%1$s': %2$s",
+ *                       fileName, exception.getMessage());
+ *     // -> "Unable to open file 'food': No such file or directory"
+ * }
  *
  * <p> Like C's {@code sprintf(3)}, Strings may be formatted using the static
  * method {@link String#format(String,Object...) String.format}:
  *
- * <blockquote><pre>
- *   // Format a string containing a date.
- *   import java.util.Calendar;
- *   import java.util.GregorianCalendar;
- *   import static java.util.Calendar.*;
- *
- *   Calendar c = new GregorianCalendar(1995, MAY, 23);
- *   String s = String.format("Duke's Birthday: %1$tb %1$te, %1$tY", c);
- *   // -&gt; s == "Duke's Birthday: May 23, 1995"
- * </pre></blockquote>
+ * {@snippet : 
+ *     // Format a string containing a date.
+ *     import java.util.Calendar;
+ *     import java.util.GregorianCalendar;
+ *     import static java.util.Calendar.*;
+ *  
+ *     Calendar c = new GregorianCalendar(1995, MAY, 23);
+ *     String s = String.format("Duke's Birthday: %1$tb %1$te, %1$tY", c);
+ *     // -> s == "Duke's Birthday: May 23, 1995"
+ * }
  *
  * <h2><a id="org">Organization</a></h2>
  *
@@ -162,10 +141,10 @@ import sun.util.locale.provider.ResourceBundleBasedAdapter;
  * String} which may contain fixed text and one or more embedded <i>format
  * specifiers</i>.  Consider the following example:
  *
- * <blockquote><pre>
- *   Calendar c = ...;
- *   String s = String.format("Duke's Birthday: %1$tm %1$te,%1$tY", c);
- * </pre></blockquote>
+ * {@snippet : 
+ *     Calendar c = ...;
+ *     String s = String.format("Duke's Birthday: %1$tm %1$te,%1$tY", c);
+ * }
  *
  * This format string is the first argument to the {@code format} method.  It
  * contains three format specifiers "{@code %1$tm}", "{@code %1$te}", and
@@ -183,9 +162,9 @@ import sun.util.locale.provider.ResourceBundleBasedAdapter;
  * <li> The format specifiers for general, character, and numeric types have
  * the following syntax:
  *
- * <blockquote><pre>
- *   %[argument_index$][flags][width][.precision]conversion
- * </pre></blockquote>
+ * {@snippet : 
+ *     %[argument_index$][flags][width][.precision]conversion
+ * }
  *
  * <p> The optional <i>argument_index</i> is a decimal integer indicating the
  * position of the argument in the argument list.  The first argument is
@@ -208,9 +187,9 @@ import sun.util.locale.provider.ResourceBundleBasedAdapter;
  * <li> The format specifiers for types which are used to represents dates and
  * times have the following syntax:
  *
- * <blockquote><pre>
- *   %[argument_index$][flags][width]conversion
- * </pre></blockquote>
+ * {@snippet : 
+ *     %[argument_index$][flags][width]conversion
+ * }
  *
  * <p> The optional <i>argument_index</i>, <i>flags</i> and <i>width</i> are
  * defined as above.
@@ -224,9 +203,9 @@ import sun.util.locale.provider.ResourceBundleBasedAdapter;
  * <li> The format specifiers which do not correspond to arguments have the
  * following syntax:
  *
- * <blockquote><pre>
- *   %[flags][width]conversion
- * </pre></blockquote>
+ * {@snippet : 
+ *     %[flags][width]conversion
+ * }
  *
  * <p> The optional <i>flags</i> and <i>width</i> is defined as above.
  *
@@ -667,12 +646,12 @@ import sun.util.locale.provider.ResourceBundleBasedAdapter;
  * the previous format specifier to be re-used.  For example, the following two
  * statements would produce identical strings:
  *
- * <blockquote><pre>
- *   Calendar c = ...;
- *   String s1 = String.format("Duke's Birthday: %1$tm %1$te,%1$tY", c);
- *
- *   String s2 = String.format("Duke's Birthday: %1$tm %&lt;te,%&lt;tY", c);
- * </pre></blockquote>
+ * {@snippet : 
+ *     Calendar c = ...;
+ *     String s1 = String.format("Duke's Birthday: %1$tm %1$te,%1$tY", c);
+ *  
+ *     String s2 = String.format("Duke's Birthday: %1$tm %&lt;te,%&lt;tY", c);
+ * }
  *
  * <hr>
  * <h2><a id="detail">Details</a></h2>
@@ -1872,22 +1851,22 @@ import sun.util.locale.provider.ResourceBundleBasedAdapter;
  *
  * <p> For example:
  *
- * <blockquote><pre>
- *   formatter.format("%4$s %3$s %2$s %1$s %4$s %3$s %2$s %1$s",
- *                    "a", "b", "c", "d")
- *   // -&gt; "d c b a d c b a"
- * </pre></blockquote>
+ * {@snippet : 
+ *     formatter.format("%4$s %3$s %2$s %1$s %4$s %3$s %2$s %1$s",
+ *                      "a", "b", "c", "d")
+ *     // -> "d c b a d c b a"
+ * }
  *
  * <li> <i>Relative indexing</i> is used when the format specifier contains a
  * {@code '<'} (<code>'&#92;u003c'</code>) flag which causes the argument for
  * the previous format specifier to be re-used.  If there is no previous
  * argument, then a {@link MissingFormatArgumentException} is thrown.
  *
- * <blockquote><pre>
- *    formatter.format("%s %s %&lt;s %&lt;s", "a", "b", "c", "d")
- *    // -&gt; "a b b b"
- *    // "c" and "d" are ignored because they are not referenced
- * </pre></blockquote>
+ * {@snippet : 
+ *      formatter.format("%s %s %&lt;s %&lt;s", "a", "b", "c", "d")
+ *      // -> "a b b b"
+ *      // "c" and "d" are ignored because they are not referenced
+ * }
  *
  * <li> <i>Ordinary indexing</i> is used when the format specifier contains
  * neither an argument index nor a {@code '<'} flag.  Each format specifier
@@ -1895,21 +1874,21 @@ import sun.util.locale.provider.ResourceBundleBasedAdapter;
  * argument list which is independent of the indices used by explicit or
  * relative indexing.
  *
- * <blockquote><pre>
- *   formatter.format("%s %s %s %s", "a", "b", "c", "d")
- *   // -&gt; "a b c d"
- * </pre></blockquote>
+ * {@snippet : 
+ *     formatter.format("%s %s %s %s", "a", "b", "c", "d")
+ *     // -> "a b c d"
+ * }
  *
  * </ul>
  *
  * <p> It is possible to have a format string which uses all forms of indexing,
  * for example:
  *
- * <blockquote><pre>
- *   formatter.format("%2$s %s %&lt;s %s", "a", "b", "c", "d")
- *   // -&gt; "b a a b"
- *   // "c" and "d" are ignored because they are not referenced
- * </pre></blockquote>
+ * {@snippet : 
+ *     formatter.format("%2$s %s %&lt;s %s", "a", "b", "c", "d")
+ *     // -> "b a a b"
+ *     // "c" and "d" are ignored because they are not referenced
+ * }
  *
  * <p> The maximum number of arguments is limited by the maximum dimension of a
  * Java array as defined by
@@ -2494,18 +2473,19 @@ public final class Formatter implements Closeable, Flushable {
      * for the output.  For example, the following code formats text into a
      * {@link StringBuilder} then retrieves the resultant string:
      *
-     * <blockquote><pre>
-     *   Formatter f = new Formatter();
-     *   f.format("Last reboot at %tc", lastRebootDate);
-     *   String s = f.toString();
-     *   // -&gt; s == "Last reboot at Sat Jan 01 00:00:00 PST 2000"
-     * </pre></blockquote>
+     * {@snippet lang=java : 
+     *     Formatter f = new Formatter();
+     *     f.format("Last reboot at %tc", lastRebootDate);
+     *     String s = f.toString();
+     *     // -> s == "Last reboot at Sat Jan 01 00:00:00 PST 2000"
+     * }
      *
      * <p> An invocation of this method behaves in exactly the same way as the
      * invocation
      *
-     * <pre>
-     *     out().toString() </pre>
+     * {@snippet : 
+     *       out().toString()
+     * }
      *
      * <p> Depending on the specification of {@code toString} for the {@link
      * Appendable}, the returned string may or may not contain the characters

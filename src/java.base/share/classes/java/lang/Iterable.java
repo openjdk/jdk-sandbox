@@ -60,10 +60,10 @@ public interface Iterable<T> {
      *
      * @implSpec
      * <p>The default implementation behaves as if:
-     * <pre>{@code
-     *     for (T t : this)
-     *         action.accept(t);
-     * }</pre>
+     * {@snippet lang=java :
+     *       for (T t : this)
+     *           action.accept(t);
+     * }
      *
      * @param action The action to be performed for each element
      * @throws NullPointerException if the specified action is null

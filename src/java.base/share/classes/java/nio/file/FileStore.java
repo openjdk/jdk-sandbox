@@ -231,9 +231,9 @@ public abstract class FileStore {
      * <p> <b>Usage Example:</b>
      * Suppose we want to know if ZFS compression is enabled (assuming the "zfs"
      * view is supported):
-     * <pre>
-     *    boolean compression = (Boolean)fs.getAttribute("zfs:compression");
-     * </pre>
+     * {@snippet lang=java : 
+     *      boolean compression = (Boolean)fs.getAttribute("zfs:compression");
+     * }
      *
      * @param   attribute
      *          the attribute to read

@@ -27,12 +27,13 @@
  * Classes to support functional-style operations on streams of elements, such
  * as map-reduce transformations on collections.  For example:
  *
- * <pre>{@code
- *     int sum = widgets.stream()
- *                      .filter(b -> b.getColor() == RED)
- *                      .mapToInt(b -> b.getWeight())
- *                      .sum();
- * }</pre>
+ * {@snippet lang=java : 
+ *       int sum = widgets.stream()
+ *                        .filter(b -> b.getColor() == RED)
+ *                        .mapToInt(b -> b.getWeight())
+ *                        .sum();
+ *   
+ * }
  *
  * <p>Here we use {@code widgets}, a {@code Collection<Widget>},
  * as a source for a stream, and then perform a filter-map-reduce on the stream
@@ -175,12 +176,13 @@
  * To execute the prior "sum of weights of widgets" query in parallel, we would
  * do:
  *
- * <pre>{@code
- *     int sumOfWeights = widgets.parallelStream()
- *                               .filter(b -> b.getColor() == RED)
- *                               .mapToInt(b -> b.getWeight())
- *                               .sum();
- * }</pre>
+ * {@snippet lang=java : 
+ *       int sumOfWeights = widgets.parallelStream()
+ *                                 .filter(b -> b.getColor() == RED)
+ *                                 .mapToInt(b -> b.getWeight())
+ *                                 .sum();
+ *   
+ * }
  *
  * <p>The only difference between the serial and parallel versions of this
  * example is the creation of the initial stream, using "{@code parallelStream()}"
@@ -235,12 +237,13 @@
  * terminal operation commences and those modifications will be reflected in
  * the covered elements.  For example, consider the following code:
  *
- * <pre>{@code
- *     List<String> l = new ArrayList(Arrays.asList("one", "two"));
- *     Stream<String> sl = l.stream();
- *     l.add("three");
- *     String s = sl.collect(joining(" "));
- * }</pre>
+ * {@snippet lang=java : 
+ *       List<String> l = new ArrayList(Arrays.asList("one", "two"));
+ *       Stream<String> sl = l.stream();
+ *       l.add("three");
+ *       String s = sl.collect(joining(" "));
+ *   
+ * }
  *
  * First a list is created consisting of two strings: "one" and "two". Then a
  * stream is created from that list. Next the list is modified by adding a third
@@ -261,10 +264,11 @@
  * of the stream pipeline.  An example of a stateful lambda is the parameter
  * to {@code map()} in:
  *
- * <pre>{@code
- *     Set<Integer> seen = Collections.synchronizedSet(new HashSet<>());
- *     stream.parallel().map(e -> { if (seen.add(e)) return 0; else return e; })...
- * }</pre>
+ * {@snippet : 
+ *       Set<Integer> seen = Collections.synchronizedSet(new HashSet<>());
+ *       stream.parallel().map(e -> { if (seen.add(e)) return 0; else return e; })...
+ *   
+ * }
  *
  * Here, if the mapping operation is performed in parallel, the results for the
  * same input could vary from run to run, due to thread scheduling differences,
@@ -329,11 +333,12 @@
  * of strings for those matching a given regular expression, and puts the
  * matches in a list.
  *
- * <pre>{@code
- *     ArrayList<String> results = new ArrayList<>();
- *     stream.filter(s -> pattern.matcher(s).matches())
- *           .forEach(s -> results.add(s));  // Unnecessary use of side-effects!
- * }</pre>
+ * {@snippet lang=java : 
+ *       ArrayList<String> results = new ArrayList<>();
+ *       stream.filter(s -> pattern.matcher(s).matches())
+ *             .forEach(s -> results.add(s));  // Unnecessary use of side-effects!
+ *   
+ * }
  *
  * This code unnecessarily uses side-effects.  If executed in parallel, the
  * non-thread-safety of {@code ArrayList} would cause incorrect results, and
@@ -343,11 +348,12 @@
  * operation that is safer, more efficient, and more amenable to
  * parallelization:
  *
- * <pre>{@code
- *     List<String> results =
- *         stream.filter(s -> pattern.matcher(s).matches())
- *               .toList();  // No side-effects!
- * }</pre>
+ * {@snippet lang=java : 
+ *       List<String> results =
+ *           stream.filter(s -> pattern.matcher(s).matches())
+ *                 .toList();  // No side-effects!
+ *   
+ * }
  *
  * <h3><a id="Ordering">Ordering</a></h3>
  *
@@ -403,12 +409,13 @@
  *
  * <p>Of course, such operations can be readily implemented as simple sequential
  * loops, as in:
- * <pre>{@code
- *    int sum = 0;
- *    for (int x : numbers) {
- *       sum += x;
- *    }
- * }</pre>
+ * {@snippet lang=java : 
+ *      int sum = 0;
+ *      for (int x : numbers) {
+ *         sum += x;
+ *      }
+ *   
+ * }
  * However, there are good reasons to prefer a reduce operation
  * over a mutative accumulation such as the above.  Not only is a reduction
  * "more abstract" -- it operates on the stream as a whole rather than individual
@@ -418,19 +425,22 @@
  * <a href="package-summary.html#Statelessness">stateless</a>.
  * For example, given a stream of numbers for which we want to find the sum, we
  * can write:
- * <pre>{@code
- *    int sum = numbers.stream().reduce(0, (x,y) -> x+y);
- * }</pre>
+ * {@snippet lang=java : 
+ *      int sum = numbers.stream().reduce(0, (x,y) -> x+y);
+ *   
+ * }
  * or:
- * <pre>{@code
- *    int sum = numbers.stream().reduce(0, Integer::sum);
- * }</pre>
+ * {@snippet lang=java : 
+ *      int sum = numbers.stream().reduce(0, Integer::sum);
+ *   
+ * }
  *
  * <p>These reduction operations can run safely in parallel with almost no
  * modification:
- * <pre>{@code
- *    int sum = numbers.parallelStream().reduce(0, Integer::sum);
- * }</pre>
+ * {@snippet lang=java : 
+ *      int sum = numbers.parallelStream().reduce(0, Integer::sum);
+ *   
+ * }
  *
  * <p>Reduction parallellizes well because the implementation
  * can operate on subsets of the data in parallel, and then combine the
@@ -448,19 +458,21 @@
  * other operations to replace for-loops with bulk operations.  If {@code widgets}
  * is a collection of {@code Widget} objects, which have a {@code getWeight} method,
  * we can find the heaviest widget with:
- * <pre>{@code
- *     OptionalInt heaviest = widgets.parallelStream()
- *                                   .mapToInt(Widget::getWeight)
- *                                   .max();
- * }</pre>
+ * {@snippet lang=java : 
+ *       OptionalInt heaviest = widgets.parallelStream()
+ *                                     .mapToInt(Widget::getWeight)
+ *                                     .max();
+ *   
+ * }
  *
  * <p>In its more general form, a {@code reduce} operation on elements of type
  * {@code <T>} yielding a result of type {@code <U>} requires three parameters:
- * <pre>{@code
- * <U> U reduce(U identity,
- *              BiFunction<U, ? super T, U> accumulator,
- *              BinaryOperator<U> combiner);
- * }</pre>
+ * {@snippet lang=java : 
+ *   <U> U reduce(U identity,
+ *                BiFunction<U, ? super T, U> accumulator,
+ *                BinaryOperator<U> combiner);
+ *   
+ * }
  * Here, the <em>identity</em> element is both an initial seed value for the reduction
  * and a default result if there are no input elements. The <em>accumulator</em>
  * function takes a partial result and the next element, and produces a new
@@ -482,12 +494,13 @@
  * incorporating a mapping step into the accumulation step.  We could
  * re-cast the simple sum-of-weights example using the more general form as
  * follows:
- * <pre>{@code
- *     int sumOfWeights = widgets.stream()
- *                               .reduce(0,
- *                                       (sum, b) -> sum + b.getWeight(),
- *                                       Integer::sum);
- * }</pre>
+ * {@snippet lang=java : 
+ *       int sumOfWeights = widgets.stream()
+ *                                 .reduce(0,
+ *                                         (sum, b) -> sum + b.getWeight(),
+ *                                         Integer::sum);
+ *   
+ * }
  * though the explicit map-reduce form is more readable and therefore should
  * usually be preferred. The generalized form is provided for cases where
  * significant work can be optimized away by combining mapping and reducing
@@ -501,9 +514,10 @@
  *
  * <p>If we wanted to take a stream of strings and concatenate them into a
  * single long string, we <em>could</em> achieve this with ordinary reduction:
- * <pre>{@code
- *     String concatenated = strings.reduce("", String::concat)
- * }</pre>
+ * {@snippet : 
+ *       String concatenated = strings.reduce("", String::concat)
+ *   
+ * }
  *
  * <p>We would get the desired result, and it would even work in parallel.  However,
  * we might not be happy about the performance!  Such an implementation would do
@@ -523,11 +537,12 @@
  * container, and a combining function to merge the contents of one result
  * container into another.  The form of this is very similar to the general
  * form of ordinary reduction:
- * <pre>{@code
- * <R> R collect(Supplier<R> supplier,
- *               BiConsumer<R, ? super T> accumulator,
- *               BiConsumer<R, R> combiner);
- * }</pre>
+ * {@snippet lang=java : 
+ *   <R> R collect(Supplier<R> supplier,
+ *                 BiConsumer<R, ? super T> accumulator,
+ *                 BiConsumer<R, R> combiner);
+ *   
+ * }
  * <p>As with {@code reduce()}, a benefit of expressing {@code collect} in this
  * abstract way is that it is directly amenable to parallelization: we can
  * accumulate partial results in parallel and then combine them, so long as the
@@ -535,24 +550,27 @@
  * For example, to collect the String representations of the elements in a
  * stream into an {@code ArrayList}, we could write the obvious sequential
  * for-each form:
- * <pre>{@code
- *     ArrayList<String> strings = new ArrayList<>();
- *     for (T element : stream) {
- *         strings.add(element.toString());
- *     }
- * }</pre>
+ * {@snippet lang=java : 
+ *       ArrayList<String> strings = new ArrayList<>();
+ *       for (T element : stream) {
+ *           strings.add(element.toString());
+ *       }
+ *   
+ * }
  * Or we could use a parallelizable collect form:
- * <pre>{@code
- *     ArrayList<String> strings = stream.collect(() -> new ArrayList<>(),
- *                                                (c, e) -> c.add(e.toString()),
- *                                                (c1, c2) -> c1.addAll(c2));
- * }</pre>
+ * {@snippet lang=java : 
+ *       ArrayList<String> strings = stream.collect(() -> new ArrayList<>(),
+ *                                                  (c, e) -> c.add(e.toString()),
+ *                                                  (c1, c2) -> c1.addAll(c2));
+ *   
+ * }
  * or, pulling the mapping operation out of the accumulator function, we could
  * express it more succinctly as:
- * <pre>{@code
- *     List<String> strings = stream.map(Object::toString)
- *                                  .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
- * }</pre>
+ * {@snippet lang=java : 
+ *       List<String> strings = stream.map(Object::toString)
+ *                                    .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+ *   
+ * }
  * Here, our supplier is just the {@link java.util.ArrayList#ArrayList()
  * ArrayList constructor}, the accumulator adds the stringified element to an
  * {@code ArrayList}, and the combiner simply uses {@link java.util.ArrayList#addAll addAll}
@@ -563,10 +581,11 @@
  * {@link java.util.stream.Collector} to capture all three aspects.  The
  * above example for collecting strings into a {@code List} can be rewritten
  * using a standard {@code Collector} as:
- * <pre>{@code
- *     List<String> strings = stream.map(Object::toString)
- *                                  .collect(Collectors.toList());
- * }</pre>
+ * {@snippet lang=java : 
+ *       List<String> strings = stream.map(Object::toString)
+ *                                    .collect(Collectors.toList());
+ *   
+ * }
  *
  * <p>Packaging mutable reductions into a Collector has another advantage:
  * composability.  The class {@link java.util.stream.Collectors} contains a
@@ -575,10 +594,11 @@
  * collector that computes the sum of the salaries of a stream of
  * employees, as follows:
  *
- * <pre>{@code
- *     Collector<Employee, ?, Integer> summingSalaries
- *         = Collectors.summingInt(Employee::getSalary);
- * }</pre>
+ * {@snippet lang=java : 
+ *       Collector<Employee, ?, Integer> summingSalaries
+ *           = Collectors.summingInt(Employee::getSalary);
+ *   
+ * }
  *
  * (The {@code ?} for the second type parameter merely indicates that we don't
  * care about the intermediate representation used by this collector.)
@@ -586,11 +606,12 @@
  * department, we could reuse {@code summingSalaries} using
  * {@link java.util.stream.Collectors#groupingBy(java.util.function.Function, java.util.stream.Collector) groupingBy}:
  *
- * <pre>{@code
- *     Map<Department, Integer> salariesByDept
- *         = employees.stream().collect(Collectors.groupingBy(Employee::getDepartment,
- *                                                            summingSalaries));
- * }</pre>
+ * {@snippet lang=java : 
+ *       Map<Department, Integer> salariesByDept
+ *           = employees.stream().collect(Collectors.groupingBy(Employee::getDepartment,
+ *                                                              summingSalaries));
+ *   
+ * }
  *
  * <p>As with the regular reduction operation, {@code collect()} operations can
  * only be parallelized if appropriate conditions are met.  For any partially
@@ -603,18 +624,19 @@
  * <p>Further, however the computation is split, it must produce an equivalent
  * result.  For any input elements {@code t1} and {@code t2}, the results
  * {@code r1} and {@code r2} in the computation below must be equivalent:
- * <pre>{@code
- *     A a1 = supplier.get();
- *     accumulator.accept(a1, t1);
- *     accumulator.accept(a1, t2);
- *     R r1 = finisher.apply(a1);  // result without splitting
- *
- *     A a2 = supplier.get();
- *     accumulator.accept(a2, t1);
- *     A a3 = supplier.get();
- *     accumulator.accept(a3, t2);
- *     R r2 = finisher.apply(combiner.apply(a2, a3));  // result with splitting
- * }</pre>
+ * {@snippet lang=java : 
+ *       A a1 = supplier.get();
+ *       accumulator.accept(a1, t1);
+ *       accumulator.accept(a1, t2);
+ *       R r1 = finisher.apply(a1);  // result without splitting
+ *  
+ *       A a2 = supplier.get();
+ *       accumulator.accept(a2, t1);
+ *       A a3 = supplier.get();
+ *       accumulator.accept(a3, t2);
+ *       R r2 = finisher.apply(combiner.apply(a2, a3));  // result with splitting
+ *   
+ * }
  *
  * <p>Here, equivalence generally means according to {@link java.lang.Object#equals(Object)}.
  * but in some cases equivalence may be relaxed to account for differences in
@@ -624,11 +646,12 @@
  *
  * With some complex reduction operations, for example a {@code collect()} that
  * produces a {@code Map}, such as:
- * <pre>{@code
- *     Map<Buyer, List<Transaction>> salesByBuyer
- *         = txns.parallelStream()
- *               .collect(Collectors.groupingBy(Transaction::getBuyer));
- * }</pre>
+ * {@snippet lang=java : 
+ *       Map<Buyer, List<Transaction>> salesByBuyer
+ *           = txns.parallelStream()
+ *                 .collect(Collectors.groupingBy(Transaction::getBuyer));
+ *   
+ * }
  * it may actually be counterproductive to perform the operation in parallel.
  * This is because the combining step (merging one {@code Map} into another by
  * key) can be expensive for some {@code Map} implementations.
@@ -660,12 +683,13 @@
  * </ul>
  * You can ensure the stream is unordered by using the
  * {@link java.util.stream.BaseStream#unordered()} method.  For example:
- * <pre>{@code
- *     Map<Buyer, List<Transaction>> salesByBuyer
- *         = txns.parallelStream()
- *               .unordered()
- *               .collect(groupingByConcurrent(Transaction::getBuyer));
- * }</pre>
+ * {@snippet lang=java : 
+ *       Map<Buyer, List<Transaction>> salesByBuyer
+ *           = txns.parallelStream()
+ *                 .unordered()
+ *                 .collect(groupingByConcurrent(Transaction::getBuyer));
+ *   
+ * }
  * (where {@link java.util.stream.Collectors#groupingByConcurrent} is the
  * concurrent equivalent of {@code groupingBy}).
  *
@@ -679,14 +703,16 @@
  *
  * An operator or function {@code op} is <em>associative</em> if the following
  * holds:
- * <pre>{@code
- *     (a op b) op c == a op (b op c)
- * }</pre>
+ * {@snippet : 
+ *       (a op b) op c == a op (b op c)
+ *   
+ * }
  * The importance of this to parallel evaluation can be seen if we expand this
  * to four terms:
- * <pre>{@code
- *     a op b op c op d == (a op b) op (c op d)
- * }</pre>
+ * {@snippet : 
+ *       a op b op c op d == (a op b) op (c op d)
+ *   
+ * }
  * So we can evaluate {@code (a op b)} in parallel with {@code (c op d)}, and
  * then invoke {@code op} on the results.
  *

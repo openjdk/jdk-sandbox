@@ -38,10 +38,10 @@ import java.security.PrivilegedAction;
  *
  * @apiNote
  * Typical usage would be for boxing code to do:
- * <pre>{@code
- *     if (Tripwire.ENABLED)
- *         Tripwire.trip(getClass(), "{0} calling PrimitiveIterator.OfInt.nextInt()");
- * }</pre>
+ * {@snippet lang=java : 
+ *       if (Tripwire.ENABLED)
+ *           Tripwire.trip(getClass(), "{0} calling PrimitiveIterator.OfInt.nextInt()");
+ * }
  *
  * @since 1.8
  */

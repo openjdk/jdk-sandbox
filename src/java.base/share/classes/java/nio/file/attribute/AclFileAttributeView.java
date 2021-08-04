@@ -69,26 +69,7 @@ import java.io.IOException;
  *
  * <p> <b>Usage Example:</b>
  * Suppose we wish to add an entry to an existing ACL to grant "joe" access:
- * <pre>
- *     // lookup "joe"
- *     UserPrincipal joe = file.getFileSystem().getUserPrincipalLookupService()
- *         .lookupPrincipalByName("joe");
- *
- *     // get view
- *     AclFileAttributeView view = Files.getFileAttributeView(file, AclFileAttributeView.class);
- *
- *     // create ACE to give "joe" read access
- *     AclEntry entry = AclEntry.newBuilder()
- *         .setType(AclEntryType.ALLOW)
- *         .setPrincipal(joe)
- *         .setPermissions(AclEntryPermission.READ_DATA, AclEntryPermission.READ_ATTRIBUTES)
- *         .build();
- *
- *     // read ACL, insert ACE, re-write ACL
- *     List&lt;AclEntry&gt; acl = view.getAcl();
- *     acl.add(0, entry);   // insert before any DENY entries
- *     view.setAcl(acl);
- * </pre>
+ * {@snippet file="AclFileAttributeViewSnippets.java" region="snippet1"}
  *
  * <h2> Dynamic Access </h2>
  * <p> Where dynamic access to file attributes is required, the attributes

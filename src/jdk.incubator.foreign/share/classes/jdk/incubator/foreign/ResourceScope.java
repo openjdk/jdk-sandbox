@@ -96,16 +96,16 @@ import java.util.Spliterator;
  * segment and allow multiple threads to work in parallel on disjoint segment slices. The following code can be used to sum
  * all int values in a memory segment in parallel:
  *
- * <blockquote><pre>{@code
-SequenceLayout SEQUENCE_LAYOUT = MemoryLayout.sequenceLayout(1024, MemoryLayouts.JAVA_INT);
-try (ResourceScope scope = ResourceScope.newSharedScope()) {
-    MemorySegment segment = MemorySegment.allocateNative(SEQUENCE_LAYOUT, scope);
-    VarHandle VH_int = SEQUENCE_LAYOUT.elementLayout().varHandle(int.class);
-    int sum = StreamSupport.stream(segment.spliterator(SEQUENCE_LAYOUT), true)
-        .mapToInt(s -> (int)VH_int.get(s.address()))
-        .sum();
-}
- * }</pre></blockquote>
+ * {@snippet lang=java : 
+ *  SequenceLayout SEQUENCE_LAYOUT = MemoryLayout.sequenceLayout(1024, MemoryLayouts.JAVA_INT);
+ *  try (ResourceScope scope = ResourceScope.newSharedScope()) {
+ *      MemorySegment segment = MemorySegment.allocateNative(SEQUENCE_LAYOUT, scope);
+ *      VarHandle VH_int = SEQUENCE_LAYOUT.elementLayout().varHandle(int.class);
+ *      int sum = StreamSupport.stream(segment.spliterator(SEQUENCE_LAYOUT), true)
+ *          .mapToInt(s -> (int)VH_int.get(s.address()))
+ *          .sum();
+ *  }
+ * }
  *
  * <p>
  * Explicit shared resource scopes, while powerful, must be used with caution: if one or more threads accesses
@@ -125,15 +125,15 @@ try (ResourceScope scope = ResourceScope.newSharedScope()) {
  * This can be useful when clients need to perform a critical operation on a memory segment, during which they have
  * to ensure that the segment will not be released; this can be done as follows:
  *
- * <blockquote><pre>{@code
-MemorySegment segment = ...
-ResourceScope.Handle segmentHandle = segment.scope().acquire()
-try {
-   <critical operation on segment>
-} finally {
-   segment.scope().release(segmentHandle);
-}
- * }</pre></blockquote>
+ * {@snippet : 
+ *  MemorySegment segment = ...
+ *  ResourceScope.Handle segmentHandle = segment.scope().acquire()
+ *  try {
+ *     <critical operation on segment>
+ *  } finally {
+ *     segment.scope().release(segmentHandle);
+ *  }
+ * }
  *
  * Acquiring implicit resource scopes is also possible, but it is often unnecessary: since resources associated with
  * an implicit scope will only be released when the scope becomes <a href="../../../java/lang/ref/package.html#reachability">unreachable</a>,

@@ -30,9 +30,9 @@ package java.lang;
  *
  * <p>The seven one-argument public constructors provided by this
  * class ensure that the assertion error returned by the invocation:
- * <pre>
+ * {@snippet :
  *     new AssertionError(<i>expression</i>)
- * </pre>
+ * }
  * has as its detail message the <i>string conversion</i> of
  * <i>expression</i> (as defined in section {@jls 5.1.11} of
  * <cite>The Java Language Specification</cite>),

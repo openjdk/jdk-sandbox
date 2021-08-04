@@ -42,12 +42,12 @@ package java.util;
  * increased cost associated with {@link TreeSet}.  It can be used to
  * produce a copy of a set that has the same order as the original, regardless
  * of the original set's implementation:
- * <pre>{@code
- *     void foo(Set<String> s) {
- *         Set<String> copy = new LinkedHashSet<>(s);
- *         ...
- *     }
- * }</pre>
+ * {@snippet : 
+ *       void foo(Set<String> s) {
+ *           Set<String> copy = new LinkedHashSet<>(s);
+ *           ...
+ *       }
+ * }
  * This technique is particularly useful if a module takes a set on input,
  * copies it, and later returns results whose order is determined by that of
  * the copy.  (Clients generally appreciate having things returned in the same
@@ -80,8 +80,10 @@ package java.util;
  * If no such object exists, the set should be "wrapped" using the
  * {@link Collections#synchronizedSet Collections.synchronizedSet}
  * method.  This is best done at creation time, to prevent accidental
- * unsynchronized access to the set: <pre>
- *   Set s = Collections.synchronizedSet(new LinkedHashSet(...));</pre>
+ * unsynchronized access to the set:
+ * {@snippet :
+ *     Set s = Collections.synchronizedSet(new LinkedHashSet(...));
+ * }
  *
  * <p>The iterators returned by this class's {@code iterator} method are
  * <em>fail-fast</em>: if the set is modified at any time after the iterator

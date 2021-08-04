@@ -42,17 +42,17 @@ import sun.util.calendar.ZoneInfo;
  * calendar system in which the imperial era-based year numbering is
  * supported from the Meiji era. The following are the eras supported
  * by this calendar system.
- * <pre>{@code
- * ERA value   Era name    Since (in Gregorian)
- * ------------------------------------------------------
- *     0       N/A         N/A
- *     1       Meiji       1868-01-01T00:00:00 local time
- *     2       Taisho      1912-07-30T00:00:00 local time
- *     3       Showa       1926-12-25T00:00:00 local time
- *     4       Heisei      1989-01-08T00:00:00 local time
- *     5       Reiwa       2019-05-01T00:00:00 local time
- * ------------------------------------------------------
- * }</pre>
+ * {@snippet : 
+ *   ERA value   Era name    Since (in Gregorian)
+ *   ------------------------------------------------------
+ *       0       N/A         N/A
+ *       1       Meiji       1868-01-01T00:00:00 local time
+ *       2       Taisho      1912-07-30T00:00:00 local time
+ *       3       Showa       1926-12-25T00:00:00 local time
+ *       4       Heisei      1989-01-08T00:00:00 local time
+ *       5       Reiwa       2019-05-01T00:00:00 local time
+ *   ------------------------------------------------------
+ * }
  *
  * <p>{@code ERA} value 0 specifies the years before Meiji and
  * the Gregorian year values are used. Unlike
@@ -67,9 +67,9 @@ import sun.util.calendar.ZoneInfo;
  * <p>A new era can be specified using property
  * jdk.calendar.japanese.supplemental.era. The new era is added to the
  * predefined eras. The syntax of the property is as follows.
- * <pre>
- *   {@code name=<name>,abbr=<abbr>,since=<time['u']>}
- * </pre>
+ * {@snippet :
+ *   name=<name>,abbr=<abbr>,since=<time['u']>
+ * }
  * where
  * <dl>
  * <dt>{@code <name>:}<dd>the full name of the new era (non-ASCII characters allowed,
@@ -86,9 +86,9 @@ import sun.util.calendar.ZoneInfo;
  * ignored.
  *
  * <p>The following is an example of the property usage.
- * <pre>
- *   java -Djdk.calendar.japanese.supplemental.era="name=NewEra,abbr=N,since=253374307200000"
- * </pre>
+ * {@snippet : 
+ *     java -Djdk.calendar.japanese.supplemental.era="name=NewEra,abbr=N,since=253374307200000"
+ * }
  * The property specifies an era change to NewEra at 9999-02-11T00:00:00 local time.
  *
  * @author Masayoshi Okutsu
@@ -166,8 +166,8 @@ class JapaneseImperialCalendar extends Calendar {
     // The current era
     private static final int currentEra;
 
-    /*
-     * <pre>
+    /**
+     * {@snippet :
      *                                 Greatest       Least
      * Field name             Minimum   Minimum     Maximum     Maximum
      * ----------             -------   -------     -------     -------
@@ -188,8 +188,9 @@ class JapaneseImperialCalendar extends Calendar {
      * MILLISECOND                  0         0         999         999
      * ZONE_OFFSET             -13:00    -13:00       14:00       14:00
      * DST_OFFSET                0:00      0:00        0:20        2:00
-     * </pre>
+     *
      * *: depends on eras
+     * }
      */
     static final int MIN_VALUES[] = {
         0,              // ERA

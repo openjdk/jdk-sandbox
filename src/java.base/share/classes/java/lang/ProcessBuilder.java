@@ -1214,22 +1214,7 @@ public final class ProcessBuilder
      * @apiNote
      * For example to count the unique imports for all the files in a file hierarchy
      * on a Unix compatible platform:
-     * <pre>{@code
-     * String directory = "/home/duke/src";
-     * ProcessBuilder[] builders = {
-     *              new ProcessBuilder("find", directory, "-type", "f"),
-     *              new ProcessBuilder("xargs", "grep", "-h", "^import "),
-     *              new ProcessBuilder("awk", "{print $2;}"),
-     *              new ProcessBuilder("sort", "-u")};
-     * List<Process> processes = ProcessBuilder.startPipeline(
-     *         Arrays.asList(builders));
-     * Process last = processes.get(processes.size()-1);
-     * try (InputStream is = last.getInputStream();
-     *         Reader isr = new InputStreamReader(is);
-     *         BufferedReader r = new BufferedReader(isr)) {
-     *     long count = r.lines().count();
-     * }
-     * }</pre>
+     * {@snippet lang=java file="ProcessBuilderSnippets.java" region="snippet1"}
      *
      * @param builders a List of ProcessBuilders
      * @return a {@code List<Process>}es started from the corresponding

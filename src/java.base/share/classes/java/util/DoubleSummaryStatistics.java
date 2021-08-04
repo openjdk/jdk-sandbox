@@ -35,20 +35,20 @@ import java.util.stream.DoubleStream;
  * <p>This class is designed to work with (though does not require)
  * {@linkplain java.util.stream streams}. For example, you can compute
  * summary statistics on a stream of doubles with:
- * <pre> {@code
+ * {@snippet :
  * DoubleSummaryStatistics stats = doubleStream.collect(DoubleSummaryStatistics::new,
  *                                                      DoubleSummaryStatistics::accept,
  *                                                      DoubleSummaryStatistics::combine);
- * }</pre>
+ * }
  *
  * <p>{@code DoubleSummaryStatistics} can be used as a
  * {@linkplain java.util.stream.Stream#collect(Collector) reduction}
  * target for a {@linkplain java.util.stream.Stream stream}. For example:
  *
- * <pre> {@code
+ * {@snippet :
  * DoubleSummaryStatistics stats = people.stream()
  *     .collect(Collectors.summarizingDouble(Person::getWeight));
- *}</pre>
+ *}
  *
  * This computes, in a single pass, the count of people, as well as the minimum,
  * maximum, sum, and average of their weights.

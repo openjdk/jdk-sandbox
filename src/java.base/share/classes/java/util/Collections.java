@@ -738,15 +738,15 @@ public class Collections {
      * order of the remaining elements.  For example, the following idiom
      * moves the element at index {@code j} forward to position
      * {@code k} (which must be greater than or equal to {@code j}):
-     * <pre>
-     *     Collections.rotate(list.subList(j, k+1), -1);
-     * </pre>
+     * {@snippet lang=java : 
+     *       Collections.rotate(list.subList(j, k+1), -1);
+     * }
      * To make this concrete, suppose {@code list} comprises
      * {@code [a, b, c, d, e]}.  To move the element at index {@code 1}
      * ({@code b}) forward two positions, perform the following invocation:
-     * <pre>
-     *     Collections.rotate(l.subList(1, 4), -1);
-     * </pre>
+     * {@snippet lang=java : 
+     *       Collections.rotate(l.subList(1, 4), -1);
+     * }
      * The resulting list is {@code [a, c, d, b, e]}.
      *
      * <p>To move more than one element forward, increase the absolute value
@@ -2023,15 +2023,15 @@ public class Collections {
      * It is imperative that the user manually synchronize on the returned
      * collection when traversing it via {@link Iterator}, {@link Spliterator}
      * or {@link Stream}:
-     * <pre>
-     *  Collection c = Collections.synchronizedCollection(myCollection);
-     *     ...
-     *  synchronized (c) {
-     *      Iterator i = c.iterator(); // Must be in the synchronized block
-     *      while (i.hasNext())
-     *         foo(i.next());
-     *  }
-     * </pre>
+     * {@snippet : 
+     *    Collection c = Collections.synchronizedCollection(myCollection);
+     *       ...
+     *    synchronized (c) {
+     *        Iterator i = c.iterator(); // Must be in the synchronized block
+     *        while (i.hasNext())
+     *           foo(i.next());
+     *    }
+     * }
      * Failure to follow this advice may result in non-deterministic behavior.
      *
      * <p>The returned collection does <i>not</i> pass the {@code hashCode}
@@ -2161,15 +2161,15 @@ public class Collections {
      * It is imperative that the user manually synchronize on the returned
      * collection when traversing it via {@link Iterator}, {@link Spliterator}
      * or {@link Stream}:
-     * <pre>
-     *  Set s = Collections.synchronizedSet(new HashSet());
-     *      ...
-     *  synchronized (s) {
-     *      Iterator i = s.iterator(); // Must be in the synchronized block
-     *      while (i.hasNext())
-     *          foo(i.next());
-     *  }
-     * </pre>
+     * {@snippet : 
+     *    Set s = Collections.synchronizedSet(new HashSet());
+     *        ...
+     *    synchronized (s) {
+     *        Iterator i = s.iterator(); // Must be in the synchronized block
+     *        while (i.hasNext())
+     *            foo(i.next());
+     *    }
+     * }
      * Failure to follow this advice may result in non-deterministic behavior.
      *
      * <p>The returned set will be serializable if the specified set is
@@ -2223,26 +2223,26 @@ public class Collections {
      * sorted set when traversing it or any of its {@code subSet},
      * {@code headSet}, or {@code tailSet} views via {@link Iterator},
      * {@link Spliterator} or {@link Stream}:
-     * <pre>
-     *  SortedSet s = Collections.synchronizedSortedSet(new TreeSet());
-     *      ...
-     *  synchronized (s) {
-     *      Iterator i = s.iterator(); // Must be in the synchronized block
-     *      while (i.hasNext())
-     *          foo(i.next());
-     *  }
-     * </pre>
+     * {@snippet : 
+     *    SortedSet s = Collections.synchronizedSortedSet(new TreeSet());
+     *        ...
+     *    synchronized (s) {
+     *        Iterator i = s.iterator(); // Must be in the synchronized block
+     *        while (i.hasNext())
+     *            foo(i.next());
+     *    }
+     * }
      * or:
-     * <pre>
-     *  SortedSet s = Collections.synchronizedSortedSet(new TreeSet());
-     *  SortedSet s2 = s.headSet(foo);
-     *      ...
-     *  synchronized (s) {  // Note: s, not s2!!!
-     *      Iterator i = s2.iterator(); // Must be in the synchronized block
-     *      while (i.hasNext())
-     *          foo(i.next());
-     *  }
-     * </pre>
+     * {@snippet : 
+     *    SortedSet s = Collections.synchronizedSortedSet(new TreeSet());
+     *    SortedSet s2 = s.headSet(foo);
+     *        ...
+     *    synchronized (s) {  // Note: s, not s2!!!
+     *        Iterator i = s2.iterator(); // Must be in the synchronized block
+     *        while (i.hasNext())
+     *            foo(i.next());
+     *    }
+     * }
      * Failure to follow this advice may result in non-deterministic behavior.
      *
      * <p>The returned sorted set will be serializable if the specified
@@ -2317,26 +2317,26 @@ public class Collections {
      * navigable set when traversing it, or any of its {@code subSet},
      * {@code headSet}, or {@code tailSet} views, via {@link Iterator},
      * {@link Spliterator} or {@link Stream}:
-     * <pre>
-     *  NavigableSet s = Collections.synchronizedNavigableSet(new TreeSet());
-     *      ...
-     *  synchronized (s) {
-     *      Iterator i = s.iterator(); // Must be in the synchronized block
-     *      while (i.hasNext())
-     *          foo(i.next());
-     *  }
-     * </pre>
+     * {@snippet : 
+     *    NavigableSet s = Collections.synchronizedNavigableSet(new TreeSet());
+     *        ...
+     *    synchronized (s) {
+     *        Iterator i = s.iterator(); // Must be in the synchronized block
+     *        while (i.hasNext())
+     *            foo(i.next());
+     *    }
+     * }
      * or:
-     * <pre>
-     *  NavigableSet s = Collections.synchronizedNavigableSet(new TreeSet());
-     *  NavigableSet s2 = s.headSet(foo, true);
-     *      ...
-     *  synchronized (s) {  // Note: s, not s2!!!
-     *      Iterator i = s2.iterator(); // Must be in the synchronized block
-     *      while (i.hasNext())
-     *          foo(i.next());
-     *  }
-     * </pre>
+     * {@snippet : 
+     *    NavigableSet s = Collections.synchronizedNavigableSet(new TreeSet());
+     *    NavigableSet s2 = s.headSet(foo, true);
+     *        ...
+     *    synchronized (s) {  // Note: s, not s2!!!
+     *        Iterator i = s2.iterator(); // Must be in the synchronized block
+     *        while (i.hasNext())
+     *            foo(i.next());
+     *    }
+     * }
      * Failure to follow this advice may result in non-deterministic behavior.
      *
      * <p>The returned navigable set will be serializable if the specified
@@ -2434,15 +2434,15 @@ public class Collections {
      * It is imperative that the user manually synchronize on the returned
      * list when traversing it via {@link Iterator}, {@link Spliterator}
      * or {@link Stream}:
-     * <pre>
-     *  List list = Collections.synchronizedList(new ArrayList());
-     *      ...
-     *  synchronized (list) {
-     *      Iterator i = list.iterator(); // Must be in synchronized block
-     *      while (i.hasNext())
-     *          foo(i.next());
-     *  }
-     * </pre>
+     * {@snippet : 
+     *    List list = Collections.synchronizedList(new ArrayList());
+     *        ...
+     *    synchronized (list) {
+     *        Iterator i = list.iterator(); // Must be in synchronized block
+     *        while (i.hasNext())
+     *            foo(i.next());
+     *    }
+     * }
      * Failure to follow this advice may result in non-deterministic behavior.
      *
      * <p>The returned list will be serializable if the specified list is
@@ -2608,17 +2608,17 @@ public class Collections {
      * It is imperative that the user manually synchronize on the returned
      * map when traversing any of its collection views via {@link Iterator},
      * {@link Spliterator} or {@link Stream}:
-     * <pre>
-     *  Map m = Collections.synchronizedMap(new HashMap());
-     *      ...
-     *  Set s = m.keySet();  // Needn't be in synchronized block
-     *      ...
-     *  synchronized (m) {  // Synchronizing on m, not s!
-     *      Iterator i = s.iterator(); // Must be in synchronized block
-     *      while (i.hasNext())
-     *          foo(i.next());
-     *  }
-     * </pre>
+     * {@snippet : 
+     *    Map m = Collections.synchronizedMap(new HashMap());
+     *        ...
+     *    Set s = m.keySet();  // Needn't be in synchronized block
+     *        ...
+     *    synchronized (m) {  // Synchronizing on m, not s!
+     *        Iterator i = s.iterator(); // Must be in synchronized block
+     *        while (i.hasNext())
+     *            foo(i.next());
+     *    }
+     * }
      * Failure to follow this advice may result in non-deterministic behavior.
      *
      * <p>The returned map will be serializable if the specified map is
@@ -2792,30 +2792,30 @@ public class Collections {
      * collections views of any of its {@code subMap}, {@code headMap} or
      * {@code tailMap} views, via {@link Iterator}, {@link Spliterator} or
      * {@link Stream}:
-     * <pre>
-     *  SortedMap m = Collections.synchronizedSortedMap(new TreeMap());
-     *      ...
-     *  Set s = m.keySet();  // Needn't be in synchronized block
-     *      ...
-     *  synchronized (m) {  // Synchronizing on m, not s!
-     *      Iterator i = s.iterator(); // Must be in synchronized block
-     *      while (i.hasNext())
-     *          foo(i.next());
-     *  }
-     * </pre>
+     * {@snippet : 
+     *    SortedMap m = Collections.synchronizedSortedMap(new TreeMap());
+     *        ...
+     *    Set s = m.keySet();  // Needn't be in synchronized block
+     *        ...
+     *    synchronized (m) {  // Synchronizing on m, not s!
+     *        Iterator i = s.iterator(); // Must be in synchronized block
+     *        while (i.hasNext())
+     *            foo(i.next());
+     *    }
+     * }
      * or:
-     * <pre>
-     *  SortedMap m = Collections.synchronizedSortedMap(new TreeMap());
-     *  SortedMap m2 = m.subMap(foo, bar);
-     *      ...
-     *  Set s2 = m2.keySet();  // Needn't be in synchronized block
-     *      ...
-     *  synchronized (m) {  // Synchronizing on m, not m2 or s2!
-     *      Iterator i = s2.iterator(); // Must be in synchronized block
-     *      while (i.hasNext())
-     *          foo(i.next());
-     *  }
-     * </pre>
+     * {@snippet : 
+     *    SortedMap m = Collections.synchronizedSortedMap(new TreeMap());
+     *    SortedMap m2 = m.subMap(foo, bar);
+     *        ...
+     *    Set s2 = m2.keySet();  // Needn't be in synchronized block
+     *        ...
+     *    synchronized (m) {  // Synchronizing on m, not m2 or s2!
+     *        Iterator i = s2.iterator(); // Must be in synchronized block
+     *        while (i.hasNext())
+     *            foo(i.next());
+     *    }
+     * }
      * Failure to follow this advice may result in non-deterministic behavior.
      *
      * <p>The returned sorted map will be serializable if the specified
@@ -2892,30 +2892,30 @@ public class Collections {
      * collections views of any of its {@code subMap}, {@code headMap} or
      * {@code tailMap} views, via {@link Iterator}, {@link Spliterator} or
      * {@link Stream}:
-     * <pre>
-     *  NavigableMap m = Collections.synchronizedNavigableMap(new TreeMap());
-     *      ...
-     *  Set s = m.keySet();  // Needn't be in synchronized block
-     *      ...
-     *  synchronized (m) {  // Synchronizing on m, not s!
-     *      Iterator i = s.iterator(); // Must be in synchronized block
-     *      while (i.hasNext())
-     *          foo(i.next());
-     *  }
-     * </pre>
+     * {@snippet : 
+     *    NavigableMap m = Collections.synchronizedNavigableMap(new TreeMap());
+     *        ...
+     *    Set s = m.keySet();  // Needn't be in synchronized block
+     *        ...
+     *    synchronized (m) {  // Synchronizing on m, not s!
+     *        Iterator i = s.iterator(); // Must be in synchronized block
+     *        while (i.hasNext())
+     *            foo(i.next());
+     *    }
+     * }
      * or:
-     * <pre>
-     *  NavigableMap m = Collections.synchronizedNavigableMap(new TreeMap());
-     *  NavigableMap m2 = m.subMap(foo, true, bar, false);
-     *      ...
-     *  Set s2 = m2.keySet();  // Needn't be in synchronized block
-     *      ...
-     *  synchronized (m) {  // Synchronizing on m, not m2 or s2!
-     *      Iterator i = s.iterator(); // Must be in synchronized block
-     *      while (i.hasNext())
-     *          foo(i.next());
-     *  }
-     * </pre>
+     * {@snippet : 
+     *    NavigableMap m = Collections.synchronizedNavigableMap(new TreeMap());
+     *    NavigableMap m2 = m.subMap(foo, true, bar, false);
+     *        ...
+     *    Set s2 = m2.keySet();  // Needn't be in synchronized block
+     *        ...
+     *    synchronized (m) {  // Synchronizing on m, not m2 or s2!
+     *        Iterator i = s.iterator(); // Must be in synchronized block
+     *        while (i.hasNext())
+     *            foo(i.next());
+     *    }
+     * }
      * Failure to follow this advice may result in non-deterministic behavior.
      *
      * <p>The returned navigable map will be serializable if the specified
@@ -4405,9 +4405,9 @@ public class Collections {
      * Unlike the like-named field, this method is parameterized.
      *
      * <p>This example illustrates the type-safe way to obtain an empty set:
-     * <pre>
-     *     Set&lt;String&gt; s = Collections.emptySet();
-     * </pre>
+     * {@snippet : 
+     *       Set<String> s = Collections.emptySet();
+     * }
      * @implNote Implementations of this method need not create a separate
      * {@code Set} object for each call.  Using this method is likely to have
      * comparable cost to using the like-named field.  (Unlike this method, the
@@ -4530,9 +4530,9 @@ public class Collections {
      * Returns an empty list (immutable).  This list is serializable.
      *
      * <p>This example illustrates the type-safe way to obtain an empty list:
-     * <pre>
-     *     List&lt;String&gt; s = Collections.emptyList();
-     * </pre>
+     * {@snippet : 
+     *       List<String> s = Collections.emptyList();
+     * }
      *
      * @implNote
      * Implementations of this method need not create a separate {@code List}
@@ -4634,9 +4634,9 @@ public class Collections {
      * Returns an empty map (immutable).  This map is serializable.
      *
      * <p>This example illustrates the type-safe way to obtain an empty map:
-     * <pre>
-     *     Map&lt;String, Date&gt; s = Collections.emptyMap();
-     * </pre>
+     * {@snippet : 
+     *       Map<String, Date> s = Collections.emptyMap();
+     * }
      * @implNote Implementations of this method need not create a separate
      * {@code Map} object for each call.  Using this method is likely to have
      * comparable cost to using the like-named field.  (Unlike this method, the
@@ -5178,7 +5178,9 @@ public class Collections {
         }
 
         public E get(int index) {
-            Objects.checkIndex(index, n);
+            if (index < 0 || index >= n)
+                throw new IndexOutOfBoundsException("Index: "+index+
+                                                    ", Size: "+n);
             return element;
         }
 
@@ -5293,9 +5295,11 @@ public class Collections {
      * simple idiom for sorting (or maintaining) collections (or arrays) of
      * objects that implement the {@code Comparable} interface in
      * reverse-natural-order.  For example, suppose {@code a} is an array of
-     * strings. Then: <pre>
-     *          Arrays.sort(a, Collections.reverseOrder());
-     * </pre> sorts the array in reverse-lexicographic (alphabetical) order.<p>
+     * strings. Then:
+     * {@snippet lang=java :
+     *     Arrays.sort(a, Collections.reverseOrder());
+     * }
+     * sorts the array in reverse-lexicographic (alphabetical) order.<p>
      *
      * The returned comparator is serializable.
      *
@@ -5597,9 +5601,9 @@ public class Collections {
      *
      * <p>When elements are specified individually, this method provides a
      * convenient way to add a few elements to an existing collection:
-     * <pre>
-     *     Collections.addAll(flavors, "Peaches 'n Plutonium", "Rocky Racoon");
-     * </pre>
+     * {@snippet lang=java : 
+     *       Collections.addAll(flavors, "Peaches 'n Plutonium", "Rocky Racoon");
+     * }
      *
      * @param  <T> the class of the elements to add and of the collection
      * @param c the collection into which {@code elements} are to be inserted
@@ -5642,10 +5646,10 @@ public class Collections {
      * conditions are ensured if the map is created empty, passed directly
      * to this method, and no reference to the map is retained, as illustrated
      * in the following code fragment:
-     * <pre>
-     *    Set&lt;Object&gt; weakHashSet = Collections.newSetFromMap(
-     *        new WeakHashMap&lt;Object, Boolean&gt;());
-     * </pre>
+     * {@snippet : 
+     *      Set<Object> weakHashSet = Collections.newSetFromMap(
+     *          new WeakHashMap<Object, Boolean>());
+     * }
      *
      * @param <E> the class of the map keys and of the objects in the
      *        returned set

@@ -136,9 +136,9 @@ public class Manifest implements Cloneable {
     /**
      * Returns the Attributes for the specified entry name.
      * This method is defined as:
-     * <pre>
-     *      return (Attributes)getEntries().get(name)
-     * </pre>
+     * {@snippet : 
+     *        return (Attributes)getEntries().get(name)
+     * }
      * Though {@code null} is a valid {@code name}, when
      * {@code getAttributes(null)} is invoked on a {@code Manifest}
      * obtained from a jar file, {@code null} will be returned.  While jar
@@ -394,9 +394,9 @@ public class Manifest implements Cloneable {
     /**
      * Returns a shallow copy of this Manifest.  The shallow copy is
      * implemented as follows:
-     * <pre>
-     *     public Object clone() { return new Manifest(this); }
-     * </pre>
+     * {@snippet lang=java : 
+     *       public Object clone() { return new Manifest(this); }
+     * }
      * @return a shallow copy of this Manifest
      */
     public Object clone() {

@@ -778,12 +778,11 @@ public class MethodHandles {
      * and it differs from {@code M1} and {@code M2}, then the resulting lookup
      * drops all privileges.
      * For example,
-     * <blockquote><pre>
-     * {@code
+     * {@snippet :
      * Lookup lookup = MethodHandles.lookup();   // in class C
      * Lookup lookup2 = lookup.in(D.class);
      * MethodHandle mh = lookup2.findStatic(E.class, "m", MT);
-     * }</pre></blockquote>
+     * }
      * <p>
      * The {@link #lookup()} factory method produces a {@code Lookup} object
      * with {@code null} previous lookup class.
@@ -2563,14 +2562,14 @@ public class MethodHandles {
          * If the returned method handle is invoked, the method's class will
          * be initialized, if it has not already been initialized.
          * <p><b>Example:</b>
-         * <blockquote><pre>{@code
-import static java.lang.invoke.MethodHandles.*;
-import static java.lang.invoke.MethodType.*;
-...
-MethodHandle MH_asList = publicLookup().findStatic(Arrays.class,
-  "asList", methodType(List.class, Object[].class));
-assertEquals("[x, y]", MH_asList.invoke("x", "y").toString());
-         * }</pre></blockquote>
+         * {@snippet : 
+         *  import static java.lang.invoke.MethodHandles.*;
+         *  import static java.lang.invoke.MethodType.*;
+         *  ...
+         *  MethodHandle MH_asList = publicLookup().findStatic(Arrays.class,
+         *    "asList", methodType(List.class, Object[].class));
+         *  assertEquals("[x, y]", MH_asList.invoke("x", "y").toString());
+         * }
          * @param refc the class from which the method is accessed
          * @param name the name of the method
          * @param type the type of the method
@@ -2628,32 +2627,32 @@ assertEquals("[x, y]", MH_asList.invoke("x", "y").toString());
          * {@code type} arguments.
          * <p>
          * <b>Example:</b>
-         * <blockquote><pre>{@code
-import static java.lang.invoke.MethodHandles.*;
-import static java.lang.invoke.MethodType.*;
-...
-MethodHandle MH_concat = publicLookup().findVirtual(String.class,
-  "concat", methodType(String.class, String.class));
-MethodHandle MH_hashCode = publicLookup().findVirtual(Object.class,
-  "hashCode", methodType(int.class));
-MethodHandle MH_hashCode_String = publicLookup().findVirtual(String.class,
-  "hashCode", methodType(int.class));
-assertEquals("xy", (String) MH_concat.invokeExact("x", "y"));
-assertEquals("xy".hashCode(), (int) MH_hashCode.invokeExact((Object)"xy"));
-assertEquals("xy".hashCode(), (int) MH_hashCode_String.invokeExact("xy"));
-// interface method:
-MethodHandle MH_subSequence = publicLookup().findVirtual(CharSequence.class,
-  "subSequence", methodType(CharSequence.class, int.class, int.class));
-assertEquals("def", MH_subSequence.invoke("abcdefghi", 3, 6).toString());
-// constructor "internal method" must be accessed differently:
-MethodType MT_newString = methodType(void.class); //()V for new String()
-try { assertEquals("impossible", lookup()
-        .findVirtual(String.class, "<init>", MT_newString));
- } catch (NoSuchMethodException ex) { } // OK
-MethodHandle MH_newString = publicLookup()
-  .findConstructor(String.class, MT_newString);
-assertEquals("", (String) MH_newString.invokeExact());
-         * }</pre></blockquote>
+         * {@snippet :
+         * import static java.lang.invoke.MethodHandles.*;
+         * import static java.lang.invoke.MethodType.*;
+         * ...
+         * MethodHandle MH_concat = publicLookup().findVirtual(String.class,
+         *   "concat", methodType(String.class, String.class));
+         * MethodHandle MH_hashCode = publicLookup().findVirtual(Object.class,
+         *   "hashCode", methodType(int.class));
+         * MethodHandle MH_hashCode_String = publicLookup().findVirtual(String.class,
+         *   "hashCode", methodType(int.class));
+         * assertEquals("xy", (String) MH_concat.invokeExact("x", "y"));
+         * assertEquals("xy".hashCode(), (int) MH_hashCode.invokeExact((Object)"xy"));
+         * assertEquals("xy".hashCode(), (int) MH_hashCode_String.invokeExact("xy"));
+         * // interface method:
+         * MethodHandle MH_subSequence = publicLookup().findVirtual(CharSequence.class,
+         *   "subSequence", methodType(CharSequence.class, int.class, int.class));
+         * assertEquals("def", MH_subSequence.invoke("abcdefghi", 3, 6).toString());
+         * // constructor "internal method" must be accessed differently:
+         * MethodType MT_newString = methodType(void.class); //()V for new String()
+         * try { assertEquals("impossible", lookup()
+         *         .findVirtual(String.class, "<init>", MT_newString));
+         *  } catch (NoSuchMethodException ex) { } // OK
+         * MethodHandle MH_newString = publicLookup()
+         *   .findConstructor(String.class, MT_newString);
+         * assertEquals("", (String) MH_newString.invokeExact());
+         * }
          *
          * @param refc the class or interface from which the method is accessed
          * @param name the name of the method
@@ -2714,23 +2713,23 @@ assertEquals("", (String) MH_newString.invokeExact());
          * If the returned method handle is invoked, the constructor's class will
          * be initialized, if it has not already been initialized.
          * <p><b>Example:</b>
-         * <blockquote><pre>{@code
-import static java.lang.invoke.MethodHandles.*;
-import static java.lang.invoke.MethodType.*;
-...
-MethodHandle MH_newArrayList = publicLookup().findConstructor(
-  ArrayList.class, methodType(void.class, Collection.class));
-Collection orig = Arrays.asList("x", "y");
-Collection copy = (ArrayList) MH_newArrayList.invokeExact(orig);
-assert(orig != copy);
-assertEquals(orig, copy);
-// a variable-arity constructor:
-MethodHandle MH_newProcessBuilder = publicLookup().findConstructor(
-  ProcessBuilder.class, methodType(void.class, String[].class));
-ProcessBuilder pb = (ProcessBuilder)
-  MH_newProcessBuilder.invoke("x", "y", "z");
-assertEquals("[x, y, z]", pb.command().toString());
-         * }</pre></blockquote>
+         * {@snippet :
+         * import static java.lang.invoke.MethodHandles.*;
+         * import static java.lang.invoke.MethodType.*;
+         * ...
+         * MethodHandle MH_newArrayList = publicLookup().findConstructor(
+         *   ArrayList.class, methodType(void.class, Collection.class));
+         * Collection orig = Arrays.asList("x", "y");
+         * Collection copy = (ArrayList) MH_newArrayList.invokeExact(orig);
+         * assert(orig != copy);
+         * assertEquals(orig, copy);
+         * // a variable-arity constructor:
+         * MethodHandle MH_newProcessBuilder = publicLookup().findConstructor(
+         *   ProcessBuilder.class, methodType(void.class, String[].class));
+         * ProcessBuilder pb = (ProcessBuilder)
+         *   MH_newProcessBuilder.invoke("x", "y", "z");
+         * assertEquals("[x, y, z]", pb.command().toString());
+         * }
          * @param refc the class or interface from which the method is accessed
          * @param type the type of the method, with the receiver argument omitted, and a void return type
          * @return the desired method handle
@@ -2942,38 +2941,38 @@ assertEquals("[x, y, z]", pb.command().toString());
          * in special circumstances.  Use {@link #findConstructor findConstructor}
          * to access instance initialization methods in a safe manner.)</em>
          * <p><b>Example:</b>
-         * <blockquote><pre>{@code
-import static java.lang.invoke.MethodHandles.*;
-import static java.lang.invoke.MethodType.*;
-...
-static class Listie extends ArrayList {
-  public String toString() { return "[wee Listie]"; }
-  static Lookup lookup() { return MethodHandles.lookup(); }
-}
-...
-// no access to constructor via invokeSpecial:
-MethodHandle MH_newListie = Listie.lookup()
-  .findConstructor(Listie.class, methodType(void.class));
-Listie l = (Listie) MH_newListie.invokeExact();
-try { assertEquals("impossible", Listie.lookup().findSpecial(
-        Listie.class, "<init>", methodType(void.class), Listie.class));
- } catch (NoSuchMethodException ex) { } // OK
-// access to super and self methods via invokeSpecial:
-MethodHandle MH_super = Listie.lookup().findSpecial(
-  ArrayList.class, "toString" , methodType(String.class), Listie.class);
-MethodHandle MH_this = Listie.lookup().findSpecial(
-  Listie.class, "toString" , methodType(String.class), Listie.class);
-MethodHandle MH_duper = Listie.lookup().findSpecial(
-  Object.class, "toString" , methodType(String.class), Listie.class);
-assertEquals("[]", (String) MH_super.invokeExact(l));
-assertEquals(""+l, (String) MH_this.invokeExact(l));
-assertEquals("[]", (String) MH_duper.invokeExact(l)); // ArrayList method
-try { assertEquals("inaccessible", Listie.lookup().findSpecial(
-        String.class, "toString", methodType(String.class), Listie.class));
- } catch (IllegalAccessException ex) { } // OK
-Listie subl = new Listie() { public String toString() { return "[subclass]"; } };
-assertEquals(""+l, (String) MH_this.invokeExact(subl)); // Listie method
-         * }</pre></blockquote>
+         * {@snippet  :
+         * import static java.lang.invoke.MethodHandles.*;
+         * import static java.lang.invoke.MethodType.*;
+         * ...
+         * static class Listie extends ArrayList {
+         *   public String toString() { return "[wee Listie]"; }
+         *   static Lookup lookup() { return MethodHandles.lookup(); }
+         * }
+         * ...
+         * // no access to constructor via invokeSpecial:
+         * MethodHandle MH_newListie = Listie.lookup()
+         *   .findConstructor(Listie.class, methodType(void.class));
+         * Listie l = (Listie) MH_newListie.invokeExact();
+         * try { assertEquals("impossible", Listie.lookup().findSpecial(
+         *         Listie.class, "<init>", methodType(void.class), Listie.class));
+         *  } catch (NoSuchMethodException ex) { } // OK
+         * // access to super and self methods via invokeSpecial:
+         * MethodHandle MH_super = Listie.lookup().findSpecial(
+         *   ArrayList.class, "toString" , methodType(String.class), Listie.class);
+         * MethodHandle MH_this = Listie.lookup().findSpecial(
+         *   Listie.class, "toString" , methodType(String.class), Listie.class);
+         * MethodHandle MH_duper = Listie.lookup().findSpecial(
+         *   Object.class, "toString" , methodType(String.class), Listie.class);
+         * assertEquals("[]", (String) MH_super.invokeExact(l));
+         * assertEquals(""+l, (String) MH_this.invokeExact(l));
+         * assertEquals("[]", (String) MH_duper.invokeExact(l)); // ArrayList method
+         * try { assertEquals("inaccessible", Listie.lookup().findSpecial(
+         *         String.class, "toString", methodType(String.class), Listie.class));
+         *  } catch (IllegalAccessException ex) { } // OK
+         * Listie subl = new Listie() { public String toString() { return "[subclass]"; } };
+         * assertEquals(""+l, (String) MH_this.invokeExact(subl)); // Listie method
+         * }
          *
          * @param refc the class or interface from which the method is accessed
          * @param name the name of the method (which must not be "&lt;init&gt;")
@@ -3262,15 +3261,15 @@ assertEquals(""+l, (String) MH_this.invokeExact(subl)); // Listie method
          * the given receiver value will be bound to it.)
          * <p>
          * This is almost equivalent to the following code, with some differences noted below:
-         * <blockquote><pre>{@code
-import static java.lang.invoke.MethodHandles.*;
-import static java.lang.invoke.MethodType.*;
-...
-MethodHandle mh0 = lookup().findVirtual(defc, name, type);
-MethodHandle mh1 = mh0.bindTo(receiver);
-mh1 = mh1.withVarargs(mh0.isVarargsCollector());
-return mh1;
-         * }</pre></blockquote>
+         * {@snippet : 
+         *  import static java.lang.invoke.MethodHandles.*;
+         *  import static java.lang.invoke.MethodType.*;
+         *  ...
+         *  MethodHandle mh0 = lookup().findVirtual(defc, name, type);
+         *  MethodHandle mh1 = mh0.bindTo(receiver);
+         *  mh1 = mh1.withVarargs(mh0.isVarargsCollector());
+         *  return mh1;
+         * }
          * where {@code defc} is either {@code receiver.getClass()} or a super
          * type of that class, in which the requested method is accessible
          * to the lookup class.
@@ -4421,13 +4420,13 @@ return mh1;
      * for {@code byte[]} arrays without operating on a specific array.  Given
      * an {@code index}, {@code T} and it's corresponding boxed type,
      * {@code T_BOX}, misalignment may be determined as follows:
-     * <pre>{@code
-     * int sizeOfT = T_BOX.BYTES;  // size in bytes of T
-     * int misalignedAtZeroIndex = ByteBuffer.wrap(new byte[0]).
-     *     alignmentOffset(0, sizeOfT);
-     * int misalignedAtIndex = (misalignedAtZeroIndex + index) % sizeOfT;
-     * boolean isMisaligned = misalignedAtIndex != 0;
-     * }</pre>
+     * {@snippet lang=java : 
+     *   int sizeOfT = T_BOX.BYTES;  // size in bytes of T
+     *   int misalignedAtZeroIndex = ByteBuffer.wrap(new byte[0]).
+     *       alignmentOffset(0, sizeOfT);
+     *   int misalignedAtIndex = (misalignedAtZeroIndex + index) % sizeOfT;
+     *   boolean isMisaligned = misalignedAtIndex != 0;
+     * }
      * <p>
      * If the variable type is {@code float} or {@code double} then atomic
      * update access modes compare values using their bitwise representation
@@ -4508,12 +4507,12 @@ return mh1;
      * for a {@code ByteBuffer}, {@code bb} (direct or otherwise), an
      * {@code index}, {@code T} and it's corresponding boxed type,
      * {@code T_BOX}, as follows:
-     * <pre>{@code
-     * int sizeOfT = T_BOX.BYTES;  // size in bytes of T
-     * ByteBuffer bb = ...
-     * int misalignedAtIndex = bb.alignmentOffset(index, sizeOfT);
-     * boolean isMisaligned = misalignedAtIndex != 0;
-     * }</pre>
+     * {@snippet : 
+     *   int sizeOfT = T_BOX.BYTES;  // size in bytes of T
+     *   ByteBuffer bb = ...
+     *   int misalignedAtIndex = bb.alignmentOffset(index, sizeOfT);
+     *   boolean isMisaligned = misalignedAtIndex != 0;
+     * }
      * <p>
      * If the variable type is {@code float} or {@code double} then atomic
      * update access modes compare values using their bitwise representation
@@ -4573,12 +4572,12 @@ return mh1;
      * an {@link IllegalArgumentException} instead of invoking the target.
      * <p>
      * This method is equivalent to the following code (though it may be more efficient):
-     * <blockquote><pre>{@code
-MethodHandle invoker = MethodHandles.invoker(type);
-int spreadArgCount = type.parameterCount() - leadingArgCount;
-invoker = invoker.asSpreader(Object[].class, spreadArgCount);
-return invoker;
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *  MethodHandle invoker = MethodHandles.invoker(type);
+     *  int spreadArgCount = type.parameterCount() - leadingArgCount;
+     *  invoker = invoker.asSpreader(Object[].class, spreadArgCount);
+     *  return invoker;
+     * }
      * This method throws no reflective or security exceptions.
      * @param type the desired target type
      * @param leadingArgCount number of fixed arguments, to be passed unchanged to the target
@@ -4817,23 +4816,23 @@ return invoker;
      * As in the case of {@link #dropArguments(MethodHandle,int,List) dropArguments},
      * incoming arguments which are not mentioned in the reordering array
      * may be of any type, as determined only by {@code newType}.
-     * <blockquote><pre>{@code
-import static java.lang.invoke.MethodHandles.*;
-import static java.lang.invoke.MethodType.*;
-...
-MethodType intfn1 = methodType(int.class, int.class);
-MethodType intfn2 = methodType(int.class, int.class, int.class);
-MethodHandle sub = ... (int x, int y) -> (x-y) ...;
-assert(sub.type().equals(intfn2));
-MethodHandle sub1 = permuteArguments(sub, intfn2, 0, 1);
-MethodHandle rsub = permuteArguments(sub, intfn2, 1, 0);
-assert((int)rsub.invokeExact(1, 100) == 99);
-MethodHandle add = ... (int x, int y) -> (x+y) ...;
-assert(add.type().equals(intfn2));
-MethodHandle twice = permuteArguments(add, intfn1, 0, 0);
-assert(twice.type().equals(intfn1));
-assert((int)twice.invokeExact(21) == 42);
-     * }</pre></blockquote>
+     * {@snippet :
+     * import static java.lang.invoke.MethodHandles.*;
+     * import static java.lang.invoke.MethodType.*;
+     * ...
+     * MethodType intfn1 = methodType(int.class, int.class);
+     * MethodType intfn2 = methodType(int.class, int.class, int.class);
+     * MethodHandle sub = ... (int x, int y) -> (x-y) ...;
+     * assert(sub.type().equals(intfn2));
+     * MethodHandle sub1 = permuteArguments(sub, intfn2, 0, 1);
+     * MethodHandle rsub = permuteArguments(sub, intfn2, 1, 0);
+     * assert((int)rsub.invokeExact(1, 100) == 99);
+     * MethodHandle add = ... (int x, int y) -> (x+y) ...;
+     * assert(add.type().equals(intfn2));
+     * MethodHandle twice = permuteArguments(add, intfn1, 0, 0);
+     * assert(twice.type().equals(intfn1));
+     * assert((int)twice.invokeExact(21) == 42);
+     * }
      * <p>
      * <em>Note:</em> The resulting adapter is never a {@linkplain MethodHandle#asVarargsCollector
      * variable-arity method handle}, even if the original target method handle was.
@@ -5219,23 +5218,23 @@ assert((int)twice.invokeExact(21) == 42);
      * they will come after.
      * <p>
      * <b>Example:</b>
-     * <blockquote><pre>{@code
-import static java.lang.invoke.MethodHandles.*;
-import static java.lang.invoke.MethodType.*;
-...
-MethodHandle cat = lookup().findVirtual(String.class,
-  "concat", methodType(String.class, String.class));
-assertEquals("xy", (String) cat.invokeExact("x", "y"));
-MethodType bigType = cat.type().insertParameterTypes(0, int.class, String.class);
-MethodHandle d0 = dropArguments(cat, 0, bigType.parameterList().subList(0,2));
-assertEquals(bigType, d0.type());
-assertEquals("yz", (String) d0.invokeExact(123, "x", "y", "z"));
-     * }</pre></blockquote>
+     * {@snippet : 
+     *  import static java.lang.invoke.MethodHandles.*;
+     *  import static java.lang.invoke.MethodType.*;
+     *  ...
+     *  MethodHandle cat = lookup().findVirtual(String.class,
+     *    "concat", methodType(String.class, String.class));
+     *  assertEquals("xy", (String) cat.invokeExact("x", "y"));
+     *  MethodType bigType = cat.type().insertParameterTypes(0, int.class, String.class);
+     *  MethodHandle d0 = dropArguments(cat, 0, bigType.parameterList().subList(0,2));
+     *  assertEquals(bigType, d0.type());
+     *  assertEquals("yz", (String) d0.invokeExact(123, "x", "y", "z"));
+     * }
      * <p>
      * This method is also equivalent to the following code:
-     * <blockquote><pre>
-     * {@link #dropArguments(MethodHandle,int,Class...) dropArguments}{@code (target, pos, valueTypes.toArray(new Class[0]))}
-     * </pre></blockquote>
+     * {@snippet :
+     * dropArguments(target, pos, valueTypes.toArray(new Class[0])) //@link regex="dropArguments" target="#dropArguments(MethodHandle,int,Class...)"
+     * }
      * @param target the method handle to invoke after the arguments are dropped
      * @param pos position of first argument to drop (zero for the leftmost)
      * @param valueTypes the type(s) of the argument(s) to drop
@@ -5295,27 +5294,27 @@ assertEquals("yz", (String) d0.invokeExact(123, "x", "y", "z"));
      * the target's real arguments; if {@code pos} is <i>N</i>
      * they will come after.
      * @apiNote
-     * <blockquote><pre>{@code
-import static java.lang.invoke.MethodHandles.*;
-import static java.lang.invoke.MethodType.*;
-...
-MethodHandle cat = lookup().findVirtual(String.class,
-  "concat", methodType(String.class, String.class));
-assertEquals("xy", (String) cat.invokeExact("x", "y"));
-MethodHandle d0 = dropArguments(cat, 0, String.class);
-assertEquals("yz", (String) d0.invokeExact("x", "y", "z"));
-MethodHandle d1 = dropArguments(cat, 1, String.class);
-assertEquals("xz", (String) d1.invokeExact("x", "y", "z"));
-MethodHandle d2 = dropArguments(cat, 2, String.class);
-assertEquals("xy", (String) d2.invokeExact("x", "y", "z"));
-MethodHandle d12 = dropArguments(cat, 1, int.class, boolean.class);
-assertEquals("xz", (String) d12.invokeExact("x", 12, true, "z"));
-     * }</pre></blockquote>
+     * {@snippet :
+     * import static java.lang.invoke.MethodHandles.*;
+     * import static java.lang.invoke.MethodType.*;
+     * ...
+     * MethodHandle cat = lookup().findVirtual(String.class,
+     *   "concat", methodType(String.class, String.class));
+     * assertEquals("xy", (String) cat.invokeExact("x", "y"));
+     * MethodHandle d0 = dropArguments(cat, 0, String.class);
+     * assertEquals("yz", (String) d0.invokeExact("x", "y", "z"));
+     * MethodHandle d1 = dropArguments(cat, 1, String.class);
+     * assertEquals("xz", (String) d1.invokeExact("x", "y", "z"));
+     * MethodHandle d2 = dropArguments(cat, 2, String.class);
+     * assertEquals("xy", (String) d2.invokeExact("x", "y", "z"));
+     * MethodHandle d12 = dropArguments(cat, 1, int.class, boolean.class);
+     * assertEquals("xz", (String) d12.invokeExact("x", 12, true, "z"));
+     * }
      * <p>
      * This method is also equivalent to the following code:
-     * <blockquote><pre>
-     * {@link #dropArguments(MethodHandle,int,List) dropArguments}{@code (target, pos, Arrays.asList(valueTypes))}
-     * </pre></blockquote>
+     * {@snippet :
+     * dropArguments(target, pos, Arrays.asList(valueTypes)) //@link regex="dropArguments" target="#dropArguments(MethodHandle,int,List)"
+     * }
      * @param target the method handle to invoke after the arguments are dropped
      * @param pos position of first argument to drop (zero for the leftmost)
      * @param valueTypes the type(s) of the argument(s) to drop
@@ -5405,22 +5404,22 @@ assertEquals("xz", (String) d12.invokeExact("x", 12, true, "z"));
      * @apiNote
      * Two method handles whose argument lists are "effectively identical" (i.e., identical in a common prefix) may be
      * mutually converted to a common type by two calls to {@code dropArgumentsToMatch}, as follows:
-     * <blockquote><pre>{@code
-import static java.lang.invoke.MethodHandles.*;
-import static java.lang.invoke.MethodType.*;
-...
-...
-MethodHandle h0 = constant(boolean.class, true);
-MethodHandle h1 = lookup().findVirtual(String.class, "concat", methodType(String.class, String.class));
-MethodType bigType = h1.type().insertParameterTypes(1, String.class, int.class);
-MethodHandle h2 = dropArguments(h1, 0, bigType.parameterList());
-if (h1.type().parameterCount() < h2.type().parameterCount())
-    h1 = dropArgumentsToMatch(h1, 0, h2.type().parameterList(), 0);  // lengthen h1
-else
-    h2 = dropArgumentsToMatch(h2, 0, h1.type().parameterList(), 0);    // lengthen h2
-MethodHandle h3 = guardWithTest(h0, h1, h2);
-assertEquals("xy", h3.invoke("x", "y", 1, "a", "b", "c"));
-     * }</pre></blockquote>
+     * {@snippet :
+     * import static java.lang.invoke.MethodHandles.*;
+     * import static java.lang.invoke.MethodType.*;
+     * ...
+     * ...
+     * MethodHandle h0 = constant(boolean.class, true);
+     * MethodHandle h1 = lookup().findVirtual(String.class, "concat", methodType(String.class, String.class));
+     * MethodType bigType = h1.type().insertParameterTypes(1, String.class, int.class);
+     * MethodHandle h2 = dropArguments(h1, 0, bigType.parameterList());
+     * if (h1.type().parameterCount() < h2.type().parameterCount())
+     *     h1 = dropArgumentsToMatch(h1, 0, h2.type().parameterList(), 0);  // lengthen h1
+     * else
+     *     h2 = dropArgumentsToMatch(h2, 0, h1.type().parameterList(), 0);    // lengthen h2
+     * MethodHandle h3 = guardWithTest(h0, h1, h2);
+     * assertEquals("xy", h3.invoke("x", "y", 1, "a", "b", "c"));
+     * }
      * @param target the method handle to adapt
      * @param skip number of targets parameters to disregard (they will be unchanged)
      * @param newTypes the list of types to match {@code target}'s parameter type list to
@@ -5491,22 +5490,22 @@ assertEquals("xy", h3.invoke("x", "y", 1, "a", "b", "c"));
      * (null or not)
      * which do not correspond to argument positions in the target.
      * <p><b>Example:</b>
-     * <blockquote><pre>{@code
-import static java.lang.invoke.MethodHandles.*;
-import static java.lang.invoke.MethodType.*;
-...
-MethodHandle cat = lookup().findVirtual(String.class,
-  "concat", methodType(String.class, String.class));
-MethodHandle upcase = lookup().findVirtual(String.class,
-  "toUpperCase", methodType(String.class));
-assertEquals("xy", (String) cat.invokeExact("x", "y"));
-MethodHandle f0 = filterArguments(cat, 0, upcase);
-assertEquals("Xy", (String) f0.invokeExact("x", "y")); // Xy
-MethodHandle f1 = filterArguments(cat, 1, upcase);
-assertEquals("xY", (String) f1.invokeExact("x", "y")); // xY
-MethodHandle f2 = filterArguments(cat, 0, upcase, upcase);
-assertEquals("XY", (String) f2.invokeExact("x", "y")); // XY
-     * }</pre></blockquote>
+     * {@snippet :
+     * import static java.lang.invoke.MethodHandles.*;
+     * import static java.lang.invoke.MethodType.*;
+     * ...
+     * MethodHandle cat = lookup().findVirtual(String.class,
+     *   "concat", methodType(String.class, String.class));
+     * MethodHandle upcase = lookup().findVirtual(String.class,
+     *   "toUpperCase", methodType(String.class));
+     * assertEquals("xy", (String) cat.invokeExact("x", "y"));
+     * MethodHandle f0 = filterArguments(cat, 0, upcase);
+     * assertEquals("Xy", (String) f0.invokeExact("x", "y")); // Xy
+     * MethodHandle f1 = filterArguments(cat, 1, upcase);
+     * assertEquals("xY", (String) f1.invokeExact("x", "y")); // xY
+     * MethodHandle f2 = filterArguments(cat, 0, upcase, upcase);
+     * assertEquals("XY", (String) f2.invokeExact("x", "y")); // XY
+     * }
      * <p>Here is pseudocode for the resulting adapter. In the code, {@code T}
      * denotes the return type of both the {@code target} and resulting adapter.
      * {@code P}/{@code p} and {@code B}/{@code b} represent the types and values
@@ -5516,13 +5515,13 @@ assertEquals("XY", (String) f2.invokeExact("x", "y")); // XY
      * return types of the {@code filter[i]} handles. The latter accept arguments
      * {@code v[i]} of type {@code V[i]}, which also appear in the signature of
      * the resulting adapter.
-     * <blockquote><pre>{@code
-     * T target(P... p, A[i]... a[i], B... b);
-     * A[i] filter[i](V[i]);
-     * T adapter(P... p, V[i]... v[i], B... b) {
-     *   return target(p..., filter[i](v[i])..., b...);
+     * {@snippet : 
+     *   T target(P... p, A[i]... a[i], B... b);
+     *   A[i] filter[i](V[i]);
+     *   T adapter(P... p, V[i]... v[i], B... b) {
+     *     return target(p..., filter[i](v[i])..., b...);
+     *   }
      * }
-     * }</pre></blockquote>
      * <p>
      * <em>Note:</em> The resulting adapter is never a {@linkplain MethodHandle#asVarargsCollector
      * variable-arity method handle}, even if the original target method handle was.
@@ -5651,32 +5650,32 @@ assertEquals("XY", (String) f2.invokeExact("x", "y")); // XY
      * In all cases, {@code pos} must be greater than or equal to zero, and
      * {@code pos} must also be less than or equal to the target's arity.
      * <p><b>Example:</b>
-     * <blockquote><pre>{@code
-import static java.lang.invoke.MethodHandles.*;
-import static java.lang.invoke.MethodType.*;
-...
-MethodHandle deepToString = publicLookup()
-  .findStatic(Arrays.class, "deepToString", methodType(String.class, Object[].class));
-
-MethodHandle ts1 = deepToString.asCollector(String[].class, 1);
-assertEquals("[strange]", (String) ts1.invokeExact("strange"));
-
-MethodHandle ts2 = deepToString.asCollector(String[].class, 2);
-assertEquals("[up, down]", (String) ts2.invokeExact("up", "down"));
-
-MethodHandle ts3 = deepToString.asCollector(String[].class, 3);
-MethodHandle ts3_ts2 = collectArguments(ts3, 1, ts2);
-assertEquals("[top, [up, down], strange]",
-             (String) ts3_ts2.invokeExact("top", "up", "down", "strange"));
-
-MethodHandle ts3_ts2_ts1 = collectArguments(ts3_ts2, 3, ts1);
-assertEquals("[top, [up, down], [strange]]",
-             (String) ts3_ts2_ts1.invokeExact("top", "up", "down", "strange"));
-
-MethodHandle ts3_ts2_ts3 = collectArguments(ts3_ts2, 1, ts3);
-assertEquals("[top, [[up, down, strange], charm], bottom]",
-             (String) ts3_ts2_ts3.invokeExact("top", "up", "down", "strange", "charm", "bottom"));
-     * }</pre></blockquote>
+     * {@snippet :
+     * import static java.lang.invoke.MethodHandles.*;
+     * import static java.lang.invoke.MethodType.*;
+     * ...
+     * MethodHandle deepToString = publicLookup()
+     *   .findStatic(Arrays.class, "deepToString", methodType(String.class, Object[].class));
+     *
+     * MethodHandle ts1 = deepToString.asCollector(String[].class, 1);
+     * assertEquals("[strange]", (String) ts1.invokeExact("strange"));
+     *
+     * MethodHandle ts2 = deepToString.asCollector(String[].class, 2);
+     * assertEquals("[up, down]", (String) ts2.invokeExact("up", "down"));
+     *
+     * MethodHandle ts3 = deepToString.asCollector(String[].class, 3);
+     * MethodHandle ts3_ts2 = collectArguments(ts3, 1, ts2);
+     * assertEquals("[top, [up, down], strange]",
+     *              (String) ts3_ts2.invokeExact("top", "up", "down", "strange"));
+     *
+     * MethodHandle ts3_ts2_ts1 = collectArguments(ts3_ts2, 3, ts1);
+     * assertEquals("[top, [up, down], [strange]]",
+     *              (String) ts3_ts2_ts1.invokeExact("top", "up", "down", "strange"));
+     *
+     * MethodHandle ts3_ts2_ts3 = collectArguments(ts3_ts2, 1, ts3);
+     * assertEquals("[top, [[up, down, strange], charm], bottom]",
+     *              (String) ts3_ts2_ts3.invokeExact("top", "up", "down", "strange", "charm", "bottom"));
+     * }
      * <p>Here is pseudocode for the resulting adapter. In the code, {@code T}
      * represents the return type of the {@code target} and resulting adapter.
      * {@code V}/{@code v} stand for the return type and value of the
@@ -5688,36 +5687,36 @@ assertEquals("[top, [[up, down, strange], charm], bottom]",
      * adapter's signature and arguments, where they surround
      * {@code B}/{@code b}, which represent the parameter types and arguments
      * to the {@code filter} (if any).
-     * <blockquote><pre>{@code
-     * T target(A...,V,C...);
-     * V filter(B...);
-     * T adapter(A... a,B... b,C... c) {
-     *   V v = filter(b...);
-     *   return target(a...,v,c...);
-     * }
-     * // and if the filter has no arguments:
-     * T target2(A...,V,C...);
-     * V filter2();
-     * T adapter2(A... a,C... c) {
-     *   V v = filter2();
-     *   return target2(a...,v,c...);
-     * }
-     * // and if the filter has a void return:
-     * T target3(A...,C...);
-     * void filter3(B...);
-     * T adapter3(A... a,B... b,C... c) {
-     *   filter3(b...);
-     *   return target3(a...,c...);
-     * }
-     * }</pre></blockquote>
+     * {@snippet :
+     *  T target(A...,V,C...);
+     *  V filter(B...);
+     *  T adapter(A... a,B... b,C... c) {
+     *    V v = filter(b...);
+     *    return target(a...,v,c...);
+     *  }
+     *  // and if the filter has no arguments:
+     *  T target2(A...,V,C...);
+     *  V filter2();
+     *  T adapter2(A... a,C... c) {
+     *    V v = filter2();
+     *    return target2(a...,v,c...);
+     *  }
+     *  // and if the filter has a void return:
+     *  T target3(A...,C...);
+     *  void filter3(B...);
+     *  T adapter3(A... a,B... b,C... c) {
+     *    filter3(b...);
+     *    return target3(a...,c...);
+     *  }
+     *  }
      * <p>
      * A collection adapter {@code collectArguments(mh, 0, coll)} is equivalent to
      * one which first "folds" the affected arguments, and then drops them, in separate
      * steps as follows:
-     * <blockquote><pre>{@code
-     * mh = MethodHandles.dropArguments(mh, 1, coll.type().parameterList()); //step 2
-     * mh = MethodHandles.foldArguments(mh, coll); //step 1
-     * }</pre></blockquote>
+     * {@snippet lang=java : 
+     *   mh = MethodHandles.dropArguments(mh, 1, coll.type().parameterList()); //step 2
+     *   mh = MethodHandles.foldArguments(mh, coll); //step 1
+     * }
      * If the target method handle consumes no arguments besides than the result
      * (if any) of the filter {@code coll}, then {@code collectArguments(mh, 0, coll)}
      * is equivalent to {@code filterReturnValue(coll, mh)}.
@@ -5785,45 +5784,45 @@ assertEquals("[top, [[up, down, strange], charm], bottom]",
      * The argument type of the filter (if any) must be identical to the
      * return type of the target.
      * <p><b>Example:</b>
-     * <blockquote><pre>{@code
-import static java.lang.invoke.MethodHandles.*;
-import static java.lang.invoke.MethodType.*;
-...
-MethodHandle cat = lookup().findVirtual(String.class,
-  "concat", methodType(String.class, String.class));
-MethodHandle length = lookup().findVirtual(String.class,
-  "length", methodType(int.class));
-System.out.println((String) cat.invokeExact("x", "y")); // xy
-MethodHandle f0 = filterReturnValue(cat, length);
-System.out.println((int) f0.invokeExact("x", "y")); // 2
-     * }</pre></blockquote>
+     * {@snippet : 
+     *  import static java.lang.invoke.MethodHandles.*;
+     *  import static java.lang.invoke.MethodType.*;
+     *  ...
+     *  MethodHandle cat = lookup().findVirtual(String.class,
+     *    "concat", methodType(String.class, String.class));
+     *  MethodHandle length = lookup().findVirtual(String.class,
+     *    "length", methodType(int.class));
+     *  System.out.println((String) cat.invokeExact("x", "y")); // xy
+     *  MethodHandle f0 = filterReturnValue(cat, length);
+     *  System.out.println((int) f0.invokeExact("x", "y")); // 2
+     * }
      * <p>Here is pseudocode for the resulting adapter. In the code,
      * {@code T}/{@code t} represent the result type and value of the
      * {@code target}; {@code V}, the result type of the {@code filter}; and
      * {@code A}/{@code a}, the types and values of the parameters and arguments
      * of the {@code target} as well as the resulting adapter.
-     * <blockquote><pre>{@code
+     * {@snippet :
      * T target(A...);
-     * V filter(T);
-     * V adapter(A... a) {
-     *   T t = target(a...);
-     *   return filter(t);
+     *  V filter(T);
+     *  V adapter(A... a) {
+     *    T t = target(a...);
+     *    return filter(t);
+     *  }
+     *  // and if the target has a void return:
+     *  void target2(A...);
+     *  V filter2();
+     *  V adapter2(A... a) {
+     *    target2(a...);
+     *    return filter2();
+     *  }
+     *  // and if the filter has a void return:
+     *  T target3(A...);
+     *  void filter3(V);
+     *  void adapter3(A... a) {
+     *    T t = target3(a...);
+     *    filter3(t);
+     *  }
      * }
-     * // and if the target has a void return:
-     * void target2(A...);
-     * V filter2();
-     * V adapter2(A... a) {
-     *   target2(a...);
-     *   return filter2();
-     * }
-     * // and if the filter has a void return:
-     * T target3(A...);
-     * void filter3(V);
-     * void adapter3(A... a) {
-     *   T t = target3(a...);
-     *   filter3(t);
-     * }
-     * }</pre></blockquote>
      * <p>
      * <em>Note:</em> The resulting adapter is never a {@linkplain MethodHandle#asVarargsCollector
      * variable-arity method handle}, even if the original target method handle was.
@@ -5860,13 +5859,14 @@ System.out.println((int) f0.invokeExact("x", "y")); // 2
      * applied to the return value of the original handle; if the filter specifies more than one parameters,
      * then any remaining parameter is appended to the adapter handle. In other words, the adaptation works
      * as follows:
-     * <blockquote><pre>{@code
+     * {@snippet :
      * T target(A...)
      * V filter(B... , T)
      * V adapter(A... a, B... b) {
      *     T t = target(a...);
      *     return filter(b..., t);
-     * }</pre></blockquote>
+     * }
+     * }
      * <p>
      * If the filter handle is a unary function, then this method behaves like {@link #filterReturnValue(MethodHandle, MethodHandle)}.
      *
@@ -5923,20 +5923,20 @@ System.out.println((int) f0.invokeExact("x", "y")); // 2
      * arguments will not need to be live on the stack on entry to the
      * target.)
      * <p><b>Example:</b>
-     * <blockquote><pre>{@code
-import static java.lang.invoke.MethodHandles.*;
-import static java.lang.invoke.MethodType.*;
-...
-MethodHandle trace = publicLookup().findVirtual(java.io.PrintStream.class,
-  "println", methodType(void.class, String.class))
-    .bindTo(System.out);
-MethodHandle cat = lookup().findVirtual(String.class,
-  "concat", methodType(String.class, String.class));
-assertEquals("boojum", (String) cat.invokeExact("boo", "jum"));
-MethodHandle catTrace = foldArguments(cat, trace);
-// also prints "boo":
-assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
-     * }</pre></blockquote>
+     * {@snippet :
+     * import static java.lang.invoke.MethodHandles.*;
+     * import static java.lang.invoke.MethodType.*;
+     * ...
+     * MethodHandle trace = publicLookup().findVirtual(java.io.PrintStream.class,
+     *   "println", methodType(void.class, String.class))
+     *     .bindTo(System.out);
+     * MethodHandle cat = lookup().findVirtual(String.class,
+     *   "concat", methodType(String.class, String.class));
+     * assertEquals("boojum", (String) cat.invokeExact("boo", "jum"));
+     * MethodHandle catTrace = foldArguments(cat, trace);
+     * // also prints "boo":
+     * assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
+     * }
      * <p>Here is pseudocode for the resulting adapter. In the code, {@code T}
      * represents the result type of the {@code target} and resulting adapter.
      * {@code V}/{@code v} represent the type and value of the parameter and argument
@@ -5946,22 +5946,22 @@ assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
      * position. {@code B}/{@code b} represent the types and values of the
      * {@code target} parameters and arguments that follow the folded parameters
      * and arguments.
-     * <blockquote><pre>{@code
+     * {@snippet :
      * // there are N arguments in A...
-     * T target(V, A[N]..., B...);
-     * V combiner(A...);
-     * T adapter(A... a, B... b) {
-     *   V v = combiner(a...);
-     *   return target(v, a..., b...);
+     *  T target(V, A[N]..., B...);
+     *  V combiner(A...);
+     *  T adapter(A... a, B... b) {
+     *    V v = combiner(a...);
+     *    return target(v, a..., b...);
+     *  }
+     *  // and if the combiner has a void return:
+     *  T target2(A[N]..., B...);
+     *  void combiner2(A...);
+     *  T adapter2(A... a, B... b) {
+     *    combiner2(a...);
+     *    return target2(a..., b...);
      * }
-     * // and if the combiner has a void return:
-     * T target2(A[N]..., B...);
-     * void combiner2(A...);
-     * T adapter2(A... a, B... b) {
-     *   combiner2(a...);
-     *   return target2(a..., b...);
      * }
-     * }</pre></blockquote>
      * <p>
      * <em>Note:</em> The resulting adapter is never a {@linkplain MethodHandle#asVarargsCollector
      * variable-arity method handle}, even if the original target method handle was.
@@ -5991,20 +5991,20 @@ assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
      * 0.
      *
      * @apiNote Example:
-     * <blockquote><pre>{@code
-    import static java.lang.invoke.MethodHandles.*;
-    import static java.lang.invoke.MethodType.*;
-    ...
-    MethodHandle trace = publicLookup().findVirtual(java.io.PrintStream.class,
-    "println", methodType(void.class, String.class))
-    .bindTo(System.out);
-    MethodHandle cat = lookup().findVirtual(String.class,
-    "concat", methodType(String.class, String.class));
-    assertEquals("boojum", (String) cat.invokeExact("boo", "jum"));
-    MethodHandle catTrace = foldArguments(cat, 1, trace);
-    // also prints "jum":
-    assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
-     * }</pre></blockquote>
+     * {@snippet :
+     * import static java.lang.invoke.MethodHandles.*;
+     *     import static java.lang.invoke.MethodType.*;
+     *     ...
+     *     MethodHandle trace = publicLookup().findVirtual(java.io.PrintStream.class,
+     *     "println", methodType(void.class, String.class))
+     *     .bindTo(System.out);
+     *     MethodHandle cat = lookup().findVirtual(String.class,
+     *     "concat", methodType(String.class, String.class));
+     *     assertEquals("boojum", (String) cat.invokeExact("boo", "jum"));
+     *     MethodHandle catTrace = foldArguments(cat, 1, trace);
+     *     // also prints "jum":
+     *     assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
+     * }
      * <p>Here is pseudocode for the resulting adapter. In the code, {@code T}
      * represents the result type of the {@code target} and resulting adapter.
      * {@code V}/{@code v} represent the type and value of the parameter and argument
@@ -6015,22 +6015,22 @@ assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
      * and values of the {@code target} parameters and arguments that precede and
      * follow the folded parameters and arguments starting at {@code pos},
      * respectively.
-     * <blockquote><pre>{@code
-     * // there are N arguments in A...
-     * T target(Z..., V, A[N]..., B...);
-     * V combiner(A...);
-     * T adapter(Z... z, A... a, B... b) {
-     *   V v = combiner(a...);
-     *   return target(z..., v, a..., b...);
+     * {@snippet :
+     *  // there are N arguments in A...
+     *  T target(Z..., V, A[N]..., B...);
+     *  V combiner(A...);
+     *  T adapter(Z... z, A... a, B... b) {
+     *    V v = combiner(a...);
+     *    return target(z..., v, a..., b...);
+     *  }
+     *  // and if the combiner has a void return:
+     *  T target2(Z..., A[N]..., B...);
+     *  void combiner2(A...);
+     *  T adapter2(Z... z, A... a, B... b) {
+     *    combiner2(a...);
+     *    return target2(z..., a..., b...);
+     *  }
      * }
-     * // and if the combiner has a void return:
-     * T target2(Z..., A[N]..., B...);
-     * void combiner2(A...);
-     * T adapter2(Z... z, A... a, B... b) {
-     *   combiner2(a...);
-     *   return target2(z..., a..., b...);
-     * }
-     * }</pre></blockquote>
      * <p>
      * <em>Note:</em> The resulting adapter is never a {@linkplain MethodHandle#asVarargsCollector
      * variable-arity method handle}, even if the original target method handle was.
@@ -6191,17 +6191,17 @@ assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
      * parameters and arguments that are consumed by the {@code test}; and
      * {@code B}/{@code b}, those types and values of the {@code target}
      * parameters and arguments that are not consumed by the {@code test}.
-     * <blockquote><pre>{@code
-     * boolean test(A...);
-     * T target(A...,B...);
-     * T fallback(A...,B...);
-     * T adapter(A... a,B... b) {
-     *   if (test(a...))
-     *     return target(a..., b...);
-     *   else
-     *     return fallback(a..., b...);
+     * {@snippet : 
+     *   boolean test(A...);
+     *   T target(A...,B...);
+     *   T fallback(A...,B...);
+     *   T adapter(A... a,B... b) {
+     *     if (test(a...))
+     *       return target(a..., b...);
+     *     else
+     *       return fallback(a..., b...);
+     *   }
      * }
-     * }</pre></blockquote>
      * Note that the test arguments ({@code a...} in the pseudocode) cannot
      * be modified by execution of the test, and so are passed unchanged
      * from the caller to the target or fallback as appropriate.
@@ -6254,17 +6254,17 @@ assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
      * the types and values of arguments to the resulting handle consumed by
      * {@code handler}; and {@code B}/{@code b}, those of arguments to the
      * resulting handle discarded by {@code handler}.
-     * <blockquote><pre>{@code
-     * T target(A..., B...);
-     * T handler(ExType, A...);
-     * T adapter(A... a, B... b) {
-     *   try {
-     *     return target(a..., b...);
-     *   } catch (ExType ex) {
-     *     return handler(ex, a...);
+     * {@snippet : 
+     *   T target(A..., B...);
+     *   T handler(ExType, A...);
+     *   T adapter(A... a, B... b) {
+     *     try {
+     *       return target(a..., b...);
+     *     } catch (ExType ex) {
+     *       return handler(ex, a...);
+     *     }
      *   }
      * }
-     * }</pre></blockquote>
      * Note that the saved arguments ({@code a...} in the pseudocode) cannot
      * be modified by execution of the target, and so are passed unchanged
      * from the caller to the handler, if the handler is invoked.
@@ -6536,79 +6536,79 @@ assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
      * Here is pseudocode for the resulting loop handle. As above, {@code V} and {@code v} represent the types
      * and values of loop variables; {@code A} and {@code a} represent arguments passed to the whole loop;
      * and {@code R} is the common result type of all finalizers as well as of the resulting loop.
-     * <blockquote><pre>{@code
+     * {@snippet :
      * V... init...(A...);
-     * boolean pred...(V..., A...);
-     * V... step...(V..., A...);
-     * R fini...(V..., A...);
-     * R loop(A... a) {
-     *   V... v... = init...(a...);
-     *   for (;;) {
-     *     for ((v, p, s, f) in (v..., pred..., step..., fini...)) {
-     *       v = s(v..., a...);
-     *       if (!p(v..., a...)) {
-     *         return f(v..., a...);
-     *       }
-     *     }
-     *   }
-     * }
-     * }</pre></blockquote>
+     *  boolean pred...(V..., A...);
+     *  V... step...(V..., A...);
+     *  R fini...(V..., A...);
+     *  R loop(A... a) {
+     *    V... v... = init...(a...);
+     *    for (;;) {
+     *      for ((v, p, s, f) in (v..., pred..., step..., fini...)) {
+     *        v = s(v..., a...);
+     *        if (!p(v..., a...)) {
+     *          return f(v..., a...);
+     *        }
+     *      }
+     *    }
+     *  }
+     *  }
      * Note that the parameter type lists {@code (V...)} and {@code (A...)} have been expanded
      * to their full length, even though individual clause functions may neglect to take them all.
      * As noted above, missing parameters are filled in as if by {@link #dropArgumentsToMatch(MethodHandle, int, List, int)}.
      *
      * @apiNote Example:
-     * <blockquote><pre>{@code
-     * // iterative implementation of the factorial function as a loop handle
-     * static int one(int k) { return 1; }
-     * static int inc(int i, int acc, int k) { return i + 1; }
-     * static int mult(int i, int acc, int k) { return i * acc; }
-     * static boolean pred(int i, int acc, int k) { return i < k; }
-     * static int fin(int i, int acc, int k) { return acc; }
-     * // assume MH_one, MH_inc, MH_mult, MH_pred, and MH_fin are handles to the above methods
-     * // null initializer for counter, should initialize to 0
-     * MethodHandle[] counterClause = new MethodHandle[]{null, MH_inc};
-     * MethodHandle[] accumulatorClause = new MethodHandle[]{MH_one, MH_mult, MH_pred, MH_fin};
-     * MethodHandle loop = MethodHandles.loop(counterClause, accumulatorClause);
-     * assertEquals(120, loop.invoke(5));
-     * }</pre></blockquote>
+     * {@snippet :
+     *  // iterative implementation of the factorial function as a loop handle
+     *  static int one(int k) { return 1; }
+     *  static int inc(int i, int acc, int k) { return i + 1; }
+     *  static int mult(int i, int acc, int k) { return i * acc; }
+     *  static boolean pred(int i, int acc, int k) { return i < k; }
+     *  static int fin(int i, int acc, int k) { return acc; }
+     *  // assume MH_one, MH_inc, MH_mult, MH_pred, and MH_fin are handles to the above methods
+     *  // null initializer for counter, should initialize to 0
+     *  MethodHandle[] counterClause = new MethodHandle[]{null, MH_inc};
+     *  MethodHandle[] accumulatorClause = new MethodHandle[]{MH_one, MH_mult, MH_pred, MH_fin};
+     *  MethodHandle loop = MethodHandles.loop(counterClause, accumulatorClause);
+     *  assertEquals(120, loop.invoke(5));
+     *  }
      * The same example, dropping arguments and using combinators:
-     * <blockquote><pre>{@code
-     * // simplified implementation of the factorial function as a loop handle
-     * static int inc(int i) { return i + 1; } // drop acc, k
-     * static int mult(int i, int acc) { return i * acc; } //drop k
-     * static boolean cmp(int i, int k) { return i < k; }
-     * // assume MH_inc, MH_mult, and MH_cmp are handles to the above methods
-     * // null initializer for counter, should initialize to 0
-     * MethodHandle MH_one = MethodHandles.constant(int.class, 1);
-     * MethodHandle MH_pred = MethodHandles.dropArguments(MH_cmp, 1, int.class); // drop acc
-     * MethodHandle MH_fin = MethodHandles.dropArguments(MethodHandles.identity(int.class), 0, int.class); // drop i
-     * MethodHandle[] counterClause = new MethodHandle[]{null, MH_inc};
-     * MethodHandle[] accumulatorClause = new MethodHandle[]{MH_one, MH_mult, MH_pred, MH_fin};
-     * MethodHandle loop = MethodHandles.loop(counterClause, accumulatorClause);
-     * assertEquals(720, loop.invoke(6));
-     * }</pre></blockquote>
+     * {@snippet :
+     *  // simplified implementation of the factorial function as a loop handle
+     *  static int inc(int i) { return i + 1; } // drop acc, k
+     *  static int mult(int i, int acc) { return i * acc; } //drop k
+     *  static boolean cmp(int i, int k) { return i < k; }
+     *  // assume MH_inc, MH_mult, and MH_cmp are handles to the above methods
+     *  // null initializer for counter, should initialize to 0
+     *  MethodHandle MH_one = MethodHandles.constant(int.class, 1);
+     *  MethodHandle MH_pred = MethodHandles.dropArguments(MH_cmp, 1, int.class); // drop acc
+     *  MethodHandle MH_fin = MethodHandles.dropArguments(MethodHandles.identity(int.class), 0, int.class); // drop i
+     *  MethodHandle[] counterClause = new MethodHandle[]{null, MH_inc};
+     *  MethodHandle[] accumulatorClause = new MethodHandle[]{MH_one, MH_mult, MH_pred, MH_fin};
+     *  MethodHandle loop = MethodHandles.loop(counterClause, accumulatorClause);
+     *  assertEquals(720, loop.invoke(6));
+     *  }
      * A similar example, using a helper object to hold a loop parameter:
-     * <blockquote><pre>{@code
-     * // instance-based implementation of the factorial function as a loop handle
-     * static class FacLoop {
-     *   final int k;
-     *   FacLoop(int k) { this.k = k; }
-     *   int inc(int i) { return i + 1; }
-     *   int mult(int i, int acc) { return i * acc; }
-     *   boolean pred(int i) { return i < k; }
-     *   int fin(int i, int acc) { return acc; }
-     * }
-     * // assume MH_FacLoop is a handle to the constructor
-     * // assume MH_inc, MH_mult, MH_pred, and MH_fin are handles to the above methods
-     * // null initializer for counter, should initialize to 0
-     * MethodHandle MH_one = MethodHandles.constant(int.class, 1);
-     * MethodHandle[] instanceClause = new MethodHandle[]{MH_FacLoop};
-     * MethodHandle[] counterClause = new MethodHandle[]{null, MH_inc};
-     * MethodHandle[] accumulatorClause = new MethodHandle[]{MH_one, MH_mult, MH_pred, MH_fin};
-     * MethodHandle loop = MethodHandles.loop(instanceClause, counterClause, accumulatorClause);
-     * assertEquals(5040, loop.invoke(7));
-     * }</pre></blockquote>
+     * {@snippet :
+     *  // instance-based implementation of the factorial function as a loop handle
+     *  static class FacLoop {
+     *    final int k;
+     *    FacLoop(int k) { this.k = k; }
+     *    int inc(int i) { return i + 1; }
+     *    int mult(int i, int acc) { return i * acc; }
+     *    boolean pred(int i) { return i < k; }
+     *    int fin(int i, int acc) { return acc; }
+     *  }
+     *  // assume MH_FacLoop is a handle to the constructor
+     *  // assume MH_inc, MH_mult, MH_pred, and MH_fin are handles to the above methods
+     *  // null initializer for counter, should initialize to 0
+     *  MethodHandle MH_one = MethodHandles.constant(int.class, 1);
+     *  MethodHandle[] instanceClause = new MethodHandle[]{MH_FacLoop};
+     *  MethodHandle[] counterClause = new MethodHandle[]{null, MH_inc};
+     *  MethodHandle[] accumulatorClause = new MethodHandle[]{MH_one, MH_mult, MH_pred, MH_fin};
+     *  MethodHandle loop = MethodHandles.loop(instanceClause, counterClause, accumulatorClause);
+     *  assertEquals(5040, loop.invoke(7));
+     *  }
      *
      * @param clauses an array of arrays (4-tuples) of {@link MethodHandle}s adhering to the rules described above.
      *
@@ -6838,49 +6838,48 @@ assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
      * Here is pseudocode for the resulting loop handle. In the code, {@code V}/{@code v} represent the type / value of
      * the sole loop variable as well as the result type of the loop; and {@code A}/{@code a}, that of the argument
      * passed to the loop.
-     * <blockquote><pre>{@code
-     * V init(A...);
-     * boolean pred(V, A...);
-     * V body(V, A...);
-     * V whileLoop(A... a...) {
-     *   V v = init(a...);
-     *   while (pred(v, a...)) {
-     *     v = body(v, a...);
+     * {@snippet : 
+     *   V init(A...);
+     *   boolean pred(V, A...);
+     *   V body(V, A...);
+     *   V whileLoop(A... a...) {
+     *     V v = init(a...);
+     *     while (pred(v, a...)) {
+     *       v = body(v, a...);
+     *     }
+     *     return v;
      *   }
-     *   return v;
      * }
-     * }</pre></blockquote>
      *
      * @apiNote Example:
-     * <blockquote><pre>{@code
-     * // implement the zip function for lists as a loop handle
-     * static List<String> initZip(Iterator<String> a, Iterator<String> b) { return new ArrayList<>(); }
-     * static boolean zipPred(List<String> zip, Iterator<String> a, Iterator<String> b) { return a.hasNext() && b.hasNext(); }
-     * static List<String> zipStep(List<String> zip, Iterator<String> a, Iterator<String> b) {
-     *   zip.add(a.next());
-     *   zip.add(b.next());
-     *   return zip;
-     * }
-     * // assume MH_initZip, MH_zipPred, and MH_zipStep are handles to the above methods
-     * MethodHandle loop = MethodHandles.whileLoop(MH_initZip, MH_zipPred, MH_zipStep);
-     * List<String> a = Arrays.asList("a", "b", "c", "d");
-     * List<String> b = Arrays.asList("e", "f", "g", "h");
-     * List<String> zipped = Arrays.asList("a", "e", "b", "f", "c", "g", "d", "h");
-     * assertEquals(zipped, (List<String>) loop.invoke(a.iterator(), b.iterator()));
-     * }</pre></blockquote>
+     * {@snippet :
+     *  // implement the zip function for lists as a loop handle
+     *  static List<String> initZip(Iterator<String> a, Iterator<String> b) { return new ArrayList<>(); }
+     *  static boolean zipPred(List<String> zip, Iterator<String> a, Iterator<String> b) { return a.hasNext() && b.hasNext(); }
+     *  static List<String> zipStep(List<String> zip, Iterator<String> a, Iterator<String> b) {
+     *    zip.add(a.next());
+     *    zip.add(b.next());
+     *    return zip;
+     *  }
+     *  // assume MH_initZip, MH_zipPred, and MH_zipStep are handles to the above methods
+     *  MethodHandle loop = MethodHandles.whileLoop(MH_initZip, MH_zipPred, MH_zipStep);
+     *  List<String> a = Arrays.asList("a", "b", "c", "d");
+     *  List<String> b = Arrays.asList("e", "f", "g", "h");
+     *  List<String> zipped = Arrays.asList("a", "e", "b", "f", "c", "g", "d", "h");
+     *  assertEquals(zipped, (List<String>) loop.invoke(a.iterator(), b.iterator()));}
      *
      *
      * @apiNote The implementation of this method can be expressed as follows:
-     * <blockquote><pre>{@code
-     * MethodHandle whileLoop(MethodHandle init, MethodHandle pred, MethodHandle body) {
-     *     MethodHandle fini = (body.type().returnType() == void.class
-     *                         ? null : identity(body.type().returnType()));
-     *     MethodHandle[]
-     *         checkExit = { null, null, pred, fini },
-     *         varBody   = { init, body };
-     *     return loop(checkExit, varBody);
+     * {@snippet lang=java : 
+     *   MethodHandle whileLoop(MethodHandle init, MethodHandle pred, MethodHandle body) {
+     *       MethodHandle fini = (body.type().returnType() == void.class
+     *                           ? null : identity(body.type().returnType()));
+     *       MethodHandle[]
+     *           checkExit = { null, null, pred, fini },
+     *           varBody   = { init, body };
+     *       return loop(checkExit, varBody);
+     *   }
      * }
-     * }</pre></blockquote>
      *
      * @param init optional initializer, providing the initial value of the loop variable.
      *             May be {@code null}, implying a default initial value.  See above for other constraints.
@@ -6951,40 +6950,40 @@ assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
      * Here is pseudocode for the resulting loop handle. In the code, {@code V}/{@code v} represent the type / value of
      * the sole loop variable as well as the result type of the loop; and {@code A}/{@code a}, that of the argument
      * passed to the loop.
-     * <blockquote><pre>{@code
-     * V init(A...);
-     * boolean pred(V, A...);
-     * V body(V, A...);
-     * V doWhileLoop(A... a...) {
-     *   V v = init(a...);
-     *   do {
-     *     v = body(v, a...);
-     *   } while (pred(v, a...));
-     *   return v;
+     * {@snippet : 
+     *   V init(A...);
+     *   boolean pred(V, A...);
+     *   V body(V, A...);
+     *   V doWhileLoop(A... a...) {
+     *     V v = init(a...);
+     *     do {
+     *       v = body(v, a...);
+     *     } while (pred(v, a...));
+     *     return v;
+     *   }
      * }
-     * }</pre></blockquote>
      *
      * @apiNote Example:
-     * <blockquote><pre>{@code
-     * // int i = 0; while (i < limit) { ++i; } return i; => limit
-     * static int zero(int limit) { return 0; }
-     * static int step(int i, int limit) { return i + 1; }
-     * static boolean pred(int i, int limit) { return i < limit; }
-     * // assume MH_zero, MH_step, and MH_pred are handles to the above methods
-     * MethodHandle loop = MethodHandles.doWhileLoop(MH_zero, MH_step, MH_pred);
-     * assertEquals(23, loop.invoke(23));
-     * }</pre></blockquote>
+     * {@snippet : 
+     *   // int i = 0; while (i < limit) { ++i; } return i; => limit
+     *   static int zero(int limit) { return 0; }
+     *   static int step(int i, int limit) { return i + 1; }
+     *   static boolean pred(int i, int limit) { return i < limit; }
+     *   // assume MH_zero, MH_step, and MH_pred are handles to the above methods
+     *   MethodHandle loop = MethodHandles.doWhileLoop(MH_zero, MH_step, MH_pred);
+     *   assertEquals(23, loop.invoke(23));
+     * }
      *
      *
      * @apiNote The implementation of this method can be expressed as follows:
-     * <blockquote><pre>{@code
-     * MethodHandle doWhileLoop(MethodHandle init, MethodHandle body, MethodHandle pred) {
-     *     MethodHandle fini = (body.type().returnType() == void.class
-     *                         ? null : identity(body.type().returnType()));
-     *     MethodHandle[] clause = { init, body, pred, fini };
-     *     return loop(clause);
+     * {@snippet lang=java : 
+     *   MethodHandle doWhileLoop(MethodHandle init, MethodHandle body, MethodHandle pred) {
+     *       MethodHandle fini = (body.type().returnType() == void.class
+     *                           ? null : identity(body.type().returnType()));
+     *       MethodHandle[] clause = { init, body, pred, fini };
+     *       return loop(clause);
+     *   }
      * }
-     * }</pre></blockquote>
      *
      * @param init optional initializer, providing the initial value of the loop variable.
      *             May be {@code null}, implying a default initial value.  See above for other constraints.
@@ -7094,79 +7093,79 @@ assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
      * Here is pseudocode for the resulting loop handle. In the code, {@code V}/{@code v} represent the type / value of
      * the second loop variable as well as the result type of the loop; and {@code A...}/{@code a...} represent
      * arguments passed to the loop.
-     * <blockquote><pre>{@code
-     * int iterations(A...);
-     * V init(A...);
-     * V body(V, int, A...);
-     * V countedLoop(A... a...) {
-     *   int end = iterations(a...);
-     *   V v = init(a...);
-     *   for (int i = 0; i < end; ++i) {
-     *     v = body(v, i, a...);
+     * {@snippet : 
+     *   int iterations(A...);
+     *   V init(A...);
+     *   V body(V, int, A...);
+     *   V countedLoop(A... a...) {
+     *     int end = iterations(a...);
+     *     V v = init(a...);
+     *     for (int i = 0; i < end; ++i) {
+     *       v = body(v, i, a...);
+     *     }
+     *     return v;
      *   }
-     *   return v;
      * }
-     * }</pre></blockquote>
      *
      * @apiNote Example with a fully conformant body method:
-     * <blockquote><pre>{@code
-     * // String s = "Lambdaman!"; for (int i = 0; i < 13; ++i) { s = "na " + s; } return s;
-     * // => a variation on a well known theme
-     * static String step(String v, int counter, String init) { return "na " + v; }
-     * // assume MH_step is a handle to the method above
-     * MethodHandle fit13 = MethodHandles.constant(int.class, 13);
-     * MethodHandle start = MethodHandles.identity(String.class);
-     * MethodHandle loop = MethodHandles.countedLoop(fit13, start, MH_step);
-     * assertEquals("na na na na na na na na na na na na na Lambdaman!", loop.invoke("Lambdaman!"));
-     * }</pre></blockquote>
+     * {@snippet : 
+     *   // String s = "Lambdaman!"; for (int i = 0; i < 13; ++i) { s = "na " + s; } return s;
+     *   // => a variation on a well known theme
+     *   static String step(String v, int counter, String init) { return "na " + v; }
+     *   // assume MH_step is a handle to the method above
+     *   MethodHandle fit13 = MethodHandles.constant(int.class, 13);
+     *   MethodHandle start = MethodHandles.identity(String.class);
+     *   MethodHandle loop = MethodHandles.countedLoop(fit13, start, MH_step);
+     *   assertEquals("na na na na na na na na na na na na na Lambdaman!", loop.invoke("Lambdaman!"));
+     * }
      *
      * @apiNote Example with the simplest possible body method type,
      * and passing the number of iterations to the loop invocation:
-     * <blockquote><pre>{@code
-     * // String s = "Lambdaman!"; for (int i = 0; i < 13; ++i) { s = "na " + s; } return s;
-     * // => a variation on a well known theme
-     * static String step(String v, int counter ) { return "na " + v; }
-     * // assume MH_step is a handle to the method above
-     * MethodHandle count = MethodHandles.dropArguments(MethodHandles.identity(int.class), 1, String.class);
-     * MethodHandle start = MethodHandles.dropArguments(MethodHandles.identity(String.class), 0, int.class);
-     * MethodHandle loop = MethodHandles.countedLoop(count, start, MH_step);  // (v, i) -> "na " + v
-     * assertEquals("na na na na na na na na na na na na na Lambdaman!", loop.invoke(13, "Lambdaman!"));
-     * }</pre></blockquote>
+     * {@snippet : 
+     *   // String s = "Lambdaman!"; for (int i = 0; i < 13; ++i) { s = "na " + s; } return s;
+     *   // => a variation on a well known theme
+     *   static String step(String v, int counter ) { return "na " + v; }
+     *   // assume MH_step is a handle to the method above
+     *   MethodHandle count = MethodHandles.dropArguments(MethodHandles.identity(int.class), 1, String.class);
+     *   MethodHandle start = MethodHandles.dropArguments(MethodHandles.identity(String.class), 0, int.class);
+     *   MethodHandle loop = MethodHandles.countedLoop(count, start, MH_step);  // (v, i) -> "na " + v
+     *   assertEquals("na na na na na na na na na na na na na Lambdaman!", loop.invoke(13, "Lambdaman!"));
+     * }
      *
      * @apiNote Example that treats the number of iterations, string to append to, and string to append
      * as loop parameters:
-     * <blockquote><pre>{@code
-     * // String s = "Lambdaman!", t = "na"; for (int i = 0; i < 13; ++i) { s = t + " " + s; } return s;
-     * // => a variation on a well known theme
-     * static String step(String v, int counter, int iterations_, String pre, String start_) { return pre + " " + v; }
-     * // assume MH_step is a handle to the method above
-     * MethodHandle count = MethodHandles.identity(int.class);
-     * MethodHandle start = MethodHandles.dropArguments(MethodHandles.identity(String.class), 0, int.class, String.class);
-     * MethodHandle loop = MethodHandles.countedLoop(count, start, MH_step);  // (v, i, _, pre, _) -> pre + " " + v
-     * assertEquals("na na na na na na na na na na na na na Lambdaman!", loop.invoke(13, "na", "Lambdaman!"));
-     * }</pre></blockquote>
+     * {@snippet : 
+     *   // String s = "Lambdaman!", t = "na"; for (int i = 0; i < 13; ++i) { s = t + " " + s; } return s;
+     *   // => a variation on a well known theme
+     *   static String step(String v, int counter, int iterations_, String pre, String start_) { return pre + " " + v; }
+     *   // assume MH_step is a handle to the method above
+     *   MethodHandle count = MethodHandles.identity(int.class);
+     *   MethodHandle start = MethodHandles.dropArguments(MethodHandles.identity(String.class), 0, int.class, String.class);
+     *   MethodHandle loop = MethodHandles.countedLoop(count, start, MH_step);  // (v, i, _, pre, _) -> pre + " " + v
+     *   assertEquals("na na na na na na na na na na na na na Lambdaman!", loop.invoke(13, "na", "Lambdaman!"));
+     * }
      *
      * @apiNote Example that illustrates the usage of {@link #dropArgumentsToMatch(MethodHandle, int, List, int)}
      * to enforce a loop type:
-     * <blockquote><pre>{@code
-     * // String s = "Lambdaman!", t = "na"; for (int i = 0; i < 13; ++i) { s = t + " " + s; } return s;
-     * // => a variation on a well known theme
-     * static String step(String v, int counter, String pre) { return pre + " " + v; }
-     * // assume MH_step is a handle to the method above
-     * MethodType loopType = methodType(String.class, String.class, int.class, String.class);
-     * MethodHandle count = MethodHandles.dropArgumentsToMatch(MethodHandles.identity(int.class),    0, loopType.parameterList(), 1);
-     * MethodHandle start = MethodHandles.dropArgumentsToMatch(MethodHandles.identity(String.class), 0, loopType.parameterList(), 2);
-     * MethodHandle body  = MethodHandles.dropArgumentsToMatch(MH_step,                              2, loopType.parameterList(), 0);
-     * MethodHandle loop = MethodHandles.countedLoop(count, start, body);  // (v, i, pre, _, _) -> pre + " " + v
-     * assertEquals("na na na na na na na na na na na na na Lambdaman!", loop.invoke("na", 13, "Lambdaman!"));
-     * }</pre></blockquote>
+     * {@snippet : 
+     *   // String s = "Lambdaman!", t = "na"; for (int i = 0; i < 13; ++i) { s = t + " " + s; } return s;
+     *   // => a variation on a well known theme
+     *   static String step(String v, int counter, String pre) { return pre + " " + v; }
+     *   // assume MH_step is a handle to the method above
+     *   MethodType loopType = methodType(String.class, String.class, int.class, String.class);
+     *   MethodHandle count = MethodHandles.dropArgumentsToMatch(MethodHandles.identity(int.class),    0, loopType.parameterList(), 1);
+     *   MethodHandle start = MethodHandles.dropArgumentsToMatch(MethodHandles.identity(String.class), 0, loopType.parameterList(), 2);
+     *   MethodHandle body  = MethodHandles.dropArgumentsToMatch(MH_step,                              2, loopType.parameterList(), 0);
+     *   MethodHandle loop = MethodHandles.countedLoop(count, start, body);  // (v, i, pre, _, _) -> pre + " " + v
+     *   assertEquals("na na na na na na na na na na na na na Lambdaman!", loop.invoke("na", 13, "Lambdaman!"));
+     * }
      *
      * @apiNote The implementation of this method can be expressed as follows:
-     * <blockquote><pre>{@code
-     * MethodHandle countedLoop(MethodHandle iterations, MethodHandle init, MethodHandle body) {
-     *     return countedLoop(empty(iterations.type()), iterations, init, body);
+     * {@snippet lang=java : 
+     *   MethodHandle countedLoop(MethodHandle iterations, MethodHandle init, MethodHandle body) {
+     *       return countedLoop(empty(iterations.type()), iterations, init, body);
+     *   }
      * }
-     * }</pre></blockquote>
      *
      * @param iterations a non-{@code null} handle to return the number of iterations this loop should run. The handle's
      *                   result type must be {@code int}. See above for other constraints.
@@ -7249,46 +7248,46 @@ assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
      * Here is pseudocode for the resulting loop handle. In the code, {@code V}/{@code v} represent the type / value of
      * the second loop variable as well as the result type of the loop; and {@code A...}/{@code a...} represent
      * arguments passed to the loop.
-     * <blockquote><pre>{@code
-     * int start(A...);
-     * int end(A...);
-     * V init(A...);
-     * V body(V, int, A...);
-     * V countedLoop(A... a...) {
-     *   int e = end(a...);
-     *   int s = start(a...);
-     *   V v = init(a...);
-     *   for (int i = s; i < e; ++i) {
-     *     v = body(v, i, a...);
-     *   }
-     *   return v;
-     * }
-     * }</pre></blockquote>
+     * {@snippet :
+     *  int start(A...);
+     *  int end(A...);
+     *  V init(A...);
+     *  V body(V, int, A...);
+     *  V countedLoop(A... a...) {
+     *    int e = end(a...);
+     *    int s = start(a...);
+     *    V v = init(a...);
+     *    for (int i = s; i < e; ++i) {
+     *      v = body(v, i, a...);
+     *    }
+     *    return v;
+     *  }
+     *  }
      *
      * @apiNote The implementation of this method can be expressed as follows:
-     * <blockquote><pre>{@code
+     * {@snippet :
      * MethodHandle countedLoop(MethodHandle start, MethodHandle end, MethodHandle init, MethodHandle body) {
-     *     MethodHandle returnVar = dropArguments(identity(init.type().returnType()), 0, int.class, int.class);
-     *     // assume MH_increment and MH_predicate are handles to implementation-internal methods with
-     *     // the following semantics:
-     *     // MH_increment: (int limit, int counter) -> counter + 1
-     *     // MH_predicate: (int limit, int counter) -> counter < limit
-     *     Class<?> counterType = start.type().returnType();  // int
-     *     Class<?> returnType = body.type().returnType();
-     *     MethodHandle incr = MH_increment, pred = MH_predicate, retv = null;
-     *     if (returnType != void.class) {  // ignore the V variable
-     *         incr = dropArguments(incr, 1, returnType);  // (limit, v, i) => (limit, i)
-     *         pred = dropArguments(pred, 1, returnType);  // ditto
-     *         retv = dropArguments(identity(returnType), 0, counterType); // ignore limit
-     *     }
-     *     body = dropArguments(body, 0, counterType);  // ignore the limit variable
-     *     MethodHandle[]
-     *         loopLimit  = { end, null, pred, retv }, // limit = end(); i < limit || return v
-     *         bodyClause = { init, body },            // v = init(); v = body(v, i)
-     *         indexVar   = { start, incr };           // i = start(); i = i + 1
-     *     return loop(loopLimit, bodyClause, indexVar);
-     * }
-     * }</pre></blockquote>
+     *      MethodHandle returnVar = dropArguments(identity(init.type().returnType()), 0, int.class, int.class);
+     *      // assume MH_increment and MH_predicate are handles to implementation-internal methods with
+     *      // the following semantics:
+     *      // MH_increment: (int limit, int counter) -> counter + 1
+     *      // MH_predicate: (int limit, int counter) -> counter < limit
+     *      Class<?> counterType = start.type().returnType();  // int
+     *      Class<?> returnType = body.type().returnType();
+     *      MethodHandle incr = MH_increment, pred = MH_predicate, retv = null;
+     *      if (returnType != void.class) {  // ignore the V variable
+     *          incr = dropArguments(incr, 1, returnType);  // (limit, v, i) => (limit, i)
+     *          pred = dropArguments(pred, 1, returnType);  // ditto
+     *          retv = dropArguments(identity(returnType), 0, counterType); // ignore limit
+     *      }
+     *      body = dropArguments(body, 0, counterType);  // ignore the limit variable
+     *      MethodHandle[]
+     *          loopLimit  = { end, null, pred, retv }, // limit = end(); i < limit || return v
+     *          bodyClause = { init, body },            // v = init(); v = body(v, i)
+     *          indexVar   = { start, incr };           // i = start(); i = i + 1
+     *      return loop(loopLimit, bodyClause, indexVar);
+     *  }
+     *  }
      *
      * @param start a non-{@code null} handle to return the start value of the loop counter, which must be {@code int}.
      *              See above for other constraints.
@@ -7451,57 +7450,56 @@ assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
      * Here is pseudocode for the resulting loop handle. In the code, {@code V}/{@code v} represent the type / value of
      * the loop variable as well as the result type of the loop; {@code T}/{@code t}, that of the elements of the
      * structure the loop iterates over, and {@code A...}/{@code a...} represent arguments passed to the loop.
-     * <blockquote><pre>{@code
+     * {@snippet :
      * Iterator<T> iterator(A...);  // defaults to Iterable::iterator
-     * V init(A...);
-     * V body(V,T,A...);
-     * V iteratedLoop(A... a...) {
-     *   Iterator<T> it = iterator(a...);
-     *   V v = init(a...);
-     *   while (it.hasNext()) {
-     *     T t = it.next();
-     *     v = body(v, t, a...);
-     *   }
-     *   return v;
-     * }
-     * }</pre></blockquote>
+     *  V init(A...);
+     *  V body(V,T,A...);
+     *  V iteratedLoop(A... a...) {
+     *    Iterator<T> it = iterator(a...);
+     *    V v = init(a...);
+     *    while (it.hasNext()) {
+     *      T t = it.next();
+     *      v = body(v, t, a...);
+     *    }
+     *    return v;
+     *  }}
      *
      * @apiNote Example:
-     * <blockquote><pre>{@code
-     * // get an iterator from a list
-     * static List<String> reverseStep(List<String> r, String e) {
-     *   r.add(0, e);
-     *   return r;
+     * {@snippet : 
+     *   // get an iterator from a list
+     *   static List<String> reverseStep(List<String> r, String e) {
+     *     r.add(0, e);
+     *     return r;
+     *   }
+     *   static List<String> newArrayList() { return new ArrayList<>(); }
+     *   // assume MH_reverseStep and MH_newArrayList are handles to the above methods
+     *   MethodHandle loop = MethodHandles.iteratedLoop(null, MH_newArrayList, MH_reverseStep);
+     *   List<String> list = Arrays.asList("a", "b", "c", "d", "e");
+     *   List<String> reversedList = Arrays.asList("e", "d", "c", "b", "a");
+     *   assertEquals(reversedList, (List<String>) loop.invoke(list));
      * }
-     * static List<String> newArrayList() { return new ArrayList<>(); }
-     * // assume MH_reverseStep and MH_newArrayList are handles to the above methods
-     * MethodHandle loop = MethodHandles.iteratedLoop(null, MH_newArrayList, MH_reverseStep);
-     * List<String> list = Arrays.asList("a", "b", "c", "d", "e");
-     * List<String> reversedList = Arrays.asList("e", "d", "c", "b", "a");
-     * assertEquals(reversedList, (List<String>) loop.invoke(list));
-     * }</pre></blockquote>
      *
      * @apiNote The implementation of this method can be expressed approximately as follows:
-     * <blockquote><pre>{@code
+     * {@snippet :
      * MethodHandle iteratedLoop(MethodHandle iterator, MethodHandle init, MethodHandle body) {
-     *     // assume MH_next, MH_hasNext, MH_startIter are handles to methods of Iterator/Iterable
-     *     Class<?> returnType = body.type().returnType();
-     *     Class<?> ttype = body.type().parameterType(returnType == void.class ? 0 : 1);
-     *     MethodHandle nextVal = MH_next.asType(MH_next.type().changeReturnType(ttype));
-     *     MethodHandle retv = null, step = body, startIter = iterator;
-     *     if (returnType != void.class) {
-     *         // the simple thing first:  in (I V A...), drop the I to get V
-     *         retv = dropArguments(identity(returnType), 0, Iterator.class);
-     *         // body type signature (V T A...), internal loop types (I V A...)
-     *         step = swapArguments(body, 0, 1);  // swap V <-> T
-     *     }
-     *     if (startIter == null)  startIter = MH_getIter;
-     *     MethodHandle[]
-     *         iterVar    = { startIter, null, MH_hasNext, retv }, // it = iterator; while (it.hasNext())
-     *         bodyClause = { init, filterArguments(step, 0, nextVal) };  // v = body(v, t, a)
-     *     return loop(iterVar, bodyClause);
-     * }
-     * }</pre></blockquote>
+     *      // assume MH_next, MH_hasNext, MH_startIter are handles to methods of Iterator/Iterable
+     *      Class<?> returnType = body.type().returnType();
+     *      Class<?> ttype = body.type().parameterType(returnType == void.class ? 0 : 1);
+     *      MethodHandle nextVal = MH_next.asType(MH_next.type().changeReturnType(ttype));
+     *      MethodHandle retv = null, step = body, startIter = iterator;
+     *      if (returnType != void.class) {
+     *          // the simple thing first:  in (I V A...), drop the I to get V
+     *          retv = dropArguments(identity(returnType), 0, Iterator.class);
+     *          // body type signature (V T A...), internal loop types (I V A...)
+     *          step = swapArguments(body, 0, 1);  // swap V <-> T
+     *      }
+     *      if (startIter == null)  startIter = MH_getIter;
+     *      MethodHandle[]
+     *          iterVar    = { startIter, null, MH_hasNext, retv }, // it = iterator; while (it.hasNext())
+     *          bodyClause = { init, filterArguments(step, 0, nextVal) };  // v = body(v, t, a)
+     *      return loop(iterVar, bodyClause);
+     *  }
+     *  }
      *
      * @param iterator an optional handle to return the iterator to start the loop.
      *                 If non-{@code null}, the handle must return {@link java.util.Iterator} or a subtype.
@@ -7667,23 +7665,23 @@ assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
      * the {@code try/finally} construct; {@code A}/{@code a}, the types and values of arguments to the resulting
      * handle consumed by the cleanup; and {@code B}/{@code b}, those of arguments to the resulting handle discarded by
      * the cleanup.
-     * <blockquote><pre>{@code
+     * {@snippet :
      * V target(A..., B...);
-     * V cleanup(Throwable, V, A...);
-     * V adapter(A... a, B... b) {
-     *   V result = (zero value for V);
-     *   Throwable throwable = null;
-     *   try {
-     *     result = target(a..., b...);
-     *   } catch (Throwable t) {
-     *     throwable = t;
-     *     throw t;
-     *   } finally {
-     *     result = cleanup(throwable, result, a...);
-     *   }
-     *   return result;
-     * }
-     * }</pre></blockquote>
+     *  V cleanup(Throwable, V, A...);
+     *  V adapter(A... a, B... b) {
+     *    V result = (zero value for V);
+     *    Throwable throwable = null;
+     *    try {
+     *      result = target(a..., b...);
+     *    } catch (Throwable t) {
+     *      throwable = t;
+     *      throw t;
+     *    } finally {
+     *      result = cleanup(throwable, result, a...);
+     *    }
+     *    return result;
+     *  }
+     *  }
      * <p>
      * Note that the saved arguments ({@code a...} in the pseudocode) cannot
      * be modified by execution of the target, and so are passed unchanged
@@ -7789,27 +7787,28 @@ assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
      * The cases each drop the {@code selector} value they are given, and take an additional
      * {@code String} argument, which is concatenated (using {@link String#concat(String)})
      * to a specific constant label string for each case:
-     * <blockquote><pre>{@code
+     * {@snippet :
      * MethodHandles.Lookup lookup = MethodHandles.lookup();
-     * MethodHandle caseMh = lookup.findVirtual(String.class, "concat",
-     *         MethodType.methodType(String.class, String.class));
-     * caseMh = MethodHandles.dropArguments(caseMh, 0, int.class);
+     *  MethodHandle caseMh = lookup.findVirtual(String.class, "concat",
+     *          MethodType.methodType(String.class, String.class));
+     *  caseMh = MethodHandles.dropArguments(caseMh, 0, int.class);
      *
-     * MethodHandle caseDefault = MethodHandles.insertArguments(caseMh, 1, "default: ");
-     * MethodHandle case0 = MethodHandles.insertArguments(caseMh, 1, "case 0: ");
-     * MethodHandle case1 = MethodHandles.insertArguments(caseMh, 1, "case 1: ");
+     *  MethodHandle caseDefault = MethodHandles.insertArguments(caseMh, 1, "default: ");
+     *  MethodHandle case0 = MethodHandles.insertArguments(caseMh, 1, "case 0: ");
+     *  MethodHandle case1 = MethodHandles.insertArguments(caseMh, 1, "case 1: ");
      *
-     * MethodHandle mhSwitch = MethodHandles.tableSwitch(
-     *     caseDefault,
-     *     case0,
-     *     case1
-     * );
+     *  MethodHandle mhSwitch = MethodHandles.tableSwitch(
+     *      caseDefault,
+     *      case0,
+     *      case1
+     *  );
      *
-     * assertEquals("default: data", (String) mhSwitch.invokeExact(-1, "data"));
-     * assertEquals("case 0: data", (String) mhSwitch.invokeExact(0, "data"));
-     * assertEquals("case 1: data", (String) mhSwitch.invokeExact(1, "data"));
-     * assertEquals("default: data", (String) mhSwitch.invokeExact(2, "data"));
-     * }</pre></blockquote>
+     *  assertEquals("default: data", (String) mhSwitch.invokeExact(-1, "data"));
+     *  assertEquals("case 0: data", (String) mhSwitch.invokeExact(0, "data"));
+     *  assertEquals("case 1: data", (String) mhSwitch.invokeExact(1, "data"));
+     *  assertEquals("default: data", (String) mhSwitch.invokeExact(2, "data"));
+     * // @end snippet48
+     * }
      *
      * @param fallback the fallback method handle that is called when the selector is not
      *                 within the range {@code [0, N)}.

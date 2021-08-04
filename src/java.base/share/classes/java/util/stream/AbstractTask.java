@@ -56,23 +56,7 @@ import java.util.concurrent.ForkJoinWorkerThread;
  * {@code Spliterator}, and override {@code onCompletion()} to merge the results
  * of the child tasks for internal nodes:
  *
- * <pre>{@code
- *     protected S doLeaf() {
- *         spliterator.forEach(...);
- *         return localReductionResult;
- *     }
- *
- *     public void onCompletion(CountedCompleter caller) {
- *         if (!isLeaf()) {
- *             ReduceTask<P_IN, P_OUT, T, R> child = children;
- *             R result = child.getLocalResult();
- *             child = child.nextSibling;
- *             for (; child != null; child = child.nextSibling)
- *                 result = combine(result, child.getLocalResult());
- *             setLocalResult(result);
- *         }
- *     }
- * }</pre>
+ * {@snippet file="AbstractTaskSnippets.java" region="snippet1"}
  *
  * <p>Serialization is not supported as there is no intention to serialize
  * tasks managed by stream ops.

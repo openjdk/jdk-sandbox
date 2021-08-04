@@ -105,10 +105,10 @@ public interface PrimitiveIterator<T, T_CONS> extends Iterator<T> {
          * {@inheritDoc}
          * @implSpec
          * <p>The default implementation behaves as if:
-         * <pre>{@code
-         *     while (hasNext())
-         *         action.accept(nextInt());
-         * }</pre>
+         * {@snippet lang=java : 
+         *       while (hasNext())
+         *           action.accept(nextInt());
+         * }
          */
         default void forEachRemaining(IntConsumer action) {
             Objects.requireNonNull(action);
@@ -172,10 +172,11 @@ public interface PrimitiveIterator<T, T_CONS> extends Iterator<T> {
          * {@inheritDoc}
          * @implSpec
          * <p>The default implementation behaves as if:
-         * <pre>{@code
-         *     while (hasNext())
-         *         action.accept(nextLong());
-         * }</pre>
+         * {@snippet lang=java : 
+ *       while (hasNext())
+ *           action.accept(nextLong());
+ *   
+ * }
          */
         default void forEachRemaining(LongConsumer action) {
             Objects.requireNonNull(action);
@@ -238,10 +239,11 @@ public interface PrimitiveIterator<T, T_CONS> extends Iterator<T> {
          * {@inheritDoc}
          * @implSpec
          * <p>The default implementation behaves as if:
-         * <pre>{@code
-         *     while (hasNext())
-         *         action.accept(nextDouble());
-         * }</pre>
+         * {@snippet lang=java : 
+ *       while (hasNext())
+ *           action.accept(nextDouble());
+ *   
+ * }
          */
         default void forEachRemaining(DoubleConsumer action) {
             Objects.requireNonNull(action);

@@ -718,10 +718,11 @@ abstract class AbstractPipeline<E_IN, E_OUT, S extends BaseStream<E_OUT, S>>
      * lazily evaluated spliterator.
      *
      * @implSpec The default implementation behaves as if:
-     * <pre>{@code
-     *     return evaluateParallel(helper, i -> (E_OUT[]) new
-     * Object[i]).spliterator();
-     * }</pre>
+     * {@snippet lang=java : 
+ *       return evaluateParallel(helper, i -> (E_OUT[]) new
+ *   Object[i]).spliterator();
+ *   
+ * }
      * and is suitable for implementations that cannot do better than a full
      * synchronous evaluation.
      *

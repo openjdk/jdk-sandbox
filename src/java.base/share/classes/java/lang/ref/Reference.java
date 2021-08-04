@@ -532,7 +532,7 @@ public abstract class Reference<T> {
      * nulled out in method {@link Object#finalize}, which may otherwise run
      * concurrently.
      *
-     * <pre> {@code
+     * {@snippet :
      * class Resource {
      *   private static ExternalResource[] externalResourceArray = ...
      *
@@ -558,7 +558,8 @@ public abstract class Reference<T> {
      *   private static void update(ExternalResource ext) {
      *     ext.status = ...;
      *   }
-     * }}</pre>
+     * }
+     * }
      *
      * Here, the invocation of {@code reachabilityFence} is nonintuitively
      * placed <em>after</em> the call to {@code update}, to ensure that the
@@ -578,7 +579,7 @@ public abstract class Reference<T> {
      * finalizer had already executed (nulling out slot), then you could
      * localize use of {@code reachabilityFence}:
      *
-     * <pre> {@code
+     * {@snippet :
      * public void action2() {
      *   // ...
      *   Resource.update(getExternalResource());
@@ -587,7 +588,8 @@ public abstract class Reference<T> {
      *   ExternalResource ext = externalResourceArray[myIndex];
      *   Reference.reachabilityFence(this);
      *   return ext;
-     * }}</pre>
+     * }
+     * }
      *
      * <p> Method {@code reachabilityFence} is not required in constructions
      * that themselves ensure reachability.  For example, because objects that

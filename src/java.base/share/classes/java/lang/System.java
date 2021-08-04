@@ -138,9 +138,9 @@ public final class System {
      * <p>
      * For simple stand-alone Java applications, a typical way to write
      * a line of output data is:
-     * <blockquote><pre>
-     *     System.out.println(data)
-     * </pre></blockquote>
+     * {@snippet : 
+     *       System.out.println(data)
+     * }
      * <p>
      * See the {@code println} methods in class {@code PrintStream}.
      *
@@ -532,15 +532,20 @@ public final class System {
      * instance of a Java virtual machine, is computed.
      *
      * <p>For example, to measure how long some code takes to execute:
-     * <pre> {@code
+     * {@snippet :
      * long startTime = System.nanoTime();
      * // ... the code being measured ...
-     * long elapsedNanos = System.nanoTime() - startTime;}</pre>
+     * long elapsedNanos = System.nanoTime() - startTime;
+     * }
      *
-     * <p>To compare elapsed time against a timeout, use <pre> {@code
-     * if (System.nanoTime() - startTime >= timeoutNanos) ...}</pre>
-     * instead of <pre> {@code
-     * if (System.nanoTime() >= startTime + timeoutNanos) ...}</pre>
+     * <p>To compare elapsed time against a timeout, use
+     * {@snippet :
+     * if (System.nanoTime() - startTime >= timeoutNanos) ...
+     * }
+     * instead of
+     * {@snippet :
+     * if (System.nanoTime() >= startTime + timeoutNanos) ...
+     * }
      * because of the possibility of numerical overflow.
      *
      * @return the current value of the running Java Virtual Machine's
@@ -1846,9 +1851,9 @@ public final class System {
      * <p>
      * The call {@code System.exit(n)} is effectively equivalent to
      * the call:
-     * <blockquote><pre>
-     * Runtime.getRuntime().exit(n)
-     * </pre></blockquote>
+     * {@snippet : 
+     *   Runtime.getRuntime().exit(n)
+     * }
      *
      * @param      status   exit status.
      * @throws  SecurityException
@@ -1880,9 +1885,9 @@ public final class System {
      * <p>
      * The call {@code System.gc()} is effectively equivalent to the
      * call:
-     * <blockquote><pre>
-     * Runtime.getRuntime().gc()
-     * </pre></blockquote>
+     * {@snippet : 
+     *   Runtime.getRuntime().gc()
+     * }
      *
      * @see     java.lang.Runtime#gc()
      */
@@ -1902,9 +1907,9 @@ public final class System {
      * <p>
      * The call {@code System.runFinalization()} is effectively
      * equivalent to the call:
-     * <blockquote><pre>
-     * Runtime.getRuntime().runFinalization()
-     * </pre></blockquote>
+     * {@snippet : 
+     *   Runtime.getRuntime().runFinalization()
+     * }
      *
      * @see     java.lang.Runtime#runFinalization()
      */
@@ -1932,9 +1937,9 @@ public final class System {
      * <p>
      * The call {@code System.load(name)} is effectively equivalent
      * to the call:
-     * <blockquote><pre>
-     * Runtime.getRuntime().load(name)
-     * </pre></blockquote>
+     * {@snippet : 
+     *   Runtime.getRuntime().load(name)
+     * }
      *
      * @param      filename   the file to load.
      * @throws     SecurityException  if a security manager exists and its
@@ -1968,9 +1973,9 @@ public final class System {
      * <p>
      * The call {@code System.loadLibrary(name)} is effectively
      * equivalent to the call
-     * <blockquote><pre>
-     * Runtime.getRuntime().loadLibrary(name)
-     * </pre></blockquote>
+     * {@snippet : 
+     *   Runtime.getRuntime().loadLibrary(name)
+     * }
      *
      * @param      libname   the name of the library.
      * @throws     SecurityException  if a security manager exists and its

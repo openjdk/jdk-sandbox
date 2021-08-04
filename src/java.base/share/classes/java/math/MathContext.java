@@ -285,9 +285,9 @@ public final class MathContext implements Serializable {
      * </ol>
      * <p>
      * For example:
-     * <pre>
-     * precision=9 roundingMode=HALF_UP
-     * </pre>
+     * {@snippet : 
+     *   precision=9 roundingMode=HALF_UP
+     * }
      *
      * Additional words may be appended to the result of
      * {@code toString} in the future if more properties are added to

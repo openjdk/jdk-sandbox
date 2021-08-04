@@ -32,7 +32,6 @@ import java.nio.ReadOnlyBufferException;
 import java.util.Objects;
 
 import jdk.internal.ref.CleanerFactory;
-import jdk.internal.util.Preconditions;
 import sun.nio.ch.DirectBuffer;
 
 /**
@@ -52,34 +51,7 @@ import sun.nio.ch.DirectBuffer;
  * and decompression of a string using {@code Deflater} and
  * {@code Inflater}.
  *
- * <blockquote><pre>
- * try {
- *     // Encode a String into bytes
- *     String inputString = "blahblahblah\u20AC\u20AC";
- *     byte[] input = inputString.getBytes("UTF-8");
- *
- *     // Compress the bytes
- *     byte[] output = new byte[100];
- *     Deflater compresser = new Deflater();
- *     compresser.setInput(input);
- *     compresser.finish();
- *     int compressedDataLength = compresser.deflate(output);
- *
- *     // Decompress the bytes
- *     Inflater decompresser = new Inflater();
- *     decompresser.setInput(output, 0, compressedDataLength);
- *     byte[] result = new byte[100];
- *     int resultLength = decompresser.inflate(result);
- *     decompresser.end();
- *
- *     // Decode the bytes into a String
- *     String outputString = new String(result, 0, resultLength, "UTF-8");
- * } catch (java.io.UnsupportedEncodingException ex) {
- *     // handle
- * } catch (java.util.zip.DataFormatException ex) {
- *     // handle
- * }
- * </pre></blockquote>
+ * {@snippet lang=java file="InflaterSnippets.java" region="snippet1"}
  *
  * @apiNote
  * To release resources used by this {@code Inflater}, the {@link #end()} method
@@ -152,7 +124,9 @@ public class Inflater {
      * @see Inflater#needsInput
      */
     public void setInput(byte[] input, int off, int len) {
-        Preconditions.checkFromIndexSize(len, off, input.length, Preconditions.AIOOBE_FORMATTER);
+        if (off < 0 || len < 0 || off > input.length - len) {
+            throw new ArrayIndexOutOfBoundsException();
+        }
         synchronized (zsRef) {
             this.input = null;
             this.inputArray = input;
@@ -217,7 +191,9 @@ public class Inflater {
      * @see Inflater#getAdler
      */
     public void setDictionary(byte[] dictionary, int off, int len) {
-        Preconditions.checkFromIndexSize(len, off, dictionary.length, Preconditions.AIOOBE_FORMATTER);
+        if (off < 0 || len < 0 || off > dictionary.length - len) {
+            throw new ArrayIndexOutOfBoundsException();
+        }
         synchronized (zsRef) {
             ensureOpen();
             setDictionary(zsRef.address(), dictionary, off, len);
@@ -360,7 +336,9 @@ public class Inflater {
     public int inflate(byte[] output, int off, int len)
         throws DataFormatException
     {
-        Preconditions.checkFromIndexSize(len, off, output.length, Preconditions.AIOOBE_FORMATTER);
+        if (off < 0 || len < 0 || off > output.length - len) {
+            throw new ArrayIndexOutOfBoundsException();
+        }
         synchronized (zsRef) {
             ensureOpen();
             ByteBuffer input = this.input;

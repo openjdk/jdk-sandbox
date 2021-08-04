@@ -32,7 +32,6 @@ import java.util.Spliterator;
 import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
 import jdk.internal.util.ArraysSupport;
-import jdk.internal.util.Preconditions;
 
 import static java.lang.String.COMPACT_STRINGS;
 import static java.lang.String.UTF16;
@@ -410,7 +409,9 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
      */
     public int codePointBefore(int index) {
         int i = index - 1;
-        checkIndex(i, count);
+        if (i < 0 || i >= count) {
+            throw new StringIndexOutOfBoundsException(index);
+        }
         if (isLatin1()) {
             return value[i] & 0xff;
         }
@@ -482,9 +483,9 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
      * characters to be copied is {@code srcEnd-srcBegin}. The
      * characters are copied into the subarray of {@code dst} starting
      * at index {@code dstBegin} and ending at index:
-     * <pre>{@code
-     * dstbegin + (srcEnd-srcBegin) - 1
-     * }</pre>
+     * {@snippet : 
+     *   dstbegin + (srcEnd-srcBegin) - 1
+     * }
      *
      * @param      srcBegin   start copying at this offset.
      * @param      srcEnd     stop copying at this offset.
@@ -504,9 +505,9 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
      */
     public void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin)
     {
-        Preconditions.checkFromToIndex(srcBegin, srcEnd, count, Preconditions.SIOOBE_FORMATTER);  // compatible to old version
+        checkRangeSIOOBE(srcBegin, srcEnd, count);  // compatible to old version
         int n = srcEnd - srcBegin;
-        Preconditions.checkFromToIndex(dstBegin, dstBegin + n, dst.length, Preconditions.IOOBE_FORMATTER);
+        checkRange(dstBegin, dstBegin + n, dst.length);
         if (isLatin1()) {
             StringLatin1.getChars(value, srcBegin, srcEnd, dst, dstBegin);
         } else {
@@ -676,7 +677,7 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
         if (s == null) {
             s = "null";
         }
-        Preconditions.checkFromToIndex(start, end, s.length(), Preconditions.IOOBE_FORMATTER);
+        checkRange(start, end, s.length());
         int len = end - start;
         ensureCapacityInternal(count + len);
         if (s instanceof String) {
@@ -735,7 +736,7 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
      */
     public AbstractStringBuilder append(char[] str, int offset, int len) {
         int end = offset + len;
-        Preconditions.checkFromToIndex(offset, end, str.length, Preconditions.IOOBE_FORMATTER);
+        checkRange(offset, end, str.length);
         ensureCapacityInternal(count + len);
         appendChars(str, offset, end);
         return this;
@@ -913,7 +914,7 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
         if (end > count) {
             end = count;
         }
-        Preconditions.checkFromToIndex(start, end, count, Preconditions.SIOOBE_FORMATTER);
+        checkRangeSIOOBE(start, end, count);
         int len = end - start;
         if (len > 0) {
             shift(end, -len);
@@ -996,7 +997,7 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
         if (end > count) {
             end = count;
         }
-        Preconditions.checkFromToIndex(start, end, count, Preconditions.SIOOBE_FORMATTER);
+        checkRangeSIOOBE(start, end, count);
         int len = str.length();
         int newCount = count + len - (end - start);
         ensureCapacityInternal(newCount);
@@ -1026,13 +1027,15 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
      *
      * <p> An invocation of this method of the form
      *
-     * <pre>{@code
-     * sb.subSequence(begin, end)}</pre>
+     * {@snippet : 
+     *   sb.subSequence(begin, end)
+     * }
      *
      * behaves in exactly the same way as the invocation
      *
-     * <pre>{@code
-     * sb.substring(begin, end)}</pre>
+     * {@snippet : 
+     *   sb.substring(begin, end)
+     * }
      *
      * This method is provided so that this class can
      * implement the {@link CharSequence} interface.
@@ -1066,7 +1069,7 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
      *             greater than {@code end}.
      */
     public String substring(int start, int end) {
-        Preconditions.checkFromToIndex(start, end, count, Preconditions.SIOOBE_FORMATTER);
+        checkRangeSIOOBE(start, end, count);
         if (isLatin1()) {
             return StringLatin1.newString(value, start, end - start);
         }
@@ -1103,7 +1106,7 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
                                         int len)
     {
         checkOffset(index, count);
-        Preconditions.checkFromToIndex(offset, offset + len, str.length, Preconditions.SIOOBE_FORMATTER);
+        checkRangeSIOOBE(offset, offset + len, str.length);
         ensureCapacityInternal(count + len);
         shift(index, len);
         count += len;
@@ -1291,7 +1294,7 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
             s = "null";
         }
         checkOffset(dstOffset, count);
-        Preconditions.checkFromToIndex(start, end, s.length(), Preconditions.IOOBE_FORMATTER);
+        checkRange(start, end, s.length());
         int len = end - start;
         ensureCapacityInternal(count + len);
         shift(dstOffset, len);
@@ -1459,9 +1462,9 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
      * specified substring.
      *
      * <p>The returned index is the smallest value {@code k} for which:
-     * <pre>{@code
-     * this.toString().startsWith(str, k)
-     * }</pre>
+     * {@snippet : 
+     *   this.toString().startsWith(str, k)
+     * }
      * If no such value of {@code k} exists, then {@code -1} is returned.
      *
      * @param   str   the substring to search for.
@@ -1477,10 +1480,10 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
      * specified substring, starting at the specified index.
      *
      * <p>The returned index is the smallest value {@code k} for which:
-     * <pre>{@code
-     *     k >= Math.min(fromIndex, this.length()) &&
-     *                   this.toString().startsWith(str, k)
-     * }</pre>
+     * {@snippet : 
+     *       k >= Math.min(fromIndex, this.length()) &&
+     *                     this.toString().startsWith(str, k)
+     * }
      * If no such value of {@code k} exists, then {@code -1} is returned.
      *
      * @param   str         the substring to search for.
@@ -1499,9 +1502,9 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
      * considered to occur at the index value {@code this.length()}.
      *
      * <p>The returned index is the largest value {@code k} for which:
-     * <pre>{@code
-     * this.toString().startsWith(str, k)
-     * }</pre>
+     * {@snippet : 
+     *   this.toString().startsWith(str, k)
+     * }
      * If no such value of {@code k} exists, then {@code -1} is returned.
      *
      * @param   str   the substring to search for.
@@ -1517,10 +1520,10 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
      * specified substring, searching backward starting at the specified index.
      *
      * <p>The returned index is the largest value {@code k} for which:
-     * <pre>{@code
-     *     k <= Math.min(fromIndex, this.length()) &&
-     *                   this.toString().startsWith(str, k)
-     * }</pre>
+     * {@snippet : 
+     *       k <= Math.min(fromIndex, this.length()) &&
+     *                     this.toString().startsWith(str, k)
+     * }
      * If no such value of {@code k} exists, then {@code -1} is returned.
      *
      * @param   str         the substring to search for.
@@ -1793,5 +1796,21 @@ abstract class AbstractStringBuilder implements Appendable, CharSequence {
             StringUTF16.putCharsSB(this.value, count, s, off, end);
         }
         count += end - off;
+    }
+
+    /* IndexOutOfBoundsException, if out of bounds */
+    private static void checkRange(int start, int end, int len) {
+        if (start < 0 || start > end || end > len) {
+            throw new IndexOutOfBoundsException(
+                "start " + start + ", end " + end + ", length " + len);
+        }
+    }
+
+    /* StringIndexOutOfBoundsException, if out of bounds */
+    private static void checkRangeSIOOBE(int start, int end, int len) {
+        if (start < 0 || start > end || end > len) {
+            throw new StringIndexOutOfBoundsException(
+                "start " + start + ", end " + end + ", length " + len);
+        }
     }
 }

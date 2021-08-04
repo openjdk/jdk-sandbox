@@ -56,8 +56,9 @@ public class FormattableFlags {
      * formatTo()} method.  The output should be equivalent the following
      * invocation of {@link String#toUpperCase(java.util.Locale)}
      *
-     * <pre>
-     *     out.toUpperCase() </pre>
+     * {@snippet : 
+     *       out.toUpperCase()
+     * }
      *
      * <p> This flag corresponds to {@code 'S'} (<code>'&#92;u0053'</code>) in
      * the format specifier.

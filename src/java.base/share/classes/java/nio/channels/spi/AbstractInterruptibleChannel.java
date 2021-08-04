@@ -46,7 +46,7 @@ import sun.nio.ch.Interruptible;
  * invoked, these methods should be used within a
  * {@code try}&nbsp;...&nbsp;{@code finally} block:
  *
- * <blockquote><pre id="be">
+ * {@snippet  id="be" :
  * boolean completed = false;
  * try {
  *     begin();
@@ -54,7 +54,8 @@ import sun.nio.ch.Interruptible;
  *     return ...;         // Return result
  * } finally {
  *     end(completed);
- * }</pre></blockquote>
+ * }
+ * }
  *
  * <p> The {@code completed} argument to the {@link #end end} method tells
  * whether or not the I/O operation actually completed, that is, whether it had

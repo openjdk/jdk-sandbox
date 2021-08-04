@@ -310,10 +310,10 @@ class Field extends AccessibleObject implements Member {
      * the fully-qualified name of the class declaring the field,
      * followed by a period, followed by the name of the field.
      * For example:
-     * <pre>
-     *    public static final int java.lang.Thread.MIN_PRIORITY
-     *    private int java.io.FileDescriptor.fd
-     * </pre>
+     * {@snippet : 
+     *      public static final int java.lang.Thread.MIN_PRIORITY
+     *      private int java.io.FileDescriptor.fd
+     * }
      *
      * <p>The modifiers are placed in canonical order as specified by
      * "The Java Language Specification".  This is {@code public},

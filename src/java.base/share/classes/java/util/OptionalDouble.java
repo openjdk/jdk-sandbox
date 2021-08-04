@@ -194,10 +194,10 @@ public final class OptionalDouble {
      * @apiNote
      * This method can be used to transform a {@code Stream} of optional doubles
      * to a {@code DoubleStream} of present doubles:
-     * <pre>{@code
-     *     Stream<OptionalDouble> os = ..
-     *     DoubleStream s = os.flatMapToDouble(OptionalDouble::stream)
-     * }</pre>
+     * {@snippet : 
+     *       Stream<OptionalDouble> os = ..
+     *       DoubleStream s = os.flatMapToDouble(OptionalDouble::stream)
+     * }
      *
      * @return the optional value as a {@code DoubleStream}
      * @since 9

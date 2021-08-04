@@ -304,9 +304,9 @@ public final class Boolean implements java.io.Serializable,
     /**
      * Compares two {@code boolean} values.
      * The value returned is identical to what would be returned by:
-     * <pre>
-     *    Boolean.valueOf(x).compareTo(Boolean.valueOf(y))
-     * </pre>
+     * {@snippet : 
+     *      Boolean.valueOf(x).compareTo(Boolean.valueOf(y))
+     * }
      *
      * @param  x the first {@code boolean} to compare
      * @param  y the second {@code boolean} to compare

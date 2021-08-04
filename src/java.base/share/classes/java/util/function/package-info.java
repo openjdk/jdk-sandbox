@@ -31,16 +31,16 @@
  * adapted.  Functional interfaces can provide a target type in multiple
  * contexts, such as assignment context, method invocation, or cast context:
  *
- * <pre>{@code
- *     // Assignment context
- *     Predicate<String> p = String::isEmpty;
- *
- *     // Method invocation context
- *     stream.filter(e -> e.getSize() > 10)...
- *
- *     // Cast context
- *     stream.map((ToIntFunction) e -> e.getSize())...
- * }</pre>
+ * {@snippet : 
+ *       // Assignment context
+ *       Predicate<String> p = String::isEmpty;
+ *  
+ *       // Method invocation context
+ *       stream.filter(e -> e.getSize() > 10)...
+ *  
+ *       // Cast context
+ *       stream.map((ToIntFunction) e -> e.getSize())...
+ * }
  *
  * <p>The interfaces in this package are general purpose functional interfaces
  * used by the JDK, and are available to be used by user code as well.  While

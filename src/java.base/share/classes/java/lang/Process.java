@@ -637,11 +637,12 @@ public abstract class Process {
      * free the current thread and block only if and when the value is needed.
      * <br>
      * For example, launching a process to compare two files and get a boolean if they are identical:
-     * <pre> {@code   Process p = new ProcessBuilder("cmp", "f1", "f2").start();
+     * {@snippet :
+     * Process p = new ProcessBuilder("cmp", "f1", "f2").start();
      *    Future<Boolean> identical = p.onExit().thenApply(p1 -> p1.exitValue() == 0);
      *    ...
      *    if (identical.get()) { ... }
-     * }</pre>
+     * }
      *
      * @implSpec
      * This implementation executes {@link #waitFor()} in a separate thread
@@ -658,11 +659,11 @@ public abstract class Process {
      * External implementations should override this method and provide
      * a more efficient implementation. For example, to delegate to the underlying
      * process, it can do the following:
-     * <pre>{@code
-     *    public CompletableFuture<Process> onExit() {
-     *       return delegate.onExit().thenApply(p -> this);
-     *    }
-     * }</pre>
+     * {@snippet lang=java : 
+     *      public CompletableFuture<Process> onExit() {
+     *         return delegate.onExit().thenApply(p -> this);
+     *      }
+     * }
      * @apiNote
      * The process may be observed to have terminated with {@link #isAlive}
      * before the ComputableFuture is completed and dependent actions are invoked.
