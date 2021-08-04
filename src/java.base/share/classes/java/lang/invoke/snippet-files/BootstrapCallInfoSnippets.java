@@ -42,15 +42,19 @@ final class BootstrapCallInfoSnippets {
 
     public <E> List<E> asList() { return null;}
   }
+
 // @start region=snippet1 :
 static Object genericBSM(Lookup lookup, BootstrapCallInfo<Object> bsci)
     throws Throwable {
+
   ArrayList<Object> args = new ArrayList<>();
   args.add(lookup);
   args.add(bsci.invocationName());
   args.add(bsci.invocationType());
+
   MethodHandle bsm = (MethodHandle) bsci.get(0);
   List<Object> restOfArgs = bsci.asList().subList(1, bsci.size());
+
   // the next line eagerly resolves all remaining static arguments:
   args.addAll(restOfArgs);
   return bsm.invokeWithArguments(args);

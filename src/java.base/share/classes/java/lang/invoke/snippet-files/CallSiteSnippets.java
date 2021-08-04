@@ -35,10 +35,13 @@ final class CallSiteSnippets {
     // THE FOLLOWING LINE IS PSEUDOCODE FOR A JVM INSTRUCTION
     //InvokeDynamic[#bootstrapDynamic].baz("baz arg", 2, 3.14);
   }
+
   private static void printArgs (Object...args){
     System.out.println(java.util.Arrays.deepToString(args));
   }
+
   private static MethodHandle printArgs; //@replace regex="static" replacement="static final"
+
   static {
     MethodHandles.Lookup lookup = MethodHandles.lookup();
     Class thisClass = lookup.lookupClass();  // (who am I?)
@@ -47,6 +50,7 @@ final class CallSiteSnippets {
               "printArgs", MethodType.methodType(void.class, Object[].class));
     } catch (Exception e) {e.printStackTrace();} //@replace replacement=""
   }
+
   private static CallSite bootstrapDynamic (MethodHandles.Lookup caller, String name, MethodType type){
     // ignore caller and name, but match the type:
     return new ConstantCallSite(printArgs.asType(type));}

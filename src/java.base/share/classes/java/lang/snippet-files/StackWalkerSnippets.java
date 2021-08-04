@@ -36,6 +36,7 @@ private static void snippet4() {
 // @start region=snippet4 :
  class Util {
      private final StackWalker walker = StackWalker.getInstance(Option.RETAIN_CLASS_REFERENCE);
+
      public ResourceBundle getResourceBundle(String bundleName) {
          Class<?> caller = walker.getCallerClass();
          return ResourceBundle.getBundle(bundleName, Locale.getDefault(), caller.getClassLoader());
