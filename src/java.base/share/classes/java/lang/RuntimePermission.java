@@ -379,7 +379,7 @@ import java.lang.module.ModuleFinder;
  * </tr>
  *
  * <tr>
- *   <th scope="row">InetNameServiceProvider</th>
+ *   <th scope="row">inetNameServiceProvider</th>
  *   <td>This {@code RuntimePermission} is required to be granted to
  *   classes which subclass and implement {@code java.net.spi.InetNameServiceProvider}.
  *   The permission is checked during invocation of the abstract base class constructor.
