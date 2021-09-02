@@ -818,46 +818,45 @@ public class InetAddress implements java.io.Serializable {
      * @see SecurityManager#checkConnect
      */
     private static String getHostFromNameService(InetAddress addr, boolean check) {
-        String host;
-            try {
-                // first lookup the hostname
-                host = nameService().lookupHostName(addr.getAddress());
+        String host = null;
+        try {
+            // first lookup the hostname
+            host = nameService().lookupHostName(addr.getAddress());
 
-                /* check to see if calling code is allowed to know
-                 * the hostname for this IP address, ie, connect to the host
-                 */
-                if (check) {
-                    @SuppressWarnings("removal")
-                    SecurityManager sec = System.getSecurityManager();
-                    if (sec != null) {
-                        sec.checkConnect(host, -1);
-                    }
+            /* check to see if calling code is allowed to know
+             * the hostname for this IP address, ie, connect to the host
+             */
+            if (check) {
+                @SuppressWarnings("removal")
+                SecurityManager sec = System.getSecurityManager();
+                if (sec != null) {
+                    sec.checkConnect(host, -1);
                 }
-
-                /* now get all the IP addresses for this hostname,
-                 * and make sure one of them matches the original IP
-                 * address. We do this to try and prevent spoofing.
-                 */
-
-                InetAddress[] arr = InetAddress.getAllByName0(host, check);
-                boolean ok = false;
-
-                if(arr != null) {
-                    for(int i = 0; !ok && i < arr.length; i++) {
-                        ok = addr.equals(arr[i]);
-                    }
-                }
-
-                //XXX: if it looks a spoof just return the address?
-                if (!ok) {
-                    host = addr.getHostAddress();
-                    return host;
-                }
-            } catch(SecurityException | UnknownHostException |
-                    IllegalArgumentException e) {
-                host = addr.getHostAddress();
-                // let next provider resolve the hostname
             }
+
+            /* now get all the IP addresses for this hostname,
+             * and make sure one of them matches the original IP
+             * address. We do this to try and prevent spoofing.
+             */
+
+            InetAddress[] arr = InetAddress.getAllByName0(host, check);
+            boolean ok = false;
+
+            if (arr != null) {
+                for (int i = 0; !ok && i < arr.length; i++) {
+                    ok = addr.equals(arr[i]);
+                }
+            }
+
+            //XXX: if it looks like a spoof just return the address?
+            if (!ok) {
+                host = addr.getHostAddress();
+                return host;
+            }
+        } catch (SecurityException | UnknownHostException e) {
+            host = addr.getHostAddress();
+            // let next provider resolve the hostname
+        }
         return host;
     }
 
