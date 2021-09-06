@@ -205,7 +205,7 @@ import static java.net.spi.InetNameService.LookupPolicy.IPV6_FIRST;
  *
  * <h3 id="nameServiceProviders"> Name Service Providers </h3>
  *
- * <p> Host name and IP address lookup operations are performed by a
+ * <p> Host name and IP address lookup operations are delegated to a
  * {@linkplain InetNameService name service}. Lookup operations performed by
  * this class use the <i>system-wide name service</i>. The system-wide name
  * service is set once, lazily, after the VM is fully initialized and when
@@ -213,15 +213,15 @@ import static java.net.spi.InetNameService.LookupPolicy.IPV6_FIRST;
  *
  * <p> A <i>custom name service</i> can be installed as the system-wide name service
  * by deploying a {@linkplain InetNameServiceProvider name service provider}.
- * A name service provider is essentially a factory for name services, so can
- * be used to instantiate a custom name service. If no name service provider
+ * A name service provider is essentially a factory for name services, and is used
+ * to instantiate a custom name service. If no name service provider
  * is found, then the <i>built-in name service</i> will be set as the
  * system-wide name service.
  *
  * <p> A custom name service is found and installed as the system-wide name service
  * as follows:
  * <ol>
- *  <li>The ServiceLoader mechanism is used to find a
+ *  <li>The {@link ServiceLoader} mechanism is used to locate an
  *      {@link InetNameServiceProvider InetNameServiceProvider} using the
  *      system class loader. The order in which providers are located is
  *      {@linkplain ServiceLoader#load(java.lang.Class, java.lang.ClassLoader) implementation specific}.
@@ -356,6 +356,9 @@ public class InetAddress implements java.io.Serializable {
     // "java.net.preferIPv6Addresses" system property value
     private static final String PREFER_IPV6_ADDRESSES_VALUE;
 
+    // "jdk.net.hosts.file" system property value
+    private static final String HOSTS_FILE_NAME;
+
     /*
      * Load net library into runtime, and perform initializations.
      */
@@ -364,6 +367,8 @@ public class InetAddress implements java.io.Serializable {
                 GetPropertyAction.privilegedGetProperty("java.net.preferIPv4Stack");
         PREFER_IPV6_ADDRESSES_VALUE =
                 GetPropertyAction.privilegedGetProperty("java.net.preferIPv6Addresses");
+        HOSTS_FILE_NAME =
+                GetPropertyAction.privilegedGetProperty("jdk.net.hosts.file");
         jdk.internal.loader.BootLoader.loadLibrary("net");
         SharedSecrets.setJavaNetInetAddressAccess(
                 new JavaNetInetAddressAccess() {
@@ -423,6 +428,18 @@ public class InetAddress implements java.io.Serializable {
         return LookupPolicy.of(IPV4 | IPV6 | IPV4_FIRST);
     }
 
+    static boolean systemAddressesOrder(int lookupCharacteristics) {
+        return (lookupCharacteristics & (IPV4_FIRST | IPV6_FIRST)) == 0;
+    }
+
+    static boolean ipv4AddressesFirst(int lookupCharacteristics) {
+        return (lookupCharacteristics & IPV4_FIRST) != 0;
+    }
+
+    static boolean ipv6AddressesFirst(int lookupCharacteristics) {
+        return (lookupCharacteristics & IPV6_FIRST) != 0;
+    }
+
     // Native method to check if IPv4 is available
     static native boolean isIPv4Available();
 
@@ -457,8 +474,7 @@ public class InetAddress implements java.io.Serializable {
                 } else {
                     bootstrapNameService = BUILTIN_INET_NAME_SERVICE;
                 }
-                String hostsFileProperty = GetPropertyAction.privilegedGetProperty("jdk.net.hosts.file");
-                if (hostsFileProperty != null) {
+                if (HOSTS_FILE_NAME != null) {
                     // The default name service is already host file name service
                     cns = BUILTIN_INET_NAME_SERVICE;
                 } else if (System.getSecurityManager() != null) {
@@ -1214,11 +1230,11 @@ public class InetAddress implements java.io.Serializable {
 
             // If both address types are requested
             if (needIPv4 == needIPv6) {
-                if ((flags & (IPV4_FIRST | IPV6_FIRST)) == 0) {
+                if (systemAddressesOrder(flags)) {
                     return inetAddresses.stream();
-                } else if ((flags & IPV6_FIRST) != 0) {
+                } else if (ipv6AddressesFirst(flags)) {
                     return Stream.concat(inet6Addresses.stream(), inet4Addresses.stream());
-                } else if ((flags & IPV4_FIRST) != 0) {
+                } else if (ipv4AddressesFirst(flags)) {
                     return Stream.concat(inet4Addresses.stream(), inet6Addresses.stream());
                 }
             }
@@ -1293,12 +1309,9 @@ public class InetAddress implements java.io.Serializable {
      * @return an InetNameService
      */
     private static InetNameService createDefaultInetNameService() {
-
-        String hostsFileName =
-                GetPropertyAction.privilegedGetProperty("jdk.net.hosts.file");
         InetNameService theNameService;
-        if (hostsFileName != null) {
-            theNameService = new HostsFileNameService(hostsFileName);
+        if (HOSTS_FILE_NAME != null) {
+            theNameService = new HostsFileNameService(HOSTS_FILE_NAME);
         } else {
             theNameService = new PlatformNameService();
         }

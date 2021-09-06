@@ -371,9 +371,8 @@ Java_java_net_Inet6AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
                 (*env)->SetObjectArrayElement(env, ret, (inet6Index | originalIndex), iaObj);
                 inet6Index++;
             }
-            // If both IPV4_FIRST and IPV6_FIRST bits are not set - SYSTEM order
-            if ((characteristics &
-                  (java_net_spi_InetNameService_LookupPolicy_IPV4_FIRST | java_net_spi_InetNameService_LookupPolicy_IPV6_FIRST)) == 0) {
+            // Check if addresses are requested to be returned in SYSTEM order
+            if (addressesInSystemOrder(characteristics)) {
                 originalIndex++;
                 inetIndex = inet6Index = 0;
             }

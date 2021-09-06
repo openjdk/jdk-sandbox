@@ -347,3 +347,9 @@ int lookupCharacteristicsToAddressFamily(int characteristics) {
     }
     return AF_UNSPEC;
 }
+
+int addressesInSystemOrder(int characteristics) {
+    return (characteristics &
+           (java_net_spi_InetNameService_LookupPolicy_IPV4_FIRST |
+            java_net_spi_InetNameService_LookupPolicy_IPV6_FIRST)) == 0;
+}

@@ -125,12 +125,34 @@ public interface InetNameService {
         }
 
         /**
-         * This factory method creates {@link LookupPolicy LookupPolicy} with the provided
-         * characteristics value.
+         * This factory method creates {@link LookupPolicy LookupPolicy} instance with the provided
+         * {@code characteristics} value.
+         * <p> The {@code characteristics} value is an integer bit mask which defines
+         * parameters of a forward lookup operation. These parameters define at least:
+         * <ul>
+         *     <li>the family type of the returned addresses</li>
+         *     <li>the order in which a {@linkplain InetNameService name service}
+         *         implementation should return its results</li>
+         * </ul>
+         * <p> To request addresses of specific family types the following bit masks can be combined:
+         * <ul>
+         *     <li>{@link LookupPolicy#IPV4}: to request IPv4 addresses</li>
+         *     <li>{@link LookupPolicy#IPV6}: to request IPv6 addresses</li>
+         * </ul>
+         * <br>It is an error if neither {@link LookupPolicy#IPV4} or {@link LookupPolicy#IPV6} are set.
+         * <p> To request a specific ordering of the results:
+         * <ul>
+         *     <li>{@link LookupPolicy#IPV4_FIRST}: return IPv4 addresses before any IPv6 address</li>
+         *     <li>{@link LookupPolicy#IPV6_FIRST}: return IPv6 addresses before any IPv4 address</li>
+         * </ul>
+         * <br>If neither {@link LookupPolicy#IPV4_FIRST} or {@link LookupPolicy#IPV6_FIRST} are set it
+         * implies <a href="{@docRoot}/java.base/java/net/doc-files/net-properties.html#Ipv4IPv6">"system"</a> order of addresses.
+         * It is an error to request both {@link LookupPolicy#IPV4_FIRST} and {@link LookupPolicy#IPV6_FIRST}.
          *
          * @param characteristics value which represents the set of lookup characteristics
          * @return instance of {@code InetNameServiceProvider.LookupPolicy}
-         * @throws IllegalArgumentException if incompatible characteristics are provided
+         * @throws IllegalArgumentException if illegal characteristic bit mask is provided
+         * @see InetNameService#lookupAddresses(String, LookupPolicy)
          */
         public static final LookupPolicy of(int characteristics) {
             // At least one type of addresses should be requested

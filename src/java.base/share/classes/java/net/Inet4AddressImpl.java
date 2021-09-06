@@ -42,7 +42,7 @@ class Inet4AddressImpl implements InetAddressImpl {
         }
         return lookupAllHostAddr(hostname);
     }
-    native InetAddress[] lookupAllHostAddr(String hostname) throws UnknownHostException;
+    private native InetAddress[] lookupAllHostAddr(String hostname) throws UnknownHostException;
     public native String getHostByAddr(byte[] addr) throws UnknownHostException;
     private native boolean isReachable0(byte[] addr, int timeout, byte[] ifaddr, int ttl) throws IOException;
 

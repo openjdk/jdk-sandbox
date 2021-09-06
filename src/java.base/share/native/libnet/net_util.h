@@ -189,8 +189,10 @@ NET_EnableFastTcpLoopback(int fd);
 
 unsigned short in_cksum(unsigned short *addr, int len);
 
-int lookupCharacteristicsToAddressFamily(int characteristics);
-
 jint NET_Wait(JNIEnv *env, jint fd, jint flags, jint timeout);
+
+int lookupCharacteristicsToAddressFamily(int characteristics);
+int addressesInSystemOrder(int characteristics);
+
 
 #endif /* NET_UTILS_H */
