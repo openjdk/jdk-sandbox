@@ -32,6 +32,7 @@ import java.util.stream.Stream;
 public class InetAddressUsageInGetProviderImpl extends InetNameServiceProvider {
     @Override
     public InetNameService get(Configuration configuration) {
+        System.out.println("The following provider will be used by current test:" + this.getClass().getCanonicalName());
         String localHostName;
         try {
             localHostName = InetAddress.getLocalHost().getHostName();

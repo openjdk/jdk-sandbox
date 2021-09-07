@@ -40,32 +40,32 @@ import org.testng.Assert;
  * @test
  * @summary Test that system properties affecting an order and a type of queried addresses
  *          are properly mapped to a lookup characteristic value.
- * @library ../lib /test/lib
- * @build nspi.testlib/testlib.ResolutionRegistry simple.insp/insp.SimpleNameServiceProviderImpl
- *        jdk.test.lib.net.IPSupport SystemPropertiesMappingTest
- * @run testng/othervm SystemPropertiesMappingTest
- * @run testng/othervm -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv6Addresses=true SystemPropertiesMappingTest
- * @run testng/othervm -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv6Addresses=false SystemPropertiesMappingTest
- * @run testng/othervm -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv6Addresses=system SystemPropertiesMappingTest
- * @run testng/othervm -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv6Addresses SystemPropertiesMappingTest
- * @run testng/othervm -Djava.net.preferIPv4Stack=true SystemPropertiesMappingTest
- * @run testng/othervm -Djava.net.preferIPv4Stack=false -Djava.net.preferIPv6Addresses=true SystemPropertiesMappingTest
- * @run testng/othervm -Djava.net.preferIPv4Stack=false -Djava.net.preferIPv6Addresses=false SystemPropertiesMappingTest
- * @run testng/othervm -Djava.net.preferIPv4Stack=false -Djava.net.preferIPv6Addresses=system SystemPropertiesMappingTest
- * @run testng/othervm -Djava.net.preferIPv4Stack=false -Djava.net.preferIPv6Addresses SystemPropertiesMappingTest
- * @run testng/othervm -Djava.net.preferIPv4Stack=false SystemPropertiesMappingTest
- * @run testng/othervm -Djava.net.preferIPv4Stack -Djava.net.preferIPv6Addresses=true SystemPropertiesMappingTest
- * @run testng/othervm -Djava.net.preferIPv4Stack -Djava.net.preferIPv6Addresses=false SystemPropertiesMappingTest
- * @run testng/othervm -Djava.net.preferIPv4Stack -Djava.net.preferIPv6Addresses=system SystemPropertiesMappingTest
- * @run testng/othervm -Djava.net.preferIPv4Stack -Djava.net.preferIPv6Addresses SystemPropertiesMappingTest
- * @run testng/othervm -Djava.net.preferIPv4Stack SystemPropertiesMappingTest
- * @run testng/othervm -Djava.net.preferIPv6Addresses=true SystemPropertiesMappingTest
- * @run testng/othervm -Djava.net.preferIPv6Addresses=false SystemPropertiesMappingTest
- * @run testng/othervm -Djava.net.preferIPv6Addresses=system SystemPropertiesMappingTest
- * @run testng/othervm -Djava.net.preferIPv6Addresses SystemPropertiesMappingTest
+ * @library lib providers /test/lib
+ * @build test.library/testlib.ResolutionRegistry simple.provider/insp.SimpleNameServiceProviderImpl
+ *        jdk.test.lib.net.IPSupport LookupPolicyMappingTest
+ * @run testng/othervm LookupPolicyMappingTest
+ * @run testng/othervm -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv6Addresses=true LookupPolicyMappingTest
+ * @run testng/othervm -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv6Addresses=false LookupPolicyMappingTest
+ * @run testng/othervm -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv6Addresses=system LookupPolicyMappingTest
+ * @run testng/othervm -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv6Addresses LookupPolicyMappingTest
+ * @run testng/othervm -Djava.net.preferIPv4Stack=true LookupPolicyMappingTest
+ * @run testng/othervm -Djava.net.preferIPv4Stack=false -Djava.net.preferIPv6Addresses=true LookupPolicyMappingTest
+ * @run testng/othervm -Djava.net.preferIPv4Stack=false -Djava.net.preferIPv6Addresses=false LookupPolicyMappingTest
+ * @run testng/othervm -Djava.net.preferIPv4Stack=false -Djava.net.preferIPv6Addresses=system LookupPolicyMappingTest
+ * @run testng/othervm -Djava.net.preferIPv4Stack=false -Djava.net.preferIPv6Addresses LookupPolicyMappingTest
+ * @run testng/othervm -Djava.net.preferIPv4Stack=false LookupPolicyMappingTest
+ * @run testng/othervm -Djava.net.preferIPv4Stack -Djava.net.preferIPv6Addresses=true LookupPolicyMappingTest
+ * @run testng/othervm -Djava.net.preferIPv4Stack -Djava.net.preferIPv6Addresses=false LookupPolicyMappingTest
+ * @run testng/othervm -Djava.net.preferIPv4Stack -Djava.net.preferIPv6Addresses=system LookupPolicyMappingTest
+ * @run testng/othervm -Djava.net.preferIPv4Stack -Djava.net.preferIPv6Addresses LookupPolicyMappingTest
+ * @run testng/othervm -Djava.net.preferIPv4Stack LookupPolicyMappingTest
+ * @run testng/othervm -Djava.net.preferIPv6Addresses=true LookupPolicyMappingTest
+ * @run testng/othervm -Djava.net.preferIPv6Addresses=false LookupPolicyMappingTest
+ * @run testng/othervm -Djava.net.preferIPv6Addresses=system LookupPolicyMappingTest
+ * @run testng/othervm -Djava.net.preferIPv6Addresses LookupPolicyMappingTest
  */
 
-public class SystemPropertiesMappingTest {
+public class LookupPolicyMappingTest {
 
     @Test
     public void testSystemProper() throws Exception {

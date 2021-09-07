@@ -19,11 +19,22 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
-*/
+ */
 
-module simple.insp {
-    exports insp;
-    requires java.logging;
-    requires nspi.testlib;
-    provides java.net.spi.InetNameServiceProvider with insp.SimpleNameServiceProviderImpl;
+package insp;
+
+import java.net.spi.InetNameService;
+import java.net.spi.InetNameServiceProvider;
+
+public class FaultyNameServiceProviderGetImpl extends InetNameServiceProvider {
+    @Override
+    public InetNameService get(Configuration configuration) {
+        System.out.println("The following provider will be used by current test:" + this.getClass().getCanonicalName());
+        throw new IllegalArgumentException("This provider provides nothing");
+    }
+
+    @Override
+    public String name() {
+        return "faultyInspGet";
+    }
 }

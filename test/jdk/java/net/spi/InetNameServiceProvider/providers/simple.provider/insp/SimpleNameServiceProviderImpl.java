@@ -44,6 +44,7 @@ public class SimpleNameServiceProviderImpl extends InetNameServiceProvider {
 
     @Override
     public InetNameService get(Configuration configuration) {
+        System.out.println("The following provider will be used by current test:" + this.getClass().getCanonicalName());
         return new InetNameService() {
             @Override
             public Stream<InetAddress> lookupAddresses(String host, LookupPolicy lookupPolicy) throws UnknownHostException {

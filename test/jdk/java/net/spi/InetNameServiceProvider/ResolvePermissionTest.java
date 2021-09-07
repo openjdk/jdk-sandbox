@@ -35,8 +35,8 @@ import org.testng.annotations.Test;
  * @test
  * @summary Test that resolution of host name requires SocketPermission("resolve", <host name>)
  * permission when running with security manager and custom name service provider installed.
- * @library ../lib
- * @build nspi.testlib/testlib.ResolutionRegistry simple.insp/insp.SimpleNameServiceProviderImpl
+ * @library lib providers
+ * @build test.library/testlib.ResolutionRegistry simple.provider/insp.SimpleNameServiceProviderImpl
  *        ResolvePermissionTest
  * @run testng/othervm -Dtest.allowConnectToJavaTestOrg=true -Dtest.insp.dataFileName=nonExistentFile ResolvePermissionTest
  * @run testng/othervm -Dtest.allowConnectToJavaTestOrg=false -Dtest.insp.dataFileName=nonExistentFile ResolvePermissionTest

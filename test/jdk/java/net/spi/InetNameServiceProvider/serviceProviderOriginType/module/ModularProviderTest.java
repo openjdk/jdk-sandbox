@@ -28,8 +28,8 @@ import org.testng.annotations.Test;
 /*
  * @test
  * @summary Test that InetNameServiceProvider can be installed in module path.
- * @library ../../lib
- * @build nspi.testlib/testlib.ResolutionRegistry simple.insp/insp.SimpleNameServiceProviderImpl
+ * @library ../../lib ../../providers
+ * @build test.library/testlib.ResolutionRegistry simple.provider/insp.SimpleNameServiceProviderImpl
  *        ModularProviderTest
  * @run testng/othervm ModularProviderTest
  */

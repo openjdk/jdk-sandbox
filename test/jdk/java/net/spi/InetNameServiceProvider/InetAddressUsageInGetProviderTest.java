@@ -19,9 +19,26 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
-*/
-module getwithia.insp {
-    exports insp;
-    requires java.logging;
-    provides java.net.spi.InetNameServiceProvider with insp.InetAddressUsageInGetProviderImpl;
+ */
+
+import org.testng.Assert;
+import org.testng.annotations.Test;
+
+import java.net.InetAddress;
+
+/**
+ * @test
+ * @summary Test that provider which uses InetAddress APIs during its initialization
+ *  can be successfully installed.
+ * @library providers
+ * @build recursive.init.provider/insp.InetAddressUsageInGetProviderImpl
+ * @run testng/othervm InetAddressUsageInGetProviderTest
+ */
+
+public class InetAddressUsageInGetProviderTest {
+
+    @Test
+    public void testSuccessfulProviderInstantiationTest() throws Exception {
+        System.err.println(InetAddress.getAllByName(InetAddress.getLocalHost().getHostName()));
+    }
 }

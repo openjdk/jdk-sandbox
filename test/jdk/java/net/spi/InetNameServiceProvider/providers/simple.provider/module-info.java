@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,25 +19,11 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- */
+*/
 
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
-import java.net.InetAddress;
-
-/**
- * @test
- * @summary Test that provider which uses InetAddress APIs during its initialization
- *  can be successfully installed.
- * @build getwithia.insp/insp.InetAddressUsageInGetProviderImpl
- * @run testng/othervm InetAddressUsageInGetProviderTest
- */
-
-public class InetAddressUsageInGetProviderTest {
-
-    @Test
-    public void testSuccessfulProviderInstantiationTest() throws Exception {
-        System.err.println(InetAddress.getAllByName(InetAddress.getLocalHost().getHostName()));
-    }
+module simple.provider {
+    exports insp;
+    requires java.logging;
+    requires test.library;
+    provides java.net.spi.InetNameServiceProvider with insp.SimpleNameServiceProviderImpl;
 }

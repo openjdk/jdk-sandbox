@@ -19,21 +19,9 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- */
-
-package insp;
-
-import java.net.spi.InetNameService;
-import java.net.spi.InetNameServiceProvider;
-
-public class FaultyNameServiceProviderGetImpl extends InetNameServiceProvider {
-    @Override
-    public InetNameService get(Configuration configuration) {
-        throw new IllegalArgumentException("This provider provides nothing");
-    }
-
-    @Override
-    public String name() {
-        return "faultyInspGet";
-    }
+*/
+module faulty.provider {
+    exports insp;
+    requires java.logging;
+    provides java.net.spi.InetNameServiceProvider with insp.FaultyNameServiceProviderGetImpl;
 }
