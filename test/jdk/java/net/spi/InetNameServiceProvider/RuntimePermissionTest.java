@@ -33,7 +33,7 @@ import java.util.logging.Logger;
  * @test
  * @summary Test that instantiation of InetNameServiceProvider requires "inetNameServiceProvider"
  *          RuntimePermission when running with security manager.
- * @library lib providers
+ * @library lib providers/simple
  * @build test.library/testlib.ResolutionRegistry simple.provider/insp.SimpleNameServiceProviderImpl
  *        RuntimePermissionTest
  * @run testng/othervm -Dtest.allowInetNameService=true RuntimePermissionTest

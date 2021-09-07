@@ -29,7 +29,7 @@ import org.testng.annotations.Test;
 /**
  * @test
  * @summary Test that InetAddress fast fails if custom provider fails to return NameService instance.
- * @library providers
+ * @library providers/faulty
  * @build faulty.provider/insp.FaultyNameServiceProviderGetImpl
  * @run testng/othervm ProviderGetExceptionTest
  */

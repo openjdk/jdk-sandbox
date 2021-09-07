@@ -30,10 +30,12 @@ import java.net.InetAddress;
  * @test
  * @summary Test that provider which uses InetAddress APIs during its initialization
  *  can be successfully installed.
- * @library providers
+ * @library providers/recursive
  * @build recursive.init.provider/insp.InetAddressUsageInGetProviderImpl
  * @run testng/othervm InetAddressUsageInGetProviderTest
  */
+
+// TODO: Try --limit
 
 public class InetAddressUsageInGetProviderTest {
 

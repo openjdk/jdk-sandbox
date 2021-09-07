@@ -40,7 +40,7 @@ import org.testng.Assert;
  * @test
  * @summary Test that system properties affecting an order and a type of queried addresses
  *          are properly mapped to a lookup characteristic value.
- * @library lib providers /test/lib
+ * @library lib providers/simple /test/lib
  * @build test.library/testlib.ResolutionRegistry simple.provider/insp.SimpleNameServiceProviderImpl
  *        jdk.test.lib.net.IPSupport LookupPolicyMappingTest
  * @run testng/othervm LookupPolicyMappingTest
