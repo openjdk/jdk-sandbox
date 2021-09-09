@@ -606,6 +606,15 @@ Node *RegionNode::Ideal(PhaseGVN *phase, bool can_reshape) {
           igvn->replace_input_of(outer, LoopNode::LoopBackControl, igvn->C->top());
         }
       }
+      if (is_CountedLoop()) {
+        Node* opaq = as_CountedLoop()->is_canonical_loop_entry();
+        if (opaq != NULL) {
+          // This is not a loop anymore. No need to keep the Opaque1 node on the test that guards the loop as it won't be
+          // subject to further loop opts.
+          assert(opaq->Opcode() == Op_Opaque1, "");
+          igvn->replace_node(opaq, opaq->in(1));
+        }
+      }
       Node *parent_ctrl;
       if( cnt == 0 ) {
         assert( req() == 1, "no inputs expected" );
@@ -2708,7 +2717,7 @@ const Type* NeverBranchNode::Value(PhaseGVN* phase) const {
 //------------------------------Ideal------------------------------------------
 // Check for no longer being part of a loop
 Node *NeverBranchNode::Ideal(PhaseGVN *phase, bool can_reshape) {
-  if (can_reshape && !in(0)->is_Loop()) {
+  if (can_reshape && !in(0)->is_Region()) {
     // Dead code elimination can sometimes delete this projection so
     // if it's not there, there's nothing to do.
     Node* fallthru = proj_out_or_null(0);

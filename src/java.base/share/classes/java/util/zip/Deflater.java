@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -266,7 +266,7 @@ public class Deflater {
      * @param off the start offset of the data
      * @param len the length of the data
      * @see Inflater#inflate
-     * @see Inflater#getAdler
+     * @see Inflater#getAdler()
      */
     public void setDictionary(byte[] dictionary, int off, int len) {
         if (off < 0 || len < 0 || off > dictionary.length - len) {
@@ -286,7 +286,7 @@ public class Deflater {
      * decompression.
      * @param dictionary the dictionary data bytes
      * @see Inflater#inflate
-     * @see Inflater#getAdler
+     * @see Inflater#getAdler()
      */
     public void setDictionary(byte[] dictionary) {
         setDictionary(dictionary, 0, dictionary.length);
@@ -304,7 +304,7 @@ public class Deflater {
      *
      * @param dictionary the dictionary data bytes
      * @see Inflater#inflate
-     * @see Inflater#getAdler
+     * @see Inflater#getAdler()
      */
     public void setDictionary(ByteBuffer dictionary) {
         synchronized (zsRef) {
