@@ -29,7 +29,7 @@ import static org.testng.Assert.assertThrows;
 
 /*
  * @test
- * @summary Test that InetNameServiceProvider can be installed in class path.
+ * @summary Test that InetNameServiceProvider implementation can be installed to a class path.
  * @library ../../lib
  * @build test.library/testlib.ResolutionRegistry ClasspathNameServiceProviderImpl
  * @run testng/othervm ClasspathProviderTest

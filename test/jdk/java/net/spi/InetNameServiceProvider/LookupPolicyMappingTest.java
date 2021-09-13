@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,11 +35,12 @@ import jtreg.SkippedException;
 import jdk.test.lib.net.IPSupport;
 import org.testng.annotations.Test;
 import org.testng.Assert;
+import org.testng.SkipException;
 
 /*
  * @test
- * @summary Test that system properties affecting an order and a type of queried addresses
- *          are properly mapped to a lookup characteristic value.
+ * @summary Test that platform lookup characteristic value is correctly initialized from
+ *  system properties affecting order and type of queried addresses.
  * @library lib providers/simple /test/lib
  * @build test.library/testlib.ResolutionRegistry simple.provider/insp.SimpleNameServiceProviderImpl
  *        jdk.test.lib.net.IPSupport LookupPolicyMappingTest
@@ -68,13 +69,14 @@ import org.testng.Assert;
 public class LookupPolicyMappingTest {
 
     @Test
-    public void testSystemProper() throws Exception {
-        IPSupport.printPlatformSupport(System.err);
+    public void testSystemProperties() throws Exception {
 
-        // TODO: Check if platform has interfaces with IPv4 and IPv6 addresses. IPSupport.hasIPv4/hasIPv6 cannot
-        // be used here since system properties affect them.
+        // Check if platform network configuration matches the test requirements,
+        // if not throw a SkipException
+        checkPlatformNetworkConfiguration();
 
-        System.err.println("javaTest.org resolved to:" + Arrays.deepToString(InetAddress.getAllByName("javaTest.org")));
+        System.err.println("javaTest.org resolved to:" + Arrays.deepToString(
+                InetAddress.getAllByName("javaTest.org")));
 
         // Acquire runtime characteristics from the test NSP
         int runtimeCharacteristics = insp.SimpleNameServiceProviderImpl.lastLookupPolicy().characteristics();
@@ -82,16 +84,32 @@ public class LookupPolicyMappingTest {
         // Calculate expected lookup policy characteristic
         String preferIPv4Stack = System.getProperty("java.net.preferIPv4Stack");
         String preferIPv6Addresses = System.getProperty("java.net.preferIPv6Addresses");
-        String expectedResultsKey = calcKey(preferIPv4Stack, preferIPv6Addresses);
+        String expectedResultsKey = calculateMapKey(preferIPv4Stack, preferIPv6Addresses);
         int expectedCharacteristics = EXPECTED_RESULTS_MAP.get(expectedResultsKey);
 
-        Assert.assertTrue(characteristicsMatch(runtimeCharacteristics, expectedCharacteristics), "Unexpected LookupPolicy observed");
+        Assert.assertTrue(characteristicsMatch(
+                runtimeCharacteristics, expectedCharacteristics), "Unexpected LookupPolicy observed");
+    }
+
+    // Throws SkipException if platform doesn't support required IP address types
+    static void checkPlatformNetworkConfiguration() {
+        IPSupport.printPlatformSupport(System.err);
+        // If preferIPv4=true and no IPv4 - skip
+        if (IPSupport.preferIPv4Stack()) {
+            if (!IPSupport.hasIPv4()) {
+                throw new SkipException("Skip tests - IPv4 support required");
+            }
+            return;
+        }
+        // For all other cases we need to have both IPv4 and IPv6 addresses. If not - skip
+        if (!IPSupport.hasIPv4() || !IPSupport.hasIPv6()) {
+            throw new SkipException("Skip tests - both IPv6 and IPv4 support required");
+        }
     }
 
     /*
      *  Each row describes a combination of 'preferIPv4Stack', 'preferIPv6Addresses'
      *  values and the expected characteristic value
-     * <preferIPv4Stack value> [true/false/""/null], <preferIPv6Addresses value> [true/false/system/""/null], "Expected characteristic value"
      */
     private static Object[][] EXPECTED_RESULTS_TABLE = {
             {"true", "true", IPV4},
@@ -124,12 +142,12 @@ public class LookupPolicyMappingTest {
     private static Map<String, Integer> calculateExpectedCharacteristics() {
         return Arrays.stream(EXPECTED_RESULTS_TABLE)
                 .collect(Collectors.toUnmodifiableMap(
-                        entry -> calcKey((String) entry[0], (String) entry[1]),
+                        entry -> calculateMapKey((String) entry[0], (String) entry[1]),
                         entry -> (Integer) entry[2])
                 );
     }
 
-    private static String calcKey(String ipv4stack, String ipv6addresses) {
+    private static String calculateMapKey(String ipv4stack, String ipv6addresses) {
         return ipv4stack + "_" + ipv6addresses;
     }
 
@@ -139,6 +157,4 @@ public class LookupPolicyMappingTest {
                 Integer.toBinaryString(calculated));
         return (runtime & calculated) == calculated;
     }
-
-
 }

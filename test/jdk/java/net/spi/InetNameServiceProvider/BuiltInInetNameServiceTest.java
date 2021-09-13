@@ -10,7 +10,7 @@ import static org.testng.Assert.*;
 
 /*
  * @test
- * @summary Check that the built-in inet name service is used by default
+ * @summary Check that the built-in inet name service is used by default.
  * @modules java.base/java.net:open
  * @run testng/othervm BuiltInInetNameServiceTest
  */

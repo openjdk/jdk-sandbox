@@ -27,7 +27,7 @@ import org.testng.annotations.Test;
 
 /*
  * @test
- * @summary Test that InetNameServiceProvider can be installed in module path.
+ * @summary Test that implementation of InetNameServiceProvider can be installed to a module path.
  * @library ../../lib ../../providers/simple
  * @build test.library/testlib.ResolutionRegistry simple.provider/insp.SimpleNameServiceProviderImpl
  *        ModularProviderTest

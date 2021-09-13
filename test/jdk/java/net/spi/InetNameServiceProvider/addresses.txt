@@ -1,8 +1,7 @@
-# Test data file for tests in modularTests directory
+# Test data file for InetNameServiceProvider SPI tests
 # Format: <IP address> <Host Name>
 # If multiple IP addresses are required for host:
 #    multiple lines could be added
 
-2.3.9.1    javaTest.org
+1.2.3.4    javaTest.org
 [ca:fe:ba:be::1] javaTest.org
-::3    javaTest6.org
