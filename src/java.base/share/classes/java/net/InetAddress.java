@@ -205,7 +205,7 @@ import static java.net.spi.InetNameService.LookupPolicy.IPV6_FIRST;
  *
  * <h3 id="nameServiceProviders"> Name Service Providers </h3>
  *
- * <p> Host name and IP address lookup operations are delegated to a
+ * <p> Host name resolution and reverse name resolution operations are delegated to a
  * {@linkplain InetNameService name service}. Lookup operations performed by
  * this class use the <i>system-wide name service</i>. The system-wide name
  * service is set once, lazily, after the VM is fully initialized and when

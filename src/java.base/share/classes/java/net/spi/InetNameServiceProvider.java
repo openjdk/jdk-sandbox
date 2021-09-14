@@ -30,7 +30,7 @@ import java.util.ServiceLoader;
 
 /**
  * A name service provider class is a factory for custom implementations of {@linkplain InetNameService name
- * services} which define operations for looking-up host names and IP addresses.
+ * services} which define operations for looking-up (resolving) host names and IP addresses.
  * Name service providers are
  * <a href="{@docRoot}/java.base/java/net/InetAddress.html#nameServiceProviders">discovered</a>
  * by {@link InetAddress} to instantiate and install a <i>system-wide name service</i>.
