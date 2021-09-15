@@ -22,6 +22,7 @@
  */
 
 import java.net.InetAddress;
+import java.util.Arrays;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -38,9 +39,22 @@ import org.testng.annotations.Test;
 public class ProviderGetExceptionTest {
 
     @Test
-    public void testGetExceptionTest() throws Exception {
+    public void getByNameExceptionTest() throws Exception {
+        String hostName = "test.host";
+        System.out.println("Looking up address for the following host name:" + hostName);
         IllegalArgumentException iae = Assert.expectThrows(IllegalArgumentException.class,
-                () -> InetAddress.getByName("test.host"));
+                () -> InetAddress.getByName(hostName));
+        System.out.println("Got exception of expected type:" + iae);
+        assert iae.getCause() == null;
+        Assert.assertEquals(iae.getMessage(), FAULT_MESSAGE);
+    }
+
+    @Test
+    public void getByAddressExceptionTest() throws Exception {
+        byte [] address = new byte[]{1, 2, 3, 4};
+        System.out.println("Looking up host name for the following address:" + Arrays.toString(address));
+        IllegalArgumentException iae = Assert.expectThrows(IllegalArgumentException.class,
+                () -> InetAddress.getByAddress(address).getHostName());
         System.out.println("Got exception of expected type:" + iae);
         assert iae.getCause() == null;
         Assert.assertEquals(iae.getMessage(), FAULT_MESSAGE);

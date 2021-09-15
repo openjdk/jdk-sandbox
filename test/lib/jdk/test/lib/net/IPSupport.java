@@ -29,6 +29,7 @@ import java.io.PrintStream;
 import java.io.UncheckedIOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.NetworkInterface;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
@@ -76,7 +77,15 @@ public class IPSupport {
             socket.bind(new InetSocketAddress(address, 0));
             return true;
         } catch (SocketException se) {
-            return false;
+            try {
+                return NetworkInterface.networkInterfaces()
+                        .flatMap(NetworkInterface::inetAddresses)
+                        .map(InetAddress::getClass)
+                        .filter(clz -> clz.equals(address.getClass()))
+                        .findAny().isPresent();
+            } catch (SocketException se2) {
+                return false;
+            }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

@@ -389,12 +389,6 @@ public class InetAddress implements java.io.Serializable {
     }
 
     /**
-     *  Platform-wide {@code LookupPolicy} initialized from {@code "java.net.preferIPv4Stack"},
-     * {@code "java.net.preferIPv6Addresses"} system properties.
-     */
-    static final LookupPolicy PLATFORM_LOOKUP_POLICY = initializePlatformLookupPolicy();
-
-    /**
      * Creates an address lookup policy from {@code "java.net.preferIPv4Stack"},
      * {@code "java.net.preferIPv6Addresses"} system property values, and O/S configuration.
      */
@@ -835,9 +829,10 @@ public class InetAddress implements java.io.Serializable {
      */
     private static String getHostFromNameService(InetAddress addr, boolean check) {
         String host = null;
+        var nameService = nameService();
         try {
             // first lookup the hostname
-            host = nameService().lookupHostName(addr.getAddress());
+            host = nameService.lookupHostName(addr.getAddress());
 
             /* check to see if calling code is allowed to know
              * the hostname for this IP address, ie, connect to the host
@@ -869,9 +864,8 @@ public class InetAddress implements java.io.Serializable {
                 host = addr.getHostAddress();
                 return host;
             }
-        } catch (SecurityException | UnknownHostException e) {
+        } catch (RuntimeException | UnknownHostException e) {
             host = addr.getHostAddress();
-            // let next provider resolve the hostname
         }
         return host;
     }
@@ -1285,9 +1279,18 @@ public class InetAddress implements java.io.Serializable {
 
     static final InetAddressImpl  impl;
 
+    /**
+     * Platform-wide {@code LookupPolicy} initialized from {@code "java.net.preferIPv4Stack"},
+     * {@code "java.net.preferIPv6Addresses"} system properties.
+     */
+    static final LookupPolicy PLATFORM_LOOKUP_POLICY;
+
     static {
         // create the impl
         impl = InetAddressImplFactory.create();
+
+        // impl must be initialized before calling this method
+        PLATFORM_LOOKUP_POLICY = initializePlatformLookupPolicy();
 
         // create name service
         BUILTIN_INET_NAME_SERVICE = createDefaultInetNameService();
@@ -1647,13 +1650,17 @@ public class InetAddress implements java.io.Serializable {
         Stream<InetAddress> addresses = null;
         UnknownHostException ex = null;
 
+        var nameService = nameService();
         try {
-            addresses = nameService().lookupAddresses(host, PLATFORM_LOOKUP_POLICY);
-        } catch (UnknownHostException uhe) {
+            addresses = nameService.lookupAddresses(host, PLATFORM_LOOKUP_POLICY);
+        } catch (RuntimeException | UnknownHostException x) {
             if (host.equalsIgnoreCase("localhost")) {
                 addresses = Stream.of(impl.loopbackAddress());
-            } else {
+            } else if (x instanceof UnknownHostException uhe) {
                 ex = uhe;
+            } else {
+                ex = new UnknownHostException();
+                ex.initCause(x);
             }
         }
 

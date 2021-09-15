@@ -23,6 +23,7 @@
 
 import java.net.InetAddress;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -31,8 +32,8 @@ import static java.net.spi.InetNameService.LookupPolicy.IPV4_FIRST;
 import static java.net.spi.InetNameService.LookupPolicy.IPV6;
 import static java.net.spi.InetNameService.LookupPolicy.IPV6_FIRST;
 
-import jtreg.SkippedException;
 import jdk.test.lib.net.IPSupport;
+import jdk.test.lib.NetworkConfiguration;
 import org.testng.annotations.Test;
 import org.testng.Assert;
 import org.testng.SkipException;
@@ -93,7 +94,9 @@ public class LookupPolicyMappingTest {
 
     // Throws SkipException if platform doesn't support required IP address types
     static void checkPlatformNetworkConfiguration() {
+        IPSupport.throwSkippedExceptionIfNonOperational();
         IPSupport.printPlatformSupport(System.err);
+        NetworkConfiguration.printSystemConfiguration(System.err);
         // If preferIPv4=true and no IPv4 - skip
         if (IPSupport.preferIPv4Stack()) {
             if (!IPSupport.hasIPv4()) {
@@ -101,9 +104,18 @@ public class LookupPolicyMappingTest {
             }
             return;
         }
-        // For all other cases we need to have both IPv4 and IPv6 addresses. If not - skip
-        if (!IPSupport.hasIPv4() || !IPSupport.hasIPv6()) {
-            throw new SkipException("Skip tests - both IPv6 and IPv4 support required");
+    }
+
+    record ExpectedResult(String ipv4stack, String ipv6addresses, int characteristics) {
+        ExpectedResult {
+            if (!IPSupport.hasIPv4()) {
+                characteristics = IPV6;
+            } else if (!IPSupport.hasIPv6()) {
+                characteristics = IPV4;
+            }
+        }
+        public String key() {
+            return calculateMapKey(ipv4stack, ipv6addresses);
         }
     }
 
@@ -111,39 +123,38 @@ public class LookupPolicyMappingTest {
      *  Each row describes a combination of 'preferIPv4Stack', 'preferIPv6Addresses'
      *  values and the expected characteristic value
      */
-    private static Object[][] EXPECTED_RESULTS_TABLE = {
-            {"true", "true", IPV4},
-            {"true", "false", IPV4},
-            {"true", "system", IPV4},
-            {"true", "", IPV4},
-            {"true", null, IPV4},
+    private static List<ExpectedResult> EXPECTED_RESULTS_TABLE = List.of(
+            new ExpectedResult("true", "true", IPV4),
+            new ExpectedResult("true", "false", IPV4),
+            new ExpectedResult("true", "system", IPV4),
+            new ExpectedResult("true", "", IPV4),
+            new ExpectedResult("true", null, IPV4),
 
-            {"false", "true", IPV4 | IPV6 | IPV6_FIRST},
-            {"false", "false", IPV4 | IPV6 | IPV4_FIRST},
-            {"false", "system", IPV4 | IPV6},
-            {"false", "", IPV4 | IPV6 | IPV4_FIRST},
-            {"false", null, IPV4 | IPV6 | IPV4_FIRST},
+            new ExpectedResult("false", "true", IPV4 | IPV6 | IPV6_FIRST),
+            new ExpectedResult("false", "false", IPV4 | IPV6 | IPV4_FIRST),
+            new ExpectedResult("false", "system", IPV4 | IPV6),
+            new ExpectedResult("false", "", IPV4 | IPV6 | IPV4_FIRST),
+            new ExpectedResult("false", null, IPV4 | IPV6 | IPV4_FIRST),
 
-            {"", "true", IPV4 | IPV6 | IPV6_FIRST},
-            {"", "false", IPV4 | IPV6 | IPV4_FIRST},
-            {"", "system", IPV4 | IPV6},
-            {"", "", IPV4 | IPV6 | IPV4_FIRST},
-            {"", null, IPV4 | IPV6 | IPV4_FIRST},
+            new ExpectedResult("", "true", IPV4 | IPV6 | IPV6_FIRST),
+            new ExpectedResult("", "false", IPV4 | IPV6 | IPV4_FIRST),
+            new ExpectedResult("", "system", IPV4 | IPV6),
+            new ExpectedResult("", "", IPV4 | IPV6 | IPV4_FIRST),
+            new ExpectedResult("", null, IPV4 | IPV6 | IPV4_FIRST),
 
-            {null, "true", IPV4 | IPV6 | IPV6_FIRST},
-            {null, "false", IPV4 | IPV6 | IPV4_FIRST},
-            {null, "system", IPV4 | IPV6},
-            {null, "", IPV4 | IPV6 | IPV4_FIRST},
-            {null, null, IPV4 | IPV6 | IPV4_FIRST},
-    };
+            new ExpectedResult(null, "true", IPV4 | IPV6 | IPV6_FIRST),
+            new ExpectedResult(null, "false", IPV4 | IPV6 | IPV4_FIRST),
+            new ExpectedResult(null, "system", IPV4 | IPV6),
+            new ExpectedResult(null, "", IPV4 | IPV6 | IPV4_FIRST),
+            new ExpectedResult(null, null, IPV4 | IPV6 | IPV4_FIRST));
 
     private static final Map<String, Integer> EXPECTED_RESULTS_MAP = calculateExpectedCharacteristics();
 
     private static Map<String, Integer> calculateExpectedCharacteristics() {
-        return Arrays.stream(EXPECTED_RESULTS_TABLE)
+        return EXPECTED_RESULTS_TABLE.stream()
                 .collect(Collectors.toUnmodifiableMap(
-                        entry -> calculateMapKey((String) entry[0], (String) entry[1]),
-                        entry -> (Integer) entry[2])
+                        ExpectedResult::key,
+                        ExpectedResult::characteristics)
                 );
     }
 
@@ -151,10 +162,10 @@ public class LookupPolicyMappingTest {
         return ipv4stack + "_" + ipv6addresses;
     }
 
-    private static boolean characteristicsMatch(int runtime, int calculated) {
-        System.err.printf("Comparing characteristics:%n\t   Runtime: %s%n\tCalculated: %s%n",
-                Integer.toBinaryString(runtime),
-                Integer.toBinaryString(calculated));
-        return (runtime & calculated) == calculated;
+    private static boolean characteristicsMatch(int actual, int expected) {
+        System.err.printf("Comparing characteristics:%n\tActual: %s%n\tExpected: %s%n",
+                Integer.toBinaryString(actual),
+                Integer.toBinaryString(expected));
+        return (actual & (IPV4 | IPV6 | IPV4_FIRST | IPV6_FIRST)) == expected;
     }
 }
