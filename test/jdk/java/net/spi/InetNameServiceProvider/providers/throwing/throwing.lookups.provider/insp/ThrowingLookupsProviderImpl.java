@@ -39,7 +39,7 @@ public class ThrowingLookupsProviderImpl extends InetNameServiceProvider {
             @Override
             public Stream<InetAddress> lookupAddresses(String host, LookupPolicy lookupPolicy)
                     throws UnknownHostException {
-                if (THROW_RUNTIME_EXCEPTION) {
+                if (throwRuntimeException) {
                     System.err.println(name()+" forward lookup: throwing RuntimeException");
                     throw new RuntimeException(RUNTIME_EXCEPTION_MESSAGE);
                 } else {
@@ -50,7 +50,7 @@ public class ThrowingLookupsProviderImpl extends InetNameServiceProvider {
 
             @Override
             public String lookupHostName(byte[] addr) throws UnknownHostException {
-                if (THROW_RUNTIME_EXCEPTION) {
+                if (throwRuntimeException) {
                     System.err.println(name()+" reverse lookup: throwing RuntimeException");
                     throw new RuntimeException(RUNTIME_EXCEPTION_MESSAGE);
                 } else {
@@ -69,6 +69,6 @@ public class ThrowingLookupsProviderImpl extends InetNameServiceProvider {
     private static final String EXCEPTION_TYPE_SP_NAME = "provider.throws.runtime.exception";
     // Indicates if provider need to throw RuntimeException for forward and reverse lookup operations.
     // If it is set to 'false' then UnknownHostException will thrown for each operation.
-    public static final boolean THROW_RUNTIME_EXCEPTION = Boolean.getBoolean(EXCEPTION_TYPE_SP_NAME);
+    public static volatile boolean throwRuntimeException;
     public static final String RUNTIME_EXCEPTION_MESSAGE = "This provider only throws exceptions";
 }

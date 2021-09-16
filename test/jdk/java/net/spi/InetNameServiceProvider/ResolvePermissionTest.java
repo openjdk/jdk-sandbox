@@ -38,20 +38,28 @@ import org.testng.annotations.Test;
  * @library lib providers/simple
  * @build test.library/testlib.ResolutionRegistry simple.provider/insp.SimpleNameServiceProviderImpl
  *        ResolvePermissionTest
- * @run testng/othervm -Dtest.allowConnectToJavaTestOrg=true -Dtest.insp.dataFileName=nonExistentFile ResolvePermissionTest
- * @run testng/othervm -Dtest.allowConnectToJavaTestOrg=false -Dtest.insp.dataFileName=nonExistentFile ResolvePermissionTest
+ * @run testng/othervm -Dtest.insp.dataFileName=nonExistentFile ResolvePermissionTest
  */
 
 public class ResolvePermissionTest {
 
     @Test
-    public void testRuntimePermission() throws Exception {
-        boolean allowJavaTestOrgResolve = Boolean.getBoolean(ALLOW_SYSTEM_PROPERTY);
+    public void withResolvePermission() throws Exception {
+        testResolvePermission(true);
+    }
+
+    @Test
+    public void noResolvePermission() throws Exception {
+        testResolvePermission(false);
+    }
+
+    @SuppressWarnings("removal")
+    private void testResolvePermission(boolean grantResolvePermission) throws Exception {
         // Set security manager which grants all permissions + RuntimePermission("inetNameService")
-        var securityManager = new ResolvePermissionTest.TestSecurityManager(allowJavaTestOrgResolve);
+        var securityManager = new ResolvePermissionTest.TestSecurityManager(grantResolvePermission);
         try {
             System.setSecurityManager(securityManager);
-            Class expectedExceptionClass = allowJavaTestOrgResolve ?
+            Class expectedExceptionClass = grantResolvePermission ?
                     UnknownHostException.class : SecurityException.class;
             var exception = Assert.expectThrows(expectedExceptionClass, () -> InetAddress.getByName("javaTest.org"));
             LOGGER.info("Got expected exception: " + exception);
@@ -83,5 +91,4 @@ public class ResolvePermissionTest {
         }
     }
     private static final Logger LOGGER = Logger.getLogger(ResolvePermissionTest.class.getName());
-    private static final String ALLOW_SYSTEM_PROPERTY = "test.allowJavaTestOrgResolve";
 }

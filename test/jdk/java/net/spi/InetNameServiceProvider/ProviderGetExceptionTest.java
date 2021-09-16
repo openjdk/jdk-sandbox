@@ -57,7 +57,7 @@ public class ProviderGetExceptionTest {
     private void callInetAddressAndCheckException(Assert.ThrowingRunnable apiCall) {
         IllegalArgumentException iae = Assert.expectThrows(IllegalArgumentException.class, apiCall);
         System.out.println("Got exception of expected type:" + iae);
-        assert iae.getCause() == null;
+        Assert.assertNull(iae.getCause(), "cause is not null");
         Assert.assertEquals(iae.getMessage(), EXCEPTION_MESSAGE);
     }
 }

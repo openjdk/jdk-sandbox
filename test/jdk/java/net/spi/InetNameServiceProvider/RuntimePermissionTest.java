@@ -36,18 +36,23 @@ import java.util.logging.Logger;
  * @library lib providers/simple
  * @build test.library/testlib.ResolutionRegistry simple.provider/insp.SimpleNameServiceProviderImpl
  *        RuntimePermissionTest
- * @run testng/othervm -Dtest.allowInetNameService=true RuntimePermissionTest
- * @run testng/othervm -Dtest.allowInetNameService=false RuntimePermissionTest
+ * @run testng/othervm RuntimePermissionTest
  */
 
 public class RuntimePermissionTest {
-    public static final String RUNTIME_PERMISSION_NAME = "inetNameServiceProvider";
-    private static final String ALLOW_SYSTEM_PROPERTY = "test.allowInetNameService";
-    private static final Logger LOGGER = Logger.getLogger(RuntimePermissionTest.class.getName());
 
     @Test
-    public void testRuntimePermission() throws Exception {
-        boolean permitNameService = Boolean.getBoolean(ALLOW_SYSTEM_PROPERTY);
+    public void withRuntimePermission() throws Exception {
+        testRuntimePermission(true);
+    }
+
+    @Test
+    public void noRuntimePermission() throws Exception {
+        testRuntimePermission(false);
+    }
+
+    @SuppressWarnings("removal")
+    private void testRuntimePermission(boolean permitNameService) throws Exception {
         // Set security manager which grants all permissions + RuntimePermission("inetNameService")
         var securityManager = new TestSecurityManager(permitNameService);
         try {
@@ -86,5 +91,8 @@ public class RuntimePermissionTest {
             }
         }
     }
+
+    private static final String RUNTIME_PERMISSION_NAME = "inetNameServiceProvider";
+    private static final Logger LOGGER = Logger.getLogger(RuntimePermissionTest.class.getName());
 
 }

@@ -828,7 +828,7 @@ public class InetAddress implements java.io.Serializable {
      * @see SecurityManager#checkConnect
      */
     private static String getHostFromNameService(InetAddress addr, boolean check) {
-        String host = null;
+        String host;
         var nameService = nameService();
         try {
             // first lookup the hostname

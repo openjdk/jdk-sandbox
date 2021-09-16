@@ -24,7 +24,7 @@
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
-import static insp.ThrowingLookupsProviderImpl.THROW_RUNTIME_EXCEPTION;
+import insp.ThrowingLookupsProviderImpl;
 import static insp.ThrowingLookupsProviderImpl.RUNTIME_EXCEPTION_MESSAGE;
 
 import org.testng.Assert;
@@ -38,19 +38,41 @@ import org.testng.annotations.Test;
  * @library providers/throwing
  * @build throwing.lookups.provider/insp.ThrowingLookupsProviderImpl
  * @run testng/othervm ResolutionWithExceptionTest
- * @run testng/othervm -Dprovider.throws.runtime.exception=true ResolutionWithExceptionTest
  */
 
 public class ResolutionWithExceptionTest {
 
     @Test
-    public void getByNameTest() {
+    public void getByNameUnknownHostException() {
+        ThrowingLookupsProviderImpl.throwRuntimeException = false;
+        runGetByNameTest();
+    }
+
+    @Test
+    public void getByNameRuntimeException() {
+        ThrowingLookupsProviderImpl.throwRuntimeException = true;
+        runGetByNameTest();
+    }
+
+    @Test
+    public void getByAddressUnknownHostException() throws UnknownHostException {
+        ThrowingLookupsProviderImpl.throwRuntimeException = false;
+        runGetByAddressTest();
+    }
+
+    @Test
+    public void getByAddressRuntimeException() throws UnknownHostException {
+        ThrowingLookupsProviderImpl.throwRuntimeException = true;
+        runGetByAddressTest();
+    }
+
+    private void runGetByNameTest() {
         // InetAddress.getByName() is expected to throw UnknownHostException in all cases
         UnknownHostException uhe = Assert.expectThrows(UnknownHostException.class,
                 () -> InetAddress.getByName("doesnt.matter.com"));
         // If provider is expected to throw RuntimeException - check that UnknownHostException
-        // has it set as cause
-        if (THROW_RUNTIME_EXCEPTION) {
+        // is set as its cause
+        if (ThrowingLookupsProviderImpl.throwRuntimeException) {
             Throwable cause = uhe.getCause();
             if (cause instanceof RuntimeException re) {
                 // Check RuntimeException message
@@ -62,8 +84,7 @@ public class ResolutionWithExceptionTest {
         }
     }
 
-    @Test
-    public void getByAddressTest() throws UnknownHostException {
+    private void runGetByAddressTest() throws UnknownHostException {
         // getCanonicalHostName is not expected to throw an exception:
         // if there is an error during reverse lookup operation the literal IP
         // address String will be returned.
