@@ -224,7 +224,9 @@ public class ResolutionRegistry {
 
         private final int ch;
 
-        AddressOrderPref (int ch) { this.ch = ch; }
+        AddressOrderPref(int ch) {
+            this.ch = ch;
+        }
 
         @Override
         public int compare(byte[] o1, byte[] o2) {

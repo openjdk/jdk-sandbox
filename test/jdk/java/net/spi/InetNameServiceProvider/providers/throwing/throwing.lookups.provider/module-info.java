@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,24 +19,8 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- */
-
-package insp;
-
-import java.net.spi.InetNameService;
-import java.net.spi.InetNameServiceProvider;
-
-public class FaultyNameServiceProviderGetImpl extends InetNameServiceProvider {
-    public static final String EXCEPTION_MESSAGE = "This provider provides nothing";
-
-    @Override
-    public InetNameService get(Configuration configuration) {
-        System.out.println("The following provider will be used by current test:" + this.getClass().getCanonicalName());
-        throw new IllegalArgumentException(EXCEPTION_MESSAGE);
-    }
-
-    @Override
-    public String name() {
-        return "faultyInspGet";
-    }
+*/
+module throwing.lookups.provider {
+    exports insp;
+    provides java.net.spi.InetNameServiceProvider with insp.ThrowingLookupsProviderImpl;
 }
