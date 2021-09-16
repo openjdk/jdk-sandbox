@@ -103,8 +103,7 @@ class Inet6AddressImpl implements InetAddressImpl {
         if (anyLocalAddress == null) {
             int flags = PLATFORM_LOOKUP_POLICY.characteristics();
             if (InetAddress.ipv6AddressesFirst(flags) ||
-                InetAddress.systemAddressesOrder(flags) ||
-                (flags & IPV4) == 0) {
+                InetAddress.systemAddressesOrder(flags)) {
                 anyLocalAddress = new Inet6Address();
                 anyLocalAddress.holder().hostName = "::";
             } else {
@@ -118,8 +117,7 @@ class Inet6AddressImpl implements InetAddressImpl {
         if (loopbackAddress == null) {
             int flags = PLATFORM_LOOKUP_POLICY.characteristics();
             boolean preferIPv6Address = InetAddress.ipv6AddressesFirst(flags) ||
-                    InetAddress.systemAddressesOrder(flags) ||
-                    (flags & IPV4) == 0;
+                    InetAddress.systemAddressesOrder(flags);
 
             for (int i = 0; i < 2; i++) {
                 InetAddress address;
