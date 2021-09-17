@@ -1072,6 +1072,9 @@ public class InetAddress implements java.io.Serializable {
 
         public String lookupHostName(byte[] addr)
                 throws UnknownHostException {
+            if (addr.length != Inet4Address.INADDRSZ && addr.length != Inet6Address.INADDRSZ) {
+                throw new IllegalArgumentException("Invalid address length");
+            }
             return impl.getHostByAddr(addr);
         }
     }
@@ -1111,6 +1114,11 @@ public class InetAddress implements java.io.Serializable {
         public String lookupHostName(byte[] addr) throws UnknownHostException {
             String hostEntry;
             String host = null;
+
+            // Check the length of the address array
+            if (addr.length != Inet4Address.INADDRSZ && addr.length != Inet6Address.INADDRSZ) {
+                throw new IllegalArgumentException("Invalid address length");
+            }
 
             try (Scanner hostsFileScanner = new Scanner(new File(hostsFile),
                                                         UTF_8.INSTANCE)) {

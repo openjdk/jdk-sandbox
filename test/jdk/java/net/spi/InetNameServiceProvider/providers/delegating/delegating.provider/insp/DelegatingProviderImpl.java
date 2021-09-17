@@ -29,33 +29,34 @@ import java.net.spi.InetNameService;
 import java.net.spi.InetNameServiceProvider;
 import java.util.stream.Stream;
 
-public class ThrowingLookupsProviderImpl extends InetNameServiceProvider {
+public class DelegatingProviderImpl extends InetNameServiceProvider {
+
+    public static volatile boolean changeReverseLookupAddress;
+    public static volatile Throwable lastReverseLookupThrowable;
+
     @Override
     public InetNameService get(Configuration configuration) {
         System.out.println("The following provider will be used by current test:" +
                 this.getClass().getCanonicalName());
-
         return new InetNameService() {
             @Override
-            public Stream<InetAddress> lookupAddresses(String host, LookupPolicy lookupPolicy)
-                    throws UnknownHostException {
-                if (throwRuntimeException) {
-                    System.err.println(name()+" forward lookup: throwing RuntimeException");
-                    throw new RuntimeException(RUNTIME_EXCEPTION_MESSAGE);
-                } else {
-                    System.err.println(name()+" forward lookup: throwing UnknownHostException");
-                    throw new UnknownHostException();
-                }
+            public Stream<InetAddress> lookupAddresses(String host, LookupPolicy lookupPolicy) throws UnknownHostException {
+                return configuration.builtinNameService().lookupAddresses(host, lookupPolicy);
             }
 
             @Override
             public String lookupHostName(byte[] addr) throws UnknownHostException {
-                if (throwRuntimeException) {
-                    System.err.println(name()+" reverse lookup: throwing RuntimeException");
-                    throw new RuntimeException(RUNTIME_EXCEPTION_MESSAGE);
-                } else {
-                    System.err.println(name()+" reverse lookup: throwing UnknownHostException");
-                    throw new UnknownHostException();
+                try {
+                    if (!changeReverseLookupAddress) {
+                        return configuration.builtinNameService().lookupHostName(addr);
+                    } else {
+                        // Deliberately supply address bytes array with wrong size
+                        return configuration.builtinNameService().lookupHostName(new byte[]{1, 2, 3});
+
+                    }
+                } catch (Throwable t) {
+                    lastReverseLookupThrowable = t;
+                    throw t;
                 }
             }
         };
@@ -63,11 +64,6 @@ public class ThrowingLookupsProviderImpl extends InetNameServiceProvider {
 
     @Override
     public String name() {
-        return "ThrowingLookupsProvider";
+        return "DelegatingProvider";
     }
-
-    // Indicates if provider need to throw RuntimeException for forward and reverse lookup operations.
-    // If it is set to 'false' then UnknownHostException will thrown for each operation.
-    public static volatile boolean throwRuntimeException;
-    public static final String RUNTIME_EXCEPTION_MESSAGE = "This provider only throws exceptions";
 }
