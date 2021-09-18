@@ -29,7 +29,7 @@
 #include "java_net_InetAddress.h"
 #include "java_net_Inet4AddressImpl.h"
 #include "java_net_Inet6AddressImpl.h"
-#include "java_net_spi_InetNameService_LookupPolicy.h"
+#include "java_net_spi_InetAddressResolver_LookupPolicy.h"
 
 /*
  * Inet6AddressImpl
@@ -167,10 +167,10 @@ Java_java_net_Inet6AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
             goto cleanupAndReturn;
         }
 
-        if ((characteristics & java_net_spi_InetNameService_LookupPolicy_IPV6_FIRST) != 0) {
+        if ((characteristics & java_net_spi_InetAddressResolver_LookupPolicy_IPV6_FIRST) != 0) {
             inetIndex = inet6Count;
             inet6Index = 0;
-        } else if ((characteristics & java_net_spi_InetNameService_LookupPolicy_IPV4_FIRST) != 0) {
+        } else if ((characteristics & java_net_spi_InetAddressResolver_LookupPolicy_IPV4_FIRST) != 0) {
             inetIndex = 0;
             inet6Index = inetCount;
         } else {

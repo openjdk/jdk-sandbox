@@ -25,6 +25,7 @@
 
 package java.lang;
 
+import java.net.spi.InetAddressResolverProvider;
 import java.security.*;
 import java.lang.module.ModuleFinder;
 
@@ -379,13 +380,13 @@ import java.lang.module.ModuleFinder;
  * </tr>
  *
  * <tr>
- *   <th scope="row">inetNameServiceProvider</th>
+ *   <th scope="row">inetAddressResolverProvider</th>
  *   <td>This {@code RuntimePermission} is required to be granted to
- *   classes which subclass and implement {@code java.net.spi.InetNameServiceProvider}.
+ *   classes which subclass and implement {@code java.net.spi.InetAddressResolverProvider}.
  *   The permission is checked during invocation of the abstract base class constructor.
- *   This permission ensures trust in classes which provide name services to {@link java.net.InetAddress}
+ *   This permission ensures trust in classes which provide resolvers to {@link java.net.InetAddress}
  *   hostname and address resolution methods.</td>
- *   <td>See {@link java.net.spi.InetNameServiceProvider} for more information.</td>
+ *   <td>See {@link InetAddressResolverProvider} for more information.</td>
  * </tr>
  *
  * </tbody>

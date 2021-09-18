@@ -36,7 +36,7 @@
 #include "net_util.h"
 
 #include "java_net_Inet4AddressImpl.h"
-#include "java_net_spi_InetNameService_LookupPolicy.h"
+#include "java_net_spi_InetAddressResolver_LookupPolicy.h"
 
 #if defined(MACOSX)
 extern jobjectArray lookupIfLocalhost(JNIEnv *env, const char *hostname, jboolean includeV6,
@@ -113,9 +113,9 @@ Java_java_net_Inet4AddressImpl_lookupAllHostAddr(JNIEnv *env, jobject this,
     if (error) {
 #if defined(MACOSX)
         // If getaddrinfo fails try getifaddrs, see bug 8170910.
-        // java_net_spi_InetNameService_LookupPolicy_IPV4_FIRST and no ordering is ok
+        // java_net_spi_InetAddressResolver_LookupPolicy_IPV4_FIRST and no ordering is ok
         // here since only AF_INET addresses will be returned.
-        ret = lookupIfLocalhost(env, hostname, JNI_FALSE, java_net_spi_InetNameService_LookupPolicy_IPV4);
+        ret = lookupIfLocalhost(env, hostname, JNI_FALSE, java_net_spi_InetAddressResolver_LookupPolicy_IPV4);
         if (ret != NULL || (*env)->ExceptionCheck(env)) {
             goto cleanupAndReturn;
         }

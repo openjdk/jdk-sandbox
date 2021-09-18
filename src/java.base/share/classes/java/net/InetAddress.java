@@ -25,9 +25,9 @@
 
 package java.net;
 
-import java.net.spi.InetNameServiceProvider;
-import java.net.spi.InetNameService.LookupPolicy;
-import java.net.spi.InetNameService;
+import java.net.spi.InetAddressResolver;
+import java.net.spi.InetAddressResolverProvider;
+import java.net.spi.InetAddressResolver.LookupPolicy;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.List;
@@ -63,10 +63,10 @@ import sun.net.InetAddressCachePolicy;
 import sun.net.util.IPAddressUtil;
 import sun.nio.cs.UTF_8;
 
-import static java.net.spi.InetNameService.LookupPolicy.IPV4;
-import static java.net.spi.InetNameService.LookupPolicy.IPV4_FIRST;
-import static java.net.spi.InetNameService.LookupPolicy.IPV6;
-import static java.net.spi.InetNameService.LookupPolicy.IPV6_FIRST;
+import static java.net.spi.InetAddressResolver.LookupPolicy.IPV4;
+import static java.net.spi.InetAddressResolver.LookupPolicy.IPV4_FIRST;
+import static java.net.spi.InetAddressResolver.LookupPolicy.IPV6;
+import static java.net.spi.InetAddressResolver.LookupPolicy.IPV6_FIRST;
 
 /**
  * This class represents an Internet Protocol (IP) address.
@@ -203,44 +203,44 @@ import static java.net.spi.InetNameService.LookupPolicy.IPV6_FIRST;
  * </dd>
  * </dl>
  *
- * <h3 id="nameServiceProviders"> Name Service Providers </h3>
+ * <h3 id="resolverProviders"> InetAddress Resolver Providers </h3>
  *
  * <p> Host name resolution and reverse name resolution operations are delegated to a
- * {@linkplain InetNameService name service}. Lookup operations performed by
- * this class use the <i>system-wide name service</i>. The system-wide name
- * service is set once, lazily, after the VM is fully initialized and when
+ * {@linkplain InetAddressResolver resolver}. Lookup operations performed by
+ * this class use the <i>system-wide resolver</i>. The system-wide resolver
+ * is set once, lazily, after the VM is fully initialized and when
  * an invocation of a method in this class triggers the first lookup operation.
  *
- * <p> A <i>custom name service</i> can be installed as the system-wide name service
- * by deploying a {@linkplain InetNameServiceProvider name service provider}.
- * A name service provider is essentially a factory for name services, and is used
- * to instantiate a custom name service. If no name service provider
- * is found, then the <i>built-in name service</i> will be set as the
- * system-wide name service.
+ * <p> A <i>custom resolver</i> can be installed as the system-wide resolver
+ * by deploying a {@linkplain InetAddressResolverProvider resolver provider}.
+ * A resolver provider is essentially a factory for resolvers, and is used
+ * to instantiate a custom resolver. If no resolver provider
+ * is found, then the <i>built-in resolver</i> will be set as the
+ * system-wide resolver.
  *
- * <p> A custom name service is found and installed as the system-wide name service
+ * <p> A custom resolver is found and installed as the system-wide resolver
  * as follows:
  * <ol>
  *  <li>The {@link ServiceLoader} mechanism is used to locate an
- *      {@link InetNameServiceProvider InetNameServiceProvider} using the
+ *      {@link InetAddressResolverProvider InetAddressResolverProvider} using the
  *      system class loader. The order in which providers are located is
  *      {@linkplain ServiceLoader#load(java.lang.Class, java.lang.ClassLoader) implementation specific}.
- *      The first provider found will be used to instantiate the {@link InetNameService InetNameService} by
- *      invoking the {@link InetNameServiceProvider#get(InetNameServiceProvider.Configuration)}
- *      method. The instantiated {@code InetNameService} will be installed as the system-wide
- *      name service.
- *  <li>If the previous step fails to find any name service provider the
- *      built-in name service will be set as the system-wide name service.
+ *      The first provider found will be used to instantiate the {@link InetAddressResolver InetAddressResolver}
+ *      by invoking the {@link InetAddressResolverProvider#get(InetAddressResolverProvider.Configuration)}
+ *      method. The instantiated {@code InetAddressResolver} will be installed as the system-wide
+ *      resolver.
+ *  <li>If the previous step fails to find any resolver provider the
+ *      built-in resolver will be set as the system-wide resolver.
  * </ol>
  *
- * <p> If instantiating a custom name service from a provider discovered in
- * step 1 throws an error or exception, the system-wide name service will not be
+ * <p> If instantiating a custom resolver from a provider discovered in
+ * step 1 throws an error or exception, the system-wide resolver will not be
  * installed and the error or exception will be propagated to the calling thread.
  * Otherwise, any lookup operation will be performed through the installed
- * <i>system-wide name service</i>.
+ * <i>system-wide resolver</i>.
  * @implNote
  * For any lookup operation that might occur before the VM is fully booted the <i>built-in
- * name service</i> will be used.
+ * resolver</i> will be used.
  *
  * @author  Chris Warth
  * @see     java.net.InetAddress#getByAddress(byte[])
@@ -335,10 +335,10 @@ public class InetAddress implements java.io.Serializable {
         return holder;
     }
 
-    /* Used to store the name service provider */
-    private static volatile InetNameService nameService;
+    /* Used to store the system-wide resolver */
+    private static volatile InetAddressResolver resolver;
 
-    private static final InetNameService BUILTIN_INET_NAME_SERVICE;
+    private static final InetAddressResolver BUILTIN_RESOLVER;
 
     /**
      * Used to store the best available hostname.
@@ -438,70 +438,70 @@ public class InetAddress implements java.io.Serializable {
     static native boolean isIPv4Available();
 
     /**
-     * The {@code RuntimePermission("inetNameServiceProvider")} is
-     * necessary to subclass and instantiate the {@code InetNameServiceProvider}
-     * class, as well as to obtain name service from an instance of that class,
+     * The {@code RuntimePermission("inetAddressResolverProvider")} is
+     * necessary to subclass and instantiate the {@code InetAddressResolverProvider}
+     * class, as well as to obtain resolver from an instance of that class,
      * and it is also required to obtain the operating system name resolution configurations.
      */
-    private static final RuntimePermission INET_NAMESERVICE_PERMISSION =
-            new RuntimePermission("inetNameServiceProvider");
+    private static final RuntimePermission INET_ADDRESS_RESOLVER_PERMISSION =
+            new RuntimePermission("inetAddressResolverProvider");
 
-    private static final ReentrantLock NAMESERVICE_LOCK = new ReentrantLock();
-    private static volatile InetNameService bootstrapNameService;
+    private static final ReentrantLock RESOLVER_LOCK = new ReentrantLock();
+    private static volatile InetAddressResolver bootstrapResolver;
 
     @SuppressWarnings("removal")
-    private static InetNameService nameService() {
-        InetNameService cns = nameService;
+    private static InetAddressResolver resolver() {
+        InetAddressResolver cns = resolver;
         if (cns != null) {
             return cns;
         }
         if (VM.isBooted()) {
-            NAMESERVICE_LOCK.lock();
+            RESOLVER_LOCK.lock();
             try {
-                cns = nameService;
+                cns = resolver;
                 if (cns != null) {
                     return cns;
                 }
                 // Protection against provider calling InetAddress APIs during initialization
-                if (bootstrapNameService != null) {
-                    return bootstrapNameService;
+                if (bootstrapResolver != null) {
+                    return bootstrapResolver;
                 } else {
-                    bootstrapNameService = BUILTIN_INET_NAME_SERVICE;
+                    bootstrapResolver = BUILTIN_RESOLVER;
                 }
                 if (HOSTS_FILE_NAME != null) {
-                    // The default name service is already host file name service
-                    cns = BUILTIN_INET_NAME_SERVICE;
+                    // The default resolver service is already host file resolver
+                    cns = BUILTIN_RESOLVER;
                 } else if (System.getSecurityManager() != null) {
-                    PrivilegedAction<InetNameService> pa = InetAddress::loadNameService;
+                    PrivilegedAction<InetAddressResolver> pa = InetAddress::loadResolver;
                     cns = AccessController.doPrivileged(
-                            pa, null, INET_NAMESERVICE_PERMISSION);
+                            pa, null, INET_ADDRESS_RESOLVER_PERMISSION);
                 } else {
-                    cns = loadNameService();
+                    cns = loadResolver();
                 }
 
-                InetAddress.nameService = cns;
+                InetAddress.resolver = cns;
                 return cns;
             } finally {
-                bootstrapNameService = null;
-                NAMESERVICE_LOCK.unlock();
+                bootstrapResolver = null;
+                RESOLVER_LOCK.unlock();
             }
         } else {
-            return BUILTIN_INET_NAME_SERVICE;
+            return BUILTIN_RESOLVER;
         }
     }
 
-    private static InetNameService loadNameService() {
-        return ServiceLoader.load(InetNameServiceProvider.class)
+    private static InetAddressResolver loadResolver() {
+        return ServiceLoader.load(InetAddressResolverProvider.class)
                 .findFirst()
                 .map(nsp -> nsp.get(InetAddress.builtInContext()))
-                .orElse(BUILTIN_INET_NAME_SERVICE);
+                .orElse(BUILTIN_RESOLVER);
     }
 
-    private static InetNameServiceProvider.Configuration builtInContext() {
-        return new InetNameServiceProvider.Configuration() {
+    private static InetAddressResolverProvider.Configuration builtInContext() {
+        return new InetAddressResolverProvider.Configuration() {
             @Override
-            public InetNameService builtinNameService() {
-                return BUILTIN_INET_NAME_SERVICE;
+            public InetAddressResolver builtinResolver() {
+                return BUILTIN_RESOLVER;
             }
 
             @Override
@@ -727,7 +727,7 @@ public class InetAddress implements java.io.Serializable {
      * this host name will be remembered and returned;
      * otherwise, a reverse name lookup will be performed
      * and the result will be returned based on the system
-     * configured name lookup service. If a lookup of the name service
+     * configured resolver. If a lookup of the name service
      * is required, call
      * {@link #getCanonicalHostName() getCanonicalHostName}.
      *
@@ -829,10 +829,10 @@ public class InetAddress implements java.io.Serializable {
      */
     private static String getHostFromNameService(InetAddress addr, boolean check) {
         String host;
-        var nameService = nameService();
+        var resolver = resolver();
         try {
             // first lookup the hostname
-            host = nameService.lookupHostName(addr.getAddress());
+            host = resolver.lookupHostName(addr.getAddress());
 
             /* check to see if calling code is allowed to know
              * the hostname for this IP address, ie, connect to the host
@@ -925,8 +925,9 @@ public class InetAddress implements java.io.Serializable {
      * string returned is of the form: hostname / literal IP
      * address.
      *
-     * If the host name is unresolved, no reverse name service lookup
-     * is performed. The hostname part will be represented by an empty string.
+     * If the host name is unresolved, no reverse lookup
+     * is performed. The hostname part will be represented
+     * by an empty string.
      *
      * @return  a string representation of this IP address.
      */
@@ -1057,12 +1058,12 @@ public class InetAddress implements java.io.Serializable {
     }
 
     /**
-     * The default InetNameService implementation, which delegates to the underlying
+     * The default InetAddressResolver implementation, which delegates to the underlying
      * OS network libraries to resolve host address mappings.
      *
      * @since 9
      */
-    private static final class PlatformNameService implements InetNameService {
+    private static final class PlatformResolver implements InetAddressResolver {
 
         public Stream<InetAddress> lookupAddresses(String host, LookupPolicy policy)
                 throws UnknownHostException {
@@ -1080,23 +1081,23 @@ public class InetAddress implements java.io.Serializable {
     }
 
     /**
-     * The HostsFileNameService provides host address mapping
+     * The HostsFileResolver provides host address mapping
      * by reading the entries in a hosts file, which is specified by
      * {@code jdk.net.hosts.file} system property
      *
      * <p>The file format is that which corresponds with the /etc/hosts file
      * IP Address host alias list.
      *
-     * <p>When the file lookup is enabled it replaces the default InetNameService
+     * <p>When the file lookup is enabled it replaces the default InetAddressResolver
      * implementation
      *
      * @since 9
      */
-    private static final class HostsFileNameService implements InetNameService {
+    private static final class HostsFileResolver implements InetAddressResolver {
 
         private final String hostsFile;
 
-        public HostsFileNameService(String hostsFileName) {
+        public HostsFileResolver(String hostsFileName) {
             this.hostsFile = hostsFileName;
         }
 
@@ -1292,38 +1293,39 @@ public class InetAddress implements java.io.Serializable {
         // impl must be initialized before calling this method
         PLATFORM_LOOKUP_POLICY = initializePlatformLookupPolicy();
 
-        // create name service
-        BUILTIN_INET_NAME_SERVICE = createDefaultInetNameService();
+        // create built-in resolver
+        BUILTIN_RESOLVER = createBuiltinInetAddressResolver();
     }
 
     /**
-     * Create an instance of the InetNameService interface based on
+     * Create an instance of the InetAddressResolver interface based on
      * the setting of the {@code jdk.net.hosts.file} system property.
      *
-     * <p>The default InetNameService is the PlatformNameService, which typically
+     * <p>The default InetAddressResolver is the PlatformResolver, which typically
      * delegates name and address resolution calls to the underlying
      * OS network libraries.
      *
-     * <p> A HostsFileNameService is created if the {@code jdk.net.hosts.file}
+     * <p> A HostsFileResolver is created if the {@code jdk.net.hosts.file}
      * system property is set. If the specified file doesn't exist, the name or
      * address lookup will result in an UnknownHostException. Thus, non existent
      * hosts file is handled as if the file is empty.
      *
-     * @return an InetNameService
+     * @return an InetAddressResolver
      */
-    private static InetNameService createDefaultInetNameService() {
-        InetNameService theNameService;
+    private static InetAddressResolver createBuiltinInetAddressResolver() {
+        InetAddressResolver theResolver;
         if (HOSTS_FILE_NAME != null) {
-            theNameService = new HostsFileNameService(HOSTS_FILE_NAME);
+            theResolver = new HostsFileResolver(HOSTS_FILE_NAME);
         } else {
-            theNameService = new PlatformNameService();
+            theResolver = new PlatformResolver();
         }
-        return theNameService;
+        return theResolver;
     }
 
     /**
      * Creates an InetAddress based on the provided host name and IP address.
-     * No name service is checked for the validity of the address.
+     * System {@linkplain InetAddressResolver resolver} is not used to check
+     * the validity of the address.
      *
      * <p> The host name can either be a machine name, such as
      * "{@code www.example.com}", or a textual representation of its IP
@@ -1408,7 +1410,7 @@ public class InetAddress implements java.io.Serializable {
 
     /**
      * Given the name of a host, returns an array of its IP addresses,
-     * based on the configured name service on the system.
+     * based on the configured system {@linkplain InetAddressResolver resolver}.
      *
      * <p> The host name can either be a machine name, such as
      * "{@code www.example.com}", or a textual representation of its IP
@@ -1650,9 +1652,9 @@ public class InetAddress implements java.io.Serializable {
         Stream<InetAddress> addresses = null;
         UnknownHostException ex = null;
 
-        var nameService = nameService();
+        var resolver = resolver();
         try {
-            addresses = nameService.lookupAddresses(host, PLATFORM_LOOKUP_POLICY);
+            addresses = resolver.lookupAddresses(host, PLATFORM_LOOKUP_POLICY);
         } catch (RuntimeException | UnknownHostException x) {
             if (host.equalsIgnoreCase("localhost")) {
                 addresses = Stream.of(impl.loopbackAddress());
@@ -1675,8 +1677,7 @@ public class InetAddress implements java.io.Serializable {
      * The argument is in network byte order: the highest order
      * byte of the address is in {@code getAddress()[0]}.
      *
-     * <p> This method doesn't block, i.e. no reverse name service lookup
-     * is performed.
+     * <p> This method doesn't block, i.e. no reverse lookup is performed.
      *
      * <p> IPv4 address byte array must be 4 bytes long and IPv6 byte array
      * must be 16 bytes long
