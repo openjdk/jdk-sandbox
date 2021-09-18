@@ -25,7 +25,6 @@
 
 package java.lang;
 
-import java.net.spi.InetAddressResolverProvider;
 import java.security.*;
 import java.lang.module.ModuleFinder;
 
@@ -386,7 +385,7 @@ import java.lang.module.ModuleFinder;
  *   The permission is checked during invocation of the abstract base class constructor.
  *   This permission ensures trust in classes which provide resolvers to {@link java.net.InetAddress}
  *   hostname and address resolution methods.</td>
- *   <td>See {@link InetAddressResolverProvider} for more information.</td>
+ *   <td>See {@link java.net.spi.InetAddressResolverProvider} for more information.</td>
  * </tr>
  *
  * </tbody>
