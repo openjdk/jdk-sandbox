@@ -33,8 +33,8 @@ import javax.naming.directory.DirContext;
 import javax.naming.spi.NamingManager;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.net.spi.InetNameService;
-import java.net.spi.InetNameServiceProvider;
+import java.net.spi.InetAddressResolver;
+import java.net.spi.InetAddressResolverProvider;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Hashtable;
@@ -49,29 +49,29 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static java.net.spi.InetNameService.LookupPolicy.IPV4;
-import static java.net.spi.InetNameService.LookupPolicy.IPV4_FIRST;
-import static java.net.spi.InetNameService.LookupPolicy.IPV6;
-import static java.net.spi.InetNameService.LookupPolicy.IPV6_FIRST;
+import static java.net.spi.InetAddressResolver.LookupPolicy.IPV4;
+import static java.net.spi.InetAddressResolver.LookupPolicy.IPV4_FIRST;
+import static java.net.spi.InetAddressResolver.LookupPolicy.IPV6;
+import static java.net.spi.InetAddressResolver.LookupPolicy.IPV6_FIRST;
 
 /**
- * This is a proof-of-concept name service provider implementation that exercises new
- * {@code java.net.spi.InetNameServiceProvider} API to implement an experimental
- * name service based on
+ * This is a proof-of-concept resolver provider implementation that exercises new
+ * {@code java.net.spi.InetAddressResolverProvider} API to implement an experimental
+ * resolver based on
  * <a href="https://download.java.net/java/early_access/jdk17/docs/api/java.naming/javax/naming/directory/package-summary.html">
  * javax.naming DNS directory service</a>.
  */
-public class ProviderImpl extends InetNameServiceProvider {
+public class ProviderImpl extends InetAddressResolverProvider {
 
     /**
-     * Create instance of {@code NameServiceImpl}.
+     * Create instance of {@code ResolverImpl}.
      *
      * @param configuration platform built-in address resolution configuration
-     * @return name service instance
+     * @return resolver instance
      */
     @Override
-    public InetNameService get(Configuration configuration) {
-        InetNameService ns = new NameServiceImpl(configuration);
+    public InetAddressResolver get(Configuration configuration) {
+        InetAddressResolver ns = new ResolverImpl(configuration);
         System.err.println("Returning instance of jdk.test.nsp.proof.jndi.ProviderImpl NS:" + ns);
         return ns;
     }
@@ -79,7 +79,7 @@ public class ProviderImpl extends InetNameServiceProvider {
     /**
      * Returns the name of this provider.
      *
-     * @return the name service provider name
+     * @return the resolver provider name
      */
     @Override
     public String name() {
@@ -87,19 +87,19 @@ public class ProviderImpl extends InetNameServiceProvider {
     }
 
     /**
-     * JNDI/DNS based experimental name service implementation.
+     * JNDI/DNS based experimental resolver implementation.
      */
-    public class NameServiceImpl implements InetNameService {
+    public class ResolverImpl implements InetAddressResolver {
 
-        // Built-in name service provider configuration
+        // Built-in resolver provider configuration
         private final Configuration configuration;
 
         /**
-         * Name service constructor
+         * Resolver constructor
          *
-         * @param configuration a built-in name service related configuration
+         * @param configuration a built-in resolver related configuration
          */
-        public NameServiceImpl(Configuration configuration) {
+        public ResolverImpl(Configuration configuration) {
             this.configuration = configuration;
         }
 
@@ -121,7 +121,7 @@ public class ProviderImpl extends InetNameServiceProvider {
                 return result;
             } catch (NamingException | InterruptedException | ExecutionException e) {
                 System.err.println("Failed to use JNDI to lookup address (built-in NS will be used):" + e);
-                return configuration.builtinNameService().lookupAddresses(host, lookupPolicy);
+                return configuration.builtinResolver().lookupAddresses(host, lookupPolicy);
             }
         }
 
@@ -140,7 +140,7 @@ public class ProviderImpl extends InetNameServiceProvider {
                 return reverseLookup(addr);
             } catch (ExecutionException | InterruptedException | UnknownHostException e) {
                 System.err.println("Failed to use JNDI to lookup host name (built-in NS will be used):" + e);
-                return configuration.builtinNameService().lookupHostName(addr);
+                return configuration.builtinResolver().lookupHostName(addr);
             }
         }
 

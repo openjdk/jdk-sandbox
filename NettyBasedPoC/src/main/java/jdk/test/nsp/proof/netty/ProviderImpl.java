@@ -36,39 +36,42 @@ import io.netty.resolver.ResolvedAddressTypes;
 import io.netty.resolver.dns.DnsNameResolver;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.resolver.dns.DnsServerAddressStreamProviders;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GenericFutureListener;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.net.spi.InetNameService;
-import java.net.spi.InetNameServiceProvider;
+import java.net.spi.InetAddressResolver;
+import java.net.spi.InetAddressResolverProvider;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
-import static java.net.spi.InetNameService.LookupPolicy.IPV4;
-import static java.net.spi.InetNameService.LookupPolicy.IPV4_FIRST;
-import static java.net.spi.InetNameService.LookupPolicy.IPV6;
-import static java.net.spi.InetNameService.LookupPolicy.IPV6_FIRST;
+import static java.net.spi.InetAddressResolver.LookupPolicy.IPV4;
+import static java.net.spi.InetAddressResolver.LookupPolicy.IPV4_FIRST;
+import static java.net.spi.InetAddressResolver.LookupPolicy.IPV6;
+import static java.net.spi.InetAddressResolver.LookupPolicy.IPV6_FIRST;
 
 /**
- * This is a proof-of-concept name service provider implementation that exercises new
- * {@code java.net.spi.InetNameServiceProvider} API to implement an experimental
- * name service based on <a href="https://netty.io/">Netty library</a>.
+ * This is a proof-of-concept resolver provider implementation that exercises new
+ * {@code java.net.spi.InetAddressResolverProvider} API to implement an experimental
+ * resolver based on <a href="https://netty.io/">Netty library</a>.
  */
-public class ProviderImpl extends InetNameServiceProvider {
+public class ProviderImpl extends InetAddressResolverProvider {
 
     /**
-     * Create instance of {@code NameServiceImpl}.
+     * Create instance of {@code ProviderImpl}.
      *
      * @param configuration platform built-in address resolution configuration
-     * @return name service instance
+     * @return resolver instance
      */
     @Override
-    public InetNameService get(Configuration configuration) {
-        var ns = new NameServiceImpl(configuration);
+    public InetAddressResolver get(Configuration configuration) {
+        var ns = new ResolverImpl(configuration);
         System.out.println("Returning instance of jdk.test.nsp.proof.netty.ProviderImpl NS:" + ns);
         return ns;
     }
@@ -76,7 +79,7 @@ public class ProviderImpl extends InetNameServiceProvider {
     /**
      * Returns the name of this provider.
      *
-     * @return the name service provider name
+     * @return the resolver provider name
      */
     @Override
     public String name() {
@@ -84,19 +87,19 @@ public class ProviderImpl extends InetNameServiceProvider {
     }
 
     /**
-     * Netty library based experimental name service implementation.
+     * Netty library based experimental resolver implementation.
      */
-    public static class NameServiceImpl implements InetNameService {
+    public static class ResolverImpl implements InetAddressResolver {
 
-        // Built-in name service provider configuration
+        // Built-in resolver provider configuration
         private final Configuration configuration;
 
         /**
-         * Name service constructor
+         * Resolver constructor
          *
-         * @param configuration a built-in name service related configuration
+         * @param configuration a built-in resolver related configuration
          */
-        public NameServiceImpl(Configuration configuration) {
+        public ResolverImpl(Configuration configuration) {
             this.configuration = configuration;
             this.customDnsResolvers = newCustomDnsResolvers();
         }
@@ -119,8 +122,8 @@ public class ProviderImpl extends InetNameServiceProvider {
                 DnsNameResolver mappedResolver = mapLookupPolicyToResolver(lookupPolicy);
                 return forwardLookup(host, mappedResolver);
             } catch (InterruptedException | ExecutionException | UnknownHostException e) {
-                System.err.println("Custom DNS resolver failed to lookup addresses. Continuing with the built-in name service.");
-                return configuration.builtinNameService().lookupAddresses(host, lookupPolicy);
+                System.err.println("Custom DNS resolver failed to lookup addresses. Continuing with the built-in resolver.");
+                return configuration.builtinResolver().lookupAddresses(host, lookupPolicy);
             }
         }
 
@@ -140,8 +143,8 @@ public class ProviderImpl extends InetNameServiceProvider {
                         mapLookupPolicyToResolver(LookupPolicy.of(IPV4 | IPV6)));
             } catch (InterruptedException | ExecutionException | UnknownHostException e) {
                 System.err.println("Custom DNS resolver failed to lookup a hostname for the provided address. " +
-                        "Continuing with the built-in name service.");
-                return configuration.builtinNameService().lookupHostName(addr);
+                        "Continuing with the built-in resolver.");
+                return configuration.builtinResolver().lookupHostName(addr);
             }
         }
 
@@ -150,10 +153,22 @@ public class ProviderImpl extends InetNameServiceProvider {
          */
         private Stream<InetAddress> forwardLookup(String host, DnsNameResolver resolver)
                 throws ExecutionException, InterruptedException {
-            return resolver.resolveAll(host)
-                    .syncUninterruptibly()
-                    .get()
-                    .stream();
+            CompletableFuture<List<InetAddress>> cf = new CompletableFuture<>();
+            Future<List<InetAddress>> resolverFuture = resolver.resolveAll(host);
+            resolverFuture.addListener(new GenericFutureListener<>() {
+                @Override
+                public void operationComplete(Future<? super List<InetAddress>> future) throws Exception {
+                    var res = (List<InetAddress>) future.get();
+                    cf.complete(res);
+                    resolverFuture.removeListener(this);
+                }
+            });
+            var res = cf.get();
+            if (res != null) {
+                return res.stream();
+            } else {
+                return Stream.of();
+            }
         }
 
         /*
