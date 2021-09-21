@@ -146,7 +146,8 @@ public interface InetAddressResolver {
          *     <li>{@link LookupPolicy#IPV6_FIRST}: return IPv6 addresses before any IPv4 address</li>
          * </ul>
          * <br>If neither {@link LookupPolicy#IPV4_FIRST} or {@link LookupPolicy#IPV6_FIRST} are set it
-         * implies <a href="{@docRoot}/java.base/java/net/doc-files/net-properties.html#Ipv4IPv6">"system"</a> order of addresses.
+         * implies <a href="{@docRoot}/java.base/java/net/doc-files/net-properties.html#Ipv4IPv6">"system"</a>
+         * order of addresses.
          * It is an error to request both {@link LookupPolicy#IPV4_FIRST} and {@link LookupPolicy#IPV6_FIRST}.
          *
          * @param characteristics value which represents the set of lookup characteristics

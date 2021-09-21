@@ -29,12 +29,14 @@ import java.net.spi.InetAddressResolver;
 import java.net.spi.InetAddressResolverProvider;
 import java.util.function.Supplier;
 
-public final class ResolverProviderConfiguration implements InetAddressResolverProvider.Configuration {
+public final class ResolverProviderConfiguration implements
+        InetAddressResolverProvider.Configuration {
 
     private final InetAddressResolver builtinResolver;
     private final Supplier<String> localHostNameSupplier;
 
-    public ResolverProviderConfiguration(InetAddressResolver builtinResolver, Supplier<String> localHostNameSupplier) {
+    public ResolverProviderConfiguration(InetAddressResolver builtinResolver,
+                                         Supplier<String> localHostNameSupplier) {
         this.builtinResolver = builtinResolver;
         this.localHostNameSupplier = localHostNameSupplier;
     }

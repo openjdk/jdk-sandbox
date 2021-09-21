@@ -31,11 +31,11 @@ import java.net.InetAddress;
 import java.util.ServiceLoader;
 
 /**
- * A resolver provider class is a factory for custom implementations of {@linkplain InetAddressResolver
- * resolvers} which define operations for looking-up (resolving) host names and IP addresses.
- * Resolver providers are
- * <a href="{@docRoot}/java.base/java/net/InetAddress.html#resolverProviders">discovered</a>
- * by {@link InetAddress} to instantiate and install a <i>system-wide resolver</i>.
+ * A resolver provider class is a factory for custom implementations of {@linkplain
+ * InetAddressResolver resolvers} which define operations for looking-up (resolving) host names
+ * and IP addresses.
+ * Resolver providers are <a href="{@docRoot}/java.base/java/net/InetAddress.html#resolverProviders">
+ * discovered</a> by {@link InetAddress} to instantiate and install a <i>system-wide resolver</i>.
  * <p>
  * A resolver provider is a concrete subclass of this class that has a zero-argument
  * constructor and implements the abstract methods specified below.
@@ -104,10 +104,11 @@ public abstract class InetAddressResolverProvider {
     }
 
     /**
-     * A {@code Configuration} interface is supplied to the {@link InetAddressResolverProvider#get(Configuration)} method
-     * when installing a system-wide custom resolver implementation.
-     * The custom resolver implementation can then delegate to the built-in resolver provided by this interface
-     * if it needs to.
+     * A {@code Configuration} interface is supplied to the
+     * {@link InetAddressResolverProvider#get(Configuration)} method when installing a
+     * system-wide custom resolver implementation.
+     * The custom resolver implementation can then delegate to the built-in resolver
+     * provided by this interface if it needs to.
      */
     public sealed interface Configuration permits ResolverProviderConfiguration {
         /**

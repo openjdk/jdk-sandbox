@@ -383,8 +383,8 @@ import java.lang.module.ModuleFinder;
  *   <td>This {@code RuntimePermission} is required to be granted to
  *   classes which subclass and implement {@code java.net.spi.InetAddressResolverProvider}.
  *   The permission is checked during invocation of the abstract base class constructor.
- *   This permission ensures trust in classes which provide resolvers to {@link java.net.InetAddress}
- *   hostname and address resolution methods.</td>
+ *   This permission ensures trust in classes which provide resolvers used by
+ *   {@link java.net.InetAddress} hostname and address resolution methods.</td>
  *   <td>See {@link java.net.spi.InetAddressResolverProvider} for more information.</td>
  * </tr>
  *
