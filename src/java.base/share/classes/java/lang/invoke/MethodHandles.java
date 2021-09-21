@@ -2780,8 +2780,13 @@ public class MethodHandles {
          * to be initialized if it has not been already initialized,
          * as specified in JVMS {@jvms 5.5}.
          *
+         * <p>
+         * This method returns when {@code targetClass} is fully initialized, or
+         * when {@code targetClass} is being initialized by the current thread.
+         *
          * @param targetClass the class to be initialized
-         * @return {@code targetClass} that has been initialized
+         * @return {@code targetClass} that has been initialized, or that is being
+         *         initialized by the current thread.
          *
          * @throws  IllegalArgumentException if {@code targetClass} is a primitive type or {@code void}
          *          or array class
@@ -5877,8 +5882,8 @@ public class MethodHandles {
         BoundMethodHandle result = target.rebind();
         LambdaForm lform = result.editor().collectReturnValueForm(filterType.basicType());
         MethodType newType = targetType.changeReturnType(filterType.returnType());
-        if (filterType.parameterList().size() > 1) {
-            for (int i = 0 ; i < filterType.parameterList().size() - 1 ; i++) {
+        if (filterType.parameterCount() > 1) {
+            for (int i = 0 ; i < filterType.parameterCount() - 1 ; i++) {
                 newType = newType.appendParameterTypes(filterType.parameterType(i));
             }
         }
@@ -6730,7 +6735,7 @@ public class MethodHandles {
                         filter(t -> t.parameterCount() > skipSize).
                         map(MethodType::parameterList).
                         reduce((p, q) -> p.size() >= q.size() ? p : q).orElse(empty);
-        return longest.size() == 0 ? empty : longest.subList(skipSize, longest.size());
+        return longest.isEmpty() ? empty : longest.subList(skipSize, longest.size());
     }
 
     private static List<Class<?>> longestParameterList(List<List<Class<?>>> lists) {
@@ -7013,7 +7018,7 @@ public class MethodHandles {
         List<Class<?>> outerList = innerList;
         if (returnType == void.class) {
             // OK
-        } else if (innerList.size() == 0 || innerList.get(0) != returnType) {
+        } else if (innerList.isEmpty() || innerList.get(0) != returnType) {
             // leading V argument missing => error
             MethodType expected = bodyType.insertParameterTypes(0, returnType);
             throw misMatchedTypes("body function", bodyType, expected);
@@ -7343,7 +7348,7 @@ public class MethodHandles {
         List<Class<?>> innerList = bodyType.parameterList();
         // strip leading V value if present
         int vsize = (returnType == void.class ? 0 : 1);
-        if (vsize != 0 && (innerList.size() == 0 || innerList.get(0) != returnType)) {
+        if (vsize != 0 && (innerList.isEmpty() || innerList.get(0) != returnType)) {
             // argument list has no "V" => error
             MethodType expected = bodyType.insertParameterTypes(0, returnType);
             throw misMatchedTypes("body function", bodyType, expected);
@@ -7566,7 +7571,7 @@ public class MethodHandles {
         List<Class<?>> internalParamList = bodyType.parameterList();
         // strip leading V value if present
         int vsize = (returnType == void.class ? 0 : 1);
-        if (vsize != 0 && (internalParamList.size() == 0 || internalParamList.get(0) != returnType)) {
+        if (vsize != 0 && (internalParamList.isEmpty() || internalParamList.get(0) != returnType)) {
             // argument list has no "V" => error
             MethodType expected = bodyType.insertParameterTypes(0, returnType);
             throw misMatchedTypes("body function", bodyType, expected);
