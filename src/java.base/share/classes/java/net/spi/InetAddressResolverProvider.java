@@ -25,6 +25,8 @@
 
 package java.net.spi;
 
+import sun.net.ResolverProviderConfiguration;
+
 import java.net.InetAddress;
 import java.util.ServiceLoader;
 
@@ -107,7 +109,7 @@ public abstract class InetAddressResolverProvider {
      * The custom resolver implementation can then delegate to the built-in resolver provided by this interface
      * if it needs to.
      */
-    public interface Configuration {
+    public sealed interface Configuration permits ResolverProviderConfiguration {
         /**
          * Returns platform built-in {@linkplain InetAddressResolver resolver}.
          *

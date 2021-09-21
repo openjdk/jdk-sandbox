@@ -58,6 +58,7 @@ import jdk.internal.misc.VM;
 
 import jdk.internal.access.JavaNetInetAddressAccess;
 import jdk.internal.access.SharedSecrets;
+import sun.net.ResolverProviderConfiguration;
 import sun.security.action.*;
 import sun.net.InetAddressCachePolicy;
 import sun.net.util.IPAddressUtil;
@@ -493,26 +494,18 @@ public class InetAddress implements java.io.Serializable {
     private static InetAddressResolver loadResolver() {
         return ServiceLoader.load(InetAddressResolverProvider.class)
                 .findFirst()
-                .map(nsp -> nsp.get(InetAddress.builtInContext()))
+                .map(nsp -> nsp.get(builtinConfiguration()))
                 .orElse(BUILTIN_RESOLVER);
     }
 
-    private static InetAddressResolverProvider.Configuration builtInContext() {
-        return new InetAddressResolverProvider.Configuration() {
-            @Override
-            public InetAddressResolver builtinResolver() {
-                return BUILTIN_RESOLVER;
+    private static InetAddressResolverProvider.Configuration builtinConfiguration() {
+        return new ResolverProviderConfiguration(BUILTIN_RESOLVER, () -> {
+            try {
+                return impl.getLocalHostName();
+            } catch (UnknownHostException unknownHostException) {
+                return "localhost";
             }
-
-            @Override
-            public String lookupLocalHostName() {
-                try {
-                    return impl.getLocalHostName();
-                } catch (UnknownHostException unknownHostException) {
-                    return "localhost";
-                }
-            }
-        };
+        });
     }
 
     /**
