@@ -47,7 +47,8 @@ class Inet6AddressImpl implements InetAddressImpl {
 
     public native String getLocalHostName() throws UnknownHostException;
 
-    public InetAddress[] lookupAllHostAddr(String hostname, LookupPolicy lookupPolicy) throws UnknownHostException {
+    public InetAddress[] lookupAllHostAddr(String hostname, LookupPolicy lookupPolicy)
+            throws UnknownHostException {
         return lookupAllHostAddr(hostname, lookupPolicy.characteristics());
     }
 

@@ -192,7 +192,7 @@ unsigned short in_cksum(unsigned short *addr, int len);
 jint NET_Wait(JNIEnv *env, jint fd, jint flags, jint timeout);
 
 int lookupCharacteristicsToAddressFamily(int characteristics);
-int addressesInSystemOrder(int characteristics);
 
+int addressesInSystemOrder(int characteristics);
 
 #endif /* NET_UTILS_H */
