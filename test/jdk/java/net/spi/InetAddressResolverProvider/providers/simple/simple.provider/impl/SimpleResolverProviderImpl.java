@@ -40,6 +40,7 @@ public class SimpleResolverProviderImpl extends InetAddressResolverProvider {
 
     public static ResolutionRegistry registry = new ResolutionRegistry();
     private static List<LookupPolicy> LOOKUP_HISTORY = Collections.synchronizedList(new ArrayList<>());
+    private static volatile long LAST_LOOKUP_TIMESTAMP;
     private static Logger LOGGER = Logger.getLogger(SimpleResolverProviderImpl.class.getName());
 
     @Override
@@ -51,6 +52,7 @@ public class SimpleResolverProviderImpl extends InetAddressResolverProvider {
                 LOGGER.info("Looking-up addresses for '" + host + "'. Lookup characteristics:" +
                         Integer.toString(lookupPolicy.characteristics(), 2));
                 LOOKUP_HISTORY.add(lookupPolicy);
+                LAST_LOOKUP_TIMESTAMP = System.nanoTime();
                 return registry.lookupHost(host, lookupPolicy);
             }
 
@@ -65,6 +67,10 @@ public class SimpleResolverProviderImpl extends InetAddressResolverProvider {
     // Utility methods
     public static LookupPolicy lastLookupPolicy() {
         return lookupPolicyHistory(0);
+    }
+
+    public static long getLastLookupTimestamp() {
+        return LAST_LOOKUP_TIMESTAMP;
     }
 
     public static LookupPolicy lookupPolicyHistory(int position) {

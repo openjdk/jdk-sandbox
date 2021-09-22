@@ -142,6 +142,7 @@ public class ResolutionRegistry {
             throws UnknownHostException {
         LOGGER.info("Looking-up '" + host + "' address");
         if (!registry.containsKey(host)) {
+            LOGGER.info("Registry doesn't contain addresses for '" + host + "'");
             throw new UnknownHostException(host);
         }
 
