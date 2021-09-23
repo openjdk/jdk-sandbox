@@ -31,6 +31,7 @@
 #include "runtime/os.hpp"
 #include "runtime/stubCodeGenerator.hpp"
 #include "runtime/vm_version.hpp"
+#include "utilities/formatBuffer.hpp"
 #include "utilities/macros.hpp"
 
 #include OS_HEADER_INLINE(os)
