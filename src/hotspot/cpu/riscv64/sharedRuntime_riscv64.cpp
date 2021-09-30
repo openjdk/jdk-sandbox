@@ -2672,7 +2672,6 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
 
   __ reset_last_Java_frame(false);
 
-  __ fence_i();
   __ membar(MacroAssembler::LoadLoad | MacroAssembler::LoadStore);
 
   __ ld(t0, Address(xthread, Thread::pending_exception_offset()));
