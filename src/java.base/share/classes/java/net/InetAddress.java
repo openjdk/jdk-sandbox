@@ -1861,7 +1861,7 @@ class InetAddressImplFactory {
 
     static InetAddressImpl create() {
         return isIPv6Supported() ?
-               new Inet6AddressImpl() : new Inet4AddressImpl();
+                new Inet6AddressImpl() : new Inet4AddressImpl();
     }
 
     static native boolean isIPv6Supported();
