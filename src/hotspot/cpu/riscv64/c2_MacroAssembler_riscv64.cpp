@@ -840,7 +840,7 @@ void C2_MacroAssembler::arrays_equals(Register a1, Register a2, Register tmp3,
   BLOCK_COMMENT("arrays_equals {");
 
   // if (a1 == a2), return true
-  oop_equal(a1, a2, SAME);
+  beq(a1, a2, SAME);
 
   mv(result, false);
   beqz(a1, DONE);
@@ -1201,7 +1201,7 @@ void C2_MacroAssembler::arrays_equals_v(Register a1, Register a2, Register resul
 
   // if (a1 == a2), return true
   mv(result, true);
-  oop_equal(a1, a2, DONE);
+  beq(a1, a2, DONE);
 
   mv(result, false);
   // if a1 == null or a2 == null, return false

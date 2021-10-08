@@ -35,7 +35,6 @@
 #include "oops/arrayOop.hpp"
 #include "oops/markWord.hpp"
 #include "runtime/basicLock.hpp"
-#include "runtime/biasedLocking.hpp"
 #include "runtime/os.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -51,7 +50,7 @@ void C1_MacroAssembler::float_cmp(bool is_float, int unordered_result,
   }
 }
 
-int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr, Register tmp, Label& slow_case) {
+int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr, Label& slow_case) {
   const int aligned_mask = BytesPerWord - 1;
   const int hdr_offset = oopDesc::mark_offset_in_bytes();
   assert(hdr != obj && hdr != disp_hdr && obj != disp_hdr, "registers must be different");
@@ -70,11 +69,6 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
     lwu(hdr, Address(hdr, Klass::access_flags_offset()));
     andi(t0, hdr, JVM_ACC_IS_VALUE_BASED_CLASS);
     bnez(t0, slow_case, true /* is_far */);
-  }
-
-  if (UseBiasedLocking) {
-    assert(tmp != noreg, "should have tmp register at this point");
-    biased_locking_enter(disp_hdr, obj, hdr, tmp, false, done, &slow_case);
   }
 
   // Load object header
@@ -111,10 +105,6 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
   // otherwise we don't care about the result and handle locking via runtime call
   bnez(hdr, slow_case, /* is_far */ true);
   bind(done);
-  if (PrintBiasedLockingStatistics) {
-    la(t1, ExternalAddress((address)BiasedLocking::fast_path_entry_count_addr()));
-    add_memory_int32(Address(t1, 0), 1);
-  }
   return null_check_offset;
 }
 
@@ -124,21 +114,13 @@ void C1_MacroAssembler::unlock_object(Register hdr, Register obj, Register disp_
   assert(hdr != obj && hdr != disp_hdr && obj != disp_hdr, "registers must be different");
   Label done;
 
-  if (UseBiasedLocking) {
-    // load object
-    ld(obj, Address(disp_hdr, BasicObjectLock::obj_offset_in_bytes()));
-    biased_locking_exit(obj, hdr, done);
-  }
-
   // load displaced header
   ld(hdr, Address(disp_hdr, 0));
   // if the loaded hdr is NULL we had recursive locking
   // if we had recursive locking, we are done
   beqz(hdr, done);
-  if (!UseBiasedLocking) {
-    // load object
-    ld(obj, Address(disp_hdr, BasicObjectLock::obj_offset_in_bytes()));
-  }
+  // load object
+  ld(obj, Address(disp_hdr, BasicObjectLock::obj_offset_in_bytes()));
   verify_oop(obj);
   // test if object header is pointing to the displaced header, and if so, restore
   // the displaced header in the object - if the object header is not pointing to
@@ -165,13 +147,8 @@ void C1_MacroAssembler::try_allocate(Register obj, Register var_size_in_bytes, i
 
 void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register len, Register tmp1, Register tmp2) {
   assert_different_registers(obj, klass, len);
-  if (UseBiasedLocking && !len->is_valid()) {
-    assert_different_registers(obj, klass, len, tmp1, tmp2);
-    ld(tmp1, Address(klass, Klass::prototype_header_offset()));
-  } else {
-    // This assumes that all prototype bits fitr in an int32_t
-    mv(tmp1, (int32_t)(intptr_t)markWord::prototype().value());
-  }
+  // This assumes that all prototype bits fitr in an int32_t
+  mv(tmp1, (int32_t)(intptr_t)markWord::prototype().value());
   sd(tmp1, Address(obj, oopDesc::mark_offset_in_bytes()));
 
   if (UseCompressedClassPointers) { // Take care not to kill klass
@@ -328,9 +305,9 @@ void C1_MacroAssembler::inline_cache_check(Register receiver, Register iCache, L
 void C1_MacroAssembler::build_frame(int framesize, int bang_size_in_bytes) {
   assert(bang_size_in_bytes >= framesize, "stack bang size incorrect");
   // Make sure there is enough stack space for this method's activation.
-  // Note that we do this before doing an enter().
+  // Note that we do this before creating a frame.
   generate_stack_overflow_check(bang_size_in_bytes);
-  MacroAssembler::build_frame(framesize + 2 * wordSize); // 2: multiplier for wordSize
+  MacroAssembler::build_frame(framesize);
 
   // Insert nmethod entry barrier into frame.
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
@@ -338,7 +315,7 @@ void C1_MacroAssembler::build_frame(int framesize, int bang_size_in_bytes) {
 }
 
 void C1_MacroAssembler::remove_frame(int framesize) {
-  MacroAssembler::remove_frame(framesize + 2 * wordSize); // 2: multiplier for wordSize
+  MacroAssembler::remove_frame(framesize);
 }
 
 
@@ -436,9 +413,9 @@ void C1_MacroAssembler::c1_cmp_branch(int cmpFlag, Register op1, Register op2, L
   if (type == T_OBJECT || type == T_ARRAY) {
     assert(cmpFlag == lir_cond_equal || cmpFlag == lir_cond_notEqual, "Should be equal or notEqual");
     if (cmpFlag == lir_cond_equal) {
-      oop_equal(op1, op2, label, is_far);
+      beq(op1, op2, label, is_far);
     } else {
-      oop_nequal(op1, op2, label, is_far);
+      bne(op1, op2, label, is_far);
     }
   } else {
     assert(cmpFlag >= 0 && cmpFlag < (int)(sizeof(c1_cond_branch) / sizeof(c1_cond_branch[0])),

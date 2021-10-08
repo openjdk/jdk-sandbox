@@ -156,7 +156,7 @@ void MethodHandles::jump_to_lambda_form(MacroAssembler* _masm,
                         sizeof(u2), /*is_signed*/ false);
     Label L;
     __ ld(t0, __ argument_address(temp2, -1));
-    __ oop_equal(recv, t0, L);
+    __ beq(recv, t0, L);
     __ ld(x10, __ argument_address(temp2, -1));
     __ ebreak();
     __ BIND(L);
@@ -443,7 +443,7 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
 
 #ifndef PRODUCT
 void trace_method_handle_stub(const char* adaptername,
-                              oop mh,
+                              oopDesc* mh,
                               intptr_t* saved_regs,
                               intptr_t* entry_sp) {  }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -85,7 +85,8 @@ public final class Method extends Executable {
     private byte[]              annotations;
     private byte[]              parameterAnnotations;
     private byte[]              annotationDefault;
-    private volatile MethodAccessor methodAccessor;
+    @Stable
+    private MethodAccessor      methodAccessor;
     // For sharing of MethodAccessors. This branching structure is
     // currently only two levels deep (i.e., one root Method and
     // potentially many Method objects pointing to it.)
@@ -234,6 +235,7 @@ public final class Method extends Executable {
 
     /**
      * {@inheritDoc}
+     * @jls 8.4.3 Method Modifiers
      */
     @Override
     public int getModifiers() {
@@ -244,6 +246,7 @@ public final class Method extends Executable {
      * {@inheritDoc}
      * @throws GenericSignatureFormatError {@inheritDoc}
      * @since 1.5
+     * @jls 8.4.4 Generic Methods
      */
     @Override
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -567,12 +570,47 @@ public final class Method extends Executable {
     }
 
     /**
-     * Returns {@code true} if this method is a bridge
-     * method; returns {@code false} otherwise.
+     * {@return {@code true} if this method is a bridge
+     * method; returns {@code false} otherwise}
      *
-     * @return true if and only if this method is a bridge
-     * method as defined by the Java Language Specification.
+     * @apiNote
+     * A bridge method is a {@linkplain isSynthetic synthetic} method
+     * created by a Java compiler alongside a method originating from
+     * the source code. Bridge methods are used by Java compilers in
+     * various circumstances to span differences in Java programming
+     * language semantics and JVM semantics.
+     *
+     * <p>One example use of bridge methods is as a technique for a
+     * Java compiler to support <i>covariant overrides</i>, where a
+     * subclass overrides a method and gives the new method a more
+     * specific return type than the method in the superclass.  While
+     * the Java language specification forbids a class declaring two
+     * methods with the same parameter types but a different return
+     * type, the virtual machine does not. A common case where
+     * covariant overrides are used is for a {@link
+     * java.lang.Cloneable Cloneable} class where the {@link
+     * Object#clone() clone} method inherited from {@code
+     * java.lang.Object} is overridden and declared to return the type
+     * of the class. For example, {@code Object} declares
+     * <pre>{@code protected Object clone() throws CloneNotSupportedException {...}}</pre>
+     * and {@code EnumSet<E>} declares its language-level {@linkplain
+     * java.util.EnumSet#clone() covariant override}
+     * <pre>{@code public EnumSet<E> clone() {...}}</pre>
+     * If this technique was being used, the resulting class file for
+     * {@code EnumSet} would have two {@code clone} methods, one
+     * returning {@code EnumSet<E>} and the second a bridge method
+     * returning {@code Object}. The bridge method is a JVM-level
+     * override of {@code Object.clone()}.  The body of the {@code
+     * clone} bridge method calls its non-bridge counterpart and
+     * returns its result.
      * @since 1.5
+     *
+     * @jls 8.4.8.3 Requirements in Overriding and Hiding
+     * @jls 15.12.4.5 Create Frame, Synchronize, Transfer Control
+     * @jvms 4.6 Methods
+     * @see <a
+     * href="{@docRoot}/java.base/java/lang/reflect/package-summary.html#LanguageJvmModel">Java
+     * programming language and JVM modeling in core reflection</a>
      */
     public boolean isBridge() {
         return (getModifiers() & Modifier.BRIDGE) != 0;
@@ -581,6 +619,7 @@ public final class Method extends Executable {
     /**
      * {@inheritDoc}
      * @since 1.5
+     * @jls 8.4.1 Formal Parameters
      */
     @Override
     public boolean isVarArgs() {
@@ -590,6 +629,10 @@ public final class Method extends Executable {
     /**
      * {@inheritDoc}
      * @jls 13.1 The Form of a Binary
+     * @jvms 4.6 Methods
+     * @see <a
+     * href="{@docRoot}/java.base/java/lang/reflect/package-summary.html#LanguageJvmModel">Java
+     * programming language and JVM modeling in core reflection</a>
      * @since 1.5
      */
     @Override
@@ -607,6 +650,7 @@ public final class Method extends Executable {
      * @return true if and only if this method is a default
      * method as defined by the Java Language Specification.
      * @since 1.8
+     * @jls 9.4 Method Declarations
      */
     public boolean isDefault() {
         // Default methods are public non-abstract instance methods
@@ -622,8 +666,8 @@ public final class Method extends Executable {
     private MethodAccessor acquireMethodAccessor() {
         // First check to see if one has been created yet, and take it
         // if so
-        MethodAccessor tmp = null;
-        if (root != null) tmp = root.getMethodAccessor();
+        Method root = this.root;
+        MethodAccessor tmp = root == null ? null : root.getMethodAccessor();
         if (tmp != null) {
             methodAccessor = tmp;
         } else {
@@ -646,6 +690,7 @@ public final class Method extends Executable {
     void setMethodAccessor(MethodAccessor accessor) {
         methodAccessor = accessor;
         // Propagate up
+        Method root = this.root;
         if (root != null) {
             root.setMethodAccessor(accessor);
         }
@@ -664,6 +709,7 @@ public final class Method extends Executable {
      *     {@link Class} and no definition can be found for the
      *     default class value.
      * @since  1.5
+     * @jls 9.6.2 Defaults for Annotation Type Elements
      */
     public Object getDefaultValue() {
         if  (annotationDefault == null)
@@ -676,8 +722,7 @@ public final class Method extends Executable {
                 getConstantPool(getDeclaringClass()),
             getDeclaringClass());
         if (result instanceof ExceptionProxy) {
-            if (result instanceof TypeNotPresentExceptionProxy) {
-                TypeNotPresentExceptionProxy proxy = (TypeNotPresentExceptionProxy)result;
+            if (result instanceof TypeNotPresentExceptionProxy proxy) {
                 throw new TypeNotPresentException(proxy.typeName(), proxy.getCause());
             }
             throw new AnnotationFormatError("Invalid default: " + this);
@@ -723,7 +768,7 @@ public final class Method extends Executable {
     }
 
     @Override
-    boolean handleParameterNumberMismatch(int resultLength, int numParameters) {
+    boolean handleParameterNumberMismatch(int resultLength, Class<?>[] parameterTypes) {
         throw new AnnotationFormatError("Parameter annotations don't match number of parameters");
     }
 }

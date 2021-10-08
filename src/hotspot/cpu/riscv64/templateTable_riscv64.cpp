@@ -410,7 +410,7 @@ void TemplateTable::fast_aldc(bool wide)
     __ movptr_with_offset(rarg, Universe::the_null_sentinel_addr(), offset);
     __ ld(tmp, Address(rarg, offset));
     __ resolve_oop_handle(tmp);
-    __ oop_nequal(result, tmp, notNull);
+    __ bne(result, tmp, notNull);
     __ mv(result, zr);  // NULL object reference
     __ bind(notNull);
   }
@@ -1962,9 +1962,9 @@ void TemplateTable::if_acmp(Condition cc)
   __ pop_ptr(x11);
 
   if (cc == equal) {
-    __ oop_nequal(x11, x10, not_taken);
+    __ bne(x11, x10, not_taken);
   } else if (cc == not_equal) {
-    __ oop_equal(x11, x10, not_taken);
+    __ beq(x11, x10, not_taken);
   }
   branch(false, false);
   __ bind(not_taken);
@@ -3589,11 +3589,7 @@ void TemplateTable::_new() {
 
     // initialize object hader only.
     __ bind(initialize_header);
-    if (UseBiasedLocking) {
-      __ ld(t0, Address(x14, Klass::prototype_header_offset()));
-    } else {
-      __ mv(t0, (intptr_t)markWord::prototype().value());
-    }
+    __ mv(t0, (intptr_t)markWord::prototype().value());
     __ sd(t0, Address(x10, oopDesc::mark_offset_in_bytes()));
     __ store_klass_gap(x10, zr);   // zero klass gap for compressed oops
     __ store_klass(x10, x14);      // store klass last
@@ -3821,7 +3817,6 @@ void TemplateTable::monitorenter()
 
    // check for NULL object
    __ null_check(x10);
-   __ resolve(IS_NOT_NULL, x10);
 
    const Address monitor_block_top(
          fp, frame::interpreter_frame_monitor_block_top_offset * wordSize);
@@ -3917,7 +3912,6 @@ void TemplateTable::monitorexit()
 
   // check for NULL object
   __ null_check(x10);
-  __ resolve(IS_NOT_NULL, x10);
 
   const Address monitor_block_top(
         fp, frame::interpreter_frame_monitor_block_top_offset * wordSize);

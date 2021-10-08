@@ -245,8 +245,17 @@ void ShenandoahBarrierSetAssembler::load_reference_barrier(MacroAssembler* masm,
   __ lbu(t1, gc_state);
 
   // Check for heap stability
-  __ andi(t1, t1, ShenandoahHeap::HAS_FORWARDED);
-  __ beqz(t1, heap_stable);
+  if (is_strong) {
+    __ andi(t1, t1, ShenandoahHeap::HAS_FORWARDED);
+    __ beqz(t1, heap_stable);
+  } else {
+    Label lrb;
+    __ andi(t0, t1, ShenandoahHeap::WEAK_ROOTS);
+    __ bnez(t0, lrb);
+    __ andi(t0, t1, ShenandoahHeap::HAS_FORWARDED);
+    __ beqz(t0, heap_stable);
+    __ bind(lrb);
+  }
 
   // use x11 for load address
   Register result_dst = dst;
@@ -546,8 +555,7 @@ void ShenandoahBarrierSetAssembler::gen_pre_barrier_stub(LIR_Assembler* ce, Shen
   Register pre_val_reg = stub->pre_val()->as_register();
 
   if (stub->do_load()) {
-    ce->mem2reg(stub->addr(), stub->pre_val(), T_OBJECT, stub->patch_code(),
-                stub->info(), false /* wide */, false /* unaligned */);
+    ce->mem2reg(stub->addr(), stub->pre_val(), T_OBJECT, stub->patch_code(), stub->info(), false /* wide */);
   }
   __ beqz(pre_val_reg, *stub->continuation(), /* is_far */ true);
   ce->store_parameter(stub->pre_val()->as_register(), 0);

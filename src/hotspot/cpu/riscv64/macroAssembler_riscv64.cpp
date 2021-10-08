@@ -32,6 +32,7 @@
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "gc/shared/cardTable.hpp"
 #include "gc/shared/cardTableBarrierSet.hpp"
+#include "interpreter/bytecodeHistogram.hpp"
 #include "interpreter/interpreter.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
@@ -40,7 +41,6 @@
 #include "oops/compressedOops.inline.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/oop.hpp"
-#include "runtime/biasedLocking.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -510,12 +510,8 @@ void MacroAssembler::debug64(char* msg, int64_t pc, int64_t regs[])
       tty->print_cr("x31 = 0x%016lx", regs[31]);
       BREAKPOINT;
     }
-    ThreadStateTransition::transition(thread, _thread_in_vm, saved_state);
-  } else {
-    ttyLocker ttyl;
-    ::tty->print_cr("=============== DEBUG MESSAGE: %s ================\n", msg);
-    assert(false, "DEBUG MESSAGE: %s", msg);
   }
+  fatal("DEBUG MESSAGE: %s", msg);
 }
 
 void MacroAssembler::resolve_jobject(Register value, Register thread, Register tmp) {
@@ -816,49 +812,49 @@ void MacroAssembler::la(Register Rd, Label &label) {
 #undef INSN
 
 
-#define INSN(NAME, FLOATCMP)                                                                                     \
-  void MacroAssembler::float_##NAME(FloatRegister Rs1, FloatRegister Rs2, Label &l, bool is_far, bool is_unordered) { \
-    if(is_unordered) {                                                                                           \
-      FLOATCMP##_s_u(t0, Rs1, Rs2);                                                                              \
-    } else {                                                                                                     \
-      FLOATCMP##_s(t0, Rs1, Rs2);                                                                                \
-    }                                                                                                            \
-    bnez(t0, l, is_far);                                                                                         \
-  }                                                                                                              \
-  void MacroAssembler::double_##NAME(FloatRegister Rs1, FloatRegister Rs2, Label &l, bool is_far, bool is_unordered) { \
-    if(is_unordered) {                                                                                           \
-      FLOATCMP##_d_u(t0, Rs1, Rs2);                                                                              \
-    } else {                                                                                                     \
-      FLOATCMP##_d(t0, Rs1, Rs2);                                                                                \
-    }                                                                                                            \
-    bnez(t0, l, is_far);                                                                                         \
+#define INSN(NAME, FLOATCMP1, FLOATCMP2)                                              \
+  void MacroAssembler::float_##NAME(FloatRegister Rs1, FloatRegister Rs2, Label &l,   \
+                                    bool is_far, bool is_unordered) {                 \
+    if(is_unordered) {                                                                \
+      /* jump if either source is NaN or condition is expected */                     \
+      FLOATCMP2##_s(t0, Rs2, Rs1);                                                    \
+      beqz(t0, l, is_far);                                                            \
+    } else {                                                                          \
+      /* jump if no NaN in source and condition is expected */                        \
+      FLOATCMP1##_s(t0, Rs1, Rs2);                                                    \
+      bnez(t0, l, is_far);                                                            \
+    }                                                                                 \
+  }                                                                                   \
+  void MacroAssembler::double_##NAME(FloatRegister Rs1, FloatRegister Rs2, Label &l,  \
+                                     bool is_far, bool is_unordered) {                \
+    if(is_unordered) {                                                                \
+      /* jump if either source is NaN or condition is expected */                     \
+      FLOATCMP2##_d(t0, Rs2, Rs1);                                                    \
+      beqz(t0, l, is_far);                                                            \
+    } else {                                                                          \
+      /* jump if no NaN in source and condition is expected */                        \
+      FLOATCMP1##_d(t0, Rs1, Rs2);                                                    \
+      bnez(t0, l, is_far);                                                            \
+    }                                                                                 \
   }
 
-  INSN(ble, fle);
-  INSN(blt, flt);
+  INSN(ble, fle, flt);
+  INSN(blt, flt, fle);
 
 #undef INSN
 
-#define INSN(NAME, FLOATCMP)                                                                                     \
-  void MacroAssembler::float_##NAME(FloatRegister Rs1, FloatRegister Rs2, Label &l, bool is_far, bool is_unordered) { \
-    if(is_unordered) {                                                                                           \
-      FLOATCMP##_s_u(t0, Rs2, Rs1);                                                                              \
-    } else {                                                                                                     \
-      FLOATCMP##_s(t0, Rs2, Rs1);                                                                                \
-    }                                                                                                            \
-    bnez(t0, l, is_far);                                                                                         \
-  }                                                                                                              \
-  void MacroAssembler::double_##NAME(FloatRegister Rs1, FloatRegister Rs2, Label &l, bool is_far, bool is_unordered) { \
-    if(is_unordered) {                                                                                           \
-      FLOATCMP##_d_u(t0, Rs2, Rs1);                                                                              \
-    } else {                                                                                                     \
-      FLOATCMP##_d(t0, Rs2, Rs1);                                                                                \
-    }                                                                                                            \
-    bnez(t0, l, is_far);                                                                                         \
+#define INSN(NAME, CMP)                                                              \
+  void MacroAssembler::float_##NAME(FloatRegister Rs1, FloatRegister Rs2, Label &l,  \
+                                    bool is_far, bool is_unordered) {                \
+    float_##CMP(Rs2, Rs1, l, is_far, is_unordered);                                  \
+  }                                                                                  \
+  void MacroAssembler::double_##NAME(FloatRegister Rs1, FloatRegister Rs2, Label &l, \
+                                     bool is_far, bool is_unordered) {               \
+    double_##CMP(Rs2, Rs1, l, is_far, is_unordered);                                 \
   }
 
-  INSN(bgt, flt);
-  INSN(bge, fle);
+  INSN(bgt, blt);
+  INSN(bge, ble);
 
 #undef INSN
 
@@ -1369,7 +1365,7 @@ int MacroAssembler::patch_oop(address insn_addr, address o) {
   // instruction.
   if (NativeInstruction::is_li32_at(insn_addr)) {
     // Move narrow OOP
-    narrowOop n = CompressedOops::encode((oop)o);
+    uint32_t n = CompressedOops::narrow_oop_value(cast_to_oop(o));
     return patch_imm_in_li32(insn_addr, (int32_t)n);
   } else if (NativeInstruction::is_movptr_at(insn_addr)) {
     // Move wide OOP
@@ -1985,16 +1981,6 @@ void MacroAssembler::store_heap_oop(Address dst, Register src, Register tmp1,
   access_store_at(T_OBJECT, IN_HEAP | decorators, dst, src, tmp1, thread_tmp);
 }
 
-void MacroAssembler::resolve(DecoratorSet decorators, Register obj) {
-  // Use stronger ACCESS_READ | ACCESS_WRITE by default.
-  if ((decorators & (ACCESS_READ | ACCESS_WRITE)) == 0) {
-    decorators |= ACCESS_READ | ACCESS_WRITE;
-  }
-
-  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
-  return bs->resolve(this, decorators, obj);
-}
-
 void MacroAssembler::load_heap_oop(Register dst, Address src, Register tmp1,
                                    Register thread_tmp, DecoratorSet decorators) {
   access_load_at(T_OBJECT, IN_HEAP | decorators, dst, src, tmp1, thread_tmp);
@@ -2193,7 +2179,7 @@ void MacroAssembler::check_klass_subtype(Register sub_klass,
 }
 
 void MacroAssembler::safepoint_poll(Label& slow_path, bool at_return, bool acquire, bool in_nmethod) {
-  ld(t0, Address(xthread, Thread::polling_word_offset()));
+  ld(t0, Address(xthread, JavaThread::polling_word_offset()));
   if (acquire) {
     membar(MacroAssembler::LoadLoad | MacroAssembler::LoadStore);
   }
@@ -2478,213 +2464,6 @@ ATOMIC_XCHGU(xchgwu, xchgw)
 ATOMIC_XCHGU(xchgalwu, xchgalw)
 
 #undef ATOMIC_XCHGU
-
-void MacroAssembler::biased_locking_exit(Register obj_reg, Register temp_reg, Label& done, Register flag) {
-  assert(UseBiasedLocking, "why call this otherwise?");
-
-  // Check for biased locking unlock case, which is a no-op
-  // Note: we do not have to check the thread ID for two reasons.
-  // First, the interpreter checks for IllegalMonitorStateException at
-  // a higher level. Second, if the bias was revoked while we held the
-  // lock, the object could not be rebiased toward another thread, so
-  // the bias bit would be clear.
-  ld(temp_reg, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
-  andi(temp_reg, temp_reg, markWord::biased_lock_mask_in_place); // 1 << 3
-  sub(temp_reg, temp_reg, (u1)markWord::biased_lock_pattern);
-  if (flag->is_valid()) { mv(flag, temp_reg); }
-  beqz(temp_reg, done);
-}
-
-void MacroAssembler::load_prototype_header(Register dst, Register src) {
-  load_klass(dst, src);
-  ld(dst, Address(dst, Klass::prototype_header_offset()));
-}
-
-void MacroAssembler::biased_locking_enter(Register lock_reg,
-                                          Register obj_reg,
-                                          Register swap_reg,
-                                          Register tmp_reg,
-                                          bool swap_reg_contains_mark,
-                                          Label& done,
-                                          Label* slow_case,
-                                          BiasedLockingCounters* counters,
-                                          Register flag) {
-  assert(UseBiasedLocking, "why call this otherwise?");
-  assert_different_registers(lock_reg, obj_reg, swap_reg);
-
-  if (PrintBiasedLockingStatistics && counters == NULL) {
-    counters = BiasedLocking::counters();
-  }
-
-  assert_different_registers(lock_reg, obj_reg, swap_reg, tmp_reg, t0, flag);
-  assert(markWord::age_shift == markWord::lock_bits + markWord::biased_lock_bits, "biased locking makes assumptions about bit layout");
-  Address mark_addr      (obj_reg, oopDesc::mark_offset_in_bytes());
-
-  // Biased locking
-  // See whether the lock is currently biased toward our thread and
-  // whether the epoch is still valid
-  // Note that the runtime guarantees sufficient alignment of JavaThread
-  // pointers to allow age to be placed into low bits
-  // First check to see whether biasing is even enabled for this object
-  Label cas_label;
-  if (!swap_reg_contains_mark) {
-    ld(swap_reg, mark_addr);
-  }
-  andi(tmp_reg, swap_reg, markWord::biased_lock_mask_in_place);
-  xori(t0, tmp_reg, (u1)markWord::biased_lock_pattern);
-  bnez(t0, cas_label); // don't care flag unless jumping to done
-  // The bias pattern is present in the object's header. Need to check
-  // whether the bias owner and the epoch are both still current.
-  load_prototype_header(tmp_reg, obj_reg);
-  orr(tmp_reg, tmp_reg, xthread);
-  xorr(tmp_reg, swap_reg, tmp_reg);
-  andi(tmp_reg, tmp_reg, ~((int) markWord::age_mask_in_place));
-  if (flag->is_valid()) {
-    mv(flag, tmp_reg);
-  }
-
-  if (counters != NULL) {
-    Label around;
-    bnez(tmp_reg, around);
-    atomic_incw(Address((address)counters->biased_lock_entry_count_addr()), tmp_reg, t0);
-    j(done);
-    bind(around);
-  } else {
-    beqz(tmp_reg, done);
-  }
-
-  Label try_revoke_bias;
-  Label try_rebias;
-
-  // At this point we know that the header has the bias pattern and
-  // that we are not the bias owner in the current epoch. We need to
-  // figure out more details about the state of the header in order to
-  // know what operations can be legally performed on the object's
-  // header.
-
-  // If the low three bits in the xor result aren't clear, that means
-  // the prototype header is no longer biased and we have to revoke
-  // the bias on this object.
-  andi(t0, tmp_reg, markWord::biased_lock_mask_in_place);
-  bnez(t0, try_revoke_bias);
-
-  // Biasing is still enabled for this data type. See whether the
-  // epoch of the current bias is still valid, meaning that the epoch
-  // bits of the mark word are equal to the epoch bits of the
-  // prototype header. (Note that the prototype header's epoch bits
-  // only change at a safepoint.) If not, attempt to rebias the object
-  // toward the current thread. Note that we must be absolutely sure
-  // that the current epoch is invalid in order to do this because
-  // otherwise the manipulations it performs on the mark word are
-  // illegal.
-  andi(t0, tmp_reg, markWord::epoch_mask_in_place);
-  bnez(t0, try_rebias);
-
-  // The epoch of the current bias is still valid but we know nothing
-  // about the owner; it might be set or it might be clear. Try to
-  // acquire the bias of the object using an atomic operation. If this
-  // fails we will go in to the runtime to revoke the object's bias.
-  // Note that we first construct the presumed unbiased header so we
-  // don't accidentally blow away another thread's valid bias.
-  {
-    Label cas_success;
-    Label counter;
-    li(t0, (int64_t)(markWord::biased_lock_mask_in_place | markWord::age_mask_in_place | markWord::epoch_mask_in_place));
-    andr(swap_reg, swap_reg, t0);
-    orr(tmp_reg, swap_reg, xthread);
-    cmpxchg_obj_header(swap_reg, tmp_reg, obj_reg, t0, cas_success, slow_case);
-    // cas failed here if slow_cass == NULL
-    if (flag->is_valid()) {
-      li(flag, 1);
-      j(counter);
-    }
-
-    // If the biasing toward our thread failed, this means that
-    // another thread succeeded in biasing it toward itself and we
-    // need to revoke that bias. The revocation will occur in the
-    // interpreter runtime in the slow case.
-    bind(cas_success);
-    if (flag->is_valid()) {
-      li(flag, 0);
-      bind(counter);
-    }
-
-    if (counters != NULL) {
-      atomic_incw(Address((address)counters->anonymously_biased_lock_entry_count_addr()),
-                  tmp_reg, t0);
-    }
-  }
-  j(done);
-
-  bind(try_rebias);
-  // At this point we know the epoch has expired, meaning that the
-  // current "bias owner", if any, is actually invalid. Under these
-  // circumstances _only_, we are allowed to use the current header's
-  // value as the comparison value when doing the cas to acquire the
-  // bias in the current epoch. In other words, we allow transfer of
-  // the bias from one thread to another directly in this situation.
-  //
-  // FIXME: due to a lack of registers we currently blow away the age
-  // bits in this situation. Should attempt to preserve them.
-  {
-    Label cas_success;
-    Label counter;
-    load_prototype_header(tmp_reg, obj_reg);
-    orr(tmp_reg, xthread, tmp_reg);
-    cmpxchg_obj_header(swap_reg, tmp_reg, obj_reg, t0, cas_success, slow_case);
-    // cas failed here if slow_cass == NULL
-    if (flag->is_valid()) {
-      li(flag, 1);
-      j(counter);
-    }
-
-    // If the biasing toward our thread failed, then another thread
-    // succeeded in biasing it toward itself and we need to revoke that
-    // bias. The revocation will occur in the runtime in the slow case.
-    bind(cas_success);
-    if (flag->is_valid()) {
-      li(flag, 0);
-      bind(counter);
-    }
-
-    if (counters != NULL) {
-      atomic_incw(Address((address)counters->rebiased_lock_entry_count_addr()),
-                  tmp_reg, t0);
-    }
-  }
-  j(done);
-
-  // don't care flag unless jumping to done
-  bind(try_revoke_bias);
-  // The prototype mark in the klass doesn't have the bias bit set any
-  // more, indicating that objects of this data type are not supposed
-  // to be biased any more. We are going to try to reset the mark of
-  // this object to the prototype value and fall through to the
-  // CAS-based locking scheme. Note that if our CAS fails, it means
-  // that another thread raced us for the privilege of revoking the
-  // bias of this particular object, so it's okay to continue in the
-  // normal locking code.
-  //
-  // FIXME: due to a lack of registers we currently blow away the age
-  // bits in this situation. Should attempt to preserve them.
-  {
-    Label cas_success, nope;
-    load_prototype_header(tmp_reg, obj_reg);
-    cmpxchg_obj_header(swap_reg, tmp_reg, obj_reg, t0, cas_success, &nope);
-    bind(cas_success);
-
-    // Fall through to the normal CAS-based lock, because no matter what
-    // the result of the above CAS, some thread must have succeeded in
-    // removing the bias bit from the object's header.
-    if (counters != NULL) {
-      atomic_incw(Address((address)counters->revoked_lock_entry_count_addr()), tmp_reg,
-                  t0);
-    }
-    bind(nope);
-  }
-
-  bind(cas_label);
-}
 
 void MacroAssembler::atomic_incw(Register counter_addr, Register tmp) {
   Label retry_load;
@@ -2992,7 +2771,8 @@ void MacroAssembler::la_patchable(Register reg1, const Address &dest, int32_t &o
 }
 
 void MacroAssembler::build_frame(int framesize) {
-  assert(framesize > 0, "framesize must be > 0");
+  assert(framesize >= 2, "framesize must include space for FP/LR");
+  assert(framesize % (2*wordSize) == 0, "must preserve 2*wordSize alignment");
   sub(sp, sp, framesize);
   sd(fp, Address(sp, framesize - 2 * wordSize));
   sd(lr, Address(sp, framesize - wordSize));
@@ -3001,7 +2781,8 @@ void MacroAssembler::build_frame(int framesize) {
 }
 
 void MacroAssembler::remove_frame(int framesize) {
-  assert(framesize > 0, "framesize must be > 0");
+  assert(framesize >= 2, "framesize must include space for FP/LR");
+  assert(framesize % (2*wordSize) == 0, "must preserve 2*wordSize alignment");
   ld(fp, Address(sp, framesize - 2 * wordSize));
   ld(lr, Address(sp, framesize - wordSize));
   add(sp, sp, framesize);
@@ -3034,7 +2815,7 @@ void MacroAssembler::reserved_stack_check() {
 
 // Move the address of the polling page into dest.
 void MacroAssembler::get_polling_page(Register dest, relocInfo::relocType rtype) {
-  ld(dest, Address(xthread, Thread::polling_page_offset()));
+  ld(dest, Address(xthread, JavaThread::polling_page_offset()));
 }
 
 // Read the polling page.  The address of the polling page must
@@ -3228,27 +3009,17 @@ void MacroAssembler::load_method_holder(Register holder, Register method) {
   ld(holder, Address(holder, ConstantPool::pool_holder_offset_in_bytes())); // InstanceKlass*
 }
 
-void MacroAssembler::oop_equal(Register obj1, Register obj2, Label& equal, bool is_far) {
-  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
-  bs->obj_equals(this, obj1, obj2, equal, is_far);
-}
-
-void MacroAssembler::oop_nequal(Register obj1, Register obj2, Label& nequal, bool is_far) {
-  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
-  bs->obj_nequals(this, obj1, obj2, nequal, is_far);
-}
-
 // string indexof
-// compute index by tailing zeros
-void MacroAssembler::compute_index(Register haystack, Register tailing_zero,
+// compute index by trailing zeros
+void MacroAssembler::compute_index(Register haystack, Register trailing_zeros,
                                    Register match_mask, Register result,
                                    Register ch2, Register tmp,
                                    bool haystack_isL)
 {
   int haystack_chr_shift = haystack_isL ? 0 : 1;
-  srl(match_mask, match_mask, tailing_zero);
+  srl(match_mask, match_mask, trailing_zeros);
   srli(match_mask, match_mask, 1);
-  srli(tmp, tailing_zero, LogBitsPerByte);
+  srli(tmp, trailing_zeros, LogBitsPerByte);
   if (!haystack_isL) andi(tmp, tmp, 0xE);
   add(haystack, haystack, tmp);
   ld(ch2, Address(haystack));
@@ -3517,58 +3288,38 @@ FCVT_SAFE(fcvt_l_d, feq_d)
 
 #undef FCVT_SAFE
 
-// Float compare (flt_s/d fle_s/d) unordered (NaN)
-#define FCMP_UNORDERED(FLOATCMP, FLOATEQ)                                                        \
-void MacroAssembler:: FLOATCMP##_u(Register result, FloatRegister Rs1, FloatRegister Rs2) {      \
-  Label isNaN, cmpDone, fltCmp;                                                                  \
-  FLOATEQ(result, Rs1, Rs1);                                                                     \
-  beqz(result, isNaN);                                                                           \
-  FLOATEQ(result, Rs2, Rs2);                                                                     \
-  bnez(result, fltCmp);                                                                          \
-  bind(isNaN);                                                                                   \
-  addiw(result, x0, 1);                                                                          \
-  j(cmpDone);                                                                                    \
-  bind(fltCmp);                                                                                  \
-  FLOATCMP(result, Rs1, Rs2);                                                                    \
-  bind(cmpDone);                                                                                 \
-}
-
-FCMP_UNORDERED(flt_s, feq_s)
-FCMP_UNORDERED(flt_d, feq_d)
-FCMP_UNORDERED(fle_s, feq_s)
-FCMP_UNORDERED(fle_d, feq_d)
-
-#undef FCMP_UNORDERED
-
-
-#define FCMP(FLOATTYPE, FLOATCMP)                                                       \
+#define FCMP(FLOATTYPE, FLOATSIG)                                                       \
 void MacroAssembler::FLOATTYPE##_compare(Register result, FloatRegister Rs1,            \
                                          FloatRegister Rs2, int unordered_result) {     \
-  Label done;                                                                           \
+  Label Ldone;                                                                          \
   if (unordered_result < 0) {                                                           \
     /* we want -1 for unordered or less than, 0 for equal and 1 for greater than. */    \
     /* installs 1 if gt else 0 */                                                       \
-    FLOATCMP(result, Rs2, Rs1);                                                         \
-    bnez(result, done);                                                                 \
-    /* keeps 0 if eq else installs 1 */                                                 \
-    FLOATCMP##_u(result, Rs1, Rs2);                                                     \
-    /* result = -1 if lt or unordered; else if eq, result = 0; */                       \
-    neg(result, result);                                                                \
+    flt_##FLOATSIG(result, Rs2, Rs1);                                                   \
+    /* Rs1 > Rs2, install 1 */                                                          \
+    bgtz(result, Ldone);                                                                \
+    feq_##FLOATSIG(result, Rs1, Rs2);                                                   \
+    addi(result, result, -1);                                                           \
+    /* Rs1 = Rs2, install 0 */                                                          \
+    /* NaN or Rs1 < Rs2, install -1 */                                                  \
+    bind(Ldone);                                                                        \
   } else {                                                                              \
     /* we want -1 for less than, 0 for equal and 1 for unordered or greater than. */    \
     /* installs 1 if gt or unordered else 0 */                                          \
-    FLOATCMP##_u(result, Rs2, Rs1);                                                     \
-    bnez(result, done);                                                                 \
-    /* keeps 0 if eq else installs 1 */                                                 \
-    FLOATCMP(result, Rs1, Rs2);                                                         \
-    /* result = -1 if lt; else if eq, result = 0 */                                     \
+    flt_##FLOATSIG(result, Rs1, Rs2);                                                   \
+    /* Rs1 < Rs2, install -1 */                                                         \
+    bgtz(result, Ldone);                                                                \
+    feq_##FLOATSIG(result, Rs1, Rs2);                                                   \
+    addi(result, result, -1);                                                           \
+    /* Rs1 = Rs2, install 0 */                                                          \
+    /* NaN or Rs1 > Rs2, install 1 */                                                   \
+    bind(Ldone);                                                                        \
     neg(result, result);                                                                \
   }                                                                                     \
-  bind(done);                                                                           \
 }
 
-FCMP(float, flt_s);
-FCMP(double, flt_d);
+FCMP(float, s);
+FCMP(double, d);
 
 #undef FCMP
 

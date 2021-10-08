@@ -47,12 +47,6 @@ public:
                        Register dst, Address src, Register tmp1, Register tmp_thread);
   virtual void store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                         Address dst, Register val, Register tmp1, Register tmp2);
-  virtual void obj_equals(MacroAssembler* masm, Register obj1, Register obj2, Label& equal, bool is_far = false);
-  virtual void obj_nequals(MacroAssembler* masm, Register obj1, Register obj2, Label& nequal, bool is_far = false);
-
-  virtual void resolve(MacroAssembler* masm, DecoratorSet decorators, Register obj) {
-    // Default implementation does not need to do anything.
-  }
 
   virtual void try_resolve_jobject_in_native(MacroAssembler* masm, Register jni_env,
                                              Register obj, Register tmp, Label& slowpath);

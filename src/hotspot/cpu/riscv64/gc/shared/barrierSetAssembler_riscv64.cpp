@@ -122,16 +122,6 @@ void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators
 
 }
 
-void BarrierSetAssembler::obj_equals(MacroAssembler* masm, Register obj1, Register obj2, Label& equal, bool is_far) {
-  assert_cond(masm != NULL);
-  __ beq(obj1, obj2, equal, is_far);
-}
-
-void BarrierSetAssembler::obj_nequals(MacroAssembler* masm, Register obj1, Register obj2, Label& nequal, bool is_far) {
-  assert_cond(masm != NULL);
-  __ bne(obj1, obj2, nequal, is_far);
-}
-
 void BarrierSetAssembler::try_resolve_jobject_in_native(MacroAssembler* masm, Register jni_env,
                                                         Register obj, Register tmp, Label& slowpath) {
   assert_cond(masm != NULL);
@@ -281,7 +271,7 @@ void BarrierSetAssembler::c2i_entry_barrier(MacroAssembler* masm) {
   __ load_method_holder_cld(t0, xmethod);
 
   // Is it a strong CLD?
-  __ ld(t1, Address(t0, ClassLoaderData::keep_alive_offset()));
+  __ lwu(t1, Address(t0, ClassLoaderData::keep_alive_offset()));
   __ bnez(t1, method_live);
 
   // Is it a weak but alive CLD?

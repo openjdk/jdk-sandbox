@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -245,6 +245,7 @@ public final class SocketPermission extends Permission
     };
 
     static {
+        @SuppressWarnings("removal")
         Boolean tmp = java.security.AccessController.doPrivileged(
                 new sun.security.action.GetBooleanAction("sun.net.trustNameService"));
         trustNameService = tmp.booleanValue();
@@ -860,13 +861,11 @@ public final class SocketPermission extends Permission
     public boolean implies(Permission p) {
         int i,j;
 
-        if (!(p instanceof SocketPermission))
+        if (!(p instanceof SocketPermission that))
             return false;
 
         if (p == this)
             return true;
-
-        SocketPermission that = (SocketPermission) p;
 
         return ((this.mask & that.mask) == that.mask) &&
                                         impliesIgnoreMask(that);
@@ -874,7 +873,7 @@ public final class SocketPermission extends Permission
 
     /**
      * Checks if the incoming Permission's action are a proper subset of
-     * the this object's actions.
+     * this object's actions.
      * <P>
      * Check, in the following order:
      * <ul>
@@ -1040,10 +1039,8 @@ public final class SocketPermission extends Permission
         if (obj == this)
             return true;
 
-        if (! (obj instanceof SocketPermission))
+        if (! (obj instanceof SocketPermission that))
             return false;
-
-        SocketPermission that = (SocketPermission) obj;
 
         //this is (overly?) complex!!!
 
@@ -1228,6 +1225,7 @@ public final class SocketPermission extends Permission
      * Check the system/security property for the ephemeral port range
      * for this system. The suffix is either "high" or "low"
      */
+    @SuppressWarnings("removal")
     private static int initEphemeralPorts(String suffix, int defval) {
         return AccessController.doPrivileged(
             new PrivilegedAction<>(){
@@ -1379,14 +1377,12 @@ final class SocketPermissionCollection extends PermissionCollection
      */
     @Override
     public void add(Permission permission) {
-        if (! (permission instanceof SocketPermission))
+        if (! (permission instanceof SocketPermission sp))
             throw new IllegalArgumentException("invalid permission: "+
                                                permission);
         if (isReadOnly())
             throw new SecurityException(
                 "attempt to add a Permission to a readonly PermissionCollection");
-
-        SocketPermission sp = (SocketPermission)permission;
 
         // Add permission to map if it is absent, or replace with new
         // permission if applicable. NOTE: cannot use lambda for
@@ -1426,10 +1422,8 @@ final class SocketPermissionCollection extends PermissionCollection
     @Override
     public boolean implies(Permission permission)
     {
-        if (! (permission instanceof SocketPermission))
+        if (! (permission instanceof SocketPermission np))
                 return false;
-
-        SocketPermission np = (SocketPermission) permission;
 
         int desired = np.getMask();
         int effective = 0;

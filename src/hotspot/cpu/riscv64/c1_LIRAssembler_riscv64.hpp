@@ -74,7 +74,6 @@ private:
     // CompiledStaticCall::to_interp_stub_size() (14) + CompiledStaticCall::to_trampoline_stub_size() (1 + 3 + address)
     _call_stub_size = 14 * NativeInstruction::instruction_size +
                       (NativeInstruction::instruction_size + NativeCallTrampolineStub::instruction_size),
-    _call_aot_stub_size = 0,
     // see emit_exception_handler for detail:
     // verify_not_null_oop + far_call + should_not_reach_here + invalidate_registers(DEBUG_ONLY)
     _exception_handler_size = DEBUG_ONLY(584) NOT_DEBUG(548), // or smaller

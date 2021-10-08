@@ -1200,20 +1200,6 @@ int MachCallNativeNode::ret_addr_offset() {
   return -1;
 }
 
-// Indicate if the safepoint node needs the polling page as an input
-
-// the shared code plants the oop data at the start of the generated
-// code for the safepoint node and that needs ot be at the load
-// instruction itself. so we cannot plant a mov of the safepoint poll
-// address followed by a load. setting this to true means the mov is
-// scheduled as a prior instruction. that's better for scheduling
-// anyway.
-
-bool SafePointNode::needs_polling_address_input()
-{
-  return true;
-}
-
 //=============================================================================
 
 #ifndef PRODUCT
@@ -1314,7 +1300,6 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
 
   // n.b. frame size includes space for return pc and fp
   const int framesize = C->output()->frame_size_in_bytes();
-  assert(framesize % (2 * wordSize) == 0, "must preserve 2 * wordSize alignment");
 
   // insert a nop at the start of the prolog so we can patch in a
   // branch if we need to invalidate the method later
@@ -1809,20 +1794,22 @@ const bool Matcher::match_rule_supported_vector(int opcode, int vlen, BasicType 
   return op_vec_supported(opcode);
 }
 
-const bool Matcher::has_predicated_vectors(void) {
-  return false;  // not supported
+const RegMask* Matcher::predicate_reg_mask(void) {
+  return NULL;
 }
 
-bool Matcher::supports_vector_variable_shifts(void) {
-  return false;  // not supported
+const TypeVect* Matcher::predicate_reg_type(const Type* elemTy, int length) {
+  return NULL;
 }
 
-bool Matcher::supports_vector_variable_rotates(void) {
-  return false;  // not supported
+// Vector calling convention not yet implemented.
+const bool Matcher::supports_vector_calling_convention(void) {
+  return false;
 }
 
-const int Matcher::float_pressure(int default_pressure_threshold) {
-  return default_pressure_threshold;
+OptoRegPair Matcher::vector_return_value(uint ideal_reg) {
+  Unimplemented();
+  return OptoRegPair(0, 0);
 }
 
 // Is this branch offset short enough that a short branch can be used?
@@ -1846,17 +1833,6 @@ bool Matcher::is_short_branch_offset(int rule, int br_size, int offset) {
   int shortBrSize = br_size - 4;
   int offs = offset - shortBrSize + 4;
   return (-4096 <= offs && offs < 4096);
-}
-
-const bool Matcher::isSimpleConstant64(jlong value) {
-  // Will one (StoreL ConL) be cheaper than two (StoreI ConI)?.
-  // Probably always true, even if a temp register is required.
-  return true;
-}
-
-// true just means we have fast l2f conversion
-const bool Matcher::convL2FSupported(void) {
-  return true;
 }
 
 // Vector width in bytes.
@@ -1888,49 +1864,16 @@ const uint Matcher::vector_ideal_reg(int len) {
   return 0;
 }
 
-const bool Matcher::supports_scalable_vector() {
-  return UseVExt;
-}
-
 const int Matcher::scalable_vector_reg_size(const BasicType bt) {
   return Matcher::max_vector_size(bt);
 }
-
-// riscv64 supports misaligned vectors store/load.
-const bool Matcher::misaligned_vectors_ok() {
-  return true;
-}
-
-// false => size gets scaled to BytesPerLong, ok.
-const bool Matcher::init_array_count_is_in_bytes = false;
-
-// Use conditional move (CMOVL)
-const int Matcher::long_cmove_cost() {
-  // long cmoves are no more expensive than int cmoves
-  return 0;
-}
-
-const int Matcher::float_cmove_cost() {
-  // float cmoves are no more expensive than int cmoves
-  return 0;
-}
-
-// Does the CPU require late expand (see block.cpp for description of late expand)?
-const bool Matcher::require_postalloc_expand = false;
-
-// Do we need to mask the count passed to shift instructions or does
-// the cpu only look at the lower 5/6 bits anyway?
-const bool Matcher::need_masked_shift_count = false;
-
-// No support for generic vector operands.
-const bool Matcher::supports_generic_vector_operands = false;
 
 MachOper* Matcher::pd_specialize_generic_vector_operand(MachOper* original_opnd, uint ideal_reg, bool is_temp) {
   ShouldNotReachHere(); // generic vector operands not supported
   return NULL;
 }
 
-bool Matcher::is_generic_reg2reg_move(MachNode* m) {
+bool Matcher::is_reg2reg_move(MachNode* m) {
   ShouldNotReachHere(); // generic vector operands not supported
   return false;
 }
@@ -1939,63 +1882,6 @@ bool Matcher::is_generic_vector(MachOper* opnd) {
   ShouldNotReachHere(); // generic vector operands not supported
   return false;
 }
-
-// This affects two different things:
-//  - how Decode nodes are matched
-//  - how ImplicitNullCheck opportunities are recognized
-// If true, the matcher will try to remove all Decodes and match them
-// (as operands) into nodes. NullChecks are not prepared to deal with
-// Decodes by final_graph_reshaping().
-// If false, final_graph_reshaping() forces the decode behind the Cmp
-// for a NullCheck. The matcher matches the Decode node into a register.
-// Implicit_null_check optimization moves the Decode along with the
-// memory operation back up before the NullCheck.
-bool Matcher::narrow_oop_use_complex_address() {
-  return CompressedOops::shift() == 0;
-}
-
-bool Matcher::narrow_klass_use_complex_address() {
-// TODO
-// decide whether we need to set this to true
-  return false;
-}
-
-bool Matcher::const_oop_prefer_decode() {
-  // Prefer ConN+DecodeN over ConP in simple compressed oops mode.
-  return CompressedOops::base() == NULL;
-}
-
-bool Matcher::const_klass_prefer_decode() {
-  // Prefer ConNKlass+DecodeNKlass over ConP in simple compressed klass mode.
-  return CompressedKlassPointers::base() == NULL;
-}
-
-// Is it better to copy float constants, or load them directly from
-// memory?  Intel can load a float constant from a direct address,
-// requiring no extra registers.  Most RISCs will have to materialize
-// an address into a register first, so they would do better to copy
-// the constant from stack.
-const bool Matcher::rematerialize_float_constants = false;
-
-// If CPU can load and store mis-aligned doubles directly then no
-// fixup is needed.  Else we split the double into 2 integer pieces
-// and move it piece-by-piece.  Only happens when passing doubles into
-// C code as the Java calling convention forces doubles to be aligned.
-const bool Matcher::misaligned_doubles_ok = true;
-
-// Advertise here if the CPU requires explicit rounding operations to
-// implement the UseStrictFP mode.
-const bool Matcher::strict_fp_requires_explicit_rounding = false;
-
-// Are floats converted to double when stored to stack during
-// deoptimization?
-bool Matcher::float_in_double() { return false; }
-
-// Do ints take an entire long register or just half?
-// The relevant question is how the int is callee-saved:
-// the whole long is written but de-opt'ing will have to extract
-// the relevant 32 bits.
-const bool Matcher::int_in_long = true;
 
 // Return whether or not this register is ever used as an argument.
 // This function is used on startup to build the trampoline stubs in
@@ -2026,6 +1912,33 @@ bool Matcher::can_be_java_arg(int reg)
 bool Matcher::is_spillable_arg(int reg)
 {
   return can_be_java_arg(reg);
+}
+
+uint Matcher::int_pressure_limit()
+{
+  // A derived pointer is live at CallNode and then is flagged by RA
+  // as a spilled LRG. Spilling heuristics(Spill-USE) explicitly skip
+  // derived pointers and lastly fail to spill after reaching maximum
+  // number of iterations. Lowering the default pressure threshold to
+  // (_NO_SPECIAL_REG32_mask.Size() minus 1) forces CallNode to become
+  // a high register pressure area of the code so that split_DEF can
+  // generate DefinitionSpillCopy for the derived pointer.
+  uint default_int_pressure_threshold = _NO_SPECIAL_REG32_mask.Size() - 1;
+  if (!PreserveFramePointer) {
+    // When PreserveFramePointer is off, frame pointer is allocatable,
+    // but different from other SOC registers, it is excluded from
+    // fatproj's mask because its save type is No-Save. Decrease 1 to
+    // ensure high pressure at fatproj when PreserveFramePointer is off.
+    // See check_pressure_at_fatproj().
+    default_int_pressure_threshold--;
+  }
+  return (INTPRESSURE == -1) ? default_int_pressure_threshold : INTPRESSURE;
+}
+
+uint Matcher::float_pressure_limit()
+{
+  // _FLOAT_REG_mask is generated by adlc from the float_reg register class.
+  return (FLOATPRESSURE == -1) ? _FLOAT_REG_mask.Size() : FLOATPRESSURE;
 }
 
 bool Matcher::use_asm_for_ldiv_by_con(jlong divisor) {
@@ -2074,8 +1987,6 @@ bool size_fits_all_mem_uses(AddPNode* addp, int shift) {
   return true;
 }
 
-const bool Matcher::convi2l_type_required = false;
-
 // Should the Matcher clone input 'm' of node 'n'?
 bool Matcher::pd_clone_node(Node* n, Node* m, Matcher::MStack& mstack) {
   assert_cond(m != NULL);
@@ -2090,45 +2001,7 @@ bool Matcher::pd_clone_node(Node* n, Node* m, Matcher::MStack& mstack) {
 // to be subsumed into complex addressing expressions or compute them
 // into registers?
 bool Matcher::pd_clone_address_expressions(AddPNode* m, Matcher::MStack& mstack, VectorSet& address_visited) {
-  assert_cond(m != NULL);
-  if (clone_base_plus_offset_address(m, mstack, address_visited)) {
-    return true;
-  }
-
-  Node *off = m->in(AddPNode::Offset);
-  if (off != NULL && off->Opcode() == Op_LShiftL && off->in(2)->is_Con() &&
-      size_fits_all_mem_uses(m, off->in(2)->get_int()) &&
-      // Are there other uses besides address expressions?
-      !is_visited(off)) {
-    address_visited.set(off->_idx); // Flag as address_visited
-    mstack.push(off->in(2), Visit);
-    Node *conv = off->in(1);
-    if (conv->Opcode() == Op_ConvI2L &&
-        // Are there other uses besides address expressions?
-        !is_visited(conv)) {
-      address_visited.set(conv->_idx); // Flag as address_visited
-      mstack.push(conv->in(1), Pre_Visit);
-    } else {
-      mstack.push(conv, Pre_Visit);
-    }
-    address_visited.test_set(m->_idx); // Flag as address_visited
-    mstack.push(m->in(AddPNode::Address), Pre_Visit);
-    mstack.push(m->in(AddPNode::Base), Pre_Visit);
-    return true;
-  } else if (off != NULL && off->Opcode() == Op_ConvI2L &&
-             // Are there other uses besides address expressions?
-             !is_visited(off)) {
-    address_visited.test_set(m->_idx); // Flag as address_visited
-    address_visited.set(off->_idx); // Flag as address_visited
-    mstack.push(off->in(1), Pre_Visit);
-    mstack.push(m->in(AddPNode::Address), Pre_Visit);
-    mstack.push(m->in(AddPNode::Base), Pre_Visit);
-    return true;
-  }
-  return false;
-}
-
-void Compile::reshape_address(AddPNode* addp) {
+  return clone_base_plus_offset_address(m, mstack, address_visited);
 }
 
 %}
@@ -2428,11 +2301,6 @@ encode %{
       __ bnez(flag, cont, true /* is_far */);
     }
 
-    if (UseBiasedLocking && !UseOptoBiasInlining) {
-      // ignore slow case here
-      __ biased_locking_enter(box, oop, disp_hdr, tmp, true, cont, /*slow_case*/NULL, NULL, flag);
-    }
-
     // Check for existing monitor
     __ andi(t0, disp_hdr, markWord::monitor_value);
     __ bnez(t0, object_has_monitor);
@@ -2502,10 +2370,6 @@ encode %{
     Label object_has_monitor;
 
     assert_different_registers(oop, box, tmp, disp_hdr, flag);
-
-    if (UseBiasedLocking && !UseOptoBiasInlining) {
-      __ biased_locking_exit(oop, tmp, cont, flag);
-    }
 
     // Find the lock address and load the displaced header from the stack.
     __ ld(disp_hdr, Address(box, BasicLock::displaced_header_offset_in_bytes()));
@@ -5213,8 +5077,6 @@ instruct storePConditional(memory heap_top_ptr, iRegP oldval, iRegP newval, iReg
   ins_pipe(pipe_serial);
 %}
 
-// storeLConditional is used by PhaseMacroExpand::expand_lock_node
-// when attempting to rebias a lock towards the current thread.
 instruct storeLConditional(indirect mem, iRegLNoSp oldval, iRegLNoSp newval, iRegI_R6 cr)
 %{
   match(Set cr (StoreLConditional mem (Binary oldval newval)));
@@ -7882,6 +7744,39 @@ instruct checkCastPP(iRegPNoSp dst)
   ins_pipe(pipe_class_empty);
 %}
 
+instruct castFF(fRegF dst)
+%{
+  match(Set dst (CastFF dst));
+
+  size(0);
+  format %{ "# castFF of $dst" %}
+  ins_encode(/* empty encoding */);
+  ins_cost(0);
+  ins_pipe(pipe_class_empty);
+%}
+
+instruct castDD(fRegD dst)
+%{
+  match(Set dst (CastDD dst));
+
+  size(0);
+  format %{ "# castDD of $dst" %}
+  ins_encode(/* empty encoding */);
+  ins_cost(0);
+  ins_pipe(pipe_class_empty);
+%}
+
+instruct castVV(vReg dst)
+%{
+  match(Set dst (CastVV dst));
+
+  size(0);
+  format %{ "# castVV of $dst" %}
+  ins_encode(/* empty encoding */);
+  ins_cost(0);
+  ins_pipe(pipe_class_empty);
+%}
+
 // ============================================================================
 // Convert Instructions
 
@@ -8454,11 +8349,11 @@ instruct cmpF3_reg_reg(iRegINoSp dst, fRegF op1, fRegF op2)
 %{
   match(Set dst (CmpF3 op1 op2));
 
-  ins_cost(XFER_COST + BRANCH_COST + ALU_COST * 2);
-  format %{ "flt.s   $dst, $op2, $op1\t#@cmpF3_reg_reg\n\t"
-            "bnez  $dst, done\n\t"
-            "flt.s  $dst, $op1, $op2\n\t"
-            "neg   $dst, $dst\t#@cmpF3_reg_reg"
+  ins_cost(XFER_COST * 2 + BRANCH_COST + ALU_COST);
+  format %{ "flt.s  $dst, $op2, $op1\t#@cmpF3_reg_reg\n\t"
+            "bgtz   $dst, done\n\t"
+            "feq.s  $dst, $op1, $op2\n\t"
+            "addi   $dst, $dst, -1\t#@cmpF3_reg_reg"
   %}
 
   ins_encode %{
@@ -8474,11 +8369,11 @@ instruct cmpD3_reg_reg(iRegINoSp dst, fRegD op1, fRegD op2)
 %{
   match(Set dst (CmpD3 op1 op2));
 
-  ins_cost(XFER_COST + BRANCH_COST + ALU_COST * 2);
-  format %{ "flt.d   $dst, $op2, $op1\t#@cmpD3_reg_reg\n\t"
-            "bnez  $dst, done\n\t"
-            "flt.d  $dst, $op1, $op2\n\t"
-            "neg   $dst, $dst\t#@cmpD3_reg_reg"
+  ins_cost(XFER_COST * 2 + BRANCH_COST + ALU_COST);
+  format %{ "flt.d  $dst, $op2, $op1\t#@cmpD3_reg_reg\n\t"
+            "bgtz   $dst, done\n\t"
+            "feq.d  $dst, $op1, $op2\n\t"
+            "addi   $dst, $dst, -1\t#@cmpD3_reg_reg"
   %}
 
   ins_encode %{

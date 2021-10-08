@@ -207,7 +207,6 @@ class MacroAssembler: public Assembler {
   void decode_heap_oop(Register r) { decode_heap_oop(r, r); }
   void encode_heap_oop(Register d, Register s);
   void encode_heap_oop(Register r) { encode_heap_oop(r, r); };
-  void resolve(DecoratorSet decorators, Register obj);
   void load_heap_oop(Register dst, Address src, Register tmp1 = noreg,
                      Register thread_tmp = noreg, DecoratorSet decorators = 0);
   void load_heap_oop_not_null(Register dst, Address src, Register tmp1 = noreg,
@@ -518,6 +517,12 @@ class MacroAssembler: public Assembler {
   // if heap base register is used - reinit it with the correct value
   void reinit_heapbase();
 
+  void bind(Label& L) {
+    Assembler::bind(L);
+    // fences across basic blocks should not be merged
+    code()->clear_last_insn();
+  }
+
   // mv
   void mv(Register Rd, int64_t imm64);
   void mv(Register Rd, int imm);
@@ -588,20 +593,6 @@ class MacroAssembler: public Assembler {
   void atomic_xchgalw(Register prev, Register newv, Register addr);
   void atomic_xchgwu(Register prev, Register newv, Register addr);
   void atomic_xchgalwu(Register prev, Register newv, Register addr);
-
-  // Biased locking support
-  // lock_reg and obj_reg must be loaded up with the appropriate values.
-  // swap_reg is killed.
-  // tmp_reg must be supplied and must not be t0 or t1
-  // Optional slow case is for implementations (interpreter and C1) which branch to
-  // slow case directly. Leaves condition codes set for C2's Fast_Lock node.
-  void biased_locking_enter(Register lock_reg, Register obj_reg,
-                            Register swap_reg, Register tmp_reg,
-                            bool swap_reg_contains_mark,
-                            Label& done, Label* slow_case = NULL,
-                            BiasedLockingCounters* counters = NULL,
-                            Register flag = noreg);
-  void biased_locking_exit(Register obj_reg, Register temp_reg, Label& done, Register flag = noreg);
 
   static bool far_branches() {
     return ReservedCodeCacheSize > branch_range;
@@ -676,10 +667,7 @@ class MacroAssembler: public Assembler {
   void load_method_holder_cld(Register result, Register method);
   void load_method_holder(Register holder, Register method);
 
-  void oop_equal(Register obj1, Register obj2, Label& equal, bool is_far = false); // cmpoop
-  void oop_nequal(Register obj1, Register obj2, Label& nequal, bool is_far = false);
-
-  void compute_index(Register str1, Register tailing_zero, Register match_mask,
+  void compute_index(Register str1, Register trailing_zeros, Register match_mask,
                      Register result, Register char_tmp, Register tmp,
                      bool haystack_isL);
   void compute_match_mask(Register src, Register pattern, Register match_mask,
@@ -704,12 +692,6 @@ class MacroAssembler: public Assembler {
   void fcvt_l_s_safe(Register dst, FloatRegister src, Register temp = t0);
   void fcvt_w_d_safe(Register dst, FloatRegister src, Register temp = t0);
   void fcvt_l_d_safe(Register dst, FloatRegister src, Register temp = t0);
-
-  // flt_s/d fle_s/d unordered (NaN)
-  void flt_s_u(Register result, FloatRegister Rs1, FloatRegister Rs2);
-  void flt_d_u(Register result, FloatRegister Rs1, FloatRegister Rs2);
-  void fle_s_u(Register result, FloatRegister Rs1, FloatRegister Rs2);
-  void fle_d_u(Register result, FloatRegister Rs1, FloatRegister Rs2);
 
   // vector load/store unit-stride instructions
   void vlex_v(VectorRegister vd, Register base, Assembler::SEW sew, VectorMask vm = unmasked) {
@@ -814,7 +796,6 @@ private:
     lbl.reset();
   }
 #endif
-  void load_prototype_header(Register dst, Register src);
   void repne_scan(Register addr, Register value, Register count, Register temp);
 
   // Return true if an addres is within the 48-bit Riscv64 address

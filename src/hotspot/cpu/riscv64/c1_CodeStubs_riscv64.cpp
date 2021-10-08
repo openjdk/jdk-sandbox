@@ -358,8 +358,10 @@ void ArrayCopyStub::emit_code(LIR_Assembler* ce)
   ce->add_call_info_here(info());
 
 #ifndef PRODUCT
-  __ la(t1, ExternalAddress((address)&Runtime1::_arraycopy_slowcase_cnt));
-  __ add_memory_int32(Address(t1), 1);
+  if (PrintC1Statistics) {
+    __ la(t1, ExternalAddress((address)&Runtime1::_arraycopy_slowcase_cnt));
+    __ add_memory_int32(Address(t1), 1);
+  }
 #endif
 
   __ j(_continuation);

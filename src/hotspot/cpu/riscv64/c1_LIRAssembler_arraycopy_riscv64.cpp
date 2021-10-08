@@ -299,9 +299,6 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   Register length = op->length()->as_register();
   Register tmp = op->tmp()->as_register();
 
-  __ resolve(ACCESS_READ, src);
-  __ resolve(ACCESS_WRITE, dst);
-
   CodeStub* stub = op->stub();
   int flags = op->flags();
   BasicType basic_type = default_type != NULL ? default_type->element_type()->basic_type() : T_ILLEGAL;

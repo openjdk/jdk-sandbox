@@ -39,7 +39,6 @@
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/basicLock.hpp"
-#include "runtime/biasedLocking.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -523,7 +522,7 @@ void InterpreterMacroAssembler::dispatch_base(TosState state,
 
   if (needs_thread_local_poll) {
     NOT_PRODUCT(block_comment("Thread-local Safepoint poll"));
-    ld(t1, Address(xthread, Thread::polling_word_offset()));
+    ld(t1, Address(xthread, JavaThread::polling_word_offset()));
     andi(t1, t1, SafepointMechanism::poll_bit());
     bnez(t1, safepoint);
   }
@@ -813,10 +812,6 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
       bnez(tmp, slow_case);
     }
 
-    if (UseBiasedLocking) {
-      biased_locking_enter(lock_reg, obj_reg, swap_reg, tmp, false, done, &slow_case);
-    }
-
     // Load (object->mark() | 1) into swap_reg
     ld(t0, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
     ori(swap_reg, t0, 1);
@@ -827,17 +822,7 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
     assert(lock_offset == 0,
            "displached header must be first word in BasicObjectLock");
 
-    if (PrintBiasedLockingStatistics) {
-      Label fast, fail;
-      cmpxchg_obj_header(swap_reg, lock_reg, obj_reg, t0, fast, &fail);
-      bind(fast);
-      atomic_incw(Address((address)BiasedLocking::fast_path_entry_count_addr()),
-                  t1, t0);
-      j(done);
-      bind(fail);
-    } else {
-      cmpxchg_obj_header(swap_reg, lock_reg, obj_reg, t0, done, /*fallthrough*/NULL);
-    }
+    cmpxchg_obj_header(swap_reg, lock_reg, obj_reg, t0, done, /*fallthrough*/NULL);
 
     // Test if the oopMark is an obvious stack pointer, i.e.,
     //  1) (mark & 7) == 0, and
@@ -854,12 +839,6 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
 
     // Save the test result, for recursive case, the result is zero
     sd(swap_reg, Address(lock_reg, mark_offset));
-
-    if (PrintBiasedLockingStatistics) {
-      bnez(swap_reg, slow_case);
-      atomic_incw(Address((address)BiasedLocking::fast_path_entry_count_addr()),
-                  t1, t0);
-    }
     beqz(swap_reg, done);
 
     bind(slow_case);
@@ -909,10 +888,6 @@ void InterpreterMacroAssembler::unlock_object(Register lock_reg)
 
     // Free entry
     sd(zr, Address(lock_reg, BasicObjectLock::obj_offset_in_bytes()));
-
-    if (UseBiasedLocking) {
-      biased_locking_exit(obj_reg, header_reg, done);
-    }
 
     // Load the old header from BasicLock structure
     ld(header_reg, Address(swap_reg,

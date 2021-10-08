@@ -86,7 +86,7 @@ int CompiledStaticCall::reloc_to_interp_stub() {
 }
 
 void CompiledDirectStaticCall::set_to_interpreted(const methodHandle& callee, address entry) {
-  address stub = find_stub(false /* is_aot */);
+  address stub = find_stub();
   guarantee(stub != NULL, "stub not found");
 
   if (TraceICs) {
@@ -121,10 +121,8 @@ void CompiledDirectStaticCall::set_stub_to_clean(static_stub_Relocation* static_
   NativeMovConstReg* method_holder
     = nativeMovConstReg_at(stub + NativeFenceI::instruction_size());
   method_holder->set_data(0);
-  if (!static_stub->is_aot()) {
-    NativeJump* jump = nativeJump_at(method_holder->next_instruction_address());
-    jump->set_jump_destination((address)-1);
-  }
+  NativeJump* jump = nativeJump_at(method_holder->next_instruction_address());
+  jump->set_jump_destination((address)-1);
 }
 
 //-----------------------------------------------------------------------------
@@ -137,7 +135,7 @@ void CompiledDirectStaticCall::verify() {
   _call->verify_alignment();
 
   // Verify stub.
-  address stub = find_stub(false /* is_aot */);
+  address stub = find_stub();
   assert(stub != NULL, "no stub found for static call");
   // Creation also verifies the object.
   NativeMovConstReg* method_holder

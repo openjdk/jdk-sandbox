@@ -30,3 +30,12 @@ address ProgrammableUpcallHandler::generate_upcall_stub(jobject jrec, jobject ja
   Unimplemented();
   return nullptr;
 }
+
+address ProgrammableUpcallHandler::generate_optimized_upcall_stub(jobject mh, Method* entry, jobject jabi, jobject jconv) {
+  ShouldNotReachHere();
+  return nullptr;
+}
+
+bool ProgrammableUpcallHandler::supports_optimized_upcalls() {
+  return false;
+}

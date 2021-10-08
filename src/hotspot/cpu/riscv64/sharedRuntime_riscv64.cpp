@@ -30,6 +30,7 @@
 #include "code/debugInfoRec.hpp"
 #include "code/icBuffer.hpp"
 #include "code/vtableStubs.hpp"
+#include "compiler/oopMap.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "interpreter/interp_masm.hpp"
 #include "interpreter/interpreter.hpp"
@@ -218,18 +219,6 @@ bool SharedRuntime::is_wide_vector(int size) {
   return size > 8;
 }
 
-size_t SharedRuntime::trampoline_size() {
-  // Byte size of function generate_trampoline. movptr_with_offset: 5 instructions, jalr: 1 instrction
-  return 6 * NativeInstruction::instruction_size; // lui + addi + slli + addi + slli + jalr
-}
-
-void SharedRuntime::generate_trampoline(MacroAssembler *masm, address destination) {
-  assert_cond(masm != NULL);
-  int32_t offset = 0;
-  __ movptr_with_offset(t0, destination, offset); // lui + addi + slli + addi + slli
-  __ jalr(x0, t0, offset);
-}
-
 // The java_calling_convention describes stack locations as ideal slots on
 // a frame with no abi restrictions. Since we must observe abi restrictions
 // (like the placement of the register window) the slots must be biased by
@@ -267,7 +256,6 @@ static int reg2offset_out(VMReg r) {
 int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
                                            VMRegPair *regs,
                                            int total_args_passed) {
-  assert_cond(sig_bt != NULL && regs != NULL);
   // Create the mapping between argument positions and
   // registers.
   static const Register INT_ArgReg[Argument::n_int_register_parameters_j] = {
@@ -380,7 +368,6 @@ static void gen_c2i_adapter(MacroAssembler *masm,
                             const BasicType *sig_bt,
                             const VMRegPair *regs,
                             Label& skip_fixup) {
-  assert_cond(masm != NULL && sig_bt != NULL && regs != NULL);
   // Before we get into the guts of the C2I adapter, see if we should be here
   // at all.  We've come from compiled code and are attempting to jump to the
   // interpreter, which means the caller made a static call to get here
@@ -510,7 +497,6 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
                                     const BasicType *sig_bt,
                                     const VMRegPair *regs) {
   // Cut-out for having no stack args.
-  assert_cond(masm != NULL && sig_bt != NULL && regs != NULL);
   int comp_words_on_stack = align_up(comp_args_on_stack * VMRegImpl::stack_slot_size, wordSize) >> LogBytesPerWord;
   if (comp_args_on_stack != 0) {
     __ sub(t0, sp, comp_words_on_stack * wordSize);
@@ -617,7 +603,6 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
                                                             const BasicType *sig_bt,
                                                             const VMRegPair *regs,
                                                             AdapterFingerPrint* fingerprint) {
-  assert_cond(masm != NULL && sig_bt != NULL && regs != NULL && fingerprint != NULL);
   address i2c_entry = __ pc();
   gen_i2c_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs);
 
@@ -687,12 +672,18 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_unverified_entry, c2i_no_clinit_check_entry);
 }
 
+int SharedRuntime::vector_calling_convention(VMRegPair *regs,
+                                             uint num_bits,
+                                             uint total_args_passed) {
+  Unimplemented();
+  return 0;
+}
+
 int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
                                          VMRegPair *regs,
                                          VMRegPair *regs2,
                                          int total_args_passed) {
   assert(regs2 == NULL, "not needed on riscv64");
-  assert_cond(sig_bt != NULL && regs != NULL);
 
   // We return the amount of VMRegImpl stack slots we need to reserve for all
   // the arguments NOT counting out_preserve_stack_slots.
@@ -1106,7 +1097,6 @@ static void verify_oop_args(MacroAssembler* masm,
                             const methodHandle& method,
                             const BasicType* sig_bt,
                             const VMRegPair* regs) {
-  assert_cond(masm != NULL && sig_bt != NULL && regs != NULL);
   const Register temp_reg = x9;  // not part of any compiled calling seq
   if (VerifyOops) {
     for (int i = 0; i < method->size_of_parameters(); i++) {
@@ -1129,7 +1119,6 @@ static void gen_special_dispatch(MacroAssembler* masm,
                                  const methodHandle& method,
                                  const BasicType* sig_bt,
                                  const VMRegPair* regs) {
-  assert_cond(masm != NULL && sig_bt != NULL && regs != NULL);
   verify_oop_args(masm, method, sig_bt, regs);
   vmIntrinsics::ID iid = method->intrinsic_id();
 
@@ -1220,7 +1209,6 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
                                                 VMRegPair* in_regs,
                                                 BasicType ret_type,
                                                 address critical_entry) {
-  assert_cond(masm != NULL && in_sig_bt != NULL && in_regs != NULL);
   if (method->is_method_handle_intrinsic()) {
     vmIntrinsics::ID iid = method->intrinsic_id();
     intptr_t start = (intptr_t)__ pc();
@@ -1281,7 +1269,6 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   BasicType* out_sig_bt = NEW_RESOURCE_ARRAY(BasicType, total_c_args);
   VMRegPair* out_regs   = NEW_RESOURCE_ARRAY(VMRegPair, total_c_args);
-  assert_cond(out_sig_bt != NULL && out_regs != NULL);
   BasicType* in_elem_bt = NULL;
 
   int argc = 0;
@@ -1702,12 +1689,6 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Load the oop from the handle
     __ ld(obj_reg, Address(oop_handle_reg, 0));
 
-    __ resolve(IS_NOT_NULL, obj_reg);
-
-    if (UseBiasedLocking) {
-      __ biased_locking_enter(lock_reg, obj_reg, swap_reg, tmp, false, lock_done, &slow_path_lock);
-    }
-
     // Load (object->mark() | 1) into swap_reg % x10
     __ ld(t0, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
     __ ori(swap_reg, t0, 1);
@@ -1837,13 +1818,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Get locked oop from the handle we passed to jni
     __ ld(obj_reg, Address(oop_handle_reg, 0));
 
-    __ resolve(IS_NOT_NULL, obj_reg);
-
     Label done;
-
-    if (UseBiasedLocking) {
-      __ biased_locking_exit(obj_reg, old_hdr, done);
-    }
 
     // Simple recursive lock?
 
