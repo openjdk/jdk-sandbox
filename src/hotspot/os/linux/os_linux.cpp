@@ -2460,7 +2460,7 @@ void os::get_summary_cpu_info(char* cpuinfo, size_t length) {
 #elif defined(PPC)
   strncpy(cpuinfo, "PPC64", length);
 #elif defined(RISCV)
-  strncpy(cpuinfo, "RISCV", length);
+  strncpy(cpuinfo, "RISCV64", length);
 #elif defined(S390)
   strncpy(cpuinfo, "S390", length);
 #elif defined(SPARC)
