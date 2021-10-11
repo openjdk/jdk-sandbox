@@ -104,7 +104,7 @@ void G1BarrierSetC1::pre_barrier(LIRAccess& access, LIR_Opr addr_opr,
   }
 
   __ branch(lir_cond_notEqual,
-#ifdef RISCV64
+#ifdef RISCV
             flag_val,
             LIR_OprFact::intConst(0),
 #endif
@@ -177,7 +177,7 @@ void G1BarrierSetC1::post_barrier(LIRAccess& access, LIR_OprDesc* addr, LIR_OprD
 
   CodeStub* slow = new G1PostBarrierStub(addr, new_val);
   __ branch(lir_cond_notEqual,
-#ifdef RISCV64
+#ifdef RISCV
             xor_shift_res,
             LIR_OprFact::intptrConst(NULL_WORD),
 #endif

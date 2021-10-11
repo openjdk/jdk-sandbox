@@ -362,8 +362,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
 
   void new_instance    (LIR_Opr  dst, ciInstanceKlass* klass, bool is_unresolved, LIR_Opr  scratch1, LIR_Opr  scratch2, LIR_Opr  scratch3,  LIR_Opr scratch4, LIR_Opr  klass_reg, CodeEmitInfo* info);
 
-#ifndef RISCV64
-  // machine dependent
+#ifndef RISCV
   void cmp_mem_int(LIR_Condition condition, LIR_Opr base, int disp, int c, CodeEmitInfo* info);
   void cmp_reg_mem(LIR_Condition condition, LIR_Opr reg, LIR_Opr base, int disp, BasicType type, CodeEmitInfo* info);
 #endif
@@ -393,7 +392,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
 
   LIR_Opr safepoint_poll_register();
 
-#ifdef RISCV64
+#ifdef RISCV
   void profile_branch(If* if_instr, If::Condition cond, LIR_Opr left, LIR_Opr right);
 #else
   void profile_branch(If* if_instr, If::Condition cond);

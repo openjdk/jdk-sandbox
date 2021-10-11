@@ -99,11 +99,7 @@ class RegMask {
   // requirement is internal to the allocator, and independent of any
   // particular platform.
   enum { SlotsPerLong = 2,
-#ifdef RISCV64
-         SlotsPerVecA = 4,
-#else
-         SlotsPerVecA = 8,
-#endif
+         SlotsPerVecA = RISCV_ONLY(4) NOT_RISCV(8),
          SlotsPerVecS = 1,
          SlotsPerVecD = 2,
          SlotsPerVecX = 4,

@@ -195,7 +195,7 @@ void BarrierSetC1::load_at_resolved(LIRAccess& access, LIR_Opr result) {
     LabelObj* equalZeroLabel = new LabelObj();
     __ cmp(lir_cond_equal, result, 0);
     __ branch(lir_cond_equal,
-#ifdef RISCV64
+#ifdef RISCV
               result,
               LIR_OprFact::intConst(0),
 #endif
@@ -328,7 +328,7 @@ void BarrierSetC1::generate_referent_check(LIRAccess& access, LabelObj* cont) {
       }
       __ cmp(lir_cond_notEqual, offset, referent_off);
       __ branch(lir_cond_notEqual,
-#ifdef RISCV64
+#ifdef RISCV
                 offset, referent_off,
 #endif
                 cont->label());
@@ -338,7 +338,7 @@ void BarrierSetC1::generate_referent_check(LIRAccess& access, LabelObj* cont) {
       // if (source == null) -> continue
       __ cmp(lir_cond_equal, base_reg, LIR_OprFact::oopConst(NULL));
       __ branch(lir_cond_equal,
-#ifdef RISCV64
+#ifdef RISCV
                 base_reg,
                 LIR_OprFact::oopConst(NULL),
 #endif
@@ -354,7 +354,7 @@ void BarrierSetC1::generate_referent_check(LIRAccess& access, LabelObj* cont) {
       __ move(reference_type_addr, reference_type);
       __ cmp(lir_cond_equal, reference_type, LIR_OprFact::intConst(REF_NONE));
       __ branch(lir_cond_equal,
-#ifdef RISCV64
+#ifdef RISCV
                 reference_type,
                 LIR_OprFact::intConst(REF_NONE),
 #endif

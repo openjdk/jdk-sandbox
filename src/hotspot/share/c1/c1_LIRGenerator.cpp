@@ -475,7 +475,7 @@ void LIRGenerator::array_range_check(LIR_Opr array, LIR_Opr index,
                                     CodeEmitInfo* null_check_info, CodeEmitInfo* range_check_info) {
   CodeStub* stub = new RangeCheckStub(range_check_info, index, array);
   if (index->is_constant()) {
-#ifdef RISCV64
+#ifdef RISCV
     LIR_Opr left = new_register(T_INT);
     LIR_Opr right = LIR_OprFact::intConst(index->as_jint());
     __ load(generate_address(array, arrayOopDesc::length_offset_in_bytes(), T_INT), left, null_check_info);
@@ -484,12 +484,12 @@ void LIRGenerator::array_range_check(LIR_Opr array, LIR_Opr index,
                  index->as_jint(), null_check_info);
 #endif
     __ branch(lir_cond_belowEqual,
-#ifdef RISCV64
+#ifdef RISCV
               left, right,
 #endif
               stub); // forward branch
   } else {
-#ifdef RISCV64
+#ifdef RISCV
     LIR_Opr right = new_register(T_INT);
     __ load(generate_address(array, arrayOopDesc::length_offset_in_bytes(), T_INT), right, null_check_info);
 #else
@@ -497,7 +497,7 @@ void LIRGenerator::array_range_check(LIR_Opr array, LIR_Opr index,
                  arrayOopDesc::length_offset_in_bytes(), T_INT, null_check_info);
 #endif
     __ branch(lir_cond_aboveEqual,
-#ifdef RISCV64
+#ifdef RISCV
               index, right,
 #endif
               stub); // forward branch
@@ -673,7 +673,7 @@ void LIRGenerator::new_instance(LIR_Opr dst, ciInstanceKlass* klass, bool is_unr
   } else {
     CodeStub* slow_path = new NewInstanceStub(klass_reg, dst, klass, info, Runtime1::new_instance_id);
     __ branch(lir_cond_always,
-#ifdef RISCV64
+#ifdef RISCV
               LIR_OprFact::illegalOpr,
               LIR_OprFact::illegalOpr,
 #endif
@@ -929,7 +929,7 @@ LIR_Opr LIRGenerator::force_to_spill(LIR_Opr value, BasicType t) {
 }
 
 void LIRGenerator::profile_branch(If* if_instr, If::Condition cond
-#ifdef RISCV64
+#ifdef RISCV
                                   , LIR_Opr left, LIR_Opr right
 #endif
 ) {
@@ -954,7 +954,7 @@ void LIRGenerator::profile_branch(If* if_instr, If::Condition cond
 
     LIR_Opr data_offset_reg = new_pointer_register();
     __ cmove(lir_cond(cond),
-#ifdef RISCV64
+#ifdef RISCV
              left, right,
 #endif
              LIR_OprFact::intptrConst(taken_count_offset),
@@ -1304,7 +1304,7 @@ void LIRGenerator::do_isPrimitive(Intrinsic* x) {
   __ move(new LIR_Address(rcvr.result(), java_lang_Class::klass_offset(), T_ADDRESS), temp, info);
   __ cmp(lir_cond_notEqual, temp, LIR_OprFact::metadataConst(0));
   __ cmove(lir_cond_notEqual,
-#ifdef RISCV64
+#ifdef RISCV
            temp, LIR_OprFact::metadataConst(0),
 #endif
            LIR_OprFact::intConst(0), LIR_OprFact::intConst(1), result, T_BOOLEAN);
@@ -1331,13 +1331,13 @@ void LIRGenerator::do_getModifiers(Intrinsic* x) {
   __ move(new LIR_Address(receiver.result(), java_lang_Class::klass_offset(), T_ADDRESS), klass, info);
   __ cmp(lir_cond_notEqual, klass, LIR_OprFact::metadataConst(0));
   __ branch(lir_cond_notEqual,
-#ifdef RISCV64
+#ifdef RISCV
             klass, LIR_OprFact::metadataConst(0),
 #endif
             L_not_prim->label());
   __ move(LIR_OprFact::intConst(JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC), result);
   __ branch(lir_cond_always,
-#ifdef RISCV64
+#ifdef RISCV
             LIR_OprFact::illegalOpr, LIR_OprFact::illegalOpr,
 #endif
             L_done->label());
@@ -1375,7 +1375,7 @@ void LIRGenerator::do_getObjectSize(Intrinsic* x) {
 
   __ cmp(lir_cond_lessEqual, layout, 0);
   __ branch(lir_cond_lessEqual,
-#ifdef RISCV64
+#ifdef RISCV
             layout,
             LIR_OprFact::intConst(0),
 #endif
@@ -1390,7 +1390,7 @@ void LIRGenerator::do_getObjectSize(Intrinsic* x) {
   __ logical_and(result_reg, LIR_OprFact::longConst(mask), result_reg);
 
   __ branch(lir_cond_always,
-#ifdef RISCV64
+#ifdef RISCV
             LIR_OprFact::illegalOpr,
             LIR_OprFact::illegalOpr,
 #endif
@@ -1439,7 +1439,7 @@ void LIRGenerator::do_getObjectSize(Intrinsic* x) {
   __ branch_destination(L_shift_loop->label());
   __ cmp(lir_cond_equal, layout, 0);
   __ branch(lir_cond_equal,
-#ifdef RISCV64
+#ifdef RISCV
             layout,
             LIR_OprFact::intConst(0),
 #endif
@@ -1454,7 +1454,7 @@ void LIRGenerator::do_getObjectSize(Intrinsic* x) {
   __ sub(layout, LIR_OprFact::intConst(1), layout);
 
   __ branch(lir_cond_always,
-#ifdef RISCV64
+#ifdef RISCV
             LIR_OprFact::illegalOpr,
             LIR_OprFact::illegalOpr,
 #endif
@@ -1749,7 +1749,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
     if (use_length) {
       __ cmp(lir_cond_belowEqual, length.result(), index.result());
       __ branch(lir_cond_belowEqual,
-#ifdef RISCV64
+#ifdef RISCV
                 length.result(),
                 index.result(),
 #endif
@@ -1968,7 +1968,7 @@ void LIRGenerator::do_PreconditionsCheckIndex(Intrinsic* x, BasicType type) {
   // index >= 0
   __ cmp(lir_cond_less, index.result(), zero_reg);
   __ branch(lir_cond_less,
-#ifdef RISCV64
+#ifdef RISCV
             index.result(), zero_reg,
 #endif
             new DeoptimizeStub(info, Deoptimization::Reason_range_check,
@@ -1976,7 +1976,7 @@ void LIRGenerator::do_PreconditionsCheckIndex(Intrinsic* x, BasicType type) {
   // index < length
   __ cmp(lir_cond_greaterEqual, index.result(), len);
   __ branch(lir_cond_greaterEqual,
-#ifdef RISCV64
+#ifdef RISCV
             index.result(), len,
 #endif
             new DeoptimizeStub(info, Deoptimization::Reason_range_check,
@@ -2050,7 +2050,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
   if (GenerateRangeChecks && needs_range_check) {
     if (StressLoopInvariantCodeMotion && range_check_info->deoptimize_on_exception()) {
       __ branch(lir_cond_always,
-#ifdef RISCV64
+#ifdef RISCV
                 LIR_OprFact::illegalOpr,
                 LIR_OprFact::illegalOpr,
 #endif
@@ -2060,7 +2060,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
       //       constant length to be loaded to a register
       __ cmp(lir_cond_belowEqual, length.result(), index.result());
       __ branch(lir_cond_belowEqual,
-#ifdef RISCV64
+#ifdef RISCV
                 length.result(),
                 index.result(),
 #endif
@@ -2276,7 +2276,7 @@ void LIRGenerator::do_SwitchRanges(SwitchRangeArray* x, LIR_Opr value, BlockBegi
     if (low_key == high_key) {
       __ cmp(lir_cond_equal, value, low_key);
       __ branch(lir_cond_equal,
-#ifdef RISCV64
+#ifdef RISCV
                 value,
                 LIR_OprFact::intConst(low_key),
 #endif
@@ -2284,14 +2284,14 @@ void LIRGenerator::do_SwitchRanges(SwitchRangeArray* x, LIR_Opr value, BlockBegi
     } else if (high_key - low_key == 1) {
       __ cmp(lir_cond_equal, value, low_key);
       __ branch(lir_cond_equal,
-#ifdef RISCV64
+#ifdef RISCV
                 value,
                 LIR_OprFact::intConst(low_key),
 #endif
                 dest);
       __ cmp(lir_cond_equal, value, high_key);
       __ branch(lir_cond_equal,
-#ifdef RISCV64
+#ifdef RISCV
                 value,
                 LIR_OprFact::intConst(high_key),
 #endif
@@ -2300,14 +2300,14 @@ void LIRGenerator::do_SwitchRanges(SwitchRangeArray* x, LIR_Opr value, BlockBegi
       LabelObj* L = new LabelObj();
       __ cmp(lir_cond_less, value, low_key);
       __ branch(lir_cond_less,
-#ifdef RISCV64
+#ifdef RISCV
                 value,
                 LIR_OprFact::intConst(low_key),
 #endif
                 L->label());
       __ cmp(lir_cond_lessEqual, value, high_key);
       __ branch(lir_cond_lessEqual,
-#ifdef RISCV64
+#ifdef RISCV
                 value,
                 LIR_OprFact::intConst(high_key),
 #endif
@@ -2414,7 +2414,7 @@ void LIRGenerator::do_TableSwitch(TableSwitch* x) {
       __ cmp(lir_cond_equal, value, i + lo_key);
       __ move(data_offset_reg, tmp_reg);
       __ cmove(lir_cond_equal,
-#ifdef RISCV64
+#ifdef RISCV
                value,
                LIR_OprFact::intConst(i + lo_key),
 #endif
@@ -2436,7 +2436,7 @@ void LIRGenerator::do_TableSwitch(TableSwitch* x) {
     for (int i = 0; i < len; i++) {
       __ cmp(lir_cond_equal, value, i + lo_key);
       __ branch(lir_cond_equal,
-#ifdef RISCV64
+#ifdef RISCV
                 value,
                 LIR_OprFact::intConst(i + lo_key),
 #endif
@@ -2481,7 +2481,7 @@ void LIRGenerator::do_LookupSwitch(LookupSwitch* x) {
       __ cmp(lir_cond_equal, value, x->key_at(i));
       __ move(data_offset_reg, tmp_reg);
       __ cmove(lir_cond_equal,
-#ifdef RISCV64
+#ifdef RISCV
                value,
                LIR_OprFact::intConst(x->key_at(i)),
 #endif
@@ -2504,7 +2504,7 @@ void LIRGenerator::do_LookupSwitch(LookupSwitch* x) {
     for (int i = 0; i < len; i++) {
       __ cmp(lir_cond_equal, value, x->key_at(i));
       __ branch(lir_cond_equal,
-#ifdef RISCV64
+#ifdef RISCV
                 value,
                 LIR_OprFact::intConst(x->key_at(i)),
 #endif
@@ -3001,7 +3001,7 @@ void LIRGenerator::do_IfOp(IfOp* x) {
 
   __ cmp(lir_cond(x->cond()), left.result(), right.result());
   __ cmove(lir_cond(x->cond()),
-#ifdef RISCV64
+#ifdef RISCV
            left.result(), right.result(),
 #endif
            t_val.result(), f_val.result(), reg, as_BasicType(x->x()->type()));
@@ -3021,7 +3021,7 @@ void LIRGenerator::do_getEventWriter(Intrinsic* x) {
   __ move_wide(jobj_addr, jobj);
   __ cmp(lir_cond_equal, jobj, LIR_OprFact::metadataConst(0));
   __ branch(lir_cond_equal,
-#ifdef RISCV64
+#ifdef RISCV
             jobj,
             LIR_OprFact::metadataConst(0),
 #endif
@@ -3349,7 +3349,7 @@ void LIRGenerator::increment_backedge_counter_conditionally(LIR_Condition cond, 
     LIR_Opr plus_one = LIR_OprFact::intConst(InvocationCounter::count_increment);
     LIR_Opr zero = LIR_OprFact::intConst(0);
     __ cmove(cond,
-#ifdef RISCV64
+#ifdef RISCV
         left, right,
 #endif
         (left_bci < bci) ? plus_one : zero,
@@ -3395,7 +3395,7 @@ void LIRGenerator::decrement_age(CodeEmitInfo* info) {
                                          Deoptimization::Action_make_not_entrant);
     __ cmp(lir_cond_lessEqual, result, LIR_OprFact::intConst(0));
     __ branch(lir_cond_lessEqual,
-#ifdef RISCV64
+#ifdef RISCV
               result,
               LIR_OprFact::intConst(0),
 #endif
@@ -3447,14 +3447,14 @@ void LIRGenerator::increment_event_counter_impl(CodeEmitInfo* info,
       if (!step->is_constant()) {
         __ cmp(lir_cond_notEqual, step, LIR_OprFact::intConst(0));
         __ branch(lir_cond_notEqual,
-#ifdef RISCV64
+#ifdef RISCV
                   step,
                   LIR_OprFact::intConst(0),
 #endif
                   overflow);
       } else {
         __ branch(lir_cond_always,
-#ifdef RISCV64
+#ifdef RISCV
                   LIR_OprFact::illegalOpr,
                   LIR_OprFact::illegalOpr,
 #endif
@@ -3466,7 +3466,7 @@ void LIRGenerator::increment_event_counter_impl(CodeEmitInfo* info,
         // If step is 0, make sure the overflow check below always fails
         __ cmp(lir_cond_notEqual, step, LIR_OprFact::intConst(0));
         __ cmove(lir_cond_notEqual,
-#ifdef RISCV64
+#ifdef RISCV
                  step,
                  LIR_OprFact::intConst(0),
 #endif
@@ -3475,7 +3475,7 @@ void LIRGenerator::increment_event_counter_impl(CodeEmitInfo* info,
       __ logical_and(result, mask, result);
       __ cmp(lir_cond_equal, result, LIR_OprFact::intConst(0));
       __ branch(lir_cond_equal,
-#ifdef RISCV64
+#ifdef RISCV
                 result,
                 LIR_OprFact::intConst(0),
 #endif
@@ -3594,7 +3594,7 @@ void LIRGenerator::do_RangeCheckPredicate(RangeCheckPredicate *x) {
 
     __ cmp(lir_cond(cond), left, right);
     __ branch(lir_cond(cond),
-#ifdef RISCV64
+#ifdef RISCV
               left, right,
 #endif
               stub);
@@ -3745,7 +3745,7 @@ LIR_Opr LIRGenerator::mask_boolean(LIR_Opr array, LIR_Opr value, CodeEmitInfo*& 
   __ logical_and(layout, LIR_OprFact::intConst(diffbit), layout);
   __ cmp(lir_cond_notEqual, layout, LIR_OprFact::intConst(0));
   __ cmove(lir_cond_notEqual,
-#ifdef RISCV64
+#ifdef RISCV
            layout,
            LIR_OprFact::intConst(0),
 #endif

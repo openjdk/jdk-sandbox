@@ -107,7 +107,7 @@ void ShenandoahBarrierSetC1::pre_barrier(LIRGenerator* gen, CodeEmitInfo* info, 
   }
 
   __ branch(lir_cond_notEqual,
-#ifdef RISCV64
+#ifdef RISCV
             flag_val,
             LIR_OprFact::intConst(0),
 #endif
@@ -162,7 +162,7 @@ LIR_Opr ShenandoahBarrierSetC1::load_reference_barrier_impl(LIRGenerator* gen, L
 
   CodeStub* slow = new ShenandoahLoadReferenceBarrierStub(obj, addr, result, tmp1, tmp2, decorators);
   __ branch(lir_cond_notEqual,
-#ifdef RISCV64
+#ifdef RISCV
             flag_val,
             LIR_OprFact::intConst(0),
 #endif

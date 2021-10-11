@@ -57,9 +57,6 @@
 #include <bfd.h>
 #include <bfdver.h>
 #include <dis-asm.h>
-#include <inttypes.h>
-#include <string.h>
-#include <errno.h>
 #include "hsdis.h"
 
 #ifndef bool
@@ -339,8 +336,10 @@ static void setup_app_data(struct hsdis_app_data* app_data,
 
   /* Finish linking together the various callback blocks. */
   app_data->dinfo.application_data = (void*) app_data;
-  /* For binutils >= 2.29 */
-  app_data->dfn = disassembler(bfd_get_arch(native_bfd), bfd_big_endian(native_bfd), bfd_get_mach(native_bfd), native_bfd);
+  app_data->dfn = disassembler(bfd_get_arch(native_bfd),
+                               bfd_big_endian(native_bfd),
+                               bfd_get_mach(native_bfd),
+                               native_bfd);
   app_data->dinfo.print_address_func = hsdis_print_address_func;
   app_data->dinfo.read_memory_func = hsdis_read_memory_func;
 
