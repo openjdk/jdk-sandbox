@@ -182,49 +182,14 @@ bool LIR_OprDesc::is_oop() const {
   }
 }
 
-#ifdef RISCV
-bool LIR_OprDesc::has_common_register(LIR_Opr opr) const {
 
-  if (!(is_register() && opr->is_register())) {
-    return false;
-  }
-
-  if (is_single_cpu()) {
-    Register dst = as_register();
-    if (opr->is_single_cpu()) {
-      return dst == opr->as_register();
-    } else if (opr->is_double_cpu()) {
-      return dst == opr->as_register_lo();
-    }
-  } else if (is_double_cpu()) {
-    Register dst_lo = as_register_lo();
-    if (opr->is_single_cpu()) {
-      return dst_lo == opr->as_register();
-    } else if (opr->is_double_cpu()) {
-      return dst_lo == opr->as_register_lo();
-    }
-  } else if (is_single_fpu()) {
-    if (opr->is_single_fpu()) {
-      return as_float_reg() == opr->as_float_reg();
-    } else if (opr->is_double_fpu()) {
-      return as_float_reg() == opr->as_double_reg();
-    }
-  } else if (is_double_fpu()) {
-    if (opr->is_single_fpu()) {
-      return as_double_reg() == opr->as_float_reg();
-    }else if (opr->is_double_fpu()) {
-      return as_double_reg() == opr->as_double_reg();
-    }
-  }
-  return false;
-}
-#endif // RISCV
 
 void LIR_Op2::verify() const {
 #ifdef ASSERT
   switch (code()) {
-#ifndef RISCV
     case lir_cmove:
+#ifdef RISCV
+      ShouldNotReachHere(); break;
 #endif
     case lir_xchg:
       break;
@@ -274,14 +239,10 @@ void LIR_Op2::verify() const {
 #endif
 }
 
-LIR_OpBranch::LIR_OpBranch(LIR_Condition cond,
+
+LIR_OpBranch::LIR_OpBranch(LIR_Condition cond, BlockBegin* block)
 #ifdef RISCV
-                           LIR_Opr left,
-                           LIR_Opr right,
-#endif
-                           BlockBegin* block)
-#ifdef RISCV
-  : LIR_Op2(lir_branch, cond, left, right, (CodeEmitInfo*)NULL)
+  : LIR_Op2(lir_branch, cond, LIR_OprFact::illegalOpr, LIR_OprFact::illegalOpr, (CodeEmitInfo*)NULL)
 #else
   : LIR_Op(lir_branch, LIR_OprFact::illegalOpr, (CodeEmitInfo*)NULL)
   , _cond(cond)
@@ -292,16 +253,11 @@ LIR_OpBranch::LIR_OpBranch(LIR_Condition cond,
   , _stub(NULL) {
 }
 
-LIR_OpBranch::LIR_OpBranch(LIR_Condition cond,
+LIR_OpBranch::LIR_OpBranch(LIR_Condition cond, CodeStub* stub) :
 #ifdef RISCV
-                           LIR_Opr left,
-                           LIR_Opr right,
-#endif
-                           CodeStub* stub)
-#ifdef RISCV
-  : LIR_Op2(lir_branch, cond, left, right, (CodeEmitInfo*)NULL)
+  LIR_Op2(lir_branch, cond, LIR_OprFact::illegalOpr, LIR_OprFact::illegalOpr, (CodeEmitInfo*)NULL)
 #else
-  : LIR_Op(lir_branch, LIR_OprFact::illegalOpr, (CodeEmitInfo*)NULL)
+  LIR_Op(lir_branch, LIR_OprFact::illegalOpr, (CodeEmitInfo*)NULL)
   , _cond(cond)
 #endif
   , _label(stub->entry())
@@ -310,15 +266,9 @@ LIR_OpBranch::LIR_OpBranch(LIR_Condition cond,
   , _stub(stub) {
 }
 
-LIR_OpBranch::LIR_OpBranch(LIR_Condition cond,
+LIR_OpBranch::LIR_OpBranch(LIR_Condition cond, BlockBegin* block, BlockBegin* ublock)
 #ifdef RISCV
-                           LIR_Opr left,
-                           LIR_Opr right,
-#endif
-                           BlockBegin* block,
-                           BlockBegin* ublock)
-#ifdef RISCV
-  : LIR_Op2(lir_branch, cond, left, right, (CodeEmitInfo*)NULL)
+  : LIR_Op2(lir_cond_float_branch, cond, LIR_OprFact::illegalOpr, LIR_OprFact::illegalOpr, (CodeEmitInfo*)NULL)
 #else
   : LIR_Op(lir_cond_float_branch, LIR_OprFact::illegalOpr, (CodeEmitInfo*)NULL)
   , _cond(cond)
@@ -631,8 +581,9 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
 
 
 // LIR_Op2
-#ifndef RISCV
     case lir_cmp:
+#ifdef RISCV
+      break;
 #endif
     case lir_cmp_l2i:
     case lir_ucmp_fd2i:
@@ -679,7 +630,7 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
     case lir_cmove:
     {
 #ifdef RISCV
-      // lir_cmove should be LIR_Op4 on riscv64
+      // lir_cmove should be LIR_Op4 on riscv
       assert(op->as_Op4() != NULL, "must be");
       LIR_Op4* op4 = (LIR_Op4*)op;
 
@@ -1182,6 +1133,10 @@ LIR_List::LIR_List(Compilation* compilation, BlockBegin* block)
   , _file(NULL)
   , _line(0)
 #endif
+#ifdef RISCV
+  , _cmp_opr1(LIR_OprFact::illegalOpr)
+  , _cmp_opr2(LIR_OprFact::illegalOpr)
+#endif
 { }
 
 
@@ -1370,7 +1325,6 @@ void LIR_List::irem(LIR_Opr left, int right, LIR_Opr res, LIR_Opr tmp, CodeEmitI
 }
 
 
-#ifndef RISCV
 void LIR_List::cmp_mem_int(LIR_Condition condition, LIR_Opr base, int disp, int c, CodeEmitInfo* info) {
   append(new LIR_Op2(
                     lir_cmp,
@@ -1389,7 +1343,6 @@ void LIR_List::cmp_reg_mem(LIR_Condition condition, LIR_Opr reg, LIR_Address* ad
                     LIR_OprFact::address(addr),
                     info));
 }
-#endif
 
 void LIR_List::allocate_object(LIR_Opr dst, LIR_Opr t1, LIR_Opr t2, LIR_Opr t3, LIR_Opr t4,
                                int header_size, int object_size, LIR_Opr klass, bool init_check, CodeStub* stub) {
@@ -1525,12 +1478,7 @@ void LIR_List::null_check(LIR_Opr opr, CodeEmitInfo* info, bool deoptimize_on_nu
     // Emit an explicit null check and deoptimize if opr is null
     CodeStub* deopt = new DeoptimizeStub(info, Deoptimization::Reason_null_check, Deoptimization::Action_none);
     cmp(lir_cond_equal, opr, LIR_OprFact::oopConst(NULL));
-    branch(lir_cond_equal,
-#ifdef RISCV
-           opr,
-           LIR_OprFact::oopConst(NULL),
-#endif
-           deopt);
+    branch(lir_cond_equal, deopt);
   } else {
     // Emit an implicit null check
     append(new LIR_Op1(lir_null_check, opr, info));
@@ -1773,13 +1721,11 @@ const char * LIR_Op::name() const {
      case lir_alloc_object:          s = "alloc_obj";     break;
      case lir_monaddr:               s = "mon_addr";      break;
      // LIR_Op2
-#ifndef RISCV
      case lir_cmp:                   s = "cmp";           break;
-#endif
      case lir_cmp_l2i:               s = "cmp_l2i";       break;
      case lir_ucmp_fd2i:             s = "ucomp_fd2i";    break;
      case lir_cmp_fd2i:              s = "comp_fd2i";     break;
-     // lir_cmove is LIR_Op4 on riscv64
+     // lir_cmove is LIR_Op4 on riscv
      case lir_cmove:                 s = "cmove";         break;
      case lir_add:                   s = "add";           break;
      case lir_sub:                   s = "sub";           break;

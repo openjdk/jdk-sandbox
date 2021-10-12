@@ -909,9 +909,15 @@ void LIR_Assembler::emit_cmove(LIR_Op4* op) {
 
 void LIR_Assembler::emit_opBranch(LIR_OpBranch* op) {
   LIR_Condition condition = op->cond();
-  if (condition == lir_cond_always && op->info() != NULL) { add_debug_info_for_branch(op->info()); }
+  if (condition == lir_cond_always) {
+    if (op->info() != NULL) {
+      add_debug_info_for_branch(op->info());
+    }
+  } else {
+    assert(op->in_opr1() != LIR_OprFact::illegalOpr && op->in_opr2() != LIR_OprFact::illegalOpr, "conditional branches must have legal operands");
+  }
   bool is_unordered = (op->ublock() == op->block());
-  emit_branch(condition, op->left(), op->right(), *op->label(), /* is_far */ true, is_unordered);
+  emit_branch(condition, op->in_opr1(), op->in_opr2(), *op->label(), /* is_far */ true, is_unordered);
 }
 
 void LIR_Assembler::emit_branch(LIR_Condition cmp_flag, LIR_Opr cmp1, LIR_Opr cmp2, Label& label,
@@ -1309,6 +1315,14 @@ void LIR_Assembler::logic_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr
       logic_op_reg(Rdst, Rleft, Rright, code);
     }
   }
+}
+
+void LIR_Assembler::comp_op(LIR_Condition condition, LIR_Opr src, LIR_Opr result, LIR_Op2* op) {
+  ShouldNotCallThis();
+}
+
+void LIR_Assembler::cmove(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2, LIR_Opr result, BasicType type) {
+  ShouldNotCallThis();
 }
 
 void LIR_Assembler::comp_fl2i(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr dst, LIR_Op2* op) {

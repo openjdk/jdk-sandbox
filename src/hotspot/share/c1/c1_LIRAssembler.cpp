@@ -674,7 +674,6 @@ void LIR_Assembler::emit_op0(LIR_Op0* op) {
 
 void LIR_Assembler::emit_op2(LIR_Op2* op) {
   switch (op->code()) {
-#ifndef RISCV
     case lir_cmp:
       if (op->info() != NULL) {
         assert(op->in_opr1()->is_address() || op->in_opr2()->is_address(),
@@ -683,7 +682,6 @@ void LIR_Assembler::emit_op2(LIR_Op2* op) {
       }
       comp_op(op->condition(), op->in_opr1(), op->in_opr2(), op);
       break;
-#endif
 
     case lir_cmp_l2i:
     case lir_cmp_fd2i:
@@ -691,11 +689,9 @@ void LIR_Assembler::emit_op2(LIR_Op2* op) {
       comp_fl2i(op->code(), op->in_opr1(), op->in_opr2(), op->result_opr(), op);
       break;
 
-#ifndef RISCV
     case lir_cmove:
       cmove(op->condition(), op->in_opr1(), op->in_opr2(), op->result_opr(), op->type());
       break;
-#endif
 
     case lir_shl:
     case lir_shr:

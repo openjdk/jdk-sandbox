@@ -475,32 +475,13 @@ void LIRGenerator::array_range_check(LIR_Opr array, LIR_Opr index,
                                     CodeEmitInfo* null_check_info, CodeEmitInfo* range_check_info) {
   CodeStub* stub = new RangeCheckStub(range_check_info, index, array);
   if (index->is_constant()) {
-#ifdef RISCV
-    LIR_Opr left = new_register(T_INT);
-    LIR_Opr right = LIR_OprFact::intConst(index->as_jint());
-    __ load(generate_address(array, arrayOopDesc::length_offset_in_bytes(), T_INT), left, null_check_info);
-#else
-     cmp_mem_int(lir_cond_belowEqual, array, arrayOopDesc::length_offset_in_bytes(),
-                 index->as_jint(), null_check_info);
-#endif
-    __ branch(lir_cond_belowEqual,
-#ifdef RISCV
-              left, right,
-#endif
-              stub); // forward branch
+    cmp_mem_int(lir_cond_belowEqual, array, arrayOopDesc::length_offset_in_bytes(),
+                index->as_jint(), null_check_info);
+    __ branch(lir_cond_belowEqual, stub); // forward branch
   } else {
-#ifdef RISCV
-    LIR_Opr right = new_register(T_INT);
-    __ load(generate_address(array, arrayOopDesc::length_offset_in_bytes(), T_INT), right, null_check_info);
-#else
-     cmp_reg_mem(lir_cond_aboveEqual, index, array,
-                 arrayOopDesc::length_offset_in_bytes(), T_INT, null_check_info);
-#endif
-    __ branch(lir_cond_aboveEqual,
-#ifdef RISCV
-              index, right,
-#endif
-              stub); // forward branch
+    cmp_reg_mem(lir_cond_aboveEqual, index, array,
+                arrayOopDesc::length_offset_in_bytes(), T_INT, null_check_info);
+    __ branch(lir_cond_aboveEqual, stub); // forward branch
   }
 }
 
@@ -672,12 +653,7 @@ void LIRGenerator::new_instance(LIR_Opr dst, ciInstanceKlass* klass, bool is_unr
                        oopDesc::header_size(), instance_size, klass_reg, !klass->is_initialized(), slow_path);
   } else {
     CodeStub* slow_path = new NewInstanceStub(klass_reg, dst, klass, info, Runtime1::new_instance_id);
-    __ branch(lir_cond_always,
-#ifdef RISCV
-              LIR_OprFact::illegalOpr,
-              LIR_OprFact::illegalOpr,
-#endif
-              slow_path);
+    __ branch(lir_cond_always, slow_path);
     __ branch_destination(slow_path->continuation());
   }
 }
@@ -928,11 +904,7 @@ LIR_Opr LIRGenerator::force_to_spill(LIR_Opr value, BasicType t) {
   return tmp;
 }
 
-void LIRGenerator::profile_branch(If* if_instr, If::Condition cond
-#ifdef RISCV
-                                  , LIR_Opr left, LIR_Opr right
-#endif
-) {
+void LIRGenerator::profile_branch(If* if_instr, If::Condition cond) {
   if (if_instr->should_profile()) {
     ciMethod* method = if_instr->profiled_method();
     assert(method != NULL, "method should be set if branch is profiled");
@@ -954,9 +926,6 @@ void LIRGenerator::profile_branch(If* if_instr, If::Condition cond
 
     LIR_Opr data_offset_reg = new_pointer_register();
     __ cmove(lir_cond(cond),
-#ifdef RISCV
-             left, right,
-#endif
              LIR_OprFact::intptrConst(taken_count_offset),
              LIR_OprFact::intptrConst(not_taken_count_offset),
              data_offset_reg, as_BasicType(if_instr->x()->type()));
@@ -964,7 +933,6 @@ void LIRGenerator::profile_branch(If* if_instr, If::Condition cond
     // MDO cells are intptr_t, so the data_reg width is arch-dependent.
     LIR_Opr data_reg = new_pointer_register();
     LIR_Address* data_addr = new LIR_Address(md_reg, data_offset_reg, data_reg->type());
-
     __ move(data_addr, data_reg);
     // Use leal instead of add to avoid destroying condition codes on x86
     LIR_Address* fake_incr_value = new LIR_Address(data_reg, DataLayout::counter_increment, T_INT);
@@ -1303,11 +1271,7 @@ void LIRGenerator::do_isPrimitive(Intrinsic* x) {
 
   __ move(new LIR_Address(rcvr.result(), java_lang_Class::klass_offset(), T_ADDRESS), temp, info);
   __ cmp(lir_cond_notEqual, temp, LIR_OprFact::metadataConst(0));
-  __ cmove(lir_cond_notEqual,
-#ifdef RISCV
-           temp, LIR_OprFact::metadataConst(0),
-#endif
-           LIR_OprFact::intConst(0), LIR_OprFact::intConst(1), result, T_BOOLEAN);
+  __ cmove(lir_cond_notEqual, LIR_OprFact::intConst(0), LIR_OprFact::intConst(1), result, T_BOOLEAN);
 }
 
 // Example: Foo.class.getModifiers()
@@ -1330,17 +1294,9 @@ void LIRGenerator::do_getModifiers(Intrinsic* x) {
   // Checking if it's a java mirror of primitive type
   __ move(new LIR_Address(receiver.result(), java_lang_Class::klass_offset(), T_ADDRESS), klass, info);
   __ cmp(lir_cond_notEqual, klass, LIR_OprFact::metadataConst(0));
-  __ branch(lir_cond_notEqual,
-#ifdef RISCV
-            klass, LIR_OprFact::metadataConst(0),
-#endif
-            L_not_prim->label());
+  __ branch(lir_cond_notEqual, L_not_prim->label());
   __ move(LIR_OprFact::intConst(JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC), result);
-  __ branch(lir_cond_always,
-#ifdef RISCV
-            LIR_OprFact::illegalOpr, LIR_OprFact::illegalOpr,
-#endif
-            L_done->label());
+  __ branch(lir_cond_always, L_done->label());
 
   __ branch_destination(L_not_prim->label());
   __ move(new LIR_Address(klass, in_bytes(Klass::modifier_flags_offset()), T_INT), result);
@@ -1374,12 +1330,7 @@ void LIRGenerator::do_getObjectSize(Intrinsic* x) {
   LabelObj* L_array = new LabelObj();
 
   __ cmp(lir_cond_lessEqual, layout, 0);
-  __ branch(lir_cond_lessEqual,
-#ifdef RISCV
-            layout,
-            LIR_OprFact::intConst(0),
-#endif
-            L_array->label());
+  __ branch(lir_cond_lessEqual, L_array->label());
 
   // Instance case: the layout helper gives us instance size almost directly,
   // but we need to mask out the _lh_instance_slow_path_bit.
@@ -1389,12 +1340,7 @@ void LIRGenerator::do_getObjectSize(Intrinsic* x) {
   jlong mask = ~(jlong) right_n_bits(LogBytesPerLong);
   __ logical_and(result_reg, LIR_OprFact::longConst(mask), result_reg);
 
-  __ branch(lir_cond_always,
-#ifdef RISCV
-            LIR_OprFact::illegalOpr,
-            LIR_OprFact::illegalOpr,
-#endif
-            L_done->label());
+  __ branch(lir_cond_always, L_done->label());
 
   // Array case: size is round(header + element_size*arraylength).
   // Since arraylength is different for every array instance, we have to
@@ -1438,12 +1384,7 @@ void LIRGenerator::do_getObjectSize(Intrinsic* x) {
 
   __ branch_destination(L_shift_loop->label());
   __ cmp(lir_cond_equal, layout, 0);
-  __ branch(lir_cond_equal,
-#ifdef RISCV
-            layout,
-            LIR_OprFact::intConst(0),
-#endif
-            L_shift_exit->label());
+  __ branch(lir_cond_equal, L_shift_exit->label());
 
 #ifdef _LP64
   __ shift_left(length, 1, length);
@@ -1453,12 +1394,7 @@ void LIRGenerator::do_getObjectSize(Intrinsic* x) {
 
   __ sub(layout, LIR_OprFact::intConst(1), layout);
 
-  __ branch(lir_cond_always,
-#ifdef RISCV
-            LIR_OprFact::illegalOpr,
-            LIR_OprFact::illegalOpr,
-#endif
-            L_shift_loop->label());
+  __ branch(lir_cond_always, L_shift_loop->label());
   __ branch_destination(L_shift_exit->label());
 
   // Mix all up, round, and push to the result.
@@ -1748,12 +1684,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   if (GenerateRangeChecks && needs_range_check) {
     if (use_length) {
       __ cmp(lir_cond_belowEqual, length.result(), index.result());
-      __ branch(lir_cond_belowEqual,
-#ifdef RISCV
-                length.result(),
-                index.result(),
-#endif
-                new RangeCheckStub(range_check_info, index.result(), array.result()));
+      __ branch(lir_cond_belowEqual, new RangeCheckStub(range_check_info, index.result(), array.result()));
     } else {
       array_range_check(array.result(), index.result(), null_check_info, range_check_info);
       // range_check also does the null check
@@ -1967,20 +1898,12 @@ void LIRGenerator::do_PreconditionsCheckIndex(Intrinsic* x, BasicType type) {
 #else
   // index >= 0
   __ cmp(lir_cond_less, index.result(), zero_reg);
-  __ branch(lir_cond_less,
-#ifdef RISCV
-            index.result(), zero_reg,
-#endif
-            new DeoptimizeStub(info, Deoptimization::Reason_range_check,
-                                     Deoptimization::Action_make_not_entrant));
+  __ branch(lir_cond_less, new DeoptimizeStub(info, Deoptimization::Reason_range_check,
+                                                    Deoptimization::Action_make_not_entrant));
   // index < length
   __ cmp(lir_cond_greaterEqual, index.result(), len);
-  __ branch(lir_cond_greaterEqual,
-#ifdef RISCV
-            index.result(), len,
-#endif
-            new DeoptimizeStub(info, Deoptimization::Reason_range_check,
-                                     Deoptimization::Action_make_not_entrant));
+  __ branch(lir_cond_greaterEqual, new DeoptimizeStub(info, Deoptimization::Reason_range_check,
+                                                            Deoptimization::Action_make_not_entrant));
 #endif
   __ move(index.result(), result);
 }
@@ -2049,22 +1972,12 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
 
   if (GenerateRangeChecks && needs_range_check) {
     if (StressLoopInvariantCodeMotion && range_check_info->deoptimize_on_exception()) {
-      __ branch(lir_cond_always,
-#ifdef RISCV
-                LIR_OprFact::illegalOpr,
-                LIR_OprFact::illegalOpr,
-#endif
-                new RangeCheckStub(range_check_info, index.result(), array.result()));
+      __ branch(lir_cond_always, new RangeCheckStub(range_check_info, index.result(), array.result()));
     } else if (use_length) {
       // TODO: use a (modified) version of array_range_check that does not require a
       //       constant length to be loaded to a register
       __ cmp(lir_cond_belowEqual, length.result(), index.result());
-      __ branch(lir_cond_belowEqual,
-#ifdef RISCV
-                length.result(),
-                index.result(),
-#endif
-                new RangeCheckStub(range_check_info, index.result(), array.result()));
+      __ branch(lir_cond_belowEqual, new RangeCheckStub(range_check_info, index.result(), array.result()));
     } else {
       array_range_check(array.result(), index.result(), null_check_info, range_check_info);
       // The range check performs the null check, so clear it out for the load
@@ -2275,43 +2188,18 @@ void LIRGenerator::do_SwitchRanges(SwitchRangeArray* x, LIR_Opr value, BlockBegi
     BlockBegin* dest = one_range->sux();
     if (low_key == high_key) {
       __ cmp(lir_cond_equal, value, low_key);
-      __ branch(lir_cond_equal,
-#ifdef RISCV
-                value,
-                LIR_OprFact::intConst(low_key),
-#endif
-                dest);
+      __ branch(lir_cond_equal, dest);
     } else if (high_key - low_key == 1) {
       __ cmp(lir_cond_equal, value, low_key);
-      __ branch(lir_cond_equal,
-#ifdef RISCV
-                value,
-                LIR_OprFact::intConst(low_key),
-#endif
-                dest);
+      __ branch(lir_cond_equal, dest);
       __ cmp(lir_cond_equal, value, high_key);
-      __ branch(lir_cond_equal,
-#ifdef RISCV
-                value,
-                LIR_OprFact::intConst(high_key),
-#endif
-                dest);
+      __ branch(lir_cond_equal, dest);
     } else {
       LabelObj* L = new LabelObj();
       __ cmp(lir_cond_less, value, low_key);
-      __ branch(lir_cond_less,
-#ifdef RISCV
-                value,
-                LIR_OprFact::intConst(low_key),
-#endif
-                L->label());
+      __ branch(lir_cond_less, L->label());
       __ cmp(lir_cond_lessEqual, value, high_key);
-      __ branch(lir_cond_lessEqual,
-#ifdef RISCV
-                value,
-                LIR_OprFact::intConst(high_key),
-#endif
-                dest);
+      __ branch(lir_cond_lessEqual, dest);
       __ branch_destination(L->label());
     }
   }
@@ -2414,10 +2302,6 @@ void LIRGenerator::do_TableSwitch(TableSwitch* x) {
       __ cmp(lir_cond_equal, value, i + lo_key);
       __ move(data_offset_reg, tmp_reg);
       __ cmove(lir_cond_equal,
-#ifdef RISCV
-               value,
-               LIR_OprFact::intConst(i + lo_key),
-#endif
                LIR_OprFact::intptrConst(count_offset),
                tmp_reg,
                data_offset_reg, T_INT);
@@ -2435,12 +2319,7 @@ void LIRGenerator::do_TableSwitch(TableSwitch* x) {
   } else {
     for (int i = 0; i < len; i++) {
       __ cmp(lir_cond_equal, value, i + lo_key);
-      __ branch(lir_cond_equal,
-#ifdef RISCV
-                value,
-                LIR_OprFact::intConst(i + lo_key),
-#endif
-                x->sux_at(i));
+      __ branch(lir_cond_equal, x->sux_at(i));
     }
     __ jump(x->default_sux());
   }
@@ -2481,10 +2360,6 @@ void LIRGenerator::do_LookupSwitch(LookupSwitch* x) {
       __ cmp(lir_cond_equal, value, x->key_at(i));
       __ move(data_offset_reg, tmp_reg);
       __ cmove(lir_cond_equal,
-#ifdef RISCV
-               value,
-               LIR_OprFact::intConst(x->key_at(i)),
-#endif
                LIR_OprFact::intptrConst(count_offset),
                tmp_reg,
                data_offset_reg, T_INT);
@@ -2503,12 +2378,7 @@ void LIRGenerator::do_LookupSwitch(LookupSwitch* x) {
     int len = x->length();
     for (int i = 0; i < len; i++) {
       __ cmp(lir_cond_equal, value, x->key_at(i));
-      __ branch(lir_cond_equal,
-#ifdef RISCV
-                value,
-                LIR_OprFact::intConst(x->key_at(i)),
-#endif
-                x->sux_at(i));
+      __ branch(lir_cond_equal, x->sux_at(i));
     }
     __ jump(x->default_sux());
   }
@@ -3000,11 +2870,7 @@ void LIRGenerator::do_IfOp(IfOp* x) {
   LIR_Opr reg = rlock_result(x);
 
   __ cmp(lir_cond(x->cond()), left.result(), right.result());
-  __ cmove(lir_cond(x->cond()),
-#ifdef RISCV
-           left.result(), right.result(),
-#endif
-           t_val.result(), f_val.result(), reg, as_BasicType(x->x()->type()));
+  __ cmove(lir_cond(x->cond()), t_val.result(), f_val.result(), reg, as_BasicType(x->x()->type()));
 }
 
 #ifdef JFR_HAVE_INTRINSICS
@@ -3012,6 +2878,8 @@ void LIRGenerator::do_IfOp(IfOp* x) {
 void LIRGenerator::do_getEventWriter(Intrinsic* x) {
   LabelObj* L_end = new LabelObj();
 
+  // FIXME T_ADDRESS should actually be T_METADATA but it can't because the
+  // meaning of these two is mixed up (see JDK-8026837).
   LIR_Address* jobj_addr = new LIR_Address(getThreadPointer(),
                                            in_bytes(THREAD_LOCAL_WRITER_OFFSET_JFR),
                                            T_ADDRESS);
@@ -3020,12 +2888,7 @@ void LIRGenerator::do_getEventWriter(Intrinsic* x) {
   LIR_Opr jobj = new_register(T_METADATA);
   __ move_wide(jobj_addr, jobj);
   __ cmp(lir_cond_equal, jobj, LIR_OprFact::metadataConst(0));
-  __ branch(lir_cond_equal,
-#ifdef RISCV
-            jobj,
-            LIR_OprFact::metadataConst(0),
-#endif
-            L_end->label());
+  __ branch(lir_cond_equal, L_end->label());
 
   access_load(IN_NATIVE, T_OBJECT, LIR_OprFact::address(new LIR_Address(jobj, T_OBJECT)), result);
 
@@ -3349,9 +3212,6 @@ void LIRGenerator::increment_backedge_counter_conditionally(LIR_Condition cond, 
     LIR_Opr plus_one = LIR_OprFact::intConst(InvocationCounter::count_increment);
     LIR_Opr zero = LIR_OprFact::intConst(0);
     __ cmove(cond,
-#ifdef RISCV
-        left, right,
-#endif
         (left_bci < bci) ? plus_one : zero,
         (right_bci < bci) ? plus_one : zero,
         step, left->type());
@@ -3394,12 +3254,7 @@ void LIRGenerator::decrement_age(CodeEmitInfo* info) {
     CodeStub* deopt = new DeoptimizeStub(info, Deoptimization::Reason_tenured,
                                          Deoptimization::Action_make_not_entrant);
     __ cmp(lir_cond_lessEqual, result, LIR_OprFact::intConst(0));
-    __ branch(lir_cond_lessEqual,
-#ifdef RISCV
-              result,
-              LIR_OprFact::intConst(0),
-#endif
-              deopt);
+    __ branch(lir_cond_lessEqual, deopt);
   }
 }
 
@@ -3446,40 +3301,20 @@ void LIRGenerator::increment_event_counter_impl(CodeEmitInfo* info,
     if (freq == 0) {
       if (!step->is_constant()) {
         __ cmp(lir_cond_notEqual, step, LIR_OprFact::intConst(0));
-        __ branch(lir_cond_notEqual,
-#ifdef RISCV
-                  step,
-                  LIR_OprFact::intConst(0),
-#endif
-                  overflow);
+        __ branch(lir_cond_notEqual, overflow);
       } else {
-        __ branch(lir_cond_always,
-#ifdef RISCV
-                  LIR_OprFact::illegalOpr,
-                  LIR_OprFact::illegalOpr,
-#endif
-                  overflow);
+        __ branch(lir_cond_always, overflow);
       }
     } else {
       LIR_Opr mask = load_immediate(freq, T_INT);
       if (!step->is_constant()) {
         // If step is 0, make sure the overflow check below always fails
         __ cmp(lir_cond_notEqual, step, LIR_OprFact::intConst(0));
-        __ cmove(lir_cond_notEqual,
-#ifdef RISCV
-                 step,
-                 LIR_OprFact::intConst(0),
-#endif
-                 result, LIR_OprFact::intConst(InvocationCounter::count_increment), result, T_INT);
+        __ cmove(lir_cond_notEqual, result, LIR_OprFact::intConst(InvocationCounter::count_increment), result, T_INT);
       }
       __ logical_and(result, mask, result);
       __ cmp(lir_cond_equal, result, LIR_OprFact::intConst(0));
-      __ branch(lir_cond_equal,
-#ifdef RISCV
-                result,
-                LIR_OprFact::intConst(0),
-#endif
-                overflow);
+      __ branch(lir_cond_equal, overflow);
     }
     __ branch_destination(overflow->continuation());
   }
@@ -3593,11 +3428,7 @@ void LIRGenerator::do_RangeCheckPredicate(RangeCheckPredicate *x) {
     CodeStub* stub = new PredicateFailedStub(info);
 
     __ cmp(lir_cond(cond), left, right);
-    __ branch(lir_cond(cond),
-#ifdef RISCV
-              left, right,
-#endif
-              stub);
+    __ branch(lir_cond(cond), stub);
   }
 }
 
@@ -3744,12 +3575,7 @@ LIR_Opr LIRGenerator::mask_boolean(LIR_Opr array, LIR_Opr value, CodeEmitInfo*& 
   int diffbit = Klass::layout_helper_boolean_diffbit();
   __ logical_and(layout, LIR_OprFact::intConst(diffbit), layout);
   __ cmp(lir_cond_notEqual, layout, LIR_OprFact::intConst(0));
-  __ cmove(lir_cond_notEqual,
-#ifdef RISCV
-           layout,
-           LIR_OprFact::intConst(0),
-#endif
-           value_fixed, value, value_fixed, T_BYTE);
+  __ cmove(lir_cond_notEqual, value_fixed, value, value_fixed, T_BYTE);
   value = value_fixed;
   return value;
 }

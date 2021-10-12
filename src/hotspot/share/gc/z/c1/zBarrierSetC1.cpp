@@ -179,12 +179,10 @@ void ZBarrierSetC1::load_barrier(LIRAccess& access, LIR_Opr result) const {
   // Slow path
   const address runtime_stub = load_barrier_on_oop_field_preloaded_runtime_stub(access.decorators());
   CodeStub* const stub = new ZLoadBarrierStubC1(access, result, runtime_stub);
-  __ branch(lir_cond_notEqual,
 #ifdef RISCV
-            mask,
-            LIR_OprFact::longConst(0),
+  __ cmp(lir_cond_notEqual, mask, LIR_OprFact::longConst(0));
 #endif
-            stub);
+  __ branch(lir_cond_notEqual, stub);
   __ branch_destination(stub->continuation());
 }
 

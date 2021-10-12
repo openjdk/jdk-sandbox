@@ -369,10 +369,6 @@ class LIR_OprDesc: public CompilationResourceObj {
   bool is_float_kind() const   { return is_pointer() ? pointer()->is_float_kind() : (kind_field() == fpu_register); }
   bool is_oop() const;
 
-#ifdef RISCV
-  bool has_common_register(LIR_Opr opr) const;
-#endif
-
   // semantic for fpu- and xmm-registers:
   // * is_float and is_double return true for xmm_registers
   //   (so is_single_fpu and is_single_xmm are true)
@@ -934,9 +930,8 @@ enum LIR_Code {
 #ifdef RISCV
       , lir_branch
       , lir_cond_float_branch
-#else
-      , lir_cmp
 #endif
+      , lir_cmp
       , lir_cmp_l2i
       , lir_ucmp_fd2i
       , lir_cmp_fd2i
@@ -1421,6 +1416,7 @@ class LIR_OpRTCall: public LIR_OpCall {
 };
 
 
+
 class LIR_OpReturn: public LIR_Op1 {
  friend class LIR_OpVisitState;
 
@@ -1593,36 +1589,25 @@ class LIR_Op2: public LIR_Op {
   void verify() const;
 
  public:
-  LIR_Op2(LIR_Code code, LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2, CodeEmitInfo* info = NULL
-#ifdef RISCV
-        , BasicType type = T_ILLEGAL
-#endif
-    )
+  LIR_Op2(LIR_Code code, LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2, CodeEmitInfo* info = NULL, BasicType type = T_ILLEGAL)
     : LIR_Op(code, LIR_OprFact::illegalOpr, info)
     , _fpu_stack_size(0)
     , _opr1(opr1)
     , _opr2(opr2)
-#ifdef RISCV
     , _type(type)
-#else
-    , _type(T_ILLEGAL)
-#endif
     , _tmp1(LIR_OprFact::illegalOpr)
     , _tmp2(LIR_OprFact::illegalOpr)
     , _tmp3(LIR_OprFact::illegalOpr)
     , _tmp4(LIR_OprFact::illegalOpr)
     , _tmp5(LIR_OprFact::illegalOpr)
     , _condition(condition) {
-    assert(
 #ifdef RISCV
-           code == lir_branch || lir_cond_float_branch
+    assert(code == lir_branch || code == lir_cond_float_branch || code == lir_assert, "code check");
 #else
-           code == lir_cmp
+    assert(code == lir_cmp || code == lir_assert, "code check");
 #endif
-           || lir_assert, "code check");
   }
 
-#ifndef RISCV 
   LIR_Op2(LIR_Code code, LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2, LIR_Opr result, BasicType type)
     : LIR_Op(code, result, NULL)
     , _fpu_stack_size(0)
@@ -1638,7 +1623,6 @@ class LIR_Op2: public LIR_Op {
     assert(code == lir_cmove, "code check");
     assert(type != T_ILLEGAL, "cmove should have type");
   }
-#endif
 
   LIR_Op2(LIR_Code code, LIR_Opr opr1, LIR_Opr opr2, LIR_Opr result = LIR_OprFact::illegalOpr,
           CodeEmitInfo* info = NULL, BasicType type = T_ILLEGAL)
@@ -1653,13 +1637,11 @@ class LIR_Op2: public LIR_Op {
     , _tmp4(LIR_OprFact::illegalOpr)
     , _tmp5(LIR_OprFact::illegalOpr)
     , _condition(lir_cond_unknown) {
-    assert(
 #ifdef RISCV
-           code != lir_branch && code != lir_cond_float_branch
+    assert(code != lir_branch && code != lir_cond_float_branch && is_in_range(code, begin_op2, end_op2), "code check");
 #else
-           code != lir_cmp
+    assert(code != lir_cmp && is_in_range(code, begin_op2, end_op2), "code check");
 #endif
-           && is_in_range(code, begin_op2, end_op2), "code check");
   }
 
   LIR_Op2(LIR_Code code, LIR_Opr opr1, LIR_Opr opr2, LIR_Opr result, LIR_Opr tmp1, LIR_Opr tmp2 = LIR_OprFact::illegalOpr,
@@ -1675,13 +1657,11 @@ class LIR_Op2: public LIR_Op {
     , _tmp4(tmp4)
     , _tmp5(tmp5)
     , _condition(lir_cond_unknown) {
-    assert(
 #ifdef RISCV
-           code != lir_branch && code != lir_cond_float_branch
+    assert(code != lir_branch && code != lir_cond_float_branch && is_in_range(code, begin_op2, end_op2), "code check");
 #else
-           code != lir_cmp
+    assert(code != lir_cmp && is_in_range(code, begin_op2, end_op2), "code check");
 #endif
-           && is_in_range(code, begin_op2, end_op2), "code check");
   }
 
   LIR_Opr in_opr1() const                        { return _opr1; }
@@ -1694,19 +1674,17 @@ class LIR_Op2: public LIR_Op {
   LIR_Opr tmp5_opr() const                       { return _tmp5; }
   LIR_Condition condition() const  {
 #ifdef RISCV
-    assert(code() == lir_branch || code() == lir_cond_float_branch || code() == lir_assert, "only valid for branch and assert");
+    assert(code() == lir_branch || code() == lir_cond_float_branch || code() == lir_assert, "only valid for branch and assert"); return _condition;
 #else
-    assert(code() == lir_cmp || code() == lir_cmove || code() == lir_assert, "only valid for cmp and cmove and assert");
+    assert(code() == lir_cmp || code() == lir_cmove || code() == lir_assert, "only valid for cmp and cmove and assert"); return _condition;
 #endif
-    return _condition;
   }
   void set_condition(LIR_Condition condition) {
 #ifdef RISCV
-    assert(code() == lir_branch || code() == lir_cond_float_branch, "only valid for branch");
+    assert(code() == lir_branch || code() == lir_cond_float_branch, "only valid for branch"); _condition = condition;
 #else
-    assert(code() == lir_cmp || code() == lir_cmove, "only valid for cmp and cmove");
+    assert(code() == lir_cmp || code() == lir_cmove, "only valid for cmp and cmove"); _condition = condition;
 #endif
-    _condition = condition;
   }
 
   void set_fpu_stack_size(int size)              { _fpu_stack_size = size; }
@@ -1737,14 +1715,9 @@ class LIR_OpBranch: public LIR_Op {
   CodeStub*     _stub;   // if this is a branch to a stub, this is the stub
 
  public:
-  LIR_OpBranch(LIR_Condition cond,
+  LIR_OpBranch(LIR_Condition cond, Label* lbl)
 #ifdef RISCV
-               LIR_Opr left,
-               LIR_Opr right,
-#endif
-               Label* lbl)
-#ifdef RISCV
-    : LIR_Op2(lir_branch, cond, left, right, (CodeEmitInfo*) NULL)
+    : LIR_Op2(lir_branch, cond, LIR_OprFact::illegalOpr, LIR_OprFact::illegalOpr, (CodeEmitInfo*) NULL)
 #else
     : LIR_Op(lir_branch, LIR_OprFact::illegalOpr, (CodeEmitInfo*) NULL)
     , _cond(cond)
@@ -1754,27 +1727,11 @@ class LIR_OpBranch: public LIR_Op {
     , _ublock(NULL)
     , _stub(NULL) { }
 
-  LIR_OpBranch(LIR_Condition cond,
-#ifdef RISCV
-               LIR_Opr left,
-               LIR_Opr right,
-#endif
-               BlockBegin* block);
-  LIR_OpBranch(LIR_Condition cond,
-#ifdef RISCV
-               LIR_Opr left,
-               LIR_Opr right,
-#endif
-               CodeStub* stub);
+  LIR_OpBranch(LIR_Condition cond, BlockBegin* block);
+  LIR_OpBranch(LIR_Condition cond, CodeStub* stub);
 
   // for unordered comparisons
-  LIR_OpBranch(LIR_Condition cond,
-#ifdef RISCV
-               LIR_Opr left,
-               LIR_Opr right,
-#endif
-               BlockBegin* block,
-               BlockBegin* ublock);
+  LIR_OpBranch(LIR_Condition cond, BlockBegin* block, BlockBegin* ublock);
 
   LIR_Condition cond() const {
 #ifdef RISCV
@@ -1792,10 +1749,6 @@ class LIR_OpBranch: public LIR_Op {
 #endif
   }
 
-#ifdef RISCV
-  LIR_Opr       left()        const              { return in_opr1();    }
-  LIR_Opr       right()       const              { return in_opr2();    }
-#endif
   Label*        label()       const              { return _label;       }
   BlockBegin*   block()       const              { return _block;       }
   BlockBegin*   ublock()      const              { return _ublock;      }
@@ -2152,6 +2105,10 @@ class LIR_List: public CompilationResourceObj {
   const char *  _file;
   int           _line;
 #endif
+#ifdef RISCV
+  LIR_Opr       _cmp_opr1;
+  LIR_Opr       _cmp_opr2;
+#endif
 
  public:
   void append(LIR_Op* op) {
@@ -2163,6 +2120,21 @@ class LIR_List: public CompilationResourceObj {
       op->print(); tty->cr();
     }
 #endif // PRODUCT
+
+#ifdef RISCV
+    if (op->code() == lir_branch || op->code() == lir_cond_float_branch) {
+      assert(op->as_OpBranch()->cond() == lir_cond_always ||
+            (_cmp_opr1 != LIR_OprFact::illegalOpr && _cmp_opr2 != LIR_OprFact::illegalOpr),
+            "conditional branches must have legal operands");
+      if (op->as_OpBranch()->cond() != lir_cond_always) {
+        op->as_Op2()->set_in_opr1(_cmp_opr1);
+        op->as_Op2()->set_in_opr2(_cmp_opr2);
+      }
+    } else if (op->code() == lir_cmove) {
+      op->as_Op4()->set_in_opr1(_cmp_opr1);
+      op->as_Op4()->set_in_opr2(_cmp_opr2);
+    }
+#endif
 
     _operations.append(op);
 
@@ -2178,6 +2150,13 @@ class LIR_List: public CompilationResourceObj {
 
 #ifdef ASSERT
   void set_file_and_line(const char * file, int line);
+#endif
+
+#ifdef RISCV
+  void set_cmp_oprs(LIR_Opr opr1, LIR_Opr opr2) {
+    _cmp_opr1 = opr1;
+    _cmp_opr2 = opr2;
+  }
 #endif
 
   //---------- accessors ---------------
@@ -2287,34 +2266,25 @@ class LIR_List: public CompilationResourceObj {
   void pop(LIR_Opr reg)                                    { append(new LIR_Op1(lir_pop,  reg)); }
 
   void cmp(LIR_Condition condition, LIR_Opr left, LIR_Opr right, CodeEmitInfo* info = NULL) {
-#ifndef RISCV
+#ifdef RISCV
+    set_cmp_oprs(left, right);
+#else
     append(new LIR_Op2(lir_cmp, condition, left, right, info));
 #endif
   }
   void cmp(LIR_Condition condition, LIR_Opr left, int right, CodeEmitInfo* info = NULL) {
-#ifndef RISCV
     cmp(condition, left, LIR_OprFact::intConst(right), info);
-#endif
   }
 
-#ifndef RISCV
   void cmp_mem_int(LIR_Condition condition, LIR_Opr base, int disp, int c, CodeEmitInfo* info);
   void cmp_reg_mem(LIR_Condition condition, LIR_Opr reg, LIR_Address* addr, CodeEmitInfo* info);
-#endif
 
-  void cmove(LIR_Condition condition,
+  void cmove(LIR_Condition condition, LIR_Opr src1, LIR_Opr src2, LIR_Opr dst, BasicType type) {
 #ifdef RISCV
-             LIR_Opr cmp1, LIR_Opr cmp2,
-#endif
-             LIR_Opr src1, LIR_Opr src2, LIR_Opr dst,
-             BasicType type) {
-    append(
-#ifdef RISCV
-           new LIR_Op4(lir_cmove, condition, cmp1, cmp2, src1, src2, dst, type)
+    append(new LIR_Op4(lir_cmove, condition, LIR_OprFact::illegalOpr, LIR_OprFact::illegalOpr, src1, src2, dst, type));
 #else
-           new LIR_Op2(lir_cmove, condition, src1, src2, dst, type)
+    append(new LIR_Op2(lir_cmove, condition, src1, src2, dst, type));
 #endif
-    );
   }
 
   void cas_long(LIR_Opr addr, LIR_Opr cmp_value, LIR_Opr new_value,
@@ -2361,72 +2331,25 @@ class LIR_List: public CompilationResourceObj {
 
   // jump is an unconditional branch
   void jump(BlockBegin* block) {
-    append(new LIR_OpBranch(lir_cond_always,
-#ifdef RISCV
-                            LIR_OprFact::illegalOpr,
-                            LIR_OprFact::illegalOpr,
-#endif
-                            block));
+    append(new LIR_OpBranch(lir_cond_always, block));
   }
   void jump(CodeStub* stub) {
-    append(new LIR_OpBranch(lir_cond_always,
-#ifdef RISCV
-                            LIR_OprFact::illegalOpr,
-                            LIR_OprFact::illegalOpr,
-#endif
-                            stub));
+    append(new LIR_OpBranch(lir_cond_always, stub));
   }
-  void branch(LIR_Condition cond,
-#ifdef RISCV
-              LIR_Opr left,
-              LIR_Opr right,
-#endif
-              Label* lbl) {
-    append(new LIR_OpBranch(cond,
-#ifdef RISCV
-           left, right,
-#endif
-           lbl));
+  void branch(LIR_Condition cond, Label* lbl) {
+    append(new LIR_OpBranch(cond, lbl));
   }
   // Should not be used for fp comparisons
-  void branch(LIR_Condition cond,
-#ifdef RISCV
-              LIR_Opr left,
-              LIR_Opr right,
-#endif
-              BlockBegin* block) {
-    append(new LIR_OpBranch(cond,
-#ifdef RISCV
-           left, right,
-#endif
-           block));
+  void branch(LIR_Condition cond, BlockBegin* block) {
+    append(new LIR_OpBranch(cond, block));
   }
   // Should not be used for fp comparisons
-  void branch(LIR_Condition cond,
-#ifdef RISCV
-              LIR_Opr left,
-              LIR_Opr right,
-#endif
-              CodeStub* stub) {
-    append(new LIR_OpBranch(cond,
-#ifdef RISCV
-           left, right,
-#endif
-           stub));
+  void branch(LIR_Condition cond, CodeStub* stub) {
+    append(new LIR_OpBranch(cond, stub));
   }
   // Should only be used for fp comparisons
-  void branch(LIR_Condition cond,
-#ifdef RISCV
-              LIR_Opr left,
-              LIR_Opr right,
-#endif
-              BlockBegin* block,
-              BlockBegin* unordered) {
-    append(new LIR_OpBranch(cond,
-#ifdef RISCV
-           left, right,
-#endif
-           block, unordered));
+  void branch(LIR_Condition cond, BlockBegin* block, BlockBegin* unordered) {
+    append(new LIR_OpBranch(cond, block, unordered));
   }
 
   void shift_left(LIR_Opr value, LIR_Opr count, LIR_Opr dst, LIR_Opr tmp);

@@ -125,6 +125,8 @@ private:
 
 public:
 
+  void emit_cmove(LIR_Op4* op);
+
   void store_parameter(Register r, int offset_from_rsp_in_words);
   void store_parameter(jint c, int offset_from_rsp_in_words);
 
