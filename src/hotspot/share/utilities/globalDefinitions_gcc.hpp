@@ -165,7 +165,7 @@ inline int wcslen(const jchar* x) { return wcslen((const wchar_t*)x); }
 //
 #define ATTRIBUTE_ALIGNED(x) __attribute__((aligned(x)))
 
-#if defined(RISCV64)
+#if defined(RISCV)
 #define USE_LIBRARY_BASED_TLS_ONLY 1
 #endif
 
