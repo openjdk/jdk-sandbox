@@ -915,9 +915,12 @@ instruct vreduce_maxB(iRegINoSp dst, iRegIorL2I src1, vReg src2, vReg tmp) %{
   format %{ "vreduce_maxB $dst, $src1, $src2, $tmp" %}
   ins_encode %{
     __ vsetvli(t0, x0, Assembler::e8);
-    __ vmv_s_x(as_VectorRegister($tmp$$reg), $src1$$Register);
-    __ vredmax_vs(as_VectorRegister($tmp$$reg), as_VectorRegister($src2$$reg), as_VectorRegister($tmp$$reg));
+    __ vredmax_vs(as_VectorRegister($tmp$$reg), as_VectorRegister($src2$$reg), as_VectorRegister($src2$$reg));
     __ vmv_x_s($dst$$Register, as_VectorRegister($tmp$$reg));
+    Label Ldone;
+    __ ble(as_Register($src1$$reg), as_Register($dst$$reg), Ldone);
+    __ mv(as_Register($dst$$reg), as_Register($src1$$reg));
+    __ bind(Ldone);
   %}
   ins_pipe(pipe_slow);
 %}
@@ -930,9 +933,12 @@ instruct vreduce_maxS(iRegINoSp dst, iRegIorL2I src1, vReg src2, vReg tmp) %{
   format %{ "vreduce_maxS $dst, $src1, $src2, $tmp" %}
   ins_encode %{
     __ vsetvli(t0, x0, Assembler::e16);
-    __ vmv_s_x(as_VectorRegister($tmp$$reg), $src1$$Register);
-    __ vredmax_vs(as_VectorRegister($tmp$$reg), as_VectorRegister($src2$$reg), as_VectorRegister($tmp$$reg));
+    __ vredmax_vs(as_VectorRegister($tmp$$reg), as_VectorRegister($src2$$reg), as_VectorRegister($src2$$reg));
     __ vmv_x_s($dst$$Register, as_VectorRegister($tmp$$reg));
+    Label Ldone;
+    __ ble(as_Register($src1$$reg), as_Register($dst$$reg), Ldone);
+    __ mv(as_Register($dst$$reg), as_Register($src1$$reg));
+    __ bind(Ldone);
   %}
   ins_pipe(pipe_slow);
 %}
@@ -976,9 +982,12 @@ instruct vreduce_minB(iRegINoSp dst, iRegIorL2I src1, vReg src2, vReg tmp) %{
   format %{ "vreduce_minB $dst, $src1, $src2, $tmp" %}
   ins_encode %{
     __ vsetvli(t0, x0, Assembler::e8);
-    __ vmv_s_x(as_VectorRegister($tmp$$reg), $src1$$Register);
-    __ vredmin_vs(as_VectorRegister($tmp$$reg), as_VectorRegister($src2$$reg), as_VectorRegister($tmp$$reg));
+    __ vredmin_vs(as_VectorRegister($tmp$$reg), as_VectorRegister($src2$$reg), as_VectorRegister($src2$$reg));
     __ vmv_x_s($dst$$Register, as_VectorRegister($tmp$$reg));
+    Label Ldone;
+    __ bge(as_Register($src1$$reg), as_Register($dst$$reg), Ldone);
+    __ mv(as_Register($dst$$reg), as_Register($src1$$reg));
+    __ bind(Ldone);
   %}
   ins_pipe(pipe_slow);
 %}
@@ -991,9 +1000,12 @@ instruct vreduce_minS(iRegINoSp dst, iRegIorL2I src1, vReg src2, vReg tmp) %{
   format %{ "vreduce_minS $dst, $src1, $src2, $tmp" %}
   ins_encode %{
     __ vsetvli(t0, x0, Assembler::e16);
-    __ vmv_s_x(as_VectorRegister($tmp$$reg), $src1$$Register);
-    __ vredmin_vs(as_VectorRegister($tmp$$reg), as_VectorRegister($src2$$reg), as_VectorRegister($tmp$$reg));
+    __ vredmin_vs(as_VectorRegister($tmp$$reg), as_VectorRegister($src2$$reg), as_VectorRegister($src2$$reg));
     __ vmv_x_s($dst$$Register, as_VectorRegister($tmp$$reg));
+    Label Ldone;
+    __ bge(as_Register($src1$$reg), as_Register($dst$$reg), Ldone);
+    __ mv(as_Register($dst$$reg), as_Register($src1$$reg));
+    __ bind(Ldone);
   %}
   ins_pipe(pipe_slow);
 %}
