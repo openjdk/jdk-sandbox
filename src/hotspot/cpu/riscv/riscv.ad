@@ -1774,7 +1774,6 @@ const bool Matcher::match_rule_supported(int opcode) {
       break;
     case Op_StrCompressedCopy: // fall through
     case Op_StrInflatedCopy:   // fall through
-    case Op_StrIndexOfChar:    // fall through
     case Op_HasNegatives:
       return UseVExt;
     case Op_EncodeISOArray:
@@ -10103,6 +10102,45 @@ instruct string_indexof_conUL(iRegP_R11 str1, iRegI_R12 cnt1, iRegP_R13 str2,
                                  $tmp1$$Register, $tmp2$$Register,
                                  $tmp3$$Register, $tmp4$$Register,
                                  icnt2, $result$$Register, StrIntrinsicNode::UL);
+  %}
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct stringU_indexof_char(iRegP_R11 str1, iRegI_R12 cnt1, iRegI_R13 ch,
+                              iRegI_R10 result, iRegINoSp tmp1, iRegINoSp tmp2,
+                              iRegINoSp tmp3, iRegINoSp tmp4, iRegL_R6 tmp)
+%{
+  match(Set result (StrIndexOfChar (Binary str1 cnt1) ch));
+  predicate(!UseVExt && (((StrIndexOfCharNode*)n)->encoding() == StrIntrinsicNode::U));
+  effect(USE_KILL str1, USE_KILL cnt1, USE_KILL ch, TEMP_DEF result,
+         TEMP tmp1, TEMP tmp2, TEMP tmp3, TEMP tmp4, KILL tmp);
+
+  format %{ "StringUTF16 IndexOf char[] $str1,$cnt1,$ch -> $result" %}
+
+  ins_encode %{
+    __ string_indexof_char($str1$$Register, $cnt1$$Register, $ch$$Register,
+                           $result$$Register, $tmp1$$Register, $tmp2$$Register,
+                           $tmp3$$Register, $tmp4$$Register, false /* isU */) ;
+  %}
+  ins_pipe(pipe_class_memory);
+%}
+
+
+instruct stringL_indexof_char(iRegP_R11 str1, iRegI_R12 cnt1, iRegI_R13 ch,
+                              iRegI_R10 result, iRegINoSp tmp1, iRegINoSp tmp2,
+                              iRegINoSp tmp3, iRegINoSp tmp4, iRegL_R6 tmp)
+%{
+  match(Set result (StrIndexOfChar (Binary str1 cnt1) ch));
+  predicate(!UseVExt && (((StrIndexOfCharNode*)n)->encoding() == StrIntrinsicNode::L));
+  effect(USE_KILL str1, USE_KILL cnt1, USE_KILL ch, TEMP_DEF result,
+         TEMP tmp1, TEMP tmp2, TEMP tmp3, TEMP tmp4, KILL tmp);
+
+  format %{ "StringUTF16 IndexOf char[] $str1,$cnt1,$ch -> $result" %}
+
+  ins_encode %{
+    __ string_indexof_char($str1$$Register, $cnt1$$Register, $ch$$Register,
+                           $result$$Register, $tmp1$$Register, $tmp2$$Register,
+                           $tmp3$$Register, $tmp4$$Register, true /* isL */);
   %}
   ins_pipe(pipe_class_memory);
 %}

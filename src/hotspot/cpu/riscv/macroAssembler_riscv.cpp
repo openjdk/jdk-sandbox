@@ -3028,7 +3028,13 @@ void MacroAssembler::compute_index(Register haystack, Register trailing_zeros,
 }
 
 // string indexof
-// find pattern element in src, compute match mask
+// find pattern element in src, compute match mask,
+// only the first occurrence of 0x80/0x8000 at low bits is the valid match index
+// match mask patterns and corresponding indices would be like:
+// - 0x8080808080808080 (Latin1)
+// -   7 6 5 4 3 2 1 0  (match index)
+// - 0x8000800080008000 (UTF16)
+// -   3   2   1   0    (match index)
 void MacroAssembler::compute_match_mask(Register src, Register pattern, Register match_mask,
                                         Register mask1, Register mask2)
 {
@@ -3039,25 +3045,10 @@ void MacroAssembler::compute_match_mask(Register src, Register pattern, Register
   andr(match_mask, match_mask, src);
 }
 
-void MacroAssembler::ctz_bit(Register Rd, Register Rs, Register Rtmp1, Register Rtmp2)
-{
-  assert_different_registers(Rd, Rs, Rtmp1, Rtmp2);
-  Label Loop;
-  int step = 1;
-  li(Rd, -1);
-  mv(Rtmp2, Rs);
-
-  bind(Loop);
-  addi(Rd, Rd, 1);
-  andi(Rtmp1, Rtmp2, ((1 << step) - 1));
-  srli(Rtmp2, Rtmp2, 1);
-  beqz(Rtmp1, Loop);
-}
-
-// This instruction counts zero bits from lsb to msb until first non-zero element.
+// count bits of trailing zero chars from lsb to msb until first non-zero element.
 // For LL case, one byte for one element, so shift 8 bits once, and for other case,
 // shift 16 bits once.
-void MacroAssembler::ctz(Register Rd, Register Rs, bool isLL, Register Rtmp1, Register Rtmp2)
+void MacroAssembler::ctzc_bit(Register Rd, Register Rs, bool isLL, Register Rtmp1, Register Rtmp2)
 {
   assert_different_registers(Rd, Rs, Rtmp1, Rtmp2);
   Label Loop;

@@ -2379,7 +2379,7 @@ class StubGenerator: public StubCodeGenerator {
       // Find the first different characters in the longwords and
       // compute their difference.
     __ bind(CALCULATE_DIFFERENCE);
-      __ ctz(tmp4, tmp3);
+      __ ctzc_bit(tmp4, tmp3);
       __ srl(tmp1, tmp1, tmp4);
       __ srl(tmp5, tmp5, tmp4);
       __ andi(tmp1, tmp1, 0xFFFF);
@@ -2496,7 +2496,7 @@ class StubGenerator: public StubCodeGenerator {
       // Find the first different characters in the longwords and
       // compute their difference.
     __ bind(DIFF2);
-      __ ctz(tmp3, tmp4, isLL); // count zero from lsb to msb
+      __ ctzc_bit(tmp3, tmp4, isLL); // count zero from lsb to msb
       __ srl(tmp5, tmp5, tmp3);
       __ srl(cnt1, cnt1, tmp3);
       if (isLL) {
@@ -2509,7 +2509,7 @@ class StubGenerator: public StubCodeGenerator {
       __ sub(result, tmp5, cnt1);
       __ j(LENGTH_DIFF);
     __ bind(DIFF);
-      __ ctz(tmp3, tmp4, isLL); // count zero from lsb to msb
+      __ ctzc_bit(tmp3, tmp4, isLL); // count zero from lsb to msb
       __ srl(tmp1, tmp1, tmp3);
       __ srl(tmp2, tmp2, tmp3);
       if (isLL) {
@@ -2560,9 +2560,9 @@ class StubGenerator: public StubCodeGenerator {
     Register result = x10, haystack = x11, haystack_len = x12, needle = x13, needle_len = x14;
     // temporary registers
     Register mask1 = x20, match_mask = x21, first = x22, trailing_zeros = x23, mask2 = x24, tmp = x25;
-    RegSet spilled_regs = RegSet::range(x20, x25);
     // redefinitions
-    Register ch1 = t0, ch2 = t1;
+    Register ch1 = x28, ch2 = x29;
+    RegSet spilled_regs = RegSet::range(x20, x25) + RegSet::range(x28, x29);
 
     __ push_reg(spilled_regs, sp);
 
@@ -2646,11 +2646,12 @@ class StubGenerator: public StubCodeGenerator {
     __ srl(trailing_zeros, trailing_zeros, haystack_len); // mask. zeroes on useless bits.
     __ notr(ch2, ch2);
     __ andr(match_mask, match_mask, ch2);
-    __ andr(ch2, match_mask, trailing_zeros); // clear useless bits and check
-    __ beqz(ch2, NOMATCH);
+    __ andr(match_mask, match_mask, trailing_zeros); // clear useless bits and check
+    __ beqz(match_mask, NOMATCH);
 
     __ bind(L_SMALL_HAS_ZERO_LOOP);
-    __ ctz_bit(trailing_zeros, match_mask, ch2, tmp); // count trailing zeros
+    __ ctzc_bit(trailing_zeros, match_mask, haystack_isL, ch2, tmp); // count trailing zeros
+    __ addi(trailing_zeros, trailing_zeros, haystack_isL ? 7 : 15);
     __ mv(ch2, wordSize / haystack_chr_size);
     __ ble(needle_len, ch2, L_SMALL_CMP_LOOP_LAST_CMP2);
     __ compute_index(haystack, trailing_zeros, match_mask, result, ch2, tmp, haystack_isL);
@@ -2670,7 +2671,8 @@ class StubGenerator: public StubCodeGenerator {
 
     __ bind(L_SMALL_CMP_LOOP_NOMATCH);
     __ beqz(match_mask, NOMATCH);
-    __ ctz_bit(trailing_zeros, match_mask, tmp, ch2);
+    __ ctzc_bit(trailing_zeros, match_mask, haystack_isL, tmp, ch2);
+    __ addi(trailing_zeros, trailing_zeros, haystack_isL ? 7 : 15);
     __ add(result, result, 1);
     __ add(haystack, haystack, haystack_chr_size);
     __ j(L_SMALL_HAS_ZERO_LOOP);
@@ -2688,7 +2690,8 @@ class StubGenerator: public StubCodeGenerator {
 
     __ align(OptoLoopAlignment);
     __ bind(L_HAS_ZERO);
-    __ ctz_bit(trailing_zeros, match_mask, tmp, ch2);
+    __ ctzc_bit(trailing_zeros, match_mask, haystack_isL, tmp, ch2);
+    __ addi(trailing_zeros, trailing_zeros, haystack_isL ? 7 : 15);
     __ slli(needle_len, needle_len, BitsPerByte * wordSize / 2);
     __ orr(haystack_len, haystack_len, needle_len); // restore needle_len(32bits)
     __ sub(result, result, 1); // array index from 0, so result -= 1
@@ -2718,7 +2721,8 @@ class StubGenerator: public StubCodeGenerator {
 
     __ bind(L_CMP_LOOP_NOMATCH);
     __ beqz(match_mask, L_HAS_ZERO_LOOP_NOMATCH);
-    __ ctz_bit(trailing_zeros, match_mask, needle_len, ch2); // find next "first" char index
+    __ ctzc_bit(trailing_zeros, match_mask, haystack_isL, needle_len, ch2); // find next "first" char index
+    __ addi(trailing_zeros, trailing_zeros, haystack_isL ? 7 : 15);
     __ add(haystack, haystack, haystack_chr_size);
     __ j(L_HAS_ZERO_LOOP);
 

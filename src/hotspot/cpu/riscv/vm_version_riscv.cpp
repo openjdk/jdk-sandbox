@@ -207,6 +207,10 @@ void VM_Version::get_processor_features() {
     UseVExt = true;
   }
 
+  if (FLAG_IS_DEFAULT(AvoidUnalignedAccesses)) {
+    FLAG_SET_DEFAULT(AvoidUnalignedAccesses, true);
+  }
+
 #ifdef COMPILER2
   get_c2_processor_features();
 #endif // COMPILER2
