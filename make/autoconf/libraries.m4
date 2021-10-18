@@ -103,7 +103,7 @@ AC_DEFUN_ONCE([LIB_SETUP_LIBRARIES],
   LIB_SETUP_MISC_LIBS
   LIB_TESTS_SETUP_GTEST
 
-  BASIC_JDKLIB_LIBS="-latomic"
+  BASIC_JDKLIB_LIBS=""
   if test "x$TOOLCHAIN_TYPE" != xmicrosoft; then
     BASIC_JDKLIB_LIBS="-ljava -ljvm"
   fi
@@ -144,6 +144,13 @@ AC_DEFUN_ONCE([LIB_SETUP_LIBRARIES],
     fi
   fi
 
+  # Programs which use C11 or C++11 atomics, like #include <atomic>,
+  # generally must link against -latomic on RISC-V
+  if test "x$OPENJDK_TARGET_OS" = xlinux && test "x$OPENJDK_TARGET_CPU" = xriscv64; then
+    BASIC_JDKLIB_LIBS="$BASIC_JDKLIB_LIBS -latomic"
+    BASIC_JVM_LIBS="$BASIC_JVM_LIBS -latomic"
+  fi
+
   # perfstat lib
   if test "x$OPENJDK_TARGET_OS" = xaix; then
     BASIC_JVM_LIBS="$BASIC_JVM_LIBS -lperfstat"
@@ -154,8 +161,6 @@ AC_DEFUN_ONCE([LIB_SETUP_LIBRARIES],
         comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib \
         wsock32.lib winmm.lib version.lib psapi.lib"
   fi
-
-  BASIC_JVM_LIBS="$BASIC_JVM_LIBS -latomic"
 
   JDKLIB_LIBS="$BASIC_JDKLIB_LIBS"
   JDKEXE_LIBS=""
