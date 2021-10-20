@@ -114,7 +114,7 @@ public class ProviderImpl extends InetAddressResolverProvider {
          * @throws UnknownHostException if no IP address for the host could be found
          */
         @Override
-        public Stream<InetAddress> lookupAddresses(String host, LookupPolicy lookupPolicy) throws UnknownHostException {
+        public Stream<InetAddress> lookupByName(String host, LookupPolicy lookupPolicy) throws UnknownHostException {
             try {
                 System.out.printf("Using jdk.test.nsp.proof.netty.ProviderImpl to lookup addresses for '%s' hostname.%n",
                         host);
@@ -123,7 +123,7 @@ public class ProviderImpl extends InetAddressResolverProvider {
                 return forwardLookup(host, mappedResolver);
             } catch (InterruptedException | ExecutionException | UnknownHostException e) {
                 System.err.println("Custom DNS resolver failed to lookup addresses. Continuing with the built-in resolver.");
-                return configuration.builtinResolver().lookupAddresses(host, lookupPolicy);
+                return configuration.builtinResolver().lookupByName(host, lookupPolicy);
             }
         }
 
@@ -135,7 +135,7 @@ public class ProviderImpl extends InetAddressResolverProvider {
          * @throws UnknownHostException if no host found for the specified IP address
          */
         @Override
-        public String lookupHostName(byte[] addr) throws UnknownHostException {
+        public String lookupByAddress(byte[] addr) throws UnknownHostException {
             System.out.printf("Using jdk.test.nsp.proof.netty.ProviderImpl to reverse " +
                     "lookup hostname for '%s' address%n", IPAddressUtil.bytesToString(addr));
             try {
@@ -144,7 +144,7 @@ public class ProviderImpl extends InetAddressResolverProvider {
             } catch (InterruptedException | ExecutionException | UnknownHostException e) {
                 System.err.println("Custom DNS resolver failed to lookup a hostname for the provided address. " +
                         "Continuing with the built-in resolver.");
-                return configuration.builtinResolver().lookupHostName(addr);
+                return configuration.builtinResolver().lookupByAddress(addr);
             }
         }
 
