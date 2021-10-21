@@ -5944,11 +5944,9 @@ void EdgeMoveOptimizer::optimize(BlockList* code) {
     if (block->number_of_preds() > 1 && !block->is_set(BlockBegin::exception_entry_flag)) {
       optimizer.optimize_moves_at_block_end(block);
     }
-#ifndef RISCV
     if (block->number_of_sux() == 2) {
       optimizer.optimize_moves_at_block_begin(block);
     }
-#endif
   }
 }
 
@@ -6090,6 +6088,11 @@ void EdgeMoveOptimizer::optimize_moves_at_block_end(BlockBegin* block) {
 
 
 void EdgeMoveOptimizer::optimize_moves_at_block_begin(BlockBegin* block) {
+#ifdef RISCV
+  // It is unsafe to schedule moves early before conditional branches, because
+  // moves may destroy the input registers of branches for riscv.
+  return;
+#endif
   TRACE_LINEAR_SCAN(4, tty->print_cr("optimization moves at begin of block B%d", block->block_id()));
 
   init_instructions();
@@ -6194,9 +6197,7 @@ void ControlFlowOptimizer::optimize(BlockList* code) {
 
   optimizer.reorder_short_loops(code);
   optimizer.delete_empty_blocks(code);
-#ifndef RISCV
   optimizer.delete_unnecessary_jumps(code);
-#endif
   optimizer.delete_jumps_to_return(code);
 }
 
@@ -6339,6 +6340,11 @@ void ControlFlowOptimizer::delete_empty_blocks(BlockList* code) {
 }
 
 void ControlFlowOptimizer::delete_unnecessary_jumps(BlockList* code) {
+#ifdef RISCV
+  // Disable this optimization on riscv temporarily, because it does not
+  // work when the comparison operands are bound to branches or cmoves.
+  return;
+#endif
   // skip the last block because there a branch is always necessary
   for (int i = code->length() - 2; i >= 0; i--) {
     BlockBegin* block = code->at(i);
@@ -6378,7 +6384,7 @@ void ControlFlowOptimizer::delete_unnecessary_jumps(BlockList* code) {
                 prev_op = instructions->at(j);
                 // check for the cmove
                 if (prev_op->code() == lir_cmove) {
-                  assert(prev_op->as_Op4() != NULL, "cmove must be of type LIR_Op2");
+                  assert(prev_op->as_Op4() != NULL, "cmove must be of type LIR_Op4");
                   prev_cmove = (LIR_Op4*)prev_op;
                   assert(prev_branch->cond() == prev_cmove->condition(), "should be the same");
                 }
