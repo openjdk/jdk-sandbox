@@ -1240,19 +1240,11 @@ void LinearScan::add_register_hints(LIR_Op* op) {
       break;
     }
     case lir_cmove: {
-#ifdef RISCV
       assert(op->as_Op4() != NULL, "lir_cmove must be LIR_Op4");
       LIR_Op4* cmove = (LIR_Op4*)op;
 
       LIR_Opr move_from = cmove->in_opr3();
-      LIR_Opr move_to   = cmove->in_opr4();
-#else
-      assert(op->as_Op2() != NULL, "lir_cmove must be LIR_Op2");
-      LIR_Op2* cmove = (LIR_Op2*)op;
-
-      LIR_Opr move_from = cmove->in_opr1();
-      LIR_Opr move_to = cmove->result_opr();
-#endif
+      LIR_Opr move_to   = cmove->result_opr();
 
       if (move_to->is_register() && move_from->is_register()) {
         Interval* from = interval_at(reg_num(move_from));
@@ -6380,14 +6372,14 @@ void ControlFlowOptimizer::delete_unnecessary_jumps(BlockList* code) {
               // There might be a cmove inserted for profiling which depends on the same
               // compare. If we change the condition of the respective compare, we have
               // to take care of this cmove as well.
-              LIR_Op2* prev_cmove = NULL;
+              LIR_Op4* prev_cmove = NULL;
 
               for(int j = instructions->length() - 3; j >= 0 && prev_cmp == NULL; j--) {
                 prev_op = instructions->at(j);
                 // check for the cmove
                 if (prev_op->code() == lir_cmove) {
-                  assert(prev_op->as_Op2() != NULL, "cmove must be of type LIR_Op2");
-                  prev_cmove = (LIR_Op2*)prev_op;
+                  assert(prev_op->as_Op4() != NULL, "cmove must be of type LIR_Op2");
+                  prev_cmove = (LIR_Op4*)prev_op;
                   assert(prev_branch->cond() == prev_cmove->condition(), "should be the same");
                 }
                 if (prev_op->code() == lir_cmp) {
@@ -6719,9 +6711,7 @@ void LinearScanStatistic::collect(LinearScan* allocator) {
           break;
         }
 
-#ifndef RISCV
         case lir_cmp:             inc_counter(counter_cmp); break;
-#endif
 
         case lir_branch:
         case lir_cond_float_branch: {

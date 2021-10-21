@@ -874,34 +874,19 @@ void LIR_Assembler::emit_op3(LIR_Op3* op) {
   }
 }
 
-void LIR_Assembler::emit_op4(LIR_Op4* op) {
- switch (op->code()) {
-    case lir_cmove:
-      emit_cmove(op);
-      break;
-    default:      ShouldNotReachHere();
-  }
-}
-
-void LIR_Assembler::emit_cmove(LIR_Op4* op) {
-  LIR_Opr cmp1 = op->in_opr1();
-  LIR_Opr cmp2 = op->in_opr2();
-  LIR_Opr src1 = op->in_opr3();
-  LIR_Opr src2 = op->in_opr4();
-  LIR_Condition condition = op->cond();
-  LIR_Opr dst = op->result_opr();
+void LIR_Assembler::cmove(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2, LIR_Opr cmp_opr1, LIR_Opr cmp_opr2, LIR_Opr result, BasicType type) {
   Label label;
 
-  emit_branch(condition, cmp1, cmp2, label, /* is_far */ false,
+  emit_branch(condition, cmp_opr1, cmp_opr2, label, /* is_far */ false,
               /* is_unordered */ (condition == lir_cond_greaterEqual || condition == lir_cond_greater) ? false : true);
 
   Label done;
-  move_op(src2, dst, op->type(), lir_patch_none, NULL,
+  move_op(opr2, result, type, lir_patch_none, NULL,
           false,   // pop_fpu_stack
           false);  // wide
   __ j(done);
   __ bind(label);
-  move_op(src1, dst, op->type(), lir_patch_none, NULL,
+  move_op(opr1, result, type, lir_patch_none, NULL,
           false,   // pop_fpu_stack
           false);  // wide
   __ bind(done);
@@ -1318,10 +1303,6 @@ void LIR_Assembler::logic_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr
 }
 
 void LIR_Assembler::comp_op(LIR_Condition condition, LIR_Opr src, LIR_Opr result, LIR_Op2* op) {
-  ShouldNotCallThis();
-}
-
-void LIR_Assembler::cmove(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2, LIR_Opr result, BasicType type) {
   ShouldNotCallThis();
 }
 
