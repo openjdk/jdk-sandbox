@@ -80,7 +80,6 @@ public:
 
 #ifdef COMPILER1
   void generate_c1_load_barrier_test(LIR_Assembler* ce,
-                                     LIR_Opr mask,
                                      LIR_Opr ref) const;
 
   void generate_c1_load_barrier_stub(LIR_Assembler* ce,

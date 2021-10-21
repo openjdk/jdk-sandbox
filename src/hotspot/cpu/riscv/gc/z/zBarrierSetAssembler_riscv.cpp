@@ -354,12 +354,10 @@ void ZBarrierSetAssembler::generate_c2_load_barrier_stub(MacroAssembler* masm, Z
 #define __ ce->masm()->
 
 void ZBarrierSetAssembler::generate_c1_load_barrier_test(LIR_Assembler* ce,
-                                                         LIR_Opr mask,
                                                          LIR_Opr ref) const {
-  Register mask_reg = mask->as_pointer_register();
-  assert_different_registers(xthread, ref->as_register(), mask_reg);
-  __ ld(mask_reg, address_bad_mask_from_thread(xthread));
-  __ andr(mask_reg, ref->as_register(), mask_reg);
+  assert_different_registers(xthread, ref->as_register(), t1);
+  __ ld(t1, address_bad_mask_from_thread(xthread));
+  __ andr(t1, t1, ref->as_register());
 }
 
 void ZBarrierSetAssembler::generate_c1_load_barrier_stub(LIR_Assembler* ce,
