@@ -71,7 +71,7 @@ instruct zLoadP(iRegPNoSp dst, memory mem)
   ins_pipe(iload_reg_mem);
 %}
 
-instruct zCompareAndSwapP(iRegINoSp res, indirect mem, iRegP oldval, iRegP newval, iRegI_R6 cr) %{
+instruct zCompareAndSwapP(iRegINoSp res, indirect mem, iRegP oldval, iRegP newval, rFlagsReg cr) %{
   match(Set res (CompareAndSwapP mem (Binary oldval newval)));
   match(Set res (WeakCompareAndSwapP mem (Binary oldval newval)));
   predicate(UseZGC && !needs_acquiring_load_reserved(n) && n->as_LoadStore()->barrier_data() == ZLoadBarrierStrong);
@@ -107,7 +107,7 @@ instruct zCompareAndSwapP(iRegINoSp res, indirect mem, iRegP oldval, iRegP newva
   ins_pipe(pipe_slow);
 %}
 
-instruct zCompareAndSwapPAcq(iRegINoSp res, indirect mem, iRegP oldval, iRegP newval, iRegI_R6 cr) %{
+instruct zCompareAndSwapPAcq(iRegINoSp res, indirect mem, iRegP oldval, iRegP newval, rFlagsReg cr) %{
   match(Set res (CompareAndSwapP mem (Binary oldval newval)));
   match(Set res (WeakCompareAndSwapP mem (Binary oldval newval)));
   predicate(UseZGC && needs_acquiring_load_reserved(n) && (n->as_LoadStore()->barrier_data() == ZLoadBarrierStrong));
@@ -199,7 +199,7 @@ instruct zCompareAndExchangePAcq(iRegPNoSp res, indirect mem, iRegP oldval, iReg
   ins_pipe(pipe_slow);
 %}
 
-instruct zGetAndSetP(indirect mem, iRegP newv, iRegPNoSp prev, iRegL_R6 cr) %{
+instruct zGetAndSetP(indirect mem, iRegP newv, iRegPNoSp prev, rFlagsReg cr) %{
   match(Set prev (GetAndSetP mem newv));
   predicate(UseZGC && !needs_acquiring_load_reserved(n) && n->as_LoadStore()->barrier_data() != 0);
   effect(TEMP_DEF prev, KILL cr);
@@ -216,7 +216,7 @@ instruct zGetAndSetP(indirect mem, iRegP newv, iRegPNoSp prev, iRegL_R6 cr) %{
   ins_pipe(pipe_serial);
 %}
 
-instruct zGetAndSetPAcq(indirect mem, iRegP newv, iRegPNoSp prev, iRegL_R6 cr) %{
+instruct zGetAndSetPAcq(indirect mem, iRegP newv, iRegPNoSp prev, rFlagsReg cr) %{
   match(Set prev (GetAndSetP mem newv));
   predicate(UseZGC && needs_acquiring_load_reserved(n) && (n->as_LoadStore()->barrier_data() != 0));
   effect(TEMP_DEF prev, KILL cr);

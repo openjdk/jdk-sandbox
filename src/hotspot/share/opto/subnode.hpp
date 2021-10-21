@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -140,11 +140,7 @@ public:
   virtual Node* Identity(PhaseGVN* phase);
   const Type *add_id() const { return TypeInt::ZERO; }
   const Type *bottom_type() const { return TypeInt::CC; }
-#ifdef RISCV
-  virtual uint ideal_reg() const { return Op_RegI; }
-#else
   virtual uint ideal_reg() const { return Op_RegFlags; }
-#endif
 
   static CmpNode *make(Node *in1, Node *in2, BasicType bt, bool unsigned_comp = false);
 

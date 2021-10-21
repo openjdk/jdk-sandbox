@@ -28,7 +28,7 @@ source_hpp %{
 #include "gc/shenandoah/shenandoahBarrierSetAssembler.hpp"
 %}
 
-instruct compareAndSwapP_shenandoah(iRegINoSp res, indirect mem, iRegP oldval, iRegP newval, iRegPNoSp tmp, iRegL_R6 cr) %{
+instruct compareAndSwapP_shenandoah(iRegINoSp res, indirect mem, iRegP oldval, iRegP newval, iRegPNoSp tmp, rFlagsReg cr) %{
   match(Set res (ShenandoahCompareAndSwapP mem (Binary oldval newval)));
   ins_cost(10 * DEFAULT_COST);
 
@@ -49,7 +49,7 @@ instruct compareAndSwapP_shenandoah(iRegINoSp res, indirect mem, iRegP oldval, i
   ins_pipe(pipe_slow);
 %}
 
-instruct compareAndSwapN_shenandoah(iRegINoSp res, indirect mem, iRegN oldval, iRegN newval, iRegNNoSp tmp, iRegL_R6 cr) %{
+instruct compareAndSwapN_shenandoah(iRegINoSp res, indirect mem, iRegN oldval, iRegN newval, iRegNNoSp tmp, rFlagsReg cr) %{
   match(Set res (ShenandoahCompareAndSwapN mem (Binary oldval newval)));
   ins_cost(10 * DEFAULT_COST);
 
@@ -70,7 +70,7 @@ instruct compareAndSwapN_shenandoah(iRegINoSp res, indirect mem, iRegN oldval, i
   ins_pipe(pipe_slow);
 %}
 
-instruct compareAndSwapPAcq_shenandoah(iRegINoSp res, indirect mem, iRegP oldval, iRegP newval, iRegPNoSp tmp, iRegL_R6 cr) %{
+instruct compareAndSwapPAcq_shenandoah(iRegINoSp res, indirect mem, iRegP oldval, iRegP newval, iRegPNoSp tmp, rFlagsReg cr) %{
   predicate(needs_acquiring_load_reserved(n));
   match(Set res (ShenandoahCompareAndSwapP mem (Binary oldval newval)));
   ins_cost(10 * DEFAULT_COST);
@@ -92,7 +92,7 @@ instruct compareAndSwapPAcq_shenandoah(iRegINoSp res, indirect mem, iRegP oldval
   ins_pipe(pipe_slow);
 %}
 
-instruct compareAndSwapNAcq_shenandoah(iRegINoSp res, indirect mem, iRegN oldval, iRegN newval, iRegNNoSp tmp, iRegL_R6 cr) %{
+instruct compareAndSwapNAcq_shenandoah(iRegINoSp res, indirect mem, iRegN oldval, iRegN newval, iRegNNoSp tmp, rFlagsReg cr) %{
   predicate(needs_acquiring_load_reserved(n));
   match(Set res (ShenandoahCompareAndSwapN mem (Binary oldval newval)));
   ins_cost(10 * DEFAULT_COST);
@@ -114,7 +114,7 @@ instruct compareAndSwapNAcq_shenandoah(iRegINoSp res, indirect mem, iRegN oldval
   ins_pipe(pipe_slow);
 %}
 
-instruct compareAndExchangeN_shenandoah(iRegNNoSp res, indirect mem, iRegN oldval, iRegN newval, iRegNNoSp tmp, iRegL_R6 cr) %{
+instruct compareAndExchangeN_shenandoah(iRegNNoSp res, indirect mem, iRegN oldval, iRegN newval, iRegNNoSp tmp, rFlagsReg cr) %{
   match(Set res (ShenandoahCompareAndExchangeN mem (Binary oldval newval)));
   ins_cost(10 * DEFAULT_COST);
   effect(TEMP_DEF res, TEMP tmp, KILL cr);
@@ -134,7 +134,7 @@ instruct compareAndExchangeN_shenandoah(iRegNNoSp res, indirect mem, iRegN oldva
   ins_pipe(pipe_slow);
 %}
 
-instruct compareAndExchangeP_shenandoah(iRegPNoSp res, indirect mem, iRegP oldval, iRegP newval, iRegPNoSp tmp, iRegL_R6 cr) %{
+instruct compareAndExchangeP_shenandoah(iRegPNoSp res, indirect mem, iRegP oldval, iRegP newval, iRegPNoSp tmp, rFlagsReg cr) %{
   match(Set res (ShenandoahCompareAndExchangeP mem (Binary oldval newval)));
   ins_cost(10 * DEFAULT_COST);
 
@@ -154,7 +154,7 @@ instruct compareAndExchangeP_shenandoah(iRegPNoSp res, indirect mem, iRegP oldva
   ins_pipe(pipe_slow);
 %}
 
-instruct weakCompareAndSwapN_shenandoah(iRegINoSp res, indirect mem, iRegN oldval, iRegN newval, iRegNNoSp tmp, iRegL_R6 cr) %{
+instruct weakCompareAndSwapN_shenandoah(iRegINoSp res, indirect mem, iRegN oldval, iRegN newval, iRegNNoSp tmp, rFlagsReg cr) %{
   match(Set res (ShenandoahWeakCompareAndSwapN mem (Binary oldval newval)));
   ins_cost(10 * DEFAULT_COST);
 
@@ -176,7 +176,7 @@ instruct weakCompareAndSwapN_shenandoah(iRegINoSp res, indirect mem, iRegN oldva
   ins_pipe(pipe_slow);
 %}
 
-instruct compareAndExchangeNAcq_shenandoah(iRegNNoSp res, indirect mem, iRegN oldval, iRegN newval, iRegNNoSp tmp, iRegL_R6 cr) %{
+instruct compareAndExchangeNAcq_shenandoah(iRegNNoSp res, indirect mem, iRegN oldval, iRegN newval, iRegNNoSp tmp, rFlagsReg cr) %{
   predicate(needs_acquiring_load_reserved(n));
   match(Set res (ShenandoahCompareAndExchangeN mem (Binary oldval newval)));
   ins_cost(10 * DEFAULT_COST);
@@ -197,7 +197,7 @@ instruct compareAndExchangeNAcq_shenandoah(iRegNNoSp res, indirect mem, iRegN ol
   ins_pipe(pipe_slow); 
 %}
 
-instruct compareAndExchangePAcq_shenandoah(iRegPNoSp res, indirect mem, iRegP oldval, iRegP newval, iRegPNoSp tmp, iRegL_R6 cr) %{
+instruct compareAndExchangePAcq_shenandoah(iRegPNoSp res, indirect mem, iRegP oldval, iRegP newval, iRegPNoSp tmp, rFlagsReg cr) %{
   predicate(needs_acquiring_load_reserved(n));
   match(Set res (ShenandoahCompareAndExchangeP mem (Binary oldval newval)));
   ins_cost(10 * DEFAULT_COST);
@@ -218,7 +218,7 @@ instruct compareAndExchangePAcq_shenandoah(iRegPNoSp res, indirect mem, iRegP ol
   ins_pipe(pipe_slow);
 %}
 
-instruct weakCompareAndSwapP_shenandoah(iRegINoSp res, indirect mem, iRegP oldval, iRegP newval, iRegPNoSp tmp, iRegL_R6 cr) %{
+instruct weakCompareAndSwapP_shenandoah(iRegINoSp res, indirect mem, iRegP oldval, iRegP newval, iRegPNoSp tmp, rFlagsReg cr) %{
   match(Set res (ShenandoahWeakCompareAndSwapP mem (Binary oldval newval)));
   ins_cost(10 * DEFAULT_COST);
 
@@ -238,7 +238,7 @@ instruct weakCompareAndSwapP_shenandoah(iRegINoSp res, indirect mem, iRegP oldva
   ins_pipe(pipe_slow);
 %}
 
-instruct weakCompareAndSwapNAcq_shenandoah(iRegINoSp res, indirect mem, iRegN oldval, iRegN newval, iRegNNoSp tmp, iRegL_R6 cr) %{
+instruct weakCompareAndSwapNAcq_shenandoah(iRegINoSp res, indirect mem, iRegN oldval, iRegN newval, iRegNNoSp tmp, rFlagsReg cr) %{
   predicate(needs_acquiring_load_reserved(n));
   match(Set res (ShenandoahWeakCompareAndSwapN mem (Binary oldval newval)));
   ins_cost(10 * DEFAULT_COST);
@@ -261,7 +261,7 @@ instruct weakCompareAndSwapNAcq_shenandoah(iRegINoSp res, indirect mem, iRegN ol
   ins_pipe(pipe_slow);
 %}
 
-instruct weakCompareAndSwapPAcq_shenandoah(iRegINoSp res, indirect mem, iRegP oldval, iRegP newval, iRegPNoSp tmp, iRegL_R6 cr) %{
+instruct weakCompareAndSwapPAcq_shenandoah(iRegINoSp res, indirect mem, iRegP oldval, iRegP newval, iRegPNoSp tmp, rFlagsReg cr) %{
   predicate(needs_acquiring_load_reserved(n));
   match(Set res (ShenandoahWeakCompareAndSwapP mem (Binary oldval newval)));
   ins_cost(10 * DEFAULT_COST);
