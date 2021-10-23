@@ -884,6 +884,7 @@ class StoreIConditionalNode : public LoadStoreConditionalNode {
 public:
   StoreIConditionalNode( Node *c, Node *mem, Node *adr, Node *val, Node *ii ) : LoadStoreConditionalNode(c, mem, adr, val, ii) { }
   virtual int Opcode() const;
+  // Produces flags
   virtual uint ideal_reg() const { return Op_RegFlags; }
 };
 
