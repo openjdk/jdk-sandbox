@@ -1243,7 +1243,7 @@ void LinearScan::add_register_hints(LIR_Op* op) {
       assert(op->as_Op4() != NULL, "lir_cmove must be LIR_Op4");
       LIR_Op4* cmove = (LIR_Op4*)op;
 
-      LIR_Opr move_from = cmove->in_opr3();
+      LIR_Opr move_from = cmove->in_opr1();
       LIR_Opr move_to   = cmove->result_opr();
 
       if (move_to->is_register() && move_from->is_register()) {
