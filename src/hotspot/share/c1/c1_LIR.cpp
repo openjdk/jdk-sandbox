@@ -508,14 +508,12 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
       assert(op->as_OpBranch() != NULL, "must be");
       LIR_OpBranch* opBranch = (LIR_OpBranch*)op;
 
-      // lir_branch and lir_cond_float_branch should be LIR_Op2 if arch has no flag register
+      assert(opBranch->_tmp1->is_illegal() && opBranch->_tmp2->is_illegal() &&
+             opBranch->_tmp3->is_illegal() && opBranch->_tmp4->is_illegal() &&
+             opBranch->_tmp5->is_illegal(), "not used");
+
       if (opBranch->_opr1->is_valid()) do_input(opBranch->_opr1);
       if (opBranch->_opr2->is_valid()) do_input(opBranch->_opr2);
-      if (opBranch->_tmp1->is_valid()) do_temp(opBranch->_tmp1);
-      if (opBranch->_tmp2->is_valid()) do_temp(opBranch->_tmp2);
-      if (opBranch->_tmp3->is_valid()) do_temp(opBranch->_tmp3);
-      if (opBranch->_tmp4->is_valid()) do_temp(opBranch->_tmp4);
-      if (opBranch->_tmp5->is_valid()) do_temp(opBranch->_tmp5);
 
       if (opBranch->_info != NULL)     do_info(opBranch->_info);
       assert(opBranch->_result->is_illegal(), "not used");
