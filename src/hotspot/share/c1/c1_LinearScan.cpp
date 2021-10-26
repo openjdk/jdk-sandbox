@@ -3138,6 +3138,9 @@ void LinearScan::do_linear_scan() {
     }
   }
 
+#ifndef RISCV
+  // Disable these optimizations on riscv temporarily, because it does not
+  // work when the comparison operands are bound to branches or cmoves.
   { TIME_LINEAR_SCAN(timer_optimize_lir);
 
     EdgeMoveOptimizer::optimize(ir()->code());
@@ -3145,6 +3148,7 @@ void LinearScan::do_linear_scan() {
     // check that cfg is still correct after optimizations
     ir()->verify();
   }
+#endif
 
   NOT_PRODUCT(print_lir(1, "Before Code Generation", false));
   NOT_PRODUCT(LinearScanStatistic::compute(this, _stat_final));
@@ -6088,11 +6092,6 @@ void EdgeMoveOptimizer::optimize_moves_at_block_end(BlockBegin* block) {
 
 
 void EdgeMoveOptimizer::optimize_moves_at_block_begin(BlockBegin* block) {
-#ifdef RISCV
-  // It is unsafe to schedule moves early before conditional branches, because
-  // moves may destroy the input registers of branches for riscv.
-  return;
-#endif
   TRACE_LINEAR_SCAN(4, tty->print_cr("optimization moves at begin of block B%d", block->block_id()));
 
   init_instructions();
@@ -6340,11 +6339,6 @@ void ControlFlowOptimizer::delete_empty_blocks(BlockList* code) {
 }
 
 void ControlFlowOptimizer::delete_unnecessary_jumps(BlockList* code) {
-#ifdef RISCV
-  // Disable this optimization on riscv temporarily, because it does not
-  // work when the comparison operands are bound to branches or cmoves.
-  return;
-#endif
   // skip the last block because there a branch is always necessary
   for (int i = code->length() - 2; i >= 0; i--) {
     BlockBegin* block = code->at(i);
