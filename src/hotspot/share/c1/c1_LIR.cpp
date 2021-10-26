@@ -607,7 +607,7 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
       LIR_Op4* op4 = (LIR_Op4*)op;
 
       assert(op4->_info == NULL && op4->_tmp1->is_illegal() && op4->_tmp2->is_illegal() &&
-             op4->_tmp3->is_illegal() && op4->_tmp4->is_illegal() && op4->_tmp5->is_illegal(), "must be");
+             op4->_tmp3->is_illegal() && op4->_tmp4->is_illegal() && op4->_tmp5->is_illegal(), "not used");
       assert(op4->_opr1->is_valid() && op4->_opr2->is_valid() && op4->_result->is_valid(), "used");
 
       do_input(op4->_opr1);

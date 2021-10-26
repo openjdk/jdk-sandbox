@@ -153,6 +153,7 @@ class Address {
 
  private:
   Register _base;
+  Register _index;
   int64_t _offset;
   enum mode _mode;
 
@@ -165,25 +166,26 @@ class Address {
 
  public:
   Address()
-    : _base(noreg), _offset(0), _mode(no_mode),          _target(NULL) { }
+    : _base(noreg), _index(noreg), _offset(0), _mode(no_mode), _target(NULL) { }
   Address(Register r)
-    : _base(r),     _offset(0), _mode(base_plus_offset), _target(NULL) { }
+    : _base(r),     _index(noreg), _offset(0), _mode(base_plus_offset), _target(NULL) { }
   Address(Register r, int o)
-    : _base(r),     _offset(o), _mode(base_plus_offset), _target(NULL) { }
+    : _base(r),     _index(noreg), _offset(o), _mode(base_plus_offset), _target(NULL) { }
   Address(Register r, long o)
-    : _base(r),     _offset(o), _mode(base_plus_offset), _target(NULL) { }
+    : _base(r),     _index(noreg), _offset(o), _mode(base_plus_offset), _target(NULL) { }
   Address(Register r, long long o)
-    : _base(r),     _offset(o), _mode(base_plus_offset), _target(NULL) { }
+    : _base(r),     _index(noreg), _offset(o), _mode(base_plus_offset), _target(NULL) { }
   Address(Register r, unsigned int o)
-    : _base(r),     _offset(o), _mode(base_plus_offset), _target(NULL) { }
+    : _base(r),     _index(noreg), _offset(o), _mode(base_plus_offset), _target(NULL) { }
   Address(Register r, unsigned long o)
-    : _base(r),     _offset(o), _mode(base_plus_offset), _target(NULL) { }
+    : _base(r),     _index(noreg), _offset(o), _mode(base_plus_offset), _target(NULL) { }
   Address(Register r, unsigned long long o)
-    : _base(r),     _offset(o), _mode(base_plus_offset), _target(NULL) { }
+    : _base(r),     _index(noreg), _offset(o), _mode(base_plus_offset), _target(NULL) { }
   Address(Register r, ByteSize disp)
     : Address(r, in_bytes(disp)) {}
   Address(address target, RelocationHolder const& rspec)
     : _base(noreg),
+      _index(noreg),
       _offset(0),
       _mode(literal),
       _rspec(rspec),
@@ -197,7 +199,9 @@ class Address {
   long offset() const {
     return _offset;
   }
-
+  Register index() const {
+    return _index;
+  }
   mode getMode() const {
     return _mode;
   }
