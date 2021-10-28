@@ -1110,6 +1110,10 @@ void LIR_List::set_file_and_line(const char * file, int line) {
 #ifdef RISCV
 void LIR_List::set_cmp_oprs(LIR_Op* op) {
   switch (op->code()) {
+    case lir_cmp:
+      _cmp_opr1 = op->as_Op2()->in_opr1();
+      _cmp_opr2 = op->as_Op2()->in_opr2();
+      break;
     case lir_branch: // fall through
     case lir_cond_float_branch:
       assert(op->as_OpBranch()->cond() == lir_cond_always ||

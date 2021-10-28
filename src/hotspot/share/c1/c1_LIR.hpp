@@ -2073,6 +2073,8 @@ class LIR_List: public CompilationResourceObj {
 
 #ifdef RISCV
     set_cmp_oprs(op);
+    // lir_cmp set cmp oprs only on riscv
+    if (op->code() == lir_cmp) return;
 #endif
 
     _operations.append(op);
@@ -2202,12 +2204,7 @@ class LIR_List: public CompilationResourceObj {
   void pop(LIR_Opr reg)                                    { append(new LIR_Op1(lir_pop,  reg)); }
 
   void cmp(LIR_Condition condition, LIR_Opr left, LIR_Opr right, CodeEmitInfo* info = NULL) {
-#ifdef RISCV
-    _cmp_opr1 = left;
-    _cmp_opr2 = right;
-#else
     append(new LIR_Op2(lir_cmp, condition, left, right, info));
-#endif
   }
   void cmp(LIR_Condition condition, LIR_Opr left, int right, CodeEmitInfo* info = NULL) {
     cmp(condition, left, LIR_OprFact::intConst(right), info);
