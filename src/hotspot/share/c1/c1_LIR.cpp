@@ -1107,6 +1107,34 @@ void LIR_List::set_file_and_line(const char * file, int line) {
 }
 #endif
 
+#ifdef RISCV
+void LIR_List::set_cmp_oprs(LIR_Op* op) {
+  switch (op->code()) {
+    case lir_branch: // fall through
+    case lir_cond_float_branch:
+      assert(op->as_OpBranch()->cond() == lir_cond_always ||
+            (_cmp_opr1 != LIR_OprFact::illegalOpr && _cmp_opr2 != LIR_OprFact::illegalOpr),
+            "conditional branches must have legal operands");
+      if (op->as_OpBranch()->cond() != lir_cond_always) {
+        op->as_Op2()->set_in_opr1(_cmp_opr1);
+        op->as_Op2()->set_in_opr2(_cmp_opr2);
+      }
+      break;
+    case lir_cmove:
+      op->as_Op4()->set_in_opr3(_cmp_opr1);
+      op->as_Op4()->set_in_opr4(_cmp_opr2);
+      break;
+#if INCLUDE_ZGC
+    case lir_zloadbarrier_test:
+      _cmp_opr1 = FrameMap::as_opr(t1);
+      _cmp_opr2 = LIR_OprFact::intConst(0);
+      break;
+#endif
+    default:
+      break;
+  }
+}
+#endif
 
 void LIR_List::append(LIR_InsertionBuffer* buffer) {
   assert(this == buffer->lir_list(), "wrong lir list");

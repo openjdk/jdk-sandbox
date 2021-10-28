@@ -94,7 +94,7 @@ private:
 
 public:
   LIR_OpZLoadBarrierTest(LIR_Opr opr) :
-      LIR_Op(),
+      LIR_Op(lir_zloadbarrier_test, LIR_OprFact::illegalOpr, NULL),
       _opr(opr) {}
 
   virtual void visit(LIR_OpVisitState* state) {
@@ -149,9 +149,6 @@ void ZBarrierSetC1::load_barrier(LIRAccess& access, LIR_Opr result) const {
   // Slow path
   const address runtime_stub = load_barrier_on_oop_field_preloaded_runtime_stub(access.decorators());
   CodeStub* const stub = new ZLoadBarrierStubC1(access, result, runtime_stub);
-#ifdef RISCV
-  __ cmp(lir_cond_notEqual, FrameMap::t1_long_opr, LIR_OprFact::longConst(0));
-#endif
   __ branch(lir_cond_notEqual, stub);
   __ branch_destination(stub->continuation());
 }

@@ -993,6 +993,11 @@ enum LIR_Code {
   , begin_opAssert
     , lir_assert
   , end_opAssert
+#ifdef INCLUDE_ZGC
+  , begin_opZLoadBarrierTest
+    , lir_zloadbarrier_test
+  , end_opZLoadBarrierTest
+#endif
 };
 
 
@@ -2067,18 +2072,7 @@ class LIR_List: public CompilationResourceObj {
 #endif // PRODUCT
 
 #ifdef RISCV
-    if (op->code() == lir_branch || op->code() == lir_cond_float_branch) {
-      assert(op->as_OpBranch()->cond() == lir_cond_always ||
-            (_cmp_opr1 != LIR_OprFact::illegalOpr && _cmp_opr2 != LIR_OprFact::illegalOpr),
-            "conditional branches must have legal operands");
-      if (op->as_OpBranch()->cond() != lir_cond_always) {
-        op->as_Op2()->set_in_opr1(_cmp_opr1);
-        op->as_Op2()->set_in_opr2(_cmp_opr2);
-      }
-    } else if (op->code() == lir_cmove) {
-      op->as_Op4()->set_in_opr3(_cmp_opr1);
-      op->as_Op4()->set_in_opr4(_cmp_opr2);
-    }
+    set_cmp_oprs(op);
 #endif
 
     _operations.append(op);
@@ -2098,10 +2092,7 @@ class LIR_List: public CompilationResourceObj {
 #endif
 
 #ifdef RISCV
-  void set_cmp_oprs(LIR_Opr opr1, LIR_Opr opr2) {
-    _cmp_opr1 = opr1;
-    _cmp_opr2 = opr2;
-  }
+  void set_cmp_oprs(LIR_Op* op);
 #endif
 
   //---------- accessors ---------------
@@ -2212,7 +2203,8 @@ class LIR_List: public CompilationResourceObj {
 
   void cmp(LIR_Condition condition, LIR_Opr left, LIR_Opr right, CodeEmitInfo* info = NULL) {
 #ifdef RISCV
-    set_cmp_oprs(left, right);
+    _cmp_opr1 = left;
+    _cmp_opr2 = right;
 #else
     append(new LIR_Op2(lir_cmp, condition, left, right, info));
 #endif
