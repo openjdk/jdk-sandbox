@@ -874,7 +874,8 @@ void LIR_Assembler::emit_op3(LIR_Op3* op) {
   }
 }
 
-void LIR_Assembler::cmove(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2, LIR_Opr cmp_opr1, LIR_Opr cmp_opr2, LIR_Opr result, BasicType type) {
+void LIR_Assembler::cmove(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2, LIR_Opr result, BasicType type,
+                          LIR_Opr cmp_opr1, LIR_Opr cmp_opr2) {
   Label label;
 
   emit_branch(condition, cmp_opr1, cmp_opr2, label, /* is_far */ false,

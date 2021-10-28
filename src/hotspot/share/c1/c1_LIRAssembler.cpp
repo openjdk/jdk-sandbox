@@ -753,11 +753,7 @@ void LIR_Assembler::emit_op2(LIR_Op2* op) {
 void LIR_Assembler::emit_op4(LIR_Op4* op) {
   switch(op->code()) {
     case lir_cmove:
-#ifdef RISCV
-      cmove(op->condition(), op->in_opr1(), op->in_opr2(), op->in_opr3(), op->in_opr4(), op->result_opr(), op->type());
-#else
-      cmove(op->condition(), op->in_opr1(), op->in_opr2(), op->result_opr(), op->type());
-#endif
+      cmove(op->condition(), op->in_opr1(), op->in_opr2(), op->result_opr(), op->type(), op->in_opr3(), op->in_opr4());
       break;
 
     default:
