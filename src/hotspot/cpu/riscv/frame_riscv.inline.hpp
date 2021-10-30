@@ -150,12 +150,6 @@ inline address* frame::sender_pc_addr() const     { return (address*) addr_at(re
 inline address  frame::sender_pc() const          { return *sender_pc_addr(); }
 inline intptr_t* frame::sender_sp() const         { return addr_at(sender_sp_offset); }
 
-// C frame methods
-inline intptr_t* frame::c_frame_link() const      { return (intptr_t*) *(intptr_t **)addr_at(c_frame_link_offset); }
-inline address*  frame::c_frame_sender_pc_addr() const { return (address*) addr_at(c_frame_return_addr_offset); }
-inline address   frame::c_frame_sender_pc() const { return *c_frame_sender_pc_addr(); }
-inline intptr_t* frame::c_frame_sender_sp() const { return addr_at(c_frame_sender_sp_offset); }
-
 inline intptr_t** frame::interpreter_frame_locals_addr() const {
   return (intptr_t**)addr_at(interpreter_frame_locals_offset);
 }

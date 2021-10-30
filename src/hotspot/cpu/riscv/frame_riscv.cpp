@@ -260,7 +260,7 @@ bool frame::safe_for_sender(JavaThread *thread) {
 
   // Will the pc we fetch be non-zero (which we'll find at the oldest frame)
 
-  if ((address) this->fp()[c_frame_return_addr_offset] == NULL) { return false; }
+  if ((address) this->fp()[return_addr_offset] == NULL) { return false; }
 
   return true;
 }
@@ -466,9 +466,9 @@ frame frame::sender_for_compiled_frame(RegisterMap* map) const {
   intptr_t* unextended_sp = l_sender_sp;
 
   // the return_address is always the word on the stack
-  address sender_pc = (address) *(l_sender_sp-1);
+  address sender_pc = (address) *(l_sender_sp + frame::return_addr_offset);
 
-  intptr_t** saved_fp_addr = (intptr_t**) (l_sender_sp - frame::sender_sp_offset);
+  intptr_t** saved_fp_addr = (intptr_t**) (l_sender_sp + frame::link_offset);
 
   assert(map != NULL, "map must be set");
   if (map->update_map()) {

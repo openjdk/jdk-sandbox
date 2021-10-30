@@ -151,14 +151,14 @@ frame os::fetch_frame_from_context(const void* ucVoid) {
 // By default, gcc always saves frame pointer rfp on this stack. This
 // may get turned off by -fomit-frame-pointer.
 frame os::get_sender_for_C_frame(frame* fr) {
-  return frame(fr->c_frame_sender_sp(), fr->c_frame_link(), fr->c_frame_sender_pc());
+  return frame(fr->sender_sp(), fr->link(), fr->sender_pc());
 }
 
 NOINLINE frame os::current_frame() {
   intptr_t **sender_sp = (intptr_t **)__builtin_frame_address(0);
   if(sender_sp != NULL) {
     frame myframe((intptr_t*)os::current_stack_pointer(),
-                  sender_sp[frame::c_frame_link_offset],
+                  sender_sp[frame::link_offset],
                   CAST_FROM_FN_PTR(address, os::current_frame));
     if (os::is_first_C_frame(&myframe)) {
       // stack is not walkable
@@ -170,83 +170,6 @@ NOINLINE frame os::current_frame() {
     ShouldNotReachHere();
     return frame();
   }
-}
-
-bool os::is_first_C_frame(frame* fr) {
-  // Load up sp, fp, sender sp and sender fp, check for reasonable values.
-  // Check usp first, because if that's bad the other accessors may fault
-  // on some architectures.  Ditto ufp second, etc.
-  uintptr_t fp_align_mask = (uintptr_t)(sizeof(address) - 1);
-  // sp on amd can be 32 bit aligned.
-  uintptr_t sp_align_mask = (uintptr_t)(sizeof(int) - 1);
-
-  uintptr_t usp    = (uintptr_t)fr->sp();
-  if ((usp & sp_align_mask) != 0) {
-    return true;
-  }
-
-  uintptr_t ufp    = (uintptr_t)fr->fp();
-  if ((ufp & fp_align_mask) != 0) {
-    return true;
-  }
-
-  uintptr_t old_sp = (uintptr_t)fr->c_frame_sender_sp();
-  if ((old_sp & sp_align_mask) != 0) {
-    return true;
-  }
-  if (old_sp == 0 || old_sp == (uintptr_t)-1) {
-    return true;
-  }
-
-  uintptr_t old_fp = (uintptr_t)fr->c_frame_link();
-  if ((old_fp & fp_align_mask) != 0) {
-    return true;
-  }
-  if (old_fp == 0 || old_fp == (uintptr_t)-1 || old_fp == ufp) {
-    return true;
-  }
-
-  // stack grows downwards; if old_fp is below current fp or if the stack
-  // frame is too large, either the stack is corrupted or fp is not saved
-  // on stack (i.e. on x86, ebp may be used as general register). The stack
-  // is not walkable beyond current frame.
-  if (old_fp < ufp) {
-    return true;
-  }
-  if (old_fp - ufp > 64 * K) {
-    return true;
-  }
-
-  return false;
-}
-
-int os::get_native_stack(address* stack, int frames, int toSkip) {
-  int frame_idx = 0;
-  int num_of_frames = 0;  // number of frames captured
-  frame fr = os::current_frame();
-  while (fr.pc() && frame_idx < frames) {
-    if (toSkip > 0) {
-      toSkip --;
-    } else {
-      stack[frame_idx ++] = fr.pc();
-    }
-    if (fr.fp() == NULL || fr.cb() != NULL ||
-        fr.c_frame_sender_pc() == NULL || os::is_first_C_frame(&fr)) {
-      break;
-    }
-
-    if (fr.c_frame_sender_pc() && !os::is_first_C_frame(&fr)) {
-      fr = os::get_sender_for_C_frame(&fr);
-    } else {
-      break;
-    }
-  }
-  num_of_frames = frame_idx;
-  for (; frame_idx < frames; frame_idx ++) {
-    stack[frame_idx] = NULL;
-  }
-
-  return num_of_frames;
 }
 
 // Utility functions

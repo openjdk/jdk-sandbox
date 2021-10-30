@@ -56,14 +56,13 @@ class MacroAssembler: public Assembler {
     addi(sp, sp, - 2 * wordSize);
     sd(lr, Address(sp, wordSize));
     sd(fp, Address(sp));
-    mv(fp, sp);
+    addi(fp, sp, 2 * wordSize);
   }
 
   void leave() {
     mv(sp, fp);
-    ld(fp, Address(sp));
-    ld(lr, Address(sp, wordSize));
-    addi(sp, sp, 2 * wordSize);
+    ld(fp, Address(sp, -2 * wordSize));
+    ld(lr, Address(sp, -wordSize));
   }
 
 

@@ -56,10 +56,10 @@
 //    [last esp              ]                   = last_sp()            last_sp_offset
 //    [old stack pointer     ]                     (sender_sp)          sender_sp_offset
 
-//    [old frame pointer     ]   <- fp           = link()
+//    [old frame pointer     ]
 //    [return pc             ]
 
-//    [last sp               ]
+//    [last sp               ]   <- fp           = link()
 //    [oop temp              ]                     (only for native calls)
 
 //    [padding               ]                     (to preserve machine SP alignment)
@@ -107,18 +107,14 @@
  public:
   enum {
     pc_return_offset                                 =  0,
-    // C frames
-    c_frame_link_offset                              = -2,
-    c_frame_return_addr_offset                       = -1,
-    c_frame_sender_sp_offset                         =  0,
-    // Java frames
-    link_offset                                      =  0,
-    return_addr_offset                               =  1,
-    sender_sp_offset                                 =  2,
+    // All frames
+    link_offset                                      = -2,
+    return_addr_offset                               = -1,
+    sender_sp_offset                                 =  0,
     // Interpreter frames
-    interpreter_frame_oop_temp_offset                =  3, // for native calls only
+    interpreter_frame_oop_temp_offset                =  1, // for native calls only
 
-    interpreter_frame_sender_sp_offset               = -1,
+    interpreter_frame_sender_sp_offset               = -3,
     // outgoing sp before a call to an invoked method
     interpreter_frame_last_sp_offset                 = interpreter_frame_sender_sp_offset - 1,
     interpreter_frame_method_offset                  = interpreter_frame_last_sp_offset - 1,
@@ -136,8 +132,8 @@
     // Entry frames
     // n.b. these values are determined by the layout defined in
     // stubGenerator for the Java call stub
-    entry_frame_after_call_words                     = 21,
-    entry_frame_call_wrapper_offset                  = -8,
+    entry_frame_after_call_words                     =  23,
+    entry_frame_call_wrapper_offset                  = -10,
 
     // we don't need a save area
     arg_reg_save_area_bytes                          =  0
@@ -189,12 +185,6 @@
   intptr_t*   fp() const { return _fp; }
 
   inline address* sender_pc_addr() const;
-
-  // C frame methods
-  inline intptr_t* c_frame_link() const;
-  inline address*  c_frame_sender_pc_addr() const;
-  inline address   c_frame_sender_pc() const;
-  inline intptr_t* c_frame_sender_sp() const;
 
   // expression stack tos if we are nested in a java call
   intptr_t* interpreter_frame_last_sp() const;

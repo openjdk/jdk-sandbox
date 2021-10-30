@@ -1248,10 +1248,6 @@ void os::print_location(outputStream* st, intptr_t x, bool verbose) {
   st->print_cr(INTPTR_FORMAT " is an unknown value", p2i(addr));
 }
 
-// Native stack isn't walkable for RISCV this way.
-// Native C frame and Java frame have different structure on RISCV.
-// A seperate implementation is provided under linux_riscv for RISCV.
-#if !defined(RISCV) || defined(ZERO)
 // Looks like all platforms can use the same function to check if C
 // stack is walkable beyond current frame.
 bool os::is_first_C_frame(frame* fr) {
@@ -1290,7 +1286,6 @@ bool os::is_first_C_frame(frame* fr) {
 
   return false;
 }
-#endif
 
 // Set up the boot classpath.
 

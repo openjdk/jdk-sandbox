@@ -406,7 +406,7 @@ OopMapSet* Runtime1::generate_handle_exception(StubID id, StubAssembler *sasm) {
       __ sd(zr, Address(xthread, Thread::pending_exception_offset()));
 
       // load issuing PC (the return address for this stub) into x13
-      __ ld(exception_pc, Address(fp, 1 * BytesPerWord));
+      __ ld(exception_pc, Address(fp, frame::return_addr_offset * BytesPerWord));
 
       // make sure that the vm_results are cleared (may be unnecessary)
       __ sd(zr, Address(xthread, JavaThread::vm_result_offset()));
@@ -457,7 +457,7 @@ OopMapSet* Runtime1::generate_handle_exception(StubID id, StubAssembler *sasm) {
   __ sd(exception_pc, Address(xthread, JavaThread::exception_pc_offset()));
 
   // patch throwing pc into return address (has bci & oop map)
-  __ sd(exception_pc, Address(fp, 1 * BytesPerWord));
+  __ sd(exception_pc, Address(fp, frame::return_addr_offset * BytesPerWord));
 
   // compute the exception handler.
   // the exception oop and the throwing pc are read from the fields in JavaThread
@@ -473,7 +473,7 @@ OopMapSet* Runtime1::generate_handle_exception(StubID id, StubAssembler *sasm) {
   __ invalidate_registers(false, true, true, true, true, true);
 
   // patch the return address, this stub will directly return to the exception handler
-  __ sd(x10, Address(fp, 1 * BytesPerWord));
+  __ sd(x10, Address(fp, frame::return_addr_offset * BytesPerWord));
 
   switch (id) {
     case forward_exception_id:
@@ -755,8 +755,8 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         OopMap* map = save_live_registers(sasm);
         assert_cond(map != NULL);
 
-        const int bci_off = 2;
-        const int method_off = 3;
+        const int bci_off = 0;
+        const int method_off = 1;
         // Retrieve bci
         __ lw(bci, Address(fp, bci_off * BytesPerWord));
         // And a pointer to the Method*

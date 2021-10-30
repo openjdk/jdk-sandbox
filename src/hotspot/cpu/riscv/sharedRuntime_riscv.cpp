@@ -226,7 +226,7 @@ bool SharedRuntime::is_wide_vector(int size) {
 static int reg2offset_in(VMReg r) {
   // Account for saved fp and lr
   // This should really be in_preserve_stack_slots
-  return (r->reg2stack() + 4) * VMRegImpl::stack_slot_size;
+  return r->reg2stack() * VMRegImpl::stack_slot_size;
 }
 
 static int reg2offset_out(VMReg r) {
@@ -949,14 +949,14 @@ void SharedRuntime::save_native_result(MacroAssembler *masm, BasicType ret_type,
   // which by this time is free to use
   switch (ret_type) {
     case T_FLOAT:
-      __ fsw(f10, Address(fp, -wordSize));
+      __ fsw(f10, Address(fp, -3 * wordSize));
       break;
     case T_DOUBLE:
-      __ fsd(f10, Address(fp, -wordSize));
+      __ fsd(f10, Address(fp, -3 * wordSize));
       break;
     case T_VOID:  break;
     default: {
-      __ sd(x10, Address(fp, -wordSize));
+      __ sd(x10, Address(fp, -3 * wordSize));
     }
   }
 }
@@ -967,14 +967,14 @@ void SharedRuntime::restore_native_result(MacroAssembler *masm, BasicType ret_ty
   // which by this time is free to use
   switch (ret_type) {
     case T_FLOAT:
-      __ flw(f10, Address(fp, -wordSize));
+      __ flw(f10, Address(fp, -3 * wordSize));
       break;
     case T_DOUBLE:
-      __ fld(f10, Address(fp, -wordSize));
+      __ fld(f10, Address(fp, -3 * wordSize));
       break;
     case T_VOID:  break;
     default: {
-      __ ld(x10, Address(fp, -wordSize));
+      __ ld(x10, Address(fp, -3 * wordSize));
     }
   }
 }
@@ -1380,6 +1380,8 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   //
   //
   // FP-> |                     |
+  //      | 2 slots (ra)        |
+  //      | 2 slots (fp)        |
   //      |---------------------|
   //      | 2 slots for moves   |
   //      |---------------------|
@@ -2171,7 +2173,7 @@ void SharedRuntime::generate_deopt_blob() {
   // of the current frame. Then clear the field in JavaThread
 
   __ ld(x13, Address(xthread, JavaThread::exception_pc_offset()));
-  __ sd(x13, Address(fp, wordSize));
+  __ sd(x13, Address(fp, frame::return_addr_offset * wordSize));
   __ sd(zr, Address(xthread, JavaThread::exception_pc_offset()));
 
 #ifdef ASSERT
@@ -2626,7 +2628,7 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
     // it later to determine if someone changed the return address for
     // us!
     __ ld(x18, Address(xthread, JavaThread::saved_exception_pc_offset()));
-    __ sd(x18, Address(fp, wordSize));
+    __ sd(x18, Address(fp, frame::return_addr_offset * wordSize));
   }
 
   // Do the call
@@ -2664,7 +2666,7 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
   Label no_adjust, bail;
   if (!cause_return) {
     // If our stashed return pc was modified by the runtime we avoid touching it
-    __ ld(t0, Address(fp, wordSize));
+    __ ld(t0, Address(fp, frame::return_addr_offset * wordSize));
     __ bne(x18, t0, no_adjust);
 
 #ifdef ASSERT
@@ -2684,7 +2686,7 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
 #endif
     // Adjust return pc forward to step over the safepoint poll instruction
     __ add(x18, x18, NativeInstruction::instruction_size);
-    __ sd(x18, Address(fp, wordSize));
+    __ sd(x18, Address(fp, frame::return_addr_offset * wordSize));
   }
 
   __ bind(no_adjust);

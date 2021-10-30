@@ -127,58 +127,59 @@ class StubGenerator: public StubCodeGenerator {
   //     [ return_from_Java     ] <--- sp
   //     [ argument word n      ]
   //      ...
-  // -21 [ argument word 1      ]
-  // -20 [ saved x27            ] <--- sp_after_call
-  // -19 [ saved x26            ]
-  // -18 [ saved x25            ]
-  // -17 [ saved x24            ]
-  // -16 [ saved x23            ]
-  // -15 [ saved x22            ]
-  // -14 [ saved x21            ]
-  // -13 [ saved x20            ]
-  // -12 [ saved x19            ]
-  // -11 [ saved x18            ]
-  // -10 [ saved x9             ]
-  //  -9 [ thread pointer (x4)  ]
-  //  -8 [ call wrapper   (x10) ]
-  //  -7 [ result         (x11) ]
-  //  -6 [ result type    (x12) ]
-  //  -5 [ method         (x13) ]
-  //  -4 [ entry point    (x14) ]
-  //  -3 [ parameters     (x15) ]
-  //  -2 [ parameter size (x16) ]
-  //  -1 [ thread         (x17) ]
-  //   0 [ saved fp       (x8)  ] <--- fp == saved sp (x2)
-  //   1 [ saved lr       (x1)  ]
+  // -23 [ argument word 1      ]
+  // -22 [ saved x27            ] <--- sp_after_call
+  // -21 [ saved x26            ]
+  // -20 [ saved x25            ]
+  // -19 [ saved x24            ]
+  // -18 [ saved x23            ]
+  // -17 [ saved x22            ]
+  // -16 [ saved x21            ]
+  // -15 [ saved x20            ]
+  // -14 [ saved x19            ]
+  // -13 [ saved x18            ]
+  // -12 [ saved x9             ]
+  // -11 [ thread pointer (x4)  ]
+  // -10 [ call wrapper   (x10) ]
+  //  -9 [ result         (x11) ]
+  //  -8 [ result type    (x12) ]
+  //  -7 [ method         (x13) ]
+  //  -6 [ entry point    (x14) ]
+  //  -5 [ parameters     (x15) ]
+  //  -4 [ parameter size (x16) ]
+  //  -3 [ thread         (x17) ]
+  //  -2 [ saved fp       (x8)  ]
+  //  -1 [ saved lr       (x1)  ]
+  //   0 [                      ] <--- fp == saved sp (x2)
 
   // Call stub stack layout word offsets from fp
   enum call_stub_layout {
-    sp_after_call_off  = -20,
+    sp_after_call_off  = -22,
 
-    x27_off            = -20,
-    x26_off            = -19,
-    x25_off            = -18,
-    x24_off            = -17,
-    x23_off            = -16,
-    x22_off            = -15,
-    x21_off            = -14,
-    x20_off            = -13,
-    x19_off            = -12,
-    x18_off            = -11,
-    x9_off             = -10,
+    x27_off            = -22,
+    x26_off            = -21,
+    x25_off            = -20,
+    x24_off            = -19,
+    x23_off            = -18,
+    x22_off            = -17,
+    x21_off            = -16,
+    x20_off            = -15,
+    x19_off            = -14,
+    x18_off            = -13,
+    x9_off             = -12,
 
-    x4_off             =  -9,
+    x4_off             = -11,
 
-    call_wrapper_off   =  -8,
-    result_off         =  -7,
-    result_type_off    =  -6,
-    method_off         =  -5,
-    entry_point_off    =  -4,
-    parameters_off     =  -3,
-    parameter_size_off =  -2,
-    thread_off         =  -1,
-    fp_f               =   0,
-    retaddr_off        =   1,
+    call_wrapper_off   = -10,
+    result_off         = -9,
+    result_type_off    = -8,
+    method_off         = -7,
+    entry_point_off    = -6,
+    parameters_off     = -5,
+    parameter_size_off = -4,
+    thread_off         = -3,
+    fp_f               = -2,
+    retaddr_off        = -1,
   };
 
   address generate_call_stub(address& return_address) {
@@ -2832,7 +2833,7 @@ class StubGenerator: public StubCodeGenerator {
     assert(is_even(framesize / 2), "sp not 16-byte aligned");
 
     // lr and fp are already in place
-    __ addi(sp, fp, 0 - (((unsigned)framesize - 4) << LogBytesPerInt)); // prolog
+    __ addi(sp, fp, 0 - ((unsigned)framesize << LogBytesPerInt)); // prolog
 
     int frame_complete = __ pc() - start;
 

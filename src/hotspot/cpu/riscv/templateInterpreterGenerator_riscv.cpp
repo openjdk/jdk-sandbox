@@ -779,7 +779,7 @@ void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call) {
 
   __ sd(lr, Address(sp, 11 * wordSize));
   __ sd(fp, Address(sp, 10 * wordSize));
-  __ la(fp, Address(sp, 10 * wordSize));
+  __ la(fp, Address(sp, 12 * wordSize)); // include lr & fp
 
   // set sender sp
   // leave last_sp as null
