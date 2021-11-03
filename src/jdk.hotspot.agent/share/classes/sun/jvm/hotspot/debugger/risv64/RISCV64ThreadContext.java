@@ -46,7 +46,7 @@ public abstract class RISCV64ThreadContext implements ThreadContext {
     //   struct user_regs_struct sc_regs;
     //   union __riscv_fp_state sc_fpregs;
     // };
-    // 
+    //
     // struct user_regs_struct {
     //    unsigned long pc;
     //    unsigned long ra;
