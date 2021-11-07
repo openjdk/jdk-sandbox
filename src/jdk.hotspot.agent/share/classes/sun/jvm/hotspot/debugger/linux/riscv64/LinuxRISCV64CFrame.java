@@ -32,7 +32,7 @@ import sun.jvm.hotspot.debugger.linux.*;
 import sun.jvm.hotspot.debugger.cdbg.*;
 import sun.jvm.hotspot.debugger.cdbg.basic.*;
 
-final public class LinuxRISCV64CFrame extends BasicCFrame {
+public final class LinuxRISCV64CFrame extends BasicCFrame {
    private static final int C_FRAME_LINK_OFFSET        = -2;
    private static final int C_FRAME_RETURN_ADDR_OFFSET = -1;
 
