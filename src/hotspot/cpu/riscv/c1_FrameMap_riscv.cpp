@@ -349,11 +349,11 @@ Address FrameMap::make_new_address(ByteSize sp_offset) const {
 //   | .........|  <- TOS
 //   | locals   |
 //   +----------+
-//   |  old fp, |  <- RFP
+//   |  old fp, |
 //   +----------+
 //   | ret addr |
 //   +----------+
-//   |  args    |
+//   |  args    |  <- RFP
 //   | .........|
 
 

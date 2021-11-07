@@ -1652,7 +1652,8 @@ void LIR_Assembler::check_no_conflict(ciKlass* exact_klass, intptr_t current_kla
   }
 #endif
     // first time here. Set profile type.
-    __ sd(tmp, mdo_addr);
+    // TODO: Fix this typo. See JDK-8267625.
+    __ ld(tmp, mdo_addr);
   } else {
     assert(ciTypeEntries::valid_ciklass(current_klass) != NULL &&
            ciTypeEntries::valid_ciklass(current_klass) != exact_klass, "inconsistent");
