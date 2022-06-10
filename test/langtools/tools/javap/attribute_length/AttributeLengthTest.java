@@ -46,7 +46,8 @@ public class AttributeLengthTest {
 
         com.sun.tools.javap.Main.run(opts, pout);
         pout.flush();
-        if (sw.getBuffer().indexOf("Error: Fatal error: attribute Code too big to handle") == -1) {
+        if (sw.getBuffer().indexOf("Error: Fatal error: Index") == -1) {
+            System.out.println(sw);
             throw new Exception("unexpected javap output");
         }
     }

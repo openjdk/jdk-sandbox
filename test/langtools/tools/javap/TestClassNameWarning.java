@@ -49,6 +49,7 @@ import com.sun.tools.classfile.ClassWriter;
 import toolbox.JavacTask;
 import toolbox.JavapTask;
 import toolbox.Task;
+import toolbox.Task.Expect;
 import toolbox.TestRunner;
 import toolbox.ToolBox;
 
@@ -184,11 +185,11 @@ public class TestClassNameWarning extends TestRunner {
         List<String> log = new JavapTask(tb)
                 .classpath(classes.toString())
                 .classes("Z")
-                .run()
+                .run(Expect.FAIL)
                 .writeAll()
                 .getOutputLines(Task.OutputKind.DIRECT);
 
-        checkOutput(log, true, "Warning:.*Z.class does not contain class Z");
+        checkOutput(log, true, "Error: Fatal error: Bad CP index: 0");
     }
 
     /**

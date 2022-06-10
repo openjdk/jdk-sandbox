@@ -28,6 +28,7 @@ package java.lang;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.annotation.Annotation;
+import java.lang.constant.ClassDesc;
 import java.lang.module.Configuration;
 import java.lang.module.ModuleReference;
 import java.lang.module.ModuleDescriptor;
@@ -51,7 +52,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import jdk.classfile.jdktypes.AccessFlag;
+import jdk.classfile.AccessFlags;
 
+import jdk.classfile.ClassModel;
+import jdk.classfile.Classfile;
+import jdk.classfile.attribute.ModuleAttribute;
 import jdk.internal.loader.BuiltinClassLoader;
 import jdk.internal.loader.BootLoader;
 import jdk.internal.loader.ClassLoaders;
@@ -59,13 +65,6 @@ import jdk.internal.misc.CDS;
 import jdk.internal.module.ModuleLoaderMap;
 import jdk.internal.module.ServicesCatalog;
 import jdk.internal.module.Resources;
-import jdk.internal.org.objectweb.asm.AnnotationVisitor;
-import jdk.internal.org.objectweb.asm.Attribute;
-import jdk.internal.org.objectweb.asm.ClassReader;
-import jdk.internal.org.objectweb.asm.ClassVisitor;
-import jdk.internal.org.objectweb.asm.ClassWriter;
-import jdk.internal.org.objectweb.asm.ModuleVisitor;
-import jdk.internal.org.objectweb.asm.Opcodes;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.vm.annotation.Stable;
@@ -1511,46 +1510,17 @@ public final class Module implements AnnotatedElement {
      */
     private Class<?> loadModuleInfoClass(InputStream in) throws IOException {
         final String MODULE_INFO = "module-info";
-
-        ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS
-                                         + ClassWriter.COMPUTE_FRAMES);
-
-        ClassVisitor cv = new ClassVisitor(Opcodes.ASM7, cw) {
-            @Override
-            public void visit(int version,
-                              int access,
-                              String name,
-                              String signature,
-                              String superName,
-                              String[] interfaces) {
-                cw.visit(version,
-                        Opcodes.ACC_INTERFACE
-                            + Opcodes.ACC_ABSTRACT
-                            + Opcodes.ACC_SYNTHETIC,
-                        MODULE_INFO,
-                        null,
-                        "java/lang/Object",
-                        null);
-            }
-            @Override
-            public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
-                // keep annotations
-                return super.visitAnnotation(desc, visible);
-            }
-            @Override
-            public void visitAttribute(Attribute attr) {
-                // drop non-annotation attributes
-            }
-            @Override
-            public ModuleVisitor visitModule(String name, int flags, String version) {
-                // drop Module attribute
-                return null;
-            }
-        };
-
-        ClassReader cr = new ClassReader(in);
-        cr.accept(cv, 0);
-        byte[] bytes = cw.toByteArray();
+        ClassModel cm = Classfile.parse(in.readAllBytes(),
+                Classfile.Option.processUnknownAttributes(false));
+        byte[] bytes = Classfile.build(
+                ClassDesc.of(MODULE_INFO),
+                cb -> {
+                    cb.withFlags(AccessFlag.INTERFACE, AccessFlag.ABSTRACT, AccessFlag.SYNTHETIC);
+                    cb.withVersion(cm.majorVersion(), cm.minorVersion());
+                    cm.forEachElement(e -> {
+                        if (!(e instanceof ModuleAttribute) && !(e instanceof AccessFlags)) cb.accept(e);
+                    });
+                });
 
         ClassLoader cl = new ClassLoader(loader) {
             @Override

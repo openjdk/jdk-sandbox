@@ -25,23 +25,16 @@
 
 package com.sun.tools.javap;
 
-import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import jdk.classfile.Attributes;
+import jdk.classfile.Classfile;
 
-import com.sun.tools.classfile.AccessFlags;
-import com.sun.tools.classfile.Attribute;
-import com.sun.tools.classfile.Code_attribute;
-import com.sun.tools.classfile.ConstantPool;
-import com.sun.tools.classfile.ConstantPoolException;
-import com.sun.tools.classfile.Descriptor;
-import com.sun.tools.classfile.Descriptor.InvalidDescriptor;
-import com.sun.tools.classfile.Instruction;
-import com.sun.tools.classfile.Method;
-import com.sun.tools.classfile.StackMapTable_attribute;
-import com.sun.tools.classfile.StackMapTable_attribute.*;
-
-import static com.sun.tools.classfile.StackMapTable_attribute.verification_type_info.*;
+import jdk.classfile.CodeModel;
+import jdk.classfile.Instruction;
+import jdk.classfile.MethodModel;
+import jdk.classfile.attribute.StackMapTableAttribute;
 
 /**
  * Annotate instructions with stack map.
@@ -65,225 +58,95 @@ public class StackMapWriter extends InstructionDetailWriter {
         classWriter = ClassWriter.instance(context);
     }
 
-    public void reset(Code_attribute attr) {
-        setStackMap((StackMapTable_attribute) attr.attributes.get(Attribute.StackMapTable));
+    public void reset(CodeModel attr) {
+        setStackMap(attr.findAttribute(Attributes.STACK_MAP_TABLE).orElse(null), attr.parent().get());
     }
 
-    void setStackMap(StackMapTable_attribute attr) {
+    void setStackMap(StackMapTableAttribute attr, MethodModel m) {
         if (attr == null) {
             map = null;
             return;
         }
-
-        Method m = classWriter.getMethod();
-        Descriptor d = m.descriptor;
-        String[] args;
-        try {
-            ConstantPool cp = classWriter.getClassFile().constant_pool;
-            String argString = d.getParameterTypes(cp);
-            args = argString.substring(1, argString.length() - 1).split("[, ]+");
-        } catch (ConstantPoolException | InvalidDescriptor e) {
-            return;
-        }
-        boolean isStatic = m.access_flags.is(AccessFlags.ACC_STATIC);
-
-        verification_type_info[] initialLocals = new verification_type_info[(isStatic ? 0 : 1) + args.length];
-        if (!isStatic)
-            initialLocals[0] = new CustomVerificationTypeInfo("this");
-        for (int i = 0; i < args.length; i++) {
-            initialLocals[(isStatic ? 0 : 1) + i] =
-                    new CustomVerificationTypeInfo(args[i].replace(".", "/"));
-        }
+        var args = m.descriptorSymbol().parameterArray();
+        boolean isStatic = (m.flags().flagsMask() & Classfile.ACC_STATIC) != 0;
 
         map = new HashMap<>();
-        StackMapBuilder builder = new StackMapBuilder();
+        var initFrame = attr.initFrame();
+        firstLocal = isStatic ? null : initFrame.declaredLocals().get(0);
+        map.put(-1, initFrame);
 
-        // using -1 as the pc for the initial frame effectively compensates for
-        // the difference in behavior for the first stack map frame (where the
-        // pc offset is just offset_delta) compared to subsequent frames (where
-        // the pc offset is always offset_delta+1).
-        int pc = -1;
-
-        map.put(pc, new StackMap(initialLocals, empty));
-
-        for (int i = 0; i < attr.entries.length; i++)
-            pc = attr.entries[i].accept(builder, pc);
+        for (var fr : attr.entries())
+            map.put(fr.absoluteOffset(), fr);
     }
 
     public void writeInitialDetails() {
         writeDetails(-1);
     }
 
-    public void writeDetails(Instruction instr) {
-        writeDetails(instr.getPC());
+    @Override
+    public void writeDetails(int pc, Instruction instr) {
+        writeDetails(pc);
     }
 
     private void writeDetails(int pc) {
         if (map == null)
             return;
 
-        StackMap m = map.get(pc);
+        var m = map.get(pc);
         if (m != null) {
-            print("StackMap locals: ", m.locals);
-            print("StackMap stack: ", m.stack);
+            print("StackMap locals: ", m.effectiveLocals());
+            print("StackMap stack: ", m.effectiveStack());
         }
 
     }
 
-    void print(String label, verification_type_info[] entries) {
+    void print(String label, List<StackMapTableAttribute.VerificationTypeInfo> entries) {
         print(label);
-        for (int i = 0; i < entries.length; i++) {
+        for (var e : entries) {
             print(" ");
-            print(entries[i]);
+            print(e);
         }
         println();
     }
 
-    void print(verification_type_info entry) {
+    void print(StackMapTableAttribute.VerificationTypeInfo entry) {
         if (entry == null) {
             print("ERROR");
             return;
         }
 
-        switch (entry.tag) {
-            case -1:
-                print(((CustomVerificationTypeInfo) entry).text);
-                break;
-
-            case ITEM_Top:
+        switch (entry.type()) {
+            case ITEM_TOP ->
                 print("top");
-                break;
 
-            case ITEM_Integer:
+            case ITEM_INTEGER ->
                 print("int");
-                break;
 
-            case ITEM_Float:
+            case ITEM_FLOAT ->
                 print("float");
-                break;
 
-            case ITEM_Long:
+            case ITEM_LONG ->
                 print("long");
-                break;
 
-            case ITEM_Double:
+            case ITEM_DOUBLE ->
                 print("double");
-                break;
 
-            case ITEM_Null:
+            case ITEM_NULL ->
                 print("null");
-                break;
 
-            case ITEM_UninitializedThis:
+            case ITEM_UNINITIALIZED_THIS ->
                 print("uninit_this");
-                break;
 
-            case ITEM_Object:
-                try {
-                    ConstantPool cp = classWriter.getClassFile().constant_pool;
-                    ConstantPool.CONSTANT_Class_info class_info = cp.getClassInfo(((Object_variable_info) entry).cpool_index);
-                    print(cp.getUTF8Value(class_info.name_index));
-                } catch (ConstantPoolException e) {
-                    print("??");
-                }
-                break;
+            case ITEM_OBJECT ->
+                print(entry == firstLocal ? "this" : ((StackMapTableAttribute.ObjectVerificationTypeInfo)entry).className().asInternalName());
 
-            case ITEM_Uninitialized:
-                print(((Uninitialized_variable_info) entry).offset);
-                break;
+            case ITEM_UNINITIALIZED ->
+                print(((StackMapTableAttribute.UninitializedVerificationTypeInfo) entry).offset());
         }
 
     }
 
-    private Map<Integer, StackMap> map;
+    private Map<Integer, StackMapTableAttribute.StackMapFrame> map;
     private ClassWriter classWriter;
-
-    class StackMapBuilder
-            implements StackMapTable_attribute.stack_map_frame.Visitor<Integer, Integer> {
-
-        public Integer visit_same_frame(same_frame frame, Integer pc) {
-            int new_pc = pc + frame.getOffsetDelta() + 1;
-            StackMap m = map.get(pc);
-            assert (m != null);
-            map.put(new_pc, m);
-            return new_pc;
-        }
-
-        public Integer visit_same_locals_1_stack_item_frame(same_locals_1_stack_item_frame frame, Integer pc) {
-            int new_pc = pc + frame.getOffsetDelta() + 1;
-            StackMap prev = map.get(pc);
-            assert (prev != null);
-            StackMap m = new StackMap(prev.locals, frame.stack);
-            map.put(new_pc, m);
-            return new_pc;
-        }
-
-        public Integer visit_same_locals_1_stack_item_frame_extended(same_locals_1_stack_item_frame_extended frame, Integer pc) {
-            int new_pc = pc + frame.getOffsetDelta() + 1;
-            StackMap prev = map.get(pc);
-            assert (prev != null);
-            StackMap m = new StackMap(prev.locals, frame.stack);
-            map.put(new_pc, m);
-            return new_pc;
-        }
-
-        public Integer visit_chop_frame(chop_frame frame, Integer pc) {
-            int new_pc = pc + frame.getOffsetDelta() + 1;
-            StackMap prev = map.get(pc);
-            assert (prev != null);
-            int k = 251 - frame.frame_type;
-            verification_type_info[] new_locals = Arrays.copyOf(prev.locals, prev.locals.length - k);
-            StackMap m = new StackMap(new_locals, empty);
-            map.put(new_pc, m);
-            return new_pc;
-        }
-
-        public Integer visit_same_frame_extended(same_frame_extended frame, Integer pc) {
-            int new_pc = pc + frame.getOffsetDelta();
-            StackMap m = map.get(pc);
-            assert (m != null);
-            map.put(new_pc, m);
-            return new_pc;
-        }
-
-        public Integer visit_append_frame(append_frame frame, Integer pc) {
-            int new_pc = pc + frame.getOffsetDelta() + 1;
-            StackMap prev = map.get(pc);
-            assert (prev != null);
-            verification_type_info[] new_locals = new verification_type_info[prev.locals.length + frame.locals.length];
-            System.arraycopy(prev.locals, 0, new_locals, 0, prev.locals.length);
-            System.arraycopy(frame.locals, 0, new_locals, prev.locals.length, frame.locals.length);
-            StackMap m = new StackMap(new_locals, empty);
-            map.put(new_pc, m);
-            return new_pc;
-        }
-
-        public Integer visit_full_frame(full_frame frame, Integer pc) {
-            int new_pc = pc + frame.getOffsetDelta() + 1;
-            StackMap m = new StackMap(frame.locals, frame.stack);
-            map.put(new_pc, m);
-            return new_pc;
-        }
-
-    }
-
-    static class StackMap {
-        StackMap(verification_type_info[] locals, verification_type_info[] stack) {
-            this.locals = locals;
-            this.stack = stack;
-        }
-
-        private final verification_type_info[] locals;
-        private final verification_type_info[] stack;
-    }
-
-    static class CustomVerificationTypeInfo extends verification_type_info {
-        public CustomVerificationTypeInfo(String text) {
-            super(-1);
-            this.text = text;
-        }
-        private String text;
-    }
-
-    private final verification_type_info[] empty = { };
+    private StackMapTableAttribute.VerificationTypeInfo firstLocal;
 }

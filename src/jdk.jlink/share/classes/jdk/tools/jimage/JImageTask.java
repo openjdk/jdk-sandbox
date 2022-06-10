@@ -40,12 +40,14 @@ import java.util.MissingResourceException;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import jdk.classfile.ClassModel;
+import jdk.classfile.Classfile;
+import jdk.classfile.CodeModel;
+import jdk.classfile.MethodModel;
 
 import jdk.internal.jimage.BasicImageReader;
 import jdk.internal.jimage.ImageHeader;
 import jdk.internal.jimage.ImageLocation;
-import jdk.internal.org.objectweb.asm.ClassReader;
-import jdk.internal.org.objectweb.asm.tree.ClassNode;
 import jdk.tools.jlink.internal.ImageResourcesTree;
 import jdk.tools.jlink.internal.TaskHelper;
 import jdk.tools.jlink.internal.TaskHelper.BadArgs;
@@ -367,9 +369,13 @@ class JImageTask {
         if (name.endsWith(".class") && !name.endsWith("module-info.class")) {
             try {
                 byte[] bytes = reader.getResource(location);
-                ClassReader cr = new ClassReader(bytes);
-                ClassNode cn = new ClassNode();
-                cr.accept(cn, 0);
+                Classfile.parse(bytes).forEachElement(cle -> {
+                    if (cle instanceof MethodModel mm) mm.forEachElement(me -> {
+                        if (me instanceof CodeModel com) com.forEachElement(coe -> {
+                            //do nothing here, just visit each model element
+                        });
+                    });
+                });
             } catch (Exception ex) {
                 log.println("Error(s) in Class: " + name);
             }

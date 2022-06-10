@@ -50,4 +50,41 @@ See [JEP 230: Microbenchmark Suite](https://bugs.openjdk.java.net/browse/JDK-805
 
 ### Use Cases
 
-See our [development branch](https://github.com/openjdk/jdk-sandbox/tree/classfile-api-dev-branch#use-cases) for actual JDK use cases.
+Following use cases of Classfile Processing API are included in this JDK branch:
+
+- module `java.base`:
+    - java.lang.[Module](src/java.base/share/classes/java/lang/Module.java)
+    - java.lang.invoke.[ClassSpecializer](src/java.base/share/classes/java/lang/invoke/ClassSpecializer.java),
+    [GenerateJLIClassesHelper](src/java.base/share/classes/java/lang/invoke/GenerateJLIClassesHelper.java),
+    [InnerClassLambdaMetafactory](src/java.base/share/classes/java/lang/invoke/InnerClassLambdaMetafactory.java),
+    [InvokerBytecodeGenerator](src/java.base/share/classes/java/lang/invoke/InvokerBytecodeGenerator.java),
+    [MethodHandleImpl](src/java.base/share/classes/java/lang/invoke/MethodHandleImpl.java),
+    [MethodHandles](src/java.base/share/classes/java/lang/invoke/MethodHandles.java),
+    [TypeConvertingMethodAdapter](src/java.base/share/classes/java/lang/invoke/TypeConvertingMethodAdapter.java)
+    - java.lang.reflect.[ProxyGenerator](src/java.base/share/classes/java/lang/reflect/ProxyGenerator.java)
+    - jdk.internal.module.[ModuleInfoExtender](src/java.base/share/classes/jdk/internal/module/ModuleInfoExtender.java),
+    [ModuleInfoWriter](src/java.base/share/classes/jdk/internal/module/ModuleInfoWriter.java)
+- module `jdk.jartool`:
+    - sun.tools.jar.[FingerPrint](src/jdk.jartool/share/classes/sun/tools/jar/FingerPrint.java)
+- module `jdk.jdeps`:
+    - com.sun.tools.javap.[AttributeWriter](src/jdk.jdeps/share/classes/com/sun/tools/javap/AttributeWriter.java),
+    [BasicWriter](src/jdk.jdeps/share/classes/com/sun/tools/javap/BasicWriter.java),
+    [ClassWriter](src/jdk.jdeps/share/classes/com/sun/tools/javap/ClassWriter.java),
+    [CodeWriter](src/jdk.jdeps/share/classes/com/sun/tools/javap/CodeWriter.java),
+    [ConstantWriter](src/jdk.jdeps/share/classes/com/sun/tools/javap/ConstantWriter.java),
+    [InstructionDetailWriter](src/jdk.jdeps/share/classes/com/sun/tools/javap/InstructionDetailWriter.java),
+    [JavapTask](src/jdk.jdeps/share/classes/com/sun/tools/javap/JavapTask.java),
+    [LocalVariableTableWriter](src/jdk.jdeps/share/classes/com/sun/tools/javap/LocalVariableTableWriter.java),
+    [LocalVariableTypeTableWriter](src/jdk.jdeps/share/classes/com/sun/tools/javap/LocalVariableTypeTableWriter.java),
+    [Options](src/jdk.jdeps/share/classes/com/sun/tools/javap/Options.java),
+    [SourceWriter](src/jdk.jdeps/share/classes/com/sun/tools/javap/SourceWriter.java),
+    [StackMapWriter](src/jdk.jdeps/share/classes/com/sun/tools/javap/StackMapWriter.java),
+    [TryBlockWriter](src/jdk.jdeps/share/classes/com/sun/tools/javap/TryBlockWriter.java),
+    [TypeAnnotationWriter](src/jdk.jdeps/share/classes/com/sun/tools/javap/TypeAnnotationWriter.java)
+- module `jdk.jlink`:
+    - jdk.tools.jimage.[JImageTask](src/jdk.jlink/share/classes/jdk/tools/jimage/JImageTask.java)
+    - jdk.tools.jlink.internal.plugins.[AbstractPlugin](src/jdk.jlink/share/classes/jdk/tools/jlink/internal/plugins/AbstractPlugin.java),
+    [IncludeLocalesPlugin](src/jdk.jlink/share/classes/jdk/tools/jlink/internal/plugins/IncludeLocalesPlugin.java),
+    [StripJavaDebugAttributesPlugin](src/jdk.jlink/share/classes/jdk/tools/jlink/internal/plugins/StripJavaDebugAttributesPlugin.java),
+    [SystemModulesPlugin](src/jdk.jlink/share/classes/jdk/tools/jlink/internal/plugins/SystemModulesPlugin.java),
+    [VersionPropsPlugin](src/jdk.jlink/share/classes/jdk/tools/jlink/internal/plugins/VersionPropsPlugin.java)
