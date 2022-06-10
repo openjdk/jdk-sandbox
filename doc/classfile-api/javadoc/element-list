@@ -1,0 +1,9 @@
+jdk.classfile
+jdk.classfile.attribute
+jdk.classfile.constantpool
+jdk.classfile.impl
+jdk.classfile.impl.verifier
+jdk.classfile.instruction
+jdk.classfile.jdktypes
+jdk.classfile.transforms
+jdk.classfile.util
