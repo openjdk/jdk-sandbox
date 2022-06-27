@@ -52,7 +52,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import jdk.classfile.jdktypes.AccessFlag;
+import java.lang.reflect.AccessFlag;
 import jdk.classfile.AccessFlags;
 
 import jdk.classfile.ClassModel;

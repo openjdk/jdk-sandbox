@@ -30,6 +30,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Locale;
 import jdk.classfile.*;
+import java.lang.reflect.AccessFlag;
 import jdk.classfile.jdktypes.*;
 import jdk.classfile.constantpool.*;
 import jdk.classfile.attribute.*;

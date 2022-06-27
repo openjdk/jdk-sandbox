@@ -62,7 +62,7 @@ import static java.lang.invoke.LambdaForm.*;
 import static java.lang.invoke.MethodHandleStatics.*;
 import static java.lang.invoke.MethodHandles.Lookup.IMPL_LOOKUP;
 import static java.lang.invoke.MethodHandles.Lookup.ClassOption.NESTMATE;
-import jdk.classfile.jdktypes.AccessFlag;
+import java.lang.reflect.AccessFlag;
 import jdk.classfile.AccessFlags;
 import jdk.classfile.Classfile;
 import jdk.classfile.Opcode;

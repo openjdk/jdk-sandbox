@@ -46,7 +46,7 @@ import static java.lang.invoke.LambdaForm.Kind.*;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import jdk.classfile.jdktypes.AccessFlag;
+import java.lang.reflect.AccessFlag;
 import jdk.classfile.AccessFlags;
 import jdk.classfile.ClassBuilder;
 import jdk.classfile.Classfile;

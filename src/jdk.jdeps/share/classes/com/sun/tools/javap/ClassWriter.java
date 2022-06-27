@@ -747,7 +747,7 @@ public class ClassWriter extends BasicWriter {
         return getModifiers(AccessFlags.ofField(mask).flags());
     }
 
-    private static Set<String> getModifiers(Set<jdk.classfile.jdktypes.AccessFlag> flags) {
+    private static Set<String> getModifiers(Set<java.lang.reflect.AccessFlag> flags) {
         Set<String> s = new LinkedHashSet<>();
         for (var f : flags)
             if (f.sourceModifier()) s.add(Modifier.toString(f.mask()));
@@ -766,7 +766,7 @@ public class ClassWriter extends BasicWriter {
         return getFlags(mask, AccessFlags.ofField(mask).flags());
     }
 
-    private static Set<String> getFlags(int mask, Set<jdk.classfile.jdktypes.AccessFlag> flags) {
+    private static Set<String> getFlags(int mask, Set<java.lang.reflect.AccessFlag> flags) {
         Set<String> s = new LinkedHashSet<>();
         for (var f: flags) {
             s.add("ACC_" + f.name());
