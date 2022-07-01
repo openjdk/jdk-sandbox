@@ -238,36 +238,48 @@ public sealed interface TypeAnnotation
             return targetType().sizeIfFixed;
         }
 
+        static TypeParameterTarget ofTypeParameter(TargetType targetType, int typeParameterIndex) {
+            return new TargetInfoImpl.TypeParameterTargetImpl(targetType, typeParameterIndex);
+        }
+
         static TypeParameterTarget ofClassTypeParameter(int typeParameterIndex) {
-            return new TargetInfoImpl.TypeParameterTargetImpl(TargetType.CLASS_TYPE_PARAMETER, typeParameterIndex);
+            return ofTypeParameter(TargetType.CLASS_TYPE_PARAMETER, typeParameterIndex);
         }
 
         static TypeParameterTarget ofMethodTypeParameter(int typeParameterIndex) {
-            return new TargetInfoImpl.TypeParameterTargetImpl(TargetType.METHOD_TYPE_PARAMETER, typeParameterIndex);
+            return ofTypeParameter(TargetType.METHOD_TYPE_PARAMETER, typeParameterIndex);
         }
 
         static SupertypeTarget ofClassExtends(int supertypeIndex) {
             return new TargetInfoImpl.SupertypeTargetImpl(supertypeIndex);
         }
 
+        static TypeParameterBoundTarget ofTypeParameterBound(TargetType targetType, int typeParameterIndex, int boundIndex) {
+            return new TargetInfoImpl.TypeParameterBoundTargetImpl(targetType, typeParameterIndex, boundIndex);
+        }
+
         static TypeParameterBoundTarget ofClassTypeParameterBound(int typeParameterIndex, int boundIndex) {
-            return new TargetInfoImpl.TypeParameterBoundTargetImpl(TargetType.CLASS_TYPE_PARAMETER_BOUND, typeParameterIndex, boundIndex);
+            return ofTypeParameterBound(TargetType.CLASS_TYPE_PARAMETER_BOUND, typeParameterIndex, boundIndex);
         }
 
         static TypeParameterBoundTarget ofMethodTypeParameterBound(int typeParameterIndex, int boundIndex) {
-            return new TargetInfoImpl.TypeParameterBoundTargetImpl(TargetType.METHOD_TYPE_PARAMETER_BOUND, typeParameterIndex, boundIndex);
+            return ofTypeParameterBound(TargetType.METHOD_TYPE_PARAMETER_BOUND, typeParameterIndex, boundIndex);
+        }
+
+        static EmptyTarget of(TargetType targetType) {
+            return new TargetInfoImpl.EmptyTargetImpl(targetType);
         }
 
         static EmptyTarget ofField() {
-            return new TargetInfoImpl.EmptyTargetImpl(TargetType.FIELD);
+            return of(TargetType.FIELD);
         }
 
         static EmptyTarget ofMethodReturn() {
-            return new TargetInfoImpl.EmptyTargetImpl(TargetType.METHOD_RETURN);
+            return of(TargetType.METHOD_RETURN);
         }
 
         static EmptyTarget ofMethodReceiver() {
-            return new TargetInfoImpl.EmptyTargetImpl(TargetType.METHOD_RECEIVER);
+            return of(TargetType.METHOD_RECEIVER);
         }
 
         static FormalParameterTarget ofMethodFormalParameter(int formalParameterIndex) {
@@ -278,52 +290,64 @@ public sealed interface TypeAnnotation
             return new TargetInfoImpl.ThrowsTargetImpl(throwsTargetIndex);
         }
 
+        static LocalVarTarget ofVariable(TargetType targetType, List<LocalVarTargetInfo> table) {
+            return new TargetInfoImpl.LocalVarTargetImpl(targetType, table);
+        }
+
         static LocalVarTarget ofLocalVariable(List<LocalVarTargetInfo> table) {
-            return new TargetInfoImpl.LocalVarTargetImpl(TargetType.LOCAL_VARIABLE, table);
+            return ofVariable(TargetType.LOCAL_VARIABLE, table);
         }
 
         static LocalVarTarget ofResourceVariable(List<LocalVarTargetInfo> table) {
-            return new TargetInfoImpl.LocalVarTargetImpl(TargetType.RESOURCE_VARIABLE, table);
+            return ofVariable(TargetType.RESOURCE_VARIABLE, table);
         }
 
         static CatchTarget ofExceptionParameter(int exceptionTableIndex) {
             return new TargetInfoImpl.CatchTargetImpl(exceptionTableIndex);
         }
 
+        static OffsetTarget ofOffset(TargetType targetType, Label target) {
+            return new TargetInfoImpl.OffsetTargetImpl(targetType, target);
+        }
+
         static OffsetTarget ofInstanceofExpr(Label target) {
-            return new TargetInfoImpl.OffsetTargetImpl(TargetType.INSTANCEOF, target);
+            return ofOffset(TargetType.INSTANCEOF, target);
         }
 
         static OffsetTarget ofNewExpr(Label target) {
-            return new TargetInfoImpl.OffsetTargetImpl(TargetType.NEW, target);
+            return ofOffset(TargetType.NEW, target);
         }
 
         static OffsetTarget ofConstructorReference(Label target) {
-            return new TargetInfoImpl.OffsetTargetImpl(TargetType.CONSTRUCTOR_REFERENCE, target);
+            return ofOffset(TargetType.CONSTRUCTOR_REFERENCE, target);
         }
 
         static OffsetTarget ofMethodReference(Label target) {
-            return new TargetInfoImpl.OffsetTargetImpl(TargetType.METHOD_REFERENCE, target);
+            return ofOffset(TargetType.METHOD_REFERENCE, target);
+        }
+
+        static TypeArgumentTarget ofTypeArgument(TargetType targetType, Label target, int typeArgumentIndex) {
+            return new TargetInfoImpl.TypeArgumentTargetImpl(targetType, target, typeArgumentIndex);
         }
 
         static TypeArgumentTarget ofCastExpr(Label target, int typeArgumentIndex) {
-            return new TargetInfoImpl.TypeArgumentTargetImpl(TargetType.CAST, target, typeArgumentIndex);
+            return ofTypeArgument(TargetType.CAST, target, typeArgumentIndex);
         }
 
         static TypeArgumentTarget ofConstructorInvocationTypeArgument(Label target, int typeArgumentIndex) {
-            return new TargetInfoImpl.TypeArgumentTargetImpl(TargetType.CONSTRUCTOR_INVOCATION_TYPE_ARGUMENT, target, typeArgumentIndex);
+            return ofTypeArgument(TargetType.CONSTRUCTOR_INVOCATION_TYPE_ARGUMENT, target, typeArgumentIndex);
         }
 
         static TypeArgumentTarget ofMethodInvocationTypeArgument(Label target, int typeArgumentIndex) {
-            return new TargetInfoImpl.TypeArgumentTargetImpl(TargetType.METHOD_INVOCATION_TYPE_ARGUMENT, target, typeArgumentIndex);
+            return ofTypeArgument(TargetType.METHOD_INVOCATION_TYPE_ARGUMENT, target, typeArgumentIndex);
         }
 
         static TypeArgumentTarget ofConstructorReferenceTypeArgument(Label target, int typeArgumentIndex) {
-            return new TargetInfoImpl.TypeArgumentTargetImpl(TargetType.CONSTRUCTOR_REFERENCE_TYPE_ARGUMENT, target, typeArgumentIndex);
+            return ofTypeArgument(TargetType.CONSTRUCTOR_REFERENCE_TYPE_ARGUMENT, target, typeArgumentIndex);
         }
 
         static TypeArgumentTarget ofMethodReferenceTypeArgument(Label target, int typeArgumentIndex) {
-            return new TargetInfoImpl.TypeArgumentTargetImpl(TargetType.METHOD_REFERENCE_TYPE_ARGUMENT, target, typeArgumentIndex);
+            return ofTypeArgument(TargetType.METHOD_REFERENCE_TYPE_ARGUMENT, target, typeArgumentIndex);
         }
     }
 
