@@ -81,7 +81,7 @@ public class CodeWriter extends BasicWriter {
 
     public void writeVerboseHeader(CodeAttribute attr) {
         MethodModel method = attr.parent().get();
-        int n = method.descriptorSymbol().parameterCount();
+        int n = method.methodTypeSymbol().parameterCount();
         if ((method.flags().flagsMask() & Classfile.ACC_STATIC) == 0)
             ++n;  // for 'this'
         println("stack=" + attr.maxStack() +

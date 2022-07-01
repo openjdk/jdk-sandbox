@@ -67,7 +67,7 @@ public class StackMapWriter extends InstructionDetailWriter {
             map = null;
             return;
         }
-        var args = m.descriptorSymbol().parameterArray();
+        var args = m.methodTypeSymbol().parameterArray();
         boolean isStatic = (m.flags().flagsMask() & Classfile.ACC_STATIC) != 0;
 
         map = new HashMap<>();

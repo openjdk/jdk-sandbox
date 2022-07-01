@@ -381,7 +381,7 @@ public class ClassWriter extends BasicWriter {
         print(sigPrinter.print(
                 f.findAttribute(Attributes.SIGNATURE)
                         .map(SignatureAttribute::asTypeSignature)
-                        .orElseGet(() -> Signature.of(f.descriptorSymbol()))));
+                        .orElseGet(() -> Signature.of(f.fieldTypeSymbol()))));
         print(" ");
         print(f.fieldName().stringValue());
         if (options.showConstants) {
@@ -389,7 +389,7 @@ public class ClassWriter extends BasicWriter {
             if (a.isPresent()) {
                 print(" = ");
                 var cv = a.get();
-                print(getConstantValue(f.descriptorSymbol(), cv.constant()));
+                print(getConstantValue(f.fieldTypeSymbol(), cv.constant()));
             }
         }
         print(";");
