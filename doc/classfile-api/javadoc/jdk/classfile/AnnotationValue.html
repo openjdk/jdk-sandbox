@@ -92,11 +92,11 @@ loadScripts(document, 'script');</script>
 </dl>
 <dl class="notes">
 <dt>All Known Subinterfaces:</dt>
-<dd><code><a href="AnnotationValue.OfAnnotation.html" title="interface in jdk.classfile">AnnotationValue.OfAnnotation</a></code>, <code><a href="AnnotationValue.OfArray.html" title="interface in jdk.classfile">AnnotationValue.OfArray</a></code>, <code><a href="AnnotationValue.OfClass.html" title="interface in jdk.classfile">AnnotationValue.OfClass</a></code>, <code><a href="AnnotationValue.OfConstant.html" title="interface in jdk.classfile">AnnotationValue.OfConstant</a></code>, <code><a href="AnnotationValue.OfEnum.html" title="interface in jdk.classfile">AnnotationValue.OfEnum</a></code></dd>
+<dd><code><a href="impl/AnnotationImpl.OfConstantImpl.html" title="interface in jdk.classfile.impl">AnnotationImpl.OfConstantImpl</a></code>, <code><a href="AnnotationValue.OfAnnotation.html" title="interface in jdk.classfile">AnnotationValue.OfAnnotation</a></code>, <code><a href="AnnotationValue.OfArray.html" title="interface in jdk.classfile">AnnotationValue.OfArray</a></code>, <code><a href="AnnotationValue.OfBoolean.html" title="interface in jdk.classfile">AnnotationValue.OfBoolean</a></code>, <code><a href="AnnotationValue.OfByte.html" title="interface in jdk.classfile">AnnotationValue.OfByte</a></code>, <code><a href="AnnotationValue.OfCharacter.html" title="interface in jdk.classfile">AnnotationValue.OfCharacter</a></code>, <code><a href="AnnotationValue.OfClass.html" title="interface in jdk.classfile">AnnotationValue.OfClass</a></code>, <code><a href="AnnotationValue.OfConstant.html" title="interface in jdk.classfile">AnnotationValue.OfConstant</a></code>, <code><a href="AnnotationValue.OfDouble.html" title="interface in jdk.classfile">AnnotationValue.OfDouble</a></code>, <code><a href="AnnotationValue.OfEnum.html" title="interface in jdk.classfile">AnnotationValue.OfEnum</a></code>, <code><a href="AnnotationValue.OfFloat.html" title="interface in jdk.classfile">AnnotationValue.OfFloat</a></code>, <code><a href="AnnotationValue.OfInteger.html" title="interface in jdk.classfile">AnnotationValue.OfInteger</a></code>, <code><a href="AnnotationValue.OfLong.html" title="interface in jdk.classfile">AnnotationValue.OfLong</a></code>, <code><a href="AnnotationValue.OfShort.html" title="interface in jdk.classfile">AnnotationValue.OfShort</a></code>, <code><a href="AnnotationValue.OfString.html" title="interface in jdk.classfile">AnnotationValue.OfString</a></code></dd>
 </dl>
 <dl class="notes">
 <dt>All Known Implementing Classes:</dt>
-<dd><code><a href="impl/AnnotationImpl.OfAnnotationImpl.html" title="class in jdk.classfile.impl">AnnotationImpl.OfAnnotationImpl</a></code>, <code><a href="impl/AnnotationImpl.OfArrayImpl.html" title="class in jdk.classfile.impl">AnnotationImpl.OfArrayImpl</a></code>, <code><a href="impl/AnnotationImpl.OfClassImpl.html" title="class in jdk.classfile.impl">AnnotationImpl.OfClassImpl</a></code>, <code><a href="impl/AnnotationImpl.OfConstantImpl.html" title="class in jdk.classfile.impl">AnnotationImpl.OfConstantImpl</a></code>, <code><a href="impl/AnnotationImpl.OfEnumImpl.html" title="class in jdk.classfile.impl">AnnotationImpl.OfEnumImpl</a></code></dd>
+<dd><code><a href="impl/AnnotationImpl.OfAnnotationImpl.html" title="class in jdk.classfile.impl">AnnotationImpl.OfAnnotationImpl</a></code>, <code><a href="impl/AnnotationImpl.OfArrayImpl.html" title="class in jdk.classfile.impl">AnnotationImpl.OfArrayImpl</a></code>, <code><a href="impl/AnnotationImpl.OfBooleanImpl.html" title="class in jdk.classfile.impl">AnnotationImpl.OfBooleanImpl</a></code>, <code><a href="impl/AnnotationImpl.OfByteImpl.html" title="class in jdk.classfile.impl">AnnotationImpl.OfByteImpl</a></code>, <code><a href="impl/AnnotationImpl.OfCharacterImpl.html" title="class in jdk.classfile.impl">AnnotationImpl.OfCharacterImpl</a></code>, <code><a href="impl/AnnotationImpl.OfClassImpl.html" title="class in jdk.classfile.impl">AnnotationImpl.OfClassImpl</a></code>, <code><a href="impl/AnnotationImpl.OfDoubleImpl.html" title="class in jdk.classfile.impl">AnnotationImpl.OfDoubleImpl</a></code>, <code><a href="impl/AnnotationImpl.OfEnumImpl.html" title="class in jdk.classfile.impl">AnnotationImpl.OfEnumImpl</a></code>, <code><a href="impl/AnnotationImpl.OfFloatImpl.html" title="class in jdk.classfile.impl">AnnotationImpl.OfFloatImpl</a></code>, <code><a href="impl/AnnotationImpl.OfIntegerImpl.html" title="class in jdk.classfile.impl">AnnotationImpl.OfIntegerImpl</a></code>, <code><a href="impl/AnnotationImpl.OfLongImpl.html" title="class in jdk.classfile.impl">AnnotationImpl.OfLongImpl</a></code>, <code><a href="impl/AnnotationImpl.OfShortImpl.html" title="class in jdk.classfile.impl">AnnotationImpl.OfShortImpl</a></code>, <code><a href="impl/AnnotationImpl.OfStringImpl.html" title="class in jdk.classfile.impl">AnnotationImpl.OfStringImpl</a></code></dd>
 </dl>
 <hr>
 <div class="type-signature"><span class="modifiers">public sealed interface </span><span class="element-name type-name-label">AnnotationValue</span><span class="extends-implements">
@@ -135,12 +135,32 @@ extends <a href="WritableElement.html" title="interface in jdk.classfile">Writab
 <div class="block">Models an array-valued element</div>
 </div>
 <div class="col-first even-row-color"><code>static interface&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="AnnotationValue.OfClass.html" class="type-name-link" title="interface in jdk.classfile">AnnotationValue.OfClass</a></code></div>
+<div class="col-second even-row-color"><code><a href="AnnotationValue.OfBoolean.html" class="type-name-link" title="interface in jdk.classfile">AnnotationValue.OfBoolean</a></code></div>
 <div class="col-last even-row-color">
-<div class="block">Models a class-valued element</div>
+<div class="block">Models a constant-valued element</div>
 </div>
 <div class="col-first odd-row-color"><code>static interface&nbsp;</code></div>
-<div class="col-second odd-row-color"><code><a href="AnnotationValue.OfConstant.html" class="type-name-link" title="interface in jdk.classfile">AnnotationValue.OfConstant</a></code></div>
+<div class="col-second odd-row-color"><code><a href="AnnotationValue.OfByte.html" class="type-name-link" title="interface in jdk.classfile">AnnotationValue.OfByte</a></code></div>
+<div class="col-last odd-row-color">
+<div class="block">Models a constant-valued element</div>
+</div>
+<div class="col-first even-row-color"><code>static interface&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="AnnotationValue.OfCharacter.html" class="type-name-link" title="interface in jdk.classfile">AnnotationValue.OfCharacter</a></code></div>
+<div class="col-last even-row-color">
+<div class="block">Models a constant-valued element</div>
+</div>
+<div class="col-first odd-row-color"><code>static interface&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="AnnotationValue.OfClass.html" class="type-name-link" title="interface in jdk.classfile">AnnotationValue.OfClass</a></code></div>
+<div class="col-last odd-row-color">
+<div class="block">Models a class-valued element</div>
+</div>
+<div class="col-first even-row-color"><code>static interface&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="AnnotationValue.OfConstant.html" class="type-name-link" title="interface in jdk.classfile">AnnotationValue.OfConstant</a></code></div>
+<div class="col-last even-row-color">
+<div class="block">Models a constant-valued element</div>
+</div>
+<div class="col-first odd-row-color"><code>static interface&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="AnnotationValue.OfDouble.html" class="type-name-link" title="interface in jdk.classfile">AnnotationValue.OfDouble</a></code></div>
 <div class="col-last odd-row-color">
 <div class="block">Models a constant-valued element</div>
 </div>
@@ -148,6 +168,31 @@ extends <a href="WritableElement.html" title="interface in jdk.classfile">Writab
 <div class="col-second even-row-color"><code><a href="AnnotationValue.OfEnum.html" class="type-name-link" title="interface in jdk.classfile">AnnotationValue.OfEnum</a></code></div>
 <div class="col-last even-row-color">
 <div class="block">Models an enum-valued element</div>
+</div>
+<div class="col-first odd-row-color"><code>static interface&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="AnnotationValue.OfFloat.html" class="type-name-link" title="interface in jdk.classfile">AnnotationValue.OfFloat</a></code></div>
+<div class="col-last odd-row-color">
+<div class="block">Models a constant-valued element</div>
+</div>
+<div class="col-first even-row-color"><code>static interface&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="AnnotationValue.OfInteger.html" class="type-name-link" title="interface in jdk.classfile">AnnotationValue.OfInteger</a></code></div>
+<div class="col-last even-row-color">
+<div class="block">Models a constant-valued element</div>
+</div>
+<div class="col-first odd-row-color"><code>static interface&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="AnnotationValue.OfLong.html" class="type-name-link" title="interface in jdk.classfile">AnnotationValue.OfLong</a></code></div>
+<div class="col-last odd-row-color">
+<div class="block">Models a constant-valued element</div>
+</div>
+<div class="col-first even-row-color"><code>static interface&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="AnnotationValue.OfShort.html" class="type-name-link" title="interface in jdk.classfile">AnnotationValue.OfShort</a></code></div>
+<div class="col-last even-row-color">
+<div class="block">Models a constant-valued element</div>
+</div>
+<div class="col-first odd-row-color"><code>static interface&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="AnnotationValue.OfString.html" class="type-name-link" title="interface in jdk.classfile">AnnotationValue.OfString</a></code></div>
+<div class="col-last odd-row-color">
+<div class="block">Models a constant-valued element</div>
 </div>
 </div>
 </section>

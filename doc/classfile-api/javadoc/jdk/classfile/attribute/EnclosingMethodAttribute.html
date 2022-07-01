@@ -109,7 +109,7 @@ extends <a href="../Attribute.html" title="interface in jdk.classfile">Attribute
 <section class="method-summary" id="method-summary">
 <h2>Method Summary</h2>
 <div id="method-summary-table">
-<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-controls="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table', 3)" class="active-table-tab">All Methods</button><button id="method-summary-table-tab1" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab1', 3)" class="table-tab">Static Methods</button><button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="table-tab">Instance Methods</button><button id="method-summary-table-tab3" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab3', 3)" class="table-tab">Abstract Methods</button></div>
+<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-controls="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table', 3)" class="active-table-tab">All Methods</button><button id="method-summary-table-tab1" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab1', 3)" class="table-tab">Static Methods</button><button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="table-tab">Instance Methods</button><button id="method-summary-table-tab3" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab3', 3)" class="table-tab">Abstract Methods</button><button id="method-summary-table-tab5" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab5', 3)" class="table-tab">Default Methods</button></div>
 <div id="method-summary-table.tabpanel" role="tabpanel">
 <div class="summary-table three-column-summary" aria-labelledby="method-summary-table-tab0">
 <div class="table-header col-first">Modifier and Type</div>
@@ -127,9 +127,34 @@ extends <a href="../Attribute.html" title="interface in jdk.classfile">Attribute
 <div class="block">Returns the name and type of the enclosing method, if the class is
  immediately enclosed by a method or constructor.</div>
 </div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="../constantpool/Utf8Entry.html" title="interface in jdk.classfile.constantpool">Utf8Entry</a>&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#enclosingMethodName()" class="member-name-link">enclosingMethodName</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Returns the name of the enclosing method, if the class is
+ immediately enclosed by a method or constructor.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="../constantpool/Utf8Entry.html" title="interface in jdk.classfile.constantpool">Utf8Entry</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#enclosingMethodType()" class="member-name-link">enclosingMethodType</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Returns the type of the enclosing method, if the class is
+ immediately enclosed by a method or constructor.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/MethodTypeDesc.html" title="class or interface in java.lang.constant" class="external-link">MethodTypeDesc</a>&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#enclosingMethodTypeSymbol()" class="member-name-link">enclosingMethodTypeSymbol</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Returns the type of the enclosing method, if the class is
+ immediately enclosed by a method or constructor.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1"><code>static <a href="EnclosingMethodAttribute.html" title="interface in jdk.classfile.attribute">EnclosingMethodAttribute</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(java.lang.constant.ClassDesc,java.util.Optional,java.util.Optional)" class="member-name-link">of</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;className,
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;methodName,
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/MethodTypeDesc.html" title="class or interface in java.lang.constant" class="external-link">MethodTypeDesc</a>&gt;&nbsp;methodType)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1">
+<div class="block">Returns an <code>EnclosingMethod</code> attribute.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1"><code>static <a href="EnclosingMethodAttribute.html" title="interface in jdk.classfile.attribute">EnclosingMethodAttribute</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(jdk.classfile.constantpool.ClassEntry,jdk.classfile.constantpool.NameAndTypeEntry)" class="member-name-link">of</a><wbr>(<a href="../constantpool/ClassEntry.html" title="interface in jdk.classfile.constantpool">ClassEntry</a>&nbsp;className,
- <a href="../constantpool/NameAndTypeEntry.html" title="interface in jdk.classfile.constantpool">NameAndTypeEntry</a>&nbsp;method)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(jdk.classfile.constantpool.ClassEntry,java.util.Optional)" class="member-name-link">of</a><wbr>(<a href="../constantpool/ClassEntry.html" title="interface in jdk.classfile.constantpool">ClassEntry</a>&nbsp;className,
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="../constantpool/NameAndTypeEntry.html" title="interface in jdk.classfile.constantpool">NameAndTypeEntry</a>&gt;&nbsp;method)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1">
 <div class="block">Returns an <code>EnclosingMethod</code> attribute.</div>
 </div>
@@ -180,15 +205,71 @@ extends <a href="../Attribute.html" title="interface in jdk.classfile">Attribute
 </section>
 </li>
 <li>
-<section class="detail" id="of(jdk.classfile.constantpool.ClassEntry,jdk.classfile.constantpool.NameAndTypeEntry)">
+<section class="detail" id="enclosingMethodName()">
+<h3>enclosingMethodName</h3>
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="../constantpool/Utf8Entry.html" title="interface in jdk.classfile.constantpool">Utf8Entry</a>&gt;</span>&nbsp;<span class="element-name">enclosingMethodName</span>()</div>
+<div class="block">Returns the name of the enclosing method, if the class is
+ immediately enclosed by a method or constructor.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the name of the enclosing method, if the class is
+ immediately enclosed by a method or constructor</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="enclosingMethodType()">
+<h3>enclosingMethodType</h3>
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="../constantpool/Utf8Entry.html" title="interface in jdk.classfile.constantpool">Utf8Entry</a>&gt;</span>&nbsp;<span class="element-name">enclosingMethodType</span>()</div>
+<div class="block">Returns the type of the enclosing method, if the class is
+ immediately enclosed by a method or constructor.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the type of the enclosing method, if the class is
+ immediately enclosed by a method or constructor</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="enclosingMethodTypeSymbol()">
+<h3>enclosingMethodTypeSymbol</h3>
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/MethodTypeDesc.html" title="class or interface in java.lang.constant" class="external-link">MethodTypeDesc</a>&gt;</span>&nbsp;<span class="element-name">enclosingMethodTypeSymbol</span>()</div>
+<div class="block">Returns the type of the enclosing method, if the class is
+ immediately enclosed by a method or constructor.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the type of the enclosing method, if the class is
+ immediately enclosed by a method or constructor</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="of(jdk.classfile.constantpool.ClassEntry,java.util.Optional)">
 <h3>of</h3>
 <div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="EnclosingMethodAttribute.html" title="interface in jdk.classfile.attribute">EnclosingMethodAttribute</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="../constantpool/ClassEntry.html" title="interface in jdk.classfile.constantpool">ClassEntry</a>&nbsp;className,
- <a href="../constantpool/NameAndTypeEntry.html" title="interface in jdk.classfile.constantpool">NameAndTypeEntry</a>&nbsp;method)</span></div>
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="../constantpool/NameAndTypeEntry.html" title="interface in jdk.classfile.constantpool">NameAndTypeEntry</a>&gt;&nbsp;method)</span></div>
 <div class="block">Returns an <code>EnclosingMethod</code> attribute.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>className</code> - the class name</dd>
 <dd><code>method</code> - the name and type of the enclosing method</dd>
+<dt>Returns:</dt>
+<dd>an <code>EnclosingMethod</code> attribute</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="of(java.lang.constant.ClassDesc,java.util.Optional,java.util.Optional)">
+<h3>of</h3>
+<div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="EnclosingMethodAttribute.html" title="interface in jdk.classfile.attribute">EnclosingMethodAttribute</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;className,
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;methodName,
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/MethodTypeDesc.html" title="class or interface in java.lang.constant" class="external-link">MethodTypeDesc</a>&gt;&nbsp;methodType)</span></div>
+<div class="block">Returns an <code>EnclosingMethod</code> attribute.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>className</code> - the class name</dd>
+<dd><code>methodName</code> - the name of the enclosing method</dd>
+<dd><code>methodType</code> - the type of the enclosing method</dd>
 <dt>Returns:</dt>
 <dd>an <code>EnclosingMethod</code> attribute</dd>
 </dl>

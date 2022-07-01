@@ -112,7 +112,7 @@ extends <a href="AnnotationValue.html" title="interface in jdk.classfile">Annota
 <h2>Nested Class Summary</h2>
 <div class="inherited-list">
 <h2 id="nested-classes-inherited-from-class-jdk.classfile.AnnotationValue">Nested classes/interfaces inherited from interface&nbsp;jdk.classfile.<a href="AnnotationValue.html" title="interface in jdk.classfile">AnnotationValue</a></h2>
-<code><a href="AnnotationValue.OfAnnotation.html" title="interface in jdk.classfile">AnnotationValue.OfAnnotation</a>, <a href="AnnotationValue.OfArray.html" title="interface in jdk.classfile">AnnotationValue.OfArray</a>, <a href="AnnotationValue.OfClass.html" title="interface in jdk.classfile">AnnotationValue.OfClass</a>, <a href="AnnotationValue.OfConstant.html" title="interface in jdk.classfile">AnnotationValue.OfConstant</a>, <a href="AnnotationValue.OfEnum.html" title="interface in jdk.classfile">AnnotationValue.OfEnum</a></code></div>
+<code><a href="AnnotationValue.OfAnnotation.html" title="interface in jdk.classfile">AnnotationValue.OfAnnotation</a>, <a href="AnnotationValue.OfArray.html" title="interface in jdk.classfile">AnnotationValue.OfArray</a>, <a href="AnnotationValue.OfBoolean.html" title="interface in jdk.classfile">AnnotationValue.OfBoolean</a>, <a href="AnnotationValue.OfByte.html" title="interface in jdk.classfile">AnnotationValue.OfByte</a>, <a href="AnnotationValue.OfCharacter.html" title="interface in jdk.classfile">AnnotationValue.OfCharacter</a>, <a href="AnnotationValue.OfClass.html" title="interface in jdk.classfile">AnnotationValue.OfClass</a>, <a href="AnnotationValue.OfConstant.html" title="interface in jdk.classfile">AnnotationValue.OfConstant</a>, <a href="AnnotationValue.OfDouble.html" title="interface in jdk.classfile">AnnotationValue.OfDouble</a>, <a href="AnnotationValue.OfEnum.html" title="interface in jdk.classfile">AnnotationValue.OfEnum</a>, <a href="AnnotationValue.OfFloat.html" title="interface in jdk.classfile">AnnotationValue.OfFloat</a>, <a href="AnnotationValue.OfInteger.html" title="interface in jdk.classfile">AnnotationValue.OfInteger</a>, <a href="AnnotationValue.OfLong.html" title="interface in jdk.classfile">AnnotationValue.OfLong</a>, <a href="AnnotationValue.OfShort.html" title="interface in jdk.classfile">AnnotationValue.OfShort</a>, <a href="AnnotationValue.OfString.html" title="interface in jdk.classfile">AnnotationValue.OfString</a></code></div>
 </section>
 </li>
 <!-- ========== METHOD SUMMARY =========== -->
@@ -120,7 +120,7 @@ extends <a href="AnnotationValue.html" title="interface in jdk.classfile">Annota
 <section class="method-summary" id="method-summary">
 <h2>Method Summary</h2>
 <div id="method-summary-table">
-<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-controls="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table', 3)" class="active-table-tab">All Methods</button><button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="table-tab">Instance Methods</button><button id="method-summary-table-tab3" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab3', 3)" class="table-tab">Abstract Methods</button></div>
+<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-controls="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table', 3)" class="active-table-tab">All Methods</button><button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="table-tab">Instance Methods</button><button id="method-summary-table-tab3" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab3', 3)" class="table-tab">Abstract Methods</button><button id="method-summary-table-tab5" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab5', 3)" class="table-tab">Default Methods</button></div>
 <div id="method-summary-table.tabpanel" role="tabpanel">
 <div class="summary-table three-column-summary" aria-labelledby="method-summary-table-tab0">
 <div class="table-header col-first">Modifier and Type</div>
@@ -131,9 +131,14 @@ extends <a href="AnnotationValue.html" title="interface in jdk.classfile">Annota
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns the enum class name.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="constantpool/Utf8Entry.html" title="interface in jdk.classfile.constantpool">Utf8Entry</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#constantName()" class="member-name-link">constantName</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#classSymbol()" class="member-name-link">classSymbol</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Returns the enum class symbol.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="constantpool/Utf8Entry.html" title="interface in jdk.classfile.constantpool">Utf8Entry</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#constantName()" class="member-name-link">constantName</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns the enum constant name.</div>
 </div>
 </div>
@@ -164,6 +169,17 @@ extends <a href="AnnotationValue.html" title="interface in jdk.classfile">Annota
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>the enum class name</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="classSymbol()">
+<h3>classSymbol</h3>
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a></span>&nbsp;<span class="element-name">classSymbol</span>()</div>
+<div class="block">Returns the enum class symbol.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the enum class symbol</dd>
 </dl>
 </section>
 </li>

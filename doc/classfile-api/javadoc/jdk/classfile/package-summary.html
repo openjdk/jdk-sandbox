@@ -471,7 +471,7 @@ byte[] newBytes = Classfile.parse(bytes).transform(ct);
     classBuilder -&gt; {
       for (ClassElement ce : classModel) {
           if (ce instanceof MethodModel mm) {
-              classBuilder.withMethod(mm.methodName().stringValue(), mm.descriptorSymbol(),
+              classBuilder.withMethod(mm.methodName().stringValue(), mm.methodTypeSymbol(),
                                       mm.flags().flagsMask(),
                                       methodBuilder -&gt; {
                           for (MethodElement me : mm) {
@@ -737,11 +737,27 @@ PseudoInstruction =
 <div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">Models an array-valued element</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="AnnotationValue.OfClass.html" title="interface in jdk.classfile">AnnotationValue.OfClass</a></div>
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="AnnotationValue.OfBoolean.html" title="interface in jdk.classfile">AnnotationValue.OfBoolean</a></div>
 <div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="block">Models a constant-valued element</div>
+</div>
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="AnnotationValue.OfByte.html" title="interface in jdk.classfile">AnnotationValue.OfByte</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="block">Models a constant-valued element</div>
+</div>
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="AnnotationValue.OfCharacter.html" title="interface in jdk.classfile">AnnotationValue.OfCharacter</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="block">Models a constant-valued element</div>
+</div>
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="AnnotationValue.OfClass.html" title="interface in jdk.classfile">AnnotationValue.OfClass</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">Models a class-valued element</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="AnnotationValue.OfConstant.html" title="interface in jdk.classfile">AnnotationValue.OfConstant</a></div>
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="AnnotationValue.OfConstant.html" title="interface in jdk.classfile">AnnotationValue.OfConstant</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="block">Models a constant-valued element</div>
+</div>
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="AnnotationValue.OfDouble.html" title="interface in jdk.classfile">AnnotationValue.OfDouble</a></div>
 <div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">Models a constant-valued element</div>
 </div>
@@ -749,327 +765,347 @@ PseudoInstruction =
 <div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">Models an enum-valued element</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="Attribute.html" title="interface in jdk.classfile">Attribute</a>&lt;A extends <a href="Attribute.html" title="interface in jdk.classfile">Attribute</a>&lt;A&gt;&gt;</div>
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="AnnotationValue.OfFloat.html" title="interface in jdk.classfile">AnnotationValue.OfFloat</a></div>
 <div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="block">Models a constant-valued element</div>
+</div>
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="AnnotationValue.OfInteger.html" title="interface in jdk.classfile">AnnotationValue.OfInteger</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="block">Models a constant-valued element</div>
+</div>
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="AnnotationValue.OfLong.html" title="interface in jdk.classfile">AnnotationValue.OfLong</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="block">Models a constant-valued element</div>
+</div>
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="AnnotationValue.OfShort.html" title="interface in jdk.classfile">AnnotationValue.OfShort</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="block">Models a constant-valued element</div>
+</div>
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="AnnotationValue.OfString.html" title="interface in jdk.classfile">AnnotationValue.OfString</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="block">Models a constant-valued element</div>
+</div>
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="Attribute.html" title="interface in jdk.classfile">Attribute</a>&lt;A extends <a href="Attribute.html" title="interface in jdk.classfile">Attribute</a>&lt;A&gt;&gt;</div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">Models a classfile attribute (JVMS 4.7).</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="AttributedElement.html" title="interface in jdk.classfile">AttributedElement</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="AttributedElement.html" title="interface in jdk.classfile">AttributedElement</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">A <a href="ClassfileElement.html" title="interface in jdk.classfile"><code>ClassfileElement</code></a> describing an entity that has attributes, such
  as a class, field, method, code attribute, or record component.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab3"><a href="AttributedElement.Kind.html" title="enum class in jdk.classfile">AttributedElement.Kind</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab3">
+<div class="col-first even-row-color class-summary class-summary-tab3"><a href="AttributedElement.Kind.html" title="enum class in jdk.classfile">AttributedElement.Kind</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab3">
 <div class="block">Enum constants describing locations in the classfile where attributes
  are permitted.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="AttributeMapper.html" title="interface in jdk.classfile">AttributeMapper</a>&lt;A&gt;</div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="AttributeMapper.html" title="interface in jdk.classfile">AttributeMapper</a>&lt;A&gt;</div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">Bidirectional mapper between the classfile representation of an attribute and
  how that attribute is modeled in the API.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab2"><a href="Attributes.html" title="class in jdk.classfile">Attributes</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab2">
+<div class="col-first even-row-color class-summary class-summary-tab2"><a href="Attributes.html" title="class in jdk.classfile">Attributes</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab2">
 <div class="block">Attribute mappers for standard classfile attributes.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="BootstrapMethodEntry.html" title="interface in jdk.classfile">BootstrapMethodEntry</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="BootstrapMethodEntry.html" title="interface in jdk.classfile">BootstrapMethodEntry</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">Models an entry in the bootstrap method table.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="BufWriter.html" title="interface in jdk.classfile">BufWriter</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="BufWriter.html" title="interface in jdk.classfile">BufWriter</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">Supports writing portions of a classfile to a growable buffer.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="ClassBuilder.html" title="interface in jdk.classfile">ClassBuilder</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="ClassBuilder.html" title="interface in jdk.classfile">ClassBuilder</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">A builder for classfiles.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="ClassElement.html" title="interface in jdk.classfile">ClassElement</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="ClassElement.html" title="interface in jdk.classfile">ClassElement</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">A <a href="ClassfileElement.html" title="interface in jdk.classfile"><code>ClassfileElement</code></a> that can appear when traversing the elements
  of a <a href="ClassModel.html" title="interface in jdk.classfile"><code>ClassModel</code></a> or be presented to a <a href="ClassBuilder.html" title="interface in jdk.classfile"><code>ClassBuilder</code></a>.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab2"><a href="Classfile.html" title="class in jdk.classfile">Classfile</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab2">
+<div class="col-first odd-row-color class-summary class-summary-tab2"><a href="Classfile.html" title="class in jdk.classfile">Classfile</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab2">
 <div class="block">Main entry points for parsing, transforming, and generating classfiles.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="Classfile.Option.html" title="interface in jdk.classfile">Classfile.Option</a>&lt;V&gt;</div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="Classfile.Option.html" title="interface in jdk.classfile">Classfile.Option</a>&lt;V&gt;</div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">An option that affects the writing of classfiles.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab3"><a href="Classfile.Option.Key.html" title="enum class in jdk.classfile">Classfile.Option.Key</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab3">
+<div class="col-first odd-row-color class-summary class-summary-tab3"><a href="Classfile.Option.Key.html" title="enum class in jdk.classfile">Classfile.Option.Key</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab3">
 <div class="block">Key values for defined options.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="ClassfileBuilder.html" title="interface in jdk.classfile">ClassfileBuilder</a>&lt;E extends <a href="ClassfileElement.html" title="interface in jdk.classfile">ClassfileElement</a>,<wbr>B extends <a href="ClassfileBuilder.html" title="interface in jdk.classfile">ClassfileBuilder</a>&lt;E,<wbr>B&gt;&gt;</div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="ClassfileBuilder.html" title="interface in jdk.classfile">ClassfileBuilder</a>&lt;E extends <a href="ClassfileElement.html" title="interface in jdk.classfile">ClassfileElement</a>,<wbr>B extends <a href="ClassfileBuilder.html" title="interface in jdk.classfile">ClassfileBuilder</a>&lt;E,<wbr>B&gt;&gt;</div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">A builder for a classfile or portion of a classfile.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="ClassfileElement.html" title="interface in jdk.classfile">ClassfileElement</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="ClassfileElement.html" title="interface in jdk.classfile">ClassfileElement</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">Immutable model for a portion of (or the entirety of) a classfile.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="ClassfileTransform.html" title="interface in jdk.classfile">ClassfileTransform</a>&lt;C extends <a href="ClassfileTransform.html" title="interface in jdk.classfile">ClassfileTransform</a>&lt;C,<wbr>E,<wbr>B&gt;,<wbr>E extends <a href="ClassfileElement.html" title="interface in jdk.classfile">ClassfileElement</a>,<wbr>B extends <a href="ClassfileBuilder.html" title="interface in jdk.classfile">ClassfileBuilder</a>&lt;E,<wbr>B&gt;&gt;</div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="ClassfileTransform.html" title="interface in jdk.classfile">ClassfileTransform</a>&lt;C extends <a href="ClassfileTransform.html" title="interface in jdk.classfile">ClassfileTransform</a>&lt;C,<wbr>E,<wbr>B&gt;,<wbr>E extends <a href="ClassfileElement.html" title="interface in jdk.classfile">ClassfileElement</a>,<wbr>B extends <a href="ClassfileBuilder.html" title="interface in jdk.classfile">ClassfileBuilder</a>&lt;E,<wbr>B&gt;&gt;</div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">A transformation on streams of elements.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="ClassfileTransform.ResolvedTransform.html" title="interface in jdk.classfile">ClassfileTransform.ResolvedTransform</a>&lt;E extends <a href="ClassfileElement.html" title="interface in jdk.classfile">ClassfileElement</a>&gt;</div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="ClassfileTransform.ResolvedTransform.html" title="interface in jdk.classfile">ClassfileTransform.ResolvedTransform</a>&lt;E extends <a href="ClassfileElement.html" title="interface in jdk.classfile">ClassfileElement</a>&gt;</div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">The result of binding a transform to a builder.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="ClassfileVersion.html" title="interface in jdk.classfile">ClassfileVersion</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="ClassfileVersion.html" title="interface in jdk.classfile">ClassfileVersion</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">Models the classfile version information for a class.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="ClassHierarchyResolver.html" title="interface in jdk.classfile">ClassHierarchyResolver</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="ClassHierarchyResolver.html" title="interface in jdk.classfile">ClassHierarchyResolver</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">Provides class hierarchy information for generating correct stack maps
  during code building.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab4"><a href="ClassHierarchyResolver.ClassHierarchyInfo.html" title="class in jdk.classfile">ClassHierarchyResolver.ClassHierarchyInfo</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab4">
+<div class="col-first even-row-color class-summary class-summary-tab4"><a href="ClassHierarchyResolver.ClassHierarchyInfo.html" title="class in jdk.classfile">ClassHierarchyResolver.ClassHierarchyInfo</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab4">
 <div class="block">Information about a resolved class.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="ClassModel.html" title="interface in jdk.classfile">ClassModel</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="ClassModel.html" title="interface in jdk.classfile">ClassModel</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">Models a classfile.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="ClassReader.html" title="interface in jdk.classfile">ClassReader</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="ClassReader.html" title="interface in jdk.classfile">ClassReader</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">Supports reading from a classfile.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="ClassSignature.html" title="interface in jdk.classfile">ClassSignature</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="ClassSignature.html" title="interface in jdk.classfile">ClassSignature</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">Models the generic signature of a class, as defined by JVMS 4.7.9.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="ClassTransform.html" title="interface in jdk.classfile">ClassTransform</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="ClassTransform.html" title="interface in jdk.classfile">ClassTransform</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">A transformation on streams of <a href="ClassElement.html" title="interface in jdk.classfile"><code>ClassElement</code></a>.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">A builder for code attributes (method bodies).</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="CodeElement.html" title="interface in jdk.classfile">CodeElement</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="CodeElement.html" title="interface in jdk.classfile">CodeElement</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">A <a href="ClassfileElement.html" title="interface in jdk.classfile"><code>ClassfileElement</code></a> that can appear when traversing the elements
  of a <a href="CodeModel.html" title="interface in jdk.classfile"><code>CodeModel</code></a> or be presented to a <a href="CodeBuilder.html" title="interface in jdk.classfile"><code>CodeBuilder</code></a>.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab3"><a href="CodeElement.Kind.html" title="enum class in jdk.classfile">CodeElement.Kind</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab3">
+<div class="col-first odd-row-color class-summary class-summary-tab3"><a href="CodeElement.Kind.html" title="enum class in jdk.classfile">CodeElement.Kind</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab3">
 <div class="block">Kinds of instructions.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="CodeModel.html" title="interface in jdk.classfile">CodeModel</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="CodeModel.html" title="interface in jdk.classfile">CodeModel</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">Models the body of a method (the <code>Code</code> attribute).</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="CodeTransform.html" title="interface in jdk.classfile">CodeTransform</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="CodeTransform.html" title="interface in jdk.classfile">CodeTransform</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">A transformation on streams of <a href="CodeElement.html" title="interface in jdk.classfile"><code>CodeElement</code></a>.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="CompoundElement.html" title="interface in jdk.classfile">CompoundElement</a>&lt;E extends <a href="ClassfileElement.html" title="interface in jdk.classfile">ClassfileElement</a>&gt;</div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="CompoundElement.html" title="interface in jdk.classfile">CompoundElement</a>&lt;E extends <a href="ClassfileElement.html" title="interface in jdk.classfile">ClassfileElement</a>&gt;</div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">A <a href="ClassfileElement.html" title="interface in jdk.classfile"><code>ClassfileElement</code></a> that has complex structure defined in terms of
  other classfile elements, such as a method, field, method body, or entire
  class.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab2"><a href="CustomAttribute.html" title="class in jdk.classfile">CustomAttribute</a>&lt;T extends <a href="CustomAttribute.html" title="class in jdk.classfile">CustomAttribute</a>&lt;T&gt;&gt;</div>
-<div class="col-last even-row-color class-summary class-summary-tab2">
+<div class="col-first odd-row-color class-summary class-summary-tab2"><a href="CustomAttribute.html" title="class in jdk.classfile">CustomAttribute</a>&lt;T extends <a href="CustomAttribute.html" title="class in jdk.classfile">CustomAttribute</a>&lt;T&gt;&gt;</div>
+<div class="col-last odd-row-color class-summary class-summary-tab2">
 <div class="block">Models a non-standard attribute of a classfile.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="FieldBuilder.html" title="interface in jdk.classfile">FieldBuilder</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="FieldBuilder.html" title="interface in jdk.classfile">FieldBuilder</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">A builder for fields.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="FieldElement.html" title="interface in jdk.classfile">FieldElement</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="FieldElement.html" title="interface in jdk.classfile">FieldElement</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">A <a href="ClassfileElement.html" title="interface in jdk.classfile"><code>ClassfileElement</code></a> that can appear when traversing the elements
  of a <a href="FieldModel.html" title="interface in jdk.classfile"><code>FieldModel</code></a> or be presented to a <a href="FieldBuilder.html" title="interface in jdk.classfile"><code>FieldBuilder</code></a>.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="FieldModel.html" title="interface in jdk.classfile">FieldModel</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="FieldModel.html" title="interface in jdk.classfile">FieldModel</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">Models a field.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="FieldTransform.html" title="interface in jdk.classfile">FieldTransform</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="FieldTransform.html" title="interface in jdk.classfile">FieldTransform</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">A transformation on streams of <a href="FieldElement.html" title="interface in jdk.classfile"><code>FieldElement</code></a>.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="Instruction.html" title="interface in jdk.classfile">Instruction</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="Instruction.html" title="interface in jdk.classfile">Instruction</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">Models an executable instruction in a method body.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="Interfaces.html" title="interface in jdk.classfile">Interfaces</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="Interfaces.html" title="interface in jdk.classfile">Interfaces</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">Models the interfaces of a class.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="Label.html" title="interface in jdk.classfile">Label</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="Label.html" title="interface in jdk.classfile">Label</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">A marker for a position within the instructions of a method body.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="MethodBuilder.html" title="interface in jdk.classfile">MethodBuilder</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="MethodBuilder.html" title="interface in jdk.classfile">MethodBuilder</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">A builder for methods.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="MethodElement.html" title="interface in jdk.classfile">MethodElement</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="MethodElement.html" title="interface in jdk.classfile">MethodElement</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">A <a href="ClassfileElement.html" title="interface in jdk.classfile"><code>ClassfileElement</code></a> that can appear when traversing the elements
  of a <a href="MethodModel.html" title="interface in jdk.classfile"><code>MethodModel</code></a> or be presented to a <a href="MethodBuilder.html" title="interface in jdk.classfile"><code>MethodBuilder</code></a>.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="MethodModel.html" title="interface in jdk.classfile">MethodModel</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="MethodModel.html" title="interface in jdk.classfile">MethodModel</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">Models a method.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">Models the generic signature of a class, as defined by JVMS 4.7.9.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="MethodTransform.html" title="interface in jdk.classfile">MethodTransform</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="MethodTransform.html" title="interface in jdk.classfile">MethodTransform</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">A transformation on streams of <a href="MethodElement.html" title="interface in jdk.classfile"><code>MethodElement</code></a>.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab3"><a href="Opcode.html" title="enum class in jdk.classfile">Opcode</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab3">
+<div class="col-first even-row-color class-summary class-summary-tab3"><a href="Opcode.html" title="enum class in jdk.classfile">Opcode</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab3">
 <div class="block">Describes the opcodes of the JVM instruction set, as well as a number of
  pseudo-instructions that may be encountered when traversing the instructions
  of a method.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="PseudoInstruction.html" title="interface in jdk.classfile">PseudoInstruction</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="PseudoInstruction.html" title="interface in jdk.classfile">PseudoInstruction</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">Models metadata about a <a href="attribute/CodeAttribute.html" title="interface in jdk.classfile.attribute"><code>CodeAttribute</code></a>, such as entries in the
  exception table, line number table, local variable table, or the mapping
  between instructions and labels.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="Signature.html" title="interface in jdk.classfile">Signature</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="Signature.html" title="interface in jdk.classfile">Signature</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">Models generic signatures on class, method, and field declarations, as defined
  in JVMS 4.7.9.1.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="Signature.ArrayTypeSig.html" title="interface in jdk.classfile">Signature.ArrayTypeSig</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="Signature.ArrayTypeSig.html" title="interface in jdk.classfile">Signature.ArrayTypeSig</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">Models the signature of an array type.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="Signature.BaseTypeSig.html" title="interface in jdk.classfile">Signature.BaseTypeSig</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="Signature.BaseTypeSig.html" title="interface in jdk.classfile">Signature.BaseTypeSig</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">Models the signature of a primitive type or void</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="Signature.ClassTypeSig.html" title="interface in jdk.classfile">Signature.ClassTypeSig</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="Signature.ClassTypeSig.html" title="interface in jdk.classfile">Signature.ClassTypeSig</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">Models the signature of a possibly-parameterized class or interface type.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="Signature.RefTypeSig.html" title="interface in jdk.classfile">Signature.RefTypeSig</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="Signature.RefTypeSig.html" title="interface in jdk.classfile">Signature.RefTypeSig</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">Models the signature of a reference type, which may be a class, interface,
  type variable, or array type.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="Signature.ThrowableSig.html" title="interface in jdk.classfile">Signature.ThrowableSig</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="Signature.ThrowableSig.html" title="interface in jdk.classfile">Signature.ThrowableSig</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">Models a signature for a throwable type.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="Signature.TypeArg.html" title="interface in jdk.classfile">Signature.TypeArg</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="Signature.TypeArg.html" title="interface in jdk.classfile">Signature.TypeArg</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">Models the signature of a type argument.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab3"><a href="Signature.TypeArg.WildcardIndicator.html" title="enum class in jdk.classfile">Signature.TypeArg.WildcardIndicator</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab3">
+<div class="col-first odd-row-color class-summary class-summary-tab3"><a href="Signature.TypeArg.WildcardIndicator.html" title="enum class in jdk.classfile">Signature.TypeArg.WildcardIndicator</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab3">
 <div class="block">Indicator for whether a wildcard has no bound, an upper bound, or a lower bound</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="Signature.TypeParam.html" title="interface in jdk.classfile">Signature.TypeParam</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="Signature.TypeParam.html" title="interface in jdk.classfile">Signature.TypeParam</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">Models a signature for a type parameter of a generic class or method.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="Signature.TypeVarSig.html" title="interface in jdk.classfile">Signature.TypeVarSig</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="Signature.TypeVarSig.html" title="interface in jdk.classfile">Signature.TypeVarSig</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">Models the signature of a type variable.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="Superclass.html" title="interface in jdk.classfile">Superclass</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="Superclass.html" title="interface in jdk.classfile">Superclass</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">Models the superclass of a class.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.html" title="interface in jdk.classfile">TypeAnnotation</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.html" title="interface in jdk.classfile">TypeAnnotation</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">Models an annotation on a type use.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.CatchTarget.html" title="interface in jdk.classfile">TypeAnnotation.CatchTarget</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.CatchTarget.html" title="interface in jdk.classfile">TypeAnnotation.CatchTarget</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">Indicates that an annotation appears on the i'th type in an exception parameter
  declaration.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.EmptyTarget.html" title="interface in jdk.classfile">TypeAnnotation.EmptyTarget</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.EmptyTarget.html" title="interface in jdk.classfile">TypeAnnotation.EmptyTarget</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">Indicates that an annotation appears on either the type in a field
  declaration, the return type of a method, the type of a newly constructed
  object, or the receiver type of a method or constructor.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.FormalParameterTarget.html" title="interface in jdk.classfile">TypeAnnotation.FormalParameterTarget</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.FormalParameterTarget.html" title="interface in jdk.classfile">TypeAnnotation.FormalParameterTarget</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">Indicates that an annotation appears on the type in a formal parameter
  declaration of a method, constructor, or lambda expression.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.LocalVarTarget.html" title="interface in jdk.classfile">TypeAnnotation.LocalVarTarget</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.LocalVarTarget.html" title="interface in jdk.classfile">TypeAnnotation.LocalVarTarget</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">Indicates that an annotation appears on the type in a local variable declaration,
  including a variable declared as a resource in a try-with-resources statement.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.LocalVarTargetInfo.html" title="interface in jdk.classfile">TypeAnnotation.LocalVarTargetInfo</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.LocalVarTargetInfo.html" title="interface in jdk.classfile">TypeAnnotation.LocalVarTargetInfo</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">Indicates a range of code array offsets within which a local variable
  has a value, and the index into the local variable array of the current
  frame at which that local variable can be found.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.OffsetTarget.html" title="interface in jdk.classfile">TypeAnnotation.OffsetTarget</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.OffsetTarget.html" title="interface in jdk.classfile">TypeAnnotation.OffsetTarget</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">Indicates that an annotation appears on either the type in an instanceof expression
  or a new expression, or the type before the :: in a method reference expression.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.SupertypeTarget.html" title="interface in jdk.classfile">TypeAnnotation.SupertypeTarget</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.SupertypeTarget.html" title="interface in jdk.classfile">TypeAnnotation.SupertypeTarget</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">Indicates that an annotation appears on a type in the extends or implements
  clause of a class or interface declaration.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.TargetInfo.html" title="interface in jdk.classfile">TypeAnnotation.TargetInfo</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.TargetInfo.html" title="interface in jdk.classfile">TypeAnnotation.TargetInfo</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">Specifies which type in a declaration or expression is being annotated.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab3"><a href="TypeAnnotation.TargetType.html" title="enum class in jdk.classfile">TypeAnnotation.TargetType</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab3">
+<div class="col-first even-row-color class-summary class-summary-tab3"><a href="TypeAnnotation.TargetType.html" title="enum class in jdk.classfile">TypeAnnotation.TargetType</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab3">
 <div class="block">The kind of target on which the annotation appears.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.ThrowsTarget.html" title="interface in jdk.classfile">TypeAnnotation.ThrowsTarget</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.ThrowsTarget.html" title="interface in jdk.classfile">TypeAnnotation.ThrowsTarget</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">Indicates that an annotation appears on the i'th type in the throws
  clause of a method or constructor declaration.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.TypeArgumentTarget.html" title="interface in jdk.classfile">TypeAnnotation.TypeArgumentTarget</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.TypeArgumentTarget.html" title="interface in jdk.classfile">TypeAnnotation.TypeArgumentTarget</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">Indicates that an annotation appears either on the i'th type in a cast
  expression, or on the i'th type argument in the explicit type argument list for any of the following: a new
  expression, an explicit constructor invocation statement, a method invocation expression, or a method reference
  expression.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.TypeParameterBoundTarget.html" title="interface in jdk.classfile">TypeAnnotation.TypeParameterBoundTarget</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.TypeParameterBoundTarget.html" title="interface in jdk.classfile">TypeAnnotation.TypeParameterBoundTarget</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">Indicates that an annotation appears on the i'th bound of the j'th
  type parameter declaration of a generic class, interface, method, or
  constructor.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.TypeParameterTarget.html" title="interface in jdk.classfile">TypeAnnotation.TypeParameterTarget</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.TypeParameterTarget.html" title="interface in jdk.classfile">TypeAnnotation.TypeParameterTarget</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">Indicates that an annotation appears on the declaration of the i'th type
  parameter of a generic class, generic interface, generic method, or
  generic constructor.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.TypePathComponent.html" title="interface in jdk.classfile">TypeAnnotation.TypePathComponent</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.TypePathComponent.html" title="interface in jdk.classfile">TypeAnnotation.TypePathComponent</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">type_path.path.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab3"><a href="TypeAnnotation.TypePathComponent.Kind.html" title="enum class in jdk.classfile">TypeAnnotation.TypePathComponent.Kind</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab3">&nbsp;</div>
-<div class="col-first even-row-color class-summary class-summary-tab3"><a href="TypeKind.html" title="enum class in jdk.classfile">TypeKind</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab3">
+<div class="col-first even-row-color class-summary class-summary-tab3"><a href="TypeAnnotation.TypePathComponent.Kind.html" title="enum class in jdk.classfile">TypeAnnotation.TypePathComponent.Kind</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab3">&nbsp;</div>
+<div class="col-first odd-row-color class-summary class-summary-tab3"><a href="TypeKind.html" title="enum class in jdk.classfile">TypeKind</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab3">
 <div class="block">Describes the types that can be part of a field or method descriptor.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="WritableElement.html" title="interface in jdk.classfile">WritableElement</a>&lt;T&gt;</div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="WritableElement.html" title="interface in jdk.classfile">WritableElement</a>&lt;T&gt;</div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">A classfile element that can encode itself as a stream of bytes in the
  encoding expected by the classfile format.</div>
 </div>
