@@ -200,21 +200,17 @@ class RebuildingTransformation {
         return switch (av) {
             case AnnotationValue.OfAnnotation oa -> AnnotationValue.ofAnnotation(transformAnnotation(oa.annotation()));
             case AnnotationValue.OfArray oa -> AnnotationValue.ofArray(oa.values().stream().map(v -> transformAnnotationValue(v)).toArray(AnnotationValue[]::new));
-            case AnnotationValue.OfConstant oc -> //missing distinction between constant annotation value types
-                switch (oc.tag()) {
-                    case 's' -> AnnotationValue.of((String)oc.constantValue());
-                    case 'D' -> AnnotationValue.of((double)oc.constantValue());
-                    case 'F' -> AnnotationValue.of((float)oc.constantValue());
-                    case 'J' -> AnnotationValue.of((long)oc.constantValue());
-                    case 'I' -> AnnotationValue.of((int)oc.constantValue());
-                    case 'S' -> AnnotationValue.of((short)(int)oc.constantValue());
-                    case 'C' -> AnnotationValue.of((char)(int)oc.constantValue());
-                    case 'B' -> AnnotationValue.of((byte)(int)oc.constantValue());
-                    case 'Z' -> AnnotationValue.of(1 == (int)oc.constantValue());
-                    default ->  throw new AssertionError("Unexpected annotation value tag: " + oc.tag());
-                };
-            case AnnotationValue.OfClass oc -> AnnotationValue.ofClass(ClassDesc.ofDescriptor(oc.className().stringValue())); //missing AnnotationValue factory method accepting ClassDesc
-            case AnnotationValue.OfEnum oe -> AnnotationValue.ofEnum(ClassDesc.ofDescriptor(oe.className().stringValue()), oe.constantName().stringValue());  //missing AnnotationValue factory method accepting ClassDesc
+            case AnnotationValue.OfString v -> AnnotationValue.of(v.stringValue());
+            case AnnotationValue.OfDouble v -> AnnotationValue.of(v.doubleValue());
+            case AnnotationValue.OfFloat v -> AnnotationValue.of(v.floatValue());
+            case AnnotationValue.OfLong v -> AnnotationValue.of(v.longValue());
+            case AnnotationValue.OfInteger v -> AnnotationValue.of(v.intValue());
+            case AnnotationValue.OfShort v -> AnnotationValue.of(v.shortValue());
+            case AnnotationValue.OfCharacter v -> AnnotationValue.of(v.charValue());
+            case AnnotationValue.OfByte v -> AnnotationValue.of(v.byteValue());
+            case AnnotationValue.OfBoolean v -> AnnotationValue.of(v.booleanValue());
+            case AnnotationValue.OfClass oc -> AnnotationValue.of(oc.classSymbol());
+            case AnnotationValue.OfEnum oe -> AnnotationValue.ofEnum(oe.classSymbol(), oe.constantName().stringValue());
         };
     }
 
@@ -222,7 +218,7 @@ class RebuildingTransformation {
         return annotations.stream().map(ta -> TypeAnnotation.of( //missing TypeAnnotation factory method accepting ClassDesc and AnnotationElement vararg
                         transformTargetInfo(ta.targetInfo(), cob, labels),
                         ta.targetPath().stream().map(tpc -> TypeAnnotation.TypePathComponent.of(tpc.typePathKind().tag(), tpc.typeArgumentIndex())).toList(),
-                        ta.className(),
+                        ta.classSymbol(),
                         ta.elements().stream().map(ae -> AnnotationElement.of(ae.name().stringValue(), transformAnnotationValue(ae.value()))).toList())).toArray(TypeAnnotation[]::new);
     }
 

@@ -25,6 +25,7 @@
 
 package jdk.classfile;
 
+import java.lang.constant.ClassDesc;
 import java.util.List;
 import java.util.Set;
 
@@ -56,6 +57,7 @@ import static jdk.classfile.Classfile.TAT_METHOD_TYPE_PARAMETER_BOUND;
 import static jdk.classfile.Classfile.TAT_NEW;
 import static jdk.classfile.Classfile.TAT_RESOURCE_VARIABLE;
 import static jdk.classfile.Classfile.TAT_THROWS;
+import jdk.classfile.impl.TemporaryConstantPool;
 
 /**
  * Models an annotation on a type use.
@@ -176,13 +178,53 @@ public sealed interface TypeAnnotation
      * @param targetInfo which type in a declaration or expression is annotated
      * @param targetPath which part of the type is annotated
      * @param annotationClassUtf8Entry the annotation class
-     * @param annotationElements the annltation elements
+     * @param annotationElements the annotation elements
      */
     static TypeAnnotation of(TargetInfo targetInfo, List<TypePathComponent> targetPath,
                              Utf8Entry annotationClassUtf8Entry,
                              List<AnnotationElement> annotationElements) {
         return new UnboundAttribute.UnboundTypeAnnotation(targetInfo, targetPath,
                 annotationClassUtf8Entry, annotationElements);
+    }
+
+    /**
+     * {@return a type annotation}
+     * @param targetInfo which type in a declaration or expression is annotated
+     * @param targetPath which part of the type is annotated
+     * @param annotationClass the annotation class
+     * @param annotationElements the annotation elements
+     */
+    static TypeAnnotation of(TargetInfo targetInfo, List<TypePathComponent> targetPath,
+                             ClassDesc annotationClass,
+                             AnnotationElement... annotationElements) {
+        return of(targetInfo, targetPath, annotationClass, List.of(annotationElements));
+    }
+
+    /**
+     * {@return a type annotation}
+     * @param targetInfo which type in a declaration or expression is annotated
+     * @param targetPath which part of the type is annotated
+     * @param annotationClass the annotation class
+     * @param annotationElements the annotation elements
+     */
+    static TypeAnnotation of(TargetInfo targetInfo, List<TypePathComponent> targetPath,
+                             ClassDesc annotationClass,
+                             List<AnnotationElement> annotationElements) {
+        return of(targetInfo, targetPath,
+                TemporaryConstantPool.INSTANCE.utf8Entry(annotationClass.descriptorString()), annotationElements);
+    }
+
+    /**
+     * {@return a type annotation}
+     * @param targetInfo which type in a declaration or expression is annotated
+     * @param targetPath which part of the type is annotated
+     * @param annotationClassUtf8Entry the annotation class
+     * @param annotationElements the annotation elements
+     */
+    static TypeAnnotation of(TargetInfo targetInfo, List<TypePathComponent> targetPath,
+                             Utf8Entry annotationClassUtf8Entry,
+                             AnnotationElement... annotationElements) {
+        return of(targetInfo, targetPath, annotationClassUtf8Entry, List.of(annotationElements));
     }
 
     /**
