@@ -265,8 +265,6 @@ public sealed interface CodeBuilder
             Objects.requireNonNull(catchHandler);
 
             if (catchBlock == null) {
-                // @@@ Should instruction be included within the exception range?
-                // javac does not include a branch or terminal instruction in the range
                 if (tryBlock.reachable()) {
                     b.branchInstruction(Opcode.GOTO, tryCatchEnd);
                 }
@@ -278,10 +276,10 @@ public sealed interface CodeBuilder
 
             // Finish prior catch block
             if (catchBlock != null) {
+                catchBlock.end();
                 if (catchBlock.reachable()) {
                     b.branchInstruction(Opcode.GOTO, tryCatchEnd);
                 }
-                catchBlock.end();
             }
 
             catchBlock = new BlockCodeBuilder(b);
