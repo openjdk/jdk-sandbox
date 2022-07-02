@@ -253,14 +253,6 @@ public sealed interface CodeBuilder
             catchBlock(null, catchAllHandler);
         }
 
-        /**
-         * X
-         * @return x
-         */
-        public Label tryCatchEndLabel() {
-            return tryCatchEnd;
-        }
-
         void catchBlock(ClassDesc catchType, Consumer<CodeBuilder> catchHandler) {
             Objects.requireNonNull(catchHandler);
 
