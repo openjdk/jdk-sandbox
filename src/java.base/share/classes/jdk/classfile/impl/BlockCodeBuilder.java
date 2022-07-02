@@ -40,6 +40,7 @@ public final class BlockCodeBuilder
     private final CodeBuilder parent;
     private final Label startLabel, endLabel;
     private boolean reachable = true;
+    private boolean isEmpty = true;
     private int topLocal;
     private int terminalMaxLocals;
 
@@ -66,6 +67,10 @@ public final class BlockCodeBuilder
         return reachable;
     }
 
+    public boolean isEmpty() {
+        return isEmpty;
+    }
+
     private int topLocal(CodeBuilder parent) {
         return switch (parent) {
             case BlockCodeBuilder b -> b.topLocal;
@@ -79,6 +84,7 @@ public final class BlockCodeBuilder
     public CodeBuilder with(CodeElement element) {
         Opcode op = element.opcode();
         parent.with(element);
+        isEmpty = false;
         if (reachable) {
             if (op.isUnconditionalBranch())
                 reachable = false;

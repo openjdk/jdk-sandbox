@@ -31,8 +31,11 @@ import java.lang.constant.DirectMethodHandleDesc;
 import java.lang.constant.DynamicCallSiteDesc;
 import java.lang.constant.MethodTypeDesc;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import jdk.classfile.constantpool.ClassEntry;
@@ -206,6 +209,128 @@ public sealed interface CodeBuilder
         elseBlock.start();
         elseHandler.accept(elseBlock);
         elseBlock.end();
+        return this;
+    }
+
+    /**
+     * X
+     * @see #trying
+     */
+    final class CatchBuilder {
+        final CodeBuilder b;
+        final BlockCodeBuilder tryBlock;
+        final Label tryCatchEnd;
+        final Set<ConstantDesc> catchTypes;
+        BlockCodeBuilder catchBlock;
+
+        CatchBuilder(CodeBuilder b, BlockCodeBuilder tryBlock, Label tryCatchEnd) {
+            this.b = b;
+            this.tryBlock = tryBlock;
+            this.tryCatchEnd = tryCatchEnd;
+            this.catchTypes = new HashSet<>();
+        }
+
+        /**
+         * X
+         * @param catchType x
+         * @param catchHandler x
+         * @return x
+         * @throws java.lang.IllegalArgumentException x
+         */
+        public CatchBuilder catching(ClassDesc catchType, Consumer<CodeBuilder> catchHandler) {
+            Objects.requireNonNull(catchType);
+
+            catchBlock(catchType, catchHandler);
+            return this;
+        }
+
+        /**
+         * X
+         * @param catchAllHandler x
+         * @throws java.lang.IllegalArgumentException x
+         */
+        public void catchingAll(Consumer<CodeBuilder> catchAllHandler) {
+            catchBlock(null, catchAllHandler);
+        }
+
+        /**
+         * X
+         * @return x
+         */
+        public Label tryCatchEndLabel() {
+            return tryCatchEnd;
+        }
+
+        void catchBlock(ClassDesc catchType, Consumer<CodeBuilder> catchHandler) {
+            Objects.requireNonNull(catchHandler);
+
+            if (catchBlock == null) {
+                // @@@ Should instruction be included within the exception range?
+                // javac does not include a branch or terminal instruction in the range
+                if (tryBlock.reachable()) {
+                    b.branchInstruction(Opcode.GOTO, tryCatchEnd);
+                }
+            }
+
+            if (!catchTypes.add(catchType)) {
+                throw new IllegalArgumentException();
+            }
+
+            // Finish prior catch block
+            if (catchBlock != null) {
+                if (catchBlock.reachable()) {
+                    b.branchInstruction(Opcode.GOTO, tryCatchEnd);
+                }
+                catchBlock.end();
+            }
+
+            catchBlock = new BlockCodeBuilder(b);
+            Label tryStart = tryBlock.startLabel();
+            Label tryEnd = tryBlock.endLabel();
+            catchBlock.start();
+            if (catchType == null) {
+                catchBlock.exceptionCatchAll(tryStart, tryEnd, catchBlock.startLabel());
+            }
+            else {
+                catchBlock.exceptionCatch(tryStart, tryEnd, catchBlock.startLabel(), catchType);
+            }
+            catchHandler.accept(catchBlock);
+        }
+
+        void finish() {
+            if (catchBlock != null) {
+                catchBlock.end();
+                b.labelBinding(tryCatchEnd);
+            }
+        }
+    }
+
+    /**
+     * X
+     * @param tryHandler x
+     * @param catchesHandler x
+     * @return x
+     * @see CatchBuilder
+     */
+    default CodeBuilder trying(Consumer<CodeBuilder> tryHandler,
+                               Consumer<CatchBuilder> catchesHandler) {
+        Label tryCatchEnd = newLabel();
+
+        // @@@ the tryHandler does not have access to tryCatchEnd
+        BlockCodeBuilder tryBlock = new BlockCodeBuilder(this);
+        tryBlock.start();
+        tryHandler.accept(tryBlock);
+        tryBlock.end();
+
+        // Check for empty try block
+        if (tryBlock.isEmpty()) {
+            throw new IllegalStateException();
+        }
+
+        var catchBuilder = new CatchBuilder(this, tryBlock, tryCatchEnd);
+        catchesHandler.accept(catchBuilder);
+        catchBuilder.finish();
+
         return this;
     }
 
