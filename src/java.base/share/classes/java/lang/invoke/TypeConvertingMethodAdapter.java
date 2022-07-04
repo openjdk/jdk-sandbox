@@ -28,7 +28,6 @@ package java.lang.invoke;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.ConstantDescs;
 import java.lang.constant.MethodTypeDesc;
-import java.util.EnumMap;
 import java.util.Map;
 import jdk.classfile.Classfile;
 import jdk.classfile.CodeBuilder;
@@ -54,7 +53,15 @@ class TypeConvertingMethodAdapter {
     private static final Wrapper[] FROM_WRAPPER_NAME = new Wrapper[16];
 
     // Table of wrappers for primitives, indexed by ASM type sorts
-    private static final Map<TypeKind, Wrapper> FROM_TYPE_SORT =  new EnumMap<>(TypeKind.class);;
+    private static final Map<TypeKind, Wrapper> FROM_TYPE_SORT =
+            Map.of(TypeKind.ByteType, Wrapper.BYTE,
+                   TypeKind.ShortType, Wrapper.SHORT,
+                   TypeKind.IntType, Wrapper.INT,
+                   TypeKind.LongType, Wrapper.LONG,
+                   TypeKind.CharType, Wrapper.CHAR,
+                   TypeKind.FloatType, Wrapper.FLOAT,
+                   TypeKind.DoubleType, Wrapper.DOUBLE,
+                   TypeKind.BooleanType, Wrapper.BOOLEAN);
 
     static {
         for (Wrapper w : Wrapper.values()) {
@@ -75,15 +82,6 @@ class TypeConvertingMethodAdapter {
         initWidening(DOUBLE, Opcode.I2D, BYTE, SHORT, INT, CHAR);
         initWidening(DOUBLE, Opcode.F2D, FLOAT);
         initWidening(DOUBLE, Opcode.L2D, LONG);
-
-        FROM_TYPE_SORT.put(TypeKind.ByteType, Wrapper.BYTE);
-        FROM_TYPE_SORT.put(TypeKind.ShortType, Wrapper.SHORT);
-        FROM_TYPE_SORT.put(TypeKind.IntType, Wrapper.INT);
-        FROM_TYPE_SORT.put(TypeKind.LongType, Wrapper.LONG);
-        FROM_TYPE_SORT.put(TypeKind.CharType, Wrapper.CHAR);
-        FROM_TYPE_SORT.put(TypeKind.FloatType, Wrapper.FLOAT);
-        FROM_TYPE_SORT.put(TypeKind.DoubleType, Wrapper.DOUBLE);
-        FROM_TYPE_SORT.put(TypeKind.BooleanType, Wrapper.BOOLEAN);
     }
 
     private static void initWidening(Wrapper to, Opcode opcode, Wrapper... from) {
