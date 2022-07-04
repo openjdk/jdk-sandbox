@@ -534,52 +534,56 @@ public class AttributeWriter extends BasicWriter {
                 println("StackMapTable: number_of_entries = " + entries.size());
                 indent(+1);
                 for (var frame : entries) {
-                    switch (frame.frameKind()) {
-                        case SAME ->
-                            printHeader(frame, "/* same */");
-                        case SAME_LOCALS_1_STACK_ITEM -> {
-                            printHeader(frame, "/* same_locals_1_stack_item */");
+                    switch (frame) {
+                        case StackMapTableAttribute.StackMapFrame.Same same -> {
+                            if (same.extended()) {
+                                printHeader(same, "/* same_frame_extended */");
+                                indent(+1);
+                                println("offset_delta = " + same.offsetDelta());
+                                indent(-1);
+                            } else {
+                                printHeader(same, "/* same */");
+                            }
+                        }
+                        case StackMapTableAttribute.StackMapFrame.Same1 same1 -> {
+                            if (same1.extended()) {
+                                printHeader(same1, "/* same_locals_1_stack_item_frame_extended */");
+                                indent(+1);
+                                println("offset_delta = " + same1.offsetDelta());
+                                printMap("stack", List.of(same1.declaredStack()));
+                                indent(-1);
+                            } else {
+                                printHeader(same1, "/* same_locals_1_stack_item */");
+                                indent(+1);
+                                printMap("stack", List.of(same1.declaredStack()));
+                                indent(-1);
+                            }
+                        }
+                        case StackMapTableAttribute.StackMapFrame.Chop chop -> {
+                            printHeader(chop, "/* chop */");
                             indent(+1);
-                            printMap("stack", frame.declaredStack());
+                            println("offset_delta = " + chop.offsetDelta());
+                            printMap("locals", chop.choppedLocals());
                             indent(-1);
                         }
-                        case SAME_LOCALS_1_STACK_ITEM_EXTENDED -> {
-                            printHeader(frame, "/* same_locals_1_stack_item_frame_extended */");
+                        case StackMapTableAttribute.StackMapFrame.Append append -> {
+                            printHeader(append, "/* append */");
                             indent(+1);
-                            println("offset_delta = " + frame.offsetDelta());
-                            printMap("stack", frame.declaredStack());
+                            println("offset_delta = " + append.offsetDelta());
+                            printMap("locals", append.declaredLocals());
                             indent(-1);
                         }
-                        case CHOP -> {
-                            printHeader(frame, "/* chop */");
-                            indent(+1);
-                            println("offset_delta = " + frame.offsetDelta());
-                            indent(-1);
-                        }
-                        case SAME_FRAME_EXTENDED -> {
-                            printHeader(frame, "/* same_frame_extended */");
-                            indent(+1);
-                            println("offset_delta = " + frame.offsetDelta());
-                            indent(-1);
-                        }
-                        case APPEND -> {
-                            printHeader(frame, "/* append */");
-                            indent(+1);
-                            println("offset_delta = " + frame.offsetDelta());
-                            printMap("locals", frame.declaredLocals());
-                            indent(-1);
-                        }
-                        case FULL_FRAME -> {
+                        case StackMapTableAttribute.StackMapFrame.Full full -> {
 //full frame used in StackMapAttribute
 //                            if (frame instanceof StackMap_attribute.stack_map_frame) {
-//                                printHeader(frame, "offset = " + frame.offset_delta);
+//                                printHeader(full, "offset = " + full.offset_delta);
 //                                indent(+1);
 //                            } else {
-                            printHeader(frame, "/* full_frame */");
+                            printHeader(full, "/* full_frame */");
                             indent(+1);
-                            println("offset_delta = " + frame.offsetDelta());
-                            printMap("locals", frame.declaredLocals());
-                            printMap("stack", frame.declaredStack());
+                            println("offset_delta = " + full.offsetDelta());
+                            printMap("locals", full.declaredLocals());
+                            printMap("stack", full.declaredStack());
                             indent(-1);
                         }
                     }
