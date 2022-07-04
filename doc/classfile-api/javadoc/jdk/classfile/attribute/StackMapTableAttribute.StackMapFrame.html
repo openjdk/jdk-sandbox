@@ -38,7 +38,7 @@ loadScripts(document, 'script');</script>
 <li>
 <p>Summary:</p>
 <ul>
-<li>Nested</li>
+<li><a href="#nested-class-summary">Nested</a></li>
 <li>Field</li>
 <li>Constr</li>
 <li><a href="#method-summary">Method</a></li>
@@ -58,7 +58,7 @@ loadScripts(document, 'script');</script>
 <div id="navbar-sub-list">
 <ul class="sub-nav-list">
 <li>Summary:&nbsp;</li>
-<li>Nested&nbsp;|&nbsp;</li>
+<li><a href="#nested-class-summary">Nested</a>&nbsp;|&nbsp;</li>
 <li>Field&nbsp;|&nbsp;</li>
 <li>Constr&nbsp;|&nbsp;</li>
 <li><a href="#method-summary">Method</a></li>
@@ -87,8 +87,12 @@ loadScripts(document, 'script');</script>
 </div>
 <section class="class-description" id="class-description">
 <dl class="notes">
+<dt>All Known Subinterfaces:</dt>
+<dd><code><a href="StackMapTableAttribute.StackMapFrame.Append.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Append</a></code>, <code><a href="StackMapTableAttribute.StackMapFrame.Chop.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Chop</a></code>, <code><a href="StackMapTableAttribute.StackMapFrame.Full.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Full</a></code>, <code><a href="StackMapTableAttribute.StackMapFrame.Same.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Same</a></code>, <code><a href="StackMapTableAttribute.StackMapFrame.Same1.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Same1</a></code></dd>
+</dl>
+<dl class="notes">
 <dt>All Known Implementing Classes:</dt>
-<dd><code><a href="../impl/StackMapDecoder.StackMapFrameImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameImpl</a></code></dd>
+<dd><code><a href="../impl/StackMapDecoder.StackMapFrameAppendImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameAppendImpl</a></code>, <code><a href="../impl/StackMapDecoder.StackMapFrameChopImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameChopImpl</a></code>, <code><a href="../impl/StackMapDecoder.StackMapFrameFullImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameFullImpl</a></code>, <code><a href="../impl/StackMapDecoder.StackMapFrameSame1Impl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSame1Impl</a></code>, <code><a href="../impl/StackMapDecoder.StackMapFrameSameImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSameImpl</a></code></dd>
 </dl>
 <dl class="notes">
 <dt>Enclosing interface:</dt>
@@ -96,11 +100,38 @@ loadScripts(document, 'script');</script>
 </dl>
 <hr>
 <div class="type-signature"><span class="modifiers">public static sealed interface </span><span class="element-name type-name-label">StackMapTableAttribute.StackMapFrame</span>
-<span class="permits">permits <a href="../impl/StackMapDecoder.StackMapFrameImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameImpl</a></span></div>
+<span class="permits">permits <a href="StackMapTableAttribute.StackMapFrame.Same.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Same</a>, <a href="StackMapTableAttribute.StackMapFrame.Same1.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Same1</a>, <a href="StackMapTableAttribute.StackMapFrame.Append.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Append</a>, <a href="StackMapTableAttribute.StackMapFrame.Chop.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Chop</a>, <a href="StackMapTableAttribute.StackMapFrame.Full.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Full</a></span></div>
 <div class="block">A stack map frame.</div>
 </section>
 <section class="summary">
 <ul class="summary-list">
+<!-- ======== NESTED CLASS SUMMARY ======== -->
+<li>
+<section class="nested-class-summary" id="nested-class-summary">
+<h2>Nested Class Summary</h2>
+<div class="caption"><span>Nested Classes</span></div>
+<div class="summary-table three-column-summary">
+<div class="table-header col-first">Modifier and Type</div>
+<div class="table-header col-second">Interface</div>
+<div class="table-header col-last">Description</div>
+<div class="col-first even-row-color"><code>static interface&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="StackMapTableAttribute.StackMapFrame.Append.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Append</a></code></div>
+<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-first odd-row-color"><code>static interface&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="StackMapTableAttribute.StackMapFrame.Chop.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Chop</a></code></div>
+<div class="col-last odd-row-color">&nbsp;</div>
+<div class="col-first even-row-color"><code>static interface&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="StackMapTableAttribute.StackMapFrame.Full.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Full</a></code></div>
+<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-first odd-row-color"><code>static interface&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="StackMapTableAttribute.StackMapFrame.Same.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Same</a></code></div>
+<div class="col-last odd-row-color">&nbsp;</div>
+<div class="col-first even-row-color"><code>static interface&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="StackMapTableAttribute.StackMapFrame.Same1.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Same1</a></code></div>
+<div class="col-last even-row-color">&nbsp;</div>
+</div>
+</section>
+</li>
 <!-- ========== METHOD SUMMARY =========== -->
 <li>
 <section class="method-summary" id="method-summary">
@@ -114,12 +145,6 @@ loadScripts(document, 'script');</script>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#absoluteOffset()" class="member-name-link">absoluteOffset</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="StackMapTableAttribute.VerificationTypeInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.VerificationTypeInfo</a>&gt;</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#declaredLocals()" class="member-name-link">declaredLocals</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="StackMapTableAttribute.VerificationTypeInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.VerificationTypeInfo</a>&gt;</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#declaredStack()" class="member-name-link">declaredStack</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="StackMapTableAttribute.VerificationTypeInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.VerificationTypeInfo</a>&gt;</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#effectiveLocals()" class="member-name-link">effectiveLocals</a>()</code></div>
@@ -166,18 +191,6 @@ loadScripts(document, 'script');</script>
 <section class="detail" id="offsetDelta()">
 <h3>offsetDelta</h3>
 <div class="member-signature"><span class="return-type">int</span>&nbsp;<span class="element-name">offsetDelta</span>()</div>
-</section>
-</li>
-<li>
-<section class="detail" id="declaredLocals()">
-<h3>declaredLocals</h3>
-<div class="member-signature"><span class="return-type"><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="StackMapTableAttribute.VerificationTypeInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.VerificationTypeInfo</a>&gt;</span>&nbsp;<span class="element-name">declaredLocals</span>()</div>
-</section>
-</li>
-<li>
-<section class="detail" id="declaredStack()">
-<h3>declaredStack</h3>
-<div class="member-signature"><span class="return-type"><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="StackMapTableAttribute.VerificationTypeInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.VerificationTypeInfo</a>&gt;</span>&nbsp;<span class="element-name">declaredStack</span>()</div>
 </section>
 </li>
 <li>

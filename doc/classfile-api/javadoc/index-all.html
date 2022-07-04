@@ -67,7 +67,23 @@ loadScripts(document, 'script');</script>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.html#absoluteOffset()" class="member-name-link">absoluteOffset()</a> - Method in interface jdk.classfile.attribute.<a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameImpl.html#absoluteOffset()" class="member-name-link">absoluteOffset()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameImpl</a></dt>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameAppendImpl.html#absoluteOffset()" class="member-name-link">absoluteOffset()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameAppendImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameAppendImpl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>absoluteOffset</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameChopImpl.html#absoluteOffset()" class="member-name-link">absoluteOffset()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameChopImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameChopImpl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>absoluteOffset</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameFullImpl.html#absoluteOffset()" class="member-name-link">absoluteOffset()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameFullImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameFullImpl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>absoluteOffset</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSame1Impl.html#absoluteOffset()" class="member-name-link">absoluteOffset()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSame1Impl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSame1Impl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>absoluteOffset</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSameImpl.html#absoluteOffset()" class="member-name-link">absoluteOffset()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSameImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSameImpl</a></dt>
 <dd>
 <div class="block">Returns the value of the <code>absoluteOffset</code> record component.</div>
 </dd>
@@ -1568,6 +1584,12 @@ loadScripts(document, 'script');</script>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/attribute/StackMapTableAttribute.FrameKind.html#CHOP" class="member-name-link">CHOP</a> - Enum constant in enum class jdk.classfile.attribute.<a href="jdk/classfile/attribute/StackMapTableAttribute.FrameKind.html" title="enum class in jdk.classfile.attribute">StackMapTableAttribute.FrameKind</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.Chop.html#choppedLocals()" class="member-name-link">choppedLocals()</a> - Method in interface jdk.classfile.attribute.<a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.Chop.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Chop</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameChopImpl.html#choppedLocals()" class="member-name-link">choppedLocals()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameChopImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameChopImpl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>choppedLocals</code> record component.</div>
+</dd>
 <dt><a href="jdk/classfile/AttributedElement.Kind.html#CLASS" class="member-name-link">CLASS</a> - Enum constant in enum class jdk.classfile.<a href="jdk/classfile/AttributedElement.Kind.html" title="enum class in jdk.classfile">AttributedElement.Kind</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/TypeAnnotation.TargetType.html#CLASS_EXTENDS" class="member-name-link">CLASS_EXTENDS</a> - Enum constant in enum class jdk.classfile.<a href="jdk/classfile/TypeAnnotation.TargetType.html" title="enum class in jdk.classfile">TypeAnnotation.TargetType</a></dt>
@@ -2537,15 +2559,19 @@ loadScripts(document, 'script');</script>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/Classfile.html#DDIV" class="member-name-link">DDIV</a> - Static variable in class jdk.classfile.<a href="jdk/classfile/Classfile.html" title="class in jdk.classfile">Classfile</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.html#declaredLocals()" class="member-name-link">declaredLocals()</a> - Method in interface jdk.classfile.attribute.<a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame</a></dt>
+<dt><a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.Append.html#declaredLocals()" class="member-name-link">declaredLocals()</a> - Method in interface jdk.classfile.attribute.<a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.Append.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Append</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameImpl.html#declaredLocals()" class="member-name-link">declaredLocals()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameImpl</a></dt>
+<dt><a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.Full.html#declaredLocals()" class="member-name-link">declaredLocals()</a> - Method in interface jdk.classfile.attribute.<a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.Full.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Full</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameAppendImpl.html#declaredLocals()" class="member-name-link">declaredLocals()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameAppendImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameAppendImpl</a></dt>
 <dd>
 <div class="block">Returns the value of the <code>declaredLocals</code> record component.</div>
 </dd>
-<dt><a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.html#declaredStack()" class="member-name-link">declaredStack()</a> - Method in interface jdk.classfile.attribute.<a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame</a></dt>
+<dt><a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.Full.html#declaredStack()" class="member-name-link">declaredStack()</a> - Method in interface jdk.classfile.attribute.<a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.Full.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Full</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameImpl.html#declaredStack()" class="member-name-link">declaredStack()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameImpl</a></dt>
+<dt><a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.Same1.html#declaredStack()" class="member-name-link">declaredStack()</a> - Method in interface jdk.classfile.attribute.<a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.Same1.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Same1</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSame1Impl.html#declaredStack()" class="member-name-link">declaredStack()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSame1Impl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSame1Impl</a></dt>
 <dd>
 <div class="block">Returns the value of the <code>declaredStack</code> record component.</div>
 </dd>
@@ -2817,13 +2843,45 @@ loadScripts(document, 'script');</script>
 <dl class="index">
 <dt><a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.html#effectiveLocals()" class="member-name-link">effectiveLocals()</a> - Method in interface jdk.classfile.attribute.<a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameImpl.html#effectiveLocals()" class="member-name-link">effectiveLocals()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameImpl</a></dt>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameAppendImpl.html#effectiveLocals()" class="member-name-link">effectiveLocals()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameAppendImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameAppendImpl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>effectiveLocals</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameChopImpl.html#effectiveLocals()" class="member-name-link">effectiveLocals()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameChopImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameChopImpl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>effectiveLocals</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameFullImpl.html#effectiveLocals()" class="member-name-link">effectiveLocals()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameFullImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameFullImpl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>effectiveLocals</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSame1Impl.html#effectiveLocals()" class="member-name-link">effectiveLocals()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSame1Impl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSame1Impl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>effectiveLocals</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSameImpl.html#effectiveLocals()" class="member-name-link">effectiveLocals()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSameImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSameImpl</a></dt>
 <dd>
 <div class="block">Returns the value of the <code>effectiveLocals</code> record component.</div>
 </dd>
 <dt><a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.html#effectiveStack()" class="member-name-link">effectiveStack()</a> - Method in interface jdk.classfile.attribute.<a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameImpl.html#effectiveStack()" class="member-name-link">effectiveStack()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameImpl</a></dt>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameAppendImpl.html#effectiveStack()" class="member-name-link">effectiveStack()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameAppendImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameAppendImpl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>effectiveStack</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameChopImpl.html#effectiveStack()" class="member-name-link">effectiveStack()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameChopImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameChopImpl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>effectiveStack</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameFullImpl.html#effectiveStack()" class="member-name-link">effectiveStack()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameFullImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameFullImpl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>effectiveStack</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSame1Impl.html#effectiveStack()" class="member-name-link">effectiveStack()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSame1Impl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSame1Impl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>effectiveStack</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSameImpl.html#effectiveStack()" class="member-name-link">effectiveStack()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSameImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSameImpl</a></dt>
 <dd>
 <div class="block">Returns the value of the <code>effectiveStack</code> record component.</div>
 </dd>
@@ -3182,7 +3240,23 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Indicates whether some other object is "equal to" this one.</div>
 </dd>
-<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameImpl.html#equals(java.lang.Object)" class="member-name-link">equals(Object)</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameImpl</a></dt>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameAppendImpl.html#equals(java.lang.Object)" class="member-name-link">equals(Object)</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameAppendImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameAppendImpl</a></dt>
+<dd>
+<div class="block">Indicates whether some other object is "equal to" this one.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameChopImpl.html#equals(java.lang.Object)" class="member-name-link">equals(Object)</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameChopImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameChopImpl</a></dt>
+<dd>
+<div class="block">Indicates whether some other object is "equal to" this one.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameFullImpl.html#equals(java.lang.Object)" class="member-name-link">equals(Object)</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameFullImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameFullImpl</a></dt>
+<dd>
+<div class="block">Indicates whether some other object is "equal to" this one.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSame1Impl.html#equals(java.lang.Object)" class="member-name-link">equals(Object)</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSame1Impl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSame1Impl</a></dt>
+<dd>
+<div class="block">Indicates whether some other object is "equal to" this one.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSameImpl.html#equals(java.lang.Object)" class="member-name-link">equals(Object)</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSameImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSameImpl</a></dt>
 <dd>
 <div class="block">Indicates whether some other object is "equal to" this one.</div>
 </dd>
@@ -3486,6 +3560,18 @@ loadScripts(document, 'script');</script>
 <dt><a href="jdk/classfile/impl/UnboundAttribute.UnboundModuleExportInfo.html#exportsTo()" class="member-name-link">exportsTo()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/UnboundAttribute.UnboundModuleExportInfo.html" title="class in jdk.classfile.impl">UnboundAttribute.UnboundModuleExportInfo</a></dt>
 <dd>
 <div class="block">Returns the value of the <code>exportsTo</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.Same.html#extended()" class="member-name-link">extended()</a> - Method in interface jdk.classfile.attribute.<a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.Same.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Same</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.Same1.html#extended()" class="member-name-link">extended()</a> - Method in interface jdk.classfile.attribute.<a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.Same1.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Same1</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSame1Impl.html#extended()" class="member-name-link">extended()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSame1Impl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSame1Impl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>extended</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSameImpl.html#extended()" class="member-name-link">extended()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSameImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSameImpl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>extended</code> record component.</div>
 </dd>
 <dt><a href="jdk/classfile/Signature.TypeArg.WildcardIndicator.html#EXTENDS" class="member-name-link">EXTENDS</a> - Enum constant in enum class jdk.classfile.<a href="jdk/classfile/Signature.TypeArg.WildcardIndicator.html" title="enum class in jdk.classfile">Signature.TypeArg.WildcardIndicator</a></dt>
 <dd>&nbsp;</dd>
@@ -3906,13 +3992,45 @@ loadScripts(document, 'script');</script>
 </dd>
 <dt><a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.html#frameKind()" class="member-name-link">frameKind()</a> - Method in interface jdk.classfile.attribute.<a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameImpl.html#frameKind()" class="member-name-link">frameKind()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameImpl</a></dt>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameAppendImpl.html#frameKind()" class="member-name-link">frameKind()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameAppendImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameAppendImpl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>frameKind</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameChopImpl.html#frameKind()" class="member-name-link">frameKind()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameChopImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameChopImpl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>frameKind</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameFullImpl.html#frameKind()" class="member-name-link">frameKind()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameFullImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameFullImpl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>frameKind</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSame1Impl.html#frameKind()" class="member-name-link">frameKind()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSame1Impl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSame1Impl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>frameKind</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSameImpl.html#frameKind()" class="member-name-link">frameKind()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSameImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSameImpl</a></dt>
 <dd>
 <div class="block">Returns the value of the <code>frameKind</code> record component.</div>
 </dd>
 <dt><a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.html#frameType()" class="member-name-link">frameType()</a> - Method in interface jdk.classfile.attribute.<a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameImpl.html#frameType()" class="member-name-link">frameType()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameImpl</a></dt>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameAppendImpl.html#frameType()" class="member-name-link">frameType()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameAppendImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameAppendImpl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>frameType</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameChopImpl.html#frameType()" class="member-name-link">frameType()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameChopImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameChopImpl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>frameType</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameFullImpl.html#frameType()" class="member-name-link">frameType()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameFullImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameFullImpl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>frameType</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSame1Impl.html#frameType()" class="member-name-link">frameType()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSame1Impl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSame1Impl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>frameType</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSameImpl.html#frameType()" class="member-name-link">frameType()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSameImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSameImpl</a></dt>
 <dd>
 <div class="block">Returns the value of the <code>frameType</code> record component.</div>
 </dd>
@@ -4244,7 +4362,23 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Returns a hash code value for this object.</div>
 </dd>
-<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameImpl.html#hashCode()" class="member-name-link">hashCode()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameImpl</a></dt>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameAppendImpl.html#hashCode()" class="member-name-link">hashCode()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameAppendImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameAppendImpl</a></dt>
+<dd>
+<div class="block">Returns a hash code value for this object.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameChopImpl.html#hashCode()" class="member-name-link">hashCode()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameChopImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameChopImpl</a></dt>
+<dd>
+<div class="block">Returns a hash code value for this object.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameFullImpl.html#hashCode()" class="member-name-link">hashCode()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameFullImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameFullImpl</a></dt>
+<dd>
+<div class="block">Returns a hash code value for this object.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSame1Impl.html#hashCode()" class="member-name-link">hashCode()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSame1Impl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSame1Impl</a></dt>
+<dd>
+<div class="block">Returns a hash code value for this object.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSameImpl.html#hashCode()" class="member-name-link">hashCode()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSameImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSameImpl</a></dt>
 <dd>
 <div class="block">Returns a hash code value for this object.</div>
 </dd>
@@ -7530,7 +7664,23 @@ loadScripts(document, 'script');</script>
 </dd>
 <dt><a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.html#offsetDelta()" class="member-name-link">offsetDelta()</a> - Method in interface jdk.classfile.attribute.<a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameImpl.html#offsetDelta()" class="member-name-link">offsetDelta()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameImpl</a></dt>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameAppendImpl.html#offsetDelta()" class="member-name-link">offsetDelta()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameAppendImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameAppendImpl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>offsetDelta</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameChopImpl.html#offsetDelta()" class="member-name-link">offsetDelta()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameChopImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameChopImpl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>offsetDelta</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameFullImpl.html#offsetDelta()" class="member-name-link">offsetDelta()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameFullImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameFullImpl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>offsetDelta</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSame1Impl.html#offsetDelta()" class="member-name-link">offsetDelta()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSame1Impl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSame1Impl</a></dt>
+<dd>
+<div class="block">Returns the value of the <code>offsetDelta</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSameImpl.html#offsetDelta()" class="member-name-link">offsetDelta()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSameImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSameImpl</a></dt>
 <dd>
 <div class="block">Returns the value of the <code>offsetDelta</code> record component.</div>
 </dd>
@@ -9010,13 +9160,37 @@ loadScripts(document, 'script');</script>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/StackMapDecoder.SimpleVerificationTypeInfoImpl.html" class="type-name-link" title="class in jdk.classfile.impl">StackMapDecoder.SimpleVerificationTypeInfoImpl</a> - Record Class in <a href="jdk/classfile/impl/package-summary.html">jdk.classfile.impl</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameImpl.html" class="type-name-link" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameImpl</a> - Record Class in <a href="jdk/classfile/impl/package-summary.html">jdk.classfile.impl</a></dt>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameAppendImpl.html" class="type-name-link" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameAppendImpl</a> - Record Class in <a href="jdk/classfile/impl/package-summary.html">jdk.classfile.impl</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameChopImpl.html" class="type-name-link" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameChopImpl</a> - Record Class in <a href="jdk/classfile/impl/package-summary.html">jdk.classfile.impl</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameFullImpl.html" class="type-name-link" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameFullImpl</a> - Record Class in <a href="jdk/classfile/impl/package-summary.html">jdk.classfile.impl</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSame1Impl.html" class="type-name-link" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSame1Impl</a> - Record Class in <a href="jdk/classfile/impl/package-summary.html">jdk.classfile.impl</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSameImpl.html" class="type-name-link" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSameImpl</a> - Record Class in <a href="jdk/classfile/impl/package-summary.html">jdk.classfile.impl</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/StackMapDecoder.UninitializedVerificationTypeInfoImpl.html" class="type-name-link" title="class in jdk.classfile.impl">StackMapDecoder.UninitializedVerificationTypeInfoImpl</a> - Record Class in <a href="jdk/classfile/impl/package-summary.html">jdk.classfile.impl</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameImpl.html#%3Cinit%3E(int,jdk.classfile.attribute.StackMapTableAttribute.FrameKind,int,int,java.util.List,java.util.List,java.util.List,java.util.List)" class="member-name-link">StackMapFrameImpl(int, StackMapTableAttribute.FrameKind, int, int, List&lt;StackMapTableAttribute.VerificationTypeInfo&gt;, List&lt;StackMapTableAttribute.VerificationTypeInfo&gt;, List&lt;StackMapTableAttribute.VerificationTypeInfo&gt;, List&lt;StackMapTableAttribute.VerificationTypeInfo&gt;)</a> - Constructor for record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameImpl</a></dt>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameAppendImpl.html#%3Cinit%3E(int,jdk.classfile.attribute.StackMapTableAttribute.FrameKind,int,int,java.util.List,java.util.List,java.util.List)" class="member-name-link">StackMapFrameAppendImpl(int, StackMapTableAttribute.FrameKind, int, int, List&lt;StackMapTableAttribute.VerificationTypeInfo&gt;, List&lt;StackMapTableAttribute.VerificationTypeInfo&gt;, List&lt;StackMapTableAttribute.VerificationTypeInfo&gt;)</a> - Constructor for record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameAppendImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameAppendImpl</a></dt>
 <dd>
-<div class="block">Creates an instance of a <code>StackMapFrameImpl</code> record class.</div>
+<div class="block">Creates an instance of a <code>StackMapFrameAppendImpl</code> record class.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameChopImpl.html#%3Cinit%3E(int,jdk.classfile.attribute.StackMapTableAttribute.FrameKind,int,int,java.util.List,java.util.List,java.util.List)" class="member-name-link">StackMapFrameChopImpl(int, StackMapTableAttribute.FrameKind, int, int, List&lt;StackMapTableAttribute.VerificationTypeInfo&gt;, List&lt;StackMapTableAttribute.VerificationTypeInfo&gt;, List&lt;StackMapTableAttribute.VerificationTypeInfo&gt;)</a> - Constructor for record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameChopImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameChopImpl</a></dt>
+<dd>
+<div class="block">Creates an instance of a <code>StackMapFrameChopImpl</code> record class.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameFullImpl.html#%3Cinit%3E(int,jdk.classfile.attribute.StackMapTableAttribute.FrameKind,int,int,java.util.List,java.util.List)" class="member-name-link">StackMapFrameFullImpl(int, StackMapTableAttribute.FrameKind, int, int, List&lt;StackMapTableAttribute.VerificationTypeInfo&gt;, List&lt;StackMapTableAttribute.VerificationTypeInfo&gt;)</a> - Constructor for record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameFullImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameFullImpl</a></dt>
+<dd>
+<div class="block">Creates an instance of a <code>StackMapFrameFullImpl</code> record class.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSame1Impl.html#%3Cinit%3E(int,jdk.classfile.attribute.StackMapTableAttribute.FrameKind,int,int,boolean,jdk.classfile.attribute.StackMapTableAttribute.VerificationTypeInfo,java.util.List,java.util.List)" class="member-name-link">StackMapFrameSame1Impl(int, StackMapTableAttribute.FrameKind, int, int, boolean, StackMapTableAttribute.VerificationTypeInfo, List&lt;StackMapTableAttribute.VerificationTypeInfo&gt;, List&lt;StackMapTableAttribute.VerificationTypeInfo&gt;)</a> - Constructor for record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSame1Impl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSame1Impl</a></dt>
+<dd>
+<div class="block">Creates an instance of a <code>StackMapFrameSame1Impl</code> record class.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSameImpl.html#%3Cinit%3E(int,jdk.classfile.attribute.StackMapTableAttribute.FrameKind,int,int,boolean,java.util.List,java.util.List)" class="member-name-link">StackMapFrameSameImpl(int, StackMapTableAttribute.FrameKind, int, int, boolean, List&lt;StackMapTableAttribute.VerificationTypeInfo&gt;, List&lt;StackMapTableAttribute.VerificationTypeInfo&gt;)</a> - Constructor for record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSameImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSameImpl</a></dt>
+<dd>
+<div class="block">Creates an instance of a <code>StackMapFrameSameImpl</code> record class.</div>
 </dd>
 <dt><a href="jdk/classfile/impl/StackMapGenerator.html" class="type-name-link" title="class in jdk.classfile.impl">StackMapGenerator</a> - Class in <a href="jdk/classfile/impl/package-summary.html">jdk.classfile.impl</a></dt>
 <dd>
@@ -9055,6 +9229,16 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">A stack map frame.</div>
 </dd>
+<dt><a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.Append.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Append</a> - Interface in <a href="jdk/classfile/attribute/package-summary.html">jdk.classfile.attribute</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.Chop.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Chop</a> - Interface in <a href="jdk/classfile/attribute/package-summary.html">jdk.classfile.attribute</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.Full.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Full</a> - Interface in <a href="jdk/classfile/attribute/package-summary.html">jdk.classfile.attribute</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.Same.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Same</a> - Interface in <a href="jdk/classfile/attribute/package-summary.html">jdk.classfile.attribute</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/attribute/StackMapTableAttribute.StackMapFrame.Same1.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Same1</a> - Interface in <a href="jdk/classfile/attribute/package-summary.html">jdk.classfile.attribute</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/attribute/StackMapTableAttribute.UninitializedVerificationTypeInfo.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.UninitializedVerificationTypeInfo</a> - Interface in <a href="jdk/classfile/attribute/package-summary.html">jdk.classfile.attribute</a></dt>
 <dd>
 <div class="block">An uninitialized stack value.</div>
@@ -9958,7 +10142,23 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Returns a string representation of this record class.</div>
 </dd>
-<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameImpl.html#toString()" class="member-name-link">toString()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameImpl</a></dt>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameAppendImpl.html#toString()" class="member-name-link">toString()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameAppendImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameAppendImpl</a></dt>
+<dd>
+<div class="block">Returns a string representation of this record class.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameChopImpl.html#toString()" class="member-name-link">toString()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameChopImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameChopImpl</a></dt>
+<dd>
+<div class="block">Returns a string representation of this record class.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameFullImpl.html#toString()" class="member-name-link">toString()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameFullImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameFullImpl</a></dt>
+<dd>
+<div class="block">Returns a string representation of this record class.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSame1Impl.html#toString()" class="member-name-link">toString()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSame1Impl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSame1Impl</a></dt>
+<dd>
+<div class="block">Returns a string representation of this record class.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSameImpl.html#toString()" class="member-name-link">toString()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.StackMapFrameSameImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.StackMapFrameSameImpl</a></dt>
 <dd>
 <div class="block">Returns a string representation of this record class.</div>
 </dd>
