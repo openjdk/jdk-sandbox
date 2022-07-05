@@ -31,10 +31,14 @@ import java.util.Set;
 import jdk.classfile.constantpool.ModuleEntry;
 import jdk.classfile.constantpool.PackageEntry;
 import java.lang.reflect.AccessFlag;
+import java.util.stream.Collectors;
 
 import jdk.classfile.Classfile;
+import jdk.classfile.impl.TemporaryConstantPool;
 import jdk.classfile.impl.UnboundAttribute;
 import jdk.classfile.impl.Util;
+import jdk.classfile.jdktypes.ModuleDesc;
+import jdk.classfile.jdktypes.PackageDesc;
 
 /**
  * Models a single "exports" declaration in the {@link jdk.classfile.attribute.ModuleAttribute}.
@@ -119,6 +123,58 @@ public sealed interface ModuleExportInfo
     static ModuleExportInfo of(PackageEntry exports,
                                Collection<AccessFlag> exportFlags,
                                ModuleEntry... exportsTo) {
+        return of(exports, Util.flagsToBits(AccessFlag.Location.MODULE_EXPORTS, exportFlags), exportsTo);
+    }
+
+    /**
+     * {@return a module export description}
+     * @param exports the exported package
+     * @param exportFlags the export flags
+     * @param exportsTo the modules to which this package is exported
+     */
+    static ModuleExportInfo of(PackageDesc exports,
+                               int exportFlags,
+                               List<ModuleDesc> exportsTo) {
+        return new UnboundAttribute.UnboundModuleExportInfo(TemporaryConstantPool.INSTANCE.packageEntry(TemporaryConstantPool.INSTANCE.utf8Entry(exports.packageName())),
+                exportFlags,
+                exportsTo.stream().map(e -> TemporaryConstantPool.INSTANCE.moduleEntry(TemporaryConstantPool.INSTANCE.utf8Entry(e.moduleName()))).collect(Collectors.toList()));
+    }
+
+    /**
+     * {@return a module export description}
+     * @param exports the exported package
+     * @param exportFlags the export flags
+     * @param exportsTo the modules to which this package is exported
+     */
+    static ModuleExportInfo of(PackageDesc exports,
+                               Collection<AccessFlag> exportFlags,
+                               List<ModuleDesc> exportsTo) {
+        return of(exports,
+                Util.flagsToBits(AccessFlag.Location.MODULE_EXPORTS, exportFlags),
+                exportsTo);
+    }
+
+    /**
+     * {@return a module export description}
+     * @param exports the exported package
+     * @param exportFlags the export flags
+     * @param exportsTo the modules to which this package is exported
+     */
+    static ModuleExportInfo of(PackageDesc exports,
+                               int exportFlags,
+                               ModuleDesc... exportsTo) {
+        return of(exports, exportFlags, List.of(exportsTo));
+    }
+
+    /**
+     * {@return a module export description}
+     * @param exports the exported package
+     * @param exportFlags the export flags
+     * @param exportsTo the modules to which this package is exported
+     */
+    static ModuleExportInfo of(PackageDesc exports,
+                               Collection<AccessFlag> exportFlags,
+                               ModuleDesc... exportsTo) {
         return of(exports, Util.flagsToBits(AccessFlag.Location.MODULE_EXPORTS, exportFlags), exportsTo);
     }
 }

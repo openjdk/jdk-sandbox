@@ -260,6 +260,17 @@ public enum Opcode {
     END(0xFF09, 0, CodeElement.Kind.END),
     ;
 
+    private static final Opcode[] OPCODES_BY_BYTECODE;
+
+    static {
+        OPCODES_BY_BYTECODE = new Opcode[202];
+        for (Opcode opcode : values()) {
+            if (opcode.bytecode < OPCODES_BY_BYTECODE.length) {
+                OPCODES_BY_BYTECODE[opcode.bytecode] = opcode;
+            }
+        }
+    }
+
     private final int bytecode;
     private final int sizeIfFixed;
     private final CodeElement.Kind kind;
@@ -302,6 +313,13 @@ public enum Opcode {
         this.secondaryTypeKind = secondaryTypeKind;
         this.slot = slot;
         this.constantValue = constantValue;
+    }
+
+    public static Opcode ofBytecode(int bytecode) {
+        if (bytecode < 0 || bytecode >= OPCODES_BY_BYTECODE.length) {
+            throw new IllegalArgumentException("Not a bytecode: " + bytecode);
+        }
+        return OPCODES_BY_BYTECODE[bytecode];
     }
     
     public int bytecode() { return bytecode; }

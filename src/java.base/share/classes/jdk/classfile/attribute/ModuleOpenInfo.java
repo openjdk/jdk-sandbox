@@ -31,9 +31,13 @@ import java.util.Set;
 import jdk.classfile.constantpool.ModuleEntry;
 import jdk.classfile.constantpool.PackageEntry;
 import java.lang.reflect.AccessFlag;
+import java.util.stream.Collectors;
 
+import jdk.classfile.impl.TemporaryConstantPool;
 import jdk.classfile.impl.UnboundAttribute;
 import jdk.classfile.impl.Util;
+import jdk.classfile.jdktypes.ModuleDesc;
+import jdk.classfile.jdktypes.PackageDesc;
 
 /**
  * Models a single "opens" declaration in the {@link jdk.classfile.attribute.ModuleAttribute}.
@@ -114,6 +118,58 @@ public sealed interface ModuleOpenInfo
     static ModuleOpenInfo of(PackageEntry opens,
                              Collection<AccessFlag> opensFlags,
                              ModuleEntry... opensTo) {
+        return of(opens, Util.flagsToBits(AccessFlag.Location.MODULE_OPENS, opensFlags), opensTo);
+    }
+
+    /**
+     * {@return a module open description}
+     * @param opens the package to open
+     * @param opensFlags the open flags
+     * @param opensTo the packages to which this package is opened, if it is a qualified open
+     */
+    static ModuleOpenInfo of(PackageDesc opens,
+                             int opensFlags,
+                             List<ModuleDesc> opensTo) {
+        return new UnboundAttribute.UnboundModuleOpenInfo(TemporaryConstantPool.INSTANCE.packageEntry(TemporaryConstantPool.INSTANCE.utf8Entry(opens.packageName())),
+                opensFlags,
+                opensTo.stream().map(o -> TemporaryConstantPool.INSTANCE.moduleEntry(TemporaryConstantPool.INSTANCE.utf8Entry(o.moduleName()))).collect(Collectors.toList()));
+    }
+
+    /**
+     * {@return a module open description}
+     * @param opens the package to open
+     * @param opensFlags the open flags
+     * @param opensTo the packages to which this package is opened, if it is a qualified open
+     */
+    static ModuleOpenInfo of(PackageDesc opens,
+                             Collection<AccessFlag> opensFlags,
+                             List<ModuleDesc> opensTo) {
+        return of(opens,
+                Util.flagsToBits(AccessFlag.Location.MODULE_OPENS, opensFlags),
+                opensTo);
+    }
+
+    /**
+     * {@return a module open description}
+     * @param opens the package to open
+     * @param opensFlags the open flags
+     * @param opensTo the packages to which this package is opened, if it is a qualified open
+     */
+    static ModuleOpenInfo of(PackageDesc opens,
+                             int opensFlags,
+                             ModuleDesc... opensTo) {
+        return of(opens, opensFlags, List.of(opensTo));
+    }
+
+    /**
+     * {@return a module open description}
+     * @param opens the package to open
+     * @param opensFlags the open flags
+     * @param opensTo the packages to which this package is opened, if it is a qualified open
+     */
+    static ModuleOpenInfo of(PackageDesc opens,
+                             Collection<AccessFlag> opensFlags,
+                             ModuleDesc... opensTo) {
         return of(opens, Util.flagsToBits(AccessFlag.Location.MODULE_OPENS, opensFlags), opensTo);
     }
 }
