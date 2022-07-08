@@ -26,8 +26,10 @@ package jdk.classfile.impl;
 
 import jdk.classfile.CodeBuilder;
 import jdk.classfile.CodeElement;
+import jdk.classfile.Instruction;
 import jdk.classfile.Label;
 import jdk.classfile.Opcode;
+import jdk.classfile.PseudoInstruction;
 import jdk.classfile.TypeKind;
 import jdk.classfile.instruction.LabelTarget;
 
@@ -40,7 +42,7 @@ public final class BlockCodeBuilder
     private final CodeBuilder parent;
     private final Label startLabel, endLabel;
     private boolean reachable = true;
-    private boolean isEmpty = true;
+    private boolean hasInstructions = false;
     private int topLocal;
     private int terminalMaxLocals;
 
@@ -68,7 +70,7 @@ public final class BlockCodeBuilder
     }
 
     public boolean isEmpty() {
-        return isEmpty;
+        return !hasInstructions;
     }
 
     private int topLocal(CodeBuilder parent) {
@@ -84,7 +86,9 @@ public final class BlockCodeBuilder
     public CodeBuilder with(CodeElement element) {
         Opcode op = element.opcode();
         parent.with(element);
-        isEmpty = false;
+
+        hasInstructions |= !op.isPseudo();
+
         if (reachable) {
             if (op.isUnconditionalBranch())
                 reachable = false;

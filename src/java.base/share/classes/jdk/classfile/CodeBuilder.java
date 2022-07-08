@@ -213,7 +213,8 @@ public sealed interface CodeBuilder
     }
 
     /**
-     * X
+     * A builder to add catch blocks.
+     *
      * @see #trying
      */
     final class CatchBuilder {
@@ -231,29 +232,20 @@ public sealed interface CodeBuilder
         }
 
         /**
-         * X
-         * @param catchType x
-         * @param catchHandler x
-         * @return x
-         * @throws java.lang.IllegalArgumentException x
+         * Adds a catch block that catches an exception of the given type.
+         * <p>
+         * The caught exception will be on top of the operand stack when the catch block is entered.
+         * <p>
+         * If the type of exception is {@code null} then the catch block catches all exceptions.
+         *
+         * @param exceptionType the type of exception to catch.
+         * @param catchHandler handler that receives a {@linkplain CodeBuilder} to
+         *                     generate the body of the catch block.
+         * @return this builder
+         * @throws java.lang.IllegalArgumentException if an existing catch block catches an exception of the given type.
+         * @see #catchingAll
          */
-        public CatchBuilder catching(ClassDesc catchType, Consumer<CodeBuilder> catchHandler) {
-            Objects.requireNonNull(catchType);
-
-            catchBlock(catchType, catchHandler);
-            return this;
-        }
-
-        /**
-         * X
-         * @param catchAllHandler x
-         * @throws java.lang.IllegalArgumentException x
-         */
-        public void catchingAll(Consumer<CodeBuilder> catchAllHandler) {
-            catchBlock(null, catchAllHandler);
-        }
-
-        void catchBlock(ClassDesc catchType, Consumer<CodeBuilder> catchHandler) {
+        public CatchBuilder catching(ClassDesc exceptionType, Consumer<CodeBuilder> catchHandler) {
             Objects.requireNonNull(catchHandler);
 
             if (catchBlock == null) {
@@ -262,8 +254,8 @@ public sealed interface CodeBuilder
                 }
             }
 
-            if (!catchTypes.add(catchType)) {
-                throw new IllegalArgumentException();
+            if (!catchTypes.add(exceptionType)) {
+                throw new IllegalArgumentException("Existing catch block catches exception of type: " + exceptionType);
             }
 
             // Finish prior catch block
@@ -278,13 +270,29 @@ public sealed interface CodeBuilder
             Label tryStart = tryBlock.startLabel();
             Label tryEnd = tryBlock.endLabel();
             catchBlock.start();
-            if (catchType == null) {
+            if (exceptionType == null) {
                 catchBlock.exceptionCatchAll(tryStart, tryEnd, catchBlock.startLabel());
             }
             else {
-                catchBlock.exceptionCatch(tryStart, tryEnd, catchBlock.startLabel(), catchType);
+                catchBlock.exceptionCatch(tryStart, tryEnd, catchBlock.startLabel(), exceptionType);
             }
             catchHandler.accept(catchBlock);
+
+            return this;
+        }
+
+        /**
+         * Adds a "catch" block that catches all exceptions.
+         * <p>
+         * The caught exception will be on top of the operand stack when the catch block is entered.
+         *
+         * @param catchAllHandler handler that receives a {@linkplain CodeBuilder} to
+         *                        generate the body of the catch block
+         * @throws java.lang.IllegalArgumentException if an existing catch block catches all exceptions.
+         * @see #catching
+         */
+        public void catchingAll(Consumer<CodeBuilder> catchAllHandler) {
+            catching(null, catchAllHandler);
         }
 
         void finish() {
@@ -296,10 +304,14 @@ public sealed interface CodeBuilder
     }
 
     /**
-     * X
-     * @param tryHandler x
-     * @param catchesHandler x
-     * @return x
+     * Adds a "try-catch" block comprising one try block and zero or more catch blocks.
+     * Exceptions thrown by instructions in the try block may be caught by catch blocks.
+     *
+     * @param tryHandler handler that receives a {@linkplain CodeBuilder} to
+     *                   generate the body of the try block.
+     * @param catchesHandler a handler that receives a {@linkplain CatchBuilder}
+     *                       to generate bodies of catch blocks.
+     * @return this builder
      * @see CatchBuilder
      */
     default CodeBuilder trying(Consumer<CodeBuilder> tryHandler,
@@ -314,7 +326,7 @@ public sealed interface CodeBuilder
 
         // Check for empty try block
         if (tryBlock.isEmpty()) {
-            throw new IllegalStateException();
+            throw new IllegalStateException("The body of the try block is empty");
         }
 
         var catchBuilder = new CatchBuilder(this, tryBlock, tryCatchEnd);
