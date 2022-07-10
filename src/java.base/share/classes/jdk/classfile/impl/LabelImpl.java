@@ -51,6 +51,7 @@ public final class LabelImpl
 
     private final LabelContext labelContext;
     private int contextInfo;
+    private int offset;
 
     public LabelImpl(LabelContext labelContext, int contextInfo) {
         this.labelContext = Objects.requireNonNull(labelContext);
@@ -67,6 +68,10 @@ public final class LabelImpl
 
     public void setContextInfo(int contextInfo) {
         this.contextInfo = contextInfo;
+    }
+
+    public void setOffset(int offset) {
+        this.offset = offset;
     }
 
     @Override
@@ -91,7 +96,7 @@ public final class LabelImpl
 
     @Override
     public void writeTo(DirectCodeBuilder builder) {
-        builder.setLabelTarget(this);
+        builder.setLabelTarget(this, builder.curPc() - offset);
     }
 
     @Override

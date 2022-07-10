@@ -476,6 +476,13 @@ public sealed interface CodeBuilder
         return label;
     }
 
+    default Label newBoundLabel(int offset) {
+        LabelImpl label = (LabelImpl) newLabel();
+        label.setOffset(offset);
+        labelBinding(label);
+        return label;
+    }
+
     default CodeBuilder labelBinding(Label label) {
         with((LabelImpl) label);
         return this;
