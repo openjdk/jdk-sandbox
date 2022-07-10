@@ -486,6 +486,12 @@ public sealed interface CodeBuilder
         return this;
     }
 
+    default CodeBuilder lineNumber(int line, Label label) {
+        requireNonNull(label);
+        with(LineNumberImpl.of(line, label));
+        return this;
+    }
+
     default CodeBuilder exceptionCatch(Label start, Label end, Label handler, ClassEntry catchType) {
         requireNonNull(catchType);
         with(ExceptionCatch.of(handler, start, end, catchType));

@@ -625,10 +625,10 @@ public final class DirectCodeBuilder
         }
     }
 
-    public void setLineNumber(int lineNo) {
+    public void setLineNumber(int lineNo, Label label) {
         if (lineNumberWriter == null)
             lineNumberWriter = new DedupLineNumberTableAttribute(constantPool);
-        lineNumberWriter.writeLineNumber(curPc(), lineNo);
+        lineNumberWriter.writeLineNumber(label == null ? this.curPc() : labelToBci(label), lineNo);
     }
 
     public void setLabelTarget(Label label) {

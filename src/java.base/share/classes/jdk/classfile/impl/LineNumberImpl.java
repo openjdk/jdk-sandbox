@@ -24,6 +24,9 @@
  */
 package jdk.classfile.impl;
 
+import java.util.Optional;
+
+import jdk.classfile.Label;
 import jdk.classfile.Opcode;
 import jdk.classfile.instruction.LineNumber;
 
@@ -37,24 +40,34 @@ public final class LineNumberImpl
     private static final LineNumber[] internCache = new LineNumber[INTERN_LIMIT];
     static {
         for (int i=0; i<INTERN_LIMIT; i++)
-            internCache[i] = new LineNumberImpl(i);
+            internCache[i] = new LineNumberImpl(i, null);
     }
 
     private final int line;
+    private final Label label;
 
-    private LineNumberImpl(int line) {
+    private LineNumberImpl(int line, Label label) {
         this.line = line;
+        this.label = label;
     }
 
     public static LineNumber of(int line) {
         return (line < INTERN_LIMIT)
                ? internCache[line]
-               : new LineNumberImpl(line);
+               : new LineNumberImpl(line, null);
+    }
+
+    public static LineNumber of(int line, Label label) {
+        return new LineNumberImpl(line, label);
     }
 
     @Override
     public int line() {
         return line;
+    }
+
+    public Optional<Label> label() {
+        return Optional.ofNullable(label);
     }
 
     @Override
@@ -74,12 +87,12 @@ public final class LineNumberImpl
 
     @Override
     public void writeTo(DirectCodeBuilder writer) {
-        writer.setLineNumber(line);
+        writer.setLineNumber(line, label);
     }
 
     @Override
     public String toString() {
-        return String.format("LineNumber[line=%d]", line);
+        return String.format("LineNumber[line=%d,label=%s]", line, label);
     }
 }
 

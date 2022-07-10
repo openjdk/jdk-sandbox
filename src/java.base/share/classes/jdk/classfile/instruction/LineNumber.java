@@ -24,9 +24,12 @@
  */
 package jdk.classfile.instruction;
 
+import java.util.Optional;
+
 import jdk.classfile.Classfile;
 import jdk.classfile.CodeElement;
 import jdk.classfile.CodeModel;
+import jdk.classfile.Label;
 import jdk.classfile.PseudoInstruction;
 import jdk.classfile.attribute.CharacterRangeTableAttribute;
 import jdk.classfile.attribute.LineNumberTableAttribute;
@@ -43,4 +46,12 @@ import jdk.classfile.impl.LineNumberImpl;
 sealed public interface LineNumber extends PseudoInstruction
         permits LineNumberImpl {
     int line();
+
+    /**
+     * Returns the label that marks the position of the line number. If no
+     * such label is set, the line number marks the current position.
+     *
+     * @return The label for the specified line number, if defined.
+     */
+    Optional<Label> label();
 }
