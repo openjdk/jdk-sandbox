@@ -72,10 +72,12 @@ final class MethodTypeDescImpl implements MethodTypeDesc {
         requireNonNull(descriptor);
         List<String> types = ConstantUtils.parseMethodDescriptor(descriptor);
         ClassDesc[] paramTypes = new ClassDesc[types.size() - 1];
+        var it = types.iterator();
+        var ret = ClassDesc.ofDescriptor(it.next());
         for (int i=0; i<paramTypes.length; i++) {
-            paramTypes[i] = ClassDesc.ofDescriptor(types.get(i + 1));
+            paramTypes[i] = ClassDesc.ofDescriptor(it.next());
         }
-        return new MethodTypeDescImpl(ClassDesc.ofDescriptor(types.get(0)), paramTypes);
+        return new MethodTypeDescImpl(ret, paramTypes);
     }
 
     @Override

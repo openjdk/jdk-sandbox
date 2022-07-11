@@ -24,7 +24,7 @@
  */
 package java.lang.constant;
 
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
@@ -136,7 +136,7 @@ class ConstantUtils {
      */
     static List<String> parseMethodDescriptor(String descriptor) {
         int cur = 0, end = descriptor.length();
-        ArrayList<String> ptypes = new ArrayList<>();
+        LinkedList<String> ptypes = new LinkedList<>();
 
         if (cur >= end || descriptor.charAt(cur) != '(')
             throw new IllegalArgumentException("Bad method descriptor: " + descriptor);
@@ -146,7 +146,7 @@ class ConstantUtils {
             int len = skipOverFieldSignature(descriptor, cur, end, false);
             if (len == 0)
                 throw new IllegalArgumentException("Bad method descriptor: " + descriptor);
-            ptypes.add(descriptor.substring(cur, cur + len));
+            ptypes.addLast(descriptor.substring(cur, cur + len));
             cur += len;
         }
         if (cur >= end)
@@ -156,7 +156,7 @@ class ConstantUtils {
         int rLen = skipOverFieldSignature(descriptor, cur, end, true);
         if (rLen == 0 || cur + rLen != end)
             throw new IllegalArgumentException("Bad method descriptor: " + descriptor);
-        ptypes.add(0, descriptor.substring(cur, cur + rLen));
+        ptypes.addFirst(descriptor.substring(cur, cur + rLen));
         return ptypes;
     }
 
