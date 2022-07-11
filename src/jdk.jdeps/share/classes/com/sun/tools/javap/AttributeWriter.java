@@ -203,8 +203,9 @@ public class AttributeWriter extends BasicWriter {
                             indent(+1);
                             first = false;
                         }
+                        boolean isInterface = info.flags().contains(AccessFlag.INTERFACE);
                         for (var flag : info.flags())
-                            if (flag.sourceModifier()) print(Modifier.toString(flag.mask()) + " ");
+                            if (flag.sourceModifier() && (!isInterface || flag != AccessFlag.ABSTRACT)) print(Modifier.toString(flag.mask()) + " ");
                         if (info.innerName().isPresent()) {
                             print("#" + info.innerName().get().index() + "= ");
                         }
@@ -563,7 +564,6 @@ public class AttributeWriter extends BasicWriter {
                             printHeader(chop, "/* chop */");
                             indent(+1);
                             println("offset_delta = " + chop.offsetDelta());
-                            printMap("locals", chop.choppedLocals());
                             indent(-1);
                         }
                         case StackMapTableAttribute.StackMapFrame.Append append -> {

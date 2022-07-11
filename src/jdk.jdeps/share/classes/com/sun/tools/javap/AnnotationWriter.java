@@ -115,7 +115,7 @@ public class AnnotationWriter extends BasicWriter {
             case TypeAnnotation.OffsetTarget pos -> {
                 if (showOffsets) {
                     print(", offset=");
-                    print(pos.target());
+                    print(lr.labelToBci(pos.target()));
                 }
             }
             case TypeAnnotation.LocalVarTarget pos -> {
