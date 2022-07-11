@@ -50,6 +50,7 @@ import jdk.classfile.constantpool.Utf8Entry;
 import jdk.classfile.impl.AbstractInstruction;
 import jdk.classfile.impl.BlockCodeBuilder;
 import jdk.classfile.impl.BytecodeHelpers;
+import jdk.classfile.impl.CatchBuilderImpl;
 import jdk.classfile.impl.ChainedCodeBuilder;
 import jdk.classfile.impl.LabelImpl;
 import jdk.classfile.impl.LineNumberImpl;
@@ -217,20 +218,7 @@ public sealed interface CodeBuilder
      *
      * @see #trying
      */
-    final class CatchBuilder {
-        final CodeBuilder b;
-        final BlockCodeBuilder tryBlock;
-        final Label tryCatchEnd;
-        final Set<ConstantDesc> catchTypes;
-        BlockCodeBuilder catchBlock;
-
-        CatchBuilder(CodeBuilder b, BlockCodeBuilder tryBlock, Label tryCatchEnd) {
-            this.b = b;
-            this.tryBlock = tryBlock;
-            this.tryCatchEnd = tryCatchEnd;
-            this.catchTypes = new HashSet<>();
-        }
-
+    sealed interface CatchBuilder permits CatchBuilderImpl {
         /**
          * Adds a catch block that catches an exception of the given type.
          * <p>
@@ -245,41 +233,7 @@ public sealed interface CodeBuilder
          * @throws java.lang.IllegalArgumentException if an existing catch block catches an exception of the given type.
          * @see #catchingAll
          */
-        public CatchBuilder catching(ClassDesc exceptionType, Consumer<CodeBuilder> catchHandler) {
-            Objects.requireNonNull(catchHandler);
-
-            if (catchBlock == null) {
-                if (tryBlock.reachable()) {
-                    b.branchInstruction(Opcode.GOTO, tryCatchEnd);
-                }
-            }
-
-            if (!catchTypes.add(exceptionType)) {
-                throw new IllegalArgumentException("Existing catch block catches exception of type: " + exceptionType);
-            }
-
-            // Finish prior catch block
-            if (catchBlock != null) {
-                catchBlock.end();
-                if (catchBlock.reachable()) {
-                    b.branchInstruction(Opcode.GOTO, tryCatchEnd);
-                }
-            }
-
-            catchBlock = new BlockCodeBuilder(b);
-            Label tryStart = tryBlock.startLabel();
-            Label tryEnd = tryBlock.endLabel();
-            catchBlock.start();
-            if (exceptionType == null) {
-                catchBlock.exceptionCatchAll(tryStart, tryEnd, catchBlock.startLabel());
-            }
-            else {
-                catchBlock.exceptionCatch(tryStart, tryEnd, catchBlock.startLabel(), exceptionType);
-            }
-            catchHandler.accept(catchBlock);
-
-            return this;
-        }
+        CatchBuilder catching(ClassDesc exceptionType, Consumer<CodeBuilder> catchHandler);
 
         /**
          * Adds a "catch" block that catches all exceptions.
@@ -291,16 +245,7 @@ public sealed interface CodeBuilder
          * @throws java.lang.IllegalArgumentException if an existing catch block catches all exceptions.
          * @see #catching
          */
-        public void catchingAll(Consumer<CodeBuilder> catchAllHandler) {
-            catching(null, catchAllHandler);
-        }
-
-        void finish() {
-            if (catchBlock != null) {
-                catchBlock.end();
-                b.labelBinding(tryCatchEnd);
-            }
-        }
+        void catchingAll(Consumer<CodeBuilder> catchAllHandler);
     }
 
     /**
@@ -329,7 +274,7 @@ public sealed interface CodeBuilder
             throw new IllegalStateException("The body of the try block is empty");
         }
 
-        var catchBuilder = new CatchBuilder(this, tryBlock, tryCatchEnd);
+        var catchBuilder = new CatchBuilderImpl(this, tryBlock, tryCatchEnd);
         catchesHandler.accept(catchBuilder);
         catchBuilder.finish();
 
