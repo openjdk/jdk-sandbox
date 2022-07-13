@@ -25,17 +25,18 @@
 
 package jdk.jfr.internal;
 
+import java.lang.constant.ClassDesc;
+import static java.lang.constant.ConstantDescs.*;
+import java.lang.constant.MethodTypeDesc;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
-import jdk.internal.org.objectweb.asm.AnnotationVisitor;
-import jdk.internal.org.objectweb.asm.ClassWriter;
-import jdk.internal.org.objectweb.asm.Label;
-import jdk.internal.org.objectweb.asm.MethodVisitor;
-import jdk.internal.org.objectweb.asm.Opcodes;
-import jdk.internal.org.objectweb.asm.Type;
-import jdk.internal.org.objectweb.asm.commons.GeneratorAdapter;
-import jdk.internal.org.objectweb.asm.commons.Method;
+import jdk.classfile.*;
+import jdk.classfile.constantpool.*;
+import jdk.classfile.jdktypes.*;
+import jdk.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
+
 import jdk.jfr.AnnotationElement;
 import jdk.jfr.Event;
 import jdk.jfr.ValueDescriptor;
@@ -44,98 +45,130 @@ import jdk.jfr.ValueDescriptor;
 // Helper class for building dynamic events
 public final class EventClassBuilder {
 
-    private static final Type TYPE_EVENT = Type.getType(Event.class);
-    private static final Type TYPE_IOBE = Type.getType(IndexOutOfBoundsException.class);
-    private static final Method DEFAULT_CONSTRUCTOR = Method.getMethod("void <init> ()");
-    private static final Method SET_METHOD = Method.getMethod("void set (int, java.lang.Object)");
+    private static final String TYPE_EVENT = "jdk/jfr/Event";
+    private static final String TYPE_IOBE = "java/lang/IndexOutOfBoundsException";
     private static final AtomicLong idCounter = new AtomicLong();
-    private final ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
-    private final String fullClassName;
-    private final Type type;
+    private final String fullClassName, internalClassName;
     private final List<ValueDescriptor> fields;
     private final List<AnnotationElement> annotationElements;
 
     public EventClassBuilder(List<AnnotationElement> annotationElements, List<ValueDescriptor> fields) {
         this.fullClassName = "jdk.jfr.DynamicEvent" + idCounter.incrementAndGet();
-        this.type = Type.getType("L" + fullClassName.replace(".", "/") + ";");
+        this.internalClassName = fullClassName.replace('.', '/');
         this.fields = fields;
         this.annotationElements = annotationElements;
     }
 
     public Class<? extends Event> build() {
-        buildClassInfo();
-        buildConstructor();
-        buildFields();
-        buildSetMethod();
-        endClass();
-        byte[] bytes = classWriter.toByteArray();
+        String internalSuperName = ASMToolkit.getInternalName(Event.class.getName());
+        byte[] bytes = Classfile.build(ClassDesc.ofInternalName(internalClassName), clb -> {
+            clb.withFlags(Classfile.ACC_PUBLIC + Classfile.ACC_FINAL + Classfile.ACC_SUPER);
+            clb.withSuperclass(ClassDesc.ofInternalName(internalSuperName));
+            clb.withVersion(52, 0);
+            buildAnnotations(clb);
+            buildConstructor(clb);
+            buildFields(clb);
+            buildSetMethod(clb);
+        });
         ASMToolkit.logASM(fullClassName, bytes);
         return SecuritySupport.defineClass(Event.class, bytes).asSubclass(Event.class);
     }
 
-    private void endClass() {
-        classWriter.visitEnd();
-    }
-
-    private void buildSetMethod() {
-        GeneratorAdapter ga = new GeneratorAdapter(Opcodes.ACC_PUBLIC, SET_METHOD, null, null, classWriter);
-        int index = 0;
-        for (ValueDescriptor v : fields) {
-            ga.loadArg(0);
-            ga.visitLdcInsn(index);
-            Label notEqual = new Label();
-            ga.ifICmp(GeneratorAdapter.NE, notEqual);
-            ga.loadThis();
-            ga.loadArg(1);
-            Type fieldType = ASMToolkit.toType(v);
-            ga.unbox(ASMToolkit.toType(v));
-            ga.putField(type, v.getName(), fieldType);
-            ga.visitInsn(Opcodes.RETURN);
-            ga.visitLabel(notEqual);
-            index++;
-        }
-        ga.throwException(TYPE_IOBE, "Index must between 0 and " + fields.size());
-        ga.endMethod();
-    }
-
-    private void buildConstructor() {
-        MethodVisitor mv = classWriter.visitMethod(Opcodes.ACC_PUBLIC, DEFAULT_CONSTRUCTOR.getName(), DEFAULT_CONSTRUCTOR.getDescriptor(), null, null);
-        mv.visitIntInsn(Opcodes.ALOAD, 0);
-        mv.visitMethodInsn(Opcodes.INVOKESPECIAL, TYPE_EVENT.getInternalName(), DEFAULT_CONSTRUCTOR.getName(), DEFAULT_CONSTRUCTOR.getDescriptor(), false);
-        mv.visitInsn(Opcodes.RETURN);
-        mv.visitMaxs(0, 0);
-    }
-
-    private void buildClassInfo() {
-        String internalSuperName = ASMToolkit.getInternalName(Event.class.getName());
-        String internalClassName = type.getInternalName();
-        classWriter.visit(52, Opcodes.ACC_PUBLIC + Opcodes.ACC_FINAL + Opcodes.ACC_SUPER, internalClassName, null, internalSuperName, null);
-
-        for (AnnotationElement a : annotationElements) {
-            String descriptor = ASMToolkit.getDescriptor(a.getTypeName());
-            AnnotationVisitor av = classWriter.visitAnnotation(descriptor, true);
-            for (ValueDescriptor v : a.getValueDescriptors()) {
-                Object value = a.getValue(v.getName());
-                String name = v.getName();
-                if (v.isArray()) {
-                    AnnotationVisitor arrayVisitor = av.visitArray(name);
-                    Object[] array = (Object[]) value;
-                    for (int i = 0; i < array.length; i++) {
-                        arrayVisitor.visit(null, array[i]);
-                    }
-                    arrayVisitor.visitEnd();
-                } else {
-                    av.visit(name, value);
-                }
+    private void buildSetMethod(ClassBuilder clb) {
+        clb.withMethod("set", MethodTypeDesc.ofDescriptor("(ILjava/lang/Object;)V"), Classfile.ACC_PUBLIC, mb -> mb.withFlags(Classfile.ACC_PUBLIC).withCode(cob -> {
+            int index = 0;
+            for (ValueDescriptor v : fields) {
+                cob.loadInstruction(TypeKind.IntType, 1);
+                cob.constantInstruction(index);
+                var notEqual = cob.newLabel();
+                cob.branchInstruction(Opcode.IF_ICMPNE, notEqual);
+                cob.loadInstruction(TypeKind.ReferenceType, 0);
+                cob.loadInstruction(TypeKind.ReferenceType, 2);
+                var fieldType = ASMToolkit.getDescriptor(v.getTypeName());
+                unbox(cob, fieldType);
+                cob.fieldInstruction(Opcode.PUTFIELD, ClassDesc.ofDescriptor(internalClassName), v.getName(), ClassDesc.ofDescriptor(fieldType));
+                cob.returnInstruction(TypeKind.VoidType);
+                cob.labelBinding(notEqual);
+                index++;
             }
-            av.visitEnd();
+            cob.newObjectInstruction(ClassDesc.ofInternalName(TYPE_IOBE));
+            cob.stackInstruction(Opcode.DUP);
+            cob.constantInstruction("Index must between 0 and " + fields.size());
+            cob.invokeInstruction(Opcode.INVOKESPECIAL, ClassDesc.ofDescriptor(TYPE_IOBE), "<init>", MethodTypeDesc.ofDescriptor("(Ljava/lang/String;)V"), false);
+            cob.throwInstruction();
+        }));
+    }
+
+    public static void unbox(CodeBuilder cob, final String type) {
+        var boxedType = "Ljava/lang/Number;";
+        String unboxMethodName = null, unboxMethodSig = null;
+        switch (type) {
+            case "V":
+                return;
+            case "C":
+                boxedType = "Ljava/lang/Character;";
+                unboxMethodName = "charValue";
+                unboxMethodSig = "()C";
+                break;
+            case "Z":
+                boxedType = "Ljava/lang/Boolean;";
+                unboxMethodName = "booleanValue";
+                unboxMethodSig = "()Z";
+                break;
+            case "D":
+                unboxMethodName = "doubleValue";
+                unboxMethodSig = "()D";
+                break;
+            case "F":
+                unboxMethodName = "floatValue";
+                unboxMethodSig = "()F";
+                break;
+            case "J":
+                unboxMethodName = "longValue";
+                unboxMethodSig = "()J";
+                break;
+            case "I":
+            case "S":
+            case "B":
+                unboxMethodName = "intValue";
+                unboxMethodSig = "()I";
+                break;
+        }
+        if (unboxMethodName == null) {
+            cob.typeCheckInstruction(Opcode.CHECKCAST, ClassDesc.ofDescriptor(type));
+        } else {
+            cob.typeCheckInstruction(Opcode.CHECKCAST, ClassDesc.ofDescriptor(boxedType));
+            cob.invokeInstruction(Opcode.INVOKEVIRTUAL, ClassDesc.ofDescriptor(boxedType), unboxMethodName, MethodTypeDesc.ofDescriptor(unboxMethodSig), false);
         }
     }
 
-    private void buildFields() {
+    private void buildConstructor(ClassBuilder clb) {
+        clb.withMethod("<init>", MethodTypeDesc.of(CD_void), Classfile.ACC_PUBLIC, mb -> mb.withFlags(Classfile.ACC_PUBLIC).withCode(cob -> {
+            cob.loadInstruction(TypeKind.ReferenceType, 0);
+            cob.invokeInstruction(Opcode.INVOKESPECIAL, ClassDesc.ofDescriptor(TYPE_EVENT), "<init>", MethodTypeDesc.of(CD_void), false);
+            cob.returnInstruction(TypeKind.VoidType);
+        }));
+    }
+
+    private void buildAnnotations(ClassBuilder clb) {
+        if (annotationElements.isEmpty())
+            return;
+        List<Annotation> result = new ArrayList<>(annotationElements.size());
+        ConstantPoolBuilder constantPoolBuilder = clb.constantPool();
+        for (AnnotationElement a : annotationElements) {
+            result.add(Annotation.of(
+                    ClassDesc.ofDescriptor(ASMToolkit.getDescriptor(a.getTypeName())),
+                    a.getValueDescriptors().stream().map(v -> jdk.classfile.AnnotationElement.of(
+                            v.getName(),
+                            AnnotationValue.of(a.getValue(v.getName())))).toList()));
+        }
+        clb.with(RuntimeVisibleAnnotationsAttribute.of(result));
+    }
+
+    private void buildFields(ClassBuilder clb) {
         for (ValueDescriptor v : fields) {
             String internal = ASMToolkit.getDescriptor(v.getTypeName());
-            classWriter.visitField(Opcodes.ACC_PRIVATE, v.getName(), internal, null, null);
+            clb.withField(v.getName(), ClassDesc.ofDescriptor(internal), Classfile.ACC_PRIVATE);
             // No need to store annotations on field since they will be replaced anyway.
         }
     }

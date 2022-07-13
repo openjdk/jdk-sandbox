@@ -56,9 +56,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import jdk.classfile.Classfile;
+
 import jdk.internal.module.Checks;
-import jdk.internal.org.objectweb.asm.ClassReader;
-import jdk.internal.org.objectweb.asm.util.CheckClassAdapter;
 import jdk.internal.platform.Metrics;
 import jdk.jfr.Event;
 import jdk.jfr.FlightRecorderPermission;
