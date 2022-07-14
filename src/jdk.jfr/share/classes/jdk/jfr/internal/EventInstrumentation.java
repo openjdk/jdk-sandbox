@@ -390,8 +390,8 @@ public final class EventInstrumentation {
                     cob.return_();
                 });
 
+            // MyEvent#commit() or static MyEvent#commit(...)
             } else if (methodName.equals(METHOD_COMMIT)) {
-                // MyEvent#commit() or static MyEvent#commit(...)
                 if (staticCommitMethodDesc != null) {
                     if (methodDesc.equals(METHOD_COMMIT_DESC)) {
                         updateExistingWithEmptyVoidMethod(mb);
@@ -502,8 +502,10 @@ public final class EventInstrumentation {
                             // stack:
                             cob.return_();
                         });
+                    } else {
+                        mb.accept(me);
                     }
-                } else {
+                } else if (methodDesc.equals(staticCommitMethodDesc)) {
                     mb.withCode(cob -> {
                         // if (!isEnable()) {
                         // return;
@@ -638,8 +640,9 @@ public final class EventInstrumentation {
                         // stack:
                         cob.return_();
                     });
+                } else {
+                    mb.accept(me);
                 }
-
             // MyEvent#shouldCommit()
             } else if (methodName.equals(METHOD_EVENT_SHOULD_COMMIT) && methodDesc.equals(METHOD_EVENT_SHOULD_COMMIT_DESC)) {
                 mb.withCode(cob -> {
@@ -679,37 +682,36 @@ public final class EventInstrumentation {
                     cob.iconst_0();
                     cob.ireturn();
                 });
-//        if (isJDK) {
-//            if (hasStaticMethod(METHOD_ENABLED)) {
-//                updateEnabledMethod(METHOD_ENABLED);
-//            };
-//            updateIfStaticMethodExists(METHOD_SHOULD_COMMIT_LONG, methodVisitor -> {
-//                Label fail = new Label();
-//                if (guardEventConfiguration) {
-//                    // if (eventConfiguration == null) goto fail;
-//                    getEventConfiguration(methodVisitor);
-//                    methodVisitor.visitJumpInsn(Opcodes.IFNULL, fail);
-//                }
-//                // return eventConfiguration.shouldCommit(duration);
-//                getEventConfiguration(methodVisitor);
-//                methodVisitor.visitVarInsn(Opcodes.LLOAD, 0);
-//                invokeVirtual(methodVisitor, TYPE_EVENT_CONFIGURATION, METHOD_EVENT_CONFIGURATION_SHOULD_COMMIT);
-//                methodVisitor.visitInsn(Opcodes.IRETURN);
-//                // fail:
-//                methodVisitor.visitLabel(fail);
-//                // return false
-//                methodVisitor.visitInsn(Opcodes.ICONST_0);
-//                methodVisitor.visitInsn(Opcodes.IRETURN);
-//                methodVisitor.visitMaxs(0, 0);
-//                methodVisitor.visitEnd();
-//            });
-//            updateIfStaticMethodExists(METHOD_TIME_STAMP, methodVisitor -> {
-//                invokeStatic(methodVisitor, TYPE_EVENT_CONFIGURATION.getInternalName(), METHOD_TIME_STAMP);
-//                methodVisitor.visitInsn(Opcodes.LRETURN);
-//                methodVisitor.visitMaxs(0, 0);
-//                methodVisitor.visitEnd();
-//            });
-//        }
+            } else if (isJDK) {
+                if (methodName.equals(METHOD_ENABLED) && methodDesc.equals(METHOD_ENABLED_DESC)) {
+                    updateEnabledMethod(mb);
+                } else if (methodName.equals(METHOD_SHOULD_COMMIT_LONG) && methodDesc.equals(METHOD_SHOULD_COMMIT_LONG_DESC)) {
+                    mb.withCode(cob -> {
+                        Label fail = cob.newLabel();
+                        if (guardEventConfiguration) {
+                            // if (eventConfiguration == null) goto fail;
+                            getEventConfiguration(cob);
+                            cob.if_null(fail);
+                        }
+                        // return eventConfiguration.shouldCommit(duration);
+                        getEventConfiguration(cob);
+                        cob.lload(0);
+                        cob.invokevirtual(TYPE_EVENT_CONFIGURATION, METHOD_EVENT_CONFIGURATION_SHOULD_COMMIT, METHOD_EVENT_CONFIGURATION_SHOULD_COMMIT_DESC);
+                        cob.ireturn();
+                        // fail:
+                        cob.labelBinding(fail);
+                        // return false
+                        cob.iconst_0();
+                        cob.ireturn();
+                    });
+                } else if (methodName.equals(METHOD_TIME_STAMP) && methodDesc.equals(METHOD_TIME_STAMP_DESC)) {
+                    mb.withCode(cob -> {
+                        cob.invokestatic(TYPE_EVENT_CONFIGURATION, METHOD_TIME_STAMP, METHOD_TIME_STAMP_DESC);
+                        cob.lreturn();
+                    });
+                } else {
+                   mb.accept(me);
+                }
             } else {
                 mb.accept(me);
             }
@@ -728,7 +730,6 @@ public final class EventInstrumentation {
             cob.ireturn();
             if (guardEventConfiguration) {
                 cob.labelBinding(nullLabel);
-//                methodVisitor.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
                 cob.iconst_0();
                 cob.ireturn();
             }
