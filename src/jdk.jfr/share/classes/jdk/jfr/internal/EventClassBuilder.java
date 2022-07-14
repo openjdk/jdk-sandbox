@@ -64,7 +64,6 @@ public final class EventClassBuilder {
         byte[] bytes = Classfile.build(ClassDesc.ofInternalName(internalClassName), clb -> {
             clb.withFlags(Classfile.ACC_PUBLIC + Classfile.ACC_FINAL + Classfile.ACC_SUPER);
             clb.withSuperclass(ClassDesc.ofInternalName(internalSuperName));
-            clb.withVersion(52, 0);
             buildAnnotations(clb);
             buildConstructor(clb);
             buildFields(clb);

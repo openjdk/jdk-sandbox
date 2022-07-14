@@ -115,6 +115,7 @@ public final class EventInstrumentation {
     private static final MethodTypeDesc METHOD_SHOULD_COMMIT_LONG_DESC = MethodTypeDesc.of(CD_boolean, CD_long);
 
     private final ClassModel classNode;
+    private final ClassDesc className;
     private final List<SettingInfo> settingInfos;
     private final List<FieldInfo> fieldInfos;
     private final String eventName;
@@ -129,6 +130,7 @@ public final class EventInstrumentation {
         this.eventTypeId = id;
         this.superClass = superClass;
         this.classNode = Classfile.parse(bytes);
+        this.className = classNode.thisClass().asSymbol();
         this.settingInfos = buildSettingInfos(superClass, classNode);
         this.fieldInfos = buildFieldInfos(superClass, classNode);
         String n = annotationValue(classNode, ANNOTATION_NAME_DESCRIPTOR, 's');
@@ -375,7 +377,7 @@ public final class EventInstrumentation {
                 mb.withCode(cob -> {
                     cob.aload(0);
                     cob.invokestatic(TYPE_EVENT_CONFIGURATION, METHOD_TIME_STAMP, METHOD_TIME_STAMP_DESC);
-                    cob.putfield(ClassDesc.ofInternalName(getInternalClassName()), FIELD_START_TIME, CD_long);
+                    cob.putfield(className, FIELD_START_TIME, CD_long);
                     cob.return_();
                 });
 
@@ -384,9 +386,9 @@ public final class EventInstrumentation {
                 mb.withCode(cob -> {
                     cob.aload(0);
                     cob.aload(0);
-                    cob.getfield(ClassDesc.ofInternalName(getInternalClassName()), FIELD_START_TIME, CD_long);
+                    cob.getfield(className, FIELD_START_TIME, CD_long);
                     cob.invokestatic(TYPE_EVENT_CONFIGURATION, METHOD_DURATION, METHOD_DURATION_DESC);
-                    cob.putfield(ClassDesc.ofInternalName(getInternalClassName()), FIELD_DURATION, CD_long);
+                    cob.putfield(className, FIELD_DURATION, CD_long);
                     cob.return_();
                 });
 
@@ -505,7 +507,7 @@ public final class EventInstrumentation {
                     } else {
                         mb.accept(me);
                     }
-                } else if (methodDesc.equals(staticCommitMethodDesc)) {
+                } else if (methodDesc.equals(METHOD_COMMIT_DESC)) {
                     mb.withCode(cob -> {
                         // if (!isEnable()) {
                         // return;
@@ -516,7 +518,7 @@ public final class EventInstrumentation {
                         cob.exceptionCatch(start, endTryBlock, exceptionHandler, CD_Throwable);
                         cob.labelBinding(start);
                         cob.aload(0);
-                        cob.invokevirtual(ClassDesc.ofInternalName(getInternalClassName()), METHOD_IS_ENABLED, METHOD_IS_ENABLED_DESC);
+                        cob.invokevirtual(className, METHOD_IS_ENABLED, METHOD_IS_ENABLED_DESC);
                         Label l0 = cob.newLabel();
                         cob.ifne(l0);
                         cob.return_();
@@ -525,14 +527,14 @@ public final class EventInstrumentation {
                         // startTime = EventWriter.timestamp();
                         // } else {
                         cob.aload(0);
-                        cob.getfield(ClassDesc.ofInternalName(getInternalClassName()), FIELD_START_TIME, CD_long);
+                        cob.getfield(className, FIELD_START_TIME, CD_long);
                         cob.lconst_0();
                         cob.lcmp();
                         Label durationalEvent = cob.newLabel();
                         cob.ifne(durationalEvent);
                         cob.aload(0);
                         cob.invokestatic(TYPE_EVENT_CONFIGURATION, METHOD_TIME_STAMP, METHOD_TIME_STAMP_DESC);
-                        cob.putfield(ClassDesc.ofInternalName(getInternalClassName()), FIELD_START_TIME, CD_long);
+                        cob.putfield(className, FIELD_START_TIME, CD_long);
                         Label commit = cob.newLabel();
                         cob.goto_(commit);
                         // if (duration == 0) {
@@ -541,20 +543,20 @@ public final class EventInstrumentation {
                         // }
                         cob.labelBinding(durationalEvent);
                         cob.aload(0);
-                        cob.getfield(ClassDesc.ofInternalName(getInternalClassName()), FIELD_DURATION, CD_long);
+                        cob.getfield(className, FIELD_DURATION, CD_long);
                         cob.lconst_0();
                         cob.lcmp();
                         cob.ifne(commit);
                         cob.aload(0);
                         cob.invokestatic(TYPE_EVENT_CONFIGURATION, METHOD_TIME_STAMP, METHOD_TIME_STAMP_DESC);
                         cob.aload(0);
-                        cob.getfield(ClassDesc.ofInternalName(getInternalClassName()), FIELD_START_TIME, CD_long);
+                        cob.getfield(className, FIELD_START_TIME, CD_long);
                         cob.lsub();
-                        cob.putfield(ClassDesc.ofInternalName(getInternalClassName()), FIELD_DURATION, CD_long);
+                        cob.putfield(className, FIELD_DURATION, CD_long);
                         cob.labelBinding(commit);
                         // if (shouldCommit()) {
                         cob.aload(0);
-                        cob.invokevirtual(ClassDesc.ofInternalName(getInternalClassName()), METHOD_EVENT_SHOULD_COMMIT, METHOD_EVENT_SHOULD_COMMIT_DESC);
+                        cob.invokevirtual(className, METHOD_EVENT_SHOULD_COMMIT, METHOD_EVENT_SHOULD_COMMIT_DESC);
                         Label end = cob.newLabel();
                         cob.ifeq(end);
                         getEventWriter(cob);
@@ -574,7 +576,7 @@ public final class EventInstrumentation {
                         // stack: [EW] [EW]
                         cob.aload(0);
                         // stack: [EW] [EW] [this]
-                        cob.getfield(ClassDesc.ofInternalName(getInternalClassName()), FIELD_START_TIME, CD_long);
+                        cob.getfield(className, FIELD_START_TIME, CD_long);
                         // stack: [EW] [EW] [long]
                         cob.invokevirtual(TYPE_EVENT_WRITER, EventWriterMethod.PUT_LONG.methodName, EventWriterMethod.PUT_LONG.methodDesc);
                         // stack: [EW]
@@ -583,7 +585,7 @@ public final class EventInstrumentation {
                         // stack: [EW] [EW]
                         cob.aload(0);
                         // stack: [EW] [EW] [this]
-                        cob.getfield(ClassDesc.ofInternalName(getInternalClassName()), FIELD_DURATION, CD_long);
+                        cob.getfield(className, FIELD_DURATION, CD_long);
                         // stack: [EW] [EW] [long]
                         cob.invokevirtual(TYPE_EVENT_WRITER, EventWriterMethod.PUT_LONG.methodName, EventWriterMethod.PUT_LONG.methodDesc);
                         // stack: [EW]
@@ -602,7 +604,7 @@ public final class EventInstrumentation {
                             // stack: [EW] [EW]
                             cob.aload(0);
                             // stack: [EW] [EW] [this]
-                            cob.getfield(ClassDesc.ofInternalName(getInternalClassName()), field.fieldName, ClassDesc.ofDescriptor(field.fieldDescriptor));
+                            cob.getfield(className, field.fieldName, ClassDesc.ofInternalName(field.fieldDescriptor));
                             // stack: [EW] [EW] <T>
                             EventWriterMethod eventMethod = EventWriterMethod.lookupMethod(field);
                             cob.invokevirtual(TYPE_EVENT_WRITER, eventMethod.methodName, eventMethod.methodDesc);
@@ -654,7 +656,7 @@ public final class EventInstrumentation {
                     // if (!eventHandler.shouldCommit(duration) goto fail;
                     getEventConfiguration(cob);
                     cob.aload(0);
-                    cob.getfield(ClassDesc.ofInternalName(getInternalClassName()), FIELD_DURATION, CD_long);
+                    cob.getfield(className, FIELD_DURATION, CD_long);
                     cob.invokevirtual(TYPE_EVENT_CONFIGURATION, METHOD_EVENT_CONFIGURATION_SHOULD_COMMIT, METHOD_EVENT_CONFIGURATION_SHOULD_COMMIT_DESC);
                     cob.ifeq(fail);
                     int index = 0;
@@ -662,15 +664,15 @@ public final class EventInstrumentation {
                         // if (!settingsMethod(eventHandler.settingX)) goto fail;
                         cob.aload(0);
                         if (untypedEventConfiguration) {
-                            cob.getstatic(ClassDesc.ofInternalName(getInternalClassName()), FIELD_EVENT_CONFIGURATION, ClassDesc.ofDescriptor(TYPE_OBJECT_DESCRIPTOR));
+                            cob.getstatic(className, FIELD_EVENT_CONFIGURATION, ClassDesc.ofDescriptor(TYPE_OBJECT_DESCRIPTOR));
                         } else {
-                            cob.getstatic(ClassDesc.ofInternalName(getInternalClassName()), FIELD_EVENT_CONFIGURATION, ClassDesc.ofDescriptor(TYPE_EVENT_CONFIGURATION_DESCRIPTOR));
+                            cob.getstatic(className, FIELD_EVENT_CONFIGURATION, ClassDesc.ofDescriptor(TYPE_EVENT_CONFIGURATION_DESCRIPTOR));
                         }
                         cob.checkcast(TYPE_EVENT_CONFIGURATION);
                         cob.constantInstruction(index);
                         cob.invokevirtual(TYPE_EVENT_CONFIGURATION, METHOD_EVENT_CONFIGURATION_GET_SETTING, METHOD_EVENT_CONFIGURATION_GET_SETTING_DESC);
                         cob.checkcast(si.paramType());
-                        cob.invokevirtual(ClassDesc.ofInternalName(getInternalClassName()), si.methodName, MethodTypeDesc.of(CD_boolean, si.paramType()));
+                        cob.invokevirtual(className, si.methodName, MethodTypeDesc.of(CD_boolean, si.paramType()));
                         cob.ifeq(fail);
                         index++;
                     }
@@ -743,9 +745,9 @@ public final class EventInstrumentation {
 
     private void getEventConfiguration(CodeBuilder cob) {
         if (untypedEventConfiguration) {
-            cob.getstatic(ClassDesc.ofInternalName(getInternalClassName()), FIELD_EVENT_CONFIGURATION, CD_Object);
+            cob.getstatic(className, FIELD_EVENT_CONFIGURATION, CD_Object);
         } else {
-            cob.getstatic(ClassDesc.ofInternalName(getInternalClassName()), FIELD_EVENT_CONFIGURATION, TYPE_EVENT_CONFIGURATION);
+            cob.getstatic(className, FIELD_EVENT_CONFIGURATION, TYPE_EVENT_CONFIGURATION);
         }
     }
 
@@ -753,15 +755,15 @@ public final class EventInstrumentation {
         return ClassTransform.transformingMethods(adaptPredicate, (mb, me) -> {
             MethodModel mm = mb.original().orElseThrow();
             String methodName = mm.methodName().stringValue();
-            String methodDesc = mm.methodType().stringValue();
+            MethodTypeDesc methodDesc = mm.methodTypeSymbol();
 
             if ((methodName.equals(METHOD_EVENT_SHOULD_COMMIT) && methodDesc.equals(METHOD_EVENT_SHOULD_COMMIT_DESC))
                         || (methodName.equals(METHOD_IS_ENABLED) && methodDesc.equals(METHOD_IS_ENABLED_DESC))) {
                     mb.withCode(cob ->
                             cob.iconst_0().ireturn());
-                } else if ((methodName.equals(METHOD_COMMIT) && methodDesc.equals(METHOD_COMMIT_DESC))
+                } else if ((methodName.equals(METHOD_COMMIT) && (methodDesc.equals(METHOD_COMMIT_DESC) || methodDesc.equals(staticCommitMethodDesc)))
                         || (methodName.equals(METHOD_BEGIN) && methodDesc.equals(METHOD_BEGIN_DESC))
-                        || (methodName.equals(METHOD_END) && methodDesc.equals(METHOD_END_DESC))){
+                        || (methodName.equals(METHOD_END) && methodDesc.equals(METHOD_END_DESC))) {
                     mb.withCode(cob ->
                             cob.return_());
                 } else {
@@ -772,20 +774,6 @@ public final class EventInstrumentation {
 
     private final void updateExistingWithEmptyVoidMethod(MethodBuilder voidMethod) {
         voidMethod.withCode(cob -> cob.return_());
-    }
-
-    public static String makeWriteMethodDesc(List<FieldInfo> fields) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("(");
-        for (FieldInfo v : fields) {
-            sb.append(v.fieldDescriptor);
-        }
-        sb.append(")V");
-        return sb.toString();
-     }
-
-    private String getInternalClassName() {
-        return classNode.thisClass().name().stringValue();
     }
 
     public String getEventName() {
