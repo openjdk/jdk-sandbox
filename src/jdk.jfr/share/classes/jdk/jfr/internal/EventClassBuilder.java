@@ -45,23 +45,24 @@ import jdk.jfr.ValueDescriptor;
 // Helper class for building dynamic events
 public final class EventClassBuilder {
 
-    private static final String TYPE_EVENT = "jdk/jfr/Event";
-    private static final String TYPE_IOBE = "java/lang/IndexOutOfBoundsException";
+    private static final ClassDesc TYPE_EVENT = ClassDesc.ofInternalName("jdk/jfr/Event");
+    private static final ClassDesc TYPE_IOBE = ClassDesc.ofInternalName("java/lang/IndexOutOfBoundsException");
     private static final AtomicLong idCounter = new AtomicLong();
-    private final String fullClassName, internalClassName;
+    private final String fullClassName;
+    private final ClassDesc className;
     private final List<ValueDescriptor> fields;
     private final List<AnnotationElement> annotationElements;
 
     public EventClassBuilder(List<AnnotationElement> annotationElements, List<ValueDescriptor> fields) {
         this.fullClassName = "jdk.jfr.DynamicEvent" + idCounter.incrementAndGet();
-        this.internalClassName = fullClassName.replace('.', '/');
+        this.className = ClassDesc.of(fullClassName);
         this.fields = fields;
         this.annotationElements = annotationElements;
     }
 
     public Class<? extends Event> build() {
         String internalSuperName = ASMToolkit.getInternalName(Event.class.getName());
-        byte[] bytes = Classfile.build(ClassDesc.ofInternalName(internalClassName), clb -> {
+        byte[] bytes = Classfile.build(className, clb -> {
             clb.withFlags(Classfile.ACC_PUBLIC + Classfile.ACC_FINAL + Classfile.ACC_SUPER);
             clb.withSuperclass(ClassDesc.ofInternalName(internalSuperName));
             buildAnnotations(clb);
@@ -85,15 +86,15 @@ public final class EventClassBuilder {
                 cob.loadInstruction(TypeKind.ReferenceType, 2);
                 var fieldType = ASMToolkit.getDescriptor(v.getTypeName());
                 unbox(cob, fieldType);
-                cob.fieldInstruction(Opcode.PUTFIELD, ClassDesc.ofDescriptor(internalClassName), v.getName(), ClassDesc.ofDescriptor(fieldType));
+                cob.fieldInstruction(Opcode.PUTFIELD, className, v.getName(), ClassDesc.ofDescriptor(fieldType));
                 cob.returnInstruction(TypeKind.VoidType);
                 cob.labelBinding(notEqual);
                 index++;
             }
-            cob.newObjectInstruction(ClassDesc.ofInternalName(TYPE_IOBE));
+            cob.newObjectInstruction(TYPE_IOBE);
             cob.stackInstruction(Opcode.DUP);
             cob.constantInstruction("Index must between 0 and " + fields.size());
-            cob.invokeInstruction(Opcode.INVOKESPECIAL, ClassDesc.ofDescriptor(TYPE_IOBE), "<init>", MethodTypeDesc.ofDescriptor("(Ljava/lang/String;)V"), false);
+            cob.invokeInstruction(Opcode.INVOKESPECIAL, TYPE_IOBE, "<init>", MethodTypeDesc.ofDescriptor("(Ljava/lang/String;)V"), false);
             cob.throwInstruction();
         }));
     }
@@ -144,7 +145,7 @@ public final class EventClassBuilder {
     private void buildConstructor(ClassBuilder clb) {
         clb.withMethod("<init>", MethodTypeDesc.of(CD_void), Classfile.ACC_PUBLIC, mb -> mb.withFlags(Classfile.ACC_PUBLIC).withCode(cob -> {
             cob.loadInstruction(TypeKind.ReferenceType, 0);
-            cob.invokeInstruction(Opcode.INVOKESPECIAL, ClassDesc.ofDescriptor(TYPE_EVENT), "<init>", MethodTypeDesc.of(CD_void), false);
+            cob.invokeInstruction(Opcode.INVOKESPECIAL, TYPE_EVENT, "<init>", MethodTypeDesc.of(CD_void), false);
             cob.returnInstruction(TypeKind.VoidType);
         }));
     }
