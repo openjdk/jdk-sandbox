@@ -408,308 +408,235 @@ public final class EventInstrumentation {
                             Label start = cob.newLabel();
                             Label endTryBlock = cob.newLabel();
                             Label exceptionHandler = cob.newLabel();
-//                            mv.visitTryCatchBlock(start, endTryBlock, exceptionHandler, "java/lang/Throwable");
-//                            mv.visitLabel(start);
-//                            getEventWriter(mv);
-//                            // stack: [EW]
-//                            mv.visitInsn(Opcodes.DUP);
-//                            // stack: [EW], [EW]
-//                            // write begin event
-//                            getEventConfiguration(mv);
-//                            // stack: [EW], [EW], [EventConfiguration]
-//                            mv.visitLdcInsn(eventTypeId);
-//                            // stack: [EW], [EW], [EventConfiguration] [long]
-//                            visitMethod(mv, Opcodes.INVOKEVIRTUAL, TYPE_EVENT_WRITER, EventWriterMethod.BEGIN_EVENT.asASM());
-//                            // stack: [EW], [integer]
-//                            Label excluded = new Label();
-//                            mv.visitJumpInsn(Opcodes.IFEQ, excluded);
-//                            // stack: [EW]
-//                            // write startTime
-//                            mv.visitInsn(Opcodes.DUP);
-//                            // stack: [EW], [EW]
-//                            mv.visitVarInsn(argumentTypes[argIndex].getOpcode(Opcodes.ILOAD), slotIndex);
-//                            // stack: [EW], [EW], [long]
-//                            slotIndex += argumentTypes[argIndex++].getSize();
-//                            visitMethod(mv, Opcodes.INVOKEVIRTUAL, TYPE_EVENT_WRITER, EventWriterMethod.PUT_LONG.asASM());
-//                            // stack: [EW]
-//                            fieldIndex++;
-//                            // write duration
-//                            mv.visitInsn(Opcodes.DUP);
-//                            // stack: [EW], [EW]
-//                            mv.visitVarInsn(argumentTypes[argIndex].getOpcode(Opcodes.ILOAD), slotIndex);
-//                            // stack: [EW], [EW], [long]
-//                            slotIndex += argumentTypes[argIndex++].getSize();
-//                            visitMethod(mv, Opcodes.INVOKEVIRTUAL, TYPE_EVENT_WRITER, EventWriterMethod.PUT_LONG.asASM());
-//                            // stack: [EW]
-//                            fieldIndex++;
-//                            // write eventThread
-//                            mv.visitInsn(Opcodes.DUP);
-//                            // stack: [EW], [EW]
-//                            visitMethod(mv, Opcodes.INVOKEVIRTUAL, TYPE_EVENT_WRITER, EventWriterMethod.PUT_EVENT_THREAD.asASM());
-//                            // stack: [EW]
-//                            // write stackTrace
-//                            mv.visitInsn(Opcodes.DUP);
-//                            // stack: [EW], [EW]
-//                            visitMethod(mv, Opcodes.INVOKEVIRTUAL, TYPE_EVENT_WRITER, EventWriterMethod.PUT_STACK_TRACE.asASM());
-//                            // stack: [EW]
-//                            // write custom fields
-//                            while (fieldIndex < fieldInfos.size()) {
-//                                mv.visitInsn(Opcodes.DUP);
-//                                // stack: [EW], [EW]
-//                                mv.visitVarInsn(argumentTypes[argIndex].getOpcode(Opcodes.ILOAD), slotIndex);
-//                                // stack:[EW], [EW], [field]
-//                                slotIndex += argumentTypes[argIndex++].getSize();
-//                                FieldInfo field = fieldInfos.get(fieldIndex);
-//                                EventWriterMethod eventMethod = EventWriterMethod.lookupMethod(field);
-//                                visitMethod(mv, Opcodes.INVOKEVIRTUAL, TYPE_EVENT_WRITER, eventMethod.asASM());
-//                                // stack: [EW]
-//                                fieldIndex++;
-//                            }
-//                            // stack: [EW]
-//                            // write end event (writer already on stack)
-//                            visitMethod(mv, Opcodes.INVOKEVIRTUAL, TYPE_EVENT_WRITER, EventWriterMethod.END_EVENT.asASM());
-//                            // stack [integer]
-//                            // notified -> restart event write attempt
-//                            mv.visitJumpInsn(Opcodes.IFEQ, start);
-//                            // stack:
-//                            mv.visitLabel(endTryBlock);
-//                            Label end = new Label();
-//                            mv.visitJumpInsn(Opcodes.GOTO, end);
-//                            mv.visitLabel(exceptionHandler);
-//                            // stack: [ex]
-//                            mv.visitFrame(Opcodes.F_SAME1, 0, null, 1, new Object[] { "java/lang/Throwable" });
-//                            getEventWriter(mv);
-//                            // stack: [ex] [EW]
-//                            mv.visitInsn(Opcodes.DUP);
-//                            // stack: [ex] [EW] [EW]
-//                            Label rethrow = new Label();
-//                            mv.visitJumpInsn(Opcodes.IFNULL, rethrow);
-//                            // stack: [ex] [EW]
-//                            mv.visitInsn(Opcodes.DUP);
-//                            // stack: [ex] [EW] [EW]
-//                            visitMethod(mv, Opcodes.INVOKEVIRTUAL, TYPE_EVENT_WRITER, METHOD_RESET);
-//                            mv.visitLabel(rethrow);
-//                            // stack:[ex] [EW]
-//                            mv.visitFrame(Opcodes.F_SAME, 0, null, 2, new Object[] { "java/lang/Throwable", TYPE_EVENT_WRITER.getInternalName() });
-//                            mv.visitInsn(Opcodes.POP);
-//                            // stack:[ex]
-//                            mv.visitInsn(Opcodes.ATHROW);
-//                            mv.visitLabel(excluded);
-//                            // stack: [EW]
-//                            mv.visitFrame(Opcodes.F_SAME, 0, null, 1, new Object[] { TYPE_EVENT_WRITER.getInternalName() });
-//                            mv.visitInsn(Opcodes.POP);
-//                            mv.visitLabel(end);
-//                            // stack:
-//                            mv.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+                            cob.exceptionCatch(start, endTryBlock, exceptionHandler, CD_Throwable);
+                            cob.labelBinding(start);
+                            getEventWriter(cob);
+                            // stack: [EW]
+                            cob.dup();
+                            // stack: [EW], [EW]
+                            // write begin event
+                            getEventConfiguration(cob);
+                            // stack: [EW], [EW], [EventConfiguration]
+                            cob.constantInstruction(eventTypeId);
+                            // stack: [EW], [EW], [EventConfiguration] [long]
+                            cob.invokevirtual(TYPE_EVENT_WRITER, EventWriterMethod.BEGIN_EVENT.methodName, EventWriterMethod.BEGIN_EVENT.methodDesc);
+                            // stack: [EW], [integer]
+                            Label excluded = cob.newLabel();
+                            cob.ifeq(excluded);
+                            // stack: [EW]
+                            // write startTime
+                            cob.dup();
+                            // stack: [EW], [EW]
+                            var argk = TypeKind.fromDescriptor(argumentTypes[argIndex++].descriptorString());
+                            cob.loadInstruction(argk, slotIndex);
+                            // stack: [EW], [EW], [long]
+                            slotIndex += argk.slotSize();
+                            cob.invokevirtual(TYPE_EVENT_WRITER, EventWriterMethod.PUT_LONG.methodName, EventWriterMethod.PUT_LONG.methodDesc);
+                            // stack: [EW]
+                            fieldIndex++;
+                            // write duration
+                            cob.dup();
+                            // stack: [EW], [EW]
+                            argk = TypeKind.fromDescriptor(argumentTypes[argIndex++].descriptorString());
+                            cob.loadInstruction(argk, slotIndex);
+                            // stack: [EW], [EW], [long]
+                            slotIndex += argk.slotSize();
+                            cob.invokevirtual(TYPE_EVENT_WRITER, EventWriterMethod.PUT_LONG.methodName, EventWriterMethod.PUT_LONG.methodDesc);
+                            // stack: [EW]
+                            fieldIndex++;
+                            // write eventThread
+                            cob.dup();
+                            // stack: [EW], [EW]
+                            cob.invokevirtual(TYPE_EVENT_WRITER, EventWriterMethod.PUT_EVENT_THREAD.methodName, EventWriterMethod.PUT_EVENT_THREAD.methodDesc);
+                            // stack: [EW]
+                            // write stackTrace
+                            cob.dup();
+                            // stack: [EW], [EW]
+                            cob.invokevirtual(TYPE_EVENT_WRITER, EventWriterMethod.PUT_STACK_TRACE.methodName, EventWriterMethod.PUT_STACK_TRACE.methodDesc);
+                            // stack: [EW]
+                            // write custom fields
+                            while (fieldIndex < fieldInfos.size()) {
+                                cob.dup();
+                                // stack: [EW], [EW]
+                                argk = TypeKind.fromDescriptor(argumentTypes[argIndex++].descriptorString());
+                                cob.loadInstruction(argk, slotIndex);
+                                // stack:[EW], [EW], [field]
+                                slotIndex += argk.slotSize();
+                                FieldInfo field = fieldInfos.get(fieldIndex);
+                                EventWriterMethod eventMethod = EventWriterMethod.lookupMethod(field);
+                                cob.invokevirtual(TYPE_EVENT_WRITER, eventMethod.methodName, eventMethod.methodDesc);
+                                // stack: [EW]
+                                fieldIndex++;
+                            }
+                            // stack: [EW]
+                            // write end event (writer already on stack)
+                            cob.invokevirtual(TYPE_EVENT_WRITER, EventWriterMethod.END_EVENT.methodName, EventWriterMethod.END_EVENT.methodDesc);
+                            // stack [integer]
+                            // notified -> restart event write attempt
+                            cob.ifeq(start);
+                            // stack:
+                            cob.labelBinding(endTryBlock);
+                            Label end = cob.newLabel();
+                            cob.goto_(end);
+                            cob.labelBinding(exceptionHandler);
+                            // stack: [ex]
+                            getEventWriter(cob);
+                            // stack: [ex] [EW]
+                            cob.dup();
+                            // stack: [ex] [EW] [EW]
+                            Label rethrow = cob.newLabel();
+                            cob.if_null(rethrow);
+                            // stack: [ex] [EW]
+                            cob.dup();
+                            // stack: [ex] [EW] [EW]
+                            cob.invokevirtual(TYPE_EVENT_WRITER, METHOD_RESET, METHOD_RESET_DESC);
+                            cob.labelBinding(rethrow);
+                            // stack:[ex] [EW]
+                            cob.pop();
+                            // stack:[ex]
+                            cob.athrow();
+                            cob.labelBinding(excluded);
+                            // stack: [EW]
+                            cob.pop();
+                            cob.labelBinding(end);
+                            // stack:
                             cob.return_();
                         });
                     }
                 } else {
                     mb.withCode(cob -> {
-//                        // if (!isEnable()) {
-//                        // return;
-//                        // }
-//                        methodVisitor.visitCode();
-//                        Label start = new Label();
-//                        Label endTryBlock = new Label();
-//                        Label exceptionHandler = new Label();
-//                        methodVisitor.visitTryCatchBlock(start, endTryBlock, exceptionHandler, "java/lang/Throwable");
-//                        methodVisitor.visitLabel(start);
-//                        methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
-//                        methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, getInternalClassName(), METHOD_IS_ENABLED.getName(), METHOD_IS_ENABLED.getDescriptor(), false);
-//                        Label l0 = new Label();
-//                        methodVisitor.visitJumpInsn(Opcodes.IFNE, l0);
-//                        methodVisitor.visitInsn(Opcodes.RETURN);
-//                        methodVisitor.visitLabel(l0);
-//                        methodVisitor.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
-//                        // if (startTime == 0) {
-//                        // startTime = EventWriter.timestamp();
-//                        // } else {
-//                        methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
-//                        methodVisitor.visitFieldInsn(Opcodes.GETFIELD, getInternalClassName(), FIELD_START_TIME, "J");
-//                        methodVisitor.visitInsn(Opcodes.LCONST_0);
-//                        methodVisitor.visitInsn(Opcodes.LCMP);
-//                        Label durationalEvent = new Label();
-//                        methodVisitor.visitJumpInsn(Opcodes.IFNE, durationalEvent);
-//                        methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
-//                        methodVisitor.visitMethodInsn(Opcodes.INVOKESTATIC, TYPE_EVENT_CONFIGURATION.getInternalName(), METHOD_TIME_STAMP.getName(), METHOD_TIME_STAMP.getDescriptor(), false);
-//                        methodVisitor.visitFieldInsn(Opcodes.PUTFIELD, getInternalClassName(), FIELD_START_TIME, "J");
-//                        Label commit = new Label();
-//                        methodVisitor.visitJumpInsn(Opcodes.GOTO, commit);
-//                        // if (duration == 0) {
-//                        // duration = EventWriter.timestamp() - startTime;
-//                        // }
-//                        // }
-//                        methodVisitor.visitLabel(durationalEvent);
-//                        methodVisitor.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
-//                        methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
-//                        methodVisitor.visitFieldInsn(Opcodes.GETFIELD, getInternalClassName(), FIELD_DURATION, "J");
-//                        methodVisitor.visitInsn(Opcodes.LCONST_0);
-//                        methodVisitor.visitInsn(Opcodes.LCMP);
-//                        methodVisitor.visitJumpInsn(Opcodes.IFNE, commit);
-//                        methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
-//                        methodVisitor.visitMethodInsn(Opcodes.INVOKESTATIC, TYPE_EVENT_CONFIGURATION.getInternalName(), METHOD_TIME_STAMP.getName(), METHOD_TIME_STAMP.getDescriptor(), false);
-//                        methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
-//                        methodVisitor.visitFieldInsn(Opcodes.GETFIELD, getInternalClassName(), FIELD_START_TIME, "J");
-//                        methodVisitor.visitInsn(Opcodes.LSUB);
-//                        methodVisitor.visitFieldInsn(Opcodes.PUTFIELD, getInternalClassName(), FIELD_DURATION, "J");
-//                        methodVisitor.visitLabel(commit);
-//                        // if (shouldCommit()) {
-//                        methodVisitor.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
-//                        methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
-//                        invokeVirtual(methodVisitor, getInternalClassName(), METHOD_EVENT_SHOULD_COMMIT);
-//                        Label end = new Label();
-//                        methodVisitor.visitJumpInsn(Opcodes.IFEQ, end);
-//                        getEventWriter(methodVisitor);
-//                        // stack: [EW]
-//                        methodVisitor.visitInsn(Opcodes.DUP);
-//                        // stack: [EW] [EW]
-//                        getEventConfiguration(methodVisitor);
-//                        // stack: [EW] [EW] [EC]
-//                        methodVisitor.visitLdcInsn(eventTypeId);
-//                        invokeVirtual(methodVisitor, TYPE_EVENT_WRITER, EventWriterMethod.BEGIN_EVENT.asmMethod);
-//                        Label excluded = new Label();
-//                        // stack: [EW] [int]
-//                        methodVisitor.visitJumpInsn(Opcodes.IFEQ, excluded);
-//                        // stack: [EW]
-//                        int fieldIndex = 0;
-//                        methodVisitor.visitInsn(Opcodes.DUP);
-//                        // stack: [EW] [EW]
-//                        methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
-//                        // stack: [EW] [EW] [this]
-//                        methodVisitor.visitFieldInsn(Opcodes.GETFIELD, getInternalClassName(), FIELD_START_TIME, "J");
-//                        // stack: [EW] [EW] [long]
-//                        invokeVirtual(methodVisitor, TYPE_EVENT_WRITER, EventWriterMethod.PUT_LONG.asmMethod);
-//                        // stack: [EW]
-//                        fieldIndex++;
-//                        methodVisitor.visitInsn(Opcodes.DUP);
-//                        // stack: [EW] [EW]
-//                        methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
-//                        // stack: [EW] [EW] [this]
-//                        methodVisitor.visitFieldInsn(Opcodes.GETFIELD, getInternalClassName(), FIELD_DURATION, "J");
-//                        // stack: [EW] [EW] [long]
-//                        invokeVirtual(methodVisitor, TYPE_EVENT_WRITER, EventWriterMethod.PUT_LONG.asmMethod);
-//                        // stack: [EW]
-//                        fieldIndex++;
-//                        methodVisitor.visitInsn(Opcodes.DUP);
-//                        // stack: [EW] [EW]
-//                        invokeVirtual(methodVisitor, TYPE_EVENT_WRITER, EventWriterMethod.PUT_EVENT_THREAD.asASM());
-//                        // stack: [EW]
-//                        methodVisitor.visitInsn(Opcodes.DUP);
-//                        // stack: [EW] [EW]
-//                        invokeVirtual(methodVisitor, TYPE_EVENT_WRITER, EventWriterMethod.PUT_STACK_TRACE.asASM());
-//                        // stack: [EW]
-//                        while (fieldIndex < fieldInfos.size()) {
-//                            FieldInfo field = fieldInfos.get(fieldIndex);
-//                            methodVisitor.visitInsn(Opcodes.DUP);
-//                            // stack: [EW] [EW]
-//                            methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
-//                            // stack: [EW] [EW] [this]
-//                            methodVisitor.visitFieldInsn(Opcodes.GETFIELD, getInternalClassName(), field.fieldName, field.fieldDescriptor);
-//                            // stack: [EW] [EW] <T>
-//                            EventWriterMethod eventMethod = EventWriterMethod.lookupMethod(field);
-//                            invokeVirtual(methodVisitor, TYPE_EVENT_WRITER, eventMethod.asmMethod);
-//                            // stack: [EW]
-//                            fieldIndex++;
-//                        }
-//                        // stack:[EW]
-//                        invokeVirtual(methodVisitor, TYPE_EVENT_WRITER, EventWriterMethod.END_EVENT.asASM());
-//                        // stack [int]
-//                        // notified -> restart event write attempt
-//                        methodVisitor.visitJumpInsn(Opcodes.IFEQ, start);
-//                        methodVisitor.visitLabel(endTryBlock);
-//                        methodVisitor.visitJumpInsn(Opcodes.GOTO, end);
-//                        methodVisitor.visitLabel(exceptionHandler);
-//                        // stack: [ex]
-//                        methodVisitor.visitFrame(Opcodes.F_SAME1, 0, null, 1, new Object[] { "java/lang/Throwable" });
-//                        getEventWriter(methodVisitor);
-//                        // stack: [ex] [EW]
-//                        methodVisitor.visitInsn(Opcodes.DUP);
-//                        // stack: [ex] [EW] [EW]
-//                        Label rethrow = new Label();
-//                        methodVisitor.visitJumpInsn(Opcodes.IFNULL, rethrow);
-//                        // stack: [ex] [EW]
-//                        methodVisitor.visitInsn(Opcodes.DUP);
-//                        // stack: [ex] [EW] [EW]
-//                        visitMethod(methodVisitor, Opcodes.INVOKEVIRTUAL, TYPE_EVENT_WRITER, METHOD_RESET);
-//                        methodVisitor.visitLabel(rethrow);
-//                        // stack:[ex] [EW]
-//                        methodVisitor.visitFrame(Opcodes.F_SAME, 0, null, 2, new Object[] { "java/lang/Throwable", TYPE_EVENT_WRITER.getInternalName() });
-//                        methodVisitor.visitInsn(Opcodes.POP);
-//                        // stack:[ex]
-//                        methodVisitor.visitInsn(Opcodes.ATHROW);
-//                        methodVisitor.visitLabel(excluded);
-//                        // stack: [EW]
-//                        methodVisitor.visitFrame(Opcodes.F_SAME, 0, null, 1, new Object[] { TYPE_EVENT_WRITER.getInternalName() });
-//                        methodVisitor.visitInsn(Opcodes.POP);
-//                        methodVisitor.visitLabel(end);
-//                        // stack:
-//                        methodVisitor.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+                        // if (!isEnable()) {
+                        // return;
+                        // }
+                        Label start = cob.newLabel();
+                        Label endTryBlock = cob.newLabel();
+                        Label exceptionHandler = cob.newLabel();
+                        cob.exceptionCatch(start, endTryBlock, exceptionHandler, CD_Throwable);
+                        cob.labelBinding(start);
+                        cob.aload(0);
+                        cob.invokevirtual(ClassDesc.ofInternalName(getInternalClassName()), METHOD_IS_ENABLED, METHOD_IS_ENABLED_DESC);
+                        Label l0 = cob.newLabel();
+                        cob.ifne(l0);
                         cob.return_();
-
-
-//                        // if (!isEnable()) {
-//                        // return;
-//                        // }
-//                        cob.loadInstruction(TypeKind.ReferenceType, 0);
-//                        cob.invokeInstruction(Opcode.INVOKEVIRTUAL, ClassDesc.ofInternalName(getInternalClassName()), METHOD_IS_ENABLED, MethodTypeDesc.ofDescriptor(METHOD_IS_ENABLED_DESC), false);
-//                        var l0 = cob.newLabel();
-//                        cob.branchInstruction(Opcode.IFNE, l0);
-//                        cob.returnInstruction(TypeKind.VoidType);
-//                        cob.labelBinding(l0);
-//    //                        methodVisitor.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
-//                        // if (startTime == 0) {
-//                        // startTime = EventWriter.timestamp();
-//                        // } else {
-//                        cob.loadInstruction(TypeKind.ReferenceType, 0);
-//                        cob.fieldInstruction(Opcode.GETFIELD, ClassDesc.ofInternalName(getInternalClassName()), FIELD_START_TIME, ConstantDescs.CD_long);
-//                        cob.constantInstruction(Opcode.LCONST_0, 0l);
-//                        cob.operatorInstruction(Opcode.LCMP);
-//                        var durationalEvent = cob.newLabel();
-//                        cob.branchInstruction(Opcode.IFNE, durationalEvent);
-//                        cob.loadInstruction(TypeKind.ReferenceType, 0);
-//                        cob.invokeInstruction(Opcode.INVOKESTATIC, ClassDesc.ofInternalName(TYPE_EVENT_CONFIGURATION_NAME), METHOD_TIME_STAMP, MethodTypeDesc.ofDescriptor(METHOD_TIME_STAMP_DESC), false);
-//                        cob.fieldInstruction(Opcode.PUTFIELD, ClassDesc.ofInternalName(getInternalClassName()), FIELD_START_TIME, ConstantDescs.CD_long);
-//                        var commit = cob.newLabel();
-//                        cob.branchInstruction(Opcode.GOTO, commit);
-//                        // if (duration == 0) {
-//                        // duration = EventWriter.timestamp() - startTime;
-//                        // }
-//                        // }
-//                        cob.labelBinding(durationalEvent);
-//    //                        methodVisitor.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
-//                        cob.loadInstruction(TypeKind.ReferenceType, 0);
-//                        cob.fieldInstruction(Opcode.GETFIELD, ClassDesc.ofInternalName(getInternalClassName()), FIELD_DURATION, ConstantDescs.CD_long);
-//                        cob.constantInstruction(Opcode.LCONST_0, 0l);
-//                        cob.operatorInstruction(Opcode.LCMP);
-//                        cob.branchInstruction(Opcode.IFNE, commit);
-//                        cob.loadInstruction(TypeKind.ReferenceType, 0);
-//                        cob.invokeInstruction(Opcode.INVOKESTATIC, ClassDesc.ofInternalName(TYPE_EVENT_CONFIGURATION_NAME), METHOD_TIME_STAMP, MethodTypeDesc.ofDescriptor(METHOD_TIME_STAMP_DESC), false);
-//                        cob.loadInstruction(TypeKind.ReferenceType, 0);
-//                        cob.fieldInstruction(Opcode.GETFIELD, ClassDesc.ofInternalName(getInternalClassName()), FIELD_START_TIME, ConstantDescs.CD_long);
-//                        cob.operatorInstruction(Opcode.LSUB);
-//                        cob.fieldInstruction(Opcode.PUTFIELD, ClassDesc.ofInternalName(getInternalClassName()), FIELD_DURATION, ConstantDescs.CD_long);
-//                        cob.labelBinding(commit);
-//                        // if (shouldCommit()) {
-//    //                        methodVisitor.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
-//                        cob.loadInstruction(TypeKind.ReferenceType, 0);
-//                        cob.invokeInstruction(Opcode.INVOKEVIRTUAL, ClassDesc.ofInternalName(getInternalClassName()), METHOD_EVENT_SHOULD_COMMIT, MethodTypeDesc.ofDescriptor(METHOD_EVENT_SHOULD_COMMIT_DESC), false);
-//                        var end = cob.newLabel();
-//                        // eventHandler.write(...);
-//                        // }
-//                        cob.branchInstruction(Opcode.IFEQ, end);
-//                        getEventHandler(cob);
-//
-//                        cob.typeCheckInstruction(Opcode.CHECKCAST, ClassDesc.ofInternalName(TYPE_EVENT_CONFIGURATION_NAME));
-//                        for (FieldInfo fi : fieldInfos) {
-//                            cob.loadInstruction(TypeKind.ReferenceType, 0);
-//                            cob.fieldInstruction(Opcode.GETFIELD, ClassDesc.ofInternalName(fi.internalClassName), fi.fieldName, ClassDesc.ofDescriptor(fi.fieldDescriptor));
-//                        }
-//
-//                        cob.invokeInstruction(Opcode.INVOKEVIRTUAL, ClassDesc.ofInternalName(TYPE_EVENT_CONFIGURATION_NAME), METHOD_WRITE, MethodTypeDesc.ofDescriptor(writeMethodDesc), false);
-//                        cob.labelBinding(end);
-//    //                        methodVisitor.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
-//                        cob.returnInstruction(TypeKind.VoidType);
+                        cob.labelBinding(l0);
+                        // if (startTime == 0) {
+                        // startTime = EventWriter.timestamp();
+                        // } else {
+                        cob.aload(0);
+                        cob.getfield(ClassDesc.ofInternalName(getInternalClassName()), FIELD_START_TIME, CD_long);
+                        cob.lconst_0();
+                        cob.lcmp();
+                        Label durationalEvent = cob.newLabel();
+                        cob.ifne(durationalEvent);
+                        cob.aload(0);
+                        cob.invokestatic(TYPE_EVENT_CONFIGURATION, METHOD_TIME_STAMP, METHOD_TIME_STAMP_DESC);
+                        cob.putfield(ClassDesc.ofInternalName(getInternalClassName()), FIELD_START_TIME, CD_long);
+                        Label commit = cob.newLabel();
+                        cob.goto_(commit);
+                        // if (duration == 0) {
+                        // duration = EventWriter.timestamp() - startTime;
+                        // }
+                        // }
+                        cob.labelBinding(durationalEvent);
+                        cob.aload(0);
+                        cob.getfield(ClassDesc.ofInternalName(getInternalClassName()), FIELD_DURATION, CD_long);
+                        cob.lconst_0();
+                        cob.lcmp();
+                        cob.ifne(commit);
+                        cob.aload(0);
+                        cob.invokestatic(TYPE_EVENT_CONFIGURATION, METHOD_TIME_STAMP, METHOD_TIME_STAMP_DESC);
+                        cob.aload(0);
+                        cob.getfield(ClassDesc.ofInternalName(getInternalClassName()), FIELD_START_TIME, CD_long);
+                        cob.lsub();
+                        cob.putfield(ClassDesc.ofInternalName(getInternalClassName()), FIELD_DURATION, CD_long);
+                        cob.labelBinding(commit);
+                        // if (shouldCommit()) {
+                        cob.aload(0);
+                        cob.invokevirtual(ClassDesc.ofInternalName(getInternalClassName()), METHOD_EVENT_SHOULD_COMMIT, METHOD_EVENT_SHOULD_COMMIT_DESC);
+                        Label end = cob.newLabel();
+                        cob.ifeq(end);
+                        getEventWriter(cob);
+                        // stack: [EW]
+                        cob.dup();
+                        // stack: [EW] [EW]
+                        getEventConfiguration(cob);
+                        // stack: [EW] [EW] [EC]
+                        cob.constantInstruction(eventTypeId);
+                        cob.invokevirtual(TYPE_EVENT_WRITER, EventWriterMethod.BEGIN_EVENT.methodName, EventWriterMethod.BEGIN_EVENT.methodDesc);
+                        Label excluded = cob.newLabel();
+                        // stack: [EW] [int]
+                        cob.ifeq(excluded);
+                        // stack: [EW]
+                        int fieldIndex = 0;
+                        cob.dup();
+                        // stack: [EW] [EW]
+                        cob.aload(0);
+                        // stack: [EW] [EW] [this]
+                        cob.getfield(ClassDesc.ofInternalName(getInternalClassName()), FIELD_START_TIME, CD_long);
+                        // stack: [EW] [EW] [long]
+                        cob.invokevirtual(TYPE_EVENT_WRITER, EventWriterMethod.PUT_LONG.methodName, EventWriterMethod.PUT_LONG.methodDesc);
+                        // stack: [EW]
+                        fieldIndex++;
+                        cob.dup();
+                        // stack: [EW] [EW]
+                        cob.aload(0);
+                        // stack: [EW] [EW] [this]
+                        cob.getfield(ClassDesc.ofInternalName(getInternalClassName()), FIELD_DURATION, CD_long);
+                        // stack: [EW] [EW] [long]
+                        cob.invokevirtual(TYPE_EVENT_WRITER, EventWriterMethod.PUT_LONG.methodName, EventWriterMethod.PUT_LONG.methodDesc);
+                        // stack: [EW]
+                        fieldIndex++;
+                        cob.dup();
+                        // stack: [EW] [EW]
+                        cob.invokevirtual(TYPE_EVENT_WRITER, EventWriterMethod.PUT_EVENT_THREAD.methodName, EventWriterMethod.PUT_EVENT_THREAD.methodDesc);
+                        // stack: [EW]
+                        cob.dup();
+                        // stack: [EW] [EW]
+                        cob.invokevirtual(TYPE_EVENT_WRITER, EventWriterMethod.PUT_STACK_TRACE.methodName, EventWriterMethod.PUT_STACK_TRACE.methodDesc);
+                        // stack: [EW]
+                        while (fieldIndex < fieldInfos.size()) {
+                            FieldInfo field = fieldInfos.get(fieldIndex);
+                            cob.dup();
+                            // stack: [EW] [EW]
+                            cob.aload(0);
+                            // stack: [EW] [EW] [this]
+                            cob.getfield(ClassDesc.ofInternalName(getInternalClassName()), field.fieldName, ClassDesc.ofDescriptor(field.fieldDescriptor));
+                            // stack: [EW] [EW] <T>
+                            EventWriterMethod eventMethod = EventWriterMethod.lookupMethod(field);
+                            cob.invokevirtual(TYPE_EVENT_WRITER, eventMethod.methodName, eventMethod.methodDesc);
+                            // stack: [EW]
+                            fieldIndex++;
+                        }
+                        // stack:[EW]
+                        cob.invokevirtual(TYPE_EVENT_WRITER, EventWriterMethod.END_EVENT.methodName, EventWriterMethod.END_EVENT.methodDesc);
+                        // stack [int]
+                        // notified -> restart event write attempt
+                        cob.ifeq(start);
+                        cob.labelBinding(endTryBlock);
+                        cob.goto_(end);
+                        cob.labelBinding(exceptionHandler);
+                        // stack: [ex]
+                        getEventWriter(cob);
+                        // stack: [ex] [EW]
+                        cob.dup();
+                        // stack: [ex] [EW] [EW]
+                        Label rethrow = cob.newLabel();
+                        cob.if_null(rethrow);
+                        // stack: [ex] [EW]
+                        cob.dup();
+                        // stack: [ex] [EW] [EW]
+                        cob.invokevirtual(TYPE_EVENT_WRITER, METHOD_RESET, METHOD_RESET_DESC);
+                        cob.labelBinding(rethrow);
+                        // stack:[ex] [EW]
+                        cob.pop();
+                        // stack:[ex]
+                        cob.athrow();
+                        cob.labelBinding(excluded);
+                        // stack: [EW]
+                        cob.pop();
+                        cob.labelBinding(end);
+                        // stack:
+                        cob.return_();
                     });
                 }
 
@@ -808,6 +735,11 @@ public final class EventInstrumentation {
         });
     }
 
+    private void getEventWriter(CodeBuilder cob) {
+        cob.constantInstruction(EventWriterKey.getKey());
+        cob.invokestatic(TYPE_EVENT_WRITER_FACTORY, METHOD_GET_EVENT_WRITER_KEY, METHOD_GET_EVENT_WRITER_KEY_DESC);
+    }
+
     private void getEventConfiguration(CodeBuilder cob) {
         if (untypedEventConfiguration) {
             cob.getstatic(ClassDesc.ofInternalName(getInternalClassName()), FIELD_EVENT_CONFIGURATION, CD_Object);
@@ -825,12 +757,12 @@ public final class EventInstrumentation {
             if ((methodName.equals(METHOD_EVENT_SHOULD_COMMIT) && methodDesc.equals(METHOD_EVENT_SHOULD_COMMIT_DESC))
                         || (methodName.equals(METHOD_IS_ENABLED) && methodDesc.equals(METHOD_IS_ENABLED_DESC))) {
                     mb.withCode(cob ->
-                            cob.constantInstruction(Opcode.ICONST_0, 0).returnInstruction(TypeKind.IntType));
+                            cob.iconst_0().ireturn());
                 } else if ((methodName.equals(METHOD_COMMIT) && methodDesc.equals(METHOD_COMMIT_DESC))
                         || (methodName.equals(METHOD_BEGIN) && methodDesc.equals(METHOD_BEGIN_DESC))
                         || (methodName.equals(METHOD_END) && methodDesc.equals(METHOD_END_DESC))){
                     mb.withCode(cob ->
-                            cob.returnInstruction(TypeKind.VoidType));
+                            cob.return_());
                 } else {
                     mb.accept(me);
                 }
