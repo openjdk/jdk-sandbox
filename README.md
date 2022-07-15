@@ -88,3 +88,9 @@ Following use cases of Classfile Processing API are included in this JDK branch:
     [StripJavaDebugAttributesPlugin](src/jdk.jlink/share/classes/jdk/tools/jlink/internal/plugins/StripJavaDebugAttributesPlugin.java),
     [SystemModulesPlugin](src/jdk.jlink/share/classes/jdk/tools/jlink/internal/plugins/SystemModulesPlugin.java),
     [VersionPropsPlugin](src/jdk.jlink/share/classes/jdk/tools/jlink/internal/plugins/VersionPropsPlugin.java)
+- module `jdk.jfr`:
+    - jdk.jfr.internal.[EventClassBuilder](src/jdk.jfr/share/classes/jdk/jfr/internal/EventClassBuilder.java),
+    [EventInstrumentation](src/jdk.jfr/share/classes/jdk/jfr/internal/EventInstrumentation.java),
+    [EventWriterMethod](src/jdk.jfr/share/classes/jdk/jfr/internal/EventWriterMethod.java)
+    - jdk.jfr.internal.instrument.[ConstructorTracerWriter](src/jdk.jfr/share/classes/jdk/jfr/internal/instrument/ConstructorTracerWriter.java),
+    [JIClassInstrumentation](src/jdk.jfr/share/classes/jdk/jfr/internal/instrument/JIClassInstrumentation.java)
