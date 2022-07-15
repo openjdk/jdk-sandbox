@@ -117,7 +117,7 @@ public final class EventInstrumentation {
     private final ClassModel classNode;
     private final ClassDesc className;
     private final List<SettingInfo> settingInfos;
-    private final List<FieldInfo> fieldInfos;
+    private final List<FieldInfo> fieldInfos;;
     private final String eventName;
     private final Class<?> superClass;
     private final boolean untypedEventConfiguration;
@@ -267,11 +267,11 @@ public final class EventInstrumentation {
                         if (method.getReturnType().equals(Boolean.TYPE)) {
                             if (method.getParameterCount() == 1) {
                                 Parameter param = method.getParameters()[0];
-                                var paramType = param.getType();
+                                ClassDesc paramType = ClassDesc.ofDescriptor(param.getType().descriptorString());
                                 String fieldName = EventControl.FIELD_SETTING_PREFIX + settingInfos.size();
                                 int index = settingInfos.size();
                                 methodSet.add(method.getName());
-                                settingInfos.add(new SettingInfo(fieldName, index, ClassDesc.ofDescriptor(paramType.descriptorString()), method.getName(), null));
+                                settingInfos.add(new SettingInfo(fieldName, index, paramType, method.getName(), null));
                             }
                         }
                     }
@@ -279,14 +279,6 @@ public final class EventInstrumentation {
             }
         }
         return settingInfos;
-    }
-
-    private static String className(String descriptor) {
-        var tk = TypeKind.fromDescriptor(descriptor);
-        return switch (tk) {
-            case ReferenceType -> Util.descriptorToClass(descriptor).replaceAll("/", ".");
-            default -> tk.typeName();
-        };
     }
 
     private static List<FieldInfo> buildFieldInfos(Class<?> superClass, ClassModel classNode) {
@@ -298,8 +290,8 @@ public final class EventInstrumentation {
         // control in which order they occur and we can add @Name, @Description
         // in Java, instead of in native. It also means code for adding implicit
         // fields for native can be reused by Java.
-        fieldInfos.add(new FieldInfo("startTime", "J", classNode.thisClass().name().stringValue()));
-        fieldInfos.add(new FieldInfo("duration", "J", classNode.thisClass().name().stringValue()));
+        fieldInfos.add(new FieldInfo("startTime", CD_long.descriptorString(), classNode.thisClass().name().stringValue()));
+        fieldInfos.add(new FieldInfo("duration", CD_long.descriptorString(), classNode.thisClass().name().stringValue()));
         for (var field : classNode.fields()) {
             if (!fieldSet.contains(field.fieldName().stringValue()) && isValidField(field.flags().flagsMask(), className(field.fieldType().stringValue()))) {
                 FieldInfo fi = new FieldInfo(field.fieldName().stringValue(), field.fieldType().stringValue(), classNode.thisClass().name().stringValue());
@@ -352,11 +344,17 @@ public final class EventInstrumentation {
                 return true;
             else if (methodName.equals(METHOD_END) && methodDesc.equals(METHOD_END_DESC))
                 return true;
-            else if (methodName.equals(METHOD_COMMIT) && methodDesc.equals(METHOD_COMMIT_DESC))
+            else if (methodName.equals(METHOD_COMMIT) && (methodDesc.equals(METHOD_COMMIT_DESC) || methodDesc.equals(staticCommitMethodDesc)))
                 return true;
             else if (methodName.equals(METHOD_EVENT_SHOULD_COMMIT) && methodDesc.equals(METHOD_EVENT_SHOULD_COMMIT_DESC))
                 return true;
-
+            else if (isJDK)
+                if (methodName.equals(METHOD_ENABLED) && methodDesc.equals(METHOD_ENABLED_DESC))
+                    return true;
+                else if (methodName.equals(METHOD_SHOULD_COMMIT_LONG) && methodDesc.equals(METHOD_SHOULD_COMMIT_LONG_DESC))
+                    return true;
+                else if (methodName.equals(METHOD_TIME_STAMP) && methodDesc.equals(METHOD_TIME_STAMP_DESC))
+                    return true;
             return false;
         }
     };
@@ -366,7 +364,7 @@ public final class EventInstrumentation {
             if (!(me instanceof CodeModel)) mb.accept(me);
             MethodModel mm = mb.original().orElseThrow();
             String methodName = mm.methodName().stringValue();
-            String methodDesc = mm.methodType().stringValue();
+            MethodTypeDesc methodDesc = mm.methodTypeSymbol();
 
             // MyEvent#isEnabled()
             if (methodName.equals(METHOD_IS_ENABLED) && methodDesc.equals(METHOD_IS_ENABLED_DESC)) {
@@ -604,7 +602,7 @@ public final class EventInstrumentation {
                             // stack: [EW] [EW]
                             cob.aload(0);
                             // stack: [EW] [EW] [this]
-                            cob.getfield(className, field.fieldName, ClassDesc.ofInternalName(field.fieldDescriptor));
+                            cob.getfield(className, field.fieldName, ClassDesc.ofDescriptor(field.fieldDescriptor));
                             // stack: [EW] [EW] <T>
                             EventWriterMethod eventMethod = EventWriterMethod.lookupMethod(field);
                             cob.invokevirtual(TYPE_EVENT_WRITER, eventMethod.methodName, eventMethod.methodDesc);
@@ -778,5 +776,13 @@ public final class EventInstrumentation {
 
     public String getEventName() {
         return eventName;
+    }
+
+    private static String className(String descriptor) {
+        return switch (descriptor.charAt(0)) {
+            case 'L' -> descriptor.substring(1, descriptor.length()-1).replaceAll("/", ".");
+            case '[' -> descriptor;
+            default -> TypeKind.fromDescriptor(descriptor).typeName();
+        };
     }
 }

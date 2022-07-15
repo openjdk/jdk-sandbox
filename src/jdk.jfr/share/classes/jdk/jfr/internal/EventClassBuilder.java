@@ -65,7 +65,6 @@ public final class EventClassBuilder {
     }
 
     public Class<? extends Event> build() {
-        String internalSuperName = ASMToolkit.getInternalName(Event.class.getName());
         byte[] bytes = buildClassInfo(clb -> {
             buildConstructor(clb);
             buildFields(clb);
@@ -85,7 +84,7 @@ public final class EventClassBuilder {
                 cob.if_icmpne(notEqual);
                 cob.aload(0);
                 cob.aload(2);
-                ClassDesc fieldType = ASMToolkit.getDescriptor(v.getTypeName());
+                ClassDesc fieldType = ASMToolkit.toType(v);
                 unbox(cob, fieldType);
                 cob.putfield(type, v.getName(), fieldType);
                 cob.return_();
@@ -98,6 +97,44 @@ public final class EventClassBuilder {
             cob.invokespecial(CD_IOBE, "<init>", MethodTypeDesc.of(CD_void, CD_String));
             cob.throwInstruction();
         }));
+    }
+
+    private void buildConstructor(ClassBuilder clb) {
+        clb.withMethod(DEFAULT_CONSTRUCTOR, DEFAULT_CONSTRUCTOR_DESC, Classfile.ACC_PUBLIC, mb ->
+                mb.withFlags(Classfile.ACC_PUBLIC).withCode(cob -> {
+                    cob.aload(0);
+                    cob.invokespecial(CD_Event, DEFAULT_CONSTRUCTOR, DEFAULT_CONSTRUCTOR_DESC);
+                    cob.return_();
+                }));
+    }
+
+    private byte[] buildClassInfo(Consumer<ClassBuilder> config) {
+        String internalSuperName = ASMToolkit.getInternalName(Event.class.getName());
+        return Classfile.build(type, clb -> {
+            clb.withFlags(Classfile.ACC_PUBLIC + Classfile.ACC_FINAL + Classfile.ACC_SUPER);
+            clb.withSuperclass(ClassDesc.ofInternalName(internalSuperName));
+            if (annotationElements.isEmpty())
+                return;
+            List<Annotation> result = new ArrayList<>(annotationElements.size());
+            ConstantPoolBuilder constantPoolBuilder = clb.constantPool();
+            for (AnnotationElement a : annotationElements) {
+                result.add(Annotation.of(
+                        ASMToolkit.getDescriptor(a.getTypeName()),
+                        a.getValueDescriptors().stream().map(v -> jdk.classfile.AnnotationElement.of(
+                                v.getName(),
+                                AnnotationValue.of(a.getValue(v.getName())))).toList()));
+            }
+            clb.with(RuntimeVisibleAnnotationsAttribute.of(result));
+            config.accept(clb);
+        });
+    }
+
+    private void buildFields(ClassBuilder clb) {
+        for (ValueDescriptor v : fields) {
+            ClassDesc ftype = ASMToolkit.getDescriptor(v.getTypeName());
+            clb.withField(v.getName(), ftype, Classfile.ACC_PRIVATE);
+            // No need to store annotations on field since they will be replaced anyway.
+        }
     }
 
     public static void unbox(CodeBuilder cob, final ClassDesc type) {
@@ -141,44 +178,6 @@ public final class EventClassBuilder {
         } else {
             cob.typeCheckInstruction(Opcode.CHECKCAST, boxedType);
             cob.invokevirtual(boxedType, unboxMethodName, unboxMethodSig);
-        }
-    }
-
-    private void buildConstructor(ClassBuilder clb) {
-        clb.withMethod(DEFAULT_CONSTRUCTOR, DEFAULT_CONSTRUCTOR_DESC, Classfile.ACC_PUBLIC, mb ->
-                mb.withFlags(Classfile.ACC_PUBLIC).withCode(cob -> {
-                    cob.aload(0);
-                    cob.invokespecial(CD_Event, DEFAULT_CONSTRUCTOR, DEFAULT_CONSTRUCTOR_DESC);
-                    cob.return_();
-                }));
-    }
-
-    private byte[] buildClassInfo(Consumer<ClassBuilder> config) {
-        String internalSuperName = ASMToolkit.getInternalName(Event.class.getName());
-        return Classfile.build(type, clb -> {
-            clb.withFlags(Classfile.ACC_PUBLIC + Classfile.ACC_FINAL + Classfile.ACC_SUPER);
-            clb.withSuperclass(ClassDesc.ofInternalName(internalSuperName));
-            if (annotationElements.isEmpty())
-                return;
-            List<Annotation> result = new ArrayList<>(annotationElements.size());
-            ConstantPoolBuilder constantPoolBuilder = clb.constantPool();
-            for (AnnotationElement a : annotationElements) {
-                result.add(Annotation.of(
-                        ASMToolkit.getDescriptor(a.getTypeName()),
-                        a.getValueDescriptors().stream().map(v -> jdk.classfile.AnnotationElement.of(
-                                v.getName(),
-                                AnnotationValue.of(a.getValue(v.getName())))).toList()));
-            }
-            clb.with(RuntimeVisibleAnnotationsAttribute.of(result));
-            config.accept(clb);
-        });
-    }
-
-    private void buildFields(ClassBuilder clb) {
-        for (ValueDescriptor v : fields) {
-            ClassDesc ftype = ASMToolkit.getDescriptor(v.getTypeName());
-            clb.withField(v.getName(), ftype, Classfile.ACC_PRIVATE);
-            // No need to store annotations on field since they will be replaced anyway.
         }
     }
 }

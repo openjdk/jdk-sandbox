@@ -35,7 +35,6 @@ import jdk.classfile.util.ClassPrinter;
 import jdk.jfr.ValueDescriptor;
 
 final class ASMToolkit {
-
     private static final ClassDesc CD_Thread = ClassDesc.ofDescriptor(Thread.class.descriptorString());
 
     public static ClassDesc toType(ValueDescriptor v) {
