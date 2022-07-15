@@ -37,6 +37,6 @@ public class TestEventWriterLog {
     public static void main(String[] args) throws Exception {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-Xlog:jfr+system+bytecode=trace", "-XX:StartFlightRecording", "-version");
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
-        output.shouldContain("extends jdk/jfr/events/AbstractJDKEvent");
+        output.shouldContain("superclass: 'jdk/jfr/events/AbstractJDKEvent'");
     }
 }

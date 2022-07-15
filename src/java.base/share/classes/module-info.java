@@ -183,14 +183,6 @@ module java.base {
         jdk.jlink;
     exports jdk.internal.logger to
         java.logging;
-    exports jdk.internal.org.objectweb.asm to
-        jdk.jfr;
-    exports jdk.internal.org.objectweb.asm.tree to
-        jdk.jfr;
-    exports jdk.internal.org.objectweb.asm.util to
-        jdk.jfr;
-    exports jdk.internal.org.objectweb.asm.commons to
-        jdk.jfr;
     exports jdk.internal.org.xml.sax to
         jdk.jfr;
     exports jdk.internal.org.xml.sax.helpers to
@@ -366,20 +358,29 @@ module java.base {
     exports jdk.classfile to
         jdk.jartool,
         jdk.jdeps,
-        jdk.jlink;
+        jdk.jlink,
+        jdk.jfr;
     exports jdk.classfile.attribute to
         jdk.jartool,
         jdk.jdeps,
-        jdk.jlink;
+        jdk.jlink,
+        jdk.jfr;
     exports jdk.classfile.instruction to
         jdk.jdeps,
-        jdk.jlink;
+        jdk.jlink,
+        jdk.jfr;
     exports jdk.classfile.constantpool to
         jdk.jartool,
         jdk.jdeps,
-        jdk.jlink;
+        jdk.jlink,
+        jdk.jfr;
     exports jdk.classfile.jdktypes to
-        jdk.jdeps;
+        jdk.jdeps,
+        jdk.jfr;
+    exports jdk.classfile.transforms to
+        jdk.jfr;
+    exports jdk.classfile.util to
+        jdk.jfr;
 
     // the service types defined by the APIs in this module
 
