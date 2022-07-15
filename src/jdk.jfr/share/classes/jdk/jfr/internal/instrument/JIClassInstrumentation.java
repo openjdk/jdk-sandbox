@@ -44,7 +44,6 @@ import jdk.classfile.CodeTransform;
 import jdk.classfile.FieldModel;
 import jdk.classfile.MethodModel;
 import jdk.classfile.TypeKind;
-import jdk.classfile.impl.Util;
 import jdk.classfile.instruction.BranchInstruction;
 import jdk.classfile.instruction.InvokeInstruction;
 import jdk.classfile.instruction.LookupSwitchInstruction;
@@ -172,9 +171,9 @@ final class JIClassInstrumentation {
                                     if (!mm.flags().has(AccessFlag.STATIC)) {
                                         storeStack.add(new Arg(TypeKind.ReferenceType, slot++));
                                     }
-                                    var it = Util.parameterTypes(mm.methodType().stringValue());
-                                    while (it.hasNext()) {
-                                        var tk = TypeKind.fromDescriptor(it.next());
+                                    var mType = mm.methodTypeSymbol();
+                                    for (int i = 0; i < mType.parameterCount(); i++) {
+                                        var tk = TypeKind.fromDescriptor(mType.parameterType(i).descriptorString());
                                         storeStack.add(new Arg(tk, slot));
                                         slot += tk.slotSize();
                                     }

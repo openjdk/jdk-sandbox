@@ -39,7 +39,6 @@ import java.util.function.Predicate;
 
 import jdk.classfile.*;
 import jdk.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
-import jdk.classfile.impl.Util;
 
 import jdk.jfr.Enabled;
 import jdk.jfr.Event;

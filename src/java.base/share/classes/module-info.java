@@ -377,8 +377,6 @@ module java.base {
     exports jdk.classfile.jdktypes to
         jdk.jdeps,
         jdk.jfr;
-    exports jdk.classfile.impl to
-        jdk.jfr;
     exports jdk.classfile.transforms to
         jdk.jfr;
     exports jdk.classfile.util to
