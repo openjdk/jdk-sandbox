@@ -36,6 +36,8 @@ import jdk.jfr.ValueDescriptor;
 
 final class ASMToolkit {
 
+    private static final ClassDesc CD_Thread = ClassDesc.ofDescriptor(Thread.class.descriptorString());
+
     public static ClassDesc toType(ValueDescriptor v) {
         return switch (v.getTypeName()) {
             case "byte" -> CD_byte;
@@ -47,7 +49,7 @@ final class ASMToolkit {
             case "char" -> CD_char;
             case "boolean" -> CD_boolean;
             case "java.lang.String" -> CD_String;
-            case "java.lang.Thread" -> ClassDesc.of(v.getTypeName());
+            case "java.lang.Thread" -> CD_Thread;
             case "java.lang.Class" -> CD_Class;
             default -> throw new Error("Not a valid type " + v.getTypeName());
         };
@@ -61,17 +63,17 @@ final class ASMToolkit {
      *
      * @return descriptor
      */
-    public static String getDescriptor(String typeName) {
+    public static ClassDesc getDescriptor(String typeName) {
         return switch (typeName) {
-            case "int" -> "I";
-            case "long" -> "J";
-            case "boolean" -> "Z";
-            case "float" -> "F";
-            case "double" -> "D";
-            case "short" -> "S";
-            case "char" -> "C";
-            case "byte" -> "B";
-            default -> ClassDesc.of(typeName).descriptorString();
+            case "int" -> CD_int;
+            case "long" -> CD_long;
+            case "boolean" -> CD_boolean;
+            case "float" -> CD_float;
+            case "double" -> CD_double;
+            case "short" -> CD_short;
+            case "char" -> CD_char;
+            case "byte" -> CD_byte;
+            default -> ClassDesc.ofInternalName(getInternalName(typeName));
         };
     }
 

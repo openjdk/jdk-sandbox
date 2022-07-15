@@ -48,12 +48,12 @@ public enum EventWriterMethod {
     PUT_EVENT_THREAD("()V", Type.THREAD.getName(), "putEventThread"),
     PUT_STACK_TRACE("()V", Type.TYPES_PREFIX + "StackTrace", "putStackTrace");
 
-    public final String methodName;
-    public final MethodTypeDesc methodDesc;
-    private final ClassDesc typeDescriptor;
+    final String methodName;
+    final MethodTypeDesc methodDesc;
+    final ClassDesc typeDescriptor;
 
     EventWriterMethod(String paramSignature, String typeName, String methodName) {
-        this.typeDescriptor = ClassDesc.ofDescriptor(ASMToolkit.getDescriptor(typeName));
+        this.typeDescriptor = ASMToolkit.getDescriptor(typeName);
         this.methodName = methodName;
         this.methodDesc = MethodTypeDesc.ofDescriptor(paramSignature);
     }
