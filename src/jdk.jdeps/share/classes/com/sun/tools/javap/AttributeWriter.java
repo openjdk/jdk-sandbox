@@ -203,9 +203,8 @@ public class AttributeWriter extends BasicWriter {
                             indent(+1);
                             first = false;
                         }
-                        boolean isInterface = info.flags().contains(AccessFlag.INTERFACE);
                         for (var flag : info.flags())
-                            if (flag.sourceModifier() && (!isInterface || flag != AccessFlag.ABSTRACT)) print(Modifier.toString(flag.mask()) + " ");
+                            if (flag.sourceModifier() && (flag != AccessFlag.ABSTRACT || !info.has(AccessFlag.INTERFACE))) print(Modifier.toString(flag.mask()) + " ");
                         if (info.innerName().isPresent()) {
                             print("#" + info.innerName().get().index() + "= ");
                         }
