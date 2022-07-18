@@ -32,6 +32,7 @@ import java.util.Locale;
 import java.util.stream.Collectors;
 import jdk.classfile.Classfile;
 import jdk.classfile.CodeModel;
+import jdk.classfile.Opcode;
 import jdk.classfile.constantpool.*;
 import jdk.classfile.Instruction;
 import jdk.classfile.MethodModel;
@@ -128,7 +129,7 @@ public class CodeWriter extends BasicWriter {
             case InvokeDynamicInstruction instr ->
                 printConstantPoolRefAndValue(instr.invokedynamic(), 0);
             case InvokeInstruction instr -> {
-                if (instr.isInterface()) printConstantPoolRefAndValue(instr.method(), instr.count());
+                if (instr.isInterface() && instr.opcode() != Opcode.INVOKESTATIC) printConstantPoolRefAndValue(instr.method(), instr.count());
                 else printConstantPoolRef(instr.method());
             }
             case LoadInstruction instr ->

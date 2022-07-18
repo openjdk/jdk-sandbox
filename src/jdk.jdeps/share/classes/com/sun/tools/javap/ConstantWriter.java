@@ -80,7 +80,7 @@ public class ConstantWriter extends BasicWriter {
                     println("// " + stringValue(info));
                 }
                 case DynamicConstantPoolEntry info -> {
-                    print("#" + info.bootstrap().bootstrapMethod().index() + ":#" + info.nameAndType().index());
+                    print("#" + info.bootstrap().bsmIndex() + ":#" + info.nameAndType().index());
                     tab();
                     println("// " + stringValue(info));
                 }
@@ -236,7 +236,20 @@ public class ConstantWriter extends BasicWriter {
             case ModuleEntry info -> checkName(info.name().stringValue());
             case NameAndTypeEntry info -> checkName(info.name().stringValue()) + ':' + info.type().stringValue();
             case PackageEntry info -> checkName(info.name().stringValue());
-            case MethodHandleEntry info -> info.asSymbol().kind() + " " + stringValue(info.reference());
+            case MethodHandleEntry info -> {
+                String kind = switch (info.asSymbol().kind()) {
+                    case STATIC, INTERFACE_STATIC -> "REF_invokeStatic";
+                    case VIRTUAL -> "REF_invokeVirtual";
+                    case INTERFACE_VIRTUAL -> "REF_invokeInterface";
+                    case SPECIAL, INTERFACE_SPECIAL -> "REF_invokeSpecial";
+                    case CONSTRUCTOR -> "REF_newInvokeSpecial";
+                    case GETTER -> "REF_getField";
+                    case SETTER -> "REF_putField";
+                    case STATIC_GETTER -> "REF_getStatic";
+                    case STATIC_SETTER -> "REF_putStatic";
+                };
+                yield kind + " " + stringValue(info.reference());
+            }
             case MethodTypeEntry info -> info.descriptor().stringValue();
             case StringEntry info -> stringValue(info.utf8());
             case Utf8Entry info -> {
