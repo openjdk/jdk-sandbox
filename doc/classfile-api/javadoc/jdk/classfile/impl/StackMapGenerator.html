@@ -100,7 +100,12 @@ loadScripts(document, 'script');</script>
  <ol>
  <li>Detection of mandatory stack map frames offsets:<ul>
       <li>Mandatory stack map frame offsets include all jump and switch instructions targets,
-          offsets immediately following "no control flow"
+          offsets immediately following 
+<details class="invalid-tag">
+<summary>invalid @linkplain</summary>
+<pre>"no control flow"</pre>
+</details>
+
           and all exception table handlers.
       <li>Detection is performed in a single fast pass through the bytecode,
           with no auxiliary structures construction nor further instructions processing.

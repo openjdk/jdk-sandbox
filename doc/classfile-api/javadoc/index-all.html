@@ -1435,6 +1435,22 @@ loadScripts(document, 'script');</script>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/Classfile.html#CASTORE" class="member-name-link">CASTORE</a> - Static variable in class jdk.classfile.<a href="jdk/classfile/Classfile.html" title="class in jdk.classfile">Classfile</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/CatchBuilderImpl.html" class="type-name-link" title="class in jdk.classfile.impl">CatchBuilderImpl</a> - Class in <a href="jdk/classfile/impl/package-summary.html">jdk.classfile.impl</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/CatchBuilderImpl.html#%3Cinit%3E(jdk.classfile.CodeBuilder,jdk.classfile.impl.BlockCodeBuilder,jdk.classfile.Label)" class="member-name-link">CatchBuilderImpl(CodeBuilder, BlockCodeBuilder, Label)</a> - Constructor for class jdk.classfile.impl.<a href="jdk/classfile/impl/CatchBuilderImpl.html" title="class in jdk.classfile.impl">CatchBuilderImpl</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/CodeBuilder.CatchBuilder.html#catching(java.lang.constant.ClassDesc,java.util.function.Consumer)" class="member-name-link">catching(ClassDesc, Consumer&lt;CodeBuilder&gt;)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.CatchBuilder.html" title="interface in jdk.classfile">CodeBuilder.CatchBuilder</a></dt>
+<dd>
+<div class="block">Adds a catch block that catches an exception of the given type.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/CatchBuilderImpl.html#catching(java.lang.constant.ClassDesc,java.util.function.Consumer)" class="member-name-link">catching(ClassDesc, Consumer&lt;CodeBuilder&gt;)</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/CatchBuilderImpl.html" title="class in jdk.classfile.impl">CatchBuilderImpl</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/CodeBuilder.CatchBuilder.html#catchingAll(java.util.function.Consumer)" class="member-name-link">catchingAll(Consumer&lt;CodeBuilder&gt;)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.CatchBuilder.html" title="interface in jdk.classfile">CodeBuilder.CatchBuilder</a></dt>
+<dd>
+<div class="block">Adds a "catch" block that catches all exceptions.</div>
+</dd>
+<dt><a href="jdk/classfile/impl/CatchBuilderImpl.html#catchingAll(java.util.function.Consumer)" class="member-name-link">catchingAll(Consumer&lt;CodeBuilder&gt;)</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/CatchBuilderImpl.html" title="class in jdk.classfile.impl">CatchBuilderImpl</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/TargetInfoImpl.CatchTargetImpl.html#%3Cinit%3E(int)" class="member-name-link">CatchTargetImpl(int)</a> - Constructor for record class jdk.classfile.impl.<a href="jdk/classfile/impl/TargetInfoImpl.CatchTargetImpl.html" title="class in jdk.classfile.impl">TargetInfoImpl.CatchTargetImpl</a></dt>
 <dd>
 <div class="block">Creates an instance of a <code>CatchTargetImpl</code> record class.</div>
@@ -1941,6 +1957,10 @@ loadScripts(document, 'script');</script>
 <dt><a href="jdk/classfile/CodeBuilder.html" class="type-name-link" title="interface in jdk.classfile">CodeBuilder</a> - Interface in <a href="jdk/classfile/package-summary.html">jdk.classfile</a></dt>
 <dd>
 <div class="block">A builder for code attributes (method bodies).</div>
+</dd>
+<dt><a href="jdk/classfile/CodeBuilder.CatchBuilder.html" class="type-name-link" title="interface in jdk.classfile">CodeBuilder.CatchBuilder</a> - Interface in <a href="jdk/classfile/package-summary.html">jdk.classfile</a></dt>
+<dd>
+<div class="block">A builder to add catch blocks.</div>
 </dd>
 <dt><a href="jdk/classfile/CodeElement.html" class="type-name-link" title="interface in jdk.classfile">CodeElement</a> - Interface in <a href="jdk/classfile/package-summary.html">jdk.classfile</a></dt>
 <dd>
@@ -3781,6 +3801,8 @@ loadScripts(document, 'script');</script>
 </dd>
 <dt><a href="jdk/classfile/impl/Util.html#findParams(java.lang.String)" class="member-name-link">findParams(String)</a> - Static method in class jdk.classfile.impl.<a href="jdk/classfile/impl/Util.html" title="class in jdk.classfile.impl">Util</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/CatchBuilderImpl.html#finish()" class="member-name-link">finish()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/CatchBuilderImpl.html" title="class in jdk.classfile.impl">CatchBuilderImpl</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/EntryMap.html#firstToken(int)" class="member-name-link">firstToken(int)</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/EntryMap.html" title="class in jdk.classfile.impl">EntryMap</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/Classfile.Option.Key.html#FIX_SHORT_JUMPS" class="member-name-link">FIX_SHORT_JUMPS</a> - Enum constant in enum class jdk.classfile.<a href="jdk/classfile/Classfile.Option.Key.html" title="enum class in jdk.classfile">Classfile.Option.Key</a></dt>
@@ -5103,6 +5125,8 @@ loadScripts(document, 'script');</script>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/CodeBuilder.html#invokespecial(jdk.classfile.constantpool.InterfaceMethodRefEntry)" class="member-name-link">invokespecial(InterfaceMethodRefEntry)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/CodeBuilder.html#invokespecial(jdk.classfile.constantpool.MethodRefEntry)" class="member-name-link">invokespecial(MethodRefEntry)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/Opcode.html#INVOKESPECIAL" class="member-name-link">INVOKESPECIAL</a> - Enum constant in enum class jdk.classfile.<a href="jdk/classfile/Opcode.html" title="enum class in jdk.classfile">Opcode</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/Classfile.html#INVOKESPECIAL" class="member-name-link">INVOKESPECIAL</a> - Static variable in class jdk.classfile.<a href="jdk/classfile/Classfile.html" title="class in jdk.classfile">Classfile</a></dt>
@@ -5113,15 +5137,15 @@ loadScripts(document, 'script');</script>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/CodeBuilder.html#invokestatic(jdk.classfile.constantpool.InterfaceMethodRefEntry)" class="member-name-link">invokestatic(InterfaceMethodRefEntry)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/CodeBuilder.html#invokestatic(jdk.classfile.constantpool.MethodRefEntry)" class="member-name-link">invokestatic(MethodRefEntry)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/Opcode.html#INVOKESTATIC" class="member-name-link">INVOKESTATIC</a> - Enum constant in enum class jdk.classfile.<a href="jdk/classfile/Opcode.html" title="enum class in jdk.classfile">Opcode</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/Classfile.html#INVOKESTATIC" class="member-name-link">INVOKESTATIC</a> - Static variable in class jdk.classfile.<a href="jdk/classfile/Classfile.html" title="class in jdk.classfile">Classfile</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/CodeBuilder.html#invokevirtual(java.lang.constant.ClassDesc,java.lang.String,java.lang.constant.MethodTypeDesc)" class="member-name-link">invokevirtual(ClassDesc, String, MethodTypeDesc)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="jdk/classfile/CodeBuilder.html#invokevirtual(java.lang.constant.ClassDesc,java.lang.String,java.lang.constant.MethodTypeDesc,boolean)" class="member-name-link">invokevirtual(ClassDesc, String, MethodTypeDesc, boolean)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></dt>
-<dd>&nbsp;</dd>
-<dt><a href="jdk/classfile/CodeBuilder.html#invokevirtual(jdk.classfile.constantpool.InterfaceMethodRefEntry)" class="member-name-link">invokevirtual(InterfaceMethodRefEntry)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></dt>
+<dt><a href="jdk/classfile/CodeBuilder.html#invokevirtual(jdk.classfile.constantpool.MethodRefEntry)" class="member-name-link">invokevirtual(MethodRefEntry)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/Opcode.html#INVOKEVIRTUAL" class="member-name-link">INVOKEVIRTUAL</a> - Enum constant in enum class jdk.classfile.<a href="jdk/classfile/Opcode.html" title="enum class in jdk.classfile">Opcode</a></dt>
 <dd>&nbsp;</dd>
@@ -5148,6 +5172,8 @@ loadScripts(document, 'script');</script>
 <dt><a href="jdk/classfile/impl/verifier/VerifierImpl.html#is_eligible_for_verification(jdk.classfile.impl.verifier.VerificationWrapper)" class="member-name-link">is_eligible_for_verification(VerificationWrapper)</a> - Static method in class jdk.classfile.impl.verifier.<a href="jdk/classfile/impl/verifier/VerifierImpl.html" title="class in jdk.classfile.impl.verifier">VerifierImpl</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/ClassHierarchyImpl.html#isAssignableFrom(java.lang.constant.ClassDesc,java.lang.constant.ClassDesc)" class="member-name-link">isAssignableFrom(ClassDesc, ClassDesc)</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/ClassHierarchyImpl.html" title="class in jdk.classfile.impl">ClassHierarchyImpl</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/BlockCodeBuilder.html#isEmpty()" class="member-name-link">isEmpty()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BlockCodeBuilder.html" title="class in jdk.classfile.impl">BlockCodeBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/CodeBuilder.html#ishl()" class="member-name-link">ishl()</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></dt>
 <dd>&nbsp;</dd>
@@ -6789,6 +6815,8 @@ loadScripts(document, 'script');</script>
 <div class="block">NonterminalCodeBuilder</div>
 </dd>
 <dt><a href="jdk/classfile/impl/NonterminalCodeBuilder.html#%3Cinit%3E(jdk.classfile.CodeBuilder)" class="member-name-link">NonterminalCodeBuilder(CodeBuilder)</a> - Constructor for class jdk.classfile.impl.<a href="jdk/classfile/impl/NonterminalCodeBuilder.html" title="class in jdk.classfile.impl">NonterminalCodeBuilder</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/CodeBuilder.html#nop()" class="member-name-link">nop()</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/CodeElement.Kind.html#NOP" class="member-name-link">NOP</a> - Enum constant in enum class jdk.classfile.<a href="jdk/classfile/CodeElement.Kind.html" title="enum class in jdk.classfile">CodeElement.Kind</a></dt>
 <dd>&nbsp;</dd>
@@ -9922,6 +9950,8 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Returns a string representation of this record class.</div>
 </dd>
+<dt><a href="jdk/classfile/impl/AbstractAttributeMapper.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/AbstractAttributeMapper.html" title="class in jdk.classfile.impl">AbstractAttributeMapper</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/AbstractInstruction.BoundArgumentConstantInstruction.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/AbstractInstruction.BoundArgumentConstantInstruction.html" title="class in jdk.classfile.impl">AbstractInstruction.BoundArgumentConstantInstruction</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/AbstractInstruction.BoundBranchInstruction.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/AbstractInstruction.BoundBranchInstruction.html" title="class in jdk.classfile.impl">AbstractInstruction.BoundBranchInstruction</a></dt>
@@ -9955,6 +9985,8 @@ loadScripts(document, 'script');</script>
 <dt><a href="jdk/classfile/impl/AbstractInstruction.BoundTableSwitchInstruction.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/AbstractInstruction.BoundTableSwitchInstruction.html" title="class in jdk.classfile.impl">AbstractInstruction.BoundTableSwitchInstruction</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/AbstractInstruction.BoundTypeCheckInstruction.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/AbstractInstruction.BoundTypeCheckInstruction.html" title="class in jdk.classfile.impl">AbstractInstruction.BoundTypeCheckInstruction</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/AbstractInstruction.ExceptionCatchImpl.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/AbstractInstruction.ExceptionCatchImpl.html" title="class in jdk.classfile.impl">AbstractInstruction.ExceptionCatchImpl</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/AbstractInstruction.SwitchCaseImpl.html#toString()" class="member-name-link">toString()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/AbstractInstruction.SwitchCaseImpl.html" title="class in jdk.classfile.impl">AbstractInstruction.SwitchCaseImpl</a></dt>
 <dd>
@@ -10001,6 +10033,8 @@ loadScripts(document, 'script');</script>
 <dt><a href="jdk/classfile/impl/AbstractInstruction.UnboundThrowInstruction.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/AbstractInstruction.UnboundThrowInstruction.html" title="class in jdk.classfile.impl">AbstractInstruction.UnboundThrowInstruction</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/AbstractInstruction.UnboundTypeCheckInstruction.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/AbstractInstruction.UnboundTypeCheckInstruction.html" title="class in jdk.classfile.impl">AbstractInstruction.UnboundTypeCheckInstruction</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/AccessFlagsImpl.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/AccessFlagsImpl.html" title="class in jdk.classfile.impl">AccessFlagsImpl</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/AnnotationImpl.AnnotationElementImpl.html#toString()" class="member-name-link">toString()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/AnnotationImpl.AnnotationElementImpl.html" title="class in jdk.classfile.impl">AnnotationImpl.AnnotationElementImpl</a></dt>
 <dd>
@@ -10060,6 +10094,26 @@ loadScripts(document, 'script');</script>
 </dd>
 <dt><a href="jdk/classfile/impl/AnnotationImpl.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/AnnotationImpl.html" title="class in jdk.classfile.impl">AnnotationImpl</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/BoundAttribute.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BoundAttribute.html" title="class in jdk.classfile.impl">BoundAttribute</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/BoundCharacterRange.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BoundCharacterRange.html" title="class in jdk.classfile.impl">BoundCharacterRange</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/BoundLocalVariable.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BoundLocalVariable.html" title="class in jdk.classfile.impl">BoundLocalVariable</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/BoundLocalVariableType.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BoundLocalVariableType.html" title="class in jdk.classfile.impl">BoundLocalVariableType</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/BufferedCodeBuilder.Model.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BufferedCodeBuilder.Model.html" title="class in jdk.classfile.impl">BufferedCodeBuilder.Model</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/BufferedCodeBuilder.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BufferedCodeBuilder.html" title="class in jdk.classfile.impl">BufferedCodeBuilder</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/BufferedFieldBuilder.Model.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BufferedFieldBuilder.Model.html" title="class in jdk.classfile.impl">BufferedFieldBuilder.Model</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/BufferedMethodBuilder.Model.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BufferedMethodBuilder.Model.html" title="class in jdk.classfile.impl">BufferedMethodBuilder.Model</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/ClassfileVersionImpl.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/ClassfileVersionImpl.html" title="class in jdk.classfile.impl">ClassfileVersionImpl</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/ClassImpl.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/ClassImpl.html" title="class in jdk.classfile.impl">ClassImpl</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/ClassPrinterImpl.Block.html#toString()" class="member-name-link">toString()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/ClassPrinterImpl.Block.html" title="class in jdk.classfile.impl">ClassPrinterImpl.Block</a></dt>
 <dd>
 <div class="block">Returns a string representation of this record class.</div>
@@ -10072,6 +10126,8 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Returns a string representation of this record class.</div>
 </dd>
+<dt><a href="jdk/classfile/impl/CodeImpl.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/CodeImpl.html" title="class in jdk.classfile.impl">CodeImpl</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/ConcreteEntry.AbstractDynamicConstantPoolEntry.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/ConcreteEntry.AbstractDynamicConstantPoolEntry.html" title="class in jdk.classfile.impl">ConcreteEntry.AbstractDynamicConstantPoolEntry</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/ConcreteEntry.ConcreteMethodHandleEntry.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/ConcreteEntry.ConcreteMethodHandleEntry.html" title="class in jdk.classfile.impl">ConcreteEntry.ConcreteMethodHandleEntry</a></dt>
@@ -10088,7 +10144,17 @@ loadScripts(document, 'script');</script>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/ConcreteEntry.ConcreteNameAndTypeEntry.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/ConcreteEntry.ConcreteNameAndTypeEntry.html" title="class in jdk.classfile.impl">ConcreteEntry.ConcreteNameAndTypeEntry</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/DirectCodeBuilder.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/DirectCodeBuilder.html" title="class in jdk.classfile.impl">DirectCodeBuilder</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/FieldImpl.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/FieldImpl.html" title="class in jdk.classfile.impl">FieldImpl</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/InterfacesImpl.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/InterfacesImpl.html" title="class in jdk.classfile.impl">InterfacesImpl</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/LabelImpl.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/LabelImpl.html" title="class in jdk.classfile.impl">LabelImpl</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/LineNumberImpl.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/LineNumberImpl.html" title="class in jdk.classfile.impl">LineNumberImpl</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/MethodImpl.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/MethodImpl.html" title="class in jdk.classfile.impl">MethodImpl</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/ModuleDescImpl.html#toString()" class="member-name-link">toString()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/ModuleDescImpl.html" title="class in jdk.classfile.impl">ModuleDescImpl</a></dt>
 <dd>
@@ -10166,6 +10232,8 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Returns a string representation of this record class.</div>
 </dd>
+<dt><a href="jdk/classfile/impl/SuperclassImpl.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/SuperclassImpl.html" title="class in jdk.classfile.impl">SuperclassImpl</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/TargetInfoImpl.CatchTargetImpl.html#toString()" class="member-name-link">toString()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/TargetInfoImpl.CatchTargetImpl.html" title="class in jdk.classfile.impl">TargetInfoImpl.CatchTargetImpl</a></dt>
 <dd>
 <div class="block">Returns a string representation of this record class.</div>
@@ -10270,6 +10338,8 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Returns a string representation of this record class.</div>
 </dd>
+<dt><a href="jdk/classfile/impl/UnboundAttribute.html#toString()" class="member-name-link">toString()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/UnboundAttribute.html" title="class in jdk.classfile.impl">UnboundAttribute</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/UnboundAttribute.TypePathComponentImpl.html#toString()" class="member-name-link">toString()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/UnboundAttribute.TypePathComponentImpl.html" title="class in jdk.classfile.impl">UnboundAttribute.TypePathComponentImpl</a></dt>
 <dd>
 <div class="block">Returns a string representation of this record class.</div>
@@ -10455,6 +10525,10 @@ loadScripts(document, 'script');</script>
 <dt><a href="jdk/classfile/impl/ClassPrinterImpl.Format.html#tryEndInline()" class="member-name-link">tryEndInline()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/ClassPrinterImpl.Format.html" title="class in jdk.classfile.impl">ClassPrinterImpl.Format</a></dt>
 <dd>
 <div class="block">Returns the value of the <code>tryEndInline</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/CodeBuilder.html#trying(java.util.function.Consumer,java.util.function.Consumer)" class="member-name-link">trying(Consumer&lt;CodeBuilder&gt;, Consumer&lt;CodeBuilder.CatchBuilder&gt;)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></dt>
+<dd>
+<div class="block">Adds a "try-catch" block comprising one try block and zero or more catch blocks.</div>
 </dd>
 <dt><a href="jdk/classfile/impl/AbstractInstruction.ExceptionCatchImpl.html#tryStart" class="member-name-link">tryStart</a> - Variable in class jdk.classfile.impl.<a href="jdk/classfile/impl/AbstractInstruction.ExceptionCatchImpl.html" title="class in jdk.classfile.impl">AbstractInstruction.ExceptionCatchImpl</a></dt>
 <dd>&nbsp;</dd>
