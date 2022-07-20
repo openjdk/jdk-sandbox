@@ -31,11 +31,8 @@ import java.lang.constant.DirectMethodHandleDesc;
 import java.lang.constant.DynamicCallSiteDesc;
 import java.lang.constant.MethodTypeDesc;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.function.Consumer;
 
 import jdk.classfile.constantpool.ClassEntry;
@@ -200,13 +197,23 @@ public sealed interface CodeBuilder
      */
     default CodeBuilder ifThenElse(Consumer<CodeBuilder> thenHandler,
                                    Consumer<CodeBuilder> elseHandler) {
-        BlockCodeBuilder thenBlock = new BlockCodeBuilder(this);
+        return ifThenElse(Opcode.IFNE, thenHandler, elseHandler);
+    }
+
+    default CodeBuilder ifThenElse(Opcode opcode,
+                                   Consumer<CodeBuilder> thenHandler,
+                                   Consumer<CodeBuilder> elseHandler) {
+        if (opcode.kind() != CodeElement.Kind.BRANCH || opcode.primaryTypeKind() == TypeKind.VoidType) {
+            throw new IllegalArgumentException("Illegal branch opcode: " + opcode);
+        }
+
         BlockCodeBuilder elseBlock = new BlockCodeBuilder(this);
-        branchInstruction(Opcode.IFEQ, elseBlock.startLabel());
+        BlockCodeBuilder thenBlock = new BlockCodeBuilder(this, elseBlock.endLabel());
+        branchInstruction(opcode.inverse().get(), elseBlock.startLabel());
         thenBlock.start();
         thenHandler.accept(thenBlock);
         if (thenBlock.reachable())
-            thenBlock.branchInstruction(Opcode.GOTO, elseBlock.endLabel());
+            thenBlock.branchInstruction(Opcode.GOTO, thenBlock.endLabel());
         thenBlock.end();
         elseBlock.start();
         elseHandler.accept(elseBlock);

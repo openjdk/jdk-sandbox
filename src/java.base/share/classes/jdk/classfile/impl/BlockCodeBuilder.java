@@ -41,6 +41,7 @@ public final class BlockCodeBuilder
         implements CodeBuilder {
     private final CodeBuilder parent;
     private final Label startLabel, endLabel;
+    private final boolean localEndLabel;
     private boolean reachable = true;
     private boolean hasInstructions = false;
     private int topLocal;
@@ -49,8 +50,17 @@ public final class BlockCodeBuilder
     public BlockCodeBuilder(CodeBuilder parent) {
         super(parent);
         this.parent = parent;
-        startLabel = terminal.newLabel();
-        endLabel = terminal.newLabel();
+        this.startLabel = parent.newLabel();
+        this.endLabel = parent.newLabel();
+        this.localEndLabel = true;
+    }
+
+    public BlockCodeBuilder(CodeBuilder parent, Label endLabel) {
+        super(parent);
+        this.parent = parent;
+        this.startLabel = parent.newLabel();
+        this.endLabel = endLabel;
+        this.localEndLabel = false;
     }
 
     public void start() {
@@ -60,9 +70,12 @@ public final class BlockCodeBuilder
     }
 
     public void end() {
-        terminal.with((LabelTarget) endLabel);
-        if (terminalMaxLocals != topLocal(terminal))
+        if (localEndLabel) {
+            terminal.with((LabelTarget) endLabel);
+        }
+        if (terminalMaxLocals != topLocal(terminal)) {
             throw new IllegalStateException("Interference in local variable slot management");
+        }
     }
 
     public boolean reachable() {
