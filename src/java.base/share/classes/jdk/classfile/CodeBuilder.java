@@ -46,7 +46,7 @@ import jdk.classfile.constantpool.MethodHandleEntry;
 import jdk.classfile.constantpool.NameAndTypeEntry;
 import jdk.classfile.constantpool.Utf8Entry;
 import jdk.classfile.impl.AbstractInstruction;
-import jdk.classfile.impl.BlockCodeBuilder;
+import jdk.classfile.impl.BlockCodeBuilderImpl;
 import jdk.classfile.impl.BytecodeHelpers;
 import jdk.classfile.impl.CatchBuilderImpl;
 import jdk.classfile.impl.ChainedCodeBuilder;
@@ -96,7 +96,7 @@ import static jdk.classfile.impl.BytecodeHelpers.handleDescToHandleInfo;
  */
 public sealed interface CodeBuilder
         extends ClassfileBuilder<CodeElement, CodeBuilder>
-        permits BlockCodeBuilder, ChainedCodeBuilder, TerminalCodeBuilder, NonterminalCodeBuilder {
+        permits CodeBuilder.BlockCodeBuilder, ChainedCodeBuilder, TerminalCodeBuilder, NonterminalCodeBuilder {
 
     /**
      * {@return the {@link CodeModel} representing the method body being transformed,
@@ -156,12 +156,33 @@ public sealed interface CodeBuilder
     int allocateLocal(TypeKind typeKind);
 
     /**
-     * Add a lexical block to the method being built.  Within this block, the
-     * {@link #startLabel()} and {@link #endLabel()} correspond to the start
-     * and end of the block.
+     * A builder for blocks of code.
      */
-    default CodeBuilder block(Consumer<CodeBuilder> handler) {
-        BlockCodeBuilder child = new BlockCodeBuilder(this);
+    sealed interface BlockCodeBuilder extends CodeBuilder
+            permits BlockCodeBuilderImpl {
+        /**
+         * {@return the label locating where control is passed back to the parent block.}
+         * A branch to this label "break"'s out of the current block.
+         * <p>
+         * If an instruction occurring immediately after the built block's last instruction would
+         * be reachable from that last instruction, then a {@linkplain #goto_ goto} instruction
+         * targeting the "break" label is appended to the built block.
+         */
+        Label breakLabel();
+    }
+
+    /**
+     * Add a lexical block to the method being built.
+     * <p>
+     * Within this block, the {@link #startLabel()} and {@link #endLabel()} correspond
+     * to the start and end of the block, and the {@link BlockCodeBuilder#breakLabel()}
+     * also corresponds to the end of the block.
+     *
+     * @param handler handler that receives a {@linkplain BlockCodeBuilder} to
+     * generate the body of the lexical block.
+     */
+    default CodeBuilder block(Consumer<BlockCodeBuilder> handler) {
+        BlockCodeBuilderImpl child = new BlockCodeBuilderImpl(this);
         child.start();
         handler.accept(child);
         child.end();
@@ -172,13 +193,22 @@ public sealed interface CodeBuilder
      * Add an "if-then" block that is conditional on the boolean value
      * on top of the operand stack.
      *
-     * @param thenHandler handler that receives a {@linkplain CodeBuilder} to
+     * @param thenHandler handler that receives a {@linkplain BlockCodeBuilder} to
      *                    generate the body of the {@code if}
      * @return this builder
      */
-    default CodeBuilder ifThen(Consumer<CodeBuilder> thenHandler) {
-        BlockCodeBuilder thenBlock = new BlockCodeBuilder(this);
-        branchInstruction(Opcode.IFEQ, thenBlock.endLabel());
+    default CodeBuilder ifThen(Consumer<BlockCodeBuilder> thenHandler) {
+        return ifThen(Opcode.IFNE, thenHandler);
+    }
+
+    default CodeBuilder ifThen(Opcode opcode,
+                               Consumer<BlockCodeBuilder> thenHandler) {
+        if (opcode.kind() != CodeElement.Kind.BRANCH || opcode.primaryTypeKind() == TypeKind.VoidType) {
+            throw new IllegalArgumentException("Illegal branch opcode: " + opcode);
+        }
+
+        BlockCodeBuilderImpl thenBlock = new BlockCodeBuilderImpl(this);
+        branchInstruction(opcode.inverse().get(), thenBlock.endLabel());
         thenBlock.start();
         thenHandler.accept(thenBlock);
         thenBlock.end();
@@ -188,32 +218,35 @@ public sealed interface CodeBuilder
     /**
      * Add an "if-then-else" block that is conditional on the boolean value
      * on top of the operand stack.
+     * <p>
+     * The {@link BlockCodeBuilder#breakLabel()} for each block corresponds to the
+     * end of the "else" block.
      *
-     * @param thenHandler handler that receives a {@linkplain CodeBuilder} to
+     * @param thenHandler handler that receives a {@linkplain BlockCodeBuilder} to
      *                    generate the body of the {@code if}
-     * @param elseHandler handler that receives a {@linkplain CodeBuilder} to
+     * @param elseHandler handler that receives a {@linkplain BlockCodeBuilder} to
      *                    generate the body of the {@code else}
      * @return this builder
      */
-    default CodeBuilder ifThenElse(Consumer<CodeBuilder> thenHandler,
-                                   Consumer<CodeBuilder> elseHandler) {
+    default CodeBuilder ifThenElse(Consumer<BlockCodeBuilder> thenHandler,
+                                   Consumer<BlockCodeBuilder> elseHandler) {
         return ifThenElse(Opcode.IFNE, thenHandler, elseHandler);
     }
 
     default CodeBuilder ifThenElse(Opcode opcode,
-                                   Consumer<CodeBuilder> thenHandler,
-                                   Consumer<CodeBuilder> elseHandler) {
+                                   Consumer<BlockCodeBuilder> thenHandler,
+                                   Consumer<BlockCodeBuilder> elseHandler) {
         if (opcode.kind() != CodeElement.Kind.BRANCH || opcode.primaryTypeKind() == TypeKind.VoidType) {
             throw new IllegalArgumentException("Illegal branch opcode: " + opcode);
         }
 
-        BlockCodeBuilder elseBlock = new BlockCodeBuilder(this);
-        BlockCodeBuilder thenBlock = new BlockCodeBuilder(this, elseBlock.endLabel());
+        BlockCodeBuilderImpl elseBlock = new BlockCodeBuilderImpl(this);
+        BlockCodeBuilderImpl thenBlock = new BlockCodeBuilderImpl(this, elseBlock.endLabel());
         branchInstruction(opcode.inverse().get(), elseBlock.startLabel());
         thenBlock.start();
         thenHandler.accept(thenBlock);
         if (thenBlock.reachable())
-            thenBlock.branchInstruction(Opcode.GOTO, thenBlock.endLabel());
+            thenBlock.branchInstruction(Opcode.GOTO, thenBlock.breakLabel());
         thenBlock.end();
         elseBlock.start();
         elseHandler.accept(elseBlock);
@@ -241,7 +274,7 @@ public sealed interface CodeBuilder
          * @throws java.lang.IllegalArgumentException if an existing catch block catches an exception of the given type.
          * @see #catchingAll
          */
-        CatchBuilder catching(ClassDesc exceptionType, Consumer<CodeBuilder> catchHandler);
+        CatchBuilder catching(ClassDesc exceptionType, Consumer<BlockCodeBuilder> catchHandler);
 
         /**
          * Adds a "catch" block that catches all exceptions.
@@ -253,7 +286,7 @@ public sealed interface CodeBuilder
          * @throws java.lang.IllegalArgumentException if an existing catch block catches all exceptions.
          * @see #catching
          */
-        void catchingAll(Consumer<CodeBuilder> catchAllHandler);
+        void catchingAll(Consumer<BlockCodeBuilder> catchAllHandler);
     }
 
     /**
@@ -267,12 +300,12 @@ public sealed interface CodeBuilder
      * @return this builder
      * @see CatchBuilder
      */
-    default CodeBuilder trying(Consumer<CodeBuilder> tryHandler,
+    default CodeBuilder trying(Consumer<BlockCodeBuilder> tryHandler,
                                Consumer<CatchBuilder> catchesHandler) {
         Label tryCatchEnd = newLabel();
 
         // @@@ the tryHandler does not have access to tryCatchEnd
-        BlockCodeBuilder tryBlock = new BlockCodeBuilder(this);
+        BlockCodeBuilderImpl tryBlock = new BlockCodeBuilderImpl(this, tryCatchEnd);
         tryBlock.start();
         tryHandler.accept(tryBlock);
         tryBlock.end();

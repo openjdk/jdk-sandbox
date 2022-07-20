@@ -26,41 +26,34 @@ package jdk.classfile.impl;
 
 import jdk.classfile.CodeBuilder;
 import jdk.classfile.CodeElement;
-import jdk.classfile.Instruction;
 import jdk.classfile.Label;
 import jdk.classfile.Opcode;
-import jdk.classfile.PseudoInstruction;
 import jdk.classfile.TypeKind;
 import jdk.classfile.instruction.LabelTarget;
 
 /**
  * BlockCodeBuilder
  */
-public final class BlockCodeBuilder
+public final class BlockCodeBuilderImpl
         extends NonterminalCodeBuilder
-        implements CodeBuilder {
+        implements CodeBuilder.BlockCodeBuilder {
     private final CodeBuilder parent;
-    private final Label startLabel, endLabel;
-    private final boolean localEndLabel;
+    private final Label startLabel, endLabel, breakLabel;
     private boolean reachable = true;
     private boolean hasInstructions = false;
     private int topLocal;
     private int terminalMaxLocals;
 
-    public BlockCodeBuilder(CodeBuilder parent) {
+    public BlockCodeBuilderImpl(CodeBuilder parent) {
+        this(parent, null);
+    }
+
+    public BlockCodeBuilderImpl(CodeBuilder parent, Label breakLabel) {
         super(parent);
         this.parent = parent;
         this.startLabel = parent.newLabel();
         this.endLabel = parent.newLabel();
-        this.localEndLabel = true;
-    }
-
-    public BlockCodeBuilder(CodeBuilder parent, Label endLabel) {
-        super(parent);
-        this.parent = parent;
-        this.startLabel = parent.newLabel();
-        this.endLabel = endLabel;
-        this.localEndLabel = false;
+        this.breakLabel = breakLabel != null ? breakLabel : endLabel;
     }
 
     public void start() {
@@ -70,9 +63,7 @@ public final class BlockCodeBuilder
     }
 
     public void end() {
-        if (localEndLabel) {
-            terminal.with((LabelTarget) endLabel);
-        }
+        terminal.with((LabelTarget) endLabel);
         if (terminalMaxLocals != topLocal(terminal)) {
             throw new IllegalStateException("Interference in local variable slot management");
         }
@@ -88,7 +79,7 @@ public final class BlockCodeBuilder
 
     private int topLocal(CodeBuilder parent) {
         return switch (parent) {
-            case BlockCodeBuilder b -> b.topLocal;
+            case BlockCodeBuilderImpl b -> b.topLocal;
             case ChainedCodeBuilder b -> topLocal(b.terminal);
             case DirectCodeBuilder b -> b.curTopLocal();
             case BufferedCodeBuilder b -> b.curTopLocal();
@@ -127,5 +118,10 @@ public final class BlockCodeBuilder
         int retVal = topLocal;
         topLocal += typeKind.slotSize();
         return retVal;
+    }
+
+    @Override
+    public Label breakLabel() {
+        return breakLabel;
     }
 }
