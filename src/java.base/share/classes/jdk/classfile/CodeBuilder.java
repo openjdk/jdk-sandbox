@@ -192,6 +192,9 @@ public sealed interface CodeBuilder
     /**
      * Add an "if-then" block that is conditional on the boolean value
      * on top of the operand stack.
+     * <p>
+     * The {@link BlockCodeBuilder#breakLabel()} for the "then" block corresponds to the
+     * end of that block.
      *
      * @param thenHandler handler that receives a {@linkplain BlockCodeBuilder} to
      *                    generate the body of the {@code if}
@@ -204,6 +207,9 @@ public sealed interface CodeBuilder
     /**
      * Add an "if-then" block that is conditional on the value(s) on top of the operand stack
      * in accordance with the given opcode.
+     * <p>
+     * The {@link BlockCodeBuilder#breakLabel()} for the "then" block corresponds to the
+     * end of that block.
      *
      * @param opcode the operation code for a branch instructions that accepts one or two operands on the stack
      * @param thenHandler handler that receives a {@linkplain BlockCodeBuilder} to
