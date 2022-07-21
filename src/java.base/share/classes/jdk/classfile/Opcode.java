@@ -25,7 +25,6 @@
 package jdk.classfile;
 
 import java.lang.constant.ConstantDesc;
-import java.util.Optional;
 
 /**
  * Describes the opcodes of the JVM instruction set, as well as a number of
