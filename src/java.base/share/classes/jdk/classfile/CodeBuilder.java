@@ -201,6 +201,17 @@ public sealed interface CodeBuilder
         return ifThen(Opcode.IFNE, thenHandler);
     }
 
+    /**
+     * Add an "if-then" block that is conditional on the value(s) on top of the operand stack
+     * in accordance with the given opcode.
+     *
+     * @param opcode the operation code for a branch instructions that accepts one or two operands on the stack
+     * @param thenHandler handler that receives a {@linkplain BlockCodeBuilder} to
+     *                    generate the body of the {@code if}
+     * @return this builder
+     * @throws java.lang.IllegalArgumentException if the operation code is not for a branch instruction that accepts
+     * one or two operands
+     */
     default CodeBuilder ifThen(Opcode opcode,
                                Consumer<BlockCodeBuilder> thenHandler) {
         if (opcode.kind() != CodeElement.Kind.BRANCH || opcode.primaryTypeKind() == TypeKind.VoidType) {
@@ -233,6 +244,22 @@ public sealed interface CodeBuilder
         return ifThenElse(Opcode.IFNE, thenHandler, elseHandler);
     }
 
+    /**
+     * Add an "if-then-else" block that is conditional on the value(s) on top of the operand stack
+     * in accordance with the given opcode.
+     * <p>
+     * The {@link BlockCodeBuilder#breakLabel()} for each block corresponds to the
+     * end of the "else" block.
+     *
+     * @param opcode the operation code for a branch instructions that accepts one or two operands on the stack
+     * @param thenHandler handler that receives a {@linkplain BlockCodeBuilder} to
+     *                    generate the body of the {@code if}
+     * @param elseHandler handler that receives a {@linkplain BlockCodeBuilder} to
+     *                    generate the body of the {@code else}
+     * @return this builder
+     * @throws java.lang.IllegalArgumentException if the operation code is not for a branch instruction that accepts
+     * one or two operands
+     */
     default CodeBuilder ifThenElse(Opcode opcode,
                                    Consumer<BlockCodeBuilder> thenHandler,
                                    Consumer<BlockCodeBuilder> elseHandler) {
