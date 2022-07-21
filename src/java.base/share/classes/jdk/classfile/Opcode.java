@@ -337,27 +337,4 @@ public enum Opcode {
             default -> kind() == CodeElement.Kind.RETURN;
         };
     }
-
-    public Optional<Opcode> inverse() {
-        Opcode inverse = switch (this) {
-            case IFEQ -> Opcode.IFNE;
-            case IFLT -> Opcode.IFGE;
-            case IFGE -> Opcode.IFLT;
-            case IFNE -> Opcode.IFEQ;
-            case IFGT -> Opcode.IFLE;
-            case IFLE -> Opcode.IFGT;
-            case IF_ICMPEQ -> Opcode.IF_ICMPNE;
-            case IF_ICMPNE -> Opcode.IF_ICMPEQ;
-            case IF_ICMPLT -> Opcode.IF_ICMPGE;
-            case IF_ICMPGE -> Opcode.IF_ICMPLT;
-            case IF_ICMPGT -> Opcode.IF_ICMPLE;
-            case IF_ICMPLE -> Opcode.IF_ICMPGT;
-            case IF_ACMPEQ -> Opcode.IF_ACMPNE;
-            case IF_ACMPNE -> Opcode.IF_ACMPEQ;
-            case IFNULL -> Opcode.IFNONNULL;
-            case IFNONNULL -> Opcode.IFNULL;
-            default -> null;
-        };
-        return Optional.ofNullable(inverse);
-    }
 }

@@ -31,6 +31,8 @@ import jdk.classfile.Opcode;
 import jdk.classfile.TypeKind;
 import jdk.classfile.instruction.LabelTarget;
 
+import java.util.Objects;
+
 /**
  * BlockCodeBuilder
  */
@@ -44,16 +46,12 @@ public final class BlockCodeBuilderImpl
     private int topLocal;
     private int terminalMaxLocals;
 
-    public BlockCodeBuilderImpl(CodeBuilder parent) {
-        this(parent, null);
-    }
-
     public BlockCodeBuilderImpl(CodeBuilder parent, Label breakLabel) {
         super(parent);
         this.parent = parent;
         this.startLabel = parent.newLabel();
         this.endLabel = parent.newLabel();
-        this.breakLabel = breakLabel != null ? breakLabel : endLabel;
+        this.breakLabel = Objects.requireNonNull(breakLabel);
     }
 
     public void start() {

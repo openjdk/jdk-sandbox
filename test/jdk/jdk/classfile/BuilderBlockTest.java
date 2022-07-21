@@ -45,6 +45,7 @@ import jdk.classfile.Label;
 import jdk.classfile.Opcode;
 import jdk.classfile.TypeKind;
 import jdk.classfile.impl.LabelImpl;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertEquals;
@@ -136,6 +137,25 @@ public class BuilderBlockTest {
 
     }
 
+    public void testIfThenBadOpcode()  {
+        Classfile.build(ClassDesc.of("Foo"), cb -> {
+            cb.withFlags(AccessFlag.PUBLIC);
+            cb.withMethod("foo", MethodTypeDesc.of(CD_int, CD_int, CD_int),
+                    AccessFlags.ofMethod(AccessFlag.PUBLIC, AccessFlag.STATIC).flagsMask(),
+                    mb -> mb.withCode(xb -> {
+                        xb.iload(0);
+                        xb.iload(1);
+                        Assert.assertThrows(IllegalArgumentException.class, () -> {
+                            xb.ifThen(
+                                    Opcode.GOTO,
+                                    xxb -> xxb.iconst_1().istore(2));
+                        });
+                        xb.iload(2);
+                        xb.ireturn();
+                    }));
+        });
+    }
+
     public void testIfThenElseImplicitBreak() throws Exception {
         byte[] bytes = Classfile.build(ClassDesc.of("Foo"), cb -> {
             cb.withFlags(AccessFlag.PUBLIC);
@@ -195,6 +215,26 @@ public class BuilderBlockTest {
         assertEquals(fooMethod.invoke(null, 9, 10), 1);
         assertEquals(fooMethod.invoke(null, 10, 10), 2);
         assertEquals(fooMethod.invoke(null, 11, 10), 2);
+    }
+
+    public void testIfThenElseBadOpcode()  {
+        Classfile.build(ClassDesc.of("Foo"), cb -> {
+            cb.withFlags(AccessFlag.PUBLIC);
+            cb.withMethod("foo", MethodTypeDesc.of(CD_int, CD_int, CD_int),
+                    AccessFlags.ofMethod(AccessFlag.PUBLIC, AccessFlag.STATIC).flagsMask(),
+                    mb -> mb.withCode(xb -> {
+                        xb.iload(0);
+                        xb.iload(1);
+                        Assert.assertThrows(IllegalArgumentException.class, () -> {
+                            xb.ifThenElse(
+                                    Opcode.GOTO,
+                                    xxb -> xxb.iconst_1().istore(2),
+                                    xxb -> xxb.iconst_2().istore(2));
+                        });
+                        xb.iload(2);
+                        xb.ireturn();
+                    }));
+        });
     }
 
     public void testAllocateLocal() {

@@ -182,10 +182,12 @@ public sealed interface CodeBuilder
      * generate the body of the lexical block.
      */
     default CodeBuilder block(Consumer<BlockCodeBuilder> handler) {
-        BlockCodeBuilderImpl child = new BlockCodeBuilderImpl(this);
+        Label breakLabel = newLabel();
+        BlockCodeBuilderImpl child = new BlockCodeBuilderImpl(this, breakLabel);
         child.start();
         handler.accept(child);
         child.end();
+        labelBinding(breakLabel);
         return this;
     }
 
@@ -224,11 +226,13 @@ public sealed interface CodeBuilder
             throw new IllegalArgumentException("Illegal branch opcode: " + opcode);
         }
 
-        BlockCodeBuilderImpl thenBlock = new BlockCodeBuilderImpl(this);
-        branchInstruction(opcode.inverse().get(), thenBlock.endLabel());
+        Label breakLabel = newLabel();
+        BlockCodeBuilderImpl thenBlock = new BlockCodeBuilderImpl(this, breakLabel);
+        branchInstruction(BytecodeHelpers.reverseBranchOpcode(opcode), thenBlock.endLabel());
         thenBlock.start();
         thenHandler.accept(thenBlock);
         thenBlock.end();
+        labelBinding(breakLabel);
         return this;
     }
 
@@ -273,9 +277,10 @@ public sealed interface CodeBuilder
             throw new IllegalArgumentException("Illegal branch opcode: " + opcode);
         }
 
-        BlockCodeBuilderImpl elseBlock = new BlockCodeBuilderImpl(this);
-        BlockCodeBuilderImpl thenBlock = new BlockCodeBuilderImpl(this, elseBlock.endLabel());
-        branchInstruction(opcode.inverse().get(), elseBlock.startLabel());
+        Label breakLabel = newLabel();
+        BlockCodeBuilderImpl thenBlock = new BlockCodeBuilderImpl(this, breakLabel);
+        BlockCodeBuilderImpl elseBlock = new BlockCodeBuilderImpl(this, breakLabel);
+        branchInstruction(BytecodeHelpers.reverseBranchOpcode(opcode), elseBlock.startLabel());
         thenBlock.start();
         thenHandler.accept(thenBlock);
         if (thenBlock.reachable())
@@ -284,6 +289,7 @@ public sealed interface CodeBuilder
         elseBlock.start();
         elseHandler.accept(elseBlock);
         elseBlock.end();
+        labelBinding(breakLabel);
         return this;
     }
 
