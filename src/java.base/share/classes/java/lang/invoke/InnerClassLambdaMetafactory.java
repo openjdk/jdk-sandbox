@@ -285,8 +285,8 @@ import jdk.classfile.MethodBuilder;
      * registers the lambda proxy class for including into the CDS archive.
      */
     private Class<?> spinInnerClass() throws LambdaConversionException {
-        // CDS does not handle disableEagerInitialization.
-        if (!disableEagerInitialization) {
+        // CDS does not handle disableEagerInitialization or useImplMethodHandle
+        if (!disableEagerInitialization && !useImplMethodHandle) {
             // include lambda proxy class in CDS archive at dump time
             if (CDS.isDumpingArchive()) {
                 Class<?> innerClass = generateInnerClass();
