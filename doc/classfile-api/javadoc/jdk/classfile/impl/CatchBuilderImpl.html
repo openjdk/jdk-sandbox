@@ -108,8 +108,8 @@ implements <a href="../CodeBuilder.CatchBuilder.html" title="interface in jdk.cl
 <div class="summary-table two-column-summary">
 <div class="table-header col-first">Constructor</div>
 <div class="table-header col-last">Description</div>
-<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(jdk.classfile.CodeBuilder,jdk.classfile.impl.BlockCodeBuilder,jdk.classfile.Label)" class="member-name-link">CatchBuilderImpl</a><wbr>(<a href="../CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a>&nbsp;b,
- <a href="BlockCodeBuilder.html" title="class in jdk.classfile.impl">BlockCodeBuilder</a>&nbsp;tryBlock,
+<div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(jdk.classfile.CodeBuilder,jdk.classfile.impl.BlockCodeBuilderImpl,jdk.classfile.Label)" class="member-name-link">CatchBuilderImpl</a><wbr>(<a href="../CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a>&nbsp;b,
+ <a href="BlockCodeBuilderImpl.html" title="class in jdk.classfile.impl">BlockCodeBuilderImpl</a>&nbsp;tryBlock,
  <a href="../Label.html" title="interface in jdk.classfile">Label</a>&nbsp;tryCatchEnd)</code></div>
 <div class="col-last even-row-color">&nbsp;</div>
 </div>
@@ -128,12 +128,12 @@ implements <a href="../CodeBuilder.CatchBuilder.html" title="interface in jdk.cl
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../CodeBuilder.CatchBuilder.html" title="interface in jdk.classfile">CodeBuilder.CatchBuilder</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#catching(java.lang.constant.ClassDesc,java.util.function.Consumer)" class="member-name-link">catching</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;exceptionType,
- <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="../CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a>&gt;&nbsp;catchHandler)</code></div>
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="../CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a>&gt;&nbsp;catchHandler)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Adds a catch block that catches an exception of the given type.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#catchingAll(java.util.function.Consumer)" class="member-name-link">catchingAll</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="../CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a>&gt;&nbsp;catchAllHandler)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#catchingAll(java.util.function.Consumer)" class="member-name-link">catchingAll</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="../CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a>&gt;&nbsp;catchAllHandler)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Adds a "catch" block that catches all exceptions.</div>
 </div>
@@ -158,10 +158,10 @@ implements <a href="../CodeBuilder.CatchBuilder.html" title="interface in jdk.cl
 <h2>Constructor Details</h2>
 <ul class="member-list">
 <li>
-<section class="detail" id="&lt;init&gt;(jdk.classfile.CodeBuilder,jdk.classfile.impl.BlockCodeBuilder,jdk.classfile.Label)">
+<section class="detail" id="&lt;init&gt;(jdk.classfile.CodeBuilder,jdk.classfile.impl.BlockCodeBuilderImpl,jdk.classfile.Label)">
 <h3>CatchBuilderImpl</h3>
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">CatchBuilderImpl</span><wbr><span class="parameters">(<a href="../CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a>&nbsp;b,
- <a href="BlockCodeBuilder.html" title="class in jdk.classfile.impl">BlockCodeBuilder</a>&nbsp;tryBlock,
+ <a href="BlockCodeBuilderImpl.html" title="class in jdk.classfile.impl">BlockCodeBuilderImpl</a>&nbsp;tryBlock,
  <a href="../Label.html" title="interface in jdk.classfile">Label</a>&nbsp;tryCatchEnd)</span></div>
 </section>
 </li>
@@ -177,7 +177,7 @@ implements <a href="../CodeBuilder.CatchBuilder.html" title="interface in jdk.cl
 <section class="detail" id="catching(java.lang.constant.ClassDesc,java.util.function.Consumer)">
 <h3>catching</h3>
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../CodeBuilder.CatchBuilder.html" title="interface in jdk.classfile">CodeBuilder.CatchBuilder</a></span>&nbsp;<span class="element-name">catching</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;exceptionType,
- <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="../CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a>&gt;&nbsp;catchHandler)</span></div>
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="../CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a>&gt;&nbsp;catchHandler)</span></div>
 <div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../CodeBuilder.CatchBuilder.html#catching(java.lang.constant.ClassDesc,java.util.function.Consumer)">CodeBuilder.CatchBuilder</a></code></span></div>
 <div class="block">Adds a catch block that catches an exception of the given type.
  <p>
@@ -196,7 +196,7 @@ implements <a href="../CodeBuilder.CatchBuilder.html" title="interface in jdk.cl
 <dt>See Also:</dt>
 <dd>
 <ul class="see-list-long">
-<li><a href="../CodeBuilder.CatchBuilder.html#catchingAll(java.util.function.Consumer)"><code>CodeBuilder.CatchBuilder.catchingAll(java.util.function.Consumer&lt;jdk.classfile.CodeBuilder&gt;)</code></a></li>
+<li><a href="../CodeBuilder.CatchBuilder.html#catchingAll(java.util.function.Consumer)"><code>CodeBuilder.CatchBuilder.catchingAll(java.util.function.Consumer&lt;jdk.classfile.CodeBuilder.BlockCodeBuilder&gt;)</code></a></li>
 </ul>
 </dd>
 </dl>
@@ -205,7 +205,7 @@ implements <a href="../CodeBuilder.CatchBuilder.html" title="interface in jdk.cl
 <li>
 <section class="detail" id="catchingAll(java.util.function.Consumer)">
 <h3>catchingAll</h3>
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">catchingAll</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="../CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a>&gt;&nbsp;catchAllHandler)</span></div>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">catchingAll</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="../CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a>&gt;&nbsp;catchAllHandler)</span></div>
 <div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../CodeBuilder.CatchBuilder.html#catchingAll(java.util.function.Consumer)">CodeBuilder.CatchBuilder</a></code></span></div>
 <div class="block">Adds a "catch" block that catches all exceptions.
  <p>
@@ -219,7 +219,7 @@ implements <a href="../CodeBuilder.CatchBuilder.html" title="interface in jdk.cl
 <dt>See Also:</dt>
 <dd>
 <ul class="see-list-long">
-<li><a href="../CodeBuilder.CatchBuilder.html#catching(java.lang.constant.ClassDesc,java.util.function.Consumer)"><code>CodeBuilder.CatchBuilder.catching(java.lang.constant.ClassDesc, java.util.function.Consumer&lt;jdk.classfile.CodeBuilder&gt;)</code></a></li>
+<li><a href="../CodeBuilder.CatchBuilder.html#catching(java.lang.constant.ClassDesc,java.util.function.Consumer)"><code>CodeBuilder.CatchBuilder.catching(java.lang.constant.ClassDesc, java.util.function.Consumer&lt;jdk.classfile.CodeBuilder.BlockCodeBuilder&gt;)</code></a></li>
 </ul>
 </dd>
 </dl>

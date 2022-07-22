@@ -355,7 +355,7 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Returns the local variable slot of a fresh local variable.</div>
 </dd>
-<dt><a href="jdk/classfile/impl/BlockCodeBuilder.html#allocateLocal(jdk.classfile.TypeKind)" class="member-name-link">allocateLocal(TypeKind)</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BlockCodeBuilder.html" title="class in jdk.classfile.impl">BlockCodeBuilder</a></dt>
+<dt><a href="jdk/classfile/impl/BlockCodeBuilderImpl.html#allocateLocal(jdk.classfile.TypeKind)" class="member-name-link">allocateLocal(TypeKind)</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BlockCodeBuilderImpl.html" title="class in jdk.classfile.impl">BlockCodeBuilderImpl</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/BufferedCodeBuilder.html#allocateLocal(jdk.classfile.TypeKind)" class="member-name-link">allocateLocal(TypeKind)</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BufferedCodeBuilder.html" title="class in jdk.classfile.impl">BufferedCodeBuilder</a></dt>
 <dd>&nbsp;</dd>
@@ -915,7 +915,7 @@ loadScripts(document, 'script');</script>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/Classfile.html#BIPUSH" class="member-name-link">BIPUSH</a> - Static variable in class jdk.classfile.<a href="jdk/classfile/Classfile.html" title="class in jdk.classfile">Classfile</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="jdk/classfile/CodeBuilder.html#block(java.util.function.Consumer)" class="member-name-link">block(Consumer&lt;CodeBuilder&gt;)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></dt>
+<dt><a href="jdk/classfile/CodeBuilder.html#block(java.util.function.Consumer)" class="member-name-link">block(Consumer&lt;CodeBuilder.BlockCodeBuilder&gt;)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></dt>
 <dd>
 <div class="block">Add a lexical block to the method being built.</div>
 </dd>
@@ -923,11 +923,11 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Creates an instance of a <code>Block</code> record class.</div>
 </dd>
-<dt><a href="jdk/classfile/impl/BlockCodeBuilder.html" class="type-name-link" title="class in jdk.classfile.impl">BlockCodeBuilder</a> - Class in <a href="jdk/classfile/impl/package-summary.html">jdk.classfile.impl</a></dt>
+<dt><a href="jdk/classfile/impl/BlockCodeBuilderImpl.html" class="type-name-link" title="class in jdk.classfile.impl">BlockCodeBuilderImpl</a> - Class in <a href="jdk/classfile/impl/package-summary.html">jdk.classfile.impl</a></dt>
 <dd>
 <div class="block">BlockCodeBuilder</div>
 </dd>
-<dt><a href="jdk/classfile/impl/BlockCodeBuilder.html#%3Cinit%3E(jdk.classfile.CodeBuilder)" class="member-name-link">BlockCodeBuilder(CodeBuilder)</a> - Constructor for class jdk.classfile.impl.<a href="jdk/classfile/impl/BlockCodeBuilder.html" title="class in jdk.classfile.impl">BlockCodeBuilder</a></dt>
+<dt><a href="jdk/classfile/impl/BlockCodeBuilderImpl.html#%3Cinit%3E(jdk.classfile.CodeBuilder,jdk.classfile.Label)" class="member-name-link">BlockCodeBuilderImpl(CodeBuilder, Label)</a> - Constructor for class jdk.classfile.impl.<a href="jdk/classfile/impl/BlockCodeBuilderImpl.html" title="class in jdk.classfile.impl">BlockCodeBuilderImpl</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/TypeKind.html#BooleanType" class="member-name-link">BooleanType</a> - Enum constant in enum class jdk.classfile.<a href="jdk/classfile/TypeKind.html" title="enum class in jdk.classfile">TypeKind</a></dt>
 <dd>
@@ -1242,6 +1242,12 @@ loadScripts(document, 'script');</script>
 <div class="block">Models a branching instruction (conditional or unconditional) in the <code>
  code</code> array of a <code>Code</code> attribute.</div>
 </dd>
+<dt><a href="jdk/classfile/CodeBuilder.BlockCodeBuilder.html#breakLabel()" class="member-name-link">breakLabel()</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a></dt>
+<dd>
+<div class="block">Returns the label locating where control is passed back to the parent block..</div>
+</dd>
+<dt><a href="jdk/classfile/impl/BlockCodeBuilderImpl.html#breakLabel()" class="member-name-link">breakLabel()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BlockCodeBuilderImpl.html" title="class in jdk.classfile.impl">BlockCodeBuilderImpl</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/constantpool/ConstantPoolBuilder.html#bsmEntry(java.lang.constant.DirectMethodHandleDesc,java.util.List)" class="member-name-link">bsmEntry(DirectMethodHandleDesc, List&lt;ConstantDesc&gt;)</a> - Method in interface jdk.classfile.constantpool.<a href="jdk/classfile/constantpool/ConstantPoolBuilder.html" title="interface in jdk.classfile.constantpool">ConstantPoolBuilder</a></dt>
 <dd>
 <div class="block">Returns a <a href="jdk/classfile/BootstrapMethodEntry.html" title="interface in jdk.classfile"><code>BootstrapMethodEntry</code></a> describing the provided
@@ -1437,19 +1443,19 @@ loadScripts(document, 'script');</script>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/CatchBuilderImpl.html" class="type-name-link" title="class in jdk.classfile.impl">CatchBuilderImpl</a> - Class in <a href="jdk/classfile/impl/package-summary.html">jdk.classfile.impl</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="jdk/classfile/impl/CatchBuilderImpl.html#%3Cinit%3E(jdk.classfile.CodeBuilder,jdk.classfile.impl.BlockCodeBuilder,jdk.classfile.Label)" class="member-name-link">CatchBuilderImpl(CodeBuilder, BlockCodeBuilder, Label)</a> - Constructor for class jdk.classfile.impl.<a href="jdk/classfile/impl/CatchBuilderImpl.html" title="class in jdk.classfile.impl">CatchBuilderImpl</a></dt>
+<dt><a href="jdk/classfile/impl/CatchBuilderImpl.html#%3Cinit%3E(jdk.classfile.CodeBuilder,jdk.classfile.impl.BlockCodeBuilderImpl,jdk.classfile.Label)" class="member-name-link">CatchBuilderImpl(CodeBuilder, BlockCodeBuilderImpl, Label)</a> - Constructor for class jdk.classfile.impl.<a href="jdk/classfile/impl/CatchBuilderImpl.html" title="class in jdk.classfile.impl">CatchBuilderImpl</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="jdk/classfile/CodeBuilder.CatchBuilder.html#catching(java.lang.constant.ClassDesc,java.util.function.Consumer)" class="member-name-link">catching(ClassDesc, Consumer&lt;CodeBuilder&gt;)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.CatchBuilder.html" title="interface in jdk.classfile">CodeBuilder.CatchBuilder</a></dt>
+<dt><a href="jdk/classfile/CodeBuilder.CatchBuilder.html#catching(java.lang.constant.ClassDesc,java.util.function.Consumer)" class="member-name-link">catching(ClassDesc, Consumer&lt;CodeBuilder.BlockCodeBuilder&gt;)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.CatchBuilder.html" title="interface in jdk.classfile">CodeBuilder.CatchBuilder</a></dt>
 <dd>
 <div class="block">Adds a catch block that catches an exception of the given type.</div>
 </dd>
-<dt><a href="jdk/classfile/impl/CatchBuilderImpl.html#catching(java.lang.constant.ClassDesc,java.util.function.Consumer)" class="member-name-link">catching(ClassDesc, Consumer&lt;CodeBuilder&gt;)</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/CatchBuilderImpl.html" title="class in jdk.classfile.impl">CatchBuilderImpl</a></dt>
+<dt><a href="jdk/classfile/impl/CatchBuilderImpl.html#catching(java.lang.constant.ClassDesc,java.util.function.Consumer)" class="member-name-link">catching(ClassDesc, Consumer&lt;CodeBuilder.BlockCodeBuilder&gt;)</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/CatchBuilderImpl.html" title="class in jdk.classfile.impl">CatchBuilderImpl</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="jdk/classfile/CodeBuilder.CatchBuilder.html#catchingAll(java.util.function.Consumer)" class="member-name-link">catchingAll(Consumer&lt;CodeBuilder&gt;)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.CatchBuilder.html" title="interface in jdk.classfile">CodeBuilder.CatchBuilder</a></dt>
+<dt><a href="jdk/classfile/CodeBuilder.CatchBuilder.html#catchingAll(java.util.function.Consumer)" class="member-name-link">catchingAll(Consumer&lt;CodeBuilder.BlockCodeBuilder&gt;)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.CatchBuilder.html" title="interface in jdk.classfile">CodeBuilder.CatchBuilder</a></dt>
 <dd>
 <div class="block">Adds a "catch" block that catches all exceptions.</div>
 </dd>
-<dt><a href="jdk/classfile/impl/CatchBuilderImpl.html#catchingAll(java.util.function.Consumer)" class="member-name-link">catchingAll(Consumer&lt;CodeBuilder&gt;)</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/CatchBuilderImpl.html" title="class in jdk.classfile.impl">CatchBuilderImpl</a></dt>
+<dt><a href="jdk/classfile/impl/CatchBuilderImpl.html#catchingAll(java.util.function.Consumer)" class="member-name-link">catchingAll(Consumer&lt;CodeBuilder.BlockCodeBuilder&gt;)</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/CatchBuilderImpl.html" title="class in jdk.classfile.impl">CatchBuilderImpl</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/TargetInfoImpl.CatchTargetImpl.html#%3Cinit%3E(int)" class="member-name-link">CatchTargetImpl(int)</a> - Constructor for record class jdk.classfile.impl.<a href="jdk/classfile/impl/TargetInfoImpl.CatchTargetImpl.html" title="class in jdk.classfile.impl">TargetInfoImpl.CatchTargetImpl</a></dt>
 <dd>
@@ -1957,6 +1963,10 @@ loadScripts(document, 'script');</script>
 <dt><a href="jdk/classfile/CodeBuilder.html" class="type-name-link" title="interface in jdk.classfile">CodeBuilder</a> - Interface in <a href="jdk/classfile/package-summary.html">jdk.classfile</a></dt>
 <dd>
 <div class="block">A builder for code attributes (method bodies).</div>
+</dd>
+<dt><a href="jdk/classfile/CodeBuilder.BlockCodeBuilder.html" class="type-name-link" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a> - Interface in <a href="jdk/classfile/package-summary.html">jdk.classfile</a></dt>
+<dd>
+<div class="block">A builder for blocks of code.</div>
 </dd>
 <dt><a href="jdk/classfile/CodeBuilder.CatchBuilder.html" class="type-name-link" title="interface in jdk.classfile">CodeBuilder.CatchBuilder</a> - Interface in <a href="jdk/classfile/package-summary.html">jdk.classfile</a></dt>
 <dd>
@@ -2996,7 +3006,7 @@ loadScripts(document, 'script');</script>
 </dd>
 <dt><a href="jdk/classfile/attribute/StackMapTableAttribute.FrameKind.html#end()" class="member-name-link">end()</a> - Method in enum class jdk.classfile.attribute.<a href="jdk/classfile/attribute/StackMapTableAttribute.FrameKind.html" title="enum class in jdk.classfile.attribute">StackMapTableAttribute.FrameKind</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="jdk/classfile/impl/BlockCodeBuilder.html#end()" class="member-name-link">end()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BlockCodeBuilder.html" title="class in jdk.classfile.impl">BlockCodeBuilder</a></dt>
+<dt><a href="jdk/classfile/impl/BlockCodeBuilderImpl.html#end()" class="member-name-link">end()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BlockCodeBuilderImpl.html" title="class in jdk.classfile.impl">BlockCodeBuilderImpl</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/CodeElement.Kind.html#END" class="member-name-link">END</a> - Enum constant in enum class jdk.classfile.<a href="jdk/classfile/CodeElement.Kind.html" title="enum class in jdk.classfile">CodeElement.Kind</a></dt>
 <dd>&nbsp;</dd>
@@ -3048,7 +3058,7 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Returns the label associated with the end of the current block.</div>
 </dd>
-<dt><a href="jdk/classfile/impl/BlockCodeBuilder.html#endLabel()" class="member-name-link">endLabel()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BlockCodeBuilder.html" title="class in jdk.classfile.impl">BlockCodeBuilder</a></dt>
+<dt><a href="jdk/classfile/impl/BlockCodeBuilderImpl.html#endLabel()" class="member-name-link">endLabel()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BlockCodeBuilderImpl.html" title="class in jdk.classfile.impl">BlockCodeBuilderImpl</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/BufferedCodeBuilder.html#endLabel()" class="member-name-link">endLabel()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BufferedCodeBuilder.html" title="class in jdk.classfile.impl">BufferedCodeBuilder</a></dt>
 <dd>&nbsp;</dd>
@@ -4819,15 +4829,25 @@ loadScripts(document, 'script');</script>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/Classfile.html#IFNULL" class="member-name-link">IFNULL</a> - Static variable in class jdk.classfile.<a href="jdk/classfile/Classfile.html" title="class in jdk.classfile">Classfile</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="jdk/classfile/CodeBuilder.html#ifThen(java.util.function.Consumer)" class="member-name-link">ifThen(Consumer&lt;CodeBuilder&gt;)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></dt>
+<dt><a href="jdk/classfile/CodeBuilder.html#ifThen(java.util.function.Consumer)" class="member-name-link">ifThen(Consumer&lt;CodeBuilder.BlockCodeBuilder&gt;)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></dt>
 <dd>
 <div class="block">Add an "if-then" block that is conditional on the boolean value
  on top of the operand stack.</div>
 </dd>
-<dt><a href="jdk/classfile/CodeBuilder.html#ifThenElse(java.util.function.Consumer,java.util.function.Consumer)" class="member-name-link">ifThenElse(Consumer&lt;CodeBuilder&gt;, Consumer&lt;CodeBuilder&gt;)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></dt>
+<dt><a href="jdk/classfile/CodeBuilder.html#ifThen(jdk.classfile.Opcode,java.util.function.Consumer)" class="member-name-link">ifThen(Opcode, Consumer&lt;CodeBuilder.BlockCodeBuilder&gt;)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></dt>
+<dd>
+<div class="block">Add an "if-then" block that is conditional on the value(s) on top of the operand stack
+ in accordance with the given opcode.</div>
+</dd>
+<dt><a href="jdk/classfile/CodeBuilder.html#ifThenElse(java.util.function.Consumer,java.util.function.Consumer)" class="member-name-link">ifThenElse(Consumer&lt;CodeBuilder.BlockCodeBuilder&gt;, Consumer&lt;CodeBuilder.BlockCodeBuilder&gt;)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></dt>
 <dd>
 <div class="block">Add an "if-then-else" block that is conditional on the boolean value
  on top of the operand stack.</div>
+</dd>
+<dt><a href="jdk/classfile/CodeBuilder.html#ifThenElse(jdk.classfile.Opcode,java.util.function.Consumer,java.util.function.Consumer)" class="member-name-link">ifThenElse(Opcode, Consumer&lt;CodeBuilder.BlockCodeBuilder&gt;, Consumer&lt;CodeBuilder.BlockCodeBuilder&gt;)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></dt>
+<dd>
+<div class="block">Add an "if-then-else" block that is conditional on the value(s) on top of the operand stack
+ in accordance with the given opcode.</div>
 </dd>
 <dt><a href="jdk/classfile/CodeBuilder.html#iinc(int,int)" class="member-name-link">iinc(int, int)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></dt>
 <dd>&nbsp;</dd>
@@ -5173,7 +5193,7 @@ loadScripts(document, 'script');</script>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/ClassHierarchyImpl.html#isAssignableFrom(java.lang.constant.ClassDesc,java.lang.constant.ClassDesc)" class="member-name-link">isAssignableFrom(ClassDesc, ClassDesc)</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/ClassHierarchyImpl.html" title="class in jdk.classfile.impl">ClassHierarchyImpl</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="jdk/classfile/impl/BlockCodeBuilder.html#isEmpty()" class="member-name-link">isEmpty()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BlockCodeBuilder.html" title="class in jdk.classfile.impl">BlockCodeBuilder</a></dt>
+<dt><a href="jdk/classfile/impl/BlockCodeBuilderImpl.html#isEmpty()" class="member-name-link">isEmpty()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BlockCodeBuilderImpl.html" title="class in jdk.classfile.impl">BlockCodeBuilderImpl</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/CodeBuilder.html#ishl()" class="member-name-link">ishl()</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></dt>
 <dd>&nbsp;</dd>
@@ -8436,7 +8456,7 @@ loadScripts(document, 'script');</script>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/RawBytecodeHelper.html#rawNext(int)" class="member-name-link">rawNext(int)</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/RawBytecodeHelper.html" title="class in jdk.classfile.impl">RawBytecodeHelper</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="jdk/classfile/impl/BlockCodeBuilder.html#reachable()" class="member-name-link">reachable()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BlockCodeBuilder.html" title="class in jdk.classfile.impl">BlockCodeBuilder</a></dt>
+<dt><a href="jdk/classfile/impl/BlockCodeBuilderImpl.html#reachable()" class="member-name-link">reachable()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BlockCodeBuilderImpl.html" title="class in jdk.classfile.impl">BlockCodeBuilderImpl</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/AttributeMapper.html#readAttribute(jdk.classfile.AttributedElement,jdk.classfile.ClassReader,int)" class="member-name-link">readAttribute(AttributedElement, ClassReader, int)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/AttributeMapper.html" title="interface in jdk.classfile">AttributeMapper</a></dt>
 <dd>
@@ -8751,6 +8771,8 @@ loadScripts(document, 'script');</script>
  <code>Code</code> attribute.</div>
 </dd>
 <dt><a href="jdk/classfile/impl/BytecodeHelpers.html#returnOpcode(jdk.classfile.TypeKind)" class="member-name-link">returnOpcode(TypeKind)</a> - Static method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BytecodeHelpers.html" title="class in jdk.classfile.impl">BytecodeHelpers</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/BytecodeHelpers.html#reverseBranchOpcode(jdk.classfile.Opcode)" class="member-name-link">reverseBranchOpcode(Opcode)</a> - Static method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BytecodeHelpers.html" title="class in jdk.classfile.impl">BytecodeHelpers</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/BufferedCodeBuilder.html#run(java.util.function.Consumer)" class="member-name-link">run(Consumer&lt;? super CodeBuilder&gt;)</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BufferedCodeBuilder.html" title="class in jdk.classfile.impl">BufferedCodeBuilder</a></dt>
 <dd>&nbsp;</dd>
@@ -9285,7 +9307,7 @@ loadScripts(document, 'script');</script>
 </dd>
 <dt><a href="jdk/classfile/attribute/StackMapTableAttribute.FrameKind.html#start()" class="member-name-link">start()</a> - Method in enum class jdk.classfile.attribute.<a href="jdk/classfile/attribute/StackMapTableAttribute.FrameKind.html" title="enum class in jdk.classfile.attribute">StackMapTableAttribute.FrameKind</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="jdk/classfile/impl/BlockCodeBuilder.html#start()" class="member-name-link">start()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BlockCodeBuilder.html" title="class in jdk.classfile.impl">BlockCodeBuilder</a></dt>
+<dt><a href="jdk/classfile/impl/BlockCodeBuilderImpl.html#start()" class="member-name-link">start()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BlockCodeBuilderImpl.html" title="class in jdk.classfile.impl">BlockCodeBuilderImpl</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/ClassfileTransform.ResolvedTransform.html#startHandler()" class="member-name-link">startHandler()</a> - Method in interface jdk.classfile.<a href="jdk/classfile/ClassfileTransform.ResolvedTransform.html" title="interface in jdk.classfile">ClassfileTransform.ResolvedTransform</a></dt>
 <dd>
@@ -9311,7 +9333,7 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Returns the label associated with the beginning of the current block.</div>
 </dd>
-<dt><a href="jdk/classfile/impl/BlockCodeBuilder.html#startLabel()" class="member-name-link">startLabel()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BlockCodeBuilder.html" title="class in jdk.classfile.impl">BlockCodeBuilder</a></dt>
+<dt><a href="jdk/classfile/impl/BlockCodeBuilderImpl.html#startLabel()" class="member-name-link">startLabel()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BlockCodeBuilderImpl.html" title="class in jdk.classfile.impl">BlockCodeBuilderImpl</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/BufferedCodeBuilder.html#startLabel()" class="member-name-link">startLabel()</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BufferedCodeBuilder.html" title="class in jdk.classfile.impl">BufferedCodeBuilder</a></dt>
 <dd>&nbsp;</dd>
@@ -10526,7 +10548,7 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Returns the value of the <code>tryEndInline</code> record component.</div>
 </dd>
-<dt><a href="jdk/classfile/CodeBuilder.html#trying(java.util.function.Consumer,java.util.function.Consumer)" class="member-name-link">trying(Consumer&lt;CodeBuilder&gt;, Consumer&lt;CodeBuilder.CatchBuilder&gt;)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></dt>
+<dt><a href="jdk/classfile/CodeBuilder.html#trying(java.util.function.Consumer,java.util.function.Consumer)" class="member-name-link">trying(Consumer&lt;CodeBuilder.BlockCodeBuilder&gt;, Consumer&lt;CodeBuilder.CatchBuilder&gt;)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></dt>
 <dd>
 <div class="block">Adds a "try-catch" block comprising one try block and zero or more catch blocks.</div>
 </dd>
@@ -11461,7 +11483,7 @@ the order they are declared.</div>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/DirectClassBuilder.html#with(jdk.classfile.ClassElement)" class="member-name-link">with(ClassElement)</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/DirectClassBuilder.html" title="class in jdk.classfile.impl">DirectClassBuilder</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="jdk/classfile/impl/BlockCodeBuilder.html#with(jdk.classfile.CodeElement)" class="member-name-link">with(CodeElement)</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BlockCodeBuilder.html" title="class in jdk.classfile.impl">BlockCodeBuilder</a></dt>
+<dt><a href="jdk/classfile/impl/BlockCodeBuilderImpl.html#with(jdk.classfile.CodeElement)" class="member-name-link">with(CodeElement)</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BlockCodeBuilderImpl.html" title="class in jdk.classfile.impl">BlockCodeBuilderImpl</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/impl/BufferedCodeBuilder.html#with(jdk.classfile.CodeElement)" class="member-name-link">with(CodeElement)</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/BufferedCodeBuilder.html" title="class in jdk.classfile.impl">BufferedCodeBuilder</a></dt>
 <dd>&nbsp;</dd>

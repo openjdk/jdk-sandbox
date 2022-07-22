@@ -92,16 +92,16 @@ loadScripts(document, 'script');</script>
 </dl>
 <dl class="notes">
 <dt>All Known Subinterfaces:</dt>
-<dd><code><a href="impl/TerminalCodeBuilder.html" title="interface in jdk.classfile.impl">TerminalCodeBuilder</a></code></dd>
+<dd><code><a href="CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a></code>, <code><a href="impl/TerminalCodeBuilder.html" title="interface in jdk.classfile.impl">TerminalCodeBuilder</a></code></dd>
 </dl>
 <dl class="notes">
 <dt>All Known Implementing Classes:</dt>
-<dd><code><a href="impl/BlockCodeBuilder.html" title="class in jdk.classfile.impl">BlockCodeBuilder</a></code>, <code><a href="impl/BufferedCodeBuilder.html" title="class in jdk.classfile.impl">BufferedCodeBuilder</a></code>, <code><a href="impl/ChainedCodeBuilder.html" title="class in jdk.classfile.impl">ChainedCodeBuilder</a></code>, <code><a href="impl/DirectCodeBuilder.html" title="class in jdk.classfile.impl">DirectCodeBuilder</a></code>, <code><a href="impl/NonterminalCodeBuilder.html" title="class in jdk.classfile.impl">NonterminalCodeBuilder</a></code></dd>
+<dd><code><a href="impl/BlockCodeBuilderImpl.html" title="class in jdk.classfile.impl">BlockCodeBuilderImpl</a></code>, <code><a href="impl/BufferedCodeBuilder.html" title="class in jdk.classfile.impl">BufferedCodeBuilder</a></code>, <code><a href="impl/ChainedCodeBuilder.html" title="class in jdk.classfile.impl">ChainedCodeBuilder</a></code>, <code><a href="impl/DirectCodeBuilder.html" title="class in jdk.classfile.impl">DirectCodeBuilder</a></code>, <code><a href="impl/NonterminalCodeBuilder.html" title="class in jdk.classfile.impl">NonterminalCodeBuilder</a></code></dd>
 </dl>
 <hr>
 <div class="type-signature"><span class="modifiers">public sealed interface </span><span class="element-name type-name-label">CodeBuilder</span><span class="extends-implements">
 extends <a href="ClassfileBuilder.html" title="interface in jdk.classfile">ClassfileBuilder</a>&lt;<a href="CodeElement.html" title="interface in jdk.classfile">CodeElement</a>,<wbr><a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a>&gt;</span>
-<span class="permits">permits <a href="impl/BlockCodeBuilder.html" title="class in jdk.classfile.impl">BlockCodeBuilder</a>, <a href="impl/ChainedCodeBuilder.html" title="class in jdk.classfile.impl">ChainedCodeBuilder</a>, <a href="impl/TerminalCodeBuilder.html" title="interface in jdk.classfile.impl">TerminalCodeBuilder</a>, <a href="impl/NonterminalCodeBuilder.html" title="class in jdk.classfile.impl">NonterminalCodeBuilder</a></span></div>
+<span class="permits">permits <a href="CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a>, <a href="impl/ChainedCodeBuilder.html" title="class in jdk.classfile.impl">ChainedCodeBuilder</a>, <a href="impl/TerminalCodeBuilder.html" title="interface in jdk.classfile.impl">TerminalCodeBuilder</a>, <a href="impl/NonterminalCodeBuilder.html" title="class in jdk.classfile.impl">NonterminalCodeBuilder</a></span></div>
 <div class="block">A builder for code attributes (method bodies).  Builders are not created
  directly; they are passed to handlers by methods such as <a href="MethodBuilder.html#withCode(java.util.function.Consumer)"><code>MethodBuilder.withCode(Consumer)</code></a> or to code transforms.  The elements of a
  code can be specified abstractly (by passing a <a href="CodeElement.html" title="interface in jdk.classfile"><code>CodeElement</code></a> to <a href="ClassfileBuilder.html#with(E)"><code>ClassfileBuilder.with(ClassfileElement)</code></a> or concretely by calling the various <code>withXxx</code>
@@ -127,8 +127,13 @@ extends <a href="ClassfileBuilder.html" title="interface in jdk.classfile">Class
 <div class="table-header col-second">Interface</div>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color"><code>static interface&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="CodeBuilder.CatchBuilder.html" class="type-name-link" title="interface in jdk.classfile">CodeBuilder.CatchBuilder</a></code></div>
+<div class="col-second even-row-color"><code><a href="CodeBuilder.BlockCodeBuilder.html" class="type-name-link" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a></code></div>
 <div class="col-last even-row-color">
+<div class="block">A builder for blocks of code.</div>
+</div>
+<div class="col-first odd-row-color"><code>static interface&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="CodeBuilder.CatchBuilder.html" class="type-name-link" title="interface in jdk.classfile">CodeBuilder.CatchBuilder</a></code></div>
+<div class="col-last odd-row-color">
 <div class="block">A builder to add catch blocks.</div>
 </div>
 </div>
@@ -196,7 +201,7 @@ extends <a href="ClassfileBuilder.html" title="interface in jdk.classfile">Class
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#bipush(int)" class="member-name-link">bipush</a><wbr>(int&nbsp;b)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#block(java.util.function.Consumer)" class="member-name-link">block</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a>&gt;&nbsp;handler)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#block(java.util.function.Consumer)" class="member-name-link">block</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a>&gt;&nbsp;handler)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Add a lexical block to the method being built.</div>
 </div>
@@ -529,17 +534,32 @@ extends <a href="ClassfileBuilder.html" title="interface in jdk.classfile">Class
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#ifne(jdk.classfile.Label)" class="member-name-link">ifne</a><wbr>(<a href="Label.html" title="interface in jdk.classfile">Label</a>&nbsp;target)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#ifThen(java.util.function.Consumer)" class="member-name-link">ifThen</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a>&gt;&nbsp;thenHandler)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#ifThen(java.util.function.Consumer)" class="member-name-link">ifThen</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a>&gt;&nbsp;thenHandler)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Add an "if-then" block that is conditional on the boolean value
  on top of the operand stack.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#ifThenElse(java.util.function.Consumer,java.util.function.Consumer)" class="member-name-link">ifThenElse</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a>&gt;&nbsp;thenHandler,
- <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a>&gt;&nbsp;elseHandler)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#ifThen(jdk.classfile.Opcode,java.util.function.Consumer)" class="member-name-link">ifThen</a><wbr>(<a href="Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode,
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a>&gt;&nbsp;thenHandler)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Add an "if-then" block that is conditional on the value(s) on top of the operand stack
+ in accordance with the given opcode.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#ifThenElse(java.util.function.Consumer,java.util.function.Consumer)" class="member-name-link">ifThenElse</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a>&gt;&nbsp;thenHandler,
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a>&gt;&nbsp;elseHandler)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Add an "if-then-else" block that is conditional on the boolean value
  on top of the operand stack.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#ifThenElse(jdk.classfile.Opcode,java.util.function.Consumer,java.util.function.Consumer)" class="member-name-link">ifThenElse</a><wbr>(<a href="Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode,
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a>&gt;&nbsp;thenHandler,
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a>&gt;&nbsp;elseHandler)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Add an "if-then-else" block that is conditional on the value(s) on top of the operand stack
+ in accordance with the given opcode.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#iinc(int,int)" class="member-name-link">iinc</a><wbr>(int&nbsp;slot,
@@ -938,7 +958,7 @@ extends <a href="ClassfileBuilder.html" title="interface in jdk.classfile">Class
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#throwInstruction()" class="member-name-link">throwInstruction</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#trying(java.util.function.Consumer,java.util.function.Consumer)" class="member-name-link">trying</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a>&gt;&nbsp;tryHandler,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#trying(java.util.function.Consumer,java.util.function.Consumer)" class="member-name-link">trying</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a>&gt;&nbsp;tryHandler,
  <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.CatchBuilder.html" title="interface in jdk.classfile">CodeBuilder.CatchBuilder</a>&gt;&nbsp;catchesHandler)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Adds a "try-catch" block comprising one try block and zero or more catch blocks.</div>
@@ -1088,21 +1108,31 @@ extends <a href="ClassfileBuilder.html" title="interface in jdk.classfile">Class
 <li>
 <section class="detail" id="block(java.util.function.Consumer)">
 <h3>block</h3>
-<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></span>&nbsp;<span class="element-name">block</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a>&gt;&nbsp;handler)</span></div>
-<div class="block">Add a lexical block to the method being built.  Within this block, the
- <a href="#startLabel()"><code>startLabel()</code></a> and <a href="#endLabel()"><code>endLabel()</code></a> correspond to the start
- and end of the block.</div>
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></span>&nbsp;<span class="element-name">block</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a>&gt;&nbsp;handler)</span></div>
+<div class="block">Add a lexical block to the method being built.
+ <p>
+ Within this block, the <a href="#startLabel()"><code>startLabel()</code></a> and <a href="#endLabel()"><code>endLabel()</code></a> correspond
+ to the start and end of the block, and the <a href="CodeBuilder.BlockCodeBuilder.html#breakLabel()"><code>CodeBuilder.BlockCodeBuilder.breakLabel()</code></a>
+ also corresponds to the end of the block.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>handler</code> - handler that receives a <a href="CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a> to
+ generate the body of the lexical block.</dd>
+</dl>
 </section>
 </li>
 <li>
 <section class="detail" id="ifThen(java.util.function.Consumer)">
 <h3>ifThen</h3>
-<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></span>&nbsp;<span class="element-name">ifThen</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a>&gt;&nbsp;thenHandler)</span></div>
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></span>&nbsp;<span class="element-name">ifThen</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a>&gt;&nbsp;thenHandler)</span></div>
 <div class="block">Add an "if-then" block that is conditional on the boolean value
- on top of the operand stack.</div>
+ on top of the operand stack.
+ <p>
+ The <a href="CodeBuilder.BlockCodeBuilder.html#breakLabel()"><code>CodeBuilder.BlockCodeBuilder.breakLabel()</code></a> for the "then" block corresponds to the
+ end of that block.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
-<dd><code>thenHandler</code> - handler that receives a <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a> to
+<dd><code>thenHandler</code> - handler that receives a <a href="CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a> to
                     generate the body of the <code>if</code></dd>
 <dt>Returns:</dt>
 <dd>this builder</dd>
@@ -1110,17 +1140,43 @@ extends <a href="ClassfileBuilder.html" title="interface in jdk.classfile">Class
 </section>
 </li>
 <li>
-<section class="detail" id="ifThenElse(java.util.function.Consumer,java.util.function.Consumer)">
-<h3>ifThenElse</h3>
-<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></span>&nbsp;<span class="element-name">ifThenElse</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a>&gt;&nbsp;thenHandler,
- <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a>&gt;&nbsp;elseHandler)</span></div>
-<div class="block">Add an "if-then-else" block that is conditional on the boolean value
- on top of the operand stack.</div>
+<section class="detail" id="ifThen(jdk.classfile.Opcode,java.util.function.Consumer)">
+<h3>ifThen</h3>
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></span>&nbsp;<span class="element-name">ifThen</span><wbr><span class="parameters">(<a href="Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode,
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a>&gt;&nbsp;thenHandler)</span></div>
+<div class="block">Add an "if-then" block that is conditional on the value(s) on top of the operand stack
+ in accordance with the given opcode.
+ <p>
+ The <a href="CodeBuilder.BlockCodeBuilder.html#breakLabel()"><code>CodeBuilder.BlockCodeBuilder.breakLabel()</code></a> for the "then" block corresponds to the
+ end of that block.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
-<dd><code>thenHandler</code> - handler that receives a <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a> to
+<dd><code>opcode</code> - the operation code for a branch instructions that accepts one or two operands on the stack</dd>
+<dd><code>thenHandler</code> - handler that receives a <a href="CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a> to
                     generate the body of the <code>if</code></dd>
-<dd><code>elseHandler</code> - handler that receives a <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a> to
+<dt>Returns:</dt>
+<dd>this builder</dd>
+<dt>Throws:</dt>
+<dd><code><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/IllegalArgumentException.html" title="class or interface in java.lang" class="external-link">IllegalArgumentException</a></code> - if the operation code is not for a branch instruction that accepts
+ one or two operands</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="ifThenElse(java.util.function.Consumer,java.util.function.Consumer)">
+<h3>ifThenElse</h3>
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></span>&nbsp;<span class="element-name">ifThenElse</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a>&gt;&nbsp;thenHandler,
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a>&gt;&nbsp;elseHandler)</span></div>
+<div class="block">Add an "if-then-else" block that is conditional on the boolean value
+ on top of the operand stack.
+ <p>
+ The <a href="CodeBuilder.BlockCodeBuilder.html#breakLabel()"><code>CodeBuilder.BlockCodeBuilder.breakLabel()</code></a> for each block corresponds to the
+ end of the "else" block.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>thenHandler</code> - handler that receives a <a href="CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a> to
+                    generate the body of the <code>if</code></dd>
+<dd><code>elseHandler</code> - handler that receives a <a href="CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a> to
                     generate the body of the <code>else</code></dd>
 <dt>Returns:</dt>
 <dd>this builder</dd>
@@ -1128,9 +1184,35 @@ extends <a href="ClassfileBuilder.html" title="interface in jdk.classfile">Class
 </section>
 </li>
 <li>
+<section class="detail" id="ifThenElse(jdk.classfile.Opcode,java.util.function.Consumer,java.util.function.Consumer)">
+<h3>ifThenElse</h3>
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></span>&nbsp;<span class="element-name">ifThenElse</span><wbr><span class="parameters">(<a href="Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode,
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a>&gt;&nbsp;thenHandler,
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a>&gt;&nbsp;elseHandler)</span></div>
+<div class="block">Add an "if-then-else" block that is conditional on the value(s) on top of the operand stack
+ in accordance with the given opcode.
+ <p>
+ The <a href="CodeBuilder.BlockCodeBuilder.html#breakLabel()"><code>CodeBuilder.BlockCodeBuilder.breakLabel()</code></a> for each block corresponds to the
+ end of the "else" block.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>opcode</code> - the operation code for a branch instructions that accepts one or two operands on the stack</dd>
+<dd><code>thenHandler</code> - handler that receives a <a href="CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a> to
+                    generate the body of the <code>if</code></dd>
+<dd><code>elseHandler</code> - handler that receives a <a href="CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a> to
+                    generate the body of the <code>else</code></dd>
+<dt>Returns:</dt>
+<dd>this builder</dd>
+<dt>Throws:</dt>
+<dd><code><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/IllegalArgumentException.html" title="class or interface in java.lang" class="external-link">IllegalArgumentException</a></code> - if the operation code is not for a branch instruction that accepts
+ one or two operands</dd>
+</dl>
+</section>
+</li>
+<li>
 <section class="detail" id="trying(java.util.function.Consumer,java.util.function.Consumer)">
 <h3>trying</h3>
-<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></span>&nbsp;<span class="element-name">trying</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a>&gt;&nbsp;tryHandler,
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></span>&nbsp;<span class="element-name">trying</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a>&gt;&nbsp;tryHandler,
  <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.CatchBuilder.html" title="interface in jdk.classfile">CodeBuilder.CatchBuilder</a>&gt;&nbsp;catchesHandler)</span></div>
 <div class="block">Adds a "try-catch" block comprising one try block and zero or more catch blocks.
  Exceptions thrown by instructions in the try block may be caught by catch blocks.</div>
