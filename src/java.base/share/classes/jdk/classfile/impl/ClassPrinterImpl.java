@@ -567,21 +567,13 @@ public final class ClassPrinterImpl implements ClassPrinter {
             classElements.add(new BlockMapping("constant pool", cpEntries));
         }
         if (verbosity != VerbosityLevel.MEMBERS_ONLY) printAttributes(clm.attributes(), classElements);
-//        out.accept(format.fieldsHeader.formatted());
-//        boolean first = true;
-//        for (var f : clm.fields()) {
-//            if (first) first = false; else out.accept(format.mandatoryDelimiter);
+        classElements.add(new BlockList("fields", clm.fields().stream().map(f -> {
+            var fieldElements = new LinkedList<Printable>();
 //            out.accept(format.field.header().formatted(f.fieldName().stringValue(), quoteFlags(f.flags().flags()), f.fieldType().stringValue(), attributeNames(f.attributes())));
-//            if (verbosity != VerbosityLevel.MEMBERS_ONLY) printAttributes("        ", f.attributes());
-//            out.accept(format.field.footer().formatted());
-//        }
-//        out.accept(format.methodsHeader.formatted());
-//        first = true;
-//        for (var m : clm.methods()) {
-//            if (first) first = false; else out.accept(format.mandatoryDelimiter);
-//            printMethod(m);
-//        }
-//        out.accept(format.classForm.footer().formatted());
+            if (verbosity != VerbosityLevel.MEMBERS_ONLY) printAttributes(f.attributes(), fieldElements);
+            return new BlockMapping("field", fieldElements);
+        }).toList()));
+        classElements.add(new BlockList("methods", clm.methods().stream().map(this::asPrintable).toList()));
         return new BlockMapping("class", classElements);
     }
 
@@ -752,6 +744,11 @@ public final class ClassPrinterImpl implements ClassPrinter {
 
     @Override
     public void printMethod(MethodModel m) {
+        printer.print(asPrintable(m), out);
+    }
+
+    private BlockMapping asPrintable(MethodModel m) {
+        var methodElements = new LinkedList<Printable>();
 //        out.accept(format.method.header().formatted(escape(m.methodName().stringValue()), quoteFlags(m.flags().flags()), m.methodType().stringValue(), attributeNames(m.attributes())));
 //        if (verbosity != VerbosityLevel.MEMBERS_ONLY) {
 //            printAttributes("        ", m.attributes());
@@ -857,5 +854,6 @@ public final class ClassPrinterImpl implements ClassPrinter {
 //            });
 //        }
 //        out.accept(format.method.footer().formatted());
+        return new BlockMapping("method", methodElements);
     }
 }
