@@ -42,14 +42,14 @@ public sealed interface ClassPrinter permits ClassPrinterImpl {
      void printMethod(MethodModel methodModel);
 
      static ClassPrinter jsonPrinter(VerbosityLevel verbosity, Consumer<String> output) {
-         return new ClassPrinterImpl(ClassPrinterImpl.JSON, verbosity, output);
+         return new ClassPrinterImpl(ClassPrinterImpl.JSON_PRINTER, verbosity, output);
      }
 
      static ClassPrinter xmlPrinter(VerbosityLevel verbosity, Consumer<String> output) {
-         return new ClassPrinterImpl(ClassPrinterImpl.XML, verbosity, output);
+         return new ClassPrinterImpl(ClassPrinterImpl.XML_PRINTER, verbosity, output);
      }
 
      static ClassPrinter yamlPrinter(VerbosityLevel verbosity, Consumer<String> output) {
-         return new ClassPrinterImpl(ClassPrinterImpl.YAML, verbosity, output);
+         return new ClassPrinterImpl(ClassPrinterImpl.YAML_PRINTER, verbosity, output);
      }
 }
