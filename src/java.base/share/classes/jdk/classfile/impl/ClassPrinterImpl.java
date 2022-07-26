@@ -546,7 +546,7 @@ public final class ClassPrinterImpl implements ClassPrinter {
 
     @Override
     public void printClass(ClassModel clm) {
-        printer.print(new BlockList("classes", List.of(asPrintable(clm))), out);
+        printer.print(asPrintable(clm), out);
     }
 
     private BlockMapping asPrintable(ClassModel clm) {
@@ -569,7 +569,10 @@ public final class ClassPrinterImpl implements ClassPrinter {
         if (verbosity != VerbosityLevel.MEMBERS_ONLY) printAttributes(clm.attributes(), classElements);
         classElements.add(new BlockList("fields", clm.fields().stream().map(f -> {
             var fieldElements = new LinkedList<Printable>();
-//            out.accept(format.field.header().formatted(f.fieldName().stringValue(), quoteFlags(f.flags().flags()), f.fieldType().stringValue(), attributeNames(f.attributes())));
+            fieldElements.add(new Value("field name", f.fieldName().stringValue()));
+            fieldElements.add(new ValueList("flags", f.flags().flags().stream().map(AccessFlag::name).toList()));
+            fieldElements.add(new Value("field type", f.fieldType().stringValue()));
+            fieldElements.add(new ValueList("attributes", f.attributes().stream().map(Attribute::attributeName).toList()));
             if (verbosity != VerbosityLevel.MEMBERS_ONLY) printAttributes(f.attributes(), fieldElements);
             return new BlockMapping("field", fieldElements);
         }).toList()));
@@ -716,7 +719,7 @@ public final class ClassPrinterImpl implements ClassPrinter {
 //                case SignatureAttribute sa ->
 //                    out.accept(format.simpleQuotedAttr.formatted(indentSpace, "signature", escape(sa.signature().stringValue())));
                 case SourceFileAttribute sfa ->
-                    printables.add(new Value("source", sfa.sourceFile().stringValue()));
+                    printables.add(new Value("source file", sfa.sourceFile().stringValue()));
                 default -> {}
             }
         }
@@ -749,9 +752,12 @@ public final class ClassPrinterImpl implements ClassPrinter {
 
     private BlockMapping asPrintable(MethodModel m) {
         var methodElements = new LinkedList<Printable>();
-//        out.accept(format.method.header().formatted(escape(m.methodName().stringValue()), quoteFlags(m.flags().flags()), m.methodType().stringValue(), attributeNames(m.attributes())));
-//        if (verbosity != VerbosityLevel.MEMBERS_ONLY) {
-//            printAttributes("        ", m.attributes());
+        methodElements.add(new Value("method name", m.methodName().stringValue()));
+        methodElements.add(new ValueList("flags", m.flags().flags().stream().map(AccessFlag::name).toList()));
+        methodElements.add(new Value("method type", m.methodType().stringValue()));
+        methodElements.add(new ValueList("attributes", m.attributes().stream().map(Attribute::attributeName).toList()));
+        if (verbosity != VerbosityLevel.MEMBERS_ONLY) {
+            printAttributes(m.attributes(), methodElements);
 //            m.code().ifPresent(com -> {
 //                out.accept(format.code.header().formatted(((CodeAttribute)com).maxStack(), ((CodeAttribute)com).maxLocals(), attributeNames(com.attributes())));
 //                var stackMap = new LinkedHashMap<Integer, StackMapFrame>();
@@ -852,8 +858,7 @@ public final class ClassPrinterImpl implements ClassPrinter {
 //                    printTable(format.exceptionHandlers, excHandlers, exc -> new Object[]{exc.start(), exc.end(), exc.handler(), exc.catchType()});
 //                }
 //            });
-//        }
-//        out.accept(format.method.footer().formatted());
+        }
         return new BlockMapping("method", methodElements);
     }
 }
