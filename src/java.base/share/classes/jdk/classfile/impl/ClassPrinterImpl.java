@@ -31,6 +31,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -87,6 +88,7 @@ import static jdk.classfile.Classfile.TAG_NAMEANDTYPE;
 import static jdk.classfile.Classfile.TAG_PACKAGE;
 import static jdk.classfile.Classfile.TAG_STRING;
 import static jdk.classfile.Classfile.TAG_UTF8;
+import static jdk.classfile.impl.ClassPrinterImpl.Style.*;
 
 /**
  * ClassPrinterImpl
@@ -107,23 +109,16 @@ public final class ClassPrinterImpl implements ClassPrinter {
 //        String frameInline, Table stackMapTable, Table lineNumberTable, Table characterRangeTable, Table localVariableTypeTable,
 //        Function<String, String> escapeFunction) {}
 
-    public sealed interface Printable {
-        public String key();
-    }
 
-    public sealed interface Fragment extends Printable {}
+    public enum Style { BLOCK, FLOW }
 
-    public record Value(String key, ConstantDesc value) implements Fragment {}
+    public sealed interface Printable {}
 
-    public record ValueList(String key, Collection<? extends ConstantDesc> values) implements Fragment {}
+    public record PrintableValue(ConstantDesc value) implements Printable {}
 
-    public record Mapping(String key, Collection<Fragment> fragments) implements Printable {}
+    public record PrintableList(Style style, List<? extends Printable> list) implements Printable {}
 
-    public record BlockMapping(String key,  Collection<Printable> printables) implements Printable {}
-
-    public record BlockList(String key,  Collection<BlockMapping> blockMappings) implements Printable {}
-
-    public record Comment(String key) implements Printable {}
+    public record PrintableMap(Style style, Map<? extends ConstantDesc, ? extends Printable> map) implements Printable {}
 
 //    public static final Format YAML = new Format('\'', false, true, "", ", ",
 //            new Block("  - class name: '%s'%n    version: '%d.%d'%n    flags: %s%n    superclass: '%s'%n    interfaces: %s%n    attributes: %s", "%n"),
@@ -207,49 +202,55 @@ public final class ClassPrinterImpl implements ClassPrinter {
 
         private void print(int indent, boolean skipFirstIndent, Printable node, Consumer<String> out) {
             switch (node) {
-                case Value v -> {
+                case PrintableValue v -> {
                     out.accept(quoteAndEscape(v.value));
                 }
-                case ValueList pl -> {
-                    out.accept("[");
-                    boolean first = true;
-                    for (var v : pl.values) {
-                        if (first) first = false;
-                        else out.accept(", ");
-                        out.accept(quoteAndEscape(v));
-                    }
-                    out.accept("]");
-                }
-                case Mapping m -> {
-                    out.accept("{");
-                    boolean first = true;
-                    for (var n : m.fragments) {
-                        if (first) first = false;
-                        else out.accept(", ");
-                        out.accept(n.key() + ": ");
-                        print(0, false, n, out);
-                    }
-                    out.accept("}");
-                }
-                case BlockList bl -> {
-                    for (var n : bl.blockMappings) {
-                        out.accept(NL + "    ".repeat(indent) + "  - ");
-                        print(indent + 1, true, n, out);
-                    }
-                }
-                case BlockMapping bm -> {
-                    for (var n : bm.printables) {
-                        if (skipFirstIndent) {
-                            skipFirstIndent = false;
-                        } else {
-                            out.accept(NL + "    ".repeat(indent));
+                case PrintableList pl -> {
+                    switch (pl.style) {
+                        case FLOW -> {
+                            out.accept("[");
+                            boolean first = true;
+                            for (var s : pl.list) {
+                                if (first) first = false;
+                                else out.accept(", ");
+                                print(0, false, s, out);
+                            }
+                            out.accept("]");
                         }
-                       if (!(n instanceof Comment)) out.accept(n.key() + ": ");
-                        print(n instanceof BlockList ? indent : indent + 1, false, n, out);
+                        case BLOCK -> {
+                            for (var n : pl.list) {
+                                out.accept(NL + "    ".repeat(indent) + "  - ");
+                                print(indent + 1, true, n, out);
+                            }
+                        }
                     }
                 }
-                case Comment c -> {
-                    out.accept("#" + c.key);
+                case PrintableMap pm -> {
+                    switch (pm.style) {
+                        case FLOW -> {
+                            out.accept("{");
+                            boolean first = true;
+                            for (var me : pm.map.entrySet()) {
+                                if (first) first = false;
+                                else out.accept(", ");
+                                out.accept(quoteAndEscape(me.getKey()) + ": ");
+                                print(0, false, me.getValue(), out);
+                            }
+                            out.accept("}");
+                        }
+                        case BLOCK -> {
+                            for (var me : pm.map.entrySet()) {
+                                if (skipFirstIndent) {
+                                    skipFirstIndent = false;
+                                } else {
+                                    out.accept(NL + "    ".repeat(indent));
+                                }
+                                out.accept(quoteAndEscape(me.getKey()) + ": ");
+                                var n = me.getValue();
+                                print(n instanceof PrintableList pl && pl.style == BLOCK ? indent : indent + 1, false, n, out);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -280,106 +281,6 @@ public final class ClassPrinterImpl implements ClassPrinter {
         }
     }
 
-    public static final class XmlPrinter implements Printer {
-
-        @Override
-        public void print(Printable node, Consumer<String> out) {
-            out.accept("<?xml version = '1.0'?>");
-            print(0, node, out);
-            out.accept(NL);
-        }
-
-        private void print(int indent, Printable node, Consumer<String> out) {
-            switch (node) {
-                case Value v -> {
-                    out.accept(escape(v.value));
-                }
-                case ValueList vl -> {
-                    printList(out, vl.values);
-                }
-                case Mapping m -> {
-                    out.accept(NL + "    ".repeat(indent) + "<" + toXmlName(m.key));
-                    for (var n : m.fragments) {
-                        out.accept(" " + toXmlName(n.key()) + "='");
-                        print(0, n, out);
-                        out.accept("'");
-                    }
-                    out.accept("/>");
-                }
-                case BlockList bl -> {
-                    printBlock(indent, out, bl.key, bl.blockMappings);
-               }
-                case BlockMapping bm -> {
-                    printBlock(indent, out, bm.key, bm.printables);
-                }
-                case Comment c -> {
-                    out.accept(NL + "    ".repeat(indent) + "<!--" + c.key + " -->");
-                }
-            }
-        }
-
-        private static String escape(ConstantDesc value) {
-            var s = value.toString();
-            var sb = new StringBuilder(s.length() << 1);
-            s.chars().forEach(c -> {
-            switch (c) {
-                case '<'  -> sb.append("&lt;");
-                case '>'  -> sb.append("&gt;");
-                case '"'  -> sb.append("&quot;");
-                case '&'  -> sb.append("&amp;");
-                case '\''  -> sb.append("&apos;");
-                default -> ClassPrinterImpl.escape(c, sb);
-            }});
-            return sb.toString();
-        }
-
-        private static String toXmlName(String name) {
-            if (Character.isDigit(name.charAt(0)))
-                name = "_" + name;
-            return name.replace(' ', '_');
-        }
-
-        private static void printList(Consumer<String> out, Collection<? extends ConstantDesc> values) {
-            out.accept("[");
-            boolean first = true;
-            for (var v : values) {
-                if (first) first = false;
-                else out.accept(", ");
-                out.accept(escape(v));
-            }
-            out.accept("]");
-        }
-
-        private void printBlock(int indent, Consumer<String> out, String name, Collection<? extends Printable> printables) {
-            name = toXmlName(name);
-            out.accept(NL + "    ".repeat(indent) + "<" + name);
-            boolean nested = false;
-            boolean first = true;
-            for (var n : printables) {
-                if (n instanceof Fragment) {
-                    if (first) {
-                        out.accept(" ");
-                        first = false;
-                    } else out.accept(NL + "    ".repeat(indent + 1));
-                    out.accept(toXmlName(n.key()) + "='");
-                    print(0, n, out);
-                    out.accept("'");
-                } else {
-                    nested = true;
-                }
-            }
-            if (nested) {
-                out.accept(">");
-                for (var n : printables)
-                    if (!(n instanceof Fragment))
-                        print(indent + 1, n, out);
-                out.accept("</" + name + ">");
-            } else {
-                out.accept("/>");
-            }
-        }
-     }
-
     public static final class JsonPrinter implements Printer {
 
         @Override
@@ -390,58 +291,58 @@ public final class ClassPrinterImpl implements ClassPrinter {
 
         private void print(int indent, boolean skipFirstIndent, Printable node, Consumer<String> out) {
             switch (node) {
-                case Value v -> {
+                case PrintableValue v -> {
                     out.accept(quoteAndEscape(v.value));
                 }
-                case ValueList vl -> {
+                case PrintableList pl -> {
                     out.accept("[");
                     boolean first = true;
-                    for (var v : vl.values) {
-                        if (first) first = false;
-                        else out.accept(", ");
-                        out.accept(quoteAndEscape(v));
+                    switch (pl.style) {
+                        case FLOW -> {
+                            for (var s : pl.list) {
+                                if (first) first = false;
+                                else out.accept(", ");
+                                print(0, false, s, out);
+                            }
+                        }
+                        case BLOCK -> {
+                            for (var n : pl.list) {
+                                if (first) first = false;
+                                else out.accept(",");
+                                out.accept(NL + "    ".repeat(indent));
+                                print(indent + 1, true, n, out);
+                            }
+                        }
                     }
                     out.accept("]");
                 }
-                case Mapping m -> {
-                    out.accept("{");
-                    boolean first = true;
-                    for (var n : m.fragments) {
-                        if (first) first = false;
-                        else out.accept(", ");
-                        out.accept("\"" + n.key() + "\": ");
-                        print(0, false, n, out);
-                    }
-                    out.accept("}");
-                }
-                case BlockList bl -> {
-                    out.accept("[");
-                    boolean first = true;
-                    for (var n : bl.blockMappings) {
-                        if (first) first = false;
-                        else out.accept(",");
-                        out.accept(NL + "    ".repeat(indent));
-                        print(indent + 1, true, n, out);
-                    }
-                    out.accept("]");
-                }
-                case BlockMapping bm -> {
-                    if (skipFirstIndent) out.accept("  { ");
-                    else out.accept("{");
-                    boolean first = true;
-                    for (var n : bm.printables) {
-                        if (!(n instanceof Comment)) {
-                            if (first) first = false;
-                            else out.accept(",");
-                            if (skipFirstIndent) skipFirstIndent = false;
-                            else out.accept(NL + "    ".repeat(indent));
-                            out.accept("\"" + n.key() + "\": ");
-                            print(indent + 1, false, n, out);
+                case PrintableMap pm -> {
+                    switch (pm.style) {
+                        case FLOW -> {
+                            out.accept("{");
+                            boolean first = true;
+                            for (var me : pm.map.entrySet()) {
+                                if (first) first = false;
+                                else out.accept(", ");
+                                out.accept(quoteAndEscape(me.getKey().toString()) + ": ");
+                                print(0, false, me.getValue(), out);
+                            }
+                        }
+                        case BLOCK -> {
+                            if (skipFirstIndent) out.accept("  { ");
+                            else out.accept("{");
+                            boolean first = true;
+                            for (var me : pm.map.entrySet()) {
+                                if (first) first = false;
+                                else out.accept(",");
+                                if (skipFirstIndent) skipFirstIndent = false;
+                                else out.accept(NL + "    ".repeat(indent));
+                                out.accept(quoteAndEscape(me.getKey().toString()) + ": ");
+                                print(indent + 1, false, me.getValue(), out);
+                            }
                         }
                     }
                     out.accept("}");
-                }
-                case Comment c -> {
                 }
             }
         }
@@ -454,6 +355,93 @@ public final class ClassPrinterImpl implements ClassPrinter {
             s.chars().forEach(c -> escape(c, sb));
             sb.append('"');
             return sb.toString();
+        }
+    }
+
+    public static final class XmlPrinter implements Printer {
+
+        @Override
+        public void print(Printable node, Consumer<String> out) {
+            out.accept("<?xml version = '1.0'?>");
+            print(0, false, node, out);
+            out.accept(NL);
+        }
+
+        private void print(int indent, boolean skipFirstIndent, Printable node, Consumer<String> out) {
+            switch (node) {
+                case PrintableValue v -> {
+                    out.accept(xmlEscape(v.value));
+                }
+                case PrintableList pl -> {
+                    switch (pl.style) {
+                        case FLOW -> {
+                            for (var n : pl.list) {
+                                if (n instanceof PrintableValue v) {
+                                    out.accept("<item>");
+                                    print(0, false, n, out);
+                                    out.accept("</item>");
+                                } else {
+                                    print(0, false, n, out);
+                                }
+                            }
+                        }
+                        case BLOCK -> {
+                            for (var n : pl.list) {
+                                out.accept(NL + "    ".repeat(indent));
+                                if (n instanceof PrintableValue v) {
+                                    out.accept("<item>");
+                                    print(0, false, n, out);
+                                    out.accept("</item>");
+                                } else {
+                                    print(indent + 1, true, n, out);
+                                }
+                            }
+                        }
+                    }
+                }
+                case PrintableMap pm -> {
+                    switch (pm.style) {
+                        case FLOW -> {
+                            for (var me : pm.map.entrySet()) {
+                                var name = toXmlName(me.getKey().toString());
+                                out.accept("<" + name + ">");
+                                print(0, false, me.getValue(), out);
+                                out.accept("</" + name + ">");
+                            }
+                        }
+                        case BLOCK -> {
+                            for (var me : pm.map.entrySet()) {
+                                if (skipFirstIndent) skipFirstIndent = false;
+                                else out.accept("\n" + "    ".repeat(indent));
+                                var name = toXmlName(me.getKey().toString());
+                                out.accept("<" + name + ">");
+                                print(indent + 1, false, me.getValue(), out);
+                                out.accept("</" + name + ">");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+       private static String xmlEscape(ConstantDesc value) {
+            var s = value.toString();
+            var sb = new StringBuilder(s.length() << 1);
+            s.chars().forEach(c -> {
+            switch (c) {
+                case '<'  -> sb.append("&lt;");
+                case '>'  -> sb.append("&gt;");
+                case '"'  -> sb.append("&quot;");
+                case '&'  -> sb.append("&amp;");
+                case '\''  -> sb.append("&apos;");
+                default -> escape(c, sb);
+            }});
+            return sb.toString();
+        }
+
+        private static String toXmlName(String name) {
+            if (Character.isDigit(name.charAt(0)))
+                name = "_" + name;
+            return name.replaceAll("[^A-Za-z_0-9]", "_");
         }
     }
 
@@ -549,35 +537,73 @@ public final class ClassPrinterImpl implements ClassPrinter {
         printer.print(asPrintable(clm), out);
     }
 
-    private BlockMapping asPrintable(ClassModel clm) {
-        var classElements = new LinkedList<Printable>();
-        classElements.add(new Value("class name", clm.thisClass().asInternalName()));
-        classElements.add(new Value("version", clm.majorVersion() + "." + clm.minorVersion()));
-        classElements.add(new ValueList("flags", clm.flags().flags().stream().map(AccessFlag::name).toList()));
-        classElements.add(new Value("superclass", clm.superclass().map(ClassEntry::asInternalName).orElse("")));
-        classElements.add(new ValueList("interfaces", clm.interfaces().stream().map(ClassEntry::asInternalName).toList()));
-        classElements.add(new ValueList("attributes", clm.attributes().stream().map(Attribute::attributeName).toList()));
+    private static Printable value(ConstantDesc value) {
+        return new PrintableValue(value);
+    }
+
+    private static PrintableList list(Object... values) {
+        return list(Stream.of(values));
+    }
+
+    private static PrintableList list(Stream<?> values) {
+        return new PrintableList(FLOW, values.map(v -> {
+            return switch (v) {
+                case Printable p -> p;
+                case ConstantDesc cd -> new PrintableValue(cd);
+                default -> throw new IllegalArgumentException();
+            };
+        }).toList());
+    }
+
+    private static PrintableMap blockMap(Object... keysAndValues) {
+        return _map(BLOCK, keysAndValues);
+    }
+
+    private static PrintableMap map(Object... keysAndValues) {
+        return _map(FLOW, keysAndValues);
+    }
+
+    private static PrintableMap _map(Style style, Object... keysAndValues) {
+        var map = new LinkedHashMap<ConstantDesc, Printable>();
+        for (int i = 0; i < keysAndValues.length; i += 2) {
+            switch (keysAndValues[i + 1]) {
+                case Printable p -> map.put((ConstantDesc)keysAndValues[i], p);
+                case ConstantDesc cd -> map.put((ConstantDesc)keysAndValues[i], new PrintableValue(cd));
+                default -> throw new IllegalArgumentException();
+            }
+        }
+        return new PrintableMap(style, map);
+    }
+
+    private Printable asPrintable(ClassModel clm) {
+        var classElements = new LinkedHashMap<String, Printable>();
+        classElements.put("class name", value(clm.thisClass().asInternalName()));
+        classElements.put("version", value(clm.majorVersion() + "." + clm.minorVersion()));
+        classElements.put("flags", list(clm.flags().flags().stream().map(AccessFlag::name)));
+        classElements.put("superclass", value(clm.superclass().map(ClassEntry::asInternalName).orElse("")));
+        classElements.put("interfaces", list(clm.interfaces().stream().map(ClassEntry::asInternalName)));
+        classElements.put("attributes", list(clm.attributes().stream().map(Attribute::attributeName)));
         if (verbosity == VerbosityLevel.TRACE_ALL) {
-            var cpEntries = new LinkedList<Printable>();
+            var cpEntries = new LinkedHashMap<Integer, Printable>();
             for (int i = 1; i < clm.constantPool().entryCount();) {
                 var e = clm.constantPool().entryByIndex(i);
-                cpEntries.add(printCPEntry(e));
+                cpEntries.put(i, printCPEntry(e));
                 i += e.poolEntries();
             }
-            classElements.add(new BlockMapping("constant pool", cpEntries));
+            classElements.put("constant pool", new PrintableMap(BLOCK, cpEntries));
         }
         if (verbosity != VerbosityLevel.MEMBERS_ONLY) printAttributes(clm.attributes(), classElements);
-        classElements.add(new BlockList("fields", clm.fields().stream().map(f -> {
-            var fieldElements = new LinkedList<Printable>();
-            fieldElements.add(new Value("field name", f.fieldName().stringValue()));
-            fieldElements.add(new ValueList("flags", f.flags().flags().stream().map(AccessFlag::name).toList()));
-            fieldElements.add(new Value("field type", f.fieldType().stringValue()));
-            fieldElements.add(new ValueList("attributes", f.attributes().stream().map(Attribute::attributeName).toList()));
+        classElements.put("fields", new PrintableList(BLOCK, clm.fields().stream().map(f -> {
+            var fieldElements = new LinkedHashMap<String, Printable>();
+            fieldElements.put("field name", value(f.fieldName().stringValue()));
+            fieldElements.put("flags", list(f.flags().flags().stream().map(AccessFlag::name)));
+            fieldElements.put("field type", value(f.fieldType().stringValue()));
+            fieldElements.put("attributes", list(f.attributes().stream().map(Attribute::attributeName)));
             if (verbosity != VerbosityLevel.MEMBERS_ONLY) printAttributes(f.attributes(), fieldElements);
-            return new BlockMapping("field", fieldElements);
+            return new PrintableMap(BLOCK, fieldElements);
         }).toList()));
-        classElements.add(new BlockList("methods", clm.methods().stream().map(this::asPrintable).toList()));
-        return new BlockMapping("class", classElements);
+        classElements.put("methods", new PrintableList(BLOCK, clm.methods().stream().map(this::asPrintable).toList()));
+        return new PrintableMap(BLOCK, classElements);
     }
 
 
@@ -604,50 +630,62 @@ public final class ClassPrinterImpl implements ClassPrinter {
         };
     }
 
-    private Mapping printCPEntry(PoolEntry e) {
-        return switch (e) {
+    private Printable printCPEntry(PoolEntry e) {
+        return list(tagName(e.tag()), switch (e) {
             case Utf8Entry ve -> printValueEntry(ve);
             case IntegerEntry ve -> printValueEntry(ve);
             case FloatEntry ve -> printValueEntry(ve);
             case LongEntry ve -> printValueEntry(ve);
             case DoubleEntry ve -> printValueEntry(ve);
             case ClassEntry ce -> printNamedEntry(e, ce.name());
-            case StringEntry se -> new Mapping(String.valueOf(e.index()), List.of(new Value("tag", tagName(e.tag())),
-                    new Value("value index", se.utf8().index()), new Value("value", se.stringValue())));
-            case MemberRefEntry mre -> new Mapping(String.valueOf(e.index()), List.of(new Value("tag", tagName(e.tag())),
-                    new Value("owner index", mre.owner().index()), new Value("name and type index", mre.nameAndType().index()), new Value("owner", mre.owner().asInternalName()),
-                    new Value("name", mre.name().stringValue()), new Value("type", mre.type().stringValue())));
-            case NameAndTypeEntry nte -> new Mapping(String.valueOf(e.index()), List.of(new Value("tag", tagName(e.tag())),
-                    new Value("name index", nte.name().index()), new Value("type index", nte.type().index()),
-                    new Value("name", nte.name().stringValue()), new Value("type", nte.type().stringValue())));
-            case MethodHandleEntry mhe -> new Mapping(String.valueOf(e.index()), List.of(new Value("tag", tagName(e.tag())),
-                    new Value("reference kind", DirectMethodHandleDesc.Kind.valueOf(mhe.kind()).name()), new Value("reference index", mhe.reference().index()),
-                    new Value("owner", mhe.reference().owner().asInternalName()),
-                    new Value("name", mhe.reference().name().stringValue()), new Value("type", mhe.reference().type().stringValue())));
-            case MethodTypeEntry mte -> new Mapping(String.valueOf(e.index()), List.of(new Value("tag", tagName(e.tag())),
-                    new Value("descriptor index", mte.descriptor().index()), new Value("descriptor", mte.descriptor().stringValue())));
+            case StringEntry se -> map(
+                    "value index", se.utf8().index(),
+                    "value", se.stringValue());
+            case MemberRefEntry mre -> map(
+                    "owner index", mre.owner().index(),
+                    "name and type index", mre.nameAndType().index(),
+                    "owner", mre.owner().asInternalName(),
+                    "name", mre.name().stringValue(),
+                    "type", mre.type().stringValue());
+            case NameAndTypeEntry nte -> map(
+                    "name index", nte.name().index(),
+                    "type index", nte.type().index(),
+                    "name", nte.name().stringValue(),
+                    "type", nte.type().stringValue());
+            case MethodHandleEntry mhe -> map(
+                    "reference kind", DirectMethodHandleDesc.Kind.valueOf(mhe.kind()).name(),
+                    "reference index", mhe.reference().index(),
+                    "owner", mhe.reference().owner().asInternalName(),
+                    "name", mhe.reference().name().stringValue(),
+                    "type", mhe.reference().type().stringValue());
+            case MethodTypeEntry mte -> map(
+                    "descriptor index", mte.descriptor().index(),
+                    "descriptor", mte.descriptor().stringValue());
             case ConstantDynamicEntry cde -> printDynamicEntry(cde);
             case InvokeDynamicEntry ide -> printDynamicEntry(ide);
             case ModuleEntry me -> printNamedEntry(e, me.name());
             case PackageEntry pe -> printNamedEntry(e, pe.name());
-        };
+        });
     }
 
-    private Mapping printValueEntry(AnnotationConstantValueEntry e) {
-        return new Mapping(String.valueOf(e.index()), List.of(new Value("tag", tagName(e.tag())), new Value("value", String.valueOf(e.constantValue()))));
+    private Printable printValueEntry(AnnotationConstantValueEntry e) {
+        return map("value", String.valueOf(e.constantValue()));
     }
 
-    private Mapping printNamedEntry(PoolEntry e, Utf8Entry name) {
-        return new Mapping(String.valueOf(e.index()), List.of(new Value("tag", tagName(e.tag())), new Value("name index", name.index()), new Value("value", name.stringValue())));
+    private Printable printNamedEntry(PoolEntry e, Utf8Entry name) {
+        return map("name index", name.index(),
+                   "value", name.stringValue());
     }
 
-    private Mapping printDynamicEntry(DynamicConstantPoolEntry dcpe) {
-        return new Mapping(String.valueOf(dcpe.index()), List.of(new Value("tag", tagName(dcpe.tag())), new Value("bootstrap method handle index", dcpe.bootstrap().bootstrapMethod().index()),
-                new ValueList("bootstrap method arguments indexes", dcpe.bootstrap().arguments().stream().map(en -> en.index()).toList()),
-                new Value("name and type index", dcpe.nameAndType().index()), new Value("name", dcpe.name().stringValue()), new Value("type", dcpe.type().stringValue())));
+    private Printable printDynamicEntry(DynamicConstantPoolEntry dcpe) {
+        return map("bootstrap method handle index", dcpe.bootstrap().bootstrapMethod().index(),
+                   "bootstrap method arguments indexes", list(dcpe.bootstrap().arguments().stream().map(en -> en.index())),
+                   "name and type index", dcpe.nameAndType().index(),
+                   "name", dcpe.name().stringValue(),
+                   "type", dcpe.type().stringValue());
     }
 
-    private void printAttributes(List<Attribute<?>> attributes, List<Printable> printables) {
+    private void printAttributes(List<Attribute<?>> attributes, Map<String, Printable> printables) {
         for (var attr : attributes) {
 //            switch (attr) {
 //                case BootstrapMethodsAttribute bma ->
@@ -719,7 +757,7 @@ public final class ClassPrinterImpl implements ClassPrinter {
 //                case SignatureAttribute sa ->
 //                    out.accept(format.simpleQuotedAttr.formatted(indentSpace, "signature", escape(sa.signature().stringValue())));
                 case SourceFileAttribute sfa ->
-                    printables.add(new Value("source file", sfa.sourceFile().stringValue()));
+                    printables.put("source file", value(sfa.sourceFile().stringValue()));
                 default -> {}
             }
         }
@@ -750,12 +788,12 @@ public final class ClassPrinterImpl implements ClassPrinter {
         printer.print(asPrintable(m), out);
     }
 
-    private BlockMapping asPrintable(MethodModel m) {
-        var methodElements = new LinkedList<Printable>();
-        methodElements.add(new Value("method name", m.methodName().stringValue()));
-        methodElements.add(new ValueList("flags", m.flags().flags().stream().map(AccessFlag::name).toList()));
-        methodElements.add(new Value("method type", m.methodType().stringValue()));
-        methodElements.add(new ValueList("attributes", m.attributes().stream().map(Attribute::attributeName).toList()));
+    private Printable asPrintable(MethodModel m) {
+        var methodElements = new LinkedHashMap<String, Printable>();
+        methodElements.put("method name", value(m.methodName().stringValue()));
+        methodElements.put("flags", list(m.flags().flags().stream().map(AccessFlag::name)));
+        methodElements.put("method type", value(m.methodType().stringValue()));
+        methodElements.put("attributes", list(m.attributes().stream().map(Attribute::attributeName)));
         if (verbosity != VerbosityLevel.MEMBERS_ONLY) {
             printAttributes(m.attributes(), methodElements);
 //            m.code().ifPresent(com -> {
@@ -859,6 +897,6 @@ public final class ClassPrinterImpl implements ClassPrinter {
 //                }
 //            });
         }
-        return new BlockMapping("method", methodElements);
+        return new PrintableMap(BLOCK, methodElements);
     }
 }
