@@ -116,7 +116,7 @@ public final class ClassPrinterImpl implements ClassPrinter {
 
     public record PrintableValue(ConstantDesc value) implements Printable {}
 
-    public record PrintableList(Style style, List<? extends Printable> list) implements Printable {}
+    public record PrintableList(Style style, String itemName, List<? extends Printable> list) implements Printable {}
 
     public record PrintableMap(Style style, Map<? extends ConstantDesc, ? extends Printable> map) implements Printable {}
 
@@ -363,38 +363,38 @@ public final class ClassPrinterImpl implements ClassPrinter {
         @Override
         public void print(Printable node, Consumer<String> out) {
             out.accept("<?xml version = '1.0'?>");
-            print(0, false, node, out);
+            print(0, node, out);
             out.accept(NL);
         }
 
-        private void print(int indent, boolean skipFirstIndent, Printable node, Consumer<String> out) {
+        private void print(int indent, Printable node, Consumer<String> out) {
             switch (node) {
                 case PrintableValue v -> {
                     out.accept(xmlEscape(v.value));
                 }
                 case PrintableList pl -> {
+                    var name = toXmlName(pl.itemName);
                     switch (pl.style) {
                         case FLOW -> {
                             for (var n : pl.list) {
+                                out.accept("<" + name + ">");
                                 if (n instanceof PrintableValue v) {
-                                    out.accept("<item>");
-                                    print(0, false, n, out);
-                                    out.accept("</item>");
+                                    print(0, n, out);
                                 } else {
-                                    print(0, false, n, out);
+                                    print(0, n, out);
                                 }
+                                out.accept("</" + name + ">");
                             }
                         }
                         case BLOCK -> {
                             for (var n : pl.list) {
-                                out.accept(NL + "    ".repeat(indent));
+                                out.accept(NL + "    ".repeat(indent) + "<" + name + ">");
                                 if (n instanceof PrintableValue v) {
-                                    out.accept("<item>");
-                                    print(0, false, n, out);
-                                    out.accept("</item>");
+                                    print(0, n, out);
                                 } else {
-                                    print(indent + 1, true, n, out);
+                                    print(indent + 1, n, out);
                                 }
+                                out.accept("</" + name + ">");
                             }
                         }
                     }
@@ -405,17 +405,16 @@ public final class ClassPrinterImpl implements ClassPrinter {
                             for (var me : pm.map.entrySet()) {
                                 var name = toXmlName(me.getKey().toString());
                                 out.accept("<" + name + ">");
-                                print(0, false, me.getValue(), out);
+                                print(0, me.getValue(), out);
                                 out.accept("</" + name + ">");
                             }
                         }
                         case BLOCK -> {
                             for (var me : pm.map.entrySet()) {
-                                if (skipFirstIndent) skipFirstIndent = false;
-                                else out.accept("\n" + "    ".repeat(indent));
+                                out.accept(NL + "    ".repeat(indent));
                                 var name = toXmlName(me.getKey().toString());
                                 out.accept("<" + name + ">");
-                                print(indent + 1, false, me.getValue(), out);
+                                print(indent + 1, me.getValue(), out);
                                 out.accept("</" + name + ">");
                             }
                         }
@@ -423,7 +422,8 @@ public final class ClassPrinterImpl implements ClassPrinter {
                 }
             }
         }
-       private static String xmlEscape(ConstantDesc value) {
+
+        private static String xmlEscape(ConstantDesc value) {
             var s = value.toString();
             var sb = new StringBuilder(s.length() << 1);
             s.chars().forEach(c -> {
@@ -534,19 +534,19 @@ public final class ClassPrinterImpl implements ClassPrinter {
 
     @Override
     public void printClass(ClassModel clm) {
-        printer.print(asPrintable(clm), out);
+        printer.print(new PrintableList(BLOCK, "class", List.of(asPrintable(clm))), out);
     }
 
     private static Printable value(ConstantDesc value) {
         return new PrintableValue(value);
     }
 
-    private static PrintableList list(Object... values) {
-        return list(Stream.of(values));
+    private static PrintableList list(String itemName, Object... values) {
+        return list(itemName, Stream.of(values));
     }
 
-    private static PrintableList list(Stream<?> values) {
-        return new PrintableList(FLOW, values.map(v -> {
+    private static PrintableList list(String itemName, Stream<?> values) {
+        return new PrintableList(FLOW, itemName, values.map(v -> {
             return switch (v) {
                 case Printable p -> p;
                 case ConstantDesc cd -> new PrintableValue(cd);
@@ -579,10 +579,10 @@ public final class ClassPrinterImpl implements ClassPrinter {
         var classElements = new LinkedHashMap<String, Printable>();
         classElements.put("class name", value(clm.thisClass().asInternalName()));
         classElements.put("version", value(clm.majorVersion() + "." + clm.minorVersion()));
-        classElements.put("flags", list(clm.flags().flags().stream().map(AccessFlag::name)));
+        classElements.put("flags", list("flag", clm.flags().flags().stream().map(AccessFlag::name)));
         classElements.put("superclass", value(clm.superclass().map(ClassEntry::asInternalName).orElse("")));
-        classElements.put("interfaces", list(clm.interfaces().stream().map(ClassEntry::asInternalName)));
-        classElements.put("attributes", list(clm.attributes().stream().map(Attribute::attributeName)));
+        classElements.put("interfaces", list("interface", clm.interfaces().stream().map(ClassEntry::asInternalName)));
+        classElements.put("attributes", list("attribute", clm.attributes().stream().map(Attribute::attributeName)));
         if (verbosity == VerbosityLevel.TRACE_ALL) {
             var cpEntries = new LinkedHashMap<Integer, Printable>();
             for (int i = 1; i < clm.constantPool().entryCount();) {
@@ -593,45 +593,45 @@ public final class ClassPrinterImpl implements ClassPrinter {
             classElements.put("constant pool", new PrintableMap(BLOCK, cpEntries));
         }
         if (verbosity != VerbosityLevel.MEMBERS_ONLY) printAttributes(clm.attributes(), classElements);
-        classElements.put("fields", new PrintableList(BLOCK, clm.fields().stream().map(f -> {
+        classElements.put("fields", new PrintableList(BLOCK, "field", clm.fields().stream().map(f -> {
             var fieldElements = new LinkedHashMap<String, Printable>();
             fieldElements.put("field name", value(f.fieldName().stringValue()));
-            fieldElements.put("flags", list(f.flags().flags().stream().map(AccessFlag::name)));
+            fieldElements.put("flags", list("flag", f.flags().flags().stream().map(AccessFlag::name)));
             fieldElements.put("field type", value(f.fieldType().stringValue()));
-            fieldElements.put("attributes", list(f.attributes().stream().map(Attribute::attributeName)));
+            fieldElements.put("attributes", list("attribute", f.attributes().stream().map(Attribute::attributeName)));
             if (verbosity != VerbosityLevel.MEMBERS_ONLY) printAttributes(f.attributes(), fieldElements);
             return new PrintableMap(BLOCK, fieldElements);
         }).toList()));
-        classElements.put("methods", new PrintableList(BLOCK, clm.methods().stream().map(this::asPrintable).toList()));
+        classElements.put("methods", new PrintableList(BLOCK, "method", clm.methods().stream().map(this::asPrintable).toList()));
         return new PrintableMap(BLOCK, classElements);
     }
 
 
     public static String tagName(byte tag) {
         return switch (tag) {
-            case TAG_UTF8 -> "CONSTANT_Utf8";
-            case TAG_INTEGER -> "CONSTANT_Integer";
-            case TAG_FLOAT -> "CONSTANT_Float";
-            case TAG_LONG -> "CONSTANT_Long";
-            case TAG_DOUBLE -> "CONSTANT_Double";
-            case TAG_CLASS -> "CONSTANT_Class";
-            case TAG_STRING -> "CONSTANT_String";
-            case TAG_FIELDREF -> "CONSTANT_Fieldref";
-            case TAG_METHODREF -> "CONSTANT_Methodref";
-            case TAG_INTERFACEMETHODREF -> "CONSTANT_InterfaceMethodref";
-            case TAG_NAMEANDTYPE -> "CONSTANT_NameAndType";
-            case TAG_METHODHANDLE -> "CONSTANT_MethodHandle";
-            case TAG_METHODTYPE -> "CONSTANT_MethodType";
-            case TAG_CONSTANTDYNAMIC -> "CONSTANT_Dynamic";
-            case TAG_INVOKEDYNAMIC -> "CONSTANT_InvokeDynamic";
-            case TAG_MODULE -> "CONSTANT_Module";
-            case TAG_PACKAGE -> "CONSTANT_Package";
+            case TAG_UTF8 -> "Utf8";
+            case TAG_INTEGER -> "Integer";
+            case TAG_FLOAT -> "Float";
+            case TAG_LONG -> "Long";
+            case TAG_DOUBLE -> "Double";
+            case TAG_CLASS -> "Class";
+            case TAG_STRING -> "String";
+            case TAG_FIELDREF -> "Fieldref";
+            case TAG_METHODREF -> "Methodref";
+            case TAG_INTERFACEMETHODREF -> "InterfaceMethodref";
+            case TAG_NAMEANDTYPE -> "NameAndType";
+            case TAG_METHODHANDLE -> "MethodHandle";
+            case TAG_METHODTYPE -> "MethodType";
+            case TAG_CONSTANTDYNAMIC -> "Dynamic";
+            case TAG_INVOKEDYNAMIC -> "InvokeDynamic";
+            case TAG_MODULE -> "Module";
+            case TAG_PACKAGE -> "Package";
             default -> null;
         };
     }
 
     private Printable printCPEntry(PoolEntry e) {
-        return list(tagName(e.tag()), switch (e) {
+        return switch (e) {
             case Utf8Entry ve -> printValueEntry(ve);
             case IntegerEntry ve -> printValueEntry(ve);
             case FloatEntry ve -> printValueEntry(ve);
@@ -639,47 +639,55 @@ public final class ClassPrinterImpl implements ClassPrinter {
             case DoubleEntry ve -> printValueEntry(ve);
             case ClassEntry ce -> printNamedEntry(e, ce.name());
             case StringEntry se -> map(
+                    "tag", tagName(e.tag()),
                     "value index", se.utf8().index(),
                     "value", se.stringValue());
             case MemberRefEntry mre -> map(
+                    "tag", tagName(e.tag()),
                     "owner index", mre.owner().index(),
                     "name and type index", mre.nameAndType().index(),
                     "owner", mre.owner().asInternalName(),
                     "name", mre.name().stringValue(),
                     "type", mre.type().stringValue());
             case NameAndTypeEntry nte -> map(
+                    "tag", tagName(e.tag()),
                     "name index", nte.name().index(),
                     "type index", nte.type().index(),
                     "name", nte.name().stringValue(),
                     "type", nte.type().stringValue());
             case MethodHandleEntry mhe -> map(
+                    "tag", tagName(e.tag()),
                     "reference kind", DirectMethodHandleDesc.Kind.valueOf(mhe.kind()).name(),
                     "reference index", mhe.reference().index(),
                     "owner", mhe.reference().owner().asInternalName(),
                     "name", mhe.reference().name().stringValue(),
                     "type", mhe.reference().type().stringValue());
             case MethodTypeEntry mte -> map(
+                    "tag", tagName(e.tag()),
                     "descriptor index", mte.descriptor().index(),
                     "descriptor", mte.descriptor().stringValue());
             case ConstantDynamicEntry cde -> printDynamicEntry(cde);
             case InvokeDynamicEntry ide -> printDynamicEntry(ide);
             case ModuleEntry me -> printNamedEntry(e, me.name());
             case PackageEntry pe -> printNamedEntry(e, pe.name());
-        });
+        };
     }
 
     private Printable printValueEntry(AnnotationConstantValueEntry e) {
-        return map("value", String.valueOf(e.constantValue()));
+        return map("tag", tagName(e.tag()),
+                   "value", String.valueOf(e.constantValue()));
     }
 
     private Printable printNamedEntry(PoolEntry e, Utf8Entry name) {
-        return map("name index", name.index(),
+        return map("tag", tagName(e.tag()),
+                   "name index", name.index(),
                    "value", name.stringValue());
     }
 
     private Printable printDynamicEntry(DynamicConstantPoolEntry dcpe) {
-        return map("bootstrap method handle index", dcpe.bootstrap().bootstrapMethod().index(),
-                   "bootstrap method arguments indexes", list(dcpe.bootstrap().arguments().stream().map(en -> en.index())),
+        return map("tag", tagName(dcpe.tag()),
+                   "bootstrap method handle index", dcpe.bootstrap().bootstrapMethod().index(),
+                   "bootstrap method arguments indexes", list("index", dcpe.bootstrap().arguments().stream().map(en -> en.index())),
                    "name and type index", dcpe.nameAndType().index(),
                    "name", dcpe.name().stringValue(),
                    "type", dcpe.type().stringValue());
@@ -785,15 +793,15 @@ public final class ClassPrinterImpl implements ClassPrinter {
 
     @Override
     public void printMethod(MethodModel m) {
-        printer.print(asPrintable(m), out);
+        printer.print(new PrintableList(BLOCK, "method", List.of(asPrintable(m))), out);
     }
 
     private Printable asPrintable(MethodModel m) {
         var methodElements = new LinkedHashMap<String, Printable>();
         methodElements.put("method name", value(m.methodName().stringValue()));
-        methodElements.put("flags", list(m.flags().flags().stream().map(AccessFlag::name)));
+        methodElements.put("flags", list("flag", m.flags().flags().stream().map(AccessFlag::name)));
         methodElements.put("method type", value(m.methodType().stringValue()));
-        methodElements.put("attributes", list(m.attributes().stream().map(Attribute::attributeName)));
+        methodElements.put("attributes", list("attribute", m.attributes().stream().map(Attribute::attributeName)));
         if (verbosity != VerbosityLevel.MEMBERS_ONLY) {
             printAttributes(m.attributes(), methodElements);
 //            m.code().ifPresent(com -> {

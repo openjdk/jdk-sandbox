@@ -157,22 +157,22 @@ public class ClassPrinterTest {
         ClassPrinter.yamlPrinter(ClassPrinter.VerbosityLevel.MEMBERS_ONLY, out::append).printClass(getClassModel());
         assertOut(out,
                 """
-                class name: Foo
-                version: 61.0
-                flags: [PUBLIC]
-                superclass: Boo
-                interfaces: [Phee, Phoo]
-                attributes: [SourceFile]
-                fields:
-                  - field name: f
-                    flags: [PRIVATE]
-                    field type: Ljava/lang/String;
-                    attributes: []
-                methods:
-                  - method name: m
-                    flags: [PROTECTED]
-                    method type: (ZLjava/lang/Throwable;)Ljava/lang/Void;
-                    attributes: [Code]
+                  - class name: Foo
+                    version: 61.0
+                    flags: [PUBLIC]
+                    superclass: Boo
+                    interfaces: [Phee, Phoo]
+                    attributes: [SourceFile]
+                    fields:
+                      - field name: f
+                        flags: [PRIVATE]
+                        field type: Ljava/lang/String;
+                        attributes: []
+                    methods:
+                      - method name: m
+                        flags: [PROTECTED]
+                        method type: (ZLjava/lang/Throwable;)Ljava/lang/Void;
+                        attributes: [Code]
                 """);
     }
 
@@ -274,23 +274,23 @@ public class ClassPrinterTest {
         ClassPrinter.jsonPrinter(ClassPrinter.VerbosityLevel.MEMBERS_ONLY, out::append).printClass(getClassModel());
         assertOut(out,
                 """
-                {
-                "class name": "Foo",
-                "version": "61.0",
-                "flags": ["PUBLIC"],
-                "superclass": "Boo",
-                "interfaces": ["Phee", "Phoo"],
-                "attributes": ["SourceFile"],
-                "fields": [
-                      { "field name": "f",
-                        "flags": ["PRIVATE"],
-                        "field type": "Ljava/lang/String;",
-                        "attributes": []}],
-                "methods": [
-                      { "method name": "m",
-                        "flags": ["PROTECTED"],
-                        "method type": "(ZLjava/lang/Throwable;)Ljava/lang/Void;",
-                        "attributes": ["Code"]}]}
+                [
+                  { "class name": "Foo",
+                    "version": "61.0",
+                    "flags": ["PUBLIC"],
+                    "superclass": "Boo",
+                    "interfaces": ["Phee", "Phoo"],
+                    "attributes": ["SourceFile"],
+                    "fields": [
+                          { "field name": "f",
+                            "flags": ["PRIVATE"],
+                            "field type": "Ljava/lang/String;",
+                            "attributes": []}],
+                    "methods": [
+                          { "method name": "m",
+                            "flags": ["PROTECTED"],
+                            "method type": "(ZLjava/lang/Throwable;)Ljava/lang/Void;",
+                            "attributes": ["Code"]}]}]
                 """);
     }
 
@@ -393,23 +393,25 @@ public class ClassPrinterTest {
         assertOut(out,
                 """
                 <?xml version = '1.0'?>
-                  <class name='Foo'
-                    version='61.0'
-                    flags='[PUBLIC]'
-                    superclass='Boo'
-                    interfaces='[Phee, Phoo]'
-                    attributes='[SourceFile]'>
+                <class>
+                    <class_name>Foo</class_name>
+                    <version>61.0</version>
+                    <flags><flag>PUBLIC</flag></flags>
+                    <superclass>Boo</superclass>
+                    <interfaces><interface>Phee</interface><interface>Phoo</interface></interfaces>
+                    <attributes><attribute>SourceFile</attribute></attributes>
                     <fields>
-                      <field name='f'
-                        flags='[PRIVATE]'
-                        descriptor='Ljava/lang/String;'
-                        attributes='[]'></field></fields>
+                        <field>
+                            <field_name>f</field_name>
+                            <flags><flag>PRIVATE</flag></flags>
+                            <field_type>Ljava/lang/String;</field_type>
+                            <attributes></attributes></field></fields>
                     <methods>
-                      <method name='m'
-                        flags='[PROTECTED]'
-                        descriptor='(ZLjava/lang/Throwable;)Ljava/lang/Void;'
-                        attributes='[Code]'></method></methods>
-                </class>
+                        <method>
+                            <method_name>m</method_name>
+                            <flags><flag>PROTECTED</flag></flags>
+                            <method_type>(ZLjava/lang/Throwable;)Ljava/lang/Void;</method_type>
+                            <attributes><attribute>Code</attribute></attributes></method></methods></class>
                 """);
     }
 
