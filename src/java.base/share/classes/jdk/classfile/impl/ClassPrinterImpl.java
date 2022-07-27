@@ -576,13 +576,13 @@ public final class ClassPrinterImpl implements ClassPrinter {
     }
 
     private Printable asPrintable(ClassModel clm) {
-        var classElements = new LinkedHashMap<String, Printable>();
-        classElements.put("class name", value(clm.thisClass().asInternalName()));
-        classElements.put("version", value(clm.majorVersion() + "." + clm.minorVersion()));
-        classElements.put("flags", list("flag", clm.flags().flags().stream().map(AccessFlag::name)));
-        classElements.put("superclass", value(clm.superclass().map(ClassEntry::asInternalName).orElse("")));
-        classElements.put("interfaces", list("interface", clm.interfaces().stream().map(ClassEntry::asInternalName)));
-        classElements.put("attributes", list("attribute", clm.attributes().stream().map(Attribute::attributeName)));
+        var clmap = new LinkedHashMap<String, Printable>();
+        clmap.put("class name", value(clm.thisClass().asInternalName()));
+        clmap.put("version", value(clm.majorVersion() + "." + clm.minorVersion()));
+        clmap.put("flags", list("flag", clm.flags().flags().stream().map(AccessFlag::name)));
+        clmap.put("superclass", value(clm.superclass().map(ClassEntry::asInternalName).orElse("")));
+        clmap.put("interfaces", list("interface", clm.interfaces().stream().map(ClassEntry::asInternalName)));
+        clmap.put("attributes", list("attribute", clm.attributes().stream().map(Attribute::attributeName)));
         if (verbosity == VerbosityLevel.TRACE_ALL) {
             var cpEntries = new LinkedHashMap<Integer, Printable>();
             for (int i = 1; i < clm.constantPool().entryCount();) {
@@ -590,10 +590,10 @@ public final class ClassPrinterImpl implements ClassPrinter {
                 cpEntries.put(i, printCPEntry(e));
                 i += e.poolEntries();
             }
-            classElements.put("constant pool", new PrintableMap(BLOCK, cpEntries));
+            clmap.put("constant pool", new PrintableMap(BLOCK, cpEntries));
         }
-        if (verbosity != VerbosityLevel.MEMBERS_ONLY) printAttributes(clm.attributes(), classElements);
-        classElements.put("fields", new PrintableList(BLOCK, "field", clm.fields().stream().map(f -> {
+        if (verbosity != VerbosityLevel.MEMBERS_ONLY) printAttributes(clm.attributes(), clmap);
+        clmap.put("fields", new PrintableList(BLOCK, "field", clm.fields().stream().map(f -> {
             var fieldElements = new LinkedHashMap<String, Printable>();
             fieldElements.put("field name", value(f.fieldName().stringValue()));
             fieldElements.put("flags", list("flag", f.flags().flags().stream().map(AccessFlag::name)));
@@ -602,8 +602,8 @@ public final class ClassPrinterImpl implements ClassPrinter {
             if (verbosity != VerbosityLevel.MEMBERS_ONLY) printAttributes(f.attributes(), fieldElements);
             return new PrintableMap(BLOCK, fieldElements);
         }).toList()));
-        classElements.put("methods", new PrintableList(BLOCK, "method", clm.methods().stream().map(this::asPrintable).toList()));
-        return new PrintableMap(BLOCK, classElements);
+        clmap.put("methods", new PrintableList(BLOCK, "method", clm.methods().stream().map(this::asPrintable).toList()));
+        return new PrintableMap(BLOCK, clmap);
     }
 
 
@@ -693,7 +693,7 @@ public final class ClassPrinterImpl implements ClassPrinter {
                    "type", dcpe.type().stringValue());
     }
 
-    private void printAttributes(List<Attribute<?>> attributes, Map<String, Printable> printables) {
+    private void printAttributes(List<Attribute<?>> attributes, Map<String, Printable> map) {
         for (var attr : attributes) {
 //            switch (attr) {
 //                case BootstrapMethodsAttribute bma ->
@@ -765,7 +765,7 @@ public final class ClassPrinterImpl implements ClassPrinter {
 //                case SignatureAttribute sa ->
 //                    out.accept(format.simpleQuotedAttr.formatted(indentSpace, "signature", escape(sa.signature().stringValue())));
                 case SourceFileAttribute sfa ->
-                    printables.put("source file", value(sfa.sourceFile().stringValue()));
+                    map.put("source file", value(sfa.sourceFile().stringValue()));
                 default -> {}
             }
         }
@@ -797,13 +797,13 @@ public final class ClassPrinterImpl implements ClassPrinter {
     }
 
     private Printable asPrintable(MethodModel m) {
-        var methodElements = new LinkedHashMap<String, Printable>();
-        methodElements.put("method name", value(m.methodName().stringValue()));
-        methodElements.put("flags", list("flag", m.flags().flags().stream().map(AccessFlag::name)));
-        methodElements.put("method type", value(m.methodType().stringValue()));
-        methodElements.put("attributes", list("attribute", m.attributes().stream().map(Attribute::attributeName)));
+        var mmap = new LinkedHashMap<String, Printable>();
+        mmap.put("method name", value(m.methodName().stringValue()));
+        mmap.put("flags", list("flag", m.flags().flags().stream().map(AccessFlag::name)));
+        mmap.put("method type", value(m.methodType().stringValue()));
+        mmap.put("attributes", list("attribute", m.attributes().stream().map(Attribute::attributeName)));
         if (verbosity != VerbosityLevel.MEMBERS_ONLY) {
-            printAttributes(m.attributes(), methodElements);
+            printAttributes(m.attributes(), mmap);
 //            m.code().ifPresent(com -> {
 //                out.accept(format.code.header().formatted(((CodeAttribute)com).maxStack(), ((CodeAttribute)com).maxLocals(), attributeNames(com.attributes())));
 //                var stackMap = new LinkedHashMap<Integer, StackMapFrame>();
@@ -905,6 +905,6 @@ public final class ClassPrinterImpl implements ClassPrinter {
 //                }
 //            });
         }
-        return new PrintableMap(BLOCK, methodElements);
+        return new PrintableMap(BLOCK, mmap);
     }
 }
