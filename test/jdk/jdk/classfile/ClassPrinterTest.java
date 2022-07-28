@@ -35,7 +35,7 @@ import java.lang.constant.MethodTypeDesc;
 import jdk.classfile.ClassModel;
 import jdk.classfile.Classfile;
 import jdk.classfile.attribute.SourceFileAttribute;
-import jdk.classfile.util.ClassPrinter;
+import jdk.classfile.ClassPrinter;
 import org.testng.annotations.Test;
 import static org.testng.Assert.assertEquals;
 
@@ -60,7 +60,7 @@ public class ClassPrinterTest {
 //    @Test
     public void testPrintYamlTraceAll() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.yamlPrinter(ClassPrinter.VerbosityLevel.TRACE_ALL, out::append).printClass(getClassModel());
+        ClassPrinter.toYaml(getClassModel(), ClassPrinter.Verbosity.TRACE_ALL, out::append);
         assertOut(out,
                 """
                   - class name: 'Foo'
@@ -116,70 +116,70 @@ public class ClassPrinterTest {
     @Test
     public void testPrintYamlCriticalAttributes() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.yamlPrinter(ClassPrinter.VerbosityLevel.CRITICAL_ATTRIBUTES, out::append).printClass(getClassModel());
+        ClassPrinter.toYaml(getClassModel(), ClassPrinter.Verbosity.CRITICAL_ATTRIBUTES, out::append);
         assertOut(out,
                 """
-                class name: Foo
-                version: 61.0
-                flags: [PUBLIC]
-                superclass: Boo
-                interfaces: [Phee, Phoo]
-                attributes: [SourceFile]
-                fields:
-                  - field name: f
-                    flags: [PRIVATE]
-                    field type: Ljava/lang/String;
-                    attributes: []
-                methods:
-                  - method name: m
-                    flags: [PROTECTED]
-                    method type: (ZLjava/lang/Throwable;)Ljava/lang/Void;
-                    attributes: [Code]
-                    code:
-                        max stack: 1
-                        max locals: 3
-                        attributes: [StackMapTable]
-                        stack map frames:
-                            6: {locals: [Foo, int, java/lang/Throwable], stack: []}
-                        //stack map frame @0: {locals: [Foo, int, java/lang/Throwable], stack: []}
-                        0: {opcode: ILOAD_1, slot: 1}
-                        1: {opcode: IFEQ, target: 6}
-                        4: {opcode: ALOAD_2, slot: 2}
-                        5: {opcode: ATHROW}
-                        //stack map frame @6: {locals: [Foo, int, java/lang/Throwable], stack: []}
-                        6: {opcode: RETURN}
+                  - class name: Foo
+                    version: 61.0
+                    flags: [PUBLIC]
+                    superclass: Boo
+                    interfaces: [Phee, Phoo]
+                    attributes: [SourceFile]
+                    fields:
+                      - field name: f
+                        flags: [PRIVATE]
+                        field type: Ljava/lang/String;
+                        attributes: []
+                    methods:
+                      - method name: m
+                        flags: [PROTECTED]
+                        method type: (ZLjava/lang/Throwable;)Ljava/lang/Void;
+                        attributes: [Code]
+                        code:
+                            max stack: 1
+                            max locals: 3
+                            attributes: [StackMapTable]
+                            stack map frames:
+                                6: {locals: [Foo, int, java/lang/Throwable], stack: []}
+                            //stack map frame @0: {locals: [Foo, int, java/lang/Throwable], stack: []}
+                            0: {opcode: ILOAD_1, slot: 1}
+                            1: {opcode: IFEQ, target: 6}
+                            4: {opcode: ALOAD_2, slot: 2}
+                            5: {opcode: ATHROW}
+                            //stack map frame @6: {locals: [Foo, int, java/lang/Throwable], stack: []}
+                            6: {opcode: RETURN}
                 """);
     }
 
     @Test
     public void testPrintYamlMembersOnly() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.yamlPrinter(ClassPrinter.VerbosityLevel.MEMBERS_ONLY, out::append).printClass(getClassModel());
+        ClassPrinter.toYaml(getClassModel(), ClassPrinter.Verbosity.MEMBERS_ONLY, out::append);
         assertOut(out,
                 """
-                class name: Foo
-                version: 61.0
-                flags: [PUBLIC]
-                superclass: Boo
-                interfaces: [Phee, Phoo]
-                attributes: [SourceFile]
-                fields:
-                  - field name: f
-                    flags: [PRIVATE]
-                    field type: Ljava/lang/String;
-                    attributes: []
-                methods:
-                  - method name: m
-                    flags: [PROTECTED]
-                    method type: (ZLjava/lang/Throwable;)Ljava/lang/Void;
-                    attributes: [Code]
+                  - class name: Foo
+                    version: 61.0
+                    flags: [PUBLIC]
+                    superclass: Boo
+                    interfaces: [Phee, Phoo]
+                    attributes: [SourceFile]
+                    fields:
+                      - field name: f
+                        flags: [PRIVATE]
+                        field type: Ljava/lang/String;
+                        attributes: []
+                    methods:
+                      - method name: m
+                        flags: [PROTECTED]
+                        method type: (ZLjava/lang/Throwable;)Ljava/lang/Void;
+                        attributes: [Code]
                 """);
     }
 
 //    @Test
     public void testPrintJsonTraceAll() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.jsonPrinter(ClassPrinter.VerbosityLevel.TRACE_ALL, out::append).printClass(getClassModel());
+        ClassPrinter.toJson(getClassModel(), ClassPrinter.Verbosity.TRACE_ALL, out::append);
         assertOut(out,
                 """
                 { "class name": "Foo",
@@ -234,7 +234,7 @@ public class ClassPrinterTest {
     @Test
     public void testPrintJsonCriticalAttributes() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.jsonPrinter(ClassPrinter.VerbosityLevel.CRITICAL_ATTRIBUTES, out::append).printClass(getClassModel());
+        ClassPrinter.toJson(getClassModel(), ClassPrinter.Verbosity.CRITICAL_ATTRIBUTES, out::append);
         assertOut(out,
                 """
                   { "class name": "Foo",
@@ -272,7 +272,7 @@ public class ClassPrinterTest {
     @Test
     public void testPrintJsonMembersOnly() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.jsonPrinter(ClassPrinter.VerbosityLevel.MEMBERS_ONLY, out::append).printClass(getClassModel());
+        ClassPrinter.toJson(getClassModel(), ClassPrinter.Verbosity.MEMBERS_ONLY, out::append);
         assertOut(out,
                 """
                   { "class name": "Foo",
@@ -297,7 +297,7 @@ public class ClassPrinterTest {
 //    @Test
     public void testPrintXmlTraceAll() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.xmlPrinter(ClassPrinter.VerbosityLevel.TRACE_ALL, out::append).printClass(getClassModel());
+        ClassPrinter.toXml(getClassModel(), ClassPrinter.Verbosity.TRACE_ALL, out::append);
         assertOut(out,
                 """
                 <?xml version = '1.0'?>
@@ -352,7 +352,7 @@ public class ClassPrinterTest {
     @Test
     public void testPrintXmlCriticalAttributes() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.xmlPrinter(ClassPrinter.VerbosityLevel.CRITICAL_ATTRIBUTES, out::append).printClass(getClassModel());
+        ClassPrinter.toXml(getClassModel(), ClassPrinter.Verbosity.CRITICAL_ATTRIBUTES, out::append);
         assertOut(out,
                 """
                 <?xml version = '1.0'?>
@@ -394,7 +394,7 @@ public class ClassPrinterTest {
     @Test
     public void testPrintXmlMembersOnly() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.xmlPrinter(ClassPrinter.VerbosityLevel.MEMBERS_ONLY, out::append).printClass(getClassModel());
+        ClassPrinter.toXml(getClassModel(), ClassPrinter.Verbosity.MEMBERS_ONLY, out::append);
         assertOut(out,
                 """
                 <?xml version = '1.0'?>
