@@ -157,22 +157,22 @@ public class ClassPrinterTest {
         ClassPrinter.yamlPrinter(ClassPrinter.VerbosityLevel.MEMBERS_ONLY, out::append).printClass(getClassModel());
         assertOut(out,
                 """
-                  - class name: Foo
-                    version: 61.0
-                    flags: [PUBLIC]
-                    superclass: Boo
-                    interfaces: [Phee, Phoo]
-                    attributes: [SourceFile]
-                    fields:
-                      - field name: f
-                        flags: [PRIVATE]
-                        field type: Ljava/lang/String;
-                        attributes: []
-                    methods:
-                      - method name: m
-                        flags: [PROTECTED]
-                        method type: (ZLjava/lang/Throwable;)Ljava/lang/Void;
-                        attributes: [Code]
+                class name: Foo
+                version: 61.0
+                flags: [PUBLIC]
+                superclass: Boo
+                interfaces: [Phee, Phoo]
+                attributes: [SourceFile]
+                fields:
+                  - field name: f
+                    flags: [PRIVATE]
+                    field type: Ljava/lang/String;
+                    attributes: []
+                methods:
+                  - method name: m
+                    flags: [PROTECTED]
+                    method type: (ZLjava/lang/Throwable;)Ljava/lang/Void;
+                    attributes: [Code]
                 """);
     }
 
@@ -274,7 +274,6 @@ public class ClassPrinterTest {
         ClassPrinter.jsonPrinter(ClassPrinter.VerbosityLevel.MEMBERS_ONLY, out::append).printClass(getClassModel());
         assertOut(out,
                 """
-                [
                   { "class name": "Foo",
                     "version": "61.0",
                     "flags": ["PUBLIC"],
@@ -290,7 +289,7 @@ public class ClassPrinterTest {
                           { "method name": "m",
                             "flags": ["PROTECTED"],
                             "method type": "(ZLjava/lang/Throwable;)Ljava/lang/Void;",
-                            "attributes": ["Code"]}]}]
+                            "attributes": ["Code"]}]}
                 """);
     }
 

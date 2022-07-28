@@ -183,7 +183,7 @@ public final class ClassPrinterImpl implements ClassPrinter {
 //            ClassPrinterImpl::escapeYaml);
 
     public sealed interface Printer {
-        public void print(Printable node, Consumer<String> out);
+        public void print(String nodeName, Printable node, Consumer<String> out);
     }
 
     public static final Printer JSON_PRINTER = new JsonPrinter();
@@ -195,7 +195,7 @@ public final class ClassPrinterImpl implements ClassPrinter {
     public static final class YamlPrinter implements Printer {
 
         @Override
-        public void print(Printable node, Consumer<String> out) {
+        public void print(String nodeName, Printable node, Consumer<String> out) {
             print(0, false, node, out);
             out.accept(NL);
         }
@@ -284,8 +284,8 @@ public final class ClassPrinterImpl implements ClassPrinter {
     public static final class JsonPrinter implements Printer {
 
         @Override
-        public void print(Printable node, Consumer<String> out) {
-            print(0, false, node, out);
+        public void print(String nodeName, Printable node, Consumer<String> out) {
+            print(1, true, node, out);
             out.accept(NL);
         }
 
@@ -361,9 +361,9 @@ public final class ClassPrinterImpl implements ClassPrinter {
     public static final class XmlPrinter implements Printer {
 
         @Override
-        public void print(Printable node, Consumer<String> out) {
+        public void print(String nodeName, Printable node, Consumer<String> out) {
             out.accept("<?xml version = '1.0'?>");
-            print(0, node, out);
+            print(0, new PrintableList(BLOCK, nodeName, List.of(node)), out);
             out.accept(NL);
         }
 
@@ -534,7 +534,7 @@ public final class ClassPrinterImpl implements ClassPrinter {
 
     @Override
     public void printClass(ClassModel clm) {
-        printer.print(new PrintableList(BLOCK, "class", List.of(asPrintable(clm))), out);
+        printer.print("class", asPrintable(clm), out);
     }
 
     private static Printable value(ConstantDesc value) {
@@ -793,7 +793,7 @@ public final class ClassPrinterImpl implements ClassPrinter {
 
     @Override
     public void printMethod(MethodModel m) {
-        printer.print(new PrintableList(BLOCK, "method", List.of(asPrintable(m))), out);
+        printer.print("method", asPrintable(m), out);
     }
 
     private Printable asPrintable(MethodModel m) {
