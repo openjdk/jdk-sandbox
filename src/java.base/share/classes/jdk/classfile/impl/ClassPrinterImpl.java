@@ -27,13 +27,16 @@ package jdk.classfile.impl;
 import java.lang.constant.ConstantDesc;
 import java.lang.constant.DirectMethodHandleDesc;
 import java.lang.reflect.AccessFlag;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -103,8 +106,7 @@ public final class ClassPrinterImpl implements ClassPrinter {
 //        Table annotationValuePair, Table bootstrapMethods, String enclosingMethod, Table innerClasses, Table methodParameters,
 //        Table recordComponents, String recordComponentTail, Block module, Table requires, Table exports, Table opens, Table provides,
 //        String modulePackages, String moduleMain, String nestHost, String nestMembers,
-//        Block code, String plainInstruction, String localVariableInstruction, String incInstruction, String memberInstruction, String invokeDynamicInstruction,
-//        String branchInstruction, String switchInstruction, String newArrayInstruction, String typeInstruction, String constantInstruction,
+//        Block code,
 //        Table exceptionHandlers, String tryStartInline, String tryEndInline, String handlerInline, Table localVariableTable, String localVariableInline,
 //        String frameInline, Table stackMapTable, Table lineNumberTable, Table characterRangeTable, Table localVariableTypeTable,
 //        Function<String, String> escapeFunction) {}
@@ -116,9 +118,20 @@ public final class ClassPrinterImpl implements ClassPrinter {
 
     public record PrintableValue(ConstantDesc value) implements Printable {}
 
-    public record PrintableList(Style style, String itemName, List<? extends Printable> list) implements Printable {}
+    public record PrintableList(Style style, String itemName, List<? extends Printable> list) implements Printable {
+        public PrintableList(Style style, String itemName, List<? extends Printable> list) {
+            this.style = style;
+            this.itemName = itemName;
+            this.list = List.copyOf(list);
+        }
+    }
 
-    public record PrintableMap(Style style, Map<? extends ConstantDesc, ? extends Printable> map) implements Printable {}
+    public record PrintableMap(Style style, Map<? extends ConstantDesc, ? extends Printable> map) implements Printable {
+        public PrintableMap(Style style, Map<? extends ConstantDesc, ? extends Printable> map) {
+            this.style = style;
+            this.map = Collections.unmodifiableMap(new LinkedHashMap<>(map));
+        }
+    }
 
 //    public static final Format YAML = new Format('\'', false, true, "", ", ",
 //            new Block("  - class name: '%s'%n    version: '%d.%d'%n    flags: %s%n    superclass: '%s'%n    interfaces: %s%n    attributes: %s", "%n"),
@@ -159,16 +172,6 @@ public final class ClassPrinterImpl implements ClassPrinter {
 //            "%n    nest host: '%s'",
 //            "%n    nest members: %s",
 //            new Block("%n        code:%n            max stack: %d%n            max locals: %d%n            attributes: %s", ""),
-//            "%n            %d: [%s]",
-//            "%n            %d: [%s, {slot: %d%s}]",
-//            "%n            %d: [%s, {slot: %d, const: %+d%s}]",
-//            "%n            %d: [%s, {owner: '%s', name: '%s', descriptor: '%s'}]",
-//            "%n            %d: [%s, {name: '%s', descriptor: '%s', bootstrap method kind: %s, owner: '%s', method name: '%s', invocation type: '%s'}]",
-//            "%n            %d: [%s, {target: %d}]",
-//            "%n            %d: [%s, {targets: %s}]",
-//            "%n            %d: [%s, {dimensions: %d, descriptor: '%s'}]",
-//            "%n            %d: [%s, {type: '%s'}]",
-//            "%n            %d: [%s, {constant value: '%s'}]",
 //            new Table("%n            exception handlers: #[<try start pc>, <try end pc>, <handler pc>, <catch type>]", "", "%n                - [%d, %d, %d, %s]"),
 //            "%n            #try block start: {start: %d, end: %d, handler: %d, catch type: %s}",
 //            "%n            #try block end: {start: %d, end: %d, handler: %d, catch type: %s}",
@@ -182,17 +185,11 @@ public final class ClassPrinterImpl implements ClassPrinter {
 //            new Table("%n            local variable types: #[<start pc>, <end pc>, '<name>', <signature>]", "", "%n                - [%d, %d, %d, '%s', '%s']"),
 //            ClassPrinterImpl::escapeYaml);
 
-    public sealed interface Printer {
-        public void print(String nodeName, Printable node, Consumer<String> out);
+    public interface Printer {
+        public void print(String rootNodeName, Printable rootNode, Consumer<String> out);
     }
 
-    public static final Printer JSON_PRINTER = new JsonPrinter();
-    public static final Printer XML_PRINTER = new XmlPrinter();
-    public static final Printer YAML_PRINTER = new YamlPrinter();
-
-    private static String NL = System.lineSeparator();
-
-    public static final class YamlPrinter implements Printer {
+    public static final Printer YAML_PRINTER = new Printer() {
 
         @Override
         public void print(String nodeName, Printable node, Consumer<String> out) {
@@ -279,9 +276,9 @@ public final class ClassPrinterImpl implements ClassPrinter {
             }
             return esc;
         }
-    }
+    };
 
-    public static final class JsonPrinter implements Printer {
+    public static final Printer JSON_PRINTER = new Printer() {
 
         @Override
         public void print(String nodeName, Printable node, Consumer<String> out) {
@@ -356,9 +353,9 @@ public final class ClassPrinterImpl implements ClassPrinter {
             sb.append('"');
             return sb.toString();
         }
-    }
+    };
 
-    public static final class XmlPrinter implements Printer {
+    public static final Printer XML_PRINTER = new Printer() {
 
         @Override
         public void print(String nodeName, Printable node, Consumer<String> out) {
@@ -443,7 +440,9 @@ public final class ClassPrinterImpl implements ClassPrinter {
                 name = "_" + name;
             return name.replaceAll("[^A-Za-z_0-9]", "_");
         }
-    }
+    };
+
+    private static String NL = System.lineSeparator();
 
     private static final char[] DIGITS = "0123456789ABCDEF".toCharArray();
 
@@ -497,45 +496,6 @@ public final class ClassPrinterImpl implements ClassPrinter {
 //        return evps.isEmpty() ? "" : evps.stream().map(evp -> format.annotationValuePair.element.formatted(evp.name().stringValue(), elementValueToString(evp.value())))
 //                .collect(Collectors.joining(format.inlineDelimiter, format.annotationValuePair.header, format.annotationValuePair.footer));
 //    }
-//
-//    private static String formatDescriptor(String desc) {
-//        int i = desc.lastIndexOf('[');
-//        if (i >= 0) desc = desc.substring(i + 1);
-//        desc = switch (desc) {
-//            case "I", "B", "Z", "F", "S", "C", "J", "D" -> TypeKind.fromDescriptor(desc).typeName();
-//            default -> desc = Util.descriptorToClass(desc);
-//        };
-//        if (i >= 0) {
-//            var ret = new StringBuilder(desc.length() + 2*i + 2).append(desc);
-//            while (i-- >= 0) ret.append('[').append(']');
-//            return ret.toString();
-//        }
-//        return desc;
-//    }
-//
-//    private static Stream<String> convertVTIs(List<StackMapTableAttribute.VerificationTypeInfo> vtis) {
-//        return vtis.stream().mapMulti((vti, ret) -> {
-//            var s = formatDescriptor(vti.toString());
-//            ret.accept(s);
-//            if (vti.type() == StackMapTableAttribute.VerificationType.ITEM_DOUBLE || vti.type() == StackMapTableAttribute.VerificationType.ITEM_LONG)
-//                ret.accept(s + "2");
-//        });
-//    }
-
-    private final Printer printer;
-    private final VerbosityLevel verbosity;
-    private final Consumer<String> out;
-
-    public ClassPrinterImpl(Printer printer, VerbosityLevel verbosity, Consumer<String> out) {
-        this.printer = printer;
-        this.verbosity = verbosity;
-        this.out = out;
-    }
-
-    @Override
-    public void printClass(ClassModel clm) {
-        printer.print("class", asPrintable(clm), out);
-    }
 
     private static Printable value(ConstantDesc value) {
         return new PrintableValue(value);
@@ -575,39 +535,31 @@ public final class ClassPrinterImpl implements ClassPrinter {
         return new PrintableMap(style, map);
     }
 
-    private Printable asPrintable(ClassModel clm) {
-        var clmap = new LinkedHashMap<String, Printable>();
-        clmap.put("class name", value(clm.thisClass().asInternalName()));
-        clmap.put("version", value(clm.majorVersion() + "." + clm.minorVersion()));
-        clmap.put("flags", list("flag", clm.flags().flags().stream().map(AccessFlag::name)));
-        clmap.put("superclass", value(clm.superclass().map(ClassEntry::asInternalName).orElse("")));
-        clmap.put("interfaces", list("interface", clm.interfaces().stream().map(ClassEntry::asInternalName)));
-        clmap.put("attributes", list("attribute", clm.attributes().stream().map(Attribute::attributeName)));
-        if (verbosity == VerbosityLevel.TRACE_ALL) {
-            var cpEntries = new LinkedHashMap<Integer, Printable>();
-            for (int i = 1; i < clm.constantPool().entryCount();) {
-                var e = clm.constantPool().entryByIndex(i);
-                cpEntries.put(i, printCPEntry(e));
-                i += e.poolEntries();
-            }
-            clmap.put("constant pool", new PrintableMap(BLOCK, cpEntries));
+    private static String formatDescriptor(String desc) {
+        int i = desc.lastIndexOf('[');
+        if (i >= 0) desc = desc.substring(i + 1);
+        desc = switch (desc) {
+            case "I", "B", "Z", "F", "S", "C", "J", "D" -> TypeKind.fromDescriptor(desc).typeName();
+            default -> desc = Util.descriptorToClass(desc);
+        };
+        if (i >= 0) {
+            var ret = new StringBuilder(desc.length() + 2*i + 2).append(desc);
+            while (i-- >= 0) ret.append('[').append(']');
+            return ret.toString();
         }
-        if (verbosity != VerbosityLevel.MEMBERS_ONLY) printAttributes(clm.attributes(), clmap);
-        clmap.put("fields", new PrintableList(BLOCK, "field", clm.fields().stream().map(f -> {
-            var fieldElements = new LinkedHashMap<String, Printable>();
-            fieldElements.put("field name", value(f.fieldName().stringValue()));
-            fieldElements.put("flags", list("flag", f.flags().flags().stream().map(AccessFlag::name)));
-            fieldElements.put("field type", value(f.fieldType().stringValue()));
-            fieldElements.put("attributes", list("attribute", f.attributes().stream().map(Attribute::attributeName)));
-            if (verbosity != VerbosityLevel.MEMBERS_ONLY) printAttributes(f.attributes(), fieldElements);
-            return new PrintableMap(BLOCK, fieldElements);
-        }).toList()));
-        clmap.put("methods", new PrintableList(BLOCK, "method", clm.methods().stream().map(this::asPrintable).toList()));
-        return new PrintableMap(BLOCK, clmap);
+        return desc;
     }
 
+    private static Stream<String> convertVTIs(List<StackMapTableAttribute.VerificationTypeInfo> vtis) {
+        return vtis.stream().mapMulti((vti, ret) -> {
+            var s = formatDescriptor(vti.toString());
+            ret.accept(s);
+            if (vti.type() == StackMapTableAttribute.VerificationType.ITEM_DOUBLE || vti.type() == StackMapTableAttribute.VerificationType.ITEM_LONG)
+                ret.accept(s + "2");
+        });
+    }
 
-    public static String tagName(byte tag) {
+    private static String tagName(byte tag) {
         return switch (tag) {
             case TAG_UTF8 -> "Utf8";
             case TAG_INTEGER -> "Integer";
@@ -630,7 +582,60 @@ public final class ClassPrinterImpl implements ClassPrinter {
         };
     }
 
-    private Printable printCPEntry(PoolEntry e) {
+    private record ExceptionHandler(int start, int end, int handler, String catchType) {}
+
+    private final Printer printer;
+    private final VerbosityLevel verbosity;
+    private final Consumer<String> out;
+
+    public ClassPrinterImpl(Printer printer, VerbosityLevel verbosity, Consumer<String> out) {
+        this.printer = printer;
+        this.verbosity = verbosity;
+        this.out = out;
+    }
+
+    @Override
+    public void printClass(ClassModel clm) {
+        printer.print("class", asPrintable(clm), out);
+    }
+
+    @Override
+    public void printMethod(MethodModel m) {
+        printer.print("method", asPrintable(m), out);
+    }
+
+    private Printable asPrintable(ClassModel clm) {
+        var clmap = new LinkedHashMap<ConstantDesc, Printable>();
+        clmap.put("class name", value(clm.thisClass().asInternalName()));
+        clmap.put("version", value(clm.majorVersion() + "." + clm.minorVersion()));
+        clmap.put("flags", list("flag", clm.flags().flags().stream().map(AccessFlag::name)));
+        clmap.put("superclass", value(clm.superclass().map(ClassEntry::asInternalName).orElse("")));
+        clmap.put("interfaces", list("interface", clm.interfaces().stream().map(ClassEntry::asInternalName)));
+        clmap.put("attributes", list("attribute", clm.attributes().stream().map(Attribute::attributeName)));
+        if (verbosity == VerbosityLevel.TRACE_ALL) {
+            var cpEntries = new LinkedHashMap<Integer, Printable>();
+            for (int i = 1; i < clm.constantPool().entryCount();) {
+                var e = clm.constantPool().entryByIndex(i);
+                cpEntries.put(i, asPrintable(e));
+                i += e.poolEntries();
+            }
+            clmap.put("constant pool", new PrintableMap(BLOCK, cpEntries));
+        }
+        if (verbosity != VerbosityLevel.MEMBERS_ONLY) printAttributes(clm.attributes(), clmap);
+        clmap.put("fields", new PrintableList(BLOCK, "field", clm.fields().stream().map(f -> {
+            var fieldElements = new LinkedHashMap<ConstantDesc, Printable>();
+            fieldElements.put("field name", value(f.fieldName().stringValue()));
+            fieldElements.put("flags", list("flag", f.flags().flags().stream().map(AccessFlag::name)));
+            fieldElements.put("field type", value(f.fieldType().stringValue()));
+            fieldElements.put("attributes", list("attribute", f.attributes().stream().map(Attribute::attributeName)));
+            if (verbosity != VerbosityLevel.MEMBERS_ONLY) printAttributes(f.attributes(), fieldElements);
+            return new PrintableMap(BLOCK, fieldElements);
+        }).toList()));
+        clmap.put("methods", new PrintableList(BLOCK, "method", clm.methods().stream().map(this::asPrintable).toList()));
+        return new PrintableMap(BLOCK, clmap);
+    }
+
+    private Printable asPrintable(PoolEntry e) {
         return switch (e) {
             case Utf8Entry ve -> printValueEntry(ve);
             case IntegerEntry ve -> printValueEntry(ve);
@@ -673,6 +678,159 @@ public final class ClassPrinterImpl implements ClassPrinter {
         };
     }
 
+    private Printable asPrintable(StackMapFrame f) {
+        return map("locals", list("item", convertVTIs(f.effectiveLocals())), "stack", list("item", convertVTIs(f.effectiveStack())));
+    }
+
+    private Printable asPrintable(MethodModel m) {
+        var mmap = new LinkedHashMap<ConstantDesc, Printable>();
+        mmap.put("method name", value(m.methodName().stringValue()));
+        mmap.put("flags", list("flag", m.flags().flags().stream().map(AccessFlag::name)));
+        mmap.put("method type", value(m.methodType().stringValue()));
+        mmap.put("attributes", list("attribute", m.attributes().stream().map(Attribute::attributeName)));
+        if (verbosity != VerbosityLevel.MEMBERS_ONLY) {
+            printAttributes(m.attributes(), mmap);
+            m.code().ifPresent(com -> {
+                var comap = new LinkedHashMap<ConstantDesc, Printable>();
+                comap.put("max stack", value(((CodeAttribute)com).maxStack()));
+                comap.put("max locals", value(((CodeAttribute)com).maxLocals()));
+                comap.put("attributes", list("attribute", com.attributes().stream().map(Attribute::attributeName)));
+                var stackMap = new TreeMap<Integer, Printable>();
+                var visibleTypeAnnos = new LinkedHashMap<Integer, TypeAnnotation>();
+                var invisibleTypeAnnos = new LinkedHashMap<Integer, TypeAnnotation>();
+                List<LocalVariableInfo> locals = List.of();
+                int lnc =0, lvc = 0, lvtc = 0;
+                for (var attr : com.attributes()) {
+                    if (attr instanceof StackMapTableAttribute smta) {
+                        for (var smf : smta.entries()) {
+                            stackMap.put(smf.absoluteOffset(), asPrintable(smf));
+
+                        }
+                        comap.put("stack map frames", new PrintableMap(BLOCK, stackMap));
+                    } else if (verbosity == VerbosityLevel.TRACE_ALL) switch (attr) {
+//                        case LocalVariableTableAttribute lvta ->
+//                            printTable(format.localVariableTable, locals = lvta.localVariables(), lv -> new Object[]{lv.startPc(), lv.startPc() + lv.length(), lv.slot(), lv.name().stringValue(), formatDescriptor(lv.type().stringValue())}, ++lvc < 2 ? "" : " #" + lvc);
+//                        case LineNumberTableAttribute lnta ->
+//                            printTable(format.lineNumberTable, lnta.lineNumbers(), lni -> new Object[] {lni.startPc(), lni.lineNumber()}, ++lnc < 2 ? "" : " #"+lnc);
+//                        case CharacterRangeTableAttribute crta ->
+//                            printTable(format.characterRangeTable, crta.characterRangeTable(), chr -> new Object[] {chr.startPc(), chr.endPc(), chr.characterRangeStart(), chr.characterRangeEnd(), chr.flags()});
+//                        case LocalVariableTypeTableAttribute lvtta ->
+//                            printTable(format.localVariableTypeTable, lvtta.localVariableTypes(), lvt -> new Object[]{lvt.startPc(), lvt.startPc() + lvt.length(), lvt.slot(), lvt.name().stringValue(), formatDescriptor(lvt.signature().stringValue())}, ++lvtc < 2 ? "" : " #" + lvtc);
+//                        case RuntimeVisibleTypeAnnotationsAttribute rvtaa ->
+//                            rvtaa.annotations().forEach(a -> forEachOffset(a, com, visibleTypeAnnos::put));
+//                        case RuntimeInvisibleTypeAnnotationsAttribute ritaa ->
+//                            ritaa.annotations().forEach(a -> forEachOffset(a, com, invisibleTypeAnnos::put));
+                        case Object o -> {}
+                    }
+                }
+                printAttributes(com.attributes(), comap);
+                stackMap.putIfAbsent(0, asPrintable(StackMapDecoder.initFrame(m)));
+                var excHandlers = com.exceptionHandlers().stream().map(exc -> new ExceptionHandler(com.labelToBci(exc.tryStart()), com.labelToBci(exc.tryEnd()), com.labelToBci(exc.handler()), exc.catchType().map(ct -> ct.asInternalName()).orElse(null))).toList();
+                int bci = 0;
+                for (var coe : com) {
+                    if (coe instanceof Instruction ins) {
+                        var frame = stackMap.get(bci);
+                        if (frame != null) {
+                            comap.put("//stack map frame @" + bci, frame);
+                        }
+//                        var a = invisibleTypeAnnos.get(bci);
+//                        if (a != null) {
+//                            out.accept(format.typeAnnotationInline.formatted("invisible", a.className().stringValue(), a.targetInfo().targetType(), elementValuePairsToString(a.elements())));
+//                        }
+//                        a = visibleTypeAnnos.get(bci);
+//                        if (a != null) {
+//                            out.accept(format.typeAnnotationInline.formatted("visible", a.className().stringValue(), a.targetInfo().targetType(), elementValuePairsToString(a.elements())));
+//                        }
+//                        for (var exc : excHandlers) {
+//                            if (exc.start() == bci) {
+//                                out.accept(format.tryStartInline.formatted(exc.start(), exc.end(), exc.handler(), exc.catchType()));
+//                            }
+//                            if (exc.end() == bci) {
+//                                out.accept(format.tryEndInline.formatted(exc.start(), exc.end(), exc.handler(), exc.catchType()));
+//                            }
+//                            if (exc.handler() == bci) {
+//                                out.accept(format.handlerInline.formatted(exc.start(), exc.end(), exc.handler(), exc.catchType()));
+//                            }
+//                        }
+                        switch (coe) {
+                            case IncrementInstruction inc -> comap.put(bci, map(appendLocalInfo(locals, inc.slot(), bci,
+                                    "opcode", ins.opcode().name(),
+                                    "slot", inc.slot(),
+                                    "const", inc.constant())));
+                            case LoadInstruction lv -> comap.put(bci, map(appendLocalInfo(locals, lv.slot(), bci,
+                                    "opcode", ins.opcode().name(),
+                                    "slot", lv.slot())));
+                            case StoreInstruction lv -> comap.put(bci, map(appendLocalInfo(locals, lv.slot(), bci,
+                                    "opcode", ins.opcode().name(),
+                                    "slot", lv.slot())));
+                            case FieldInstruction fa -> comap.put(bci, map(
+                                    "opcode", ins.opcode().name(),
+                                    "owner", fa.owner().asInternalName(),
+                                    "field name", fa.name().stringValue(),
+                                    "field type", fa.type().stringValue()));
+                            case InvokeInstruction inv -> comap.put(bci, map(
+                                    "opcode", ins.opcode().name(),
+                                    "owner", inv.owner().asInternalName(),
+                                    "method name", inv.name().stringValue(),
+                                    "method type", inv.type().stringValue()));
+                            case InvokeDynamicInstruction invd -> {
+                                var bm = invd.bootstrapMethod();
+                                comap.put(bci, map(
+                                    "opcode", ins.opcode().name(),
+                                    "name", invd.name().stringValue(),
+                                    "descriptor", invd.type().stringValue(),
+                                    "kind", bm.kind(),
+                                    "owner", bm.owner().descriptorString(),
+                                    "method name", bm.methodName(),
+                                    "invocation type", bm.invocationType().descriptorString()));
+                            }
+                            case NewObjectInstruction newo -> comap.put(bci, map(
+                                    "opcode", ins.opcode().name(),
+                                    "type", newo.className().asInternalName()));
+                            case NewPrimitiveArrayInstruction newa -> comap.put(bci, map(
+                                    "opcode", ins.opcode().name(),
+                                    "dimensions", 1,
+                                    "descriptor", newa.typeKind().descriptor()));
+                            case NewReferenceArrayInstruction newa -> comap.put(bci, map(
+                                    "opcode", ins.opcode().name(),
+                                    "dimensions", 1,
+                                    "descriptor", newa.componentType().asInternalName()));
+                            case NewMultiArrayInstruction newa -> comap.put(bci, map(
+                                    "opcode", ins.opcode().name(),
+                                    "dimensions", newa.dimensions(),
+                                    "descriptor", newa.arrayType().asInternalName()));
+                            case TypeCheckInstruction tch -> comap.put(bci, map(
+                                    "opcode", ins.opcode().name(),
+                                    "type", tch.type().asInternalName()));
+                            case ConstantInstruction cons -> comap.put(bci, map(
+                                    "opcode", ins.opcode().name(),
+                                    "constant value", cons.constantValue()));
+                            case BranchInstruction br -> comap.put(bci, map(
+                                    "opcode", ins.opcode().name(),
+                                    "target", com.labelToBci(br.target())));
+                            case LookupSwitchInstruction ls -> comap.put(bci, map(
+                                    "opcode", ins.opcode().name(),
+                                    "targets", list("target", Stream.concat(Stream.of(ls.defaultTarget()).map(com::labelToBci), ls.cases().stream().map(c -> com.labelToBci(c.target()))))));
+                            case TableSwitchInstruction ts -> comap.put(bci, map(
+                                    "opcode", ins.opcode().name(),
+                                    "targets", list("target", Stream.concat(Stream.of(ts.defaultTarget()).map(com::labelToBci), ts.cases().stream().map(c -> com.labelToBci(c.target()))))));
+                            default -> comap.put(bci, map(
+                                    "opcode", ins.opcode().name()));
+                        }
+                        bci += ins.sizeInBytes();
+                    }
+                }
+                if (excHandlers.size() > 0) {
+                    comap.put("exception handlers",
+                            new PrintableList(BLOCK, "try", excHandlers.stream().map(exc ->
+                                    map("start", exc.start(), "end", exc.end(), "handler", exc.handler(), "type", exc.catchType())).toList()));
+                }
+                mmap.put("code", new PrintableMap(BLOCK, comap));
+            });
+        }
+        return new PrintableMap(BLOCK, mmap);
+    }
+
     private Printable printValueEntry(AnnotationConstantValueEntry e) {
         return map("tag", tagName(e.tag()),
                    "value", String.valueOf(e.constantValue()));
@@ -693,7 +851,7 @@ public final class ClassPrinterImpl implements ClassPrinter {
                    "type", dcpe.type().stringValue());
     }
 
-    private void printAttributes(List<Attribute<?>> attributes, Map<String, Printable> map) {
+    private void printAttributes(List<Attribute<?>> attributes, Map<ConstantDesc, Printable> map) {
         for (var attr : attributes) {
 //            switch (attr) {
 //                case BootstrapMethodsAttribute bma ->
@@ -771,17 +929,23 @@ public final class ClassPrinterImpl implements ClassPrinter {
         }
     }
 
-//    private String findLocal(List<LocalVariableInfo> locals, int slot, int bci) {
-//        if (locals != null) {
-//            for (var l : locals) {
-//                if (l.slot() == slot && l.startPc() <= bci && l.length() + l.startPc() >= bci) {
-//                    return format.localVariableInline.formatted(formatDescriptor(l.type().stringValue()), l.name().stringValue());
-//                }
-//            }
-//        }
-//        return "";
-//    }
-//
+    private Object[] appendLocalInfo(List<LocalVariableInfo> locals, int slot, int bci, Object... info) {
+        if (locals != null) {
+            for (var l : locals) {
+                if (l.slot() == slot && l.startPc() <= bci && l.length() + l.startPc() >= bci) {
+                    int il = info.length;
+                    info = Arrays.copyOf(info, il + 4);
+                    info[il] = "type";
+                    info[il + 1] = l.type().stringValue();
+                    info[il + 2] = "variable name";
+                    info[il + 3] = l.name().stringValue();
+                    return info;
+                }
+            }
+        }
+        return info;
+    }
+
 //    private void forEachOffset(TypeAnnotation ta, LabelResolver lr, BiConsumer<Integer, TypeAnnotation> consumer) {
 //        switch (ta.targetInfo()) {
 //            case TypeAnnotation.OffsetTarget ot -> consumer.accept(lr.labelToBci(ot.target()), ta);
@@ -790,121 +954,4 @@ public final class ClassPrinterImpl implements ClassPrinter {
 //            default -> {}
 //        }
 //    }
-
-    @Override
-    public void printMethod(MethodModel m) {
-        printer.print("method", asPrintable(m), out);
-    }
-
-    private Printable asPrintable(MethodModel m) {
-        var mmap = new LinkedHashMap<String, Printable>();
-        mmap.put("method name", value(m.methodName().stringValue()));
-        mmap.put("flags", list("flag", m.flags().flags().stream().map(AccessFlag::name)));
-        mmap.put("method type", value(m.methodType().stringValue()));
-        mmap.put("attributes", list("attribute", m.attributes().stream().map(Attribute::attributeName)));
-        if (verbosity != VerbosityLevel.MEMBERS_ONLY) {
-            printAttributes(m.attributes(), mmap);
-//            m.code().ifPresent(com -> {
-//                out.accept(format.code.header().formatted(((CodeAttribute)com).maxStack(), ((CodeAttribute)com).maxLocals(), attributeNames(com.attributes())));
-//                var stackMap = new LinkedHashMap<Integer, StackMapFrame>();
-//                var visibleTypeAnnos = new LinkedHashMap<Integer, TypeAnnotation>();
-//                var invisibleTypeAnnos = new LinkedHashMap<Integer, TypeAnnotation>();
-//                List<LocalVariableInfo> locals = List.of();
-//                int lnc =0, lvc = 0, lvtc = 0;
-//                for (var attr : com.attributes()) {
-//                    if (attr instanceof StackMapTableAttribute smta) {
-//                        for (var smf : smta.entries()) {
-//                            stackMap.put(smf.absoluteOffset(), smf);
-//                        }
-//                        printTable(format.stackMapTable, stackMap.values(), f -> new Object[]{f.absoluteOffset(), typesToString(convertVTIs(f.effectiveLocals())), typesToString(convertVTIs(f.effectiveStack()))});
-//                    } else if (verbosity == VerbosityLevel.TRACE_ALL) switch (attr) {
-//                        case LocalVariableTableAttribute lvta ->
-//                            printTable(format.localVariableTable, locals = lvta.localVariables(), lv -> new Object[]{lv.startPc(), lv.startPc() + lv.length(), lv.slot(), lv.name().stringValue(), formatDescriptor(lv.type().stringValue())}, ++lvc < 2 ? "" : " #" + lvc);
-//                        case LineNumberTableAttribute lnta ->
-//                            printTable(format.lineNumberTable, lnta.lineNumbers(), lni -> new Object[] {lni.startPc(), lni.lineNumber()}, ++lnc < 2 ? "" : " #"+lnc);
-//                        case CharacterRangeTableAttribute crta ->
-//                            printTable(format.characterRangeTable, crta.characterRangeTable(), chr -> new Object[] {chr.startPc(), chr.endPc(), chr.characterRangeStart(), chr.characterRangeEnd(), chr.flags()});
-//                        case LocalVariableTypeTableAttribute lvtta ->
-//                            printTable(format.localVariableTypeTable, lvtta.localVariableTypes(), lvt -> new Object[]{lvt.startPc(), lvt.startPc() + lvt.length(), lvt.slot(), lvt.name().stringValue(), formatDescriptor(lvt.signature().stringValue())}, ++lvtc < 2 ? "" : " #" + lvtc);
-//                        case RuntimeVisibleTypeAnnotationsAttribute rvtaa ->
-//                            rvtaa.annotations().forEach(a -> forEachOffset(a, com, visibleTypeAnnos::put));
-//                        case RuntimeInvisibleTypeAnnotationsAttribute ritaa ->
-//                            ritaa.annotations().forEach(a -> forEachOffset(a, com, invisibleTypeAnnos::put));
-//                        case Object o -> {}
-//                    }
-//                }
-//                printAttributes("            ", com.attributes());
-//                stackMap.putIfAbsent(0, StackMapDecoder.initFrame(m));
-//                var excHandlers = com.exceptionHandlers().stream().map(exc -> new ExceptionHandler(com.labelToBci(exc.tryStart()), com.labelToBci(exc.tryEnd()), com.labelToBci(exc.handler()), exc.catchType().map(ct -> ct.asInternalName()).orElse(null))).toList();
-//                int bci = 0;
-//                for (var coe : com) {
-//                    if (coe instanceof Instruction ins) {
-//                        var frame = stackMap.get(bci);
-//                        if (frame != null) {
-//                            out.accept(format.frameInline.formatted(typesToString(convertVTIs(frame.effectiveLocals())), typesToString(convertVTIs(frame.effectiveStack()))));
-//                        }
-//                        var a = invisibleTypeAnnos.get(bci);
-//                        if (a != null) {
-//                            out.accept(format.typeAnnotationInline.formatted("invisible", a.className().stringValue(), a.targetInfo().targetType(), elementValuePairsToString(a.elements())));
-//                        }
-//                        a = visibleTypeAnnos.get(bci);
-//                        if (a != null) {
-//                            out.accept(format.typeAnnotationInline.formatted("visible", a.className().stringValue(), a.targetInfo().targetType(), elementValuePairsToString(a.elements())));
-//                        }
-//                        for (var exc : excHandlers) {
-//                            if (exc.start() == bci) {
-//                                out.accept(format.tryStartInline.formatted(exc.start(), exc.end(), exc.handler(), exc.catchType()));
-//                            }
-//                            if (exc.end() == bci) {
-//                                out.accept(format.tryEndInline.formatted(exc.start(), exc.end(), exc.handler(), exc.catchType()));
-//                            }
-//                            if (exc.handler() == bci) {
-//                                out.accept(format.handlerInline.formatted(exc.start(), exc.end(), exc.handler(), exc.catchType()));
-//                            }
-//                        }
-//                        out.accept(format.mandatoryDelimiter);
-//                        switch (coe) {
-//                            case IncrementInstruction inc ->
-//                                out.accept(format.incInstruction.formatted(bci, ins.opcode().name(), inc.slot(), inc.constant(), findLocal(locals, inc.slot(), bci)));
-//                            case LoadInstruction lv ->
-//                                out.accept(format.localVariableInstruction.formatted(bci, ins.opcode().name(), lv.slot(), findLocal(locals, lv.slot(), bci)));
-//                            case StoreInstruction lv ->
-//                                out.accept(format.localVariableInstruction.formatted(bci, ins.opcode().name(), lv.slot(), findLocal(locals, lv.slot(), bci)));
-//                            case FieldInstruction fa ->
-//                                out.accept(format.memberInstruction.formatted(bci, ins.opcode().name(), fa.owner().asInternalName(), escape(fa.name().stringValue()), fa.type().stringValue()));
-//                            case InvokeInstruction inv ->
-//                                out.accept(format.memberInstruction.formatted(bci, ins.opcode().name(), inv.owner().asInternalName(), escape(inv.name().stringValue()), inv.type().stringValue()));
-//                            case InvokeDynamicInstruction invd -> {
-//                                var bm = invd.bootstrapMethod();
-//                                out.accept(format.invokeDynamicInstruction.formatted(bci, ins.opcode().name(), invd.name().stringValue(), invd.type().stringValue(), bm.kind(), bm.owner().descriptorString(), escape(bm.methodName()), bm.invocationType().descriptorString()));
-//                            }
-//                            case NewObjectInstruction newo ->
-//                                out.accept(format.typeInstruction.formatted(bci, ins.opcode().name(), newo.className().asInternalName()));
-//                            case NewPrimitiveArrayInstruction newa -> out.accept(format.newArrayInstruction.formatted(bci, ins.opcode().name(), 1, newa.typeKind().descriptor()));
-//                            case NewReferenceArrayInstruction newa -> out.accept(format.newArrayInstruction.formatted(bci, ins.opcode().name(), 1, newa.componentType().asInternalName()));
-//                            case NewMultiArrayInstruction newa -> out.accept(format.newArrayInstruction.formatted(bci, ins.opcode().name(), newa.dimensions(), newa.arrayType().asInternalName()));
-//                            case TypeCheckInstruction tch ->
-//                                out.accept(format.typeInstruction.formatted(bci, ins.opcode().name(), tch.type().asInternalName()));
-//                            case ConstantInstruction cons ->
-//                                out.accept(format.constantInstruction.formatted(bci, ins.opcode().name(), escape(String.valueOf(cons.constantValue()))));
-//                            case BranchInstruction br ->
-//                                out.accept(format.branchInstruction.formatted(bci, ins.opcode().name(), com.labelToBci(br.target())));
-//                            case LookupSwitchInstruction ls ->
-//                                out.accept(format.switchInstruction.formatted(bci, ins.opcode().name(), Stream.concat(Stream.of(ls.defaultTarget()).map(com::labelToBci), ls.cases().stream().map(c -> com.labelToBci(c.target()))).toList()));
-//                            case TableSwitchInstruction ts ->
-//                                out.accept(format.switchInstruction.formatted(bci, ins.opcode().name(), Stream.concat(Stream.of(ts.defaultTarget()).map(com::labelToBci), ts.cases().stream().map(c -> com.labelToBci(c.target()))).toList()));
-//                            default ->
-//                                out.accept(format.plainInstruction.formatted(bci, ins.opcode().name()));
-//                        }
-//                        bci += ins.sizeInBytes();
-//                    }
-//                }
-//                out.accept(format.code.footer().formatted());
-//                if (excHandlers.size() > 0) {
-//                    printTable(format.exceptionHandlers, excHandlers, exc -> new Object[]{exc.start(), exc.end(), exc.handler(), exc.catchType()});
-//                }
-//            });
-        }
-        return new PrintableMap(BLOCK, mmap);
-    }
 }

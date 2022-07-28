@@ -113,41 +113,41 @@ public class ClassPrinterTest {
                 """);
     }
 
-//    @Test
+    @Test
     public void testPrintYamlCriticalAttributes() throws IOException {
         var out = new StringBuilder();
         ClassPrinter.yamlPrinter(ClassPrinter.VerbosityLevel.CRITICAL_ATTRIBUTES, out::append).printClass(getClassModel());
         assertOut(out,
                 """
-                  - class name: 'Foo'
-                    version: '61.0'
-                    flags: [PUBLIC]
-                    superclass: 'Boo'
-                    interfaces: ['Phee', 'Phoo']
-                    attributes: [SourceFile]
-                    fields:
-                      - field name: 'f'
-                        flags: [PRIVATE]
-                        descriptor: 'Ljava/lang/String;'
-                        attributes: []
-                    methods:
-                      - method name: 'm'
-                        flags: [PROTECTED]
-                        descriptor: '(ZLjava/lang/Throwable;)Ljava/lang/Void;'
-                        attributes: [Code]
-                        code:
-                            max stack: 1
-                            max locals: 3
-                            attributes: [StackMapTable]
-                            stack map frames:
-                                6: {locals: ['Foo', 'int', 'java/lang/Throwable'], stack: []}
-                            #stack map frame locals: ['Foo', 'int', 'java/lang/Throwable'], stack: []
-                            0: [ILOAD_1, {slot: 1}]
-                            1: [IFEQ, {target: 6}]
-                            4: [ALOAD_2, {slot: 2}]
-                            5: [ATHROW]
-                            #stack map frame locals: ['Foo', 'int', 'java/lang/Throwable'], stack: []
-                            6: [RETURN]
+                class name: Foo
+                version: 61.0
+                flags: [PUBLIC]
+                superclass: Boo
+                interfaces: [Phee, Phoo]
+                attributes: [SourceFile]
+                fields:
+                  - field name: f
+                    flags: [PRIVATE]
+                    field type: Ljava/lang/String;
+                    attributes: []
+                methods:
+                  - method name: m
+                    flags: [PROTECTED]
+                    method type: (ZLjava/lang/Throwable;)Ljava/lang/Void;
+                    attributes: [Code]
+                    code:
+                        max stack: 1
+                        max locals: 3
+                        attributes: [StackMapTable]
+                        stack map frames:
+                            6: {locals: [Foo, int, java/lang/Throwable], stack: []}
+                        //stack map frame @0: {locals: [Foo, int, java/lang/Throwable], stack: []}
+                        0: {opcode: ILOAD_1, slot: 1}
+                        1: {opcode: IFEQ, target: 6}
+                        4: {opcode: ALOAD_2, slot: 2}
+                        5: {opcode: ATHROW}
+                        //stack map frame @6: {locals: [Foo, int, java/lang/Throwable], stack: []}
+                        6: {opcode: RETURN}
                 """);
     }
 
@@ -231,7 +231,7 @@ public class ClassPrinterTest {
                 """);
     }
 
-//    @Test
+    @Test
     public void testPrintJsonCriticalAttributes() throws IOException {
         var out = new StringBuilder();
         ClassPrinter.jsonPrinter(ClassPrinter.VerbosityLevel.CRITICAL_ATTRIBUTES, out::append).printClass(getClassModel());
@@ -244,27 +244,28 @@ public class ClassPrinterTest {
                     "interfaces": ["Phee", "Phoo"],
                     "attributes": ["SourceFile"],
                     "fields": [
-                      { "field name": "f",
-                        "flags": ["PRIVATE"],
-                        "descriptor": "Ljava/lang/String;",
-                        "attributes": [] }],
+                          { "field name": "f",
+                            "flags": ["PRIVATE"],
+                            "field type": "Ljava/lang/String;",
+                            "attributes": []}],
                     "methods": [
-                      { "method name": "m",
-                        "flags": ["PROTECTED"],
-                        "descriptor": "(ZLjava/lang/Throwable;)Ljava/lang/Void;",
-                        "attributes": ["Code"],
-                        "code": {
-                            "max stack": 1,
-                            "max locals": 3,
-                            "attributes": ["StackMapTable"],
-                            "stack map frames": {
-                                "6": { "locals": ["Foo", "int", "java/lang/Throwable"], "stack": [] } },
-                            "0": ["ILOAD_1", { "slot": 1 }],
-                            "1": ["IFEQ", { "target": 6 }],
-                            "4": ["ALOAD_2", { "slot": 2 }],
-                            "5": ["ATHROW"],
-                            "6": ["RETURN"] } }]
-                  }
+                          { "method name": "m",
+                            "flags": ["PROTECTED"],
+                            "method type": "(ZLjava/lang/Throwable;)Ljava/lang/Void;",
+                            "attributes": ["Code"],
+                            "code": {
+                                "max stack": 1,
+                                "max locals": 3,
+                                "attributes": ["StackMapTable"],
+                                "stack map frames": {
+                                    "6": {"locals": ["Foo", "int", "java/lang/Throwable"], "stack": []}},
+                                "//stack map frame @0": {"locals": ["Foo", "int", "java/lang/Throwable"], "stack": []},
+                                "0": {"opcode": "ILOAD_1", "slot": 1},
+                                "1": {"opcode": "IFEQ", "target": 6},
+                                "4": {"opcode": "ALOAD_2", "slot": 2},
+                                "5": {"opcode": "ATHROW"},
+                                "//stack map frame @6": {"locals": ["Foo", "int", "java/lang/Throwable"], "stack": []},
+                                "6": {"opcode": "RETURN"}}}]}
                 """);
     }
 
@@ -348,40 +349,45 @@ public class ClassPrinterTest {
                 """);
     }
 
-//    @Test
+    @Test
     public void testPrintXmlCriticalAttributes() throws IOException {
         var out = new StringBuilder();
         ClassPrinter.xmlPrinter(ClassPrinter.VerbosityLevel.CRITICAL_ATTRIBUTES, out::append).printClass(getClassModel());
         assertOut(out,
                 """
                 <?xml version = '1.0'?>
-                  <class name='Foo'
-                    version='61.0'
-                    flags='[PUBLIC]'
-                    superclass='Boo'
-                    interfaces='[Phee, Phoo]'
-                    attributes='[SourceFile]'>
+                <class>
+                    <class_name>Foo</class_name>
+                    <version>61.0</version>
+                    <flags><flag>PUBLIC</flag></flags>
+                    <superclass>Boo</superclass>
+                    <interfaces><interface>Phee</interface><interface>Phoo</interface></interfaces>
+                    <attributes><attribute>SourceFile</attribute></attributes>
                     <fields>
-                      <field name='f'
-                        flags='[PRIVATE]'
-                        descriptor='Ljava/lang/String;'
-                        attributes='[]'></field></fields>
+                        <field>
+                            <field_name>f</field_name>
+                            <flags><flag>PRIVATE</flag></flags>
+                            <field_type>Ljava/lang/String;</field_type>
+                            <attributes></attributes></field></fields>
                     <methods>
-                      <method name='m'
-                        flags='[PROTECTED]'
-                        descriptor='(ZLjava/lang/Throwable;)Ljava/lang/Void;'
-                        attributes='[Code]'>
-                        <code max_stack='1' max_locals='3' attributes='[StackMapTable]'>
-                            <stack_map_frames>
-                                <:>6</:><frame locals='[Foo, int, java/lang/Throwable]' stack='[]'/></stack_map_frames>
-                            <!-- stack map frame locals: [Foo, int, java/lang/Throwable], stack: [] -->
-                            <:>0</:><ILOAD_1 slot='1'/>
-                            <:>1</:><IFEQ target='6'/>
-                            <:>4</:><ALOAD_2 slot='2'/>
-                            <:>5</:><ATHROW/>
-                            <!-- stack map frame locals: [Foo, int, java/lang/Throwable], stack: [] -->
-                            <:>6</:><RETURN/></code></method></methods>
-                </class>
+                        <method>
+                            <method_name>m</method_name>
+                            <flags><flag>PROTECTED</flag></flags>
+                            <method_type>(ZLjava/lang/Throwable;)Ljava/lang/Void;</method_type>
+                            <attributes><attribute>Code</attribute></attributes>
+                            <code>
+                                <max_stack>1</max_stack>
+                                <max_locals>3</max_locals>
+                                <attributes><attribute>StackMapTable</attribute></attributes>
+                                <stack_map_frames>
+                                    <_6><locals><item>Foo</item><item>int</item><item>java/lang/Throwable</item></locals><stack></stack></_6></stack_map_frames>
+                                <__stack_map_frame__0><locals><item>Foo</item><item>int</item><item>java/lang/Throwable</item></locals><stack></stack></__stack_map_frame__0>
+                                <_0><opcode>ILOAD_1</opcode><slot>1</slot></_0>
+                                <_1><opcode>IFEQ</opcode><target>6</target></_1>
+                                <_4><opcode>ALOAD_2</opcode><slot>2</slot></_4>
+                                <_5><opcode>ATHROW</opcode></_5>
+                                <__stack_map_frame__6><locals><item>Foo</item><item>int</item><item>java/lang/Throwable</item></locals><stack></stack></__stack_map_frame__6>
+                                <_6><opcode>RETURN</opcode></_6></code></method></methods></class>
                 """);
     }
 
