@@ -40,9 +40,22 @@ public final class ClassPrinter {
 
     public enum Verbosity { MEMBERS_ONLY, CRITICAL_ATTRIBUTES, TRACE_ALL }
 
-    public enum Style { BLOCK, FLOW }
+    public sealed interface Node {
 
-    public sealed interface Node {}
+        ConstantDesc name();
+
+        default public void toJson(Consumer<String> out) {
+            ClassPrinterImpl.toJson(this, out);
+        }
+
+        default public void toXml(Consumer<String> out) {
+            ClassPrinterImpl.toXml(this, out);
+        }
+
+        default public void toYaml(Consumer<String> out) {
+            ClassPrinterImpl.toYaml(this, out);
+        }
+    }
 
     public sealed interface SimpleNode extends Node
             permits ClassPrinterImpl.SimpleNodeImpl {
@@ -53,50 +66,20 @@ public final class ClassPrinter {
     public sealed interface ListNode extends Node
             permits ClassPrinterImpl.ListNodeImpl {
 
-        public Style style();
-
-        public String itemName();
-
         public List<Node> list();
     }
 
     public sealed interface MapNode extends Node
             permits ClassPrinterImpl.MapNodeImpl {
 
-        public Style style();
-
         public Map<ConstantDesc, Node> map();
     }
 
-    public static Node toTree(ClassModel classModel, Verbosity verbosity) {
+    public static MapNode toTree(ClassModel classModel, Verbosity verbosity) {
         return ClassPrinterImpl.toTree(classModel, verbosity);
     }
 
-    public static Node toTree(MethodModel methodModel, Verbosity verbosity) {
+    public static MapNode toTree(MethodModel methodModel, Verbosity verbosity) {
         return ClassPrinterImpl.toTree(methodModel, verbosity);
-    }
-
-    public static void toJson(ClassModel classModel, Verbosity verbosity, Consumer<String> out) {
-        ClassPrinterImpl.JSON_PRINTER.printClass(classModel, verbosity, out);
-    }
-
-    public static void toJson(MethodModel methodModel, Verbosity verbosity, Consumer<String> out) {
-        ClassPrinterImpl.JSON_PRINTER.printMethod(methodModel, verbosity, out);
-    }
-
-    public static void toXml(ClassModel classModel, Verbosity verbosity, Consumer<String> out) {
-        ClassPrinterImpl.XML_PRINTER.printClass(classModel, verbosity, out);
-    }
-
-    public static void toXml(MethodModel methodModel, Verbosity verbosity, Consumer<String> out) {
-        ClassPrinterImpl.XML_PRINTER.printMethod(methodModel, verbosity, out);
-    }
-
-    public static void toYaml(ClassModel classModel, Verbosity verbosity, Consumer<String> out) {
-        ClassPrinterImpl.YAML_PRINTER.printClass(classModel, verbosity, out);
-    }
-
-    public static void toYaml(MethodModel methodModel, Verbosity verbosity, Consumer<String> out) {
-        ClassPrinterImpl.YAML_PRINTER.printMethod(methodModel, verbosity, out);
     }
 }

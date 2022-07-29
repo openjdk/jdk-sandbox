@@ -1826,7 +1826,7 @@ static final char JVM_SIGNATURE_SLASH = '/',
     }
 
     private void dumpMethod() {
-        if (_logger != null) ClassPrinter.toYaml(_method.m, ClassPrinter.Verbosity.CRITICAL_ATTRIBUTES, _logger);
+        if (_logger != null) ClassPrinter.toTree(_method.m, ClassPrinter.Verbosity.CRITICAL_ATTRIBUTES).toYaml(_logger);
     }
 
     void verifyError(String msg) {

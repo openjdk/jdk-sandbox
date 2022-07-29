@@ -47,24 +47,8 @@ import jdk.classfile.AnnotationValue;
 import jdk.classfile.AnnotationValue.*;
 import jdk.classfile.Attribute;
 import jdk.classfile.ClassModel;
-import jdk.classfile.constantpool.AnnotationConstantValueEntry;
-import jdk.classfile.constantpool.ClassEntry;
-import jdk.classfile.constantpool.ConstantDynamicEntry;
-import jdk.classfile.constantpool.DoubleEntry;
-import jdk.classfile.constantpool.DynamicConstantPoolEntry;
-import jdk.classfile.constantpool.FloatEntry;
-import jdk.classfile.constantpool.IntegerEntry;
-import jdk.classfile.constantpool.InvokeDynamicEntry;
-import jdk.classfile.constantpool.LongEntry;
-import jdk.classfile.constantpool.MemberRefEntry;
-import jdk.classfile.constantpool.MethodHandleEntry;
-import jdk.classfile.constantpool.MethodTypeEntry;
-import jdk.classfile.constantpool.ModuleEntry;
-import jdk.classfile.constantpool.NameAndTypeEntry;
-import jdk.classfile.constantpool.PackageEntry;
-import jdk.classfile.constantpool.PoolEntry;
-import jdk.classfile.constantpool.StringEntry;
-import jdk.classfile.constantpool.Utf8Entry;
+import jdk.classfile.constantpool.*;
+import jdk.classfile.ClassPrinter;
 import jdk.classfile.ClassPrinter.*;
 import jdk.classfile.Instruction;
 import jdk.classfile.instruction.*;
@@ -91,7 +75,7 @@ import static jdk.classfile.Classfile.TAG_NAMEANDTYPE;
 import static jdk.classfile.Classfile.TAG_PACKAGE;
 import static jdk.classfile.Classfile.TAG_STRING;
 import static jdk.classfile.Classfile.TAG_UTF8;
-import static jdk.classfile.ClassPrinter.Style.*;
+import static jdk.classfile.impl.ClassPrinterImpl.Style.*;
 
 /**
  * ClassPrinterImpl
@@ -112,20 +96,47 @@ public final class ClassPrinterImpl {
 //        Function<String, String> escapeFunction) {}
 
 
-    public record SimpleNodeImpl(ConstantDesc value) implements SimpleNode {}
+    public enum Style { BLOCK, FLOW }
 
-    public record ListNodeImpl(Style style, String itemName, List<Node> list) implements ListNode {
-        public ListNodeImpl(Style style, String itemName, List<Node> list) {
+    public record SimpleNodeImpl(ConstantDesc name, ConstantDesc value) implements SimpleNode {}
+
+    public record ListNodeImpl(Style style, ConstantDesc name, List<Node> list) implements ListNode {
+        public ListNodeImpl(Style style, ConstantDesc name, List<Node> list) {
             this.style = style;
-            this.itemName = itemName;
+            this.name = name;
             this.list = Collections.unmodifiableList(list);
         }
     }
 
-    public record MapNodeImpl(Style style, Map<ConstantDesc, Node> map) implements MapNode {
-        public MapNodeImpl(Style style, Map<ConstantDesc, Node> map) {
+    public record MapNodeImpl(Style style, ConstantDesc name, Map<ConstantDesc, Node> map) implements MapNode {
+        public MapNodeImpl(Style style, ConstantDesc name, Map<ConstantDesc, Node> map) {
             this.style = style;
+            this.name = name;
             this.map = Collections.unmodifiableMap(map);
+        }
+    }
+
+
+    private static final String NL = System.lineSeparator();
+
+    private static final char[] DIGITS = "0123456789ABCDEF".toCharArray();
+
+    private static void escape(int c, StringBuilder sb) {
+        switch (c) {
+            case '\\'  -> sb.append('\\').append('\\');
+            case '"' -> sb.append('\\').append('"');
+            case '\b' -> sb.append('\\').append('b');
+            case '\n' -> sb.append('\\').append('n');
+            case '\t' -> sb.append('\\').append('t');
+            case '\f' -> sb.append('\\').append('f');
+            case '\r' -> sb.append('\\').append('r');
+            default -> {
+                if (c >= 0x20 && c < 0x7f) {
+                    sb.append((char)c);
+                } else {
+                    sb.append('\\').append('u').append(DIGITS[(c >> 12) & 0xf]).append(DIGITS[(c >> 8) & 0xf]).append(DIGITS[(c >> 4) & 0xf]).append(DIGITS[(c) & 0xf]);
+                }
+            }
         }
     }
 
@@ -181,294 +192,238 @@ public final class ClassPrinterImpl {
 //            new Table("%n            local variable types: #[<start pc>, <end pc>, '<name>', <signature>]", "", "%n                - [%d, %d, %d, '%s', '%s']"),
 //            ClassPrinterImpl::escapeYaml);
 
-    public interface Printer {
-
-        static String NL = System.lineSeparator();
-
-        static final char[] DIGITS = "0123456789ABCDEF".toCharArray();
-
-        static void escape(int c, StringBuilder sb) {
-            switch (c) {
-                case '\\'  -> sb.append('\\').append('\\');
-                case '"' -> sb.append('\\').append('"');
-                case '\b' -> sb.append('\\').append('b');
-                case '\n' -> sb.append('\\').append('n');
-                case '\t' -> sb.append('\\').append('t');
-                case '\f' -> sb.append('\\').append('f');
-                case '\r' -> sb.append('\\').append('r');
-                default -> {
-                    if (c >= 0x20 && c < 0x7f) {
-                        sb.append((char)c);
-                    } else {
-                        sb.append('\\').append('u').append(DIGITS[(c >> 12) & 0xf]).append(DIGITS[(c >> 8) & 0xf]).append(DIGITS[(c >> 4) & 0xf]).append(DIGITS[(c) & 0xf]);
-                    }
-                }
-            }
-        }
-
-        default public void printClass(ClassModel clm, Verbosity verbosity, Consumer<String> out) {
-            print("class", toTree(clm, verbosity), out);
-        }
-
-        default public void printMethod(MethodModel m, Verbosity verbosity, Consumer<String> out) {
-            print("method", toTree(m, verbosity), out);
-        }
-
-        void print(String rootNodeName, Node rootNode, Consumer<String> out);
+    public static void toYaml(Node node, Consumer<String> out) {
+        toYaml(0, false, blockList(null, List.of(node)), out);
+        out.accept(NL);
     }
 
-    public static final Printer YAML_PRINTER = new Printer() {
-
-        @Override
-        public void print(String nodeName, Node node, Consumer<String> out) {
-            print(0, false, blockList(nodeName, List.of(node)), out);
-            out.accept(NL);
-        }
-
-        private void print(int indent, boolean skipFirstIndent, Node node, Consumer<String> out) {
-            switch (node) {
-                case SimpleNode v -> {
-                    out.accept(quoteAndEscape(v.value()));
-                }
-                case ListNode pl -> {
-                    switch (pl.style()) {
-                        case FLOW -> {
-                            out.accept("[");
-                            boolean first = true;
-                            for (var s : pl.list()) {
-                                if (first) first = false;
-                                else out.accept(", ");
-                                print(0, false, s, out);
-                            }
-                            out.accept("]");
+    private static void toYaml(int indent, boolean skipFirstIndent, Node node, Consumer<String> out) {
+        switch (node) {
+            case SimpleNode v -> {
+                out.accept(quoteAndEscapeYaml(v.value()));
+            }
+            case ListNodeImpl pl -> {
+                switch (pl.style()) {
+                    case FLOW -> {
+                        out.accept("[");
+                        boolean first = true;
+                        for (var s : pl.list()) {
+                            if (first) first = false;
+                            else out.accept(", ");
+                            toYaml(0, false, s, out);
                         }
-                        case BLOCK -> {
-                            for (var n : pl.list()) {
-                                out.accept(NL + "    ".repeat(indent) + "  - ");
-                                print(indent + 1, true, n, out);
-                            }
+                        out.accept("]");
+                    }
+                    case BLOCK -> {
+                        for (var n : pl.list()) {
+                            out.accept(NL + "    ".repeat(indent) + "  - ");
+                            toYaml(indent + 1, true, n, out);
                         }
                     }
                 }
-                case MapNode pm -> {
-                    switch (pm.style()) {
-                        case FLOW -> {
-                            out.accept("{");
-                            boolean first = true;
-                            for (var me : pm.map().entrySet()) {
-                                if (first) first = false;
-                                else out.accept(", ");
-                                out.accept(quoteAndEscape(me.getKey()) + ": ");
-                                print(0, false, me.getValue(), out);
-                            }
-                            out.accept("}");
+            }
+            case MapNodeImpl pm -> {
+                switch (pm.style()) {
+                    case FLOW -> {
+                        out.accept("{");
+                        boolean first = true;
+                        for (var n : pm.map().values()) {
+                            if (first) first = false;
+                            else out.accept(", ");
+                            out.accept(quoteAndEscapeYaml(n.name()) + ": ");
+                            toYaml(0, false, n, out);
                         }
-                        case BLOCK -> {
-                            for (var me : pm.map().entrySet()) {
-                                if (skipFirstIndent) {
-                                    skipFirstIndent = false;
-                                } else {
-                                    out.accept(NL + "    ".repeat(indent));
-                                }
-                                out.accept(quoteAndEscape(me.getKey()) + ": ");
-                                var n = me.getValue();
-                                print(n instanceof ListNode pl && pl.style() == BLOCK ? indent : indent + 1, false, n, out);
+                        out.accept("}");
+                    }
+                    case BLOCK -> {
+                        for (var n : pm.map().values()) {
+                            if (skipFirstIndent) {
+                                skipFirstIndent = false;
+                            } else {
+                                out.accept(NL + "    ".repeat(indent));
                             }
+                            out.accept(quoteAndEscapeYaml(n.name()) + ": ");
+                            toYaml(n instanceof ListNodeImpl pl && pl.style() == BLOCK ? indent : indent + 1, false, n, out);
                         }
                     }
                 }
             }
         }
+    }
 
-        private static String quoteAndEscape(ConstantDesc value) {
-            String s = value.toString();
-            if (value instanceof Number) return s;
-            if (s.length() == 0) return "''";
-            var sb = new StringBuilder(s.length() << 1);
-            s.chars().forEach(c -> {
-                switch (c) {
-                    case '\''  -> sb.append("''");
-                    default -> Printer.escape(c, sb);
-                }});
-            String esc = sb.toString();
-            if (esc.length() != s.length()) return "'" + esc + "'";
+    private static String quoteAndEscapeYaml(ConstantDesc value) {
+        String s = value.toString();
+        if (value instanceof Number) return s;
+        if (s.length() == 0) return "''";
+        var sb = new StringBuilder(s.length() << 1);
+        s.chars().forEach(c -> {
+            switch (c) {
+                case '\''  -> sb.append("''");
+                default -> escape(c, sb);
+            }});
+        String esc = sb.toString();
+        if (esc.length() != s.length()) return "'" + esc + "'";
+        switch (esc.charAt(0)) {
+            case '-', '?', ':', ',', '[', ']', '{', '}', '#', '&', '*', '!', '|', '>', '\'', '"', '%', '@', '`':
+                return "'" + esc + "'";
+        }
+        for (int i = 1; i < esc.length(); i++) {
             switch (esc.charAt(0)) {
-                case '-', '?', ':', ',', '[', ']', '{', '}', '#', '&', '*', '!', '|', '>', '\'', '"', '%', '@', '`':
+                case ',', '[', ']', '{', '}':
                     return "'" + esc + "'";
             }
-            for (int i = 1; i < esc.length(); i++) {
-                switch (esc.charAt(0)) {
-                    case ',', '[', ']', '{', '}':
-                        return "'" + esc + "'";
-                }
+        }
+        return esc;
+    }
+
+    public static void toJson(Node node, Consumer<String> out) {
+        toJson(1, true, node, out);
+        out.accept(NL);
+    }
+
+    private static void toJson(int indent, boolean skipFirstIndent, Node node, Consumer<String> out) {
+        switch (node) {
+            case SimpleNode v -> {
+                out.accept(quoteAndEscapeJson(v.value()));
             }
-            return esc;
-        }
-    };
-
-    public static final Printer JSON_PRINTER = new Printer() {
-
-        @Override
-        public void print(String nodeName, Node node, Consumer<String> out) {
-            print(1, true, node, out);
-            out.accept(NL);
-        }
-
-        private void print(int indent, boolean skipFirstIndent, Node node, Consumer<String> out) {
-            switch (node) {
-                case SimpleNode v -> {
-                    out.accept(quoteAndEscape(v.value()));
-                }
-                case ListNode pl -> {
-                    out.accept("[");
-                    boolean first = true;
-                    switch (pl.style()) {
-                        case FLOW -> {
-                            for (var s : pl.list()) {
-                                if (first) first = false;
-                                else out.accept(", ");
-                                print(0, false, s, out);
-                            }
-                        }
-                        case BLOCK -> {
-                            for (var n : pl.list()) {
-                                if (first) first = false;
-                                else out.accept(",");
-                                out.accept(NL + "    ".repeat(indent));
-                                print(indent + 1, true, n, out);
-                            }
+            case ListNodeImpl pl -> {
+                out.accept("[");
+                boolean first = true;
+                switch (pl.style()) {
+                    case FLOW -> {
+                        for (var s : pl.list()) {
+                            if (first) first = false;
+                            else out.accept(", ");
+                            toJson(0, false, s, out);
                         }
                     }
-                    out.accept("]");
-                }
-                case MapNode pm -> {
-                    switch (pm.style()) {
-                        case FLOW -> {
-                            out.accept("{");
-                            boolean first = true;
-                            for (var me : pm.map().entrySet()) {
-                                if (first) first = false;
-                                else out.accept(", ");
-                                out.accept(quoteAndEscape(me.getKey().toString()) + ": ");
-                                print(0, false, me.getValue(), out);
-                            }
-                        }
-                        case BLOCK -> {
-                            if (skipFirstIndent) out.accept("  { ");
-                            else out.accept("{");
-                            boolean first = true;
-                            for (var me : pm.map().entrySet()) {
-                                if (first) first = false;
-                                else out.accept(",");
-                                if (skipFirstIndent) skipFirstIndent = false;
-                                else out.accept(NL + "    ".repeat(indent));
-                                out.accept(quoteAndEscape(me.getKey().toString()) + ": ");
-                                print(indent + 1, false, me.getValue(), out);
-                            }
+                    case BLOCK -> {
+                        for (var n : pl.list()) {
+                            if (first) first = false;
+                            else out.accept(",");
+                            out.accept(NL + "    ".repeat(indent));
+                            toJson(indent + 1, true, n, out);
                         }
                     }
-                    out.accept("}");
                 }
+                out.accept("]");
+            }
+            case MapNodeImpl pm -> {
+                switch (pm.style()) {
+                    case FLOW -> {
+                        out.accept("{");
+                        boolean first = true;
+                        for (var n : pm.map().values()) {
+                            if (first) first = false;
+                            else out.accept(", ");
+                            out.accept(quoteAndEscapeJson(n.name().toString()) + ": ");
+                            toJson(0, false, n, out);
+                        }
+                    }
+                    case BLOCK -> {
+                        if (skipFirstIndent) out.accept("  { ");
+                        else out.accept("{");
+                        boolean first = true;
+                        for (var n : pm.map().values()) {
+                            if (first) first = false;
+                            else out.accept(",");
+                            if (skipFirstIndent) skipFirstIndent = false;
+                            else out.accept(NL + "    ".repeat(indent));
+                            out.accept(quoteAndEscapeJson(n.name().toString()) + ": ");
+                            toJson(indent + 1, false, n, out);
+                        }
+                    }
+                }
+                out.accept("}");
             }
         }
+    }
 
-        private static String quoteAndEscape(ConstantDesc value) {
-            String s = value.toString();
-            if (value instanceof Number) return s;
-            var sb = new StringBuilder(s.length() << 1);
-            sb.append('"');
-            s.chars().forEach(c -> Printer.escape(c, sb));
-            sb.append('"');
-            return sb.toString();
-        }
-    };
+    private static String quoteAndEscapeJson(ConstantDesc value) {
+        String s = value.toString();
+        if (value instanceof Number) return s;
+        var sb = new StringBuilder(s.length() << 1);
+        sb.append('"');
+        s.chars().forEach(c -> escape(c, sb));
+        sb.append('"');
+        return sb.toString();
+    }
 
-    public static final Printer XML_PRINTER = new Printer() {
+    public static void toXml(Node node, Consumer<String> out) {
+        out.accept("<?xml version = '1.0'?>");
+        toXml(0, false, node, out);
+        out.accept(NL);
+    }
 
-        @Override
-        public void print(String nodeName, Node node, Consumer<String> out) {
-            out.accept("<?xml version = '1.0'?>");
-            print(0, blockList(nodeName, List.of(node)), out);
-            out.accept(NL);
-        }
-
-        private void print(int indent, Node node, Consumer<String> out) {
-            switch (node) {
-                case SimpleNode v -> {
-                    out.accept(xmlEscape(v.value()));
-                }
-                case ListNode pl -> {
-                    var name = toXmlName(pl.itemName());
-                    switch (pl.style()) {
-                        case FLOW -> {
-                            for (var n : pl.list()) {
-                                out.accept("<" + name + ">");
-                                if (n instanceof SimpleNode v) {
-                                    print(0, n, out);
-                                } else {
-                                    print(0, n, out);
-                                }
-                                out.accept("</" + name + ">");
-                            }
+    private static void toXml(int indent, boolean skipFirstIndent, Node node, Consumer<String> out) {
+        var name = toXmlName(node.name().toString());
+        switch (node) {
+            case SimpleNode v -> {
+                out.accept("<" + name + ">");
+                out.accept(xmlEscape(v.value()));
+            }
+            case ListNodeImpl pl -> {
+                switch (pl.style()) {
+                    case FLOW -> {
+                        out.accept("<" + name + ">");
+                        for (var n : pl.list()) {
+                            toXml(0, false, n, out);
                         }
-                        case BLOCK -> {
-                            for (var n : pl.list()) {
-                                out.accept(NL + "    ".repeat(indent) + "<" + name + ">");
-                                if (n instanceof SimpleNode v) {
-                                    print(0, n, out);
-                                } else {
-                                    print(indent + 1, n, out);
-                                }
-                                out.accept("</" + name + ">");
-                            }
+                    }
+                    case BLOCK -> {
+                        if (!skipFirstIndent)
+                            out.accept(NL + "    ".repeat(indent));
+                        out.accept("<" + name + ">");
+                        for (var n : pl.list()) {
+                            out.accept(NL + "    ".repeat(indent + 1));
+                            toXml(indent + 1, true, n, out);
                         }
                     }
                 }
-                case MapNode pm -> {
-                    switch (pm.style()) {
-                        case FLOW -> {
-                            for (var me : pm.map().entrySet()) {
-                                var name = toXmlName(me.getKey().toString());
-                                out.accept("<" + name + ">");
-                                print(0, me.getValue(), out);
-                                out.accept("</" + name + ">");
-                            }
+            }
+            case MapNodeImpl pm -> {
+                switch (pm.style()) {
+                    case FLOW -> {
+                        out.accept("<" + name + ">");
+                        for (var me : pm.map().entrySet()) {
+                            toXml(0, false, me.getValue(), out);
                         }
-                        case BLOCK -> {
-                            for (var me : pm.map().entrySet()) {
-                                out.accept(NL + "    ".repeat(indent));
-                                var name = toXmlName(me.getKey().toString());
-                                out.accept("<" + name + ">");
-                                print(indent + 1, me.getValue(), out);
-                                out.accept("</" + name + ">");
-                            }
+                    }
+                    case BLOCK -> {
+                        if (!skipFirstIndent)
+                            out.accept(NL + "    ".repeat(indent));
+                        out.accept("<" + name + ">");
+                        for (var n : pm.map().values()) {
+                            out.accept(NL + "    ".repeat(indent + 1));
+                            toXml(indent + 1, true, n, out);
                         }
                     }
                 }
             }
         }
+        out.accept("</" + name + ">");
+    }
 
-        private static String xmlEscape(ConstantDesc value) {
-            var s = value.toString();
-            var sb = new StringBuilder(s.length() << 1);
-            s.chars().forEach(c -> {
-            switch (c) {
-                case '<'  -> sb.append("&lt;");
-                case '>'  -> sb.append("&gt;");
-                case '"'  -> sb.append("&quot;");
-                case '&'  -> sb.append("&amp;");
-                case '\''  -> sb.append("&apos;");
-                default -> Printer.escape(c, sb);
-            }});
-            return sb.toString();
-        }
+    private static String xmlEscape(ConstantDesc value) {
+        var s = value.toString();
+        var sb = new StringBuilder(s.length() << 1);
+        s.chars().forEach(c -> {
+        switch (c) {
+            case '<'  -> sb.append("&lt;");
+            case '>'  -> sb.append("&gt;");
+            case '"'  -> sb.append("&quot;");
+            case '&'  -> sb.append("&amp;");
+            case '\''  -> sb.append("&apos;");
+            default -> escape(c, sb);
+        }});
+        return sb.toString();
+    }
 
-        private static String toXmlName(String name) {
-            if (Character.isDigit(name.charAt(0)))
-                name = "_" + name;
-            return name.replaceAll("[^A-Za-z_0-9]", "_");
-        }
-    };
+    private static String toXmlName(String name) {
+        if (Character.isDigit(name.charAt(0)))
+            name = "_" + name;
+        return name.replaceAll("[^A-Za-z_0-9]", "_");
+    }
 
 //    private List<String> quoteFlags(Set<? extends Enum<?>> flags) {
 //        return flags.stream().map(f -> format.quoteFlagsAndAttrs ? format.quotes + f.name() + format.quotes : f.name()).toList();
@@ -505,38 +460,51 @@ public final class ClassPrinterImpl {
         return new LinkedHashMap<>();
     }
 
-    private static Node value(ConstantDesc value) {
-        return new SimpleNodeImpl(value);
+    private static List<Node> newList() {
+        return new LinkedList<>();
     }
 
-    private static Node blockList(String itemName, List<Node> list) {
-        return new ListNodeImpl(BLOCK, itemName, list);
+    private static Node value(ConstantDesc name, ConstantDesc value) {
+        return new SimpleNodeImpl(name, value);
     }
 
-    private static Node list(String itemName, Stream<?> values) {
-        return new ListNodeImpl(FLOW, itemName, values.map(v -> {
+    private static Node blockList(ConstantDesc listName, List<Node> list) {
+        return new ListNodeImpl(BLOCK, listName, list);
+    }
+
+    private static Node list(ConstantDesc listName, ConstantDesc itemsName, Stream<?> values) {
+        return new ListNodeImpl(FLOW, listName, values.map(v -> {
             return switch (v) {
                 case Node p -> p;
-                case ConstantDesc cd -> value(cd);
+                case ConstantDesc cd -> value(itemsName, cd);
                 default -> throw new AssertionError("should not reach here");
             };
         }).toList());
     }
 
-    private static Node blockMap(Map<ConstantDesc, Node> map) {
-        return new MapNodeImpl(BLOCK, map);
+    private static Node blockMap(ConstantDesc mapName, Collection<Node> nodes) {
+        var map = newMap();
+        nodes.forEach(n -> map.put(n.name(), n));
+        return new MapNodeImpl(BLOCK, mapName, map);
     }
 
-    private static Node map(Object... keysAndValues) {
+    private static Node map(ConstantDesc mapName, Node... nodes) {
+        var map = newMap();
+        for (var n : nodes) map.put(n.name(), n);
+        return new MapNodeImpl(FLOW, mapName, map);
+    }
+
+    private static Node map(ConstantDesc id, ConstantDesc... keysAndValues) {
         var map = newMap();
         for (int i = 0; i < keysAndValues.length; i += 2) {
-            switch (keysAndValues[i + 1]) {
-                case Node p -> map.put((ConstantDesc)keysAndValues[i], p);
-                case ConstantDesc cd -> map.put((ConstantDesc)keysAndValues[i], value(cd));
-                default -> throw new IllegalArgumentException();
-            }
+            map.put(keysAndValues[i], value(keysAndValues[i], keysAndValues[i + 1]));
+//            switch (keysAndValues[i + 1]) {
+//                case Node p -> map.put((ConstantDesc)keysAndValues[i], p);
+//                case ConstantDesc cd -> map.put((ConstantDesc)keysAndValues[i], value((ConstantDesc)keysAndValues[i], cd));
+//                default -> throw new IllegalArgumentException();
+//            }
         }
-        return new MapNodeImpl(FLOW, map);
+        return new MapNodeImpl(FLOW, id, map);
     }
 
     private static String formatDescriptor(String desc) {
@@ -588,97 +556,97 @@ public final class ClassPrinterImpl {
 
     private record ExceptionHandler(int start, int end, int handler, String catchType) {}
 
-    public static Node toTree(ClassModel clm, Verbosity verbosity) {
-        var clmap = newMap();
-        clmap.put("class name", value(clm.thisClass().asInternalName()));
-        clmap.put("version", value(clm.majorVersion() + "." + clm.minorVersion()));
-        clmap.put("flags", list("flag", clm.flags().flags().stream().map(AccessFlag::name)));
-        clmap.put("superclass", value(clm.superclass().map(ClassEntry::asInternalName).orElse("")));
-        clmap.put("interfaces", list("interface", clm.interfaces().stream().map(ClassEntry::asInternalName)));
-        clmap.put("attributes", list("attribute", clm.attributes().stream().map(Attribute::attributeName)));
+    public static MapNode toTree(ClassModel clm, Verbosity verbosity) {
+        var cllist = newList();
+        cllist.add(value("class name", clm.thisClass().asInternalName()));
+        cllist.add(value("version", clm.majorVersion() + "." + clm.minorVersion()));
+        cllist.add(list("flags", "flag", clm.flags().flags().stream().map(AccessFlag::name)));
+        cllist.add(value("superclass", clm.superclass().map(ClassEntry::asInternalName).orElse("")));
+        cllist.add(list("interfaces", "interface", clm.interfaces().stream().map(ClassEntry::asInternalName)));
+        cllist.add(list("attributes", "attribute", clm.attributes().stream().map(Attribute::attributeName)));
         if (verbosity == Verbosity.TRACE_ALL) {
-            var cpEntries = newMap();
+            var cpEntries = newList();
             for (int i = 1; i < clm.constantPool().entryCount();) {
                 var e = clm.constantPool().entryByIndex(i);
-                cpEntries.put(i, toTree(e));
+                cpEntries.add(toTree(i, e));
                 i += e.poolEntries();
             }
-            clmap.put("constant pool", blockMap(cpEntries));
+            cllist.add(blockMap("constant pool", cpEntries));
         }
-        if (verbosity != Verbosity.MEMBERS_ONLY) printAttributes(clm.attributes(), clmap, verbosity);
-        clmap.put("fields", blockList("field", clm.fields().stream().map(f -> {
-            var fieldElements = newMap();
-            fieldElements.put("field name", value(f.fieldName().stringValue()));
-            fieldElements.put("flags", list("flag", f.flags().flags().stream().map(AccessFlag::name)));
-            fieldElements.put("field type", value(f.fieldType().stringValue()));
-            fieldElements.put("attributes", list("attribute", f.attributes().stream().map(Attribute::attributeName)));
+        if (verbosity != Verbosity.MEMBERS_ONLY) printAttributes(clm.attributes(), cllist, verbosity);
+        cllist.add(blockList("fields", clm.fields().stream().map(f -> {
+            var fieldElements = newList();
+            fieldElements.add(value("field name", f.fieldName().stringValue()));
+            fieldElements.add(list("flags", "flag", f.flags().flags().stream().map(AccessFlag::name)));
+            fieldElements.add(value("field type", f.fieldType().stringValue()));
+            fieldElements.add(list("attributes", "attribute", f.attributes().stream().map(Attribute::attributeName)));
             if (verbosity != Verbosity.MEMBERS_ONLY) printAttributes(f.attributes(), fieldElements, verbosity);
-            return blockMap(fieldElements);
+            return blockMap("field", fieldElements);
         }).toList()));
-        clmap.put("methods", blockList("method", clm.methods().stream().map(mm -> toTree(mm, verbosity)).toList()));
-        return blockMap(clmap);
+        cllist.add(blockList("methods", clm.methods().stream().map(mm -> (Node)toTree(mm, verbosity)).toList()));
+        return (MapNode)blockMap("class", cllist);
     }
 
-    private static Node toTree(PoolEntry e) {
+    private static Node toTree(int i, PoolEntry e) {
         return switch (e) {
-            case Utf8Entry ve -> printValueEntry(ve);
-            case IntegerEntry ve -> printValueEntry(ve);
-            case FloatEntry ve -> printValueEntry(ve);
-            case LongEntry ve -> printValueEntry(ve);
-            case DoubleEntry ve -> printValueEntry(ve);
-            case ClassEntry ce -> printNamedEntry(e, ce.name());
-            case StringEntry se -> map(
+            case Utf8Entry ve -> printValueEntry(i, ve);
+            case IntegerEntry ve -> printValueEntry(i, ve);
+            case FloatEntry ve -> printValueEntry(i, ve);
+            case LongEntry ve -> printValueEntry(i, ve);
+            case DoubleEntry ve -> printValueEntry(i, ve);
+            case ClassEntry ce -> printNamedEntry(i, e, ce.name());
+            case StringEntry se -> map(i,
                     "tag", tagName(e.tag()),
                     "value index", se.utf8().index(),
                     "value", se.stringValue());
-            case MemberRefEntry mre -> map(
+            case MemberRefEntry mre -> map(i,
                     "tag", tagName(e.tag()),
                     "owner index", mre.owner().index(),
                     "name and type index", mre.nameAndType().index(),
                     "owner", mre.owner().asInternalName(),
                     "name", mre.name().stringValue(),
                     "type", mre.type().stringValue());
-            case NameAndTypeEntry nte -> map(
+            case NameAndTypeEntry nte -> map(i,
                     "tag", tagName(e.tag()),
                     "name index", nte.name().index(),
                     "type index", nte.type().index(),
                     "name", nte.name().stringValue(),
                     "type", nte.type().stringValue());
-            case MethodHandleEntry mhe -> map(
+            case MethodHandleEntry mhe -> map(i,
                     "tag", tagName(e.tag()),
                     "reference kind", DirectMethodHandleDesc.Kind.valueOf(mhe.kind()).name(),
                     "reference index", mhe.reference().index(),
                     "owner", mhe.reference().owner().asInternalName(),
                     "name", mhe.reference().name().stringValue(),
                     "type", mhe.reference().type().stringValue());
-            case MethodTypeEntry mte -> map(
+            case MethodTypeEntry mte -> map(i,
                     "tag", tagName(e.tag()),
                     "descriptor index", mte.descriptor().index(),
                     "descriptor", mte.descriptor().stringValue());
-            case ConstantDynamicEntry cde -> printDynamicEntry(cde);
-            case InvokeDynamicEntry ide -> printDynamicEntry(ide);
-            case ModuleEntry me -> printNamedEntry(e, me.name());
-            case PackageEntry pe -> printNamedEntry(e, pe.name());
+            case ConstantDynamicEntry cde -> printDynamicEntry(i, cde);
+            case InvokeDynamicEntry ide -> printDynamicEntry(i, ide);
+            case ModuleEntry me -> printNamedEntry(i, e, me.name());
+            case PackageEntry pe -> printNamedEntry(i, e, pe.name());
         };
     }
 
-    private static Node toTree(StackMapFrame f) {
-        return map("locals", list("item", convertVTIs(f.effectiveLocals())), "stack", list("item", convertVTIs(f.effectiveStack())));
+    private static Node toTree(ConstantDesc name, StackMapFrame f) {
+        return map(name, list("locals", "item", convertVTIs(f.effectiveLocals())), list("stack", "item", convertVTIs(f.effectiveStack())));
     }
 
-    public static Node toTree(MethodModel m, Verbosity verbosity) {
-        var mmap = newMap();
-        mmap.put("method name", value(m.methodName().stringValue()));
-        mmap.put("flags", list("flag", m.flags().flags().stream().map(AccessFlag::name)));
-        mmap.put("method type", value(m.methodType().stringValue()));
-        mmap.put("attributes", list("attribute", m.attributes().stream().map(Attribute::attributeName)));
+    public static MapNode toTree(MethodModel m, Verbosity verbosity) {
+        var mlist = newList();
+        mlist.add(value("method name", m.methodName().stringValue()));
+        mlist.add(list("flags", "flag", m.flags().flags().stream().map(AccessFlag::name)));
+        mlist.add(value("method type", m.methodType().stringValue()));
+        mlist.add(list("attributes", "attribute", m.attributes().stream().map(Attribute::attributeName)));
         if (verbosity != Verbosity.MEMBERS_ONLY) {
-            printAttributes(m.attributes(), mmap, verbosity);
+            printAttributes(m.attributes(), mlist, verbosity);
             m.code().ifPresent(com -> {
-                var comap = newMap();
-                comap.put("max stack", value(((CodeAttribute)com).maxStack()));
-                comap.put("max locals", value(((CodeAttribute)com).maxLocals()));
-                comap.put("attributes", list("attribute", com.attributes().stream().map(Attribute::attributeName)));
+                var clist = newList();
+                clist.add(value("max stack", ((CodeAttribute)com).maxStack()));
+                clist.add(value("max locals", ((CodeAttribute)com).maxLocals()));
+                clist.add(list("attributes", "attribute", com.attributes().stream().map(Attribute::attributeName)));
                 var stackMap = newMap();
                 var visibleTypeAnnos = new LinkedHashMap<Integer, TypeAnnotation>();
                 var invisibleTypeAnnos = new LinkedHashMap<Integer, TypeAnnotation>();
@@ -687,10 +655,9 @@ public final class ClassPrinterImpl {
                 for (var attr : com.attributes()) {
                     if (attr instanceof StackMapTableAttribute smta) {
                         for (var smf : smta.entries()) {
-                            stackMap.put(smf.absoluteOffset(), toTree(smf));
-
+                            stackMap.put(smf.absoluteOffset(), toTree(smf.absoluteOffset(), smf));
                         }
-                        comap.put("stack map frames", blockMap(stackMap));
+                        clist.add(blockMap("stack map frames", stackMap.values()));
                     } else if (verbosity == Verbosity.TRACE_ALL) switch (attr) {
 //                        case LocalVariableTableAttribute lvta ->
 //                            printTable(format.localVariableTable, locals = lvta.localVariables(), lv -> new Object[]{lv.startPc(), lv.startPc() + lv.length(), lv.slot(), lv.name().stringValue(), formatDescriptor(lv.type().stringValue())}, ++lvc < 2 ? "" : " #" + lvc);
@@ -707,9 +674,9 @@ public final class ClassPrinterImpl {
                         case Object o -> {}
                     }
                 }
-                printAttributes(com.attributes(), comap, verbosity);
+                printAttributes(com.attributes(), clist, verbosity);
                 if (!stackMap.containsKey(0)) {
-                    comap.put("//stack map frame @0", toTree(StackMapDecoder.initFrame(m)));
+                    clist.add(toTree("//stack map frame @0", StackMapDecoder.initFrame(m)));
                 }
                 var excHandlers = com.exceptionHandlers().stream().map(exc -> new ExceptionHandler(com.labelToBci(exc.tryStart()), com.labelToBci(exc.tryEnd()), com.labelToBci(exc.handler()), exc.catchType().map(ct -> ct.asInternalName()).orElse(null))).toList();
                 int bci = 0;
@@ -717,7 +684,7 @@ public final class ClassPrinterImpl {
                     if (coe instanceof Instruction ins) {
                         var frame = stackMap.get(bci);
                         if (frame != null) {
-                            comap.put("//stack map frame @" + bci, frame);
+                            clist.add(new MapNodeImpl(FLOW, "//stack map frame @" + bci, ((MapNode)frame).map()));
                         }
 //                        var a = invisibleTypeAnnos.get(bci);
 //                        if (a != null) {
@@ -739,29 +706,29 @@ public final class ClassPrinterImpl {
 //                            }
 //                        }
                         switch (coe) {
-                            case IncrementInstruction inc -> comap.put(bci, map(appendLocalInfo(locals, inc.slot(), bci,
+                            case IncrementInstruction inc -> clist.add(map(bci, appendLocalInfo(locals, inc.slot(), bci,
                                     "opcode", ins.opcode().name(),
                                     "slot", inc.slot(),
                                     "const", inc.constant())));
-                            case LoadInstruction lv -> comap.put(bci, map(appendLocalInfo(locals, lv.slot(), bci,
+                            case LoadInstruction lv -> clist.add(map(bci, appendLocalInfo(locals, lv.slot(), bci,
                                     "opcode", ins.opcode().name(),
                                     "slot", lv.slot())));
-                            case StoreInstruction lv -> comap.put(bci, map(appendLocalInfo(locals, lv.slot(), bci,
+                            case StoreInstruction lv -> clist.add(map(bci, appendLocalInfo(locals, lv.slot(), bci,
                                     "opcode", ins.opcode().name(),
                                     "slot", lv.slot())));
-                            case FieldInstruction fa -> comap.put(bci, map(
+                            case FieldInstruction fa -> clist.add(map(bci,
                                     "opcode", ins.opcode().name(),
                                     "owner", fa.owner().asInternalName(),
                                     "field name", fa.name().stringValue(),
                                     "field type", fa.type().stringValue()));
-                            case InvokeInstruction inv -> comap.put(bci, map(
+                            case InvokeInstruction inv -> clist.add(map(bci,
                                     "opcode", ins.opcode().name(),
                                     "owner", inv.owner().asInternalName(),
                                     "method name", inv.name().stringValue(),
                                     "method type", inv.type().stringValue()));
                             case InvokeDynamicInstruction invd -> {
                                 var bm = invd.bootstrapMethod();
-                                comap.put(bci, map(
+                                clist.add(map(bci,
                                     "opcode", ins.opcode().name(),
                                     "name", invd.name().stringValue(),
                                     "descriptor", invd.type().stringValue(),
@@ -770,74 +737,76 @@ public final class ClassPrinterImpl {
                                     "method name", bm.methodName(),
                                     "invocation type", bm.invocationType().descriptorString()));
                             }
-                            case NewObjectInstruction newo -> comap.put(bci, map(
+                            case NewObjectInstruction newo -> clist.add(map(bci,
                                     "opcode", ins.opcode().name(),
                                     "type", newo.className().asInternalName()));
-                            case NewPrimitiveArrayInstruction newa -> comap.put(bci, map(
+                            case NewPrimitiveArrayInstruction newa -> clist.add(map(bci,
                                     "opcode", ins.opcode().name(),
                                     "dimensions", 1,
                                     "descriptor", newa.typeKind().descriptor()));
-                            case NewReferenceArrayInstruction newa -> comap.put(bci, map(
+                            case NewReferenceArrayInstruction newa -> clist.add(map(bci,
                                     "opcode", ins.opcode().name(),
                                     "dimensions", 1,
                                     "descriptor", newa.componentType().asInternalName()));
-                            case NewMultiArrayInstruction newa -> comap.put(bci, map(
+                            case NewMultiArrayInstruction newa -> clist.add(map(bci,
                                     "opcode", ins.opcode().name(),
                                     "dimensions", newa.dimensions(),
                                     "descriptor", newa.arrayType().asInternalName()));
-                            case TypeCheckInstruction tch -> comap.put(bci, map(
+                            case TypeCheckInstruction tch -> clist.add(map(bci,
                                     "opcode", ins.opcode().name(),
                                     "type", tch.type().asInternalName()));
-                            case ConstantInstruction cons -> comap.put(bci, map(
+                            case ConstantInstruction cons -> clist.add(map(bci,
                                     "opcode", ins.opcode().name(),
                                     "constant value", cons.constantValue()));
-                            case BranchInstruction br -> comap.put(bci, map(
+                            case BranchInstruction br -> clist.add(map(bci,
                                     "opcode", ins.opcode().name(),
                                     "target", com.labelToBci(br.target())));
-                            case LookupSwitchInstruction ls -> comap.put(bci, map(
-                                    "opcode", ins.opcode().name(),
-                                    "targets", list("target", Stream.concat(Stream.of(ls.defaultTarget()).map(com::labelToBci), ls.cases().stream().map(c -> com.labelToBci(c.target()))))));
-                            case TableSwitchInstruction ts -> comap.put(bci, map(
-                                    "opcode", ins.opcode().name(),
-                                    "targets", list("target", Stream.concat(Stream.of(ts.defaultTarget()).map(com::labelToBci), ts.cases().stream().map(c -> com.labelToBci(c.target()))))));
-                            default -> comap.put(bci, map(
+                            case LookupSwitchInstruction ls -> clist.add(map(bci,
+                                    value("opcode", ins.opcode().name()),
+                                    list("targets", "target", Stream.concat(Stream.of(ls.defaultTarget()).map(com::labelToBci), ls.cases().stream().map(c -> com.labelToBci(c.target()))))));
+                            case TableSwitchInstruction ts -> clist.add(map(bci,
+                                    value("opcode", ins.opcode().name()),
+                                    list("targets", "target", Stream.concat(Stream.of(ts.defaultTarget()).map(com::labelToBci), ts.cases().stream().map(c -> com.labelToBci(c.target()))))));
+                            default -> clist.add(map(bci,
                                     "opcode", ins.opcode().name()));
                         }
                         bci += ins.sizeInBytes();
                     }
                 }
                 if (excHandlers.size() > 0) {
-                    comap.put("exception handlers",
-                            blockList("try", excHandlers.stream().map(exc ->
-                                    map("start", exc.start(), "end", exc.end(), "handler", exc.handler(), "type", exc.catchType())).toList()));
+                    clist.add(blockList("exception handlers", excHandlers.stream().map(exc ->
+                                    map("try", "start", exc.start(), "end", exc.end(), "handler", exc.handler(), "type", exc.catchType())).toList()));
                 }
-                mmap.put("code", blockMap(comap));
+                mlist.add(blockMap("code", clist));
             });
         }
-        return blockMap(mmap);
+        return (MapNode)blockMap("method", mlist);
     }
 
-    private static Node printValueEntry(AnnotationConstantValueEntry e) {
-        return map("tag", tagName(e.tag()),
-                   "value", String.valueOf(e.constantValue()));
+    private static Node printValueEntry(int i, AnnotationConstantValueEntry e) {
+        return map(i,
+                "tag", tagName(e.tag()),
+                "value", String.valueOf(e.constantValue()));
     }
 
-    private static Node printNamedEntry(PoolEntry e, Utf8Entry name) {
-        return map("tag", tagName(e.tag()),
-                   "name index", name.index(),
-                   "value", name.stringValue());
+    private static Node printNamedEntry(int i, PoolEntry e, Utf8Entry name) {
+        return map(i,
+                "tag", tagName(e.tag()),
+                "name index", name.index(),
+                "value", name.stringValue());
     }
 
-    private static Node printDynamicEntry(DynamicConstantPoolEntry dcpe) {
-        return map("tag", tagName(dcpe.tag()),
-                   "bootstrap method handle index", dcpe.bootstrap().bootstrapMethod().index(),
-                   "bootstrap method arguments indexes", list("index", dcpe.bootstrap().arguments().stream().map(en -> en.index())),
-                   "name and type index", dcpe.nameAndType().index(),
-                   "name", dcpe.name().stringValue(),
-                   "type", dcpe.type().stringValue());
+    private static Node printDynamicEntry(int i, DynamicConstantPoolEntry dcpe) {
+        return map(i,
+                value("tag", tagName(dcpe.tag())),
+                value("bootstrap method handle index", dcpe.bootstrap().bootstrapMethod().index()),
+                list("bootstrap method arguments indexes", "index", dcpe.bootstrap().arguments().stream().map(en -> en.index())),
+                value("name and type index", dcpe.nameAndType().index()),
+                value("name", dcpe.name().stringValue()),
+                value("type", dcpe.type().stringValue()));
     }
 
-    private static void printAttributes(List<Attribute<?>> attributes, Map<ConstantDesc, Node> map, Verbosity verbosity) {
+    private static void printAttributes(List<Attribute<?>> attributes, List<Node> out, Verbosity verbosity) {
         for (var attr : attributes) {
 //            switch (attr) {
 //                case BootstrapMethodsAttribute bma ->
@@ -909,13 +878,13 @@ public final class ClassPrinterImpl {
 //                case SignatureAttribute sa ->
 //                    out.accept(format.simpleQuotedAttr.formatted(indentSpace, "signature", escape(sa.signature().stringValue())));
                 case SourceFileAttribute sfa ->
-                    map.put("source file", value(sfa.sourceFile().stringValue()));
+                    out.add(value("source file", sfa.sourceFile().stringValue()));
                 default -> {}
             }
         }
     }
 
-    private static Object[] appendLocalInfo(List<LocalVariableInfo> locals, int slot, int bci, Object... info) {
+    private static ConstantDesc[] appendLocalInfo(List<LocalVariableInfo> locals, int slot, int bci, ConstantDesc... info) {
         if (locals != null) {
             for (var l : locals) {
                 if (l.slot() == slot && l.startPc() <= bci && l.length() + l.startPc() >= bci) {

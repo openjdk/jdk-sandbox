@@ -154,7 +154,7 @@ public class AnnotationsExamples extends CorpusTestHelper {
         int size = m2.findAttribute(Attributes.RUNTIME_VISIBLE_ANNOTATIONS).orElseThrow().annotations().size();
         if (size !=2) {
             StringBuilder sb = new StringBuilder();
-            ClassPrinter.toJson(m2, ClassPrinter.Verbosity.TRACE_ALL, sb::append);
+            ClassPrinter.toTree(m2, ClassPrinter.Verbosity.TRACE_ALL).toJson(sb::append);
             System.err.println(sb.toString());
         }
     }

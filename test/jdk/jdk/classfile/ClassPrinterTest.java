@@ -60,7 +60,7 @@ public class ClassPrinterTest {
 //    @Test
     public void testPrintYamlTraceAll() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.toYaml(getClassModel(), ClassPrinter.Verbosity.TRACE_ALL, out::append);
+        ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.TRACE_ALL).toYaml(out::append);
         assertOut(out,
                 """
                   - class name: 'Foo'
@@ -116,7 +116,7 @@ public class ClassPrinterTest {
     @Test
     public void testPrintYamlCriticalAttributes() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.toYaml(getClassModel(), ClassPrinter.Verbosity.CRITICAL_ATTRIBUTES, out::append);
+        ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.CRITICAL_ATTRIBUTES).toYaml(out::append);
         assertOut(out,
                 """
                   - class name: Foo
@@ -154,7 +154,7 @@ public class ClassPrinterTest {
     @Test
     public void testPrintYamlMembersOnly() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.toYaml(getClassModel(), ClassPrinter.Verbosity.MEMBERS_ONLY, out::append);
+        ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.MEMBERS_ONLY).toYaml(out::append);
         assertOut(out,
                 """
                   - class name: Foo
@@ -179,7 +179,7 @@ public class ClassPrinterTest {
 //    @Test
     public void testPrintJsonTraceAll() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.toJson(getClassModel(), ClassPrinter.Verbosity.TRACE_ALL, out::append);
+        ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.TRACE_ALL).toJson(out::append);
         assertOut(out,
                 """
                 { "class name": "Foo",
@@ -234,7 +234,7 @@ public class ClassPrinterTest {
     @Test
     public void testPrintJsonCriticalAttributes() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.toJson(getClassModel(), ClassPrinter.Verbosity.CRITICAL_ATTRIBUTES, out::append);
+        ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.CRITICAL_ATTRIBUTES).toJson(out::append);
         assertOut(out,
                 """
                   { "class name": "Foo",
@@ -272,7 +272,7 @@ public class ClassPrinterTest {
     @Test
     public void testPrintJsonMembersOnly() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.toJson(getClassModel(), ClassPrinter.Verbosity.MEMBERS_ONLY, out::append);
+        ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.MEMBERS_ONLY).toJson(out::append);
         assertOut(out,
                 """
                   { "class name": "Foo",
@@ -297,7 +297,7 @@ public class ClassPrinterTest {
 //    @Test
     public void testPrintXmlTraceAll() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.toXml(getClassModel(), ClassPrinter.Verbosity.TRACE_ALL, out::append);
+        ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.TRACE_ALL).toXml(out::append);
         assertOut(out,
                 """
                 <?xml version = '1.0'?>
@@ -352,7 +352,7 @@ public class ClassPrinterTest {
     @Test
     public void testPrintXmlCriticalAttributes() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.toXml(getClassModel(), ClassPrinter.Verbosity.CRITICAL_ATTRIBUTES, out::append);
+        ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.CRITICAL_ATTRIBUTES).toXml(out::append);
         assertOut(out,
                 """
                 <?xml version = '1.0'?>
@@ -394,7 +394,7 @@ public class ClassPrinterTest {
     @Test
     public void testPrintXmlMembersOnly() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.toXml(getClassModel(), ClassPrinter.Verbosity.MEMBERS_ONLY, out::append);
+        ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.MEMBERS_ONLY).toXml(out::append);
         assertOut(out,
                 """
                 <?xml version = '1.0'?>
