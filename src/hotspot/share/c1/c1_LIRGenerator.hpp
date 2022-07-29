@@ -260,6 +260,9 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void do_extentLocalCache(Intrinsic* x);
   void do_vthread(Intrinsic* x);
   void do_JavaThreadField(Intrinsic* x, ByteSize offset);
+  void do_sizeOf(Intrinsic* x);
+  void do_getReferencedObjects(Intrinsic* x);
+  void do_addressOf(Intrinsic* x);
   void do_FmaIntrinsic(Intrinsic* x);
   void do_MathIntrinsic(Intrinsic* x);
   void do_LibmIntrinsic(Intrinsic* x);
@@ -484,6 +487,8 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void profile_parameters(Base* x);
   void profile_parameters_at_call(ProfileCall* x);
   LIR_Opr mask_boolean(LIR_Opr array, LIR_Opr value, CodeEmitInfo*& null_check_info);
+
+  void do_sizeOf_impl(Intrinsic* x, int arg_idx);
 
  public:
   Compilation*  compilation() const              { return _compilation; }

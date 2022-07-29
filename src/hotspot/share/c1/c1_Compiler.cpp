@@ -230,6 +230,9 @@ bool Compiler::is_intrinsic_supported(const methodHandle& method) {
   case vmIntrinsics::_counterTime:
 #endif
   case vmIntrinsics::_getObjectSize:
+  case vmIntrinsics::_sizeOf:
+  case vmIntrinsics::_getReferencedObjects:
+  case vmIntrinsics::_addressOf:
     break;
   case vmIntrinsics::_blackhole:
     break;

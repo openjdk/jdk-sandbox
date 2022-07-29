@@ -718,6 +718,12 @@ bool LibraryCallKit::try_to_inline(int predicate) {
 
   case vmIntrinsics::_getObjectSize:
     return inline_getObjectSize();
+  case vmIntrinsics::_sizeOf:
+    return inline_sizeOf();
+  case vmIntrinsics::_addressOf:
+    return inline_addressOf();
+  case vmIntrinsics::_getReferencedObjects:
+    return inline_getReferencedObjects();
 
   case vmIntrinsics::_blackhole:
     return inline_blackhole();
@@ -7641,13 +7647,29 @@ bool LibraryCallKit::inline_isCompileConstant() {
   return true;
 }
 
-//------------------------------- inline_getObjectSize --------------------------------------
+//------------------------------- inline_getObjectSize/sizeOf --------------------------------------
 //
 // Calculate the runtime size of the object/array.
+//
+//   long java.lang.Runtime.sizeOf(Object obj)
 //   native long sun.instrument.InstrumentationImpl.getObjectSize0(long nativeAgent, Object objectToSize);
 //
+bool LibraryCallKit::inline_sizeOf() {
+  if (!RuntimeSizeOf) {
+    set_result(longcon(-1));
+    return true;
+  }
+
+  Node* obj = argument(0);
+  return inline_sizeOf_impl(obj);
+}
+
 bool LibraryCallKit::inline_getObjectSize() {
   Node* obj = argument(3);
+  return inline_sizeOf_impl(obj);
+}
+
+bool LibraryCallKit::inline_sizeOf_impl(Node* obj) {
   Node* klass_node = load_object_klass(obj);
 
   jint  layout_con = Klass::_lh_neutral_value;
@@ -7773,6 +7795,38 @@ bool LibraryCallKit::inline_blackhole() {
   for (uint i = 0; i < nargs; i++) {
     bh->add_req(argument(i));
   }
+
+  return true;
+}
+
+bool LibraryCallKit::inline_addressOf() {
+  if (!RuntimeAddressOf) {
+    set_result(longcon(-1));
+    return true;
+  }
+
+  Node* obj = argument(0);
+  Node* raw_val = _gvn.transform(new CastP2XNode(NULL, obj));
+  Node* off_val = _gvn.transform(new AddXNode(raw_val, MakeConX(Universe::non_heap_offset())));
+  Node* long_val = ConvX2L(off_val);
+
+  set_result(long_val);
+  return true;
+}
+
+bool LibraryCallKit::inline_getReferencedObjects() {
+  Node* a1 = argument(0);
+  Node* a2 = argument(1);
+
+  Node* call = make_runtime_call(RC_LEAF|RC_NO_FP,
+                                 OptoRuntime::get_referenced_objects_Type(),
+                                 CAST_FROM_FN_PTR(address, SharedRuntime::get_referenced_objects),
+                                 "get_referenced_objects",
+                                 TypePtr::BOTTOM,
+                                 a1, a2);
+
+  Node* value = _gvn.transform(new ProjNode(call, TypeFunc::Parms+0));
+  set_result(value);
 
   return true;
 }

@@ -5313,6 +5313,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   ik->set_has_nonstatic_fields(_field_info->_has_nonstatic_fields);
   assert(_fac != NULL, "invariant");
   ik->set_static_oop_field_count(_fac->count[STATIC_OOP]);
+  ik->set_nonstatic_oop_field_count(_fac->count[NONSTATIC_OOP]);
 
   // this transfers ownership of a lot of arrays from
   // the parser onto the InstanceKlass*

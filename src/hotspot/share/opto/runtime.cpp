@@ -1788,3 +1788,16 @@ static void trace_exception(outputStream* st, oop exception_oop, address excepti
 
   st->print_raw_cr(tempst.as_string());
 }
+
+const TypeFunc* OptoRuntime::get_referenced_objects_Type() {
+  const Type** fields = TypeTuple::fields(2);
+  fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL; // oop; object
+  fields[TypeFunc::Parms+1] = TypeAryPtr::NOTNULL;  // oop; reference buffer
+  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+2,fields);
+
+  fields = TypeTuple::fields(1);
+  fields[TypeFunc::Parms+0] = TypeInt::INT; // count
+  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms+1,fields);
+
+  return TypeFunc::make(domain,range);
+}

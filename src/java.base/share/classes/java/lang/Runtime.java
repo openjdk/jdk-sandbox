@@ -27,11 +27,16 @@
 package java.lang;
 
 import java.io.*;
+import java.lang.reflect.Field;
 import java.math.BigInteger;
+import java.util.function.ToLongFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.Arrays;
+import java.util.ArrayDeque;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.StringTokenizer;
 
@@ -39,6 +44,9 @@ import jdk.internal.access.SharedSecrets;
 import jdk.internal.loader.NativeLibrary;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
+import jdk.internal.vm.annotation.DontInline;
+import jdk.internal.vm.annotation.IntrinsicCandidate;
+import sun.security.util.SecurityConstants;
 
 /**
  * Every Java application has a single instance of class
@@ -848,6 +856,340 @@ public class Runtime {
         }
         ClassLoader.loadLibrary(fromClass, libname);
     }
+
+    /**
+     * Returns the implementation-specific estimate of the amount of storage
+     * consumed by the specified object.
+     * <p>
+     * The estimate may change during a single invocation of the JVM. JVM may
+     * answer the "don't know" value if it does not know the size of the object.
+     * JVM may answer the "don't know" value if it refuses to provide the estimate.
+     *
+     * @param obj object to estimate the size of
+     * @return storage size in bytes, or {@code -1} if storage size is unknown
+     * @throws NullPointerException if {@code obj} is {@code null}
+     * @since 16
+     */
+    @DontInline // Semantics: make sure the object is not scalar replaced.
+    public static long sizeOf(Object obj) {
+        Objects.requireNonNull(obj);
+        return sizeOf0(obj);
+    }
+
+    @IntrinsicCandidate
+    private static native long sizeOf0(Object obj);
+
+    /**
+     * Bit value for {@link #deepSizeOf(Object, ToLongFunction)}'s callback
+     * return value to continue traversal ("go deep") of the references of
+     * the object passed to the callback.
+     */
+    public static final long DEEP_SIZE_OF_TRAVERSE = 1;
+    /**
+     * Bit value for {@link #deepSizeOf(Object, ToLongFunction)}'s callback
+     * return value to consider the shallow size of the object passed to the
+     * callback.
+     */
+    public static final long DEEP_SIZE_OF_SHALLOW = 2;
+
+    /**
+     * Returns the implementation-specific estimate of the amount of storage
+     * consumed by the specified object and all objects referenced by it.
+     * <p>
+     * The estimate may change during a single invocation of the JVM. Notably,
+     * the estimate is not guaranteed to remain stable if the object references in
+     * the walked subgraph change when {@code deepSizeOf} is running.
+     * <p>
+     * JVM may answer the "don't know" value if it does not know the size of the
+     * specified object or any of objects referenced from it. JVM may answer
+     * "don't know" value if it refuses to provide the estimate.
+     *
+     * @param obj root object to start the estimate from
+     * @return storage size in bytes, or {@code -1} if storage size is unknown
+     * @throws NullPointerException if {@code obj} is {@code null}
+     * @since 16
+     */
+    public static long deepSizeOf(Object obj) {
+        return deepSizeOf(obj, (o) -> DEEP_SIZE_OF_TRAVERSE | DEEP_SIZE_OF_SHALLOW);
+    }
+
+    private static long handleIncludeCheck(ArrayDeque<Object> q, Object o, ToLongFunction<Object> ic, long ts, long os) {
+        long t = ic.applyAsLong(o);
+        if (t > 0) {
+            if ((t & DEEP_SIZE_OF_TRAVERSE) != 0) {
+                q.push(o);
+            }
+            if ((t & DEEP_SIZE_OF_SHALLOW) != 0) {
+                ts += os;
+            }
+        } else {
+            ts -= t;
+        }
+        return ts;
+    }
+
+    /**
+     * Returns the implementation-specific estimate of the amount of storage
+     * consumed by the specified object and all objects referenced by it.
+     * <p>
+     * The estimate may change during a single invocation of the JVM. Notably,
+     * the estimate is not guaranteed to remain stable if the object references in
+     * the walked subgraph change when {@code deepSizeOf} is running.
+     * <p>
+     * JVM may answer the "don't know" value if it does not know the size of the
+     * specified object or any of objects referenced from it. JVM may answer
+     * "don't know" value if it refuses to provide the estimate.
+     *
+     * @param obj root object to start the estimate from
+     * @param includeCheck callback to evaluate an object's size. The callback can
+     * return a positive value as a bitmask - valid values are
+     * {@link #DEEP_SIZE_OF_SHALLOW} to consider the object's shallow sise and
+     * {@link #DEEP_SIZE_OF_TRAVERSE} to traverse ("go deeper") the object's
+     * references. A negative value means that the absolute return value is
+     * considered and the object's references are not considered.
+     * @return storage size in bytes, or {@code -1} if storage size is unknown
+     * @throws NullPointerException if {@code obj} is {@code null}
+     * @since 16
+     */
+    @DontInline // Semantics: make sure the object is not scalar replaced.
+    public static long deepSizeOf(Object obj, ToLongFunction<Object> includeCheck) {
+        Objects.requireNonNull(obj);
+
+        // We are potentially leaking the objects to includeCheck callback.
+        // These objects are peeled from the private fields as well, which
+        // circumvents the normal Java access rules. Check we have the privilege.
+/*
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(SecurityConstants.ACCESS_PERMISSION);
+        }
+*/
+
+        long rootSize = sizeOf0(obj);
+        if (rootSize < 0) {
+            return rootSize;
+        }
+
+        IdentityHashSet visited = new IdentityHashSet(IdentityHashSet.MINIMUM_CAPACITY);
+        ArrayDeque<Object> q = new ArrayDeque<>();
+
+        visited.add(obj);
+        long totalSize = handleIncludeCheck(q, obj, includeCheck, 0, rootSize);
+
+        Object[] refBuf = new Object[1];
+
+        while (!q.isEmpty()) {
+            Object o = q.pop();
+            Class<?> cl = o.getClass();
+            if (cl.isArray()) {
+                // Separate array path avoids adding a lot of (potentially large) array
+                // contents on the queue. No need to handle primitive arrays too.
+
+                if (cl.getComponentType().isPrimitive()) {
+                    continue;
+                }
+
+                for (Object e : (Object[])o) {
+                    if (e != null && visited.add(e)) {
+                        long size = sizeOf0(e);
+                        if (size < 0) {
+                            return size;
+                        }
+                        totalSize = handleIncludeCheck(q, e, includeCheck, totalSize, size);
+                    }
+                }
+            } else {
+                int objs;
+                while ((objs = getReferencedObjects(o, refBuf)) < 0) {
+                    refBuf = new Object[refBuf.length * 2];
+                }
+
+                for (int c = 0; c < objs; c++) {
+                    Object e = refBuf[c];
+                    if (visited.add(e)) {
+                        long size = sizeOf0(e);
+                        if (size < 0) {
+                            return size;
+                        }
+                        totalSize = handleIncludeCheck(q, e, includeCheck, totalSize, size);
+                    }
+                }
+
+                // Null out the buffer: do not keep these objects referenced until next
+                // buffer fill, and help the VM code to avoid full SATB barriers on existing
+                // buffer elements in getReferencedObjects.
+                Arrays.fill(refBuf, 0, objs, null);
+            }
+        }
+
+        return totalSize;
+    }
+
+    /**
+     * Peels the referenced objects from the given object and puts them
+     * into the reference buffer. Never returns nulls in reference buffer.
+     * Returns the number of valid elements in the buffer. If reference bufffer
+     * is too small, returns -1.
+     *
+     * @param obj object to peel
+     * @param refBuf reference buffer
+     * @return number of valid elements in buffer, -1 if buffer is too small
+     */
+    @IntrinsicCandidate
+    private static native int getReferencedObjects(Object obj, Object[] refBuf);
+
+    private static final class IdentityHashSet {
+        private static final int MINIMUM_CAPACITY = 4;
+        private static final int MAXIMUM_CAPACITY = 1 << 29;
+
+        private Object[] table;
+        private int size;
+
+        public IdentityHashSet(int expectedMaxSize) {
+            table = new Object[capacity(expectedMaxSize)];
+        }
+
+        private static int capacity(int expectedMaxSize) {
+            return
+                (expectedMaxSize > MAXIMUM_CAPACITY / 3) ? MAXIMUM_CAPACITY :
+                (expectedMaxSize <= 2 * MINIMUM_CAPACITY / 3) ? MINIMUM_CAPACITY :
+                Integer.highestOneBit(expectedMaxSize + (expectedMaxSize << 1));
+        }
+
+        private static int nextIndex(int i, int len) {
+            return (i + 1 < len ? i + 1 : 0);
+        }
+
+        public boolean add(Object o) {
+            while (true) {
+                final Object[] tab = table;
+                final int len = tab.length;
+                int i = System.identityHashCode(o) & (len - 1);
+
+                for (Object item; (item = tab[i]) != null; i = nextIndex(i, len)) {
+                    if (item == o) {
+                        return false;
+                    }
+                }
+
+                final int s = size + 1;
+                if (s*3 > len && resize()) continue;
+
+                tab[i] = o;
+                size = s;
+                return true;
+            }
+        }
+
+        private boolean resize() {
+            Object[] oldTable = table;
+            int oldLength = oldTable.length;
+            if (oldLength == MAXIMUM_CAPACITY) {
+                throw new IllegalStateException("Capacity exhausted.");
+            }
+
+            int newLength = oldLength * 2;
+            if (newLength <= oldLength) {
+                return false;
+            }
+
+            Object[] newTable = new Object[newLength];
+            for (Object o : oldTable) {
+                if (o != null) {
+                    int i = System.identityHashCode(o) & (newLength - 1);
+                    while (newTable[i] != null) {
+                        i = nextIndex(i, newLength);
+                    }
+                    newTable[i] = o;
+                }
+            }
+            table = newTable;
+            return true;
+        }
+    }
+
+    /**
+     * Returns the implementation-specific representation of the memory address
+     * where the specified object resides.
+     * <p>
+     * The estimate may change during a single invocation of the JVM. Notably,
+     * in the presence of moving garbage collector, the address can change at any
+     * time, including during the call. As such, this method is only useful for
+     * low-level debugging and heap introspection in a quiescent application.
+     * <p>
+     * The JVM is also free to provide non-verbatim answers, for example, adding
+     * the random offset in order to hide the real object addresses. Because of this,
+     * this method is useful to compare the relative Object positions, or inspecting
+     * the object alignments up to some high threshold, but not for accessing the objects
+     * via the naked native address.
+     * <p>
+     * JVM may answer the "don't know" value if it does not know the address of
+     * the specified object, or refuses to provide this information.
+     *
+     * @param obj object to get the address of
+     * @return current object address, or {@code -1} if address is unknown
+     * @since 16
+     */
+    @DontInline // Semantics: make sure the object is not scalar replaced.
+    public static long addressOf(Object obj) {
+        Objects.requireNonNull(obj);
+        return addressOf0(obj);
+    }
+
+    @IntrinsicCandidate
+    private static native long addressOf0(Object obj);
+
+    /**
+     * Returns the implementation-specific estimate of the offset of the field
+     * within the holding container.
+     * <p>
+     * For the instance fields, the offset is from the beginning of the holder
+     * object. For the static fields, the offset is from the beginning of the
+     * unspecified holder area. As such, these offsets are useful for comparing
+     * the offsets of two fields, not for any kind of absolute addressing.
+     * <p>
+     * The estimate may change during a single invocation of the JVM, for example
+     * during class redefinition.
+     * <p>
+     * JVM may answer the "don't know" value if it does not know the address of
+     * the specified object, or refuses to provide this information.
+     *
+     * @param field field to poll
+     * @return the field offset in bytes, or {@code -1} if field offset is unknown
+     * @throws NullPointerException if {@code field} is {@code null}
+     * @since 16
+     */
+    public static long fieldOffsetOf(Field field) {
+        Objects.requireNonNull(field);
+        return fieldOffsetOf0(field);
+    }
+
+    // Reflection-like call, is not supposed to be fast?
+    private static native long fieldOffsetOf0(Field field);
+
+    /**
+     * Returns the implementation-specific estimate of the field slot size for
+     * the specified object field.
+     * <p>
+     * The estimate may change during a single invocation of the JVM.
+     * <p>
+     * JVM may answer the "don't know" value if it does not know the address of
+     * the specified object, or refuses to provide this information.
+     *
+     * TODO: Split by staticness?
+     *
+     * @param field field to poll
+     * @return the field size in bytes, or {@code -1} if field size is unknown
+     * @throws NullPointerException if {@code field} is {@code null}
+     * @since 16
+     */
+    public static long fieldSizeOf(Field field) {
+        Objects.requireNonNull(field);
+        return fieldSizeOf0(field);
+    }
+
+    // Reflection-like call, is not supposed to be fast?
+    private static native long fieldSizeOf0(Field field);
 
     /**
      * Returns the version of the Java Runtime Environment as a {@link Version}.

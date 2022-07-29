@@ -56,7 +56,6 @@ extern "C" {
  * namely the jio_xxxprintf functions, are included from jvm_io.h.
  */
 
-
 /*************************************************************************
  PART 1: Functions for Native Libraries
  ************************************************************************/
@@ -149,6 +148,21 @@ JVM_ActiveProcessorCount(void);
 
 JNIEXPORT jboolean JNICALL
 JVM_IsUseContainerSupport(void);
+
+JNIEXPORT jlong JNICALL
+JVM_AddressOf(jobject obj);
+
+JNIEXPORT jlong JNICALL
+JVM_SizeOf(jobject obj);
+
+JNIEXPORT jlong JNICALL
+JVM_FieldOffsetOf(jobject field);
+
+JNIEXPORT jlong JNICALL
+JVM_FieldSizeOf(jobject field);
+
+JNIEXPORT jint JNICALL
+JVM_GetReferencedObjects(jobject obj, jobjectArray ref_buf);
 
 JNIEXPORT void * JNICALL
 JVM_LoadZipLibrary();

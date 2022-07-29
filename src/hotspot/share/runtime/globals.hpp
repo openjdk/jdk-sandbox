@@ -2058,6 +2058,15 @@ const int ObjectAlignmentInBytes = 8;
                                                                             \
   develop(bool, TraceOptimizedUpcallStubs, false,                           \
                 "Trace optimized upcall stub generation")                   \
+                                                                            \
+  product(bool, RuntimeAddressOf, true, DIAGNOSTIC,                         \
+                "Enable low-level Runtime.addressOf methods.")              \
+                                                                            \
+  product(bool, RuntimeFieldOf, true, DIAGNOSTIC,                           \
+                "Enable low-level Runtime.field*Of methods.")               \
+                                                                            \
+  product(bool, RuntimeSizeOf, true, DIAGNOSTIC,                            \
+                "Enable low-level Runtime.*sizeOOf methods.")               \
 
 // end of RUNTIME_FLAGS
 

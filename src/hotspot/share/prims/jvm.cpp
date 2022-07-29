@@ -85,6 +85,7 @@
 #include "runtime/osThread.hpp"
 #include "runtime/perfData.hpp"
 #include "runtime/reflection.hpp"
+#include "runtime/sharedRuntime.hpp"
 #include "runtime/synchronizer.hpp"
 #include "runtime/threadIdentifier.hpp"
 #include "runtime/threadSMR.hpp"
@@ -496,6 +497,67 @@ JVM_LEAF(jboolean, JVM_IsUseContainerSupport(void))
   }
 #endif
   return JNI_FALSE;
+JVM_END
+
+JVM_ENTRY_NO_ENV(jlong, JVM_SizeOf(jobject obj))
+  assert(obj != NULL, "object must not be NULL");
+  if (!RuntimeSizeOf) return -1;
+
+  oop o = JNIHandles::resolve_non_null(obj);
+  return o->size()*HeapWordSize;
+JVM_END
+
+JVM_ENTRY_NO_ENV(jlong, JVM_AddressOf(jobject obj))
+  assert(obj != NULL, "object must not be NULL");
+  if (!RuntimeAddressOf) return -1;
+
+  oop o = JNIHandles::resolve_non_null(obj);
+  return cast_from_oop<jlong>(o) + Universe::non_heap_offset();
+JVM_END
+
+JVM_ENTRY_NO_ENV(jlong, JVM_FieldOffsetOf(jobject field))
+  assert(field != NULL, "field must not be NULL");
+  if (!RuntimeFieldOf) return -1;
+
+  oop f    = JNIHandles::resolve_non_null(field);
+  oop m    = java_lang_reflect_Field::clazz(f);
+  Klass* k = java_lang_Class::as_Klass(m);
+  int slot = java_lang_reflect_Field::slot(f);
+
+  return InstanceKlass::cast(k)->field_offset(slot);
+JVM_END
+
+JVM_ENTRY_NO_ENV(jlong, JVM_FieldSizeOf(jobject field))
+  assert(field != NULL, "field must not be NULL");
+  if (!RuntimeFieldOf) return -1;
+
+  oop f    = JNIHandles::resolve_non_null(field);
+  oop m    = java_lang_reflect_Field::clazz(f);
+  Klass* k = java_lang_Class::as_Klass(m);
+  int slot = java_lang_reflect_Field::slot(f);
+
+  Symbol* sig = InstanceKlass::cast(k)->field_signature(slot);
+  switch (sig->char_at(0)) {
+    case JVM_SIGNATURE_CLASS    :
+    case JVM_SIGNATURE_ARRAY    : return type2aelembytes(T_OBJECT);
+    case JVM_SIGNATURE_BYTE     : return type2aelembytes(T_BYTE);
+    case JVM_SIGNATURE_CHAR     : return type2aelembytes(T_CHAR);
+    case JVM_SIGNATURE_FLOAT    : return type2aelembytes(T_FLOAT);
+    case JVM_SIGNATURE_DOUBLE   : return type2aelembytes(T_DOUBLE);
+    case JVM_SIGNATURE_INT      : return type2aelembytes(T_INT);
+    case JVM_SIGNATURE_LONG     : return type2aelembytes(T_LONG);
+    case JVM_SIGNATURE_SHORT    : return type2aelembytes(T_SHORT);
+    case JVM_SIGNATURE_BOOLEAN  : return type2aelembytes(T_BOOLEAN);
+  }
+
+  ShouldNotReachHere();
+  return 0;
+JVM_END
+
+JVM_ENTRY_NO_ENV(jint, JVM_GetReferencedObjects(jobject obj, jobjectArray ref_buf))
+  oop obj_oop = JNIHandles::resolve_non_null(obj);
+  objArrayOop ref_buf_oop = objArrayOop(JNIHandles::resolve_non_null(ref_buf));
+  return SharedRuntime::get_referenced_objects(obj_oop, ref_buf_oop);
 JVM_END
 
 // java.lang.Throwable //////////////////////////////////////////////////////

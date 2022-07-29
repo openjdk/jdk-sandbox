@@ -217,6 +217,7 @@ class InstanceKlass: public Klass {
   u2              _nest_host_index;
   u2              _this_class_index;        // constant pool entry
   u2              _static_oop_field_count;  // number of static oop fields in this klass
+  u2              _nonstatic_oop_field_count;// number of non-static oop fields in this klass
   u2              _java_fields_count;       // The number of declared Java fields
 
   volatile u2     _idnum_allocated_count;   // JNI/JVMTI: increments with the addition of methods, old ids don't change
@@ -380,6 +381,9 @@ class InstanceKlass: public Klass {
 
   int static_oop_field_count() const       { return (int)_static_oop_field_count; }
   void set_static_oop_field_count(u2 size) { _static_oop_field_count = size; }
+
+  int nonstatic_oop_field_count() const       { return (int)_nonstatic_oop_field_count; }
+  void set_nonstatic_oop_field_count(u2 size) { _nonstatic_oop_field_count = size; }
 
   // Java itable
   int  itable_length() const               { return _itable_len; }

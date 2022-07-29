@@ -322,6 +322,18 @@ class methodHandle;
    do_name(     onSpinWait_name,                                  "onSpinWait")                                         \
    do_alias(    onSpinWait_signature,                             void_method_signature)                                \
                                                                                                                         \
+  do_intrinsic(_sizeOf,                   java_lang_Runtime,      sizeOf_name, sizeOf_signature,                 F_SN)  \
+   do_name(     sizeOf_name,                                      "sizeOf0")                                            \
+   do_alias(    sizeOf_signature,                                 object_long_signature)                                \
+                                                                                                                        \
+  do_intrinsic(_addressOf,                java_lang_Runtime,      addressOf_name, addressOf_signature,           F_SN)  \
+   do_name(     addressOf_name,                                   "addressOf0")                                         \
+   do_alias(    addressOf_signature,                              object_long_signature)                                \
+                                                                                                                        \
+  do_intrinsic(_getReferencedObjects,     java_lang_Runtime,      getReferencedObjects_name, getReferencedObjects_signature, F_SN)  \
+   do_name(     getReferencedObjects_name,                        "getReferencedObjects")                               \
+   do_alias(    getReferencedObjects_signature,                   object_object_array_int_signature)                    \
+                                                                                                                        \
   do_intrinsic(_copyOf,                   java_util_Arrays,       copyOf_name, copyOf_signature,                 F_S)   \
    do_name(     copyOf_name,                                     "copyOf")                                              \
    do_signature(copyOf_signature,             "([Ljava/lang/Object;ILjava/lang/Class;)[Ljava/lang/Object;")             \

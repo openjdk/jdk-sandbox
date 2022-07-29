@@ -152,6 +152,7 @@
   template(java_lang_Record,                          "java/lang/Record")                         \
   template(sun_instrument_InstrumentationImpl,        "sun/instrument/InstrumentationImpl")       \
   template(sun_invoke_util_ValueConversions,          "sun/invoke/util/ValueConversions")         \
+  template(java_lang_Runtime,                         "java/lang/Runtime")                        \
                                                                                                   \
   template(jdk_internal_loader_NativeLibraries,       "jdk/internal/loader/NativeLibraries")      \
   template(jdk_internal_loader_BuiltinClassLoader,    "jdk/internal/loader/BuiltinClassLoader")   \
@@ -588,8 +589,10 @@
   template(object_void_signature,                     "(Ljava/lang/Object;)V")                    \
   template(object_int_signature,                      "(Ljava/lang/Object;)I")                    \
   template(long_object_long_signature,                "(JLjava/lang/Object;)J")                   \
+  template(object_long_signature,                     "(Ljava/lang/Object;)J")                    \
   template(object_boolean_signature,                  "(Ljava/lang/Object;)Z")                    \
   template(object_object_signature,                   "(Ljava/lang/Object;)Ljava/lang/Object;")   \
+  template(object_object_array_int_signature,         "(Ljava/lang/Object;[Ljava/lang/Object;)I") \
   template(string_void_signature,                     "(Ljava/lang/String;)V")                    \
   template(string_int_signature,                      "(Ljava/lang/String;)I")                    \
   template(string_byte_array_signature,               "(Ljava/lang/String;)[B")                   \

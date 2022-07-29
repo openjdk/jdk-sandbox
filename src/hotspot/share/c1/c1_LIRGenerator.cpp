@@ -1321,11 +1321,68 @@ void LIRGenerator::do_getModifiers(Intrinsic* x) {
   __ move(new LIR_Address(klass, in_bytes(Klass::modifier_flags_offset()), T_INT), result);
 }
 
+void LIRGenerator::do_getReferencedObjects(Intrinsic* x) {
+  BasicTypeList signature;
+  signature.append(T_OBJECT); // obj
+  signature.append(T_ARRAY);  // reference buffer
+
+  LIRItem a0(x->argument_at(0), this);
+  LIRItem a1(x->argument_at(1), this);
+  a0.load_item();
+  a1.load_item();
+
+  LIR_OprList* args = new LIR_OprList();
+  args->append(a0.result());
+  args->append(a1.result());
+
+  LIR_Opr result = call_runtime(&signature, args, CAST_FROM_FN_PTR(address, SharedRuntime::get_referenced_objects), intType, NULL);
+  __ move(result, rlock_result(x), NULL);
+}
+
+void LIRGenerator::do_addressOf(Intrinsic* x) {
+  assert(x->number_of_arguments() == 1, "wrong type");
+  LIR_Opr reg = rlock_result(x);
+
+  if (!RuntimeAddressOf) {
+    __ move(LIR_OprFact::longConst(-1), reg, NULL);
+    return;
+  }
+
+  LIRItem value(x->argument_at(0), this);
+  value.load_item();
+
+#ifdef _LP64
+  __ move(value.result(), reg, NULL);
+  __ add(reg, LIR_OprFact::intptrConst(Universe::non_heap_offset()), reg);
+#else
+  LIR_Opr res = new_register(T_INT);
+  __ move(value.result(), res, NULL);
+  __ add(res, LIR_OprFact::intptrConst(Universe::non_heap_offset()), res);
+  __ convert(Bytecodes::_i2l, res, reg);
+#endif
+}
+
+void LIRGenerator::do_sizeOf(Intrinsic* x) {
+  assert(x->number_of_arguments() == 1, "wrong type");
+
+  if (!RuntimeSizeOf) {
+    LIR_Opr result_reg = rlock_result(x);
+    __ move(LIR_OprFact::longConst(-1), result_reg);
+    return;
+  }
+
+  do_sizeOf_impl(x, 0);
+}
+
 void LIRGenerator::do_getObjectSize(Intrinsic* x) {
   assert(x->number_of_arguments() == 3, "wrong type");
+  do_sizeOf_impl(x, 2);
+}
+
+void LIRGenerator::do_sizeOf_impl(Intrinsic* x, int arg_idx) {
   LIR_Opr result_reg = rlock_result(x);
 
-  LIRItem value(x->argument_at(2), this);
+  LIRItem value(x->argument_at(arg_idx), this);
   value.load_item();
 
   LIR_Opr klass = new_register(T_METADATA);
@@ -2952,6 +3009,9 @@ void LIRGenerator::do_Intrinsic(Intrinsic* x) {
   case vmIntrinsics::_currentCarrierThread: do_currentCarrierThread(x); break;
   case vmIntrinsics::_currentThread:  do_vthread(x);       break;
   case vmIntrinsics::_extentLocalCache: do_extentLocalCache(x); break;
+  case vmIntrinsics::_sizeOf:         do_sizeOf(x);        break;
+  case vmIntrinsics::_addressOf:      do_addressOf(x);     break;
+  case vmIntrinsics::_getReferencedObjects: do_getReferencedObjects(x); break;
 
   case vmIntrinsics::_dlog:           // fall through
   case vmIntrinsics::_dlog10:         // fall through

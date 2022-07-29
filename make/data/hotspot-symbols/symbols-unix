@@ -227,3 +227,11 @@ JVM_VirtualThreadMountEnd
 JVM_VirtualThreadUnmountBegin
 JVM_VirtualThreadUnmountEnd
 #
+
+# Runtime
+JVM_AddressOf
+JVM_FieldOffsetOf
+JVM_FieldSizeOf
+JVM_GetReferencedObjects
+JVM_SizeOf
+

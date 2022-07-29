@@ -150,6 +150,7 @@ class Universe: AllStatic {
   static CollectedHeap* _collectedHeap;
 
   static intptr_t _non_oop_bits;
+  static intptr_t _non_heap_offset;
 
   // array of dummy objects used with +FullGCAlot
   debug_only(static OopHandle   _fullgc_alot_dummy_array;)
@@ -384,6 +385,11 @@ class Universe: AllStatic {
 
   // Compiler support
   static int base_vtable_size()               { return _base_vtable_size; }
+
+  static intptr_t non_heap_offset() {
+    assert(_non_heap_offset != 0, "Should be initialized.");
+    return _non_heap_offset;
+  }
 };
 
 #endif // SHARE_MEMORY_UNIVERSE_HPP

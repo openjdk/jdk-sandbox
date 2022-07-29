@@ -159,6 +159,7 @@ OopStorage*     Universe::_vm_weak = NULL;
 OopStorage*     Universe::_vm_global = NULL;
 
 CollectedHeap*  Universe::_collectedHeap = NULL;
+intptr_t        Universe::_non_heap_offset = 0;
 
 objArrayOop Universe::the_empty_class_array ()  {
   return (objArrayOop)_the_empty_class_array.resolve();
@@ -883,6 +884,13 @@ ReservedHeapSpace Universe::reserve_heap(size_t heap_size, size_t alignment) {
     }
 
     Universe::calculate_verify_data((HeapWord*)total_rs.base(), (HeapWord*)total_rs.end());
+
+    // Make sure oop + offset is past the Java heap, plus some random positive offset.
+    // The offset should not hide the real alignment up to object alignment or cache line size.
+    intptr_t non_heap_offset = (intptr_t) total_rs.size() + abs(os::random());
+    non_heap_offset = align_up(non_heap_offset, MinObjAlignmentInBytes);
+    non_heap_offset = align_up(non_heap_offset, VM_Version::L1_data_cache_line_size());
+    Universe::_non_heap_offset = non_heap_offset;
 
     return total_rs;
   }
