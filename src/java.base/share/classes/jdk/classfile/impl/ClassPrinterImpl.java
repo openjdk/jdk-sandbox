@@ -425,22 +425,6 @@ public final class ClassPrinterImpl {
         return name.replaceAll("[^A-Za-z_0-9]", "_");
     }
 
-//    private List<String> quoteFlags(Set<? extends Enum<?>> flags) {
-//        return flags.stream().map(f -> format.quoteFlagsAndAttrs ? format.quotes + f.name() + format.quotes : f.name()).toList();
-//    }
-//
-//    private String escape(String s) {
-//        return format.escapeFunction.apply(s);
-//    }
-//
-//    private String typesToString(Stream<String> strings) {
-//        return strings.map(s -> format.quoteTypes ? format.quotes + s + format.quotes : s).collect(Collectors.joining(", ", "[", "]"));
-//    }
-//
-//    private String attributeNames(List<Attribute<?>> attributes) {
-//        return attributes.stream().map(a -> format.quoteFlagsAndAttrs ? format.quotes + a.attributeName() + format.quotes : a.attributeName()).collect(Collectors.joining(", ", "[", "]"));
-//    }
-
     private static String elementValueToString(AnnotationValue v) {
         return switch (v) {
             case OfConstant cv -> v.tag() == 'Z' ? String.valueOf((int)cv.constantValue() != 0) : String.valueOf(cv.constantValue());
@@ -716,7 +700,7 @@ public final class ClassPrinterImpl {
                 }
                 printAttributes(com.attributes(), clist, verbosity);
                 if (!stackMap.containsKey(0)) {
-                    clist.add(toTree("stack map frame @0", StackMapDecoder.initFrame(m)));
+                    clist.add(toTree("//stack map frame @0", StackMapDecoder.initFrame(m)));
                 }
                 var excHandlers = com.exceptionHandlers().stream().map(exc -> new ExceptionHandler(com.labelToBci(exc.tryStart()), com.labelToBci(exc.tryEnd()), com.labelToBci(exc.handler()), exc.catchType().map(ct -> ct.asInternalName()).orElse(null))).toList();
                 int bci = 0;
@@ -724,11 +708,11 @@ public final class ClassPrinterImpl {
                     if (coe instanceof Instruction ins) {
                         var frame = stackMap.get(bci);
                         if (frame != null) {
-                            clist.add(new MapNodeImpl(FLOW, "stack map frame @" + bci, ((MapNode)frame).map()));
+                            clist.add(new MapNodeImpl(FLOW, "//stack map frame @" + bci, ((MapNode)frame).map()));
                         }
                         var annos = invisibleTypeAnnos.get(bci);
                         if (annos != null) {
-                            clist.add(blockList("invisible type annotation @" + bci,
+                            clist.add(list("//invisible type annotation @" + bci,
                                     annos.stream().map(a -> map("anno",
                                             value("annotation class", a.className().stringValue()),
                                             value("target info", a.targetInfo().targetType().name()),
@@ -736,94 +720,94 @@ public final class ClassPrinterImpl {
                         }
                         annos = visibleTypeAnnos.get(bci);
                         if (annos != null) {
-                            clist.add(blockList("visible type annotation @" + bci,
+                            clist.add(list("//visible type annotation @" + bci,
                                     annos.stream().map(a -> map("anno",
                                             value("annotation class", a.className().stringValue()),
                                             value("target info", a.targetInfo().targetType().name()),
                                             elementValuePairsToString(a.elements())))));
                         }
-//                        for (var exc : excHandlers) {
-//                            if (exc.start() == bci) {
-//                                out.accept(format.tryStartInline.formatted(exc.start(), exc.end(), exc.handler(), exc.catchType()));
-//                            }
-//                            if (exc.end() == bci) {
-//                                out.accept(format.tryEndInline.formatted(exc.start(), exc.end(), exc.handler(), exc.catchType()));
-//                            }
-//                            if (exc.handler() == bci) {
-//                                out.accept(format.handlerInline.formatted(exc.start(), exc.end(), exc.handler(), exc.catchType()));
-//                            }
-//                        }
-                        switch (coe) {
-                            case IncrementInstruction inc -> clist.add(map(bci, appendLocalInfo(locals, inc.slot(), bci,
+                        for (int i = 0; i < excHandlers.size(); i++) {
+                            var exc = excHandlers.get(i);
+                            if (exc.start() == bci) {
+                                clist.add(map("//try block #" + (i + 1) + " start", "start", exc.start(), "end", exc.end(), "handler", exc.handler(), "catch type", exc.catchType()));
+                            }
+                            if (exc.end() == bci) {
+                                clist.add(map("//try block #" + (i + 1) + " end", "start", exc.start(), "end", exc.end(), "handler", exc.handler(), "catch type", exc.catchType()));
+                            }
+                            if (exc.handler() == bci) {
+                                clist.add(map("//exception handler #" + (i + 1) + " start", "start", exc.start(), "end", exc.end(), "handler", exc.handler(), "catch type", exc.catchType()));
+                            }
+                        }
+                        clist.add(switch (coe) {
+                            case IncrementInstruction inc -> map(bci, appendLocalInfo(locals, inc.slot(), bci,
                                     "opcode", ins.opcode().name(),
                                     "slot", inc.slot(),
-                                    "const", inc.constant())));
-                            case LoadInstruction lv -> clist.add(map(bci, appendLocalInfo(locals, lv.slot(), bci,
+                                    "const", inc.constant()));
+                            case LoadInstruction lv -> map(bci, appendLocalInfo(locals, lv.slot(), bci,
                                     "opcode", ins.opcode().name(),
-                                    "slot", lv.slot())));
-                            case StoreInstruction lv -> clist.add(map(bci, appendLocalInfo(locals, lv.slot(), bci,
+                                    "slot", lv.slot()));
+                            case StoreInstruction lv -> map(bci, appendLocalInfo(locals, lv.slot(), bci,
                                     "opcode", ins.opcode().name(),
-                                    "slot", lv.slot())));
-                            case FieldInstruction fa -> clist.add(map(bci,
+                                    "slot", lv.slot()));
+                            case FieldInstruction fa -> map(bci,
                                     "opcode", ins.opcode().name(),
                                     "owner", fa.owner().asInternalName(),
                                     "field name", fa.name().stringValue(),
-                                    "field type", fa.type().stringValue()));
-                            case InvokeInstruction inv -> clist.add(map(bci,
+                                    "field type", fa.type().stringValue());
+                            case InvokeInstruction inv -> map(bci,
                                     "opcode", ins.opcode().name(),
                                     "owner", inv.owner().asInternalName(),
                                     "method name", inv.name().stringValue(),
-                                    "method type", inv.type().stringValue()));
-                            case InvokeDynamicInstruction invd -> {
-                                var bm = invd.bootstrapMethod();
-                                clist.add(map(bci,
+                                    "method type", inv.type().stringValue());
+                            case InvokeDynamicInstruction invd -> map(bci,
                                     "opcode", ins.opcode().name(),
                                     "name", invd.name().stringValue(),
                                     "descriptor", invd.type().stringValue(),
-                                    "kind", bm.kind().name(),
-                                    "owner", bm.owner().descriptorString(),
-                                    "method name", bm.methodName(),
-                                    "invocation type", bm.invocationType().descriptorString()));
-                            }
-                            case NewObjectInstruction newo -> clist.add(map(bci,
+                                    "kind", invd.bootstrapMethod().kind().name(),
+                                    "owner", invd.bootstrapMethod().owner().descriptorString(),
+                                    "method name", invd.bootstrapMethod().methodName(),
+                                    "invocation type", invd.bootstrapMethod().invocationType().descriptorString());
+                            case NewObjectInstruction newo -> map(bci,
                                     "opcode", ins.opcode().name(),
-                                    "type", newo.className().asInternalName()));
-                            case NewPrimitiveArrayInstruction newa -> clist.add(map(bci,
-                                    "opcode", ins.opcode().name(),
-                                    "dimensions", 1,
-                                    "descriptor", newa.typeKind().descriptor()));
-                            case NewReferenceArrayInstruction newa -> clist.add(map(bci,
+                                    "type", newo.className().asInternalName());
+                            case NewPrimitiveArrayInstruction newa -> map(bci,
                                     "opcode", ins.opcode().name(),
                                     "dimensions", 1,
-                                    "descriptor", newa.componentType().asInternalName()));
-                            case NewMultiArrayInstruction newa -> clist.add(map(bci,
+                                    "descriptor", newa.typeKind().descriptor());
+                            case NewReferenceArrayInstruction newa -> map(bci,
+                                    "opcode", ins.opcode().name(),
+                                    "dimensions", 1,
+                                    "descriptor", newa.componentType().asInternalName());
+                            case NewMultiArrayInstruction newa -> map(bci,
                                     "opcode", ins.opcode().name(),
                                     "dimensions", newa.dimensions(),
-                                    "descriptor", newa.arrayType().asInternalName()));
-                            case TypeCheckInstruction tch -> clist.add(map(bci,
+                                    "descriptor", newa.arrayType().asInternalName());
+                            case TypeCheckInstruction tch -> map(bci,
                                     "opcode", ins.opcode().name(),
-                                    "type", tch.type().asInternalName()));
-                            case ConstantInstruction cons -> clist.add(map(bci,
+                                    "type", tch.type().asInternalName());
+                            case ConstantInstruction cons -> map(bci,
                                     "opcode", ins.opcode().name(),
-                                    "constant value", cons.constantValue()));
-                            case BranchInstruction br -> clist.add(map(bci,
+                                    "constant value", cons.constantValue());
+                            case BranchInstruction br -> map(bci,
                                     "opcode", ins.opcode().name(),
-                                    "target", com.labelToBci(br.target())));
-                            case LookupSwitchInstruction ls -> clist.add(map(bci,
+                                    "target", com.labelToBci(br.target()));
+                            case LookupSwitchInstruction ls -> map(bci,
                                     value("opcode", ins.opcode().name()),
-                                    list("targets", "target", Stream.concat(Stream.of(ls.defaultTarget()).map(com::labelToBci), ls.cases().stream().map(c -> com.labelToBci(c.target()))))));
-                            case TableSwitchInstruction ts -> clist.add(map(bci,
+                                    list("targets", "target", Stream.concat(Stream.of(ls.defaultTarget()).map(com::labelToBci), ls.cases().stream().map(c -> com.labelToBci(c.target())))));
+                            case TableSwitchInstruction ts -> map(bci,
                                     value("opcode", ins.opcode().name()),
-                                    list("targets", "target", Stream.concat(Stream.of(ts.defaultTarget()).map(com::labelToBci), ts.cases().stream().map(c -> com.labelToBci(c.target()))))));
-                            default -> clist.add(map(bci,
-                                    "opcode", ins.opcode().name()));
-                        }
+                                    list("targets", "target", Stream.concat(Stream.of(ts.defaultTarget()).map(com::labelToBci), ts.cases().stream().map(c -> com.labelToBci(c.target())))));
+                            default -> map(bci,
+                                    "opcode", ins.opcode().name());
+                        });
                         bci += ins.sizeInBytes();
                     }
                 }
                 if (excHandlers.size() > 0) {
-                    clist.add(blockList("exception handlers", excHandlers.stream().map(exc ->
-                                    map("try", "start", exc.start(), "end", exc.end(), "handler", exc.handler(), "type", exc.catchType()))));
+                    clist.add(blockMap("exception handlers", IntStream.range(0, excHandlers.size()).mapToObj(i -> {
+                        var exc = excHandlers.get(i);
+                        return map("handler #" + i, "start", exc.start(), "end", exc.end(), "handler", exc.handler(), "type", exc.catchType());
+                    })));
                 }
                 mlist.add(blockMap("code", clist));
             });
