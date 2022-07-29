@@ -99,7 +99,9 @@ public final class ClassPrinterImpl {
 
     public enum Style { BLOCK, FLOW }
 
-    public record SimpleNodeImpl(ConstantDesc name, ConstantDesc value) implements SimpleNode {}
+    public record SimpleNodeImpl(ConstantDesc name, ConstantDesc value) implements SimpleNode {
+
+    }
 
     public record ListNodeImpl(Style style, ConstantDesc name, List<Node> list) implements ListNode {
         public ListNodeImpl(Style style, ConstantDesc name, List<Node> list) {
@@ -250,7 +252,7 @@ public final class ClassPrinterImpl {
     }
 
     private static String quoteAndEscapeYaml(ConstantDesc value) {
-        String s = value.toString();
+        String s = String.valueOf(value);
         if (value instanceof Number) return s;
         if (s.length() == 0) return "''";
         var sb = new StringBuilder(s.length() << 1);
@@ -338,7 +340,7 @@ public final class ClassPrinterImpl {
     }
 
     private static String quoteAndEscapeJson(ConstantDesc value) {
-        String s = value.toString();
+        String s = String.valueOf(value);
         if (value instanceof Number) return s;
         var sb = new StringBuilder(s.length() << 1);
         sb.append('"');
@@ -403,7 +405,7 @@ public final class ClassPrinterImpl {
     }
 
     private static String xmlEscape(ConstantDesc value) {
-        var s = value.toString();
+        var s = String.valueOf(value);
         var sb = new StringBuilder(s.length() << 1);
         s.chars().forEach(c -> {
         switch (c) {
@@ -438,21 +440,20 @@ public final class ClassPrinterImpl {
 //    private String attributeNames(List<Attribute<?>> attributes) {
 //        return attributes.stream().map(a -> format.quoteFlagsAndAttrs ? format.quotes + a.attributeName() + format.quotes : a.attributeName()).collect(Collectors.joining(", ", "[", "]"));
 //    }
-//
-//    private String elementValueToString(AnnotationValue v) {
-//        return switch (v) {
-//            case OfConstant cv -> format.escapeFunction().apply(v.tag() == 'Z' ? String.valueOf((int)cv.constantValue() != 0) : String.valueOf(cv.constantValue()));
-//            case OfClass clv -> clv.className().stringValue();
-//            case OfEnum ev -> ev.className().stringValue() + "." + ev.constantName().stringValue();
-//            case OfAnnotation av -> v.tag() + av.annotation().className().stringValue();
-//            case OfArray av -> av.values().stream().map(ev -> elementValueToString(ev)).collect(Collectors.joining(", ", "[", "]"));
-//        };
-//    }
-//
-//    private String elementValuePairsToString(List<AnnotationElement> evps) {
-//        return evps.isEmpty() ? "" : evps.stream().map(evp -> format.annotationValuePair.element.formatted(evp.name().stringValue(), elementValueToString(evp.value())))
-//                .collect(Collectors.joining(format.inlineDelimiter, format.annotationValuePair.header, format.annotationValuePair.footer));
-//    }
+
+    private static String elementValueToString(AnnotationValue v) {
+        return switch (v) {
+            case OfConstant cv -> v.tag() == 'Z' ? String.valueOf((int)cv.constantValue() != 0) : String.valueOf(cv.constantValue());
+            case OfClass clv -> clv.className().stringValue();
+            case OfEnum ev -> ev.className().stringValue() + "." + ev.constantName().stringValue();
+            case OfAnnotation av -> v.tag() + av.annotation().className().stringValue();
+            case OfArray av -> av.values().stream().map(ev -> elementValueToString(ev)).collect(Collectors.joining(", ", "[", "]"));
+        };
+    }
+
+    private static Node elementValuePairsToString(List<AnnotationElement> evps) {
+        return list("values", evps.stream().map(evp -> map("pair", "name", evp.name().stringValue(), "value", elementValueToString(evp.value()))));
+    }
 
     private static Map<ConstantDesc, Node> newMap() {
         return new LinkedHashMap<>();
@@ -470,6 +471,10 @@ public final class ClassPrinterImpl {
         return new ListNodeImpl(BLOCK, listName, list.toList());
     }
 
+    private static Node list(ConstantDesc listName, Stream<Node> list) {
+        return new ListNodeImpl(FLOW, listName, list.toList());
+    }
+
     private static Node list(ConstantDesc listName, ConstantDesc itemsName, Stream<?> values) {
         return new ListNodeImpl(FLOW, listName, values.map(v -> {
             return switch (v) {
@@ -480,10 +485,14 @@ public final class ClassPrinterImpl {
         }).toList());
     }
 
-    private static Node blockMap(ConstantDesc mapName, Collection<Node> nodes) {
+    private static Node blockMap(ConstantDesc mapName, Stream<Node> nodes) {
         var map = newMap();
         nodes.forEach(n -> map.put(n.name(), n));
         return new MapNodeImpl(BLOCK, mapName, map);
+    }
+
+    private static Node blockMap(ConstantDesc mapName, Collection<Node> nodes) {
+        return blockMap(mapName, nodes.stream());
     }
 
     private static Node map(ConstantDesc mapName, Node... nodes) {
@@ -646,8 +655,8 @@ public final class ClassPrinterImpl {
                 clist.add(value("max locals", ((CodeAttribute)com).maxLocals()));
                 clist.add(list("attributes", "attribute", com.attributes().stream().map(Attribute::attributeName)));
                 var stackMap = newMap();
-                var visibleTypeAnnos = new LinkedHashMap<Integer, TypeAnnotation>();
-                var invisibleTypeAnnos = new LinkedHashMap<Integer, TypeAnnotation>();
+                var visibleTypeAnnos = new LinkedHashMap<Integer, List<TypeAnnotation>>();
+                var invisibleTypeAnnos = new LinkedHashMap<Integer, List<TypeAnnotation>>();
                 List<LocalVariableInfo> locals = List.of();
                 for (var attr : com.attributes()) {
                     if (attr instanceof StackMapTableAttribute smta) {
@@ -698,16 +707,16 @@ public final class ClassPrinterImpl {
                                     "flags", cr.flags());
                             })));
                         }
-//                        case RuntimeVisibleTypeAnnotationsAttribute rvtaa ->
-//                            rvtaa.annotations().forEach(a -> forEachOffset(a, com, visibleTypeAnnos::put));
-//                        case RuntimeInvisibleTypeAnnotationsAttribute ritaa ->
-//                            ritaa.annotations().forEach(a -> forEachOffset(a, com, invisibleTypeAnnos::put));
+                        case RuntimeVisibleTypeAnnotationsAttribute rvtaa ->
+                            rvtaa.annotations().forEach(a -> forEachOffset(a, com, (off, an) -> visibleTypeAnnos.computeIfAbsent(off, o -> new LinkedList<>()).add(an)));
+                        case RuntimeInvisibleTypeAnnotationsAttribute ritaa ->
+                            ritaa.annotations().forEach(a -> forEachOffset(a, com, (off, an) -> invisibleTypeAnnos.computeIfAbsent(off, o -> new LinkedList<>()).add(an)));
                         case Object o -> {}
                     }
                 }
                 printAttributes(com.attributes(), clist, verbosity);
                 if (!stackMap.containsKey(0)) {
-                    clist.add(toTree("//stack map frame @0", StackMapDecoder.initFrame(m)));
+                    clist.add(toTree("stack map frame @0", StackMapDecoder.initFrame(m)));
                 }
                 var excHandlers = com.exceptionHandlers().stream().map(exc -> new ExceptionHandler(com.labelToBci(exc.tryStart()), com.labelToBci(exc.tryEnd()), com.labelToBci(exc.handler()), exc.catchType().map(ct -> ct.asInternalName()).orElse(null))).toList();
                 int bci = 0;
@@ -715,16 +724,24 @@ public final class ClassPrinterImpl {
                     if (coe instanceof Instruction ins) {
                         var frame = stackMap.get(bci);
                         if (frame != null) {
-                            clist.add(new MapNodeImpl(FLOW, "//stack map frame @" + bci, ((MapNode)frame).map()));
+                            clist.add(new MapNodeImpl(FLOW, "stack map frame @" + bci, ((MapNode)frame).map()));
                         }
-//                        var a = invisibleTypeAnnos.get(bci);
-//                        if (a != null) {
-//                            out.accept(format.typeAnnotationInline.formatted("invisible", a.className().stringValue(), a.targetInfo().targetType(), elementValuePairsToString(a.elements())));
-//                        }
-//                        a = visibleTypeAnnos.get(bci);
-//                        if (a != null) {
-//                            out.accept(format.typeAnnotationInline.formatted("visible", a.className().stringValue(), a.targetInfo().targetType(), elementValuePairsToString(a.elements())));
-//                        }
+                        var annos = invisibleTypeAnnos.get(bci);
+                        if (annos != null) {
+                            clist.add(blockList("invisible type annotation @" + bci,
+                                    annos.stream().map(a -> map("anno",
+                                            value("annotation class", a.className().stringValue()),
+                                            value("target info", a.targetInfo().targetType().name()),
+                                            elementValuePairsToString(a.elements())))));
+                        }
+                        annos = visibleTypeAnnos.get(bci);
+                        if (annos != null) {
+                            clist.add(blockList("visible type annotation @" + bci,
+                                    annos.stream().map(a -> map("anno",
+                                            value("annotation class", a.className().stringValue()),
+                                            value("target info", a.targetInfo().targetType().name()),
+                                            elementValuePairsToString(a.elements())))));
+                        }
 //                        for (var exc : excHandlers) {
 //                            if (exc.start() == bci) {
 //                                out.accept(format.tryStartInline.formatted(exc.start(), exc.end(), exc.handler(), exc.catchType()));
@@ -884,30 +901,38 @@ public final class ClassPrinterImpl {
 //                    });
 //                case AnnotationDefaultAttribute ada ->
 //                    out.accept(format.annotationDefault.formatted(indentSpace, elementValueToString(ada.defaultValue())));
-//                case RuntimeInvisibleAnnotationsAttribute riaa ->
-//                    printTable(format.annotations, riaa.annotations(), a -> new Object[]{indentSpace, a.className().stringValue(), elementValuePairsToString(a.elements())}, indentSpace, "invisible");
-//                case RuntimeVisibleAnnotationsAttribute rvaa ->
-//                    printTable(format.annotations, rvaa.annotations(), a -> new Object[]{indentSpace, a.className().stringValue(), elementValuePairsToString(a.elements())}, indentSpace, "visible");
-//                case RuntimeInvisibleParameterAnnotationsAttribute ripaa -> {
-//                    int i = 0;
-//                    for (var pa : ripaa.parameterAnnotations()) {
-//                        i++;
-//                        if (!pa.isEmpty()) printTable(format.parameterAnnotations, pa, a -> new Object[]{indentSpace, a.className().stringValue(), elementValuePairsToString(a.elements())}, indentSpace, "invisible", i);
-//                    }
-//                }
-//                case RuntimeVisibleParameterAnnotationsAttribute rvpaa -> {
-//                    int i = 0;
-//                    for (var pa : rvpaa.parameterAnnotations()) {
-//                        i++;
-//                        if (!pa.isEmpty()) printTable(format.parameterAnnotations, pa, a -> new Object[]{indentSpace, a.className().stringValue(), elementValuePairsToString(a.elements())}, indentSpace, "visible", i);
-//                    }
-//                }
-//                case RuntimeInvisibleTypeAnnotationsAttribute ritaa ->
-//                    printTable(format.typeAnnotations, ritaa.annotations(), a -> new Object[]{indentSpace, a.className().stringValue(), a.targetInfo().targetType(), elementValuePairsToString(a.elements())}, indentSpace, "invisible");
-//                case RuntimeVisibleTypeAnnotationsAttribute rvtaa ->
-//                    printTable(format.typeAnnotations, rvtaa.annotations(), a -> new Object[]{indentSpace, a.className().stringValue(), a.targetInfo().targetType(), elementValuePairsToString(a.elements())}, indentSpace, "visible");
-//                case SignatureAttribute sa ->
-//                    out.accept(format.simpleQuotedAttr.formatted(indentSpace, "signature", escape(sa.signature().stringValue())));
+                case RuntimeInvisibleAnnotationsAttribute aa ->
+                    out.add(blockList("invisible annotations", aa.annotations().stream().map(a -> map("anno",
+                                value("annotation class", a.className().stringValue()),
+                                elementValuePairsToString(a.elements())))));
+                case RuntimeVisibleAnnotationsAttribute aa ->
+                    out.add(blockList("visible annotations", aa.annotations().stream().map(a -> map("anno",
+                                value("annotation class", a.className().stringValue()),
+                                elementValuePairsToString(a.elements())))));
+                case RuntimeInvisibleParameterAnnotationsAttribute aa ->
+                    out.add(blockMap("invisible parameter annotations", IntStream.range(0, aa.parameterAnnotations().size())
+                            .filter(i -> !aa.parameterAnnotations().get(i).isEmpty())
+                            .mapToObj(i -> list("parameter " + (i + 1), aa.parameterAnnotations().get(i).stream().map(a -> map("anno",
+                                    value("annotation class", a.className().stringValue()),
+                                    elementValuePairsToString(a.elements())))))));
+                case RuntimeVisibleParameterAnnotationsAttribute aa ->
+                    out.add(blockMap("visible parameter annotations", IntStream.range(0, aa.parameterAnnotations().size())
+                            .filter(i -> !aa.parameterAnnotations().get(i).isEmpty())
+                            .mapToObj(i -> list("parameter " + (i + 1), aa.parameterAnnotations().get(i).stream().map(a -> map("anno",
+                                    value("annotation class", a.className().stringValue()),
+                                    elementValuePairsToString(a.elements())))))));
+                case RuntimeInvisibleTypeAnnotationsAttribute aa ->
+                    out.add(blockList("invisible type annotations", aa.annotations().stream().map(a -> map("anno",
+                                value("annotation class", a.className().stringValue()),
+                                value("target info", a.targetInfo().targetType().name()),
+                                elementValuePairsToString(a.elements())))));
+                case RuntimeVisibleTypeAnnotationsAttribute aa ->
+                    out.add(blockList("visible type annotations", aa.annotations().stream().map(a -> map("anno",
+                                value("annotation class", a.className().stringValue()),
+                                value("target info", a.targetInfo().targetType().name()),
+                                elementValuePairsToString(a.elements())))));
+                case SignatureAttribute sa ->
+                    out.add(value("signature", sa.signature().stringValue()));
                 case SourceFileAttribute sfa ->
                     out.add(value("source file", sfa.sourceFile().stringValue()));
                 default -> {}
@@ -932,12 +957,12 @@ public final class ClassPrinterImpl {
         return info;
     }
 
-//    private void forEachOffset(TypeAnnotation ta, LabelResolver lr, BiConsumer<Integer, TypeAnnotation> consumer) {
-//        switch (ta.targetInfo()) {
-//            case TypeAnnotation.OffsetTarget ot -> consumer.accept(lr.labelToBci(ot.target()), ta);
-//            case TypeAnnotation.TypeArgumentTarget tat -> consumer.accept(lr.labelToBci(tat.target()), ta);
-//            case TypeAnnotation.LocalVarTarget lvt -> lvt.table().forEach(lvti -> consumer.accept(lr.labelToBci(lvti.startLabel()), ta));
-//            default -> {}
-//        }
-//    }
+    private static void forEachOffset(TypeAnnotation ta, LabelResolver lr, BiConsumer<Integer, TypeAnnotation> consumer) {
+        switch (ta.targetInfo()) {
+            case TypeAnnotation.OffsetTarget ot -> consumer.accept(lr.labelToBci(ot.target()), ta);
+            case TypeAnnotation.TypeArgumentTarget tat -> consumer.accept(lr.labelToBci(tat.target()), ta);
+            case TypeAnnotation.LocalVarTarget lvt -> lvt.table().forEach(lvti -> consumer.accept(lr.labelToBci(lvti.startLabel()), ta));
+            default -> {}
+        }
+    }
 }
