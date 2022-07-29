@@ -40,6 +40,7 @@ import java.util.TreeMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import jdk.classfile.AnnotationElement;
@@ -187,13 +188,10 @@ public final class ClassPrinterImpl {
 //            ", type: '%s', variable name: '%s'",
 //            "%n            #stack map frame locals: %s, stack: %s",
 //            new Table("%n            stack map frames:", "", "%n                %d: {locals: %s, stack: %s}"),
-//            new Table("%n            line numbers: #[<start pc>, <line number>]", "", "%n                - [%d, %d]"),
-//            new Table("%n            character ranges: #[<start pc>, <end pc>, <range start>, <range end>, <flags>]", "", "%n                - [%d, %d, %d, '%s', '%s']"),
-//            new Table("%n            local variable types: #[<start pc>, <end pc>, '<name>', <signature>]", "", "%n                - [%d, %d, %d, '%s', '%s']"),
 //            ClassPrinterImpl::escapeYaml);
 
     public static void toYaml(Node node, Consumer<String> out) {
-        toYaml(0, false, blockList(null, List.of(node)), out);
+        toYaml(0, false, blockList(null, Stream.of(node)), out);
         out.accept(NL);
     }
 
@@ -468,8 +466,8 @@ public final class ClassPrinterImpl {
         return new SimpleNodeImpl(name, value);
     }
 
-    private static Node blockList(ConstantDesc listName, List<Node> list) {
-        return new ListNodeImpl(BLOCK, listName, list);
+    private static Node blockList(ConstantDesc listName, Stream<Node> list) {
+        return new ListNodeImpl(BLOCK, listName, list.toList());
     }
 
     private static Node list(ConstantDesc listName, ConstantDesc itemsName, Stream<?> values) {
@@ -512,7 +510,7 @@ public final class ClassPrinterImpl {
         if (i >= 0) desc = desc.substring(i + 1);
         desc = switch (desc) {
             case "I", "B", "Z", "F", "S", "C", "J", "D" -> TypeKind.fromDescriptor(desc).typeName();
-            default -> desc = Util.descriptorToClass(desc);
+            default -> Util.descriptorToClass(desc);
         };
         if (i >= 0) {
             var ret = new StringBuilder(desc.length() + 2*i + 2).append(desc);
@@ -582,8 +580,8 @@ public final class ClassPrinterImpl {
             fieldElements.add(list("attributes", "attribute", f.attributes().stream().map(Attribute::attributeName)));
             if (verbosity != Verbosity.MEMBERS_ONLY) printAttributes(f.attributes(), fieldElements, verbosity);
             return blockMap("field", fieldElements);
-        }).toList()));
-        cllist.add(blockList("methods", clm.methods().stream().map(mm -> (Node)toTree(mm, verbosity)).toList()));
+        })));
+        cllist.add(blockList("methods", clm.methods().stream().map(mm -> (Node)toTree(mm, verbosity))));
         return (MapNode)blockMap("class", cllist);
     }
 
@@ -651,7 +649,6 @@ public final class ClassPrinterImpl {
                 var visibleTypeAnnos = new LinkedHashMap<Integer, TypeAnnotation>();
                 var invisibleTypeAnnos = new LinkedHashMap<Integer, TypeAnnotation>();
                 List<LocalVariableInfo> locals = List.of();
-                int lnc =0, lvc = 0, lvtc = 0;
                 for (var attr : com.attributes()) {
                     if (attr instanceof StackMapTableAttribute smta) {
                         for (var smf : smta.entries()) {
@@ -659,14 +656,48 @@ public final class ClassPrinterImpl {
                         }
                         clist.add(blockMap("stack map frames", stackMap.values()));
                     } else if (verbosity == Verbosity.TRACE_ALL) switch (attr) {
-//                        case LocalVariableTableAttribute lvta ->
-//                            printTable(format.localVariableTable, locals = lvta.localVariables(), lv -> new Object[]{lv.startPc(), lv.startPc() + lv.length(), lv.slot(), lv.name().stringValue(), formatDescriptor(lv.type().stringValue())}, ++lvc < 2 ? "" : " #" + lvc);
-//                        case LineNumberTableAttribute lnta ->
-//                            printTable(format.lineNumberTable, lnta.lineNumbers(), lni -> new Object[] {lni.startPc(), lni.lineNumber()}, ++lnc < 2 ? "" : " #"+lnc);
-//                        case CharacterRangeTableAttribute crta ->
-//                            printTable(format.characterRangeTable, crta.characterRangeTable(), chr -> new Object[] {chr.startPc(), chr.endPc(), chr.characterRangeStart(), chr.characterRangeEnd(), chr.flags()});
-//                        case LocalVariableTypeTableAttribute lvtta ->
-//                            printTable(format.localVariableTypeTable, lvtta.localVariableTypes(), lvt -> new Object[]{lvt.startPc(), lvt.startPc() + lvt.length(), lvt.slot(), lvt.name().stringValue(), formatDescriptor(lvt.signature().stringValue())}, ++lvtc < 2 ? "" : " #" + lvtc);
+                        case LocalVariableTableAttribute lvta -> {
+                            locals = lvta.localVariables();
+                            clist.add(blockList("local variables", IntStream.range(0, locals.size()).mapToObj(i -> {
+                                var lv = lvta.localVariables().get(i);
+                                return map(i + 1,
+                                    "start", lv.startPc(),
+                                    "end", lv.startPc() + lv.length(),
+                                    "slot", lv.slot(),
+                                    "name", lv.name().stringValue(),
+                                    "type", formatDescriptor(lv.type().stringValue()));
+                            })));
+                        }
+                        case LocalVariableTypeTableAttribute lvtta -> {
+                            clist.add(blockList("local variable types", IntStream.range(0, lvtta.localVariableTypes().size()).mapToObj(i -> {
+                                var lvt = lvtta.localVariableTypes().get(i);
+                                return map(i + 1,
+                                    "start", lvt.startPc(),
+                                    "end", lvt.startPc() + lvt.length(),
+                                    "slot", lvt.slot(),
+                                    "name", lvt.name().stringValue(),
+                                    "signature", formatDescriptor(lvt.signature().stringValue()));
+                            })));
+                        }
+                        case LineNumberTableAttribute lnta -> {
+                            clist.add(blockList("line numbers", IntStream.range(0, lnta.lineNumbers().size()).mapToObj(i -> {
+                                var ln = lnta.lineNumbers().get(i);
+                                return map(i + 1,
+                                    "start", ln.startPc(),
+                                    "line number", ln.lineNumber());
+                            })));
+                        }
+                        case CharacterRangeTableAttribute crta -> {
+                            clist.add(blockList("character ranges", IntStream.range(0, crta.characterRangeTable().size()).mapToObj(i -> {
+                                var cr = crta.characterRangeTable().get(i);
+                                return map(i + 1,
+                                    "start", cr.startPc(),
+                                    "end", cr.endPc(),
+                                    "range start", cr.characterRangeStart(),
+                                    "range end", cr.characterRangeEnd(),
+                                    "flags", cr.flags());
+                            })));
+                        }
 //                        case RuntimeVisibleTypeAnnotationsAttribute rvtaa ->
 //                            rvtaa.annotations().forEach(a -> forEachOffset(a, com, visibleTypeAnnos::put));
 //                        case RuntimeInvisibleTypeAnnotationsAttribute ritaa ->
@@ -775,7 +806,7 @@ public final class ClassPrinterImpl {
                 }
                 if (excHandlers.size() > 0) {
                     clist.add(blockList("exception handlers", excHandlers.stream().map(exc ->
-                                    map("try", "start", exc.start(), "end", exc.end(), "handler", exc.handler(), "type", exc.catchType())).toList()));
+                                    map("try", "start", exc.start(), "end", exc.end(), "handler", exc.handler(), "type", exc.catchType()))));
                 }
                 mlist.add(blockMap("code", clist));
             });
