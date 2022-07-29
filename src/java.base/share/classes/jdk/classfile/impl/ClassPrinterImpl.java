@@ -25,7 +25,9 @@
 package jdk.classfile.impl;
 
 import java.lang.constant.ConstantDesc;
+import java.lang.constant.ClassDesc;
 import java.lang.constant.DirectMethodHandleDesc;
+import java.lang.constant.MethodTypeDesc;
 import java.lang.reflect.AccessFlag;
 import java.util.Arrays;
 import java.util.Collection;
@@ -268,7 +270,7 @@ public final class ClassPrinterImpl {
                 return "'" + esc + "'";
         }
         for (int i = 1; i < esc.length(); i++) {
-            switch (esc.charAt(0)) {
+            switch (esc.charAt(i)) {
                 case ',', '[', ']', '{', '}':
                     return "'" + esc + "'";
             }
@@ -498,27 +500,33 @@ public final class ClassPrinterImpl {
         return new MapNodeImpl(FLOW, id, map);
     }
 
-    private static String formatDescriptor(String desc) {
-        int i = desc.lastIndexOf('[');
-        if (i >= 0) desc = desc.substring(i + 1);
-        desc = switch (desc) {
-            case "I", "B", "Z", "F", "S", "C", "J", "D" -> TypeKind.fromDescriptor(desc).typeName();
-            default -> Util.descriptorToClass(desc);
-        };
-        if (i >= 0) {
-            var ret = new StringBuilder(desc.length() + 2*i + 2).append(desc);
-            while (i-- >= 0) ret.append('[').append(']');
-            return ret.toString();
-        }
-        return desc;
-    }
-
-    private static Stream<String> convertVTIs(List<StackMapTableAttribute.VerificationTypeInfo> vtis) {
+    private static Stream<String> convertVTIs(int bci, List<StackMapTableAttribute.VerificationTypeInfo> vtis) {
         return vtis.stream().mapMulti((vti, ret) -> {
-            var s = formatDescriptor(vti.toString());
-            ret.accept(s);
-            if (vti.type() == StackMapTableAttribute.VerificationType.ITEM_DOUBLE || vti.type() == StackMapTableAttribute.VerificationType.ITEM_LONG)
-                ret.accept(s + "2");
+            switch (vti) {
+                case SimpleVerificationTypeInfo s -> {
+                    switch (s.type()) {
+                        case ITEM_DOUBLE -> {
+                            ret.accept("double");
+                            ret.accept("double2");
+                        }
+                        case ITEM_FLOAT ->
+                            ret.accept("float");
+                        case ITEM_INTEGER ->
+                            ret.accept("float");
+                        case ITEM_LONG ->  {
+                            ret.accept("long");
+                            ret.accept("long2");
+                        }
+                        case ITEM_NULL -> ret.accept("null");
+                        case ITEM_TOP -> ret.accept("?");
+                        case ITEM_UNINITIALIZED_THIS -> ret.accept("THIS");
+                    }
+                }
+                case ObjectVerificationTypeInfo o ->
+                    ret.accept(o.className().asSymbol().displayName());
+                case UninitializedVerificationTypeInfo u ->
+                    ret.accept("UNITIALIZED @" + (bci + u.offset()));
+            }
         });
     }
 
@@ -594,7 +602,7 @@ public final class ClassPrinterImpl {
                     "tag", tagName(e.tag()),
                     "owner index", mre.owner().index(),
                     "name and type index", mre.nameAndType().index(),
-                    "owner", mre.owner().asInternalName(),
+                    "owner", mre.owner().asSymbol().displayName(),
                     "name", mre.name().stringValue(),
                     "type", mre.type().stringValue());
             case NameAndTypeEntry nte -> map(i,
@@ -621,8 +629,12 @@ public final class ClassPrinterImpl {
         };
     }
 
+    private static String formatDescriptor(String desc) {
+        return desc.contains("(") ? MethodTypeDesc.ofDescriptor(desc).displayDescriptor() : ClassDesc.ofDescriptor(desc).displayName();
+    }
+
     private static Node toTree(ConstantDesc name, StackMapFrame f) {
-        return map(name, list("locals", "item", convertVTIs(f.effectiveLocals())), list("stack", "item", convertVTIs(f.effectiveStack())));
+        return map(name, list("locals", "item", convertVTIs(f.absoluteOffset(), f.effectiveLocals())), list("stack", "item", convertVTIs(f.absoluteOffset(), f.effectiveStack())));
     }
 
     public static MapNode toTree(MethodModel m, Verbosity verbosity) {
@@ -658,7 +670,7 @@ public final class ClassPrinterImpl {
                                     "end", lv.startPc() + lv.length(),
                                     "slot", lv.slot(),
                                     "name", lv.name().stringValue(),
-                                    "type", formatDescriptor(lv.type().stringValue()));
+                                    "type", lv.typeSymbol().displayName());
                             })));
                         }
                         case LocalVariableTypeTableAttribute lvtta -> {
@@ -669,7 +681,7 @@ public final class ClassPrinterImpl {
                                     "end", lvt.startPc() + lvt.length(),
                                     "slot", lvt.slot(),
                                     "name", lvt.name().stringValue(),
-                                    "signature", formatDescriptor(lvt.signature().stringValue()));
+                                    "signature", lvt.signature().stringValue());
                             })));
                         }
                         case LineNumberTableAttribute lnta -> {
@@ -702,7 +714,7 @@ public final class ClassPrinterImpl {
                 if (!stackMap.containsKey(0)) {
                     clist.add(toTree("//stack map frame @0", StackMapDecoder.initFrame(m)));
                 }
-                var excHandlers = com.exceptionHandlers().stream().map(exc -> new ExceptionHandler(com.labelToBci(exc.tryStart()), com.labelToBci(exc.tryEnd()), com.labelToBci(exc.handler()), exc.catchType().map(ct -> ct.asInternalName()).orElse(null))).toList();
+                var excHandlers = com.exceptionHandlers().stream().map(exc -> new ExceptionHandler(com.labelToBci(exc.tryStart()), com.labelToBci(exc.tryEnd()), com.labelToBci(exc.handler()), exc.catchType().map(ct -> ct.asSymbol().displayName()).orElse(null))).toList();
                 int bci = 0;
                 for (var coe : com) {
                     if (coe instanceof Instruction ins) {
@@ -714,7 +726,7 @@ public final class ClassPrinterImpl {
                         if (annos != null) {
                             clist.add(list("//invisible type annotation @" + bci,
                                     annos.stream().map(a -> map("anno",
-                                            value("annotation class", a.className().stringValue()),
+                                            value("annotation class", a.classSymbol().displayName()),
                                             value("target info", a.targetInfo().targetType().name()),
                                             elementValuePairsToString(a.elements())))));
                         }
@@ -722,7 +734,7 @@ public final class ClassPrinterImpl {
                         if (annos != null) {
                             clist.add(list("//visible type annotation @" + bci,
                                     annos.stream().map(a -> map("anno",
-                                            value("annotation class", a.className().stringValue()),
+                                            value("annotation class", a.classSymbol().displayName()),
                                             value("target info", a.targetInfo().targetType().name()),
                                             elementValuePairsToString(a.elements())))));
                         }
@@ -751,14 +763,14 @@ public final class ClassPrinterImpl {
                                     "slot", lv.slot()));
                             case FieldInstruction fa -> map(bci,
                                     "opcode", ins.opcode().name(),
-                                    "owner", fa.owner().asInternalName(),
+                                    "owner", fa.owner().asSymbol().displayName(),
                                     "field name", fa.name().stringValue(),
-                                    "field type", fa.type().stringValue());
+                                    "field type", fa.typeSymbol().displayName());
                             case InvokeInstruction inv -> map(bci,
                                     "opcode", ins.opcode().name(),
-                                    "owner", inv.owner().asInternalName(),
+                                    "owner", inv.owner().asSymbol().displayName(),
                                     "method name", inv.name().stringValue(),
-                                    "method type", inv.type().stringValue());
+                                    "method type", inv.typeSymbol().displayDescriptor());
                             case InvokeDynamicInstruction invd -> map(bci,
                                     "opcode", ins.opcode().name(),
                                     "name", invd.name().stringValue(),
@@ -766,25 +778,25 @@ public final class ClassPrinterImpl {
                                     "kind", invd.bootstrapMethod().kind().name(),
                                     "owner", invd.bootstrapMethod().owner().descriptorString(),
                                     "method name", invd.bootstrapMethod().methodName(),
-                                    "invocation type", invd.bootstrapMethod().invocationType().descriptorString());
+                                    "invocation type", invd.bootstrapMethod().invocationType().displayDescriptor());
                             case NewObjectInstruction newo -> map(bci,
                                     "opcode", ins.opcode().name(),
-                                    "type", newo.className().asInternalName());
+                                    "type", newo.className().asSymbol().displayName());
                             case NewPrimitiveArrayInstruction newa -> map(bci,
                                     "opcode", ins.opcode().name(),
                                     "dimensions", 1,
-                                    "descriptor", newa.typeKind().descriptor());
+                                    "descriptor", newa.typeKind().typeName());
                             case NewReferenceArrayInstruction newa -> map(bci,
                                     "opcode", ins.opcode().name(),
                                     "dimensions", 1,
-                                    "descriptor", newa.componentType().asInternalName());
+                                    "descriptor", newa.componentType().asSymbol().displayName());
                             case NewMultiArrayInstruction newa -> map(bci,
                                     "opcode", ins.opcode().name(),
                                     "dimensions", newa.dimensions(),
-                                    "descriptor", newa.arrayType().asInternalName());
+                                    "descriptor", newa.arrayType().asSymbol().displayName());
                             case TypeCheckInstruction tch -> map(bci,
                                     "opcode", ins.opcode().name(),
-                                    "type", tch.type().asInternalName());
+                                    "type", tch.type().asSymbol().displayName());
                             case ConstantInstruction cons -> map(bci,
                                     "opcode", ins.opcode().name(),
                                     "constant value", cons.constantValue());
@@ -887,32 +899,32 @@ public final class ClassPrinterImpl {
 //                    out.accept(format.annotationDefault.formatted(indentSpace, elementValueToString(ada.defaultValue())));
                 case RuntimeInvisibleAnnotationsAttribute aa ->
                     out.add(blockList("invisible annotations", aa.annotations().stream().map(a -> map("anno",
-                                value("annotation class", a.className().stringValue()),
+                                value("annotation class", a.classSymbol().displayName()),
                                 elementValuePairsToString(a.elements())))));
                 case RuntimeVisibleAnnotationsAttribute aa ->
                     out.add(blockList("visible annotations", aa.annotations().stream().map(a -> map("anno",
-                                value("annotation class", a.className().stringValue()),
+                                value("annotation class", a.classSymbol().displayName()),
                                 elementValuePairsToString(a.elements())))));
                 case RuntimeInvisibleParameterAnnotationsAttribute aa ->
                     out.add(blockMap("invisible parameter annotations", IntStream.range(0, aa.parameterAnnotations().size())
                             .filter(i -> !aa.parameterAnnotations().get(i).isEmpty())
                             .mapToObj(i -> list("parameter " + (i + 1), aa.parameterAnnotations().get(i).stream().map(a -> map("anno",
-                                    value("annotation class", a.className().stringValue()),
+                                    value("annotation class", a.classSymbol().displayName()),
                                     elementValuePairsToString(a.elements())))))));
                 case RuntimeVisibleParameterAnnotationsAttribute aa ->
                     out.add(blockMap("visible parameter annotations", IntStream.range(0, aa.parameterAnnotations().size())
                             .filter(i -> !aa.parameterAnnotations().get(i).isEmpty())
                             .mapToObj(i -> list("parameter " + (i + 1), aa.parameterAnnotations().get(i).stream().map(a -> map("anno",
-                                    value("annotation class", a.className().stringValue()),
+                                    value("annotation class", a.classSymbol().displayName()),
                                     elementValuePairsToString(a.elements())))))));
                 case RuntimeInvisibleTypeAnnotationsAttribute aa ->
                     out.add(blockList("invisible type annotations", aa.annotations().stream().map(a -> map("anno",
-                                value("annotation class", a.className().stringValue()),
+                                value("annotation class", a.classSymbol().displayName()),
                                 value("target info", a.targetInfo().targetType().name()),
                                 elementValuePairsToString(a.elements())))));
                 case RuntimeVisibleTypeAnnotationsAttribute aa ->
                     out.add(blockList("visible type annotations", aa.annotations().stream().map(a -> map("anno",
-                                value("annotation class", a.className().stringValue()),
+                                value("annotation class", a.classSymbol().displayName()),
                                 value("target info", a.targetInfo().targetType().name()),
                                 elementValuePairsToString(a.elements())))));
                 case SignatureAttribute sa ->
@@ -931,7 +943,7 @@ public final class ClassPrinterImpl {
                     int il = info.length;
                     info = Arrays.copyOf(info, il + 4);
                     info[il] = "type";
-                    info[il + 1] = l.type().stringValue();
+                    info[il + 1] = l.typeSymbol().displayName();
                     info[il + 2] = "variable name";
                     info[il + 3] = l.name().stringValue();
                     return info;
