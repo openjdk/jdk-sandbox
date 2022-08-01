@@ -29,8 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-import jdk.classfile.ClassModel;
-import jdk.classfile.MethodModel;
 import jdk.classfile.impl.ClassPrinterImpl;
 
 /**
@@ -57,29 +55,25 @@ public final class ClassPrinter {
         }
     }
 
-    public sealed interface SimpleNode extends Node
-            permits ClassPrinterImpl.SimpleNodeImpl {
+    public sealed interface LeafNode extends Node
+            permits ClassPrinterImpl.LeafNodeImpl {
 
         public ConstantDesc value();
     }
 
-    public sealed interface ListNode extends Node
+    public sealed interface ListNode extends Node, List<Node>
             permits ClassPrinterImpl.ListNodeImpl {
-
-        public List<Node> list();
     }
 
-    public sealed interface MapNode extends Node
+    public sealed interface MapNode extends Node, Map<ConstantDesc, Node>
             permits ClassPrinterImpl.MapNodeImpl {
-
-        public Map<ConstantDesc, Node> map();
     }
 
     public static MapNode toTree(ClassModel classModel, Verbosity verbosity) {
-        return ClassPrinterImpl.toTree(classModel, verbosity);
+        return ClassPrinterImpl.classToTree(classModel, verbosity);
     }
 
     public static MapNode toTree(MethodModel methodModel, Verbosity verbosity) {
-        return ClassPrinterImpl.toTree(methodModel, verbosity);
+        return ClassPrinterImpl.methodToTree(methodModel, verbosity);
     }
 }
