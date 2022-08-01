@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.Set;
 import java.util.TreeMap;
@@ -83,6 +84,7 @@ import static jdk.classfile.Classfile.TAG_NAMEANDTYPE;
 import static jdk.classfile.Classfile.TAG_PACKAGE;
 import static jdk.classfile.Classfile.TAG_STRING;
 import static jdk.classfile.Classfile.TAG_UTF8;
+import jdk.classfile.CodeModel;
 import static jdk.classfile.impl.ClassPrinterImpl.Style.*;
 
 /**
@@ -123,7 +125,7 @@ public final class ClassPrinterImpl {
         return nodes;
     }
 
-    private static Node leafList(ConstantDesc listName, ConstantDesc itemsName, Stream<ConstantDesc> values) {
+    private static Node list(ConstantDesc listName, ConstantDesc itemsName, Stream<ConstantDesc> values) {
         return new ListNodeImpl(FLOW, listName, values.map(v -> leaf(itemsName, v)));
     }
 
@@ -600,47 +602,24 @@ public final class ClassPrinterImpl {
         });
     }
 
-    private static String tagName(byte tag) {
-        return switch (tag) {
-            case TAG_UTF8 -> "Utf8";
-            case TAG_INTEGER -> "Integer";
-            case TAG_FLOAT -> "Float";
-            case TAG_LONG -> "Long";
-            case TAG_DOUBLE -> "Double";
-            case TAG_CLASS -> "Class";
-            case TAG_STRING -> "String";
-            case TAG_FIELDREF -> "Fieldref";
-            case TAG_METHODREF -> "Methodref";
-            case TAG_INTERFACEMETHODREF -> "InterfaceMethodref";
-            case TAG_NAMEANDTYPE -> "NameAndType";
-            case TAG_METHODHANDLE -> "MethodHandle";
-            case TAG_METHODTYPE -> "MethodType";
-            case TAG_CONSTANTDYNAMIC -> "Dynamic";
-            case TAG_INVOKEDYNAMIC -> "InvokeDynamic";
-            case TAG_MODULE -> "Module";
-            case TAG_PACKAGE -> "Package";
-            default -> null;
-        };
-    }
-
     private record ExceptionHandler(int start, int end, int handler, String catchType) {}
 
     public static MapNode classToTree(ClassModel clm, Verbosity verbosity) {
         return new MapNodeImpl(BLOCK, "class")
                 .with(leaf("class name", clm.thisClass().asInternalName()),
                       leaf("version", clm.majorVersion() + "." + clm.minorVersion()),
-                      leafList("flags", "flag", clm.flags().flags().stream().map(AccessFlag::name)),
+                      list("flags", "flag", clm.flags().flags().stream().map(AccessFlag::name)),
                       leaf("superclass", clm.superclass().map(ClassEntry::asInternalName).orElse("")),
-                      leafList("interfaces", "interface", clm.interfaces().stream().map(ClassEntry::asInternalName)),
-                      leafList("attributes", "attribute", clm.attributes().stream().map(Attribute::attributeName)))
+                      list("interfaces", "interface", clm.interfaces().stream().map(ClassEntry::asInternalName)),
+                      list("attributes", "attribute", clm.attributes().stream().map(Attribute::attributeName)))
                 .with(constantPoolToTree(clm.constantPool(), verbosity))
                 .with(attributesToTree(clm.attributes(), verbosity))
                 .with(new ListNodeImpl(BLOCK, "fields", clm.fields().stream().map(f ->
                     new MapNodeImpl(BLOCK, "field")
                             .with(leaf("field name", f.fieldName().stringValue()),
-                                  leafList("flags", "flag", f.flags().flags().stream().map(AccessFlag::name)),
+                                  list("flags", "flag", f.flags().flags().stream().map(AccessFlag::name)),
                                   leaf("field type", f.fieldType().stringValue()),
-                                  leafList("attributes", "attribute", f.attributes().stream().map(Attribute::attributeName)))
+                                  list("attributes", "attribute", f.attributes().stream().map(Attribute::attributeName)))
                             .with(attributesToTree(f.attributes(), verbosity)))))
                 .with(new ListNodeImpl(BLOCK, "methods", clm.methods().stream().map(mm ->
                     (Node)methodToTree(mm, verbosity))));
@@ -651,7 +630,71 @@ public final class ClassPrinterImpl {
             var cpNode = new MapNodeImpl(BLOCK, "constant pool");
             for (int i = 1; i < cp.entryCount();) {
                 var e = cp.entryByIndex(i);
-                cpNode.with(poolEntryToTree(i, e));
+                cpNode.with(new MapNodeImpl(FLOW, i)
+                        .with(leaf("tag", switch (e.tag()) {
+                            case TAG_UTF8 -> "Utf8";
+                            case TAG_INTEGER -> "Integer";
+                            case TAG_FLOAT -> "Float";
+                            case TAG_LONG -> "Long";
+                            case TAG_DOUBLE -> "Double";
+                            case TAG_CLASS -> "Class";
+                            case TAG_STRING -> "String";
+                            case TAG_FIELDREF -> "Fieldref";
+                            case TAG_METHODREF -> "Methodref";
+                            case TAG_INTERFACEMETHODREF -> "InterfaceMethodref";
+                            case TAG_NAMEANDTYPE -> "NameAndType";
+                            case TAG_METHODHANDLE -> "MethodHandle";
+                            case TAG_METHODTYPE -> "MethodType";
+                            case TAG_CONSTANTDYNAMIC -> "Dynamic";
+                            case TAG_INVOKEDYNAMIC -> "InvokeDynamic";
+                            case TAG_MODULE -> "Module";
+                            case TAG_PACKAGE -> "Package";
+                            default -> throw new AssertionError("Unknown CP tag: " + e.tag());
+                        }))
+                        .with(switch (e) {
+                            case ClassEntry ce -> leafs(
+                                "class name index", ce.index(),
+                                "class internal name", ce.asInternalName());
+                            case ModuleEntry me -> leafs(
+                                "module name index", me.name().index(),
+                                "module name", me.name().stringValue());
+                            case PackageEntry pe -> leafs(
+                                "package name index", pe.name().index(),
+                                "package name", pe.name().stringValue());
+                            case StringEntry se -> leafs(
+                                    "value index", se.utf8().index(),
+                                    "value", se.stringValue());
+                            case MemberRefEntry mre -> leafs(
+                                    "owner index", mre.owner().index(),
+                                    "name and type index", mre.nameAndType().index(),
+                                    "owner", mre.owner().asSymbol().displayName(),
+                                    "name", mre.name().stringValue(),
+                                    "type", mre.type().stringValue());
+                            case NameAndTypeEntry nte -> leafs(
+                                    "name index", nte.name().index(),
+                                    "type index", nte.type().index(),
+                                    "name", nte.name().stringValue(),
+                                    "type", nte.type().stringValue());
+                            case MethodHandleEntry mhe -> leafs(
+                                    "reference kind", DirectMethodHandleDesc.Kind.valueOf(mhe.kind()).name(),
+                                    "reference index", mhe.reference().index(),
+                                    "owner", mhe.reference().owner().asInternalName(),
+                                    "name", mhe.reference().name().stringValue(),
+                                    "type", mhe.reference().type().stringValue());
+                            case MethodTypeEntry mte -> leafs(
+                                    "descriptor index", mte.descriptor().index(),
+                                    "descriptor", mte.descriptor().stringValue());
+                            case DynamicConstantPoolEntry dcpe -> new Node[] {
+                                leaf("bootstrap method handle index", dcpe.bootstrap().bootstrapMethod().index()),
+                                list("bootstrap method arguments indexes",
+                                        "index", dcpe.bootstrap().arguments().stream().map(en -> en.index())),
+                                leaf("name and type index", dcpe.nameAndType().index()),
+                                leaf("name", dcpe.name().stringValue()),
+                                leaf("type", dcpe.type().stringValue())};
+                            case AnnotationConstantValueEntry ve -> leafs(
+                                "value", String.valueOf(ve.constantValue())
+                            );
+                        }));
                 i += e.poolEntries();
             }
             return new Node[]{cpNode};
@@ -660,260 +703,187 @@ public final class ClassPrinterImpl {
         }
     }
 
-    private static Node poolEntryToTree(int i, PoolEntry e) {
-        return switch (e) {
-            case Utf8Entry ve -> cpValeEntryToTree(i, ve);
-            case IntegerEntry ve -> cpValeEntryToTree(i, ve);
-            case FloatEntry ve -> cpValeEntryToTree(i, ve);
-            case LongEntry ve -> cpValeEntryToTree(i, ve);
-            case DoubleEntry ve -> cpValeEntryToTree(i, ve);
-            case ClassEntry ce -> cpNamedEntryToTree(i, e, ce.name());
-            case StringEntry se -> leafMap(i,
-                    "tag", tagName(e.tag()),
-                    "value index", se.utf8().index(),
-                    "value", se.stringValue());
-            case MemberRefEntry mre -> leafMap(i,
-                    "tag", tagName(e.tag()),
-                    "owner index", mre.owner().index(),
-                    "name and type index", mre.nameAndType().index(),
-                    "owner", mre.owner().asSymbol().displayName(),
-                    "name", mre.name().stringValue(),
-                    "type", mre.type().stringValue());
-            case NameAndTypeEntry nte -> leafMap(i,
-                    "tag", tagName(e.tag()),
-                    "name index", nte.name().index(),
-                    "type index", nte.type().index(),
-                    "name", nte.name().stringValue(),
-                    "type", nte.type().stringValue());
-            case MethodHandleEntry mhe -> leafMap(i,
-                    "tag", tagName(e.tag()),
-                    "reference kind", DirectMethodHandleDesc.Kind.valueOf(mhe.kind()).name(),
-                    "reference index", mhe.reference().index(),
-                    "owner", mhe.reference().owner().asInternalName(),
-                    "name", mhe.reference().name().stringValue(),
-                    "type", mhe.reference().type().stringValue());
-            case MethodTypeEntry mte -> leafMap(i,
-                    "tag", tagName(e.tag()),
-                    "descriptor index", mte.descriptor().index(),
-                    "descriptor", mte.descriptor().stringValue());
-            case ConstantDynamicEntry cde -> cpEntryToTree(i, cde);
-            case InvokeDynamicEntry ide -> cpEntryToTree(i, ide);
-            case ModuleEntry me -> cpNamedEntryToTree(i, e, me.name());
-            case PackageEntry pe -> cpNamedEntryToTree(i, e, pe.name());
-        };
-    }
-
     private static Node frameToTree(ConstantDesc name, StackMapFrame f) {
-        return new MapNodeImpl(FLOW, name)
-                .with(leafList("locals", "item", convertVTIs(f.absoluteOffset(), f.effectiveLocals())))
-                .with(leafList("stack", "item", convertVTIs(f.absoluteOffset(), f.effectiveStack())));
+        return new MapNodeImpl(FLOW, name).with(
+                list("locals", "item", convertVTIs(f.absoluteOffset(), f.effectiveLocals())),
+                list("stack", "item", convertVTIs(f.absoluteOffset(), f.effectiveStack())));
     }
 
     public static MapNode methodToTree(MethodModel m, Verbosity verbosity) {
-        var methodNode = new MapNodeImpl(BLOCK, "method");
-        methodNode.with(leaf("method name", m.methodName().stringValue()));
-        methodNode.with(leafList("flags", "flag", m.flags().flags().stream().map(AccessFlag::name)));
-        methodNode.with(leaf("method type", m.methodType().stringValue()));
-        methodNode.with(leafList("attributes", "attribute", m.attributes().stream().map(Attribute::attributeName)));
-        methodNode.with(attributesToTree(m.attributes(), verbosity));
-        if (verbosity != Verbosity.MEMBERS_ONLY) {
-            m.code().ifPresent(com -> {
-                var codeNode = new MapNodeImpl(BLOCK, "code");
-                methodNode.with(codeNode);
-                codeNode.with(leaf("max stack", ((CodeAttribute)com).maxStack()));
-                codeNode.with(leaf("max locals", ((CodeAttribute)com).maxLocals()));
-                codeNode.with(leafList("attributes", "attribute", com.attributes().stream().map(Attribute::attributeName)));
-                var stackMap = new MapNodeImpl(BLOCK, "stack map frames");
-                var visibleTypeAnnos = new LinkedHashMap<Integer, List<TypeAnnotation>>();
-                var invisibleTypeAnnos = new LinkedHashMap<Integer, List<TypeAnnotation>>();
-                List<LocalVariableInfo> locals = List.of();
-                for (var attr : com.attributes()) {
-                    if (attr instanceof StackMapTableAttribute smta) {
-                        codeNode.with(stackMap);
-                        for (var smf : smta.entries()) {
-                            stackMap.with(frameToTree(smf.absoluteOffset(), smf));
-                        }
-                    } else if (verbosity == Verbosity.TRACE_ALL) switch (attr) {
-                        case LocalVariableTableAttribute lvta -> {
-                            locals = lvta.localVariables();
-                            codeNode.with(new ListNodeImpl(BLOCK, "local variables", IntStream.range(0, locals.size()).mapToObj(i -> {
-                                var lv = lvta.localVariables().get(i);
-                                return leafMap(i + 1,
-                                    "start", lv.startPc(),
-                                    "end", lv.startPc() + lv.length(),
-                                    "slot", lv.slot(),
-                                    "name", lv.name().stringValue(),
-                                    "type", lv.typeSymbol().displayName());
-                            })));
-                        }
-                        case LocalVariableTypeTableAttribute lvtta -> {
-                            codeNode.with(new ListNodeImpl(BLOCK, "local variable types", IntStream.range(0, lvtta.localVariableTypes().size()).mapToObj(i -> {
-                                var lvt = lvtta.localVariableTypes().get(i);
-                                return leafMap(i + 1,
-                                    "start", lvt.startPc(),
-                                    "end", lvt.startPc() + lvt.length(),
-                                    "slot", lvt.slot(),
-                                    "name", lvt.name().stringValue(),
-                                    "signature", lvt.signature().stringValue());
-                            })));
-                        }
-                        case LineNumberTableAttribute lnta -> {
-                            codeNode.with(new ListNodeImpl(BLOCK, "line numbers", IntStream.range(0, lnta.lineNumbers().size()).mapToObj(i -> {
-                                var ln = lnta.lineNumbers().get(i);
-                                return leafMap(i + 1,
-                                    "start", ln.startPc(),
-                                    "line number", ln.lineNumber());
-                            })));
-                        }
-                        case CharacterRangeTableAttribute crta -> {
-                            codeNode.with(new ListNodeImpl(BLOCK, "character ranges", IntStream.range(0, crta.characterRangeTable().size()).mapToObj(i -> {
-                                var cr = crta.characterRangeTable().get(i);
-                                return leafMap(i + 1,
-                                    "start", cr.startPc(),
-                                    "end", cr.endPc(),
-                                    "range start", cr.characterRangeStart(),
-                                    "range end", cr.characterRangeEnd(),
-                                    "flags", cr.flags());
-                            })));
-                        }
-                        case RuntimeVisibleTypeAnnotationsAttribute rvtaa ->
-                            rvtaa.annotations().forEach(a -> forEachOffset(a, com, (off, an) -> visibleTypeAnnos.computeIfAbsent(off, o -> new LinkedList<>()).add(an)));
-                        case RuntimeInvisibleTypeAnnotationsAttribute ritaa ->
-                            ritaa.annotations().forEach(a -> forEachOffset(a, com, (off, an) -> invisibleTypeAnnos.computeIfAbsent(off, o -> new LinkedList<>()).add(an)));
-                        case Object o -> {}
+        return new MapNodeImpl(BLOCK, "method")
+                .with(leaf("method name", m.methodName().stringValue()),
+                      list("flags", "flag", m.flags().flags().stream().map(AccessFlag::name)),
+                      leaf("method type", m.methodType().stringValue()),
+                      list("attributes", "attribute", m.attributes().stream().map(Attribute::attributeName)))
+                .with(attributesToTree(m.attributes(), verbosity))
+                .with(codeToTree(m, m.code(), verbosity));
+    }
+
+    private static Node[] codeToTree(MethodModel m, Optional<CodeModel> c, Verbosity verbosity) {
+        if (verbosity != Verbosity.MEMBERS_ONLY && c.isPresent()) {
+            var com = c.get();
+            var codeNode = new MapNodeImpl(BLOCK, "code");
+            codeNode.with(leaf("max stack", ((CodeAttribute)com).maxStack()));
+            codeNode.with(leaf("max locals", ((CodeAttribute)com).maxLocals()));
+            codeNode.with(list("attributes", "attribute", com.attributes().stream().map(Attribute::attributeName)));
+            var stackMap = new MapNodeImpl(BLOCK, "stack map frames");
+            var visibleTypeAnnos = new LinkedHashMap<Integer, List<TypeAnnotation>>();
+            var invisibleTypeAnnos = new LinkedHashMap<Integer, List<TypeAnnotation>>();
+            List<LocalVariableInfo> locals = List.of();
+            for (var attr : com.attributes()) {
+                if (attr instanceof StackMapTableAttribute smta) {
+                    codeNode.with(stackMap);
+                    for (var smf : smta.entries()) {
+                        stackMap.with(frameToTree(smf.absoluteOffset(), smf));
                     }
-                }
-                codeNode.with(attributesToTree(com.attributes(), verbosity));
-                if (!stackMap.containsKey(0)) {
-                    codeNode.with(frameToTree("//stack map frame @0", StackMapDecoder.initFrame(m)));
-                }
-                var excHandlers = com.exceptionHandlers().stream().map(exc -> new ExceptionHandler(com.labelToBci(exc.tryStart()), com.labelToBci(exc.tryEnd()), com.labelToBci(exc.handler()), exc.catchType().map(ct -> ct.asSymbol().displayName()).orElse(null))).toList();
-                int bci = 0;
-                for (var coe : com) {
-                    if (coe instanceof Instruction ins) {
-                        var frame = stackMap.get(bci);
-                        if (frame != null) {
-                            codeNode.with(new MapNodeImpl(FLOW, "//stack map frame @" + bci).with(frame));
-                        }
-                        var annos = invisibleTypeAnnos.get(bci);
-                        if (annos != null) {
-                            codeNode.with(typeAnnotationsToTree(FLOW, "//invisible type annotations @" + bci, annos));
-                        }
-                        annos = visibleTypeAnnos.get(bci);
-                        if (annos != null) {
-                            codeNode.with(typeAnnotationsToTree(FLOW, "//visible type annotations @" + bci, annos));
-                        }
-                        for (int i = 0; i < excHandlers.size(); i++) {
-                            var exc = excHandlers.get(i);
-                            if (exc.start() == bci) {
-                                codeNode.with(leafMap("//try block #" + (i + 1) + " start", "start", exc.start(), "end", exc.end(), "handler", exc.handler(), "catch type", exc.catchType()));
-                            }
-                            if (exc.end() == bci) {
-                                codeNode.with(leafMap("//try block #" + (i + 1) + " end", "start", exc.start(), "end", exc.end(), "handler", exc.handler(), "catch type", exc.catchType()));
-                            }
-                            if (exc.handler() == bci) {
-                                codeNode.with(leafMap("//exception handler #" + (i + 1) + " start", "start", exc.start(), "end", exc.end(), "handler", exc.handler(), "catch type", exc.catchType()));
-                            }
-                        }
-                        codeNode.with(switch (coe) {
-                            case IncrementInstruction inc -> leafMap(bci, appendLocalInfo(locals, inc.slot(), bci,
-                                    "opcode", ins.opcode().name(),
-                                    "slot", inc.slot(),
-                                    "const", inc.constant()));
-                            case LoadInstruction lv -> leafMap(bci, appendLocalInfo(locals, lv.slot(), bci,
-                                    "opcode", ins.opcode().name(),
-                                    "slot", lv.slot()));
-                            case StoreInstruction lv -> leafMap(bci, appendLocalInfo(locals, lv.slot(), bci,
-                                    "opcode", ins.opcode().name(),
-                                    "slot", lv.slot()));
-                            case FieldInstruction fa -> leafMap(bci,
-                                    "opcode", ins.opcode().name(),
-                                    "owner", fa.owner().asSymbol().displayName(),
-                                    "field name", fa.name().stringValue(),
-                                    "field type", fa.typeSymbol().displayName());
-                            case InvokeInstruction inv -> leafMap(bci,
-                                    "opcode", ins.opcode().name(),
-                                    "owner", inv.owner().asSymbol().displayName(),
-                                    "method name", inv.name().stringValue(),
-                                    "method type", inv.typeSymbol().displayDescriptor());
-                            case InvokeDynamicInstruction invd -> leafMap(bci,
-                                    "opcode", ins.opcode().name(),
-                                    "name", invd.name().stringValue(),
-                                    "descriptor", invd.type().stringValue(),
-                                    "kind", invd.bootstrapMethod().kind().name(),
-                                    "owner", invd.bootstrapMethod().owner().descriptorString(),
-                                    "method name", invd.bootstrapMethod().methodName(),
-                                    "invocation type", invd.bootstrapMethod().invocationType().displayDescriptor());
-                            case NewObjectInstruction newo -> leafMap(bci,
-                                    "opcode", ins.opcode().name(),
-                                    "type", newo.className().asSymbol().displayName());
-                            case NewPrimitiveArrayInstruction newa -> leafMap(bci,
-                                    "opcode", ins.opcode().name(),
-                                    "dimensions", 1,
-                                    "descriptor", newa.typeKind().typeName());
-                            case NewReferenceArrayInstruction newa -> leafMap(bci,
-                                    "opcode", ins.opcode().name(),
-                                    "dimensions", 1,
-                                    "descriptor", newa.componentType().asSymbol().displayName());
-                            case NewMultiArrayInstruction newa -> leafMap(bci,
-                                    "opcode", ins.opcode().name(),
-                                    "dimensions", newa.dimensions(),
-                                    "descriptor", newa.arrayType().asSymbol().displayName());
-                            case TypeCheckInstruction tch -> leafMap(bci,
-                                    "opcode", ins.opcode().name(),
-                                    "type", tch.type().asSymbol().displayName());
-                            case ConstantInstruction cons -> leafMap(bci,
-                                    "opcode", ins.opcode().name(),
-                                    "constant value", cons.constantValue());
-                            case BranchInstruction br -> leafMap(bci,
-                                    "opcode", ins.opcode().name(),
-                                    "target", com.labelToBci(br.target()));
-                            case LookupSwitchInstruction ls -> new MapNodeImpl(FLOW, bci)
-                                    .with(leaf("opcode", ins.opcode().name()))
-                                    .with(leafList("targets", "target", Stream.concat(Stream.of(ls.defaultTarget()).map(com::labelToBci), ls.cases().stream().map(c -> com.labelToBci(c.target())))));
-                            case TableSwitchInstruction ts ->  new MapNodeImpl(FLOW, bci)
-                                    .with(leaf("opcode", ins.opcode().name()))
-                                    .with(leafList("targets", "target", Stream.concat(Stream.of(ts.defaultTarget()).map(com::labelToBci), ts.cases().stream().map(c -> com.labelToBci(c.target())))));
-                            default -> leafMap(bci,
-                                    "opcode", ins.opcode().name());
-                        });
-                        bci += ins.sizeInBytes();
+                } else if (verbosity == Verbosity.TRACE_ALL) switch (attr) {
+                    case LocalVariableTableAttribute lvta -> {
+                        locals = lvta.localVariables();
+                        codeNode.with(new ListNodeImpl(BLOCK, "local variables", IntStream.range(0, locals.size()).mapToObj(i -> {
+                            var lv = lvta.localVariables().get(i);
+                            return leafMap(i + 1,
+                                "start", lv.startPc(),
+                                "end", lv.startPc() + lv.length(),
+                                "slot", lv.slot(),
+                                "name", lv.name().stringValue(),
+                                "type", lv.typeSymbol().displayName());
+                        })));
                     }
+                    case LocalVariableTypeTableAttribute lvtta -> {
+                        codeNode.with(new ListNodeImpl(BLOCK, "local variable types", IntStream.range(0, lvtta.localVariableTypes().size()).mapToObj(i -> {
+                            var lvt = lvtta.localVariableTypes().get(i);
+                            return leafMap(i + 1,
+                                "start", lvt.startPc(),
+                                "end", lvt.startPc() + lvt.length(),
+                                "slot", lvt.slot(),
+                                "name", lvt.name().stringValue(),
+                                "signature", lvt.signature().stringValue());
+                        })));
+                    }
+                    case LineNumberTableAttribute lnta -> {
+                        codeNode.with(new ListNodeImpl(BLOCK, "line numbers", IntStream.range(0, lnta.lineNumbers().size()).mapToObj(i -> {
+                            var ln = lnta.lineNumbers().get(i);
+                            return leafMap(i + 1,
+                                "start", ln.startPc(),
+                                "line number", ln.lineNumber());
+                        })));
+                    }
+                    case CharacterRangeTableAttribute crta -> {
+                        codeNode.with(new ListNodeImpl(BLOCK, "character ranges", IntStream.range(0, crta.characterRangeTable().size()).mapToObj(i -> {
+                            var cr = crta.characterRangeTable().get(i);
+                            return leafMap(i + 1,
+                                "start", cr.startPc(),
+                                "end", cr.endPc(),
+                                "range start", cr.characterRangeStart(),
+                                "range end", cr.characterRangeEnd(),
+                                "flags", cr.flags());
+                        })));
+                    }
+                    case RuntimeVisibleTypeAnnotationsAttribute rvtaa ->
+                        rvtaa.annotations().forEach(a -> forEachOffset(a, com, (off, an) -> visibleTypeAnnos.computeIfAbsent(off, o -> new LinkedList<>()).add(an)));
+                    case RuntimeInvisibleTypeAnnotationsAttribute ritaa ->
+                        ritaa.annotations().forEach(a -> forEachOffset(a, com, (off, an) -> invisibleTypeAnnos.computeIfAbsent(off, o -> new LinkedList<>()).add(an)));
+                    case Object o -> {}
                 }
-                if (!excHandlers.isEmpty()) {
-                    var handlersNode = new MapNodeImpl(BLOCK, "exception handlers");
-                    codeNode.with(handlersNode);
+            }
+            codeNode.with(attributesToTree(com.attributes(), verbosity));
+            if (!stackMap.containsKey(0)) {
+                codeNode.with(frameToTree("//stack map frame @0", StackMapDecoder.initFrame(m)));
+            }
+            var excHandlers = com.exceptionHandlers().stream().map(exc -> new ExceptionHandler(com.labelToBci(exc.tryStart()), com.labelToBci(exc.tryEnd()), com.labelToBci(exc.handler()), exc.catchType().map(ct -> ct.asSymbol().displayName()).orElse(null))).toList();
+            int bci = 0;
+            for (var coe : com) {
+                if (coe instanceof Instruction ins) {
+                    var frame = stackMap.get(bci);
+                    if (frame != null) {
+                        codeNode.with(new MapNodeImpl(FLOW, "//stack map frame @" + bci).with(frame));
+                    }
+                    var annos = invisibleTypeAnnos.get(bci);
+                    if (annos != null) {
+                        codeNode.with(typeAnnotationsToTree(FLOW, "//invisible type annotations @" + bci, annos));
+                    }
+                    annos = visibleTypeAnnos.get(bci);
+                    if (annos != null) {
+                        codeNode.with(typeAnnotationsToTree(FLOW, "//visible type annotations @" + bci, annos));
+                    }
                     for (int i = 0; i < excHandlers.size(); i++) {
                         var exc = excHandlers.get(i);
-                        handlersNode.with(leafMap("handler #" + i, "start", exc.start(), "end", exc.end(), "handler", exc.handler(), "type", exc.catchType()));
+                        if (exc.start() == bci) {
+                            codeNode.with(leafMap("//try block #" + (i + 1) + " start", "start", exc.start(), "end", exc.end(), "handler", exc.handler(), "catch type", exc.catchType()));
+                        }
+                        if (exc.end() == bci) {
+                            codeNode.with(leafMap("//try block #" + (i + 1) + " end", "start", exc.start(), "end", exc.end(), "handler", exc.handler(), "catch type", exc.catchType()));
+                        }
+                        if (exc.handler() == bci) {
+                            codeNode.with(leafMap("//exception handler #" + (i + 1) + " start", "start", exc.start(), "end", exc.end(), "handler", exc.handler(), "catch type", exc.catchType()));
+                        }
                     }
+                    var in = new MapNodeImpl(FLOW, bci).with(leaf("opcode", ins.opcode().name()));
+                    codeNode.with(in);
+                    switch (coe) {
+                        case IncrementInstruction inc ->  in.with(leafs(
+                                "slot", inc.slot(),
+                                "const", inc.constant()))
+                                .with(localInfoToTree(locals, inc.slot(), bci));
+                        case LoadInstruction lv ->  in.with(leaf(
+                                "slot", lv.slot()))
+                                .with(localInfoToTree(locals, lv.slot(), bci));
+                        case StoreInstruction lv ->  in.with(leaf(
+                                "slot", lv.slot()))
+                                .with(localInfoToTree(locals, lv.slot(), bci));
+                        case FieldInstruction fa -> in.with(leafs(
+                                "owner", fa.owner().asSymbol().displayName(),
+                                "field name", fa.name().stringValue(),
+                                "field type", fa.typeSymbol().displayName()));
+                        case InvokeInstruction inv -> in.with(leafs(
+                                "owner", inv.owner().asSymbol().displayName(),
+                                "method name", inv.name().stringValue(),
+                                "method type", inv.typeSymbol().displayDescriptor()));
+                        case InvokeDynamicInstruction invd -> in.with(leafs(
+                                "name", invd.name().stringValue(),
+                                "descriptor", invd.type().stringValue(),
+                                "kind", invd.bootstrapMethod().kind().name(),
+                                "owner", invd.bootstrapMethod().owner().descriptorString(),
+                                "method name", invd.bootstrapMethod().methodName(),
+                                "invocation type", invd.bootstrapMethod().invocationType().displayDescriptor()));
+                        case NewObjectInstruction newo -> in.with(leaf(
+                                "type", newo.className().asSymbol().displayName()));
+                        case NewPrimitiveArrayInstruction newa -> in.with(leafs(
+                                "dimensions", 1,
+                                "descriptor", newa.typeKind().typeName()));
+                        case NewReferenceArrayInstruction newa -> in.with(leafs(
+                                "dimensions", 1,
+                                "descriptor", newa.componentType().asSymbol().displayName()));
+                        case NewMultiArrayInstruction newa -> in.with(leafs(
+                                "dimensions", newa.dimensions(),
+                                "descriptor", newa.arrayType().asSymbol().displayName()));
+                        case TypeCheckInstruction tch -> in.with(leaf(
+                                "type", tch.type().asSymbol().displayName()));
+                        case ConstantInstruction cons -> in.with(leaf(
+                                "constant value", cons.constantValue()));
+                        case BranchInstruction br -> in.with(leaf(
+                                "target", com.labelToBci(br.target())));
+                        case LookupSwitchInstruction si -> in.with(list(
+                                "targets", "target", Stream.concat(Stream.of(si.defaultTarget()).map(com::labelToBci), si.cases().stream().map(sc -> com.labelToBci(sc.target())))));
+                        case TableSwitchInstruction si -> in.with(list(
+                                "targets", "target", Stream.concat(Stream.of(si.defaultTarget()).map(com::labelToBci), si.cases().stream().map(sc -> com.labelToBci(sc.target())))));
+                        default -> {}
+                    }
+                    bci += ins.sizeInBytes();
                 }
-            });
+            }
+            if (!excHandlers.isEmpty()) {
+                var handlersNode = new MapNodeImpl(BLOCK, "exception handlers");
+                codeNode.with(handlersNode);
+                for (int i = 0; i < excHandlers.size(); i++) {
+                    var exc = excHandlers.get(i);
+                    handlersNode.with(leafMap("handler #" + i, "start", exc.start(), "end", exc.end(), "handler", exc.handler(), "type", exc.catchType()));
+                }
+            }
+            return new Node[] {codeNode};
+        } else {
+            return new Node[0];
         }
-        return methodNode;
-    }
-
-    private static Node cpValeEntryToTree(int i, AnnotationConstantValueEntry e) {
-        return leafMap(i,
-                "tag", tagName(e.tag()),
-                "value", String.valueOf(e.constantValue()));
-    }
-
-    private static Node cpNamedEntryToTree(int i, PoolEntry e, Utf8Entry name) {
-        return leafMap(i,
-                "tag", tagName(e.tag()),
-                "name index", name.index(),
-                "value", name.stringValue());
-    }
-
-    private static Node cpEntryToTree(int i, DynamicConstantPoolEntry dcpe) {
-        return new MapNodeImpl(FLOW, i)
-                .with(leaf("tag", tagName(dcpe.tag())))
-                .with(leaf("bootstrap method handle index", dcpe.bootstrap().bootstrapMethod().index()))
-                .with(leafList("bootstrap method arguments indexes", "index", dcpe.bootstrap().arguments().stream().map(en -> en.index())))
-                .with(leaf("name and type index", dcpe.nameAndType().index()))
-                .with(leaf("name", dcpe.name().stringValue()))
-                .with(leaf("type", dcpe.type().stringValue()));
     }
 
     private static Node[] attributesToTree(List<Attribute<?>> attributes, Verbosity verbosity) {
@@ -997,8 +967,8 @@ public final class ClassPrinterImpl {
     private static Node typeAnnotationsToTree(Style style, String name, List<TypeAnnotation> annos) {
         return new ListNodeImpl(style, name, annos.stream().map(a ->
                 new MapNodeImpl(FLOW, "anno")
-                        .with(leaf("annotation class", a.classSymbol().displayName()))
-                        .with(leaf("target info", a.targetInfo().targetType().name()))
+                        .with(leaf("annotation class", a.classSymbol().displayName()),
+                              leaf("target info", a.targetInfo().targetType().name()))
                         .with(elementValuePairsToTree(a.elements()))));
 
     }
@@ -1017,21 +987,16 @@ public final class ClassPrinterImpl {
         return node;
     }
 
-    private static ConstantDesc[] appendLocalInfo(List<LocalVariableInfo> locals, int slot, int bci, ConstantDesc... info) {
+    private static Node[] localInfoToTree(List<LocalVariableInfo> locals, int slot, int bci) {
         if (locals != null) {
             for (var l : locals) {
                 if (l.slot() == slot && l.startPc() <= bci && l.length() + l.startPc() >= bci) {
-                    int il = info.length;
-                    info = Arrays.copyOf(info, il + 4);
-                    info[il] = "type";
-                    info[il + 1] = l.typeSymbol().displayName();
-                    info[il + 2] = "variable name";
-                    info[il + 3] = l.name().stringValue();
-                    return info;
+                    return leafs("type", l.typeSymbol().displayName(),
+                                 "variable name", l.name().stringValue());
                 }
             }
         }
-        return info;
+        return new Node[0];
     }
 
     private static void forEachOffset(TypeAnnotation ta, LabelResolver lr, BiConsumer<Integer, TypeAnnotation> consumer) {
