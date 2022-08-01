@@ -61,6 +61,8 @@ import jdk.classfile.constantpool.*;
 import jdk.classfile.instruction.*;
 
 import static jdk.classfile.Classfile.*;
+import jdk.classfile.CompoundElement;
+import jdk.classfile.FieldModel;
 import static jdk.classfile.impl.ClassPrinterImpl.Style.*;
 
 /**
@@ -187,7 +189,7 @@ public final class ClassPrinterImpl {
 
         MapNodeImpl with(Node... nodes) {
             for (var n : nodes)
-                if (map.put(n.name(), n) != null)
+                if (n != null && map.put(n.name(), n) != null)
                     throw new AssertionError("Double entry of " + n.name() + " into " + name);
             return this;
         }
@@ -517,7 +519,16 @@ public final class ClassPrinterImpl {
 
     private record ExceptionHandler(int start, int end, int handler, String catchType) {}
 
-    public static MapNode classToTree(ClassModel clm, Verbosity verbosity) {
+    public static MapNode modelToTree(CompoundElement<?> model, Verbosity verbosity) {
+        return switch(model) {
+            case ClassModel cm -> classToTree(cm, verbosity);
+            case FieldModel fm -> fieldToTree(fm, verbosity);
+            case MethodModel mm -> methodToTree(mm, verbosity);
+            case CodeModel com -> codeToTree(com, verbosity);
+        };
+    }
+
+    private static MapNode classToTree(ClassModel clm, Verbosity verbosity) {
         return new MapNodeImpl(BLOCK, "class")
                 .with(leaf("class name", clm.thisClass().asInternalName()),
                       leaf("version", clm.majorVersion() + "." + clm.minorVersion()),
@@ -528,12 +539,7 @@ public final class ClassPrinterImpl {
                 .with(constantPoolToTree(clm.constantPool(), verbosity))
                 .with(attributesToTree(clm.attributes(), verbosity))
                 .with(new ListNodeImpl(BLOCK, "fields", clm.fields().stream().map(f ->
-                    new MapNodeImpl(BLOCK, "field")
-                            .with(leaf("field name", f.fieldName().stringValue()),
-                                  list("flags", "flag", f.flags().flags().stream().map(AccessFlag::name)),
-                                  leaf("field type", f.fieldType().stringValue()),
-                                  list("attributes", "attribute", f.attributes().stream().map(Attribute::attributeName)))
-                            .with(attributesToTree(f.attributes(), verbosity)))))
+                    fieldToTree(f, verbosity))))
                 .with(new ListNodeImpl(BLOCK, "methods", clm.methods().stream().map(mm ->
                     (Node)methodToTree(mm, verbosity))));
     }
@@ -622,6 +628,15 @@ public final class ClassPrinterImpl {
                 list("stack", "item", convertVTIs(f.absoluteOffset(), f.effectiveStack())));
     }
 
+    private static MapNode fieldToTree(FieldModel f, Verbosity verbosity) {
+        return new MapNodeImpl(BLOCK, "field")
+                            .with(leaf("field name", f.fieldName().stringValue()),
+                                  list("flags", "flag", f.flags().flags().stream().map(AccessFlag::name)),
+                                  leaf("field type", f.fieldType().stringValue()),
+                                  list("attributes", "attribute", f.attributes().stream().map(Attribute::attributeName)))
+                            .with(attributesToTree(f.attributes(), verbosity));
+    }
+
     public static MapNode methodToTree(MethodModel m, Verbosity verbosity) {
         return new MapNodeImpl(BLOCK, "method")
                 .with(leaf("method name", m.methodName().stringValue()),
@@ -629,12 +644,11 @@ public final class ClassPrinterImpl {
                       leaf("method type", m.methodType().stringValue()),
                       list("attributes", "attribute", m.attributes().stream().map(Attribute::attributeName)))
                 .with(attributesToTree(m.attributes(), verbosity))
-                .with(codeToTree(m, m.code(), verbosity));
+                .with(codeToTree(m.code().orElse(null), verbosity));
     }
 
-    private static Node[] codeToTree(MethodModel m, Optional<CodeModel> c, Verbosity verbosity) {
-        if (verbosity != Verbosity.MEMBERS_ONLY && c.isPresent()) {
-            var com = c.get();
+    private static MapNode codeToTree(CodeModel com, Verbosity verbosity) {
+        if (verbosity != Verbosity.MEMBERS_ONLY && com != null) {
             var codeNode = new MapNodeImpl(BLOCK, "code");
             codeNode.with(leaf("max stack", ((CodeAttribute)com).maxStack()));
             codeNode.with(leaf("max locals", ((CodeAttribute)com).maxLocals()));
@@ -701,7 +715,7 @@ public final class ClassPrinterImpl {
             }
             codeNode.with(attributesToTree(com.attributes(), verbosity));
             if (!stackMap.containsKey(0)) {
-                codeNode.with(frameToTree("//stack map frame @0", StackMapDecoder.initFrame(m)));
+                codeNode.with(frameToTree("//stack map frame @0", StackMapDecoder.initFrame(com.parent().get())));
             }
             var excHandlers = com.exceptionHandlers().stream().map(exc -> new ExceptionHandler(com.labelToBci(exc.tryStart()), com.labelToBci(exc.tryEnd()), com.labelToBci(exc.handler()), exc.catchType().map(ct -> ct.name().stringValue()).orElse(null))).toList();
             int bci = 0;
@@ -793,10 +807,9 @@ public final class ClassPrinterImpl {
                     handlersNode.with(map("handler #" + i, "start", exc.start(), "end", exc.end(), "handler", exc.handler(), "type", exc.catchType()));
                 }
             }
-            return new Node[] {codeNode};
-        } else {
-            return new Node[0];
+            return codeNode;
         }
+        return null;
     }
 
     private static Node[] attributesToTree(List<Attribute<?>> attributes, Verbosity verbosity) {

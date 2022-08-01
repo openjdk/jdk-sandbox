@@ -69,11 +69,7 @@ public final class ClassPrinter {
             permits ClassPrinterImpl.MapNodeImpl {
     }
 
-    public static MapNode toTree(ClassModel classModel, Verbosity verbosity) {
-        return ClassPrinterImpl.classToTree(classModel, verbosity);
-    }
-
-    public static MapNode toTree(MethodModel methodModel, Verbosity verbosity) {
-        return ClassPrinterImpl.methodToTree(methodModel, verbosity);
+    public static MapNode toTree(CompoundElement<?> model, Verbosity verbosity) {
+        return ClassPrinterImpl.modelToTree(model, verbosity);
     }
 }
