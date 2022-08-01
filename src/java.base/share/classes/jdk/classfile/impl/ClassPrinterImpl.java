@@ -26,7 +26,6 @@ package jdk.classfile.impl;
 
 import java.lang.constant.ConstantDesc;
 import java.lang.constant.DirectMethodHandleDesc;
-import java.lang.constant.MethodTypeDesc;
 import java.lang.reflect.AccessFlag;
 import java.util.AbstractList;
 import java.util.Arrays;
@@ -498,7 +497,7 @@ public final class ClassPrinterImpl {
                         case ITEM_FLOAT ->
                             ret.accept("float");
                         case ITEM_INTEGER ->
-                            ret.accept("float");
+                            ret.accept("int");
                         case ITEM_LONG ->  {
                             ret.accept("long");
                             ret.accept("long2");
@@ -509,7 +508,7 @@ public final class ClassPrinterImpl {
                     }
                 }
                 case ObjectVerificationTypeInfo o ->
-                    ret.accept(o.className().asSymbol().displayName());
+                    ret.accept(o.className().name().stringValue());
                 case UninitializedVerificationTypeInfo u ->
                     ret.accept("UNITIALIZED @" + (bci + u.offset()));
             }
@@ -567,7 +566,7 @@ public final class ClassPrinterImpl {
                         }))
                         .with(switch (e) {
                             case ClassEntry ce -> leafs(
-                                "class name index", ce.index(),
+                                "class name index", ce.name().index(),
                                 "class internal name", ce.asInternalName());
                             case ModuleEntry me -> leafs(
                                 "module name index", me.name().index(),
@@ -581,7 +580,7 @@ public final class ClassPrinterImpl {
                             case MemberRefEntry mre -> leafs(
                                     "owner index", mre.owner().index(),
                                     "name and type index", mre.nameAndType().index(),
-                                    "owner", mre.owner().asSymbol().displayName(),
+                                    "owner", mre.owner().name().stringValue(),
                                     "name", mre.name().stringValue(),
                                     "type", mre.type().stringValue());
                             case NameAndTypeEntry nte -> leafs(
@@ -660,7 +659,7 @@ public final class ClassPrinterImpl {
                                 "end", lv.startPc() + lv.length(),
                                 "slot", lv.slot(),
                                 "name", lv.name().stringValue(),
-                                "type", lv.typeSymbol().displayName());
+                                "type", lv.type().stringValue());
                         })));
                     }
                     case LocalVariableTypeTableAttribute lvtta -> {
@@ -704,13 +703,13 @@ public final class ClassPrinterImpl {
             if (!stackMap.containsKey(0)) {
                 codeNode.with(frameToTree("//stack map frame @0", StackMapDecoder.initFrame(m)));
             }
-            var excHandlers = com.exceptionHandlers().stream().map(exc -> new ExceptionHandler(com.labelToBci(exc.tryStart()), com.labelToBci(exc.tryEnd()), com.labelToBci(exc.handler()), exc.catchType().map(ct -> ct.asSymbol().displayName()).orElse(null))).toList();
+            var excHandlers = com.exceptionHandlers().stream().map(exc -> new ExceptionHandler(com.labelToBci(exc.tryStart()), com.labelToBci(exc.tryEnd()), com.labelToBci(exc.handler()), exc.catchType().map(ct -> ct.name().stringValue()).orElse(null))).toList();
             int bci = 0;
             for (var coe : com) {
                 if (coe instanceof Instruction ins) {
                     var frame = stackMap.get(bci);
                     if (frame != null) {
-                        codeNode.with(new MapNodeImpl(FLOW, "//stack map frame @" + bci).with(frame));
+                        codeNode.with(new MapNodeImpl(FLOW, "//stack map frame @" + bci).with(((MapNodeImpl)frame).values().toArray(new Node[2])));
                     }
                     var annos = invisibleTypeAnnos.get(bci);
                     if (annos != null) {
@@ -746,33 +745,33 @@ public final class ClassPrinterImpl {
                                 "slot", lv.slot()))
                                 .with(localInfoToTree(locals, lv.slot(), bci));
                         case FieldInstruction fa -> in.with(leafs(
-                                "owner", fa.owner().asSymbol().displayName(),
+                                "owner", fa.owner().name().stringValue(),
                                 "field name", fa.name().stringValue(),
-                                "field type", fa.typeSymbol().displayName()));
+                                "field type", fa.type().stringValue()));
                         case InvokeInstruction inv -> in.with(leafs(
-                                "owner", inv.owner().asSymbol().displayName(),
+                                "owner", inv.owner().name().stringValue(),
                                 "method name", inv.name().stringValue(),
-                                "method type", inv.typeSymbol().displayDescriptor()));
+                                "method type", inv.type().stringValue()));
                         case InvokeDynamicInstruction invd -> in.with(leafs(
                                 "name", invd.name().stringValue(),
                                 "descriptor", invd.type().stringValue(),
                                 "kind", invd.bootstrapMethod().kind().name(),
                                 "owner", invd.bootstrapMethod().owner().descriptorString(),
                                 "method name", invd.bootstrapMethod().methodName(),
-                                "invocation type", invd.bootstrapMethod().invocationType().displayDescriptor()));
+                                "invocation type", invd.bootstrapMethod().invocationType().descriptorString()));
                         case NewObjectInstruction newo -> in.with(leaf(
-                                "type", newo.className().asSymbol().displayName()));
+                                "type", newo.className().name().stringValue()));
                         case NewPrimitiveArrayInstruction newa -> in.with(leafs(
                                 "dimensions", 1,
                                 "descriptor", newa.typeKind().typeName()));
                         case NewReferenceArrayInstruction newa -> in.with(leafs(
                                 "dimensions", 1,
-                                "descriptor", newa.componentType().asSymbol().displayName()));
+                                "descriptor", newa.componentType().name().stringValue()));
                         case NewMultiArrayInstruction newa -> in.with(leafs(
                                 "dimensions", newa.dimensions(),
-                                "descriptor", newa.arrayType().asSymbol().displayName()));
+                                "descriptor", newa.arrayType().name().stringValue()));
                         case TypeCheckInstruction tch -> in.with(leaf(
-                                "type", tch.type().asSymbol().displayName()));
+                                "type", tch.type().name().stringValue()));
                         case ConstantInstruction cons -> in.with(leaf(
                                 "constant value", cons.constantValue()));
                         case BranchInstruction br -> in.with(leaf(
@@ -811,7 +810,7 @@ public final class ClassPrinterImpl {
                         var mref = mh.reference();
                         return map("bm",
                                 "kind", DirectMethodHandleDesc.Kind.valueOf(mh.kind(), mref.isInterface()).name(),
-                                "owner", mref.owner().asSymbol().displayName(),
+                                "owner", mref.owner().name().stringValue(),
                                 "name", mref.nameAndType().name().stringValue(),
                                 "type", mref.nameAndType().type().stringValue(),
                                 "is interface", String.valueOf(mref.isInterface()),
@@ -820,26 +819,26 @@ public final class ClassPrinterImpl {
                 case ConstantValueAttribute cva ->
                     nodes.add(leaf("constant value", cva.constant().constantValue()));
                 case NestHostAttribute nha ->
-                    nodes.add(leaf("nest host", nha.nestHost().asSymbol().displayName()));
+                    nodes.add(leaf("nest host", nha.nestHost().name().stringValue()));
                 case NestMembersAttribute nma ->
-                    nodes.add(list("nest members", "member", nma.nestMembers().stream().map(mp -> mp.asSymbol().displayName())));
+                    nodes.add(list("nest members", "member", nma.nestMembers().stream().map(mp -> mp.name().stringValue())));
                 case PermittedSubclassesAttribute psa ->
-                    nodes.add(list("permitted subclasses", "subclass", psa.permittedSubclasses().stream().map(e -> e.asSymbol().displayName())));
+                    nodes.add(list("permitted subclasses", "subclass", psa.permittedSubclasses().stream().map(e -> e.name().stringValue())));
                 default -> {}
             }
             if (verbosity == Verbosity.TRACE_ALL) switch (attr) {
                 case EnclosingMethodAttribute ema ->
                     nodes.add(map("enclosing method",
-                            "class", ema.enclosingClass().asSymbol().displayName(),
+                            "class", ema.enclosingClass().name().stringValue(),
                             "method name", ema.enclosingMethodName().map(Utf8Entry::stringValue).orElse("null"),
-                            "method type", ema.enclosingMethodTypeSymbol().map(MethodTypeDesc::displayDescriptor).orElse("null")));
+                            "method type", ema.enclosingMethodType().map(Utf8Entry::stringValue).orElse("null")));
                 case ExceptionsAttribute exa ->
-                    nodes.add(list("excceptions", "exc", exa.exceptions().stream().map(e -> e.asSymbol().displayName())));
+                    nodes.add(list("excceptions", "exc", exa.exceptions().stream().map(e -> e.name().stringValue())));
                 case InnerClassesAttribute ica ->
                     nodes.add(new ListNodeImpl(BLOCK, "inner classes", ica.classes().stream().map(ic ->
                         new MapNodeImpl(FLOW, "cls").with(
-                                leaf("inner class", ic.innerClass().asSymbol().displayName()),
-                                leaf("outer class", ic.outerClass().map(cle -> cle.asSymbol().displayName()).orElse("null")),
+                                leaf("inner class", ic.innerClass().name().stringValue()),
+                                leaf("outer class", ic.outerClass().map(cle -> cle.name().stringValue()).orElse("null")),
                                 leaf("inner name", ic.innerName().map(Utf8Entry::stringValue).orElse("null")),
                                 list("flags", "flag", ic.flags().stream().map(AccessFlag::name))))));
                 case MethodParametersAttribute mpa -> {
@@ -856,7 +855,7 @@ public final class ClassPrinterImpl {
                             .with(leaf("name", ma.moduleName().name().stringValue()),
                                   list("flags", "flag", ma.moduleFlags().stream().map(AccessFlag::name)),
                                   leaf("version", ma.moduleVersion().map(Utf8Entry::stringValue).orElse("null")),
-                                  list("uses", "class", ma.uses().stream().map(ce -> ce.asSymbol().displayName())),
+                                  list("uses", "class", ma.uses().stream().map(ce -> ce.name().stringValue())),
                                   new ListNodeImpl(BLOCK, "requires", ma.requires().stream().map(req ->
                                     new MapNodeImpl(FLOW, "req").with(
                                             leaf("name", req.requires().name().stringValue()),
@@ -874,18 +873,18 @@ public final class ClassPrinterImpl {
                                             list("to", "module", opn.opensTo().stream().map(me -> me.name().stringValue()))))),
                                   new ListNodeImpl(BLOCK, "provides", ma.provides().stream().map(prov ->
                                     new MapNodeImpl(FLOW, "prov").with(
-                                            leaf("class", prov.provides().asSymbol().displayName()),
-                                            list("with", "cls", prov.providesWith().stream().map(ce -> ce.asSymbol().displayName())))))));
+                                            leaf("class", prov.provides().name().stringValue()),
+                                            list("with", "cls", prov.providesWith().stream().map(ce -> ce.name().stringValue())))))));
                 case ModulePackagesAttribute mopa ->
                     nodes.add(list("module packages", "subclass", mopa.packages().stream().map(mp -> mp.asSymbol().packageName())));
                 case ModuleMainClassAttribute mmca ->
-                    nodes.add(leaf("module main class", mmca.mainClass().asSymbol().displayName()));
+                    nodes.add(leaf("module main class", mmca.mainClass().name().stringValue()));
                 case RecordAttribute ra ->
                     nodes.add(new ListNodeImpl(BLOCK, "record components", ra.components().stream().map(rc ->
                             new MapNodeImpl(BLOCK, "record")
                                 .with(leafs(
                                     "name", rc.name().stringValue(),
-                                    "type", rc.descriptorSymbol().displayName()))
+                                    "type", rc.descriptor().stringValue()))
                                 .with(list("attributes", "attribute", rc.attributes().stream().map(Attribute::attributeName)))
                                 .with(attributesToTree(rc.attributes(), verbosity)))));
                 case AnnotationDefaultAttribute ada ->
@@ -915,7 +914,7 @@ public final class ClassPrinterImpl {
     private static Node annotationsToTree(String name, List<Annotation> annos) {
         return new ListNodeImpl(BLOCK, name, annos.stream().map(a ->
                 new MapNodeImpl(FLOW, "anno")
-                        .with(leaf("annotation class", a.classSymbol().displayName()))
+                        .with(leaf("annotation class", a.className().stringValue()))
                         .with(elementValuePairsToTree(a.elements()))));
 
     }
@@ -923,7 +922,7 @@ public final class ClassPrinterImpl {
     private static Node typeAnnotationsToTree(Style style, String name, List<TypeAnnotation> annos) {
         return new ListNodeImpl(style, name, annos.stream().map(a ->
                 new MapNodeImpl(FLOW, "anno")
-                        .with(leaf("annotation class", a.classSymbol().displayName()),
+                        .with(leaf("annotation class", a.className().stringValue()),
                               leaf("target info", a.targetInfo().targetType().name()))
                         .with(elementValuePairsToTree(a.elements()))));
 
@@ -936,7 +935,7 @@ public final class ClassPrinterImpl {
             if (!annos.isEmpty()) {
                 node.with(new ListNodeImpl(FLOW, "parameter " + (i + 1), annos.stream().map(a ->
                                 new MapNodeImpl(FLOW, "anno")
-                                        .with(leaf("annotation class", a.classSymbol().displayName()))
+                                        .with(leaf("annotation class", a.className().stringValue()))
                                         .with(elementValuePairsToTree(a.elements())))));
             }
         }
@@ -947,7 +946,7 @@ public final class ClassPrinterImpl {
         if (locals != null) {
             for (var l : locals) {
                 if (l.slot() == slot && l.startPc() <= bci && l.length() + l.startPc() >= bci) {
-                    return leafs("type", l.typeSymbol().displayName(),
+                    return leafs("type", l.type().stringValue(),
                                  "variable name", l.name().stringValue());
                 }
             }

@@ -57,59 +57,59 @@ public class ClassPrinterTest {
         ));
     }
 
-//    @Test
+    @Test
     public void testPrintYamlTraceAll() throws IOException {
         var out = new StringBuilder();
         ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.TRACE_ALL).toYaml(out::append);
         assertOut(out,
                 """
-                  - class name: 'Foo'
-                    version: '61.0'
+                  - class name: Foo
+                    version: 61.0
                     flags: [PUBLIC]
-                    superclass: 'Boo'
-                    interfaces: ['Phee', 'Phoo']
+                    superclass: Boo
+                    interfaces: [Phee, Phoo]
                     attributes: [SourceFile]
                     constant pool:
-                        1: [CONSTANT_Utf8, 'Foo']
-                        2: [CONSTANT_Class, {name index: 1, name: 'Foo'}]
-                        3: [CONSTANT_Utf8, 'Boo']
-                        4: [CONSTANT_Class, {name index: 3, name: 'Boo'}]
-                        5: [CONSTANT_Utf8, 'f']
-                        6: [CONSTANT_Utf8, 'Ljava/lang/String;']
-                        7: [CONSTANT_Utf8, 'm']
-                        8: [CONSTANT_Utf8, '(ZLjava/lang/Throwable;)Ljava/lang/Void;']
-                        9: [CONSTANT_Utf8, 'Phee']
-                        10: [CONSTANT_Class, {name index: 9, name: 'Phee'}]
-                        11: [CONSTANT_Utf8, 'Phoo']
-                        12: [CONSTANT_Class, {name index: 11, name: 'Phoo'}]
-                        13: [CONSTANT_Utf8, 'Code']
-                        14: [CONSTANT_Utf8, 'StackMapTable']
-                        15: [CONSTANT_Utf8, 'SourceFile']
-                        16: [CONSTANT_Utf8, 'Foo.java']
-                    source: 'Foo.java'
+                        1: {tag: Utf8, value: Foo}
+                        2: {tag: Class, class name index: 1, class internal name: Foo}
+                        3: {tag: Utf8, value: Boo}
+                        4: {tag: Class, class name index: 3, class internal name: Boo}
+                        5: {tag: Utf8, value: f}
+                        6: {tag: Utf8, value: Ljava/lang/String;}
+                        7: {tag: Utf8, value: m}
+                        8: {tag: Utf8, value: (ZLjava/lang/Throwable;)Ljava/lang/Void;}
+                        9: {tag: Utf8, value: Phee}
+                        10: {tag: Class, class name index: 9, class internal name: Phee}
+                        11: {tag: Utf8, value: Phoo}
+                        12: {tag: Class, class name index: 11, class internal name: Phoo}
+                        13: {tag: Utf8, value: Code}
+                        14: {tag: Utf8, value: StackMapTable}
+                        15: {tag: Utf8, value: SourceFile}
+                        16: {tag: Utf8, value: Foo.java}
+                    source file: Foo.java
                     fields:
-                      - field name: 'f'
+                      - field name: f
                         flags: [PRIVATE]
-                        descriptor: 'Ljava/lang/String;'
+                        field type: Ljava/lang/String;
                         attributes: []
                     methods:
-                      - method name: 'm'
+                      - method name: m
                         flags: [PROTECTED]
-                        descriptor: '(ZLjava/lang/Throwable;)Ljava/lang/Void;'
+                        method type: (ZLjava/lang/Throwable;)Ljava/lang/Void;
                         attributes: [Code]
                         code:
                             max stack: 1
                             max locals: 3
                             attributes: [StackMapTable]
                             stack map frames:
-                                6: {locals: ['Foo', 'int', 'java/lang/Throwable'], stack: []}
-                            #stack map frame locals: ['Foo', 'int', 'java/lang/Throwable'], stack: []
-                            0: [ILOAD_1, {slot: 1}]
-                            1: [IFEQ, {target: 6}]
-                            4: [ALOAD_2, {slot: 2}]
-                            5: [ATHROW]
-                            #stack map frame locals: ['Foo', 'int', 'java/lang/Throwable'], stack: []
-                            6: [RETURN]
+                                6: {locals: [Foo, int, java/lang/Throwable], stack: []}
+                            //stack map frame @0: {locals: [Foo, int, java/lang/Throwable], stack: []}
+                            0: {opcode: ILOAD_1, slot: 1}
+                            1: {opcode: IFEQ, target: 6}
+                            4: {opcode: ALOAD_2, slot: 2}
+                            5: {opcode: ATHROW}
+                            //stack map frame @6: {locals: [Foo, int, java/lang/Throwable], stack: []}
+                            6: {opcode: RETURN}
                 """);
     }
 
@@ -176,58 +176,59 @@ public class ClassPrinterTest {
                 """);
     }
 
-//    @Test
+    @Test
     public void testPrintJsonTraceAll() throws IOException {
         var out = new StringBuilder();
         ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.TRACE_ALL).toJson(out::append);
         assertOut(out,
                 """
-                { "class name": "Foo",
+                  { "class name": "Foo",
                     "version": "61.0",
                     "flags": ["PUBLIC"],
                     "superclass": "Boo",
                     "interfaces": ["Phee", "Phoo"],
                     "attributes": ["SourceFile"],
                     "constant pool": {
-                        "1": ["CONSTANT_Utf8", "Foo"],
-                        "2": ["CONSTANT_Class", { "name index:": 1, "name:": "Foo" }],
-                        "3": ["CONSTANT_Utf8", "Boo"],
-                        "4": ["CONSTANT_Class", { "name index:": 3, "name:": "Boo" }],
-                        "5": ["CONSTANT_Utf8", "f"],
-                        "6": ["CONSTANT_Utf8", "Ljava/lang/String;"],
-                        "7": ["CONSTANT_Utf8", "m"],
-                        "8": ["CONSTANT_Utf8", "(ZLjava/lang/Throwable;)Ljava/lang/Void;"],
-                        "9": ["CONSTANT_Utf8", "Phee"],
-                        "10": ["CONSTANT_Class", { "name index:": 9, "name:": "Phee" }],
-                        "11": ["CONSTANT_Utf8", "Phoo"],
-                        "12": ["CONSTANT_Class", { "name index:": 11, "name:": "Phoo" }],
-                        "13": ["CONSTANT_Utf8", "Code"],
-                        "14": ["CONSTANT_Utf8", "StackMapTable"],
-                        "15": ["CONSTANT_Utf8", "SourceFile"],
-                        "16": ["CONSTANT_Utf8", "Foo.java"] },
-                    "source": "Foo.java",
+                        "1": {"tag": "Utf8", "value": "Foo"},
+                        "2": {"tag": "Class", "class name index": 1, "class internal name": "Foo"},
+                        "3": {"tag": "Utf8", "value": "Boo"},
+                        "4": {"tag": "Class", "class name index": 3, "class internal name": "Boo"},
+                        "5": {"tag": "Utf8", "value": "f"},
+                        "6": {"tag": "Utf8", "value": "Ljava/lang/String;"},
+                        "7": {"tag": "Utf8", "value": "m"},
+                        "8": {"tag": "Utf8", "value": "(ZLjava/lang/Throwable;)Ljava/lang/Void;"},
+                        "9": {"tag": "Utf8", "value": "Phee"},
+                        "10": {"tag": "Class", "class name index": 9, "class internal name": "Phee"},
+                        "11": {"tag": "Utf8", "value": "Phoo"},
+                        "12": {"tag": "Class", "class name index": 11, "class internal name": "Phoo"},
+                        "13": {"tag": "Utf8", "value": "Code"},
+                        "14": {"tag": "Utf8", "value": "StackMapTable"},
+                        "15": {"tag": "Utf8", "value": "SourceFile"},
+                        "16": {"tag": "Utf8", "value": "Foo.java"}},
+                    "source file": "Foo.java",
                     "fields": [
-                      { "field name": "f",
-                        "flags": ["PRIVATE"],
-                        "descriptor": "Ljava/lang/String;",
-                        "attributes": [] }],
+                          { "field name": "f",
+                            "flags": ["PRIVATE"],
+                            "field type": "Ljava/lang/String;",
+                            "attributes": []}],
                     "methods": [
-                      { "method name": "m",
-                        "flags": ["PROTECTED"],
-                        "descriptor": "(ZLjava/lang/Throwable;)Ljava/lang/Void;",
-                        "attributes": ["Code"],
-                        "code": {
-                            "max stack": 1,
-                            "max locals": 3,
-                            "attributes": ["StackMapTable"],
-                            "stack map frames": {
-                                "6": { "locals": ["Foo", "int", "java/lang/Throwable"], "stack": [] } },
-                            "0": ["ILOAD_1", { "slot": 1 }],
-                            "1": ["IFEQ", { "target": 6 }],
-                            "4": ["ALOAD_2", { "slot": 2 }],
-                            "5": ["ATHROW"],
-                            "6": ["RETURN"] } }]
-                  }
+                          { "method name": "m",
+                            "flags": ["PROTECTED"],
+                            "method type": "(ZLjava/lang/Throwable;)Ljava/lang/Void;",
+                            "attributes": ["Code"],
+                            "code": {
+                                "max stack": 1,
+                                "max locals": 3,
+                                "attributes": ["StackMapTable"],
+                                "stack map frames": {
+                                    "6": {"locals": ["Foo", "int", "java/lang/Throwable"], "stack": []}},
+                                "//stack map frame @0": {"locals": ["Foo", "int", "java/lang/Throwable"], "stack": []},
+                                "0": {"opcode": "ILOAD_1", "slot": 1},
+                                "1": {"opcode": "IFEQ", "target": 6},
+                                "4": {"opcode": "ALOAD_2", "slot": 2},
+                                "5": {"opcode": "ATHROW"},
+                                "//stack map frame @6": {"locals": ["Foo", "int", "java/lang/Throwable"], "stack": []},
+                                "6": {"opcode": "RETURN"}}}]}
                 """);
     }
 
@@ -294,58 +295,63 @@ public class ClassPrinterTest {
                 """);
     }
 
-//    @Test
+    @Test
     public void testPrintXmlTraceAll() throws IOException {
         var out = new StringBuilder();
         ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.TRACE_ALL).toXml(out::append);
         assertOut(out,
                 """
                 <?xml version = '1.0'?>
-                  <class name='Foo'
-                    version='61.0'
-                    flags='[PUBLIC]'
-                    superclass='Boo'
-                    interfaces='[Phee, Phoo]'
-                    attributes='[SourceFile]'>
+                <class>
+                    <class_name>Foo</class_name>
+                    <version>61.0</version>
+                    <flags><flag>PUBLIC</flag></flags>
+                    <superclass>Boo</superclass>
+                    <interfaces><interface>Phee</interface><interface>Phoo</interface></interfaces>
+                    <attributes><attribute>SourceFile</attribute></attributes>
                     <constant_pool>
-                        <:>1</:><CONSTANT_Utf8>Foo</CONSTANT_Utf8>
-                        <:>2</:><CONSTANT_Class name_index='1' name='Foo'/>
-                        <:>3</:><CONSTANT_Utf8>Boo</CONSTANT_Utf8>
-                        <:>4</:><CONSTANT_Class name_index='3' name='Boo'/>
-                        <:>5</:><CONSTANT_Utf8>f</CONSTANT_Utf8>
-                        <:>6</:><CONSTANT_Utf8>Ljava/lang/String;</CONSTANT_Utf8>
-                        <:>7</:><CONSTANT_Utf8>m</CONSTANT_Utf8>
-                        <:>8</:><CONSTANT_Utf8>(ZLjava/lang/Throwable;)Ljava/lang/Void;</CONSTANT_Utf8>
-                        <:>9</:><CONSTANT_Utf8>Phee</CONSTANT_Utf8>
-                        <:>10</:><CONSTANT_Class name_index='9' name='Phee'/>
-                        <:>11</:><CONSTANT_Utf8>Phoo</CONSTANT_Utf8>
-                        <:>12</:><CONSTANT_Class name_index='11' name='Phoo'/>
-                        <:>13</:><CONSTANT_Utf8>Code</CONSTANT_Utf8>
-                        <:>14</:><CONSTANT_Utf8>StackMapTable</CONSTANT_Utf8>
-                        <:>15</:><CONSTANT_Utf8>SourceFile</CONSTANT_Utf8>
-                        <:>16</:><CONSTANT_Utf8>Foo.java</CONSTANT_Utf8></constant_pool>
-                    <source>Foo.java</source>
+                        <_1><tag>Utf8</tag><value>Foo</value></_1>
+                        <_2><tag>Class</tag><class_name_index>1</class_name_index><class_internal_name>Foo</class_internal_name></_2>
+                        <_3><tag>Utf8</tag><value>Boo</value></_3>
+                        <_4><tag>Class</tag><class_name_index>3</class_name_index><class_internal_name>Boo</class_internal_name></_4>
+                        <_5><tag>Utf8</tag><value>f</value></_5>
+                        <_6><tag>Utf8</tag><value>Ljava/lang/String;</value></_6>
+                        <_7><tag>Utf8</tag><value>m</value></_7>
+                        <_8><tag>Utf8</tag><value>(ZLjava/lang/Throwable;)Ljava/lang/Void;</value></_8>
+                        <_9><tag>Utf8</tag><value>Phee</value></_9>
+                        <_10><tag>Class</tag><class_name_index>9</class_name_index><class_internal_name>Phee</class_internal_name></_10>
+                        <_11><tag>Utf8</tag><value>Phoo</value></_11>
+                        <_12><tag>Class</tag><class_name_index>11</class_name_index><class_internal_name>Phoo</class_internal_name></_12>
+                        <_13><tag>Utf8</tag><value>Code</value></_13>
+                        <_14><tag>Utf8</tag><value>StackMapTable</value></_14>
+                        <_15><tag>Utf8</tag><value>SourceFile</value></_15>
+                        <_16><tag>Utf8</tag><value>Foo.java</value></_16></constant_pool>
+                    <source_file>Foo.java</source_file>
                     <fields>
-                      <field name='f'
-                        flags='[PRIVATE]'
-                        descriptor='Ljava/lang/String;'
-                        attributes='[]'></field></fields>
+                        <field>
+                            <field_name>f</field_name>
+                            <flags><flag>PRIVATE</flag></flags>
+                            <field_type>Ljava/lang/String;</field_type>
+                            <attributes></attributes></field></fields>
                     <methods>
-                      <method name='m'
-                        flags='[PROTECTED]'
-                        descriptor='(ZLjava/lang/Throwable;)Ljava/lang/Void;'
-                        attributes='[Code]'>
-                        <code max_stack='1' max_locals='3' attributes='[StackMapTable]'>
-                            <stack_map_frames>
-                                <:>6</:><frame locals='[Foo, int, java/lang/Throwable]' stack='[]'/></stack_map_frames>
-                            <!-- stack map frame locals: [Foo, int, java/lang/Throwable], stack: [] -->
-                            <:>0</:><ILOAD_1 slot='1'/>
-                            <:>1</:><IFEQ target='6'/>
-                            <:>4</:><ALOAD_2 slot='2'/>
-                            <:>5</:><ATHROW/>
-                            <!-- stack map frame locals: [Foo, int, java/lang/Throwable], stack: [] -->
-                            <:>6</:><RETURN/></code></method></methods>
-                </class>
+                        <method>
+                            <method_name>m</method_name>
+                            <flags><flag>PROTECTED</flag></flags>
+                            <method_type>(ZLjava/lang/Throwable;)Ljava/lang/Void;</method_type>
+                            <attributes><attribute>Code</attribute></attributes>
+                            <code>
+                                <max_stack>1</max_stack>
+                                <max_locals>3</max_locals>
+                                <attributes><attribute>StackMapTable</attribute></attributes>
+                                <stack_map_frames>
+                                    <_6><locals><item>Foo</item><item>int</item><item>java/lang/Throwable</item></locals><stack></stack></_6></stack_map_frames>
+                                <__stack_map_frame__0><locals><item>Foo</item><item>int</item><item>java/lang/Throwable</item></locals><stack></stack></__stack_map_frame__0>
+                                <_0><opcode>ILOAD_1</opcode><slot>1</slot></_0>
+                                <_1><opcode>IFEQ</opcode><target>6</target></_1>
+                                <_4><opcode>ALOAD_2</opcode><slot>2</slot></_4>
+                                <_5><opcode>ATHROW</opcode></_5>
+                                <__stack_map_frame__6><locals><item>Foo</item><item>int</item><item>java/lang/Throwable</item></locals><stack></stack></__stack_map_frame__6>
+                                <_6><opcode>RETURN</opcode></_6></code></method></methods></class>
                 """);
     }
 
