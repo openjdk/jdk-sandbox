@@ -187,29 +187,21 @@ public class AdvancedTransformationsTest {
         ClassPrinter.toTree(remapped, ClassPrinter.Verbosity.TRACE_ALL).toYaml(sb::append);
         String out = sb.toString();
         assertContains(out,
+                "annotation class: LAdvancedTransformationsTest$BarAnno;",
                 "type: LAdvancedTransformationsTest$Bar;",
+                "inner class: AdvancedTransformationsTest$Bar",
+                "inner class: AdvancedTransformationsTest$BarAnno",
                 "field type: LAdvancedTransformationsTest$Bar;",
                 "method type: (LAdvancedTransformationsTest$Bar;)V",
-                "{opcode: NEW, type: AdvancedTransformationsTest$Bar}",
-                "{opcode: INVOKESPECIAL, owner: AdvancedTransformationsTest$Bar, method name: <init>, method type: ()V}",
-                "{opcode: PUTFIELD, owner: AdvancedTransformationsTest$Rec, field name: foo, field type: LAdvancedTransformationsTest$Bar;}",
-                "{opcode: ANEWARRAY, dimensions: 1, descriptor: AdvancedTransformationsTest$Bar}",
-                "{opcode: PUTSTATIC, owner: AdvancedTransformationsTest$Bar, field name: fooField, field type: LAdvancedTransformationsTest$Bar;}",
-                "{opcode: INVOKESTATIC, owner: AdvancedTransformationsTest$Bar, method name: fooMethod, method type: (LAdvancedTransformationsTest$Bar;)LAdvancedTransformationsTest$Bar;}",
+                "stack map frame @0: {locals: [THIS, AdvancedTransformationsTest$Bar",
+                "[{annotation class: LAdvancedTransformationsTest$BarAnno;",
+                "INVOKESPECIAL, owner: AdvancedTransformationsTest$Bar",
+                "ANEWARRAY, dimensions: 1, descriptor: AdvancedTransformationsTest$Bar",
+                "PUTSTATIC, owner: AdvancedTransformationsTest$Bar, field name: fooField, field type: LAdvancedTransformationsTest$Bar;",
+                "INVOKESTATIC, owner: AdvancedTransformationsTest$Bar, method name: fooMethod, method type: (LAdvancedTransformationsTest$Bar;)LAdvancedTransformationsTest$Bar",
                 "method type: ()LAdvancedTransformationsTest$Bar;",
-                "{opcode: GETFIELD, owner: AdvancedTransformationsTest$Rec, field name: foo, field type: LAdvancedTransformationsTest$Bar;}",
-
-                "{class: LAdvancedTransformationsTest$BarAnno;}",
-                "{class: LAdvancedTransformationsTest$BarAnno;, target type: FIELD}",
-                "{class: LAdvancedTransformationsTest$BarAnno;, target type: METHOD_RETURN}",
-                "{class: LAdvancedTransformationsTest$BarAnno;, target type: NEW}",
-                "{class: LAdvancedTransformationsTest$BarAnno;, target type: LOCAL_VARIABLE}",
-                "[AdvancedTransformationsTest$Bar, AdvancedTransformationsTest, Foo, [PUBLIC, STATIC]]",
-                "#visible type annotation: {class: LAdvancedTransformationsTest$BarAnno;, target type: NEW}",
-                "#visible type annotation: {class: LAdvancedTransformationsTest$BarAnno;, target type: LOCAL_VARIABLE}");
+                "GETFIELD, owner: AdvancedTransformationsTest$Rec, field name: foo, field type: LAdvancedTransformationsTest$Bar;");
     }
-
-
 
     private static void assertContains(String actual, String... expected) {
         for (String exp : expected)
