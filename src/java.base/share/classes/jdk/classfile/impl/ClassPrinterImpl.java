@@ -751,13 +751,13 @@ public final class ClassPrinterImpl {
                     for (int i = 0; i < excHandlers.size(); i++) {
                         var exc = excHandlers.get(i);
                         if (exc.start() == bci) {
-                            codeNode.with(map("//try block #" + (i + 1) + " start", "start", exc.start(), "end", exc.end(), "handler", exc.handler(), "catch type", exc.catchType()));
+                            codeNode.with(map("//try block " + (i + 1) + " start", "start", exc.start(), "end", exc.end(), "handler", exc.handler(), "catch type", exc.catchType()));
                         }
                         if (exc.end() == bci) {
-                            codeNode.with(map("//try block #" + (i + 1) + " end", "start", exc.start(), "end", exc.end(), "handler", exc.handler(), "catch type", exc.catchType()));
+                            codeNode.with(map("//try block " + (i + 1) + " end", "start", exc.start(), "end", exc.end(), "handler", exc.handler(), "catch type", exc.catchType()));
                         }
                         if (exc.handler() == bci) {
-                            codeNode.with(map("//exception handler #" + (i + 1) + " start", "start", exc.start(), "end", exc.end(), "handler", exc.handler(), "catch type", exc.catchType()));
+                            codeNode.with(map("//exception handler " + (i + 1) + " start", "start", exc.start(), "end", exc.end(), "handler", exc.handler(), "catch type", exc.catchType()));
                         }
                     }
                     var in = new MapNodeImpl(FLOW, bci).with(leaf("opcode", ins.opcode().name()));
@@ -819,7 +819,7 @@ public final class ClassPrinterImpl {
                 codeNode.with(handlersNode);
                 for (int i = 0; i < excHandlers.size(); i++) {
                     var exc = excHandlers.get(i);
-                    handlersNode.with(map("handler #" + i, "start", exc.start(), "end", exc.end(), "handler", exc.handler(), "type", exc.catchType()));
+                    handlersNode.with(map("handler " + (i + 1), "start", exc.start(), "end", exc.end(), "handler", exc.handler(), "type", exc.catchType()));
                 }
             }
             return codeNode;
