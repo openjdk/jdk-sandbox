@@ -92,8 +92,8 @@ public class ClassPrinterTest {
                                 tryb.lineNumber(2);
                                 tryb.ifThen(thb -> thb.aload(2).athrow());
                                 tryb.lineNumber(3);
-                                tryb.localVariable(3, "variable", ClassDesc.of("Phoo"), tryb.startLabel(), tryb.endLabel());
-                                tryb.localVariableType(3, "variable", Signature.of(ClassDesc.of("Phoo")), tryb.startLabel(), tryb.endLabel());
+                                tryb.localVariable(2, "variable", ClassDesc.of("Phoo"), tryb.startLabel(), tryb.endLabel());
+                                tryb.localVariableType(2, "variable", Signature.of(ClassDesc.of("Phoo")), tryb.startLabel(), tryb.endLabel());
                                 tryb.with(RuntimeInvisibleTypeAnnotationsAttribute.of(
                                         TypeAnnotation.of(TypeAnnotation.TargetInfo.ofField(),
                                                 List.of(TypeAnnotation.TypePathComponent.WILDCARD),
@@ -236,9 +236,9 @@ public class ClassPrinterTest {
                             max locals: 3
                             attributes: [RuntimeInvisibleTypeAnnotations, RuntimeVisibleTypeAnnotations, LocalVariableTable, LocalVariableTypeTable, LineNumberTable, StackMapTable]
                             local variables:
-                              - {start: 0, end: 7, slot: 3, name: variable, type: LPhoo;}
+                              - {start: 0, end: 7, slot: 2, name: variable, type: LPhoo;}
                             local variable types:
-                              - {start: 0, end: 7, slot: 3, name: variable, signature: LPhoo;}
+                              - {start: 0, end: 7, slot: 2, name: variable, signature: LPhoo;}
                             line numbers:
                               - {start: 0, line number: 1}
                               - {start: 1, line number: 2}
@@ -255,7 +255,7 @@ public class ClassPrinterTest {
                             //try block 1 start: {start: 0, end: 7, handler: 7, catch type: Phee}
                             0: {opcode: ILOAD_1, slot: 1}
                             1: {opcode: IFEQ, target: 6}
-                            4: {opcode: ALOAD_2, slot: 2}
+                            4: {opcode: ALOAD_2, slot: 2, type: LPhoo;, variable name: variable}
                             5: {opcode: ATHROW}
                             //stack map frame @6: {locals: [Foo, int, java/lang/Throwable], stack: []}
                             6: {opcode: RETURN}
@@ -468,9 +468,9 @@ public class ClassPrinterTest {
                                 "max locals": 3,
                                 "attributes": ["RuntimeInvisibleTypeAnnotations", "RuntimeVisibleTypeAnnotations", "LocalVariableTable", "LocalVariableTypeTable", "LineNumberTable", "StackMapTable"],
                                 "local variables": [
-                                    {"start": 0, "end": 7, "slot": 3, "name": "variable", "type": "LPhoo;"}],
+                                    {"start": 0, "end": 7, "slot": 2, "name": "variable", "type": "LPhoo;"}],
                                 "local variable types": [
-                                    {"start": 0, "end": 7, "slot": 3, "name": "variable", "signature": "LPhoo;"}],
+                                    {"start": 0, "end": 7, "slot": 2, "name": "variable", "signature": "LPhoo;"}],
                                 "line numbers": [
                                     {"start": 0, "line number": 1},
                                     {"start": 1, "line number": 2},
@@ -487,7 +487,7 @@ public class ClassPrinterTest {
                                 "//try block 1 start": {"start": 0, "end": 7, "handler": 7, "catch type": "Phee"},
                                 "0": {"opcode": "ILOAD_1", "slot": 1},
                                 "1": {"opcode": "IFEQ", "target": 6},
-                                "4": {"opcode": "ALOAD_2", "slot": 2},
+                                "4": {"opcode": "ALOAD_2", "slot": 2, "type": "LPhoo;", "variable name": "variable"},
                                 "5": {"opcode": "ATHROW"},
                                 "//stack map frame @6": {"locals": ["Foo", "int", "java/lang/Throwable"], "stack": []},
                                 "6": {"opcode": "RETURN"},
@@ -705,9 +705,9 @@ public class ClassPrinterTest {
                                 <max_locals>3</max_locals>
                                 <attributes><attribute>RuntimeInvisibleTypeAnnotations</attribute><attribute>RuntimeVisibleTypeAnnotations</attribute><attribute>LocalVariableTable</attribute><attribute>LocalVariableTypeTable</attribute><attribute>LineNumberTable</attribute><attribute>StackMapTable</attribute></attributes>
                                 <local_variables>
-                                    <_1><start>0</start><end>7</end><slot>3</slot><name>variable</name><type>LPhoo;</type></_1></local_variables>
+                                    <_1><start>0</start><end>7</end><slot>2</slot><name>variable</name><type>LPhoo;</type></_1></local_variables>
                                 <local_variable_types>
-                                    <_1><start>0</start><end>7</end><slot>3</slot><name>variable</name><signature>LPhoo;</signature></_1></local_variable_types>
+                                    <_1><start>0</start><end>7</end><slot>2</slot><name>variable</name><signature>LPhoo;</signature></_1></local_variable_types>
                                 <line_numbers>
                                     <_1><start>0</start><line_number>1</line_number></_1>
                                     <_2><start>1</start><line_number>2</line_number></_2>
@@ -724,7 +724,7 @@ public class ClassPrinterTest {
                                 <__try_block_1_start><start>0</start><end>7</end><handler>7</handler><catch_type>Phee</catch_type></__try_block_1_start>
                                 <_0><opcode>ILOAD_1</opcode><slot>1</slot></_0>
                                 <_1><opcode>IFEQ</opcode><target>6</target></_1>
-                                <_4><opcode>ALOAD_2</opcode><slot>2</slot></_4>
+                                <_4><opcode>ALOAD_2</opcode><slot>2</slot><type>LPhoo;</type><variable_name>variable</variable_name></_4>
                                 <_5><opcode>ATHROW</opcode></_5>
                                 <__stack_map_frame__6><locals><item>Foo</item><item>int</item><item>java/lang/Throwable</item></locals><stack></stack></__stack_map_frame__6>
                                 <_6><opcode>RETURN</opcode></_6>
@@ -822,7 +822,7 @@ public class ClassPrinterTest {
     @Test
     public void testWalkTraceAll() throws IOException {
         var node = ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.TRACE_ALL);
-        assertEquals(node.walk().count(), 472);
+        assertEquals(node.walk().count(), 474);
     }
 
     @Test
