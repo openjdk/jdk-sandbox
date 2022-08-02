@@ -211,7 +211,7 @@ public class ClassPrinterTest {
                         invisible type annotations:
                           - {annotation class: LBoo;, target info: FIELD, values: []}
                     invisible annotations:
-                      - {annotation class: LPhoo;, values: [{name: flfl, value: 2.0}, {name: frfl, value: 3.0}]}
+                      - {annotation class: LPhoo;, values: [{name: flfl, value: {float: 2.0}}, {name: frfl, value: {float: 3.0}}]}
                     permitted subclasses: [Boo, Phoo]
                     fields:
                       - field name: f
@@ -219,17 +219,17 @@ public class ClassPrinterTest {
                         field type: Ljava/lang/String;
                         attributes: [RuntimeVisibleAnnotations]
                         visible annotations:
-                          - {annotation class: LPhoo;, values: [{name: flfl, value: 0.0}, {name: frfl, value: 1.0}]}
+                          - {annotation class: LPhoo;, values: [{name: flfl, value: {float: 0.0}}, {name: frfl, value: {float: 1.0}}]}
                     methods:
                       - method name: m
                         flags: [PROTECTED]
                         method type: (ZLjava/lang/Throwable;)Ljava/lang/Void;
                         attributes: [AnnotationDefault, RuntimeVisibleParameterAnnotations, RuntimeInvisibleParameterAnnotations, Exceptions, Code]
-                        annotation default: '[true, 12, 99, LPhee;, 1.3, LBoo;.BOO, 3.7, 33, 3333, 25, BOO, @LPhoo;]'
+                        annotation default: {array: [{boolean: true}, {byte: 12}, {char: 99}, {class: LPhee;}, {double: 1.3}, {enum class: LBoo;, contant name: BOO}, {float: 3.7}, {int: 33}, {long: 3333}, {short: 25}, {string: BOO}, {annotation class: LPhoo;}]}
                         visible parameter annotations:
-                            parameter 1: [{annotation class: LPhoo;, values: [{name: flfl, value: 22.0}, {name: frfl, value: 11.0}]}]
+                            parameter 1: [{annotation class: LPhoo;, values: [{name: flfl, value: {float: 22.0}}, {name: frfl, value: {float: 11.0}}]}]
                         invisible parameter annotations:
-                            parameter 1: [{annotation class: LPhoo;, values: [{name: flfl, value: '-22.0'}, {name: frfl, value: '-11.0'}]}]
+                            parameter 1: [{annotation class: LPhoo;, values: [{name: flfl, value: {float: '-22.0'}}, {name: frfl, value: {float: '-11.0'}}]}]
                         excceptions: [Phoo, Boo, Bee]
                         code:
                             max stack: 1
@@ -250,7 +250,7 @@ public class ClassPrinterTest {
                             invisible type annotations:
                               - {annotation class: LBoo;, target info: FIELD, values: []}
                             visible type annotations:
-                              - {annotation class: LFee;, target info: FIELD, values: [{name: yes, value: false}]}
+                              - {annotation class: LFee;, target info: FIELD, values: [{name: yes, value: {boolean: false}}]}
                             //stack map frame @0: {locals: [Foo, int, java/lang/Throwable], stack: []}
                             //try block 1 start: {start: 0, end: 7, handler: 7, catch type: Phee}
                             0: {opcode: ILOAD_1, slot: 1}
@@ -443,7 +443,7 @@ public class ClassPrinterTest {
                             "invisible type annotations": [
                                 {"annotation class": "LBoo;", "target info": "FIELD", "values": []}]}],
                     "invisible annotations": [
-                        {"annotation class": "LPhoo;", "values": [{"name": "flfl", "value": "2.0"}, {"name": "frfl", "value": "3.0"}]}],
+                        {"annotation class": "LPhoo;", "values": [{"name": "flfl", "value": {"float": "2.0"}}, {"name": "frfl", "value": {"float": "3.0"}}]}],
                     "permitted subclasses": ["Boo", "Phoo"],
                     "fields": [
                           { "field name": "f",
@@ -451,17 +451,17 @@ public class ClassPrinterTest {
                             "field type": "Ljava/lang/String;",
                             "attributes": ["RuntimeVisibleAnnotations"],
                             "visible annotations": [
-                                {"annotation class": "LPhoo;", "values": [{"name": "flfl", "value": "0.0"}, {"name": "frfl", "value": "1.0"}]}]}],
+                                {"annotation class": "LPhoo;", "values": [{"name": "flfl", "value": {"float": "0.0"}}, {"name": "frfl", "value": {"float": "1.0"}}]}]}],
                     "methods": [
                           { "method name": "m",
                             "flags": ["PROTECTED"],
                             "method type": "(ZLjava/lang/Throwable;)Ljava/lang/Void;",
                             "attributes": ["AnnotationDefault", "RuntimeVisibleParameterAnnotations", "RuntimeInvisibleParameterAnnotations", "Exceptions", "Code"],
-                            "annotation default": "[true, 12, 99, LPhee;, 1.3, LBoo;.BOO, 3.7, 33, 3333, 25, BOO, @LPhoo;]",
+                            "annotation default": {"array": [{"boolean": "true"}, {"byte": "12"}, {"char": "99"}, {"class": "LPhee;"}, {"double": "1.3"}, {"enum class": "LBoo;", "contant name": "BOO"}, {"float": "3.7"}, {"int": "33"}, {"long": "3333"}, {"short": "25"}, {"string": "BOO"}, {"annotation class": "LPhoo;"}]},
                             "visible parameter annotations": {
-                                "parameter 1": [{"annotation class": "LPhoo;", "values": [{"name": "flfl", "value": "22.0"}, {"name": "frfl", "value": "11.0"}]}]},
+                                "parameter 1": [{"annotation class": "LPhoo;", "values": [{"name": "flfl", "value": {"float": "22.0"}}, {"name": "frfl", "value": {"float": "11.0"}}]}]},
                             "invisible parameter annotations": {
-                                "parameter 1": [{"annotation class": "LPhoo;", "values": [{"name": "flfl", "value": "-22.0"}, {"name": "frfl", "value": "-11.0"}]}]},
+                                "parameter 1": [{"annotation class": "LPhoo;", "values": [{"name": "flfl", "value": {"float": "-22.0"}}, {"name": "frfl", "value": {"float": "-11.0"}}]}]},
                             "excceptions": ["Phoo", "Boo", "Bee"],
                             "code": {
                                 "max stack": 1,
@@ -482,7 +482,7 @@ public class ClassPrinterTest {
                                 "invisible type annotations": [
                                     {"annotation class": "LBoo;", "target info": "FIELD", "values": []}],
                                 "visible type annotations": [
-                                    {"annotation class": "LFee;", "target info": "FIELD", "values": [{"name": "yes", "value": "false"}]}],
+                                    {"annotation class": "LFee;", "target info": "FIELD", "values": [{"name": "yes", "value": {"boolean": "false"}}]}],
                                 "//stack map frame @0": {"locals": ["Foo", "int", "java/lang/Throwable"], "stack": []},
                                 "//try block 1 start": {"start": 0, "end": 7, "handler": 7, "catch type": "Phee"},
                                 "0": {"opcode": "ILOAD_1", "slot": 1},
@@ -678,7 +678,7 @@ public class ClassPrinterTest {
                             <invisible_type_annotations>
                                 <anno><annotation_class>LBoo;</annotation_class><target_info>FIELD</target_info><values></values></anno></invisible_type_annotations></record></record_components>
                     <invisible_annotations>
-                        <anno><annotation_class>LPhoo;</annotation_class><values><pair><name>flfl</name><value>2.0</value></pair><pair><name>frfl</name><value>3.0</value></pair></values></anno></invisible_annotations>
+                        <anno><annotation_class>LPhoo;</annotation_class><values><pair><name>flfl</name><value><float>2.0</float></value></pair><pair><name>frfl</name><value><float>3.0</float></value></pair></values></anno></invisible_annotations>
                     <permitted_subclasses><subclass>Boo</subclass><subclass>Phoo</subclass></permitted_subclasses>
                     <fields>
                         <field>
@@ -687,18 +687,18 @@ public class ClassPrinterTest {
                             <field_type>Ljava/lang/String;</field_type>
                             <attributes><attribute>RuntimeVisibleAnnotations</attribute></attributes>
                             <visible_annotations>
-                                <anno><annotation_class>LPhoo;</annotation_class><values><pair><name>flfl</name><value>0.0</value></pair><pair><name>frfl</name><value>1.0</value></pair></values></anno></visible_annotations></field></fields>
+                                <anno><annotation_class>LPhoo;</annotation_class><values><pair><name>flfl</name><value><float>0.0</float></value></pair><pair><name>frfl</name><value><float>1.0</float></value></pair></values></anno></visible_annotations></field></fields>
                     <methods>
                         <method>
                             <method_name>m</method_name>
                             <flags><flag>PROTECTED</flag></flags>
                             <method_type>(ZLjava/lang/Throwable;)Ljava/lang/Void;</method_type>
                             <attributes><attribute>AnnotationDefault</attribute><attribute>RuntimeVisibleParameterAnnotations</attribute><attribute>RuntimeInvisibleParameterAnnotations</attribute><attribute>Exceptions</attribute><attribute>Code</attribute></attributes>
-                            <annotation_default>[true, 12, 99, LPhee;, 1.3, LBoo;.BOO, 3.7, 33, 3333, 25, BOO, @LPhoo;]</annotation_default>
+                            <annotation_default><array><value><boolean>true</boolean></value><value><byte>12</byte></value><value><char>99</char></value><value><class>LPhee;</class></value><value><double>1.3</double></value><value><enum_class>LBoo;</enum_class><contant_name>BOO</contant_name></value><value><float>3.7</float></value><value><int>33</int></value><value><long>3333</long></value><value><short>25</short></value><value><string>BOO</string></value><value><annotation_class>LPhoo;</annotation_class></value></array></annotation_default>
                             <visible_parameter_annotations>
-                                <parameter_1><anno><annotation_class>LPhoo;</annotation_class><values><pair><name>flfl</name><value>22.0</value></pair><pair><name>frfl</name><value>11.0</value></pair></values></anno></parameter_1></visible_parameter_annotations>
+                                <parameter_1><anno><annotation_class>LPhoo;</annotation_class><values><pair><name>flfl</name><value><float>22.0</float></value></pair><pair><name>frfl</name><value><float>11.0</float></value></pair></values></anno></parameter_1></visible_parameter_annotations>
                             <invisible_parameter_annotations>
-                                <parameter_1><anno><annotation_class>LPhoo;</annotation_class><values><pair><name>flfl</name><value>-22.0</value></pair><pair><name>frfl</name><value>-11.0</value></pair></values></anno></parameter_1></invisible_parameter_annotations>
+                                <parameter_1><anno><annotation_class>LPhoo;</annotation_class><values><pair><name>flfl</name><value><float>-22.0</float></value></pair><pair><name>frfl</name><value><float>-11.0</float></value></pair></values></anno></parameter_1></invisible_parameter_annotations>
                             <excceptions><exc>Phoo</exc><exc>Boo</exc><exc>Bee</exc></excceptions>
                             <code>
                                 <max_stack>1</max_stack>
@@ -719,7 +719,7 @@ public class ClassPrinterTest {
                                 <invisible_type_annotations>
                                     <anno><annotation_class>LBoo;</annotation_class><target_info>FIELD</target_info><values></values></anno></invisible_type_annotations>
                                 <visible_type_annotations>
-                                    <anno><annotation_class>LFee;</annotation_class><target_info>FIELD</target_info><values><pair><name>yes</name><value>false</value></pair></values></anno></visible_type_annotations>
+                                    <anno><annotation_class>LFee;</annotation_class><target_info>FIELD</target_info><values><pair><name>yes</name><value><boolean>false</boolean></value></pair></values></anno></visible_type_annotations>
                                 <__stack_map_frame__0><locals><item>Foo</item><item>int</item><item>java/lang/Throwable</item></locals><stack></stack></__stack_map_frame__0>
                                 <__try_block_1_start><start>0</start><end>7</end><handler>7</handler><catch_type>Phee</catch_type></__try_block_1_start>
                                 <_0><opcode>ILOAD_1</opcode><slot>1</slot></_0>
@@ -822,7 +822,7 @@ public class ClassPrinterTest {
     @Test
     public void testWalkTraceAll() throws IOException {
         var node = ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.TRACE_ALL);
-        assertEquals(node.walk().count(), 474);
+        assertEquals(node.walk().count(), 509);
     }
 
     @Test

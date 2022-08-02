@@ -488,18 +488,28 @@ public final class ClassPrinterImpl {
         return name.replaceAll("[^A-Za-z_0-9]", "_");
     }
 
-    private static String elementValueToString(AnnotationValue v) {
+    private static Node[] elementValueToTree(AnnotationValue v) {
         return switch (v) {
-            case OfConstant cv -> v.tag() == 'Z' ? String.valueOf((int)cv.constantValue() != 0) : String.valueOf(cv.constantValue());
-            case OfClass clv -> clv.className().stringValue();
-            case OfEnum ev -> ev.className().stringValue() + "." + ev.constantName().stringValue();
-            case OfAnnotation av -> v.tag() + av.annotation().className().stringValue();
-            case OfArray av -> av.values().stream().map(ev -> elementValueToString(ev)).collect(Collectors.joining(", ", "[", "]"));
+            case OfString cv -> leafs("string", String.valueOf(cv.constantValue()));
+            case OfDouble cv -> leafs("double", String.valueOf(cv.constantValue()));
+            case OfFloat cv -> leafs("float", String.valueOf(cv.constantValue()));
+            case OfLong cv -> leafs("long", String.valueOf(cv.constantValue()));
+            case OfInteger cv -> leafs("int", String.valueOf(cv.constantValue()));
+            case OfShort cv -> leafs("short", String.valueOf(cv.constantValue()));
+            case OfCharacter cv -> leafs("char", String.valueOf(cv.constantValue()));
+            case OfByte cv -> leafs("byte", String.valueOf(cv.constantValue()));
+            case OfBoolean cv -> leafs("boolean", String.valueOf((int)cv.constantValue() != 0));
+            case OfClass clv -> leafs("class", clv.className().stringValue());
+            case OfEnum ev -> leafs("enum class", ev.className().stringValue(), "contant name", ev.constantName().stringValue());
+            case OfAnnotation av -> leafs("annotation class", av.annotation().className().stringValue());
+            case OfArray av -> new Node[]{new ListNodeImpl(FLOW, "array", av.values().stream().map(ev -> new MapNodeImpl(FLOW, "value").with(elementValueToTree(ev))))};
         };
     }
 
     private static Node elementValuePairsToTree(List<AnnotationElement> evps) {
-        return new ListNodeImpl(FLOW, "values", evps.stream().map(evp -> map("pair", "name", evp.name().stringValue(), "value", elementValueToString(evp.value()))));
+        return new ListNodeImpl(FLOW, "values", evps.stream().map(evp -> new MapNodeImpl(FLOW, "pair").with(
+                leaf("name", evp.name().stringValue()),
+                new MapNodeImpl(FLOW, "value").with(elementValueToTree(evp.value())))));
     }
 
     private static Stream<ConstantDesc> convertVTIs(int bci, List<StackMapTableAttribute.VerificationTypeInfo> vtis) {
@@ -916,7 +926,7 @@ public final class ClassPrinterImpl {
                                 .with(list("attributes", "attribute", rc.attributes().stream().map(Attribute::attributeName)))
                                 .with(attributesToTree(rc.attributes(), verbosity)))));
                 case AnnotationDefaultAttribute ada ->
-                    nodes.add(leaf("annotation default", elementValueToString(ada.defaultValue())));
+                    nodes.add(new MapNodeImpl(FLOW, "annotation default").with(elementValueToTree(ada.defaultValue())));
                 case RuntimeInvisibleAnnotationsAttribute aa ->
                     nodes.add(annotationsToTree("invisible annotations", aa.annotations()));
                 case RuntimeVisibleAnnotationsAttribute aa ->
