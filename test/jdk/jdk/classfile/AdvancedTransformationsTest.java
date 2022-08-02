@@ -184,7 +184,7 @@ public class AdvancedTransformationsTest {
                                 Rec.class.getResourceAsStream(Rec.class.getName() + ".class")
                                         .readAllBytes())));
         var sb = new StringBuilder();
-        ClassPrinter.toTree(remapped, ClassPrinter.Verbosity.TRACE_ALL).toYaml(sb::append);
+        ClassPrinter.toYaml(remapped, ClassPrinter.Verbosity.TRACE_ALL, sb::append);
         String out = sb.toString();
         assertContains(out,
                 "annotation class: LAdvancedTransformationsTest$BarAnno;",

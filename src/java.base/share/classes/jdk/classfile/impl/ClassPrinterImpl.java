@@ -73,6 +73,11 @@ public final class ClassPrinterImpl {
     public enum Style { BLOCK, FLOW }
 
     public record LeafNodeImpl(ConstantDesc name, ConstantDesc value) implements LeafNode {
+
+        @Override
+        public Stream<Node> walk() {
+            return Stream.of(this);
+        }
     }
 
     public static final class ListNodeImpl extends AbstractList<Node> implements ListNode {
@@ -90,6 +95,11 @@ public final class ClassPrinterImpl {
         @Override
         public ConstantDesc name() {
             return name;
+        }
+
+        @Override
+        public Stream<Node> walk() {
+            return Stream.concat(Stream.of(this), stream().flatMap(Node::walk));
         }
 
         public Style style() {
@@ -123,6 +133,11 @@ public final class ClassPrinterImpl {
         @Override
         public ConstantDesc name() {
             return name;
+        }
+
+        @Override
+        public Stream<Node> walk() {
+            return Stream.concat(Stream.of(this), values().stream().flatMap(Node::walk));
         }
 
         public Style style() {

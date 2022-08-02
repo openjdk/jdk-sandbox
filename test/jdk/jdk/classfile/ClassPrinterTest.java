@@ -60,7 +60,7 @@ public class ClassPrinterTest {
     @Test
     public void testPrintYamlTraceAll() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.TRACE_ALL).toYaml(out::append);
+        ClassPrinter.toYaml(getClassModel(), ClassPrinter.Verbosity.TRACE_ALL, out::append);
         assertOut(out,
                 """
                   - class name: Foo
@@ -116,7 +116,7 @@ public class ClassPrinterTest {
     @Test
     public void testPrintYamlCriticalAttributes() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.CRITICAL_ATTRIBUTES).toYaml(out::append);
+        ClassPrinter.toYaml(getClassModel(), ClassPrinter.Verbosity.CRITICAL_ATTRIBUTES, out::append);
         assertOut(out,
                 """
                   - class name: Foo
@@ -154,7 +154,7 @@ public class ClassPrinterTest {
     @Test
     public void testPrintYamlMembersOnly() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.MEMBERS_ONLY).toYaml(out::append);
+        ClassPrinter.toYaml(getClassModel(), ClassPrinter.Verbosity.MEMBERS_ONLY, out::append);
         assertOut(out,
                 """
                   - class name: Foo
@@ -179,7 +179,7 @@ public class ClassPrinterTest {
     @Test
     public void testPrintJsonTraceAll() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.TRACE_ALL).toJson(out::append);
+        ClassPrinter.toJson(getClassModel(), ClassPrinter.Verbosity.TRACE_ALL, out::append);
         assertOut(out,
                 """
                   { "class name": "Foo",
@@ -235,7 +235,7 @@ public class ClassPrinterTest {
     @Test
     public void testPrintJsonCriticalAttributes() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.CRITICAL_ATTRIBUTES).toJson(out::append);
+        ClassPrinter.toJson(getClassModel(), ClassPrinter.Verbosity.CRITICAL_ATTRIBUTES, out::append);
         assertOut(out,
                 """
                   { "class name": "Foo",
@@ -273,7 +273,7 @@ public class ClassPrinterTest {
     @Test
     public void testPrintJsonMembersOnly() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.MEMBERS_ONLY).toJson(out::append);
+        ClassPrinter.toJson(getClassModel(), ClassPrinter.Verbosity.MEMBERS_ONLY, out::append);
         assertOut(out,
                 """
                   { "class name": "Foo",
@@ -298,7 +298,7 @@ public class ClassPrinterTest {
     @Test
     public void testPrintXmlTraceAll() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.TRACE_ALL).toXml(out::append);
+        ClassPrinter.toXml(getClassModel(), ClassPrinter.Verbosity.TRACE_ALL, out::append);
         assertOut(out,
                 """
                 <?xml version = '1.0'?>
@@ -358,7 +358,7 @@ public class ClassPrinterTest {
     @Test
     public void testPrintXmlCriticalAttributes() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.CRITICAL_ATTRIBUTES).toXml(out::append);
+        ClassPrinter.toXml(getClassModel(), ClassPrinter.Verbosity.CRITICAL_ATTRIBUTES, out::append);
         assertOut(out,
                 """
                 <?xml version = '1.0'?>
@@ -400,7 +400,7 @@ public class ClassPrinterTest {
     @Test
     public void testPrintXmlMembersOnly() throws IOException {
         var out = new StringBuilder();
-        ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.MEMBERS_ONLY).toXml(out::append);
+        ClassPrinter.toXml(getClassModel(), ClassPrinter.Verbosity.MEMBERS_ONLY, out::append);
         assertOut(out,
                 """
                 <?xml version = '1.0'?>
@@ -426,10 +426,28 @@ public class ClassPrinterTest {
                 """);
     }
 
+    @Test
+    public void testWalkTraceAll() throws IOException {
+        var node = ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.TRACE_ALL);
+        assertEquals(node.walk().count(), 117);
+    }
+
+    @Test
+    public void testWalkCriticalAttributes() throws IOException {
+        var node = ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.CRITICAL_ATTRIBUTES);
+        assertEquals(node.walk().count(), 63);
+    }
+
+    @Test
+    public void testWalkMembersOnly() throws IOException {
+        var node = ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.MEMBERS_ONLY);
+        assertEquals(node.walk().count(), 26);
+    }
+
     private static void assertOut(StringBuilder out, String expected) {
-        System.out.println("-----------------");
-        System.out.println(out.toString());
-        System.out.println("-----------------");
+//        System.out.println("-----------------");
+//        System.out.println(out.toString());
+//        System.out.println("-----------------");
         assertEquals(out.toString().trim().split(" *\r?\n"), expected.trim().split("\n"));
     }
 }

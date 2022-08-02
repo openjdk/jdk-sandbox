@@ -28,6 +28,7 @@ import java.lang.constant.ConstantDesc;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 import jdk.classfile.impl.ClassPrinterImpl;
 
@@ -40,7 +41,9 @@ public final class ClassPrinter {
 
     public sealed interface Node {
 
-        ConstantDesc name();
+        public ConstantDesc name();
+
+        public Stream<Node> walk();
 
         default public void toJson(Consumer<String> out) {
             ClassPrinterImpl.toJson(this, out);
@@ -71,5 +74,17 @@ public final class ClassPrinter {
 
     public static MapNode toTree(CompoundElement<?> model, Verbosity verbosity) {
         return ClassPrinterImpl.modelToTree(model, verbosity);
+    }
+
+    public static void toJson(CompoundElement<?> model, Verbosity verbosity, Consumer<String> out) {
+        toTree(model, verbosity).toJson(out);
+    }
+
+    public static void toXml(CompoundElement<?> model, Verbosity verbosity, Consumer<String> out) {
+        toTree(model, verbosity).toXml(out);
+    }
+
+    public static void toYaml(CompoundElement<?> model, Verbosity verbosity, Consumer<String> out) {
+        toTree(model, verbosity).toYaml(out);
     }
 }
