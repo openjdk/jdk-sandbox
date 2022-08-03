@@ -379,8 +379,6 @@ module java.base {
         jdk.jfr;
     exports jdk.classfile.transforms to
         jdk.jfr;
-    exports jdk.classfile.util to
-        jdk.jfr;
 
     // the service types defined by the APIs in this module
 

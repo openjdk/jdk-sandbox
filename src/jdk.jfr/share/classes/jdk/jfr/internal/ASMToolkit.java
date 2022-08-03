@@ -31,7 +31,7 @@ import java.lang.constant.ClassDesc;
 import static java.lang.constant.ConstantDescs.*;
 import jdk.classfile.ClassModel;
 import jdk.classfile.Classfile;
-import jdk.classfile.util.ClassPrinter;
+import jdk.classfile.ClassPrinter;
 import jdk.jfr.ValueDescriptor;
 
 final class ASMToolkit {
@@ -93,7 +93,7 @@ final class ASMToolkit {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             PrintWriter w = new PrintWriter(baos);
             w.println("Bytecode:");
-            ClassPrinter.yamlPrinter(ClassPrinter.VerbosityLevel.TRACE_ALL, w::append).printClass(Classfile.parse(bytes));
+            ClassPrinter.toYaml(Classfile.parse(bytes), ClassPrinter.Verbosity.TRACE_ALL, w::append);
             Logger.log(LogTag.JFR_SYSTEM_BYTECODE, LogLevel.TRACE, baos.toString());
         };
     }
