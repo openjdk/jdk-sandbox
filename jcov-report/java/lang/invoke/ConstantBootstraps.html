@@ -1,0 +1,2333 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>tests coverage</title>
+<link rel ="stylesheet" type="text/css" href="../../../style.css" title="Style">
+<script type="text/javascript" src="../../../sorttable.js"></script>
+<script type="text/javascript">
+  targetPage = "" + window.location.search;
+  if (targetPage != "" && targetPage != "undefined")
+    targetPage = targetPage.substring(1);
+  if (targetPage.indexOf(":") != -1 || (targetPage != "" && !validURL(targetPage)))
+    targetPage = "undefined";
+  function validURL(url) {
+    var pos = url.indexOf(".html");
+    if (pos == -1 || pos != url.length - 5)
+      return false;
+    var allowNumber = false;
+    var allowSep = false;
+    var seenDot = false;
+    for (var i = 0; i < url.length - 5; i++) {
+      var ch = url.charAt(i);
+      if ('a' <= ch && ch <= 'z' ||
+          'A' <= ch && ch <= 'Z' ||
+          ch == '$' ||
+          ch == '_') {
+            allowNumber = true;
+            allowSep = true;
+      } else if ('0' <= ch && ch <= '9' ||
+                 ch == '-') {
+                   if (!allowNumber)
+                     return false;
+      } else if (ch == '/' || ch == '.') {
+        if (!allowSep)
+          return false;
+        allowNumber = false;
+        allowSep = false;
+        if (ch == '.')
+          seenDot = true;
+        if (ch == '/' && seenDot)
+          return false;
+      } else {
+        return false;
+      }
+    }
+    return true;
+  }
+  function loadFrames() {
+    if (targetPage != "" && targetPage != "undefined")
+      top.classFrame.location = top.targetPage;
+  }
+</script>
+</head>
+<body>
+<table>
+<tr>
+<td>
+<a href="../../../index.html?java/lang/invoke/ConstantBootstraps.html" target="_top">Frames</a>
+<a href="ConstantBootstraps.html" target="_top">No Frames</a>
+</td>
+</tr>
+</table>
+<br>
+ <table cellspacing="0" cellpadding="0"class="report">
+ <tr class="report">
+ <th class="report">&nbsp;</th>
+ <th class="report">%method</th>
+ <th class="report">%block</th>
+ <th class="report">%branch</th>
+ <th class="report">%line</th>
+ </tr>
+ <tr class="report">
+ <td class="reportText"><span class="text"> <b>java.lang.invoke.ConstantBootstraps</b></span></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>7</b>%(1/13)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="   7"></td><td class="percentUnCovered" width="93"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>6</b>%(3/48)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="   6"></td><td class="percentUnCovered" width="94"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>7</b>%(2/26)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="   7"></td><td class="percentUnCovered" width="93"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>4</b>%(4/91)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="   4"></td><td class="percentUnCovered" width="96"></td></tr></table></td></tr></table></td>
+ </tr>
+ </table>
+ <br>
+ <br>
+ <table cellspacing="0" cellpadding="0"class="report" id="mcoverage">
+ <tr class="report">
+ <th class="report">hit count</th>
+ <th class="report">method  name</th>
+ <th class="report">method modifiers</th>
+ <th class="report">method signature</th>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_46">&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">void &lt;init&gt;()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_348">arrayVarHandle</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.VarHandle arrayVarHandle(java.lang.invoke.MethodHandles$Lookup,java.lang.String,java.lang.Class,java.lang.Class)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_139">enumConstant</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">java.lang.Enum enumConstant(java.lang.invoke.MethodHandles$Lookup,java.lang.String,java.lang.Class)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_406">explicitCast</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">java.lang.Object explicitCast(java.lang.invoke.MethodHandles$Lookup,java.lang.String,java.lang.Class,java.lang.Object)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_282">fieldVarHandle</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.VarHandle fieldVarHandle(java.lang.invoke.MethodHandles$Lookup,java.lang.String,java.lang.Class,java.lang.Class,java.lang.Class)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_164">getStaticFinal</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">java.lang.Object getStaticFinal(java.lang.invoke.MethodHandles$Lookup,java.lang.String,java.lang.Class,java.lang.Class)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_216">getStaticFinal</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">java.lang.Object getStaticFinal(java.lang.invoke.MethodHandles$Lookup,java.lang.String,java.lang.Class)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_251">invoke</a></span></td>
+ <td class="reportText"><span class="text">[public, static, varargs]</span></td>
+ <td class="reportText"><span class="text">java.lang.Object invoke(java.lang.invoke.MethodHandles$Lookup,java.lang.String,java.lang.Class,java.lang.invoke.MethodHandle,java.lang.Object[])</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1</span></td>
+ <td class="reportText"><span class="text"><a href="#src_62">makeConstant</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">java.lang.Object makeConstant(java.lang.invoke.MethodHandle,java.lang.String,java.lang.Class,java.lang.Object,java.lang.Class)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_87">nullConstant</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">java.lang.Object nullConstant(java.lang.invoke.MethodHandles$Lookup,java.lang.String,java.lang.Class)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_106">primitiveClass</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">java.lang.Class primitiveClass(java.lang.invoke.MethodHandles$Lookup,java.lang.String,java.lang.Class)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_316">staticFieldVarHandle</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.VarHandle staticFieldVarHandle(java.lang.invoke.MethodHandles$Lookup,java.lang.String,java.lang.Class,java.lang.Class,java.lang.Class)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_425">validateClassAccess</a></span></td>
+ <td class="reportText"><span class="text">[private, static]</span></td>
+ <td class="reportText"><span class="text">java.lang.Class validateClassAccess(java.lang.invoke.MethodHandles$Lookup,java.lang.Class)</span></td>
+ </tr>
+ </table>
+ <br>
+ <table cellspacing="0" cellpadding="0" class="src">
+ <tr>
+ <td class="numLine">&nbsp;1</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">/*</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;2</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;3</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;4</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;5</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * This code is free software; you can redistribute it and/or modify it</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;6</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * under the terms of the GNU General Public License version 2 only, as</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;7</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * published by the Free Software Foundation.  Oracle designates this</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;8</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * particular file as subject to the "Classpath" exception as provided</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;9</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * by Oracle in the LICENSE file that accompanied this code.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;10</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;11</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * This code is distributed in the hope that it will be useful, but WITHOUT</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;12</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;13</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;14</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * version 2 for more details (a copy is included in the LICENSE file that</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;15</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * accompanied this code).</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;16</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;17</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * You should have received a copy of the GNU General Public License version</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;18</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * 2 along with this work; if not, write to the Free Software Foundation,</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;19</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;20</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;21</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;22</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * or visit www.oracle.com if you need additional information or have any</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;23</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * questions.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;24</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;25</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">package</span> java.lang.invoke;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;26</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;27</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> sun.invoke.util.Wrapper;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;28</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;29</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> java.lang.invoke.MethodHandleNatives.mapLookupExceptionToError;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;30</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> java.util.Objects.requireNonNull;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;31</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;32</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;33</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Bootstrap methods for dynamically-computed constants.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;34</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;35</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * &#60;p&#62;The bootstrap methods in this class will throw a</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;36</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * {@code NullPointerException} for any reference argument that is {@code null},</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;37</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * unless the argument is specified to be unused or specified to accept a</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;38</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * {@code null} value.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;39</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;40</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * @since 11</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;41</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;42</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">public</span> <span Class="keyword">final</span> <span Class="keyword">class</span> ConstantBootstraps {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;43</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;44</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Do not call.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;45</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;46<a name="src_46"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> ConstantBootstraps() {<span Class="keyword">throw</span> <span Class="keyword">new</span> AssertionError();}</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;47</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;48</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">// implements the upcall from the JVM, MethodHandleNatives.linkDynamicConstant:</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;49</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">non-public*/</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;50</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> Object makeConstant(MethodHandle bootstrapMethod,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;51</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                               <span Class="comment">// Callee information:</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;52</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                               String name, Class&#60;?&#62; type,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;53</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                               <span Class="comment">// Extra arguments for BSM, if any:</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;54</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                               Object info,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;55</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                               <span Class="comment">// Caller information:</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;56</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                               Class&#60;?&#62; callerClass) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;57</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">// Restrict bootstrap methods to those whose first parameter is Lookup</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;58</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">// The motivation here is, in the future, to possibly support BSMs</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;59</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">// that do not accept the meta-data of lookup/name/type, thereby</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;60</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">// allowing the co-opting of existing methods to be used as BSMs as</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;61</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">// long as the static arguments can be passed as method arguments</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;62<a name="src_62"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        MethodType mt = bootstrapMethod.type();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;63</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (mt.parameterCount() &#60; 2 ||</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;64</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            !MethodHandles.Lookup.<span Class="keyword">class</span>.isAssignableFrom(mt.parameterType(0))) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;65</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> <span Class="keyword">new</span> BootstrapMethodError(</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;66</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="string">"Invalid bootstrap method declared for resolving a dynamic constant: "</span> + bootstrapMethod);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;67</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;68</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;69</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">// BSMI.invoke handles all type checking and exception translation.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;70</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">// If type is not a reference type, the JVM is expecting a boxed</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;71</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">// version, and will manage unboxing on the other side.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;72</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> BootstrapMethodInvoker.invoke(</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;73</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                type, bootstrapMethod, name, type, info, callerClass);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;74</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;75</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;76</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;77</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Returns a {@code null} object reference for the reference type specified</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;78</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * by {@code type}.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;79</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;80</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param lookup unused</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;81</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param name unused</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;82</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param type a reference type</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;83</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @return a {@code null} value</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;84</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @throws IllegalArgumentException if {@code type} is not a reference type</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;85</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;86</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">static</span> Object nullConstant(MethodHandles.Lookup lookup, String name, Class&#60;?&#62; type) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;87<a name="src_87"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (requireNonNull(type).isPrimitive()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;88</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> <span Class="keyword">new</span> IllegalArgumentException(String.format(<span Class="string">"not reference: %s"</span>, type));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;89</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;90</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;91</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">null</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;92</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;93</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;94</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;95</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Returns a {@link Class} mirror for the primitive type whose type</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;96</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * descriptor is specified by {@code name}.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;97</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;98</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param lookup unused</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;99</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param name the descriptor (JVMS {@jvms 4.3}) of the desired primitive type</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;100</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param type the required result type (must be {@code Class.class})</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;101</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @return the {@link Class} mirror</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;102</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @throws IllegalArgumentException if the name is not a descriptor for a</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;103</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * primitive type or the type is not {@code Class.class}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;104</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;105</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">static</span> Class&#60;?&#62; primitiveClass(MethodHandles.Lookup lookup, String name, Class&#60;?&#62; type) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;106<a name="src_106"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        requireNonNull(name);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;107</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        requireNonNull(type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;108</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (type != Class.<span Class="keyword">class</span>) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;109</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> <span Class="keyword">new</span> IllegalArgumentException();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;110</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;111</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (name.length() != 1) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;112</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> <span Class="keyword">new</span> IllegalArgumentException(String.format(<span Class="string">"not primitive: %s"</span>, name));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;113</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;114</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;115</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> Wrapper.forPrimitiveType(name.charAt(0)).primitiveType();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;116</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;117</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;118</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;119</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Returns an {@code enum} constant of the type specified by {@code type}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;120</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * with the name specified by {@code name}.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;121</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;122</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param lookup the lookup context describing the class performing the</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;123</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * operation (normally stacked by the JVM)</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;124</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param name the name of the constant to return, which must exactly match</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;125</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * an enum constant in the specified type.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;126</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param type the {@code Class} object describing the enum type for which</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;127</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * a constant is to be returned</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;128</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param &#60;E&#62; The enum type for which a constant value is to be returned</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;129</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @return the enum constant of the specified enum type with the</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;130</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * specified name</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;131</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @throws IllegalAccessError if the declaring class or the field is not</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;132</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * accessible to the class performing the operation</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;133</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @throws IllegalArgumentException if the specified enum type has</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;134</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * no constant with the specified name, or the specified</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;135</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * class object does not represent an enum type</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;136</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @see Enum#valueOf(Class, String)</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;137</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;138</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">static</span> &#60;E <span Class="keyword">extends</span> Enum&#60;E&#62;&#62; E enumConstant(MethodHandles.Lookup lookup, String name, Class&#60;E&#62; type) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;139<a name="src_139"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        requireNonNull(lookup);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;140</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        requireNonNull(name);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;141</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        requireNonNull(type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;142</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        validateClassAccess(lookup, type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;143</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;144</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> Enum.valueOf(type, name);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;145</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;146</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;147</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;148</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Returns the value of a static final field.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;149</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;150</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param lookup the lookup context describing the class performing the</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;151</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * operation (normally stacked by the JVM)</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;152</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param name the name of the field</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;153</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param type the type of the field</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;154</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param declaringClass the class in which the field is declared</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;155</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @return the value of the field</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;156</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @throws IllegalAccessError if the declaring class or the field is not</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;157</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * accessible to the class performing the operation</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;158</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @throws NoSuchFieldError if the specified field does not exist</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;159</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @throws IncompatibleClassChangeError if the specified field is not</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;160</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@code final}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;161</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;162</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">static</span> Object getStaticFinal(MethodHandles.Lookup lookup, String name, Class&#60;?&#62; type,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;163</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                        Class&#60;?&#62; declaringClass) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;164<a name="src_164"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        requireNonNull(lookup);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;165</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        requireNonNull(name);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;166</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        requireNonNull(type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;167</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        requireNonNull(declaringClass);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;168</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;169</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        MethodHandle mh;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;170</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">try</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;171</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            mh = lookup.findStaticGetter(declaringClass, name, type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;172</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            MemberName member = mh.internalMemberName();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;173</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (!member.isFinal()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;174</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">throw</span> <span Class="keyword">new</span> IncompatibleClassChangeError(<span Class="string">"not a final field: "</span> + name);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;175</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;176</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;177</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">catch</span> (ReflectiveOperationException ex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;178</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> mapLookupExceptionToError(ex);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;179</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;180</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;181</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">// Since mh is a handle to a static field only instances of</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;182</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">// VirtualMachineError are anticipated to be thrown, such as a</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;183</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">// StackOverflowError or an InternalError from the j.l.invoke code</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;184</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">try</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;185</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> mh.invoke();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;186</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;187</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">catch</span> (RuntimeException | Error e) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;188</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> e;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;189</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;190</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">catch</span> (Throwable e) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;191</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> <span Class="keyword">new</span> LinkageError(<span Class="string">"Unexpected throwable"</span>, e);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;192</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;193</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;194</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;195</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;196</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Returns the value of a static final field declared in the class which</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;197</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * is the same as the field's type (or, for primitive-valued fields,</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;198</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * declared in the wrapper class.)  This is a simplified form of</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;199</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@link #getStaticFinal(MethodHandles.Lookup, String, Class, Class)}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;200</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * for the case where a class declares distinguished constant instances of</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;201</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * itself.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;202</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;203</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param lookup the lookup context describing the class performing the</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;204</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * operation (normally stacked by the JVM)</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;205</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param name the name of the field</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;206</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param type the type of the field</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;207</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @return the value of the field</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;208</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @throws IllegalAccessError if the declaring class or the field is not</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;209</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * accessible to the class performing the operation</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;210</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @throws NoSuchFieldError if the specified field does not exist</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;211</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @throws IncompatibleClassChangeError if the specified field is not</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;212</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@code final}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;213</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @see #getStaticFinal(MethodHandles.Lookup, String, Class, Class)</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;214</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;215</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">static</span> Object getStaticFinal(MethodHandles.Lookup lookup, String name, Class&#60;?&#62; type) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;216<a name="src_216"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        requireNonNull(type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;217</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;218</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        Class&#60;?&#62; declaring = type.isPrimitive()</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;219</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                             ? Wrapper.forPrimitiveType(type).wrapperType()</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;220</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                             : type;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;221</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> getStaticFinal(lookup, name, type, declaring);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;222</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;223</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;224</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;225</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;226</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Returns the result of invoking a method handle with the provided</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;227</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * arguments.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;228</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * &#60;p&#62;</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;229</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * This method behaves as if the method handle to be invoked is the result</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;230</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * of adapting the given method handle, via {@link MethodHandle#asType}, to</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;231</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * adjust the return type to the desired type.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;232</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;233</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param lookup unused</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;234</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param name unused</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;235</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param type the desired type of the value to be returned, which must be</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;236</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * compatible with the return type of the method handle</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;237</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param handle the method handle to be invoked</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;238</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param args the arguments to pass to the method handle, as if with</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;239</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@link MethodHandle#invokeWithArguments}.  Each argument may be</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;240</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@code null}.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;241</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @return the result of invoking the method handle</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;242</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @throws WrongMethodTypeException if the handle's method type cannot be</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;243</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * adjusted to take the given number of arguments, or if the handle's return</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;244</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * type cannot be adjusted to the desired type</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;245</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @throws ClassCastException if an argument or the result produced by</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;246</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * invoking the handle cannot be converted by reference casting</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;247</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @throws Throwable anything thrown by the method handle invocation</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;248</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;249</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">static</span> Object invoke(MethodHandles.Lookup lookup, String name, Class&#60;?&#62; type,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;250</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                MethodHandle handle, Object... args) <span Class="keyword">throws</span> Throwable {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;251<a name="src_251"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        requireNonNull(type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;252</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        requireNonNull(handle);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;253</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        requireNonNull(args);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;254</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;255</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (type != handle.type().returnType()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;256</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// Adjust the return type of the handle to be invoked while</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;257</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// preserving variable arity if present</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;258</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            handle = handle.asType(handle.type().changeReturnType(type)).</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;259</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    withVarargs(handle.isVarargsCollector());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;260</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;261</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;262</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> handle.invokeWithArguments(args);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;263</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;264</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;265</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;266</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Finds a {@link VarHandle} for an instance field.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;267</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;268</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param lookup the lookup context describing the class performing the</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;269</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * operation (normally stacked by the JVM)</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;270</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param name the name of the field</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;271</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param type the required result type (must be {@code Class&#60;VarHandle&#62;})</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;272</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param declaringClass the class in which the field is declared</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;273</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param fieldType the type of the field</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;274</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @return the {@link VarHandle}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;275</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @throws IllegalAccessError if the declaring class or the field is not</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;276</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * accessible to the class performing the operation</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;277</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @throws NoSuchFieldError if the specified field does not exist</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;278</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @throws IllegalArgumentException if the type is not {@code VarHandle}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;279</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;280</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">static</span> VarHandle fieldVarHandle(MethodHandles.Lookup lookup, String name, Class&#60;VarHandle&#62; type,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;281</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                           Class&#60;?&#62; declaringClass, Class&#60;?&#62; fieldType) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;282<a name="src_282"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        requireNonNull(lookup);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;283</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        requireNonNull(name);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;284</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        requireNonNull(type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;285</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        requireNonNull(declaringClass);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;286</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        requireNonNull(fieldType);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;287</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (type != VarHandle.<span Class="keyword">class</span>) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;288</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> <span Class="keyword">new</span> IllegalArgumentException();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;289</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;290</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;291</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">try</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;292</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> lookup.findVarHandle(declaringClass, name, fieldType);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;293</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;294</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">catch</span> (ReflectiveOperationException e) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;295</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> mapLookupExceptionToError(e);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;296</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;297</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;298</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;299</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;300</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Finds a {@link VarHandle} for a static field.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;301</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;302</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param lookup the lookup context describing the class performing the</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;303</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * operation (normally stacked by the JVM)</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;304</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param name the name of the field</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;305</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param type the required result type (must be {@code Class&#60;VarHandle&#62;})</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;306</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param declaringClass the class in which the field is declared</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;307</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param fieldType the type of the field</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;308</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @return the {@link VarHandle}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;309</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @throws IllegalAccessError if the declaring class or the field is not</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;310</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * accessible to the class performing the operation</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;311</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @throws NoSuchFieldError if the specified field does not exist</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;312</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @throws IllegalArgumentException if the type is not {@code VarHandle}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;313</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;314</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">static</span> VarHandle staticFieldVarHandle(MethodHandles.Lookup lookup, String name, Class&#60;VarHandle&#62; type,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;315</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                                 Class&#60;?&#62; declaringClass, Class&#60;?&#62; fieldType) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;316<a name="src_316"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        requireNonNull(lookup);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;317</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        requireNonNull(name);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;318</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        requireNonNull(type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;319</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        requireNonNull(declaringClass);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;320</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        requireNonNull(fieldType);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;321</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (type != VarHandle.<span Class="keyword">class</span>) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;322</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> <span Class="keyword">new</span> IllegalArgumentException();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;323</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;324</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;325</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">try</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;326</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> lookup.findStaticVarHandle(declaringClass, name, fieldType);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;327</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;328</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">catch</span> (ReflectiveOperationException e) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;329</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> mapLookupExceptionToError(e);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;330</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;331</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;332</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;333</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;334</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Finds a {@link VarHandle} for an array type.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;335</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;336</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param lookup the lookup context describing the class performing the</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;337</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * operation (normally stacked by the JVM)</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;338</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param name unused</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;339</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param type the required result type (must be {@code Class&#60;VarHandle&#62;})</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;340</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param arrayClass the type of the array</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;341</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @return the {@link VarHandle}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;342</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @throws IllegalAccessError if the component type of the array is not</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;343</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * accessible to the class performing the operation</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;344</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @throws IllegalArgumentException if the type is not {@code VarHandle}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;345</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;346</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">static</span> VarHandle arrayVarHandle(MethodHandles.Lookup lookup, String name, Class&#60;VarHandle&#62; type,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;347</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                           Class&#60;?&#62; arrayClass) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;348<a name="src_348"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        requireNonNull(lookup);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;349</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        requireNonNull(type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;350</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        requireNonNull(arrayClass);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;351</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (type != VarHandle.<span Class="keyword">class</span>) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;352</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> <span Class="keyword">new</span> IllegalArgumentException();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;353</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;354</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;355</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> MethodHandles.arrayElementVarHandle(validateClassAccess(lookup, arrayClass));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;356</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;357</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;358</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;359</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Applies a conversion from a source type to a destination type.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;360</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * &#60;p&#62;</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;361</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Given a destination type {@code dstType} and an input</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;362</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * value {@code value}, one of the following will happen:</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;363</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * &#60;ul&#62;</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;364</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * &#60;li&#62;If {@code dstType} is {@code void.class},</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;365</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *     a {@link ClassCastException} is thrown.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;366</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * &#60;li&#62;If {@code dstType} is {@code Object.class}, {@code value} is returned as is.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;367</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * &#60;/ul&#62;</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;368</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * &#60;p&#62;</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;369</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Otherwise one of the following conversions is applied to {@code value}:</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;370</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * &#60;ol&#62;</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;371</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * &#60;li&#62;If {@code dstType} is a reference type, a reference cast</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;372</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *     is applied to {@code value} as if by calling {@code dstType.cast(value)}.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;373</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * &#60;li&#62;If {@code dstType} is a primitive type, then, if the runtime type</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;374</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *     of {@code value} is a primitive wrapper type (such as {@link Integer}),</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;375</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *     a Java unboxing conversion is applied {@jls 5.1.8} followed by a</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;376</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *     Java casting conversion {@jls 5.5} converting either directly to</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;377</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *     {@code dstType}, or, if {@code dstType} is {@code boolean},</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;378</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *     to {@code int}, which is then converted to either {@code true}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;379</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *     or {@code false} depending on whether the least-significant-bit</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;380</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *     is 1 or 0 respectively. If the runtime type of {@code value} is</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;381</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *     not a primitive wrapper type a {@link ClassCastException} is thrown.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;382</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * &#60;/ol&#62;</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;383</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * &#60;p&#62;</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;384</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * The result is the same as when using the following code:</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;385</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * &#60;blockquote&#62;&#60;pre&#62;{@code</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;386</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * MethodHandle id = MethodHandles.identity(dstType);</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;387</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * MethodType mt = MethodType.methodType(dstType, Object.class);</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;388</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * MethodHandle conv = MethodHandles.explicitCastArguments(id, mt);</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;389</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * return conv.invoke(value);</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;390</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * }&#60;/pre&#62;&#60;/blockquote&#62;</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;391</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;392</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param lookup unused</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;393</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param name unused</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;394</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param dstType the destination type of the conversion</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;395</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param value the value to be converted</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;396</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @return the converted value</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;397</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @throws ClassCastException when {@code dstType} is {@code void},</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;398</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *         when a cast per (1) fails, or when {@code dstType} is a primitive type</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;399</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *         and the runtime type of {@code value} is not a primitive wrapper type</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;400</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *         (such as {@link Integer})</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;401</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;402</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @since 15</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;403</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;404</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">static</span> Object explicitCast(MethodHandles.Lookup lookup, String name, Class&#60;?&#62; dstType, Object value)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;405</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throws</span> ClassCastException {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;406<a name="src_406"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (dstType == <span Class="keyword">void</span>.<span Class="keyword">class</span>)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;407</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> <span Class="keyword">new</span> ClassCastException(<span Class="string">"Can not convert to void"</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;408</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (dstType == Object.<span Class="keyword">class</span>)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;409</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> value;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;410</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;411</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        MethodHandle id = MethodHandles.identity(dstType);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;412</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        MethodType mt = MethodType.methodType(dstType, Object.<span Class="keyword">class</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;413</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        MethodHandle conv = MethodHandles.explicitCastArguments(id, mt);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;414</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">try</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;415</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> conv.invoke(value);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;416</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        } <span Class="keyword">catch</span> (RuntimeException|Error e) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;417</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> e; <span Class="comment">// let specified CCE and other runtime exceptions/errors through</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;418</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        } <span Class="keyword">catch</span> (Throwable throwable) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;419</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> <span Class="keyword">new</span> InternalError(throwable); <span Class="comment">// Not specified, throw InternalError</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;420</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;421</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;422</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;423</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> &#60;T&#62; Class&#60;T&#62; validateClassAccess(MethodHandles.Lookup lookup, Class&#60;T&#62; type) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;424</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">try</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;425<a name="src_425"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            lookup.accessClass(type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;426</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> type;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;427</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;428</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">catch</span> (ReflectiveOperationException ex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;429</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> mapLookupExceptionToError(ex);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;430</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;431</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;432</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;}</pre></td>
+ </tr>
+ </table>
+<p>
+<br><table cellpadding="0" cellspacing="0" class="report">  <tr class="report">    <td class="reportText"><span class="text">    Report generated 8/4/22, 3:35 PM    </span></td>  </tr></table>
+</body>
+</html>

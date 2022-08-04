@@ -1,0 +1,1892 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>tests coverage</title>
+<link rel ="stylesheet" type="text/css" href="../../style.css" title="Style">
+<script type="text/javascript" src="../../sorttable.js"></script>
+<script type="text/javascript">
+  targetPage = "" + window.location.search;
+  if (targetPage != "" && targetPage != "undefined")
+    targetPage = targetPage.substring(1);
+  if (targetPage.indexOf(":") != -1 || (targetPage != "" && !validURL(targetPage)))
+    targetPage = "undefined";
+  function validURL(url) {
+    var pos = url.indexOf(".html");
+    if (pos == -1 || pos != url.length - 5)
+      return false;
+    var allowNumber = false;
+    var allowSep = false;
+    var seenDot = false;
+    for (var i = 0; i < url.length - 5; i++) {
+      var ch = url.charAt(i);
+      if ('a' <= ch && ch <= 'z' ||
+          'A' <= ch && ch <= 'Z' ||
+          ch == '$' ||
+          ch == '_') {
+            allowNumber = true;
+            allowSep = true;
+      } else if ('0' <= ch && ch <= '9' ||
+                 ch == '-') {
+                   if (!allowNumber)
+                     return false;
+      } else if (ch == '/' || ch == '.') {
+        if (!allowSep)
+          return false;
+        allowNumber = false;
+        allowSep = false;
+        if (ch == '.')
+          seenDot = true;
+        if (ch == '/' && seenDot)
+          return false;
+      } else {
+        return false;
+      }
+    }
+    return true;
+  }
+  function loadFrames() {
+    if (targetPage != "" && targetPage != "undefined")
+      top.classFrame.location = top.targetPage;
+  }
+</script>
+</head>
+<body>
+<table>
+<tr>
+<td>
+<a href="../../index.html?jdk/classfile/Opcode.html" target="_top">Frames</a>
+<a href="Opcode.html" target="_top">No Frames</a>
+</td>
+</tr>
+</table>
+<br>
+ <table cellspacing="0" cellpadding="0"class="report">
+ <tr class="report">
+ <th class="report">&nbsp;</th>
+ <th class="report">%method</th>
+ <th class="report">%block</th>
+ <th class="report">%branch</th>
+ <th class="report">%line</th>
+ </tr>
+ <tr class="report">
+ <td class="reportText"><span class="text"> <b>jdk.classfile.Opcode</b></span></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>100</b>%(17/17)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width=" 100"></td><td class="percentUnCovered" width="0"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>100</b>%(29/29)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width=" 100"></td><td class="percentUnCovered" width="0"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>71</b>%(10/14)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  71"></td><td class="percentUnCovered" width="29"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>100</b>%(254/254)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width=" 100"></td><td class="percentUnCovered" width="0"></td></tr></table></td></tr></table></td>
+ </tr>
+ </table>
+ <br>
+ <br>
+ <table cellspacing="0" cellpadding="0"class="report" id="mcoverage">
+ <tr class="report">
+ <th class="report">hit count</th>
+ <th class="report">method  name</th>
+ <th class="report">method modifiers</th>
+ <th class="report">method signature</th>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">26</span></td>
+ <td class="reportText"><span class="text"><a href="#src_38">&lt;clinit&gt;</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void &lt;clinit&gt;()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1196</span></td>
+ <td class="reportText"><span class="text"><a href="#src_272">&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">void &lt;init&gt;(java.lang.String,int,int,int,jdk.classfile.CodeElement$Kind)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">2210</span></td>
+ <td class="reportText"><span class="text"><a href="#src_276">&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">void &lt;init&gt;(java.lang.String,int,int,int,jdk.classfile.CodeElement$Kind,jdk.classfile.TypeKind)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1612</span></td>
+ <td class="reportText"><span class="text"><a href="#src_280">&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">void &lt;init&gt;(java.lang.String,int,int,int,jdk.classfile.CodeElement$Kind,jdk.classfile.TypeKind,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">364</span></td>
+ <td class="reportText"><span class="text"><a href="#src_284">&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">void &lt;init&gt;(java.lang.String,int,int,int,jdk.classfile.CodeElement$Kind,jdk.classfile.TypeKind,int,java.lang.constant.ConstantDesc)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">390</span></td>
+ <td class="reportText"><span class="text"><a href="#src_288">&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">void &lt;init&gt;(java.lang.String,int,int,int,jdk.classfile.CodeElement$Kind,jdk.classfile.TypeKind,jdk.classfile.TypeKind)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">5772</span></td>
+ <td class="reportText"><span class="text"><a href="#src_297">&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">void &lt;init&gt;(java.lang.String,int,int,int,jdk.classfile.CodeElement$Kind,jdk.classfile.TypeKind,jdk.classfile.TypeKind,int,java.lang.constant.ConstantDesc)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">17564470</span></td>
+ <td class="reportText"><span class="text"><a href="#src_307">bytecode</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">int bytecode()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">59430</span></td>
+ <td class="reportText"><span class="text"><a href="#src_330">constantValue</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">java.lang.constant.ConstantDesc constantValue()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">321</span></td>
+ <td class="reportText"><span class="text"><a href="#src_311">isPseudo</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">boolean isPseudo()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">287</span></td>
+ <td class="reportText"><span class="text"><a href="#src_334">isUnconditionalBranch</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">boolean isUnconditionalBranch()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">17565201</span></td>
+ <td class="reportText"><span class="text"><a href="#src_309">isWide</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">boolean isWide()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">951455</span></td>
+ <td class="reportText"><span class="text"><a href="#src_315">kind</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.CodeElement$Kind kind()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">565484</span></td>
+ <td class="reportText"><span class="text"><a href="#src_318">primaryTypeKind</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeKind primaryTypeKind()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">3844</span></td>
+ <td class="reportText"><span class="text"><a href="#src_322">secondaryTypeKind</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeKind secondaryTypeKind()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">27699837</span></td>
+ <td class="reportText"><span class="text"><a href="#src_313">sizeIfFixed</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">int sizeIfFixed()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">800</span></td>
+ <td class="reportText"><span class="text"><a href="#src_326">slot</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">int slot()</span></td>
+ </tr>
+ </table>
+ <br>
+ <table cellspacing="0" cellpadding="0" class="src">
+ <tr>
+ <td class="numLine">&nbsp;1</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">/*</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;2</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;3</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;4</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;5</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * This code is free software; you can redistribute it and/or modify it</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;6</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * under the terms of the GNU General Public License version 2 only, as</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;7</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * published by the Free Software Foundation.  Oracle designates this</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;8</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * particular file as subject to the "Classpath" exception as provided</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;9</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * by Oracle in the LICENSE file that accompanied this code.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;10</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;11</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * This code is distributed in the hope that it will be useful, but WITHOUT</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;12</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;13</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;14</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * version 2 for more details (a copy is included in the LICENSE file that</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;15</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * accompanied this code).</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;16</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;17</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * You should have received a copy of the GNU General Public License version</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;18</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * 2 along with this work; if not, write to the Free Software Foundation,</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;19</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;20</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;21</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;22</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * or visit www.oracle.com if you need additional information or have any</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;23</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * questions.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;24</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;25</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">package</span> jdk.classfile;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;26</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;27</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.lang.constant.ConstantDesc;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;28</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;29</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;30</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Describes the opcodes of the JVM instruction set, as well as a number of</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;31</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * pseudo-instructions that may be encountered when traversing the instructions</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;32</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * of a method.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;33</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;34</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * @see Instruction</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;35</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * @see PseudoInstruction</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;36</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;37</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">public</span> <span Class="keyword">enum</span> Opcode {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;38<a name="src_38"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    NOP(Classfile.NOP, 1, CodeElement.Kind.NOP),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;39</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ACONST_NULL(Classfile.ACONST_NULL, 1, CodeElement.Kind.CONSTANT, TypeKind.ReferenceType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;40</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ICONST_M1(Classfile.ICONST_M1, 1, CodeElement.Kind.CONSTANT, TypeKind.IntType, 0, -1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;41</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ICONST_0(Classfile.ICONST_0, 1, CodeElement.Kind.CONSTANT, TypeKind.IntType, 0, 0),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;42</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ICONST_1(Classfile.ICONST_1, 1, CodeElement.Kind.CONSTANT, TypeKind.IntType, 0, 1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;43</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ICONST_2(Classfile.ICONST_2, 1, CodeElement.Kind.CONSTANT, TypeKind.IntType, 0, 2),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;44</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ICONST_3(Classfile.ICONST_3, 1, CodeElement.Kind.CONSTANT, TypeKind.IntType, 0, 3),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;45</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ICONST_4(Classfile.ICONST_4, 1, CodeElement.Kind.CONSTANT, TypeKind.IntType, 0, 4),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;46</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ICONST_5(Classfile.ICONST_5, 1, CodeElement.Kind.CONSTANT, TypeKind.IntType, 0, 5),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;47</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LCONST_0(Classfile.LCONST_0, 1, CodeElement.Kind.CONSTANT, TypeKind.LongType, 0, 0L),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;48</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LCONST_1(Classfile.LCONST_1, 1, CodeElement.Kind.CONSTANT, TypeKind.LongType, 0, 1L),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;49</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FCONST_0(Classfile.FCONST_0, 1, CodeElement.Kind.CONSTANT, TypeKind.FloatType, 0, 0.0f),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;50</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FCONST_1(Classfile.FCONST_1, 1, CodeElement.Kind.CONSTANT, TypeKind.FloatType, 0, 1.0f),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;51</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FCONST_2(Classfile.FCONST_2, 1, CodeElement.Kind.CONSTANT, TypeKind.FloatType, 0, 2.0f),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;52</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DCONST_0(Classfile.DCONST_0, 1, CodeElement.Kind.CONSTANT, TypeKind.DoubleType, 0, 0.0d),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;53</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DCONST_1(Classfile.DCONST_1, 1, CodeElement.Kind.CONSTANT, TypeKind.DoubleType, 0, 1.0d),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;54</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    BIPUSH(Classfile.BIPUSH, 2, CodeElement.Kind.CONSTANT, TypeKind.ByteType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;55</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    SIPUSH(Classfile.SIPUSH, 3, CodeElement.Kind.CONSTANT, TypeKind.ShortType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;56</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LDC(Classfile.LDC, 2, CodeElement.Kind.CONSTANT),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;57</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LDC_W(Classfile.LDC_W, 3, CodeElement.Kind.CONSTANT),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;58</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LDC2_W(Classfile.LDC2_W, 3, CodeElement.Kind.CONSTANT),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;59</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ILOAD(Classfile.ILOAD, 2, CodeElement.Kind.LOAD, TypeKind.IntType, -1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;60</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LLOAD(Classfile.LLOAD, 2, CodeElement.Kind.LOAD, TypeKind.LongType, -1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;61</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FLOAD(Classfile.FLOAD, 2, CodeElement.Kind.LOAD, TypeKind.FloatType, -1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;62</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DLOAD(Classfile.DLOAD, 2, CodeElement.Kind.LOAD, TypeKind.DoubleType, -1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;63</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ALOAD(Classfile.ALOAD, 2, CodeElement.Kind.LOAD, TypeKind.ReferenceType, -1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;64</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ILOAD_0(Classfile.ILOAD_0, 1, CodeElement.Kind.LOAD, TypeKind.IntType, 0),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;65</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ILOAD_1(Classfile.ILOAD_1, 1, CodeElement.Kind.LOAD, TypeKind.IntType, 1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;66</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ILOAD_2(Classfile.ILOAD_2, 1, CodeElement.Kind.LOAD, TypeKind.IntType, 2),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;67</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ILOAD_3(Classfile.ILOAD_3, 1, CodeElement.Kind.LOAD, TypeKind.IntType, 3),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;68</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LLOAD_0(Classfile.LLOAD_0, 1, CodeElement.Kind.LOAD, TypeKind.LongType, 0),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;69</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LLOAD_1(Classfile.LLOAD_1, 1, CodeElement.Kind.LOAD, TypeKind.LongType, 1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;70</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LLOAD_2(Classfile.LLOAD_2, 1, CodeElement.Kind.LOAD, TypeKind.LongType, 2),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;71</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LLOAD_3(Classfile.LLOAD_3, 1, CodeElement.Kind.LOAD, TypeKind.LongType, 3),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;72</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FLOAD_0(Classfile.FLOAD_0, 1, CodeElement.Kind.LOAD, TypeKind.FloatType, 0),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;73</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FLOAD_1(Classfile.FLOAD_1, 1, CodeElement.Kind.LOAD, TypeKind.FloatType, 1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;74</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FLOAD_2(Classfile.FLOAD_2, 1, CodeElement.Kind.LOAD, TypeKind.FloatType, 2),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;75</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FLOAD_3(Classfile.FLOAD_3, 1, CodeElement.Kind.LOAD, TypeKind.FloatType, 3),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;76</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DLOAD_0(Classfile.DLOAD_0, 1, CodeElement.Kind.LOAD, TypeKind.DoubleType, 0),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;77</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DLOAD_1(Classfile.DLOAD_1, 1, CodeElement.Kind.LOAD, TypeKind.DoubleType, 1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;78</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DLOAD_2(Classfile.DLOAD_2, 1, CodeElement.Kind.LOAD, TypeKind.DoubleType, 2),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;79</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DLOAD_3(Classfile.DLOAD_3, 1, CodeElement.Kind.LOAD, TypeKind.DoubleType, 3),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;80</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ALOAD_0(Classfile.ALOAD_0, 1, CodeElement.Kind.LOAD, TypeKind.ReferenceType, 0),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;81</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ALOAD_1(Classfile.ALOAD_1, 1, CodeElement.Kind.LOAD, TypeKind.ReferenceType, 1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;82</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ALOAD_2(Classfile.ALOAD_2, 1, CodeElement.Kind.LOAD, TypeKind.ReferenceType, 2),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;83</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ALOAD_3(Classfile.ALOAD_3, 1, CodeElement.Kind.LOAD, TypeKind.ReferenceType, 3),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;84</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IALOAD(Classfile.IALOAD, 1, CodeElement.Kind.ARRAY_LOAD, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;85</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LALOAD(Classfile.LALOAD, 1, CodeElement.Kind.ARRAY_LOAD, TypeKind.LongType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;86</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FALOAD(Classfile.FALOAD, 1, CodeElement.Kind.ARRAY_LOAD, TypeKind.FloatType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;87</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DALOAD(Classfile.DALOAD, 1, CodeElement.Kind.ARRAY_LOAD, TypeKind.DoubleType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;88</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    AALOAD(Classfile.AALOAD, 1, CodeElement.Kind.ARRAY_LOAD, TypeKind.ReferenceType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;89</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    BALOAD(Classfile.BALOAD, 1, CodeElement.Kind.ARRAY_LOAD, TypeKind.ByteType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;90</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    CALOAD(Classfile.CALOAD, 1, CodeElement.Kind.ARRAY_LOAD, TypeKind.CharType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;91</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    SALOAD(Classfile.SALOAD, 1, CodeElement.Kind.ARRAY_LOAD, TypeKind.ShortType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;92</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ISTORE(Classfile.ISTORE, 2, CodeElement.Kind.STORE, TypeKind.IntType, -1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;93</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LSTORE(Classfile.LSTORE, 2, CodeElement.Kind.STORE, TypeKind.LongType, -1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;94</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FSTORE(Classfile.FSTORE, 2, CodeElement.Kind.STORE, TypeKind.FloatType, -1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;95</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DSTORE(Classfile.DSTORE, 2, CodeElement.Kind.STORE, TypeKind.DoubleType, -1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;96</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ASTORE(Classfile.ASTORE, 2, CodeElement.Kind.STORE, TypeKind.ReferenceType, -1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;97</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ISTORE_0(Classfile.ISTORE_0, 1, CodeElement.Kind.STORE, TypeKind.IntType, 0),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;98</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ISTORE_1(Classfile.ISTORE_1, 1, CodeElement.Kind.STORE, TypeKind.IntType, 1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;99</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ISTORE_2(Classfile.ISTORE_2, 1, CodeElement.Kind.STORE, TypeKind.IntType, 2),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;100</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ISTORE_3(Classfile.ISTORE_3, 1, CodeElement.Kind.STORE, TypeKind.IntType, 3),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;101</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LSTORE_0(Classfile.LSTORE_0, 1, CodeElement.Kind.STORE, TypeKind.LongType, 0),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;102</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LSTORE_1(Classfile.LSTORE_1, 1, CodeElement.Kind.STORE, TypeKind.LongType, 1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;103</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LSTORE_2(Classfile.LSTORE_2, 1, CodeElement.Kind.STORE, TypeKind.LongType, 2),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;104</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LSTORE_3(Classfile.LSTORE_3, 1, CodeElement.Kind.STORE, TypeKind.LongType, 3),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;105</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FSTORE_0(Classfile.FSTORE_0, 1, CodeElement.Kind.STORE, TypeKind.FloatType, 0),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;106</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FSTORE_1(Classfile.FSTORE_1, 1, CodeElement.Kind.STORE, TypeKind.FloatType, 1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;107</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FSTORE_2(Classfile.FSTORE_2, 1, CodeElement.Kind.STORE, TypeKind.FloatType, 2),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;108</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FSTORE_3(Classfile.FSTORE_3, 1, CodeElement.Kind.STORE, TypeKind.FloatType, 3),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;109</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DSTORE_0(Classfile.DSTORE_0, 1, CodeElement.Kind.STORE, TypeKind.DoubleType, 0),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;110</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DSTORE_1(Classfile.DSTORE_1, 1, CodeElement.Kind.STORE, TypeKind.DoubleType, 1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;111</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DSTORE_2(Classfile.DSTORE_2, 1, CodeElement.Kind.STORE, TypeKind.DoubleType, 2),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;112</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DSTORE_3(Classfile.DSTORE_3, 1, CodeElement.Kind.STORE, TypeKind.DoubleType, 3),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;113</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ASTORE_0(Classfile.ASTORE_0, 1, CodeElement.Kind.STORE, TypeKind.ReferenceType, 0),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;114</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ASTORE_1(Classfile.ASTORE_1, 1, CodeElement.Kind.STORE, TypeKind.ReferenceType, 1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;115</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ASTORE_2(Classfile.ASTORE_2, 1, CodeElement.Kind.STORE, TypeKind.ReferenceType, 2),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;116</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ASTORE_3(Classfile.ASTORE_3, 1, CodeElement.Kind.STORE, TypeKind.ReferenceType, 3),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;117</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IASTORE(Classfile.IASTORE, 1, CodeElement.Kind.ARRAY_STORE, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;118</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LASTORE(Classfile.LASTORE, 1, CodeElement.Kind.ARRAY_STORE, TypeKind.LongType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;119</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FASTORE(Classfile.FASTORE, 1, CodeElement.Kind.ARRAY_STORE, TypeKind.FloatType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;120</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DASTORE(Classfile.DASTORE, 1, CodeElement.Kind.ARRAY_STORE, TypeKind.DoubleType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;121</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    AASTORE(Classfile.AASTORE, 1, CodeElement.Kind.ARRAY_STORE, TypeKind.ReferenceType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;122</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    BASTORE(Classfile.BASTORE, 1, CodeElement.Kind.ARRAY_STORE, TypeKind.ByteType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;123</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    CASTORE(Classfile.CASTORE, 1, CodeElement.Kind.ARRAY_STORE, TypeKind.CharType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;124</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    SASTORE(Classfile.SASTORE, 1, CodeElement.Kind.ARRAY_STORE, TypeKind.ShortType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;125</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    POP(Classfile.POP, 1, CodeElement.Kind.STACK),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;126</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    POP2(Classfile.POP2, 1, CodeElement.Kind.STACK),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;127</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DUP(Classfile.DUP, 1, CodeElement.Kind.STACK),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;128</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DUP_X1(Classfile.DUP_X1, 1, CodeElement.Kind.STACK),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;129</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DUP_X2(Classfile.DUP_X2, 1, CodeElement.Kind.STACK),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;130</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DUP2(Classfile.DUP2, 1, CodeElement.Kind.STACK),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;131</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DUP2_X1(Classfile.DUP2_X1, 1, CodeElement.Kind.STACK),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;132</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DUP2_X2(Classfile.DUP2_X2, 1, CodeElement.Kind.STACK),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;133</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    SWAP(Classfile.SWAP, 1, CodeElement.Kind.STACK),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;134</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IADD(Classfile.IADD, 1, CodeElement.Kind.OPERATOR, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;135</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LADD(Classfile.LADD, 1, CodeElement.Kind.OPERATOR, TypeKind.LongType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;136</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FADD(Classfile.FADD, 1, CodeElement.Kind.OPERATOR, TypeKind.FloatType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;137</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DADD(Classfile.DADD, 1, CodeElement.Kind.OPERATOR, TypeKind.DoubleType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;138</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ISUB(Classfile.ISUB, 1, CodeElement.Kind.OPERATOR, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;139</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LSUB(Classfile.LSUB, 1, CodeElement.Kind.OPERATOR, TypeKind.LongType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;140</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FSUB(Classfile.FSUB, 1, CodeElement.Kind.OPERATOR, TypeKind.FloatType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;141</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DSUB(Classfile.DSUB, 1, CodeElement.Kind.OPERATOR, TypeKind.DoubleType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;142</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IMUL(Classfile.IMUL, 1, CodeElement.Kind.OPERATOR, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;143</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LMUL(Classfile.LMUL, 1, CodeElement.Kind.OPERATOR, TypeKind.LongType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;144</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FMUL(Classfile.FMUL, 1, CodeElement.Kind.OPERATOR, TypeKind.FloatType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;145</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DMUL(Classfile.DMUL, 1, CodeElement.Kind.OPERATOR, TypeKind.DoubleType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;146</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IDIV(Classfile.IDIV, 1, CodeElement.Kind.OPERATOR, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;147</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LDIV(Classfile.LDIV, 1, CodeElement.Kind.OPERATOR, TypeKind.LongType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;148</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FDIV(Classfile.FDIV, 1, CodeElement.Kind.OPERATOR, TypeKind.FloatType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;149</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DDIV(Classfile.DDIV, 1, CodeElement.Kind.OPERATOR, TypeKind.DoubleType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;150</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IREM(Classfile.IREM, 1, CodeElement.Kind.OPERATOR, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;151</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LREM(Classfile.LREM, 1, CodeElement.Kind.OPERATOR, TypeKind.LongType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;152</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FREM(Classfile.FREM, 1, CodeElement.Kind.OPERATOR, TypeKind.FloatType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;153</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DREM(Classfile.DREM, 1, CodeElement.Kind.OPERATOR, TypeKind.DoubleType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;154</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    INEG(Classfile.INEG, 1, CodeElement.Kind.OPERATOR, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;155</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LNEG(Classfile.LNEG, 1, CodeElement.Kind.OPERATOR, TypeKind.LongType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;156</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FNEG(Classfile.FNEG, 1, CodeElement.Kind.OPERATOR, TypeKind.FloatType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;157</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DNEG(Classfile.DNEG, 1, CodeElement.Kind.OPERATOR, TypeKind.DoubleType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;158</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ISHL(Classfile.ISHL, 1, CodeElement.Kind.OPERATOR, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;159</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LSHL(Classfile.LSHL, 1, CodeElement.Kind.OPERATOR, TypeKind.LongType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;160</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ISHR(Classfile.ISHR, 1, CodeElement.Kind.OPERATOR, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;161</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LSHR(Classfile.LSHR, 1, CodeElement.Kind.OPERATOR, TypeKind.LongType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;162</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IUSHR(Classfile.IUSHR, 1, CodeElement.Kind.OPERATOR, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;163</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LUSHR(Classfile.LUSHR, 1, CodeElement.Kind.OPERATOR, TypeKind.LongType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;164</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IAND(Classfile.IAND, 1, CodeElement.Kind.OPERATOR, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;165</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LAND(Classfile.LAND, 1, CodeElement.Kind.OPERATOR, TypeKind.LongType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;166</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IOR(Classfile.IOR, 1, CodeElement.Kind.OPERATOR, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;167</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LOR(Classfile.LOR, 1, CodeElement.Kind.OPERATOR, TypeKind.LongType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;168</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IXOR(Classfile.IXOR, 1, CodeElement.Kind.OPERATOR, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;169</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LXOR(Classfile.LXOR, 1, CodeElement.Kind.OPERATOR, TypeKind.LongType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;170</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IINC(Classfile.IINC, 3, CodeElement.Kind.INCREMENT, TypeKind.IntType, -1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;171</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    I2L(Classfile.I2L, 1, CodeElement.Kind.CONVERT, TypeKind.IntType, TypeKind.LongType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;172</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    I2F(Classfile.I2F, 1, CodeElement.Kind.CONVERT, TypeKind.IntType, TypeKind.FloatType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;173</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    I2D(Classfile.I2D, 1, CodeElement.Kind.CONVERT, TypeKind.IntType, TypeKind.DoubleType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;174</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    L2I(Classfile.L2I, 1, CodeElement.Kind.CONVERT, TypeKind.LongType, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;175</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    L2F(Classfile.L2F, 1, CodeElement.Kind.CONVERT, TypeKind.LongType, TypeKind.FloatType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;176</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    L2D(Classfile.L2D, 1, CodeElement.Kind.CONVERT, TypeKind.LongType, TypeKind.DoubleType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;177</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    F2I(Classfile.F2I, 1, CodeElement.Kind.CONVERT, TypeKind.FloatType, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;178</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    F2L(Classfile.F2L, 1, CodeElement.Kind.CONVERT, TypeKind.FloatType, TypeKind.LongType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;179</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    F2D(Classfile.F2D, 1, CodeElement.Kind.CONVERT, TypeKind.FloatType, TypeKind.DoubleType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;180</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    D2I(Classfile.D2I, 1, CodeElement.Kind.CONVERT, TypeKind.DoubleType, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;181</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    D2L(Classfile.D2L, 1, CodeElement.Kind.CONVERT, TypeKind.DoubleType, TypeKind.LongType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;182</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    D2F(Classfile.D2F, 1, CodeElement.Kind.CONVERT, TypeKind.DoubleType, TypeKind.FloatType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;183</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    I2B(Classfile.I2B, 1, CodeElement.Kind.CONVERT, TypeKind.IntType, TypeKind.ByteType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;184</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    I2C(Classfile.I2C, 1, CodeElement.Kind.CONVERT, TypeKind.IntType, TypeKind.CharType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;185</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    I2S(Classfile.I2S, 1, CodeElement.Kind.CONVERT, TypeKind.IntType, TypeKind.ShortType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;186</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LCMP(Classfile.LCMP, 1, CodeElement.Kind.OPERATOR, TypeKind.LongType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;187</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FCMPL(Classfile.FCMPL, 1, CodeElement.Kind.OPERATOR, TypeKind.FloatType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;188</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FCMPG(Classfile.FCMPG, 1, CodeElement.Kind.OPERATOR, TypeKind.FloatType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;189</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DCMPL(Classfile.DCMPL, 1, CodeElement.Kind.OPERATOR, TypeKind.DoubleType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;190</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DCMPG(Classfile.DCMPG, 1, CodeElement.Kind.OPERATOR, TypeKind.DoubleType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;191</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IFEQ(Classfile.IFEQ, 3, CodeElement.Kind.BRANCH, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;192</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IFNE(Classfile.IFNE, 3, CodeElement.Kind.BRANCH, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;193</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IFLT(Classfile.IFLT, 3, CodeElement.Kind.BRANCH, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;194</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IFGE(Classfile.IFGE, 3, CodeElement.Kind.BRANCH, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;195</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IFGT(Classfile.IFGT, 3, CodeElement.Kind.BRANCH, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;196</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IFLE(Classfile.IFLE, 3, CodeElement.Kind.BRANCH, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;197</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IF_ICMPEQ(Classfile.IF_ICMPEQ, 3, CodeElement.Kind.BRANCH, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;198</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IF_ICMPNE(Classfile.IF_ICMPNE, 3, CodeElement.Kind.BRANCH, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;199</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IF_ICMPLT(Classfile.IF_ICMPLT, 3, CodeElement.Kind.BRANCH, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;200</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IF_ICMPGE(Classfile.IF_ICMPGE, 3, CodeElement.Kind.BRANCH, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;201</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IF_ICMPGT(Classfile.IF_ICMPGT, 3, CodeElement.Kind.BRANCH, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;202</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IF_ICMPLE(Classfile.IF_ICMPLE, 3, CodeElement.Kind.BRANCH, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;203</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IF_ACMPEQ(Classfile.IF_ACMPEQ, 3, CodeElement.Kind.BRANCH, TypeKind.ReferenceType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;204</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IF_ACMPNE(Classfile.IF_ACMPNE, 3, CodeElement.Kind.BRANCH, TypeKind.ReferenceType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;205</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    GOTO(Classfile.GOTO, 3, CodeElement.Kind.BRANCH, TypeKind.VoidType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;206</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    JSR(Classfile.JSR, 3, CodeElement.Kind.UNSUPPORTED),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;207</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    RET(Classfile.RET, 2, CodeElement.Kind.UNSUPPORTED),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;208</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    TABLESWITCH(Classfile.TABLESWITCH, -1, CodeElement.Kind.TABLE_SWITCH),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;209</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LOOKUPSWITCH(Classfile.LOOKUPSWITCH, -1, CodeElement.Kind.LOOKUP_SWITCH),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;210</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IRETURN(Classfile.IRETURN, 1, CodeElement.Kind.RETURN, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;211</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LRETURN(Classfile.LRETURN, 1, CodeElement.Kind.RETURN, TypeKind.LongType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;212</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FRETURN(Classfile.FRETURN, 1, CodeElement.Kind.RETURN, TypeKind.FloatType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;213</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DRETURN(Classfile.DRETURN, 1, CodeElement.Kind.RETURN, TypeKind.DoubleType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;214</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ARETURN(Classfile.ARETURN, 1, CodeElement.Kind.RETURN, TypeKind.ReferenceType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;215</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    RETURN(Classfile.RETURN, 1, CodeElement.Kind.RETURN, TypeKind.VoidType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;216</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    GETSTATIC(Classfile.GETSTATIC, 3, CodeElement.Kind.FIELD_ACCESS),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;217</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    PUTSTATIC(Classfile.PUTSTATIC, 3, CodeElement.Kind.FIELD_ACCESS),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;218</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    GETFIELD(Classfile.GETFIELD, 3, CodeElement.Kind.FIELD_ACCESS),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;219</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    PUTFIELD(Classfile.PUTFIELD, 3, CodeElement.Kind.FIELD_ACCESS),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;220</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    INVOKEVIRTUAL(Classfile.INVOKEVIRTUAL, 3, CodeElement.Kind.INVOKE),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;221</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    INVOKESPECIAL(Classfile.INVOKESPECIAL, 3, CodeElement.Kind.INVOKE),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;222</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    INVOKESTATIC(Classfile.INVOKESTATIC, 3, CodeElement.Kind.INVOKE),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;223</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    INVOKEINTERFACE(Classfile.INVOKEINTERFACE, 5, CodeElement.Kind.INVOKE),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;224</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    INVOKEDYNAMIC(Classfile.INVOKEDYNAMIC, 5, CodeElement.Kind.INVOKE_DYNAMIC),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;225</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    NEW(Classfile.NEW, 3, CodeElement.Kind.NEW_OBJECT),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;226</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    NEWARRAY(Classfile.NEWARRAY, 2, CodeElement.Kind.NEW_PRIMITIVE_ARRAY),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;227</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ANEWARRAY(Classfile.ANEWARRAY, 3, CodeElement.Kind.NEW_REF_ARRAY),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;228</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ARRAYLENGTH(Classfile.ARRAYLENGTH, 1, CodeElement.Kind.OPERATOR, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;229</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ATHROW(Classfile.ATHROW, 1, CodeElement.Kind.THROW_EXCEPTION),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;230</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    CHECKCAST(Classfile.CHECKCAST, 3, CodeElement.Kind.TYPE_CHECK),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;231</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    INSTANCEOF(Classfile.INSTANCEOF, 3, CodeElement.Kind.TYPE_CHECK),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;232</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    MONITORENTER(Classfile.MONITORENTER, 1, CodeElement.Kind.MONITOR),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;233</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    MONITOREXIT(Classfile.MONITOREXIT, 1, CodeElement.Kind.MONITOR),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;234</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    MULTIANEWARRAY(Classfile.MULTIANEWARRAY, 4, CodeElement.Kind.NEW_MULTI_ARRAY),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;235</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IFNULL(Classfile.IFNULL, 3, CodeElement.Kind.BRANCH, TypeKind.ReferenceType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;236</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IFNONNULL(Classfile.IFNONNULL, 3, CodeElement.Kind.BRANCH, TypeKind.IntType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;237</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    GOTO_W(Classfile.GOTO_W, 5, CodeElement.Kind.BRANCH, TypeKind.VoidType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;238</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    JSR_W(Classfile.JSR_W, 5, CodeElement.Kind.UNSUPPORTED),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;239</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ILOAD_W(0xc400 | Classfile.ILOAD, 4, CodeElement.Kind.LOAD, TypeKind.IntType, -1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;240</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LLOAD_W(0xc400 | Classfile.LLOAD, 4, CodeElement.Kind.LOAD, TypeKind.LongType, -1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;241</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FLOAD_W(0xc400 | Classfile.FLOAD, 4, CodeElement.Kind.LOAD, TypeKind.FloatType, -1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;242</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DLOAD_W(0xc400 | Classfile.DLOAD, 4, CodeElement.Kind.LOAD, TypeKind.DoubleType, -1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;243</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ALOAD_W(0xc400 | Classfile.ALOAD, 4, CodeElement.Kind.LOAD, TypeKind.ReferenceType, -1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;244</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ISTORE_W(0xc400 | Classfile.ISTORE, 4, CodeElement.Kind.STORE, TypeKind.IntType, -1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;245</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LSTORE_W(0xc400 | Classfile.LSTORE, 4, CodeElement.Kind.STORE, TypeKind.LongType, -1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;246</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FSTORE_W(0xc400 | Classfile.FSTORE, 4, CodeElement.Kind.STORE, TypeKind.FloatType, -1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;247</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    DSTORE_W(0xc400 | Classfile.DSTORE, 4, CodeElement.Kind.STORE, TypeKind.DoubleType, -1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;248</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ASTORE_W(0xc400 | Classfile.ASTORE, 4, CodeElement.Kind.STORE, TypeKind.ReferenceType, -1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;249</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    RET_W(0xc400 | Classfile.RET, 4, CodeElement.Kind.UNSUPPORTED),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;250</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    IINC_W(0xc400 | Classfile.IINC, 6, CodeElement.Kind.INCREMENT, TypeKind.IntType, -1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;251</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">// PSEUDO INSTRUCTIONS</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;252</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LABEL_TARGET(0xFF01, 0, CodeElement.Kind.LABEL_TARGET),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;253</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    EXCEPTION_CATCH(0xFF02, 0, CodeElement.Kind.EXCEPTION_CATCH),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;254</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    CHARACTER_RANGE(0xFF03, 0, CodeElement.Kind.CHARACTER_RANGE),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;255</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LOCAL_VARIABLE(0xFF04, 0, CodeElement.Kind.LOCAL_VARIABLE),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;256</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LINE_NUMBER(0xFF05, 0, CodeElement.Kind.LINE_NUMBER),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;257</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    PARAMETER_ANNO(0xFF06, 0, CodeElement.Kind.PARAMETER_ANNOTATION),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;258</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    TYPE_ANNO(0xFF07, 0, CodeElement.Kind.TYPE_ANNOTATION),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;259</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    LOCAL_VARIABLE_TYPE(0xFF08, 0, CodeElement.Kind.LOCAL_VARIABLE_TYPE),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;260</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    END(0xFF09, 0, CodeElement.Kind.END),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;261</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;262</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;263</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">final</span> <span Class="keyword">int</span> bytecode;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;264</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">final</span> <span Class="keyword">int</span> sizeIfFixed;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;265</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">final</span> CodeElement.Kind kind;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;266</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">final</span> TypeKind primaryTypeKind;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;267</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">final</span> TypeKind secondaryTypeKind;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;268</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">final</span> <span Class="keyword">int</span> slot;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;269</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">final</span> ConstantDesc constantValue;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;270</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;271</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    Opcode(<span Class="keyword">int</span> bytecode, <span Class="keyword">int</span> sizeIfFixed, CodeElement.Kind kind) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;272<a name="src_272"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">this</span>(bytecode, sizeIfFixed, kind, <span Class="keyword">null</span>, <span Class="keyword">null</span>, 0, <span Class="keyword">null</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;273</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;274</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;275</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    Opcode(<span Class="keyword">int</span> bytecode, <span Class="keyword">int</span> sizeIfFixed, CodeElement.Kind kind, TypeKind typeKind) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;276<a name="src_276"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">this</span>(bytecode, sizeIfFixed, kind, typeKind, <span Class="keyword">null</span>, 0, <span Class="keyword">null</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;277</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;278</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;279</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    Opcode(<span Class="keyword">int</span> bytecode, <span Class="keyword">int</span> sizeIfFixed, CodeElement.Kind kind, TypeKind typeKind, <span Class="keyword">int</span> slot) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;280<a name="src_280"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">this</span>(bytecode, sizeIfFixed, kind, typeKind, <span Class="keyword">null</span>, slot, <span Class="keyword">null</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;281</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;282</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;283</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    Opcode(<span Class="keyword">int</span> bytecode, <span Class="keyword">int</span> sizeIfFixed, CodeElement.Kind kind, TypeKind typeKind, <span Class="keyword">int</span> slot, ConstantDesc constantValue) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;284<a name="src_284"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">this</span>(bytecode, sizeIfFixed, kind, typeKind, <span Class="keyword">null</span>, slot, constantValue);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;285</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;286</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;287</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    Opcode(<span Class="keyword">int</span> bytecode, <span Class="keyword">int</span> sizeIfFixed, CodeElement.Kind kind, TypeKind primaryTypeKind, TypeKind secondaryTypeKind) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;288<a name="src_288"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">this</span>(bytecode, sizeIfFixed, kind, primaryTypeKind, secondaryTypeKind, 0, <span Class="keyword">null</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;289</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;290</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;291</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    Opcode(<span Class="keyword">int</span> bytecode,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;292</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;           <span Class="keyword">int</span> sizeIfFixed,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;293</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;           CodeElement.Kind kind,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;294</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;           TypeKind primaryTypeKind,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;295</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;           TypeKind secondaryTypeKind,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;296</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;           <span Class="keyword">int</span> slot,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;297<a name="src_297"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;           ConstantDesc constantValue) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;298</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">this</span>.bytecode = bytecode;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;299</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">this</span>.sizeIfFixed = sizeIfFixed;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;300</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">this</span>.kind = kind;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;301</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">this</span>.primaryTypeKind = primaryTypeKind;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;302</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">this</span>.secondaryTypeKind = secondaryTypeKind;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;303</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">this</span>.slot = slot;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;304</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">this</span>.constantValue = constantValue;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;305</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;306</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;307<a name="src_307"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">int</span> bytecode() { <span Class="keyword">return</span> bytecode; }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;308</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;309<a name="src_309"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;5/5&nbsp;Branch:&nbsp;3/4&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">boolean</span> isWide() { <span Class="keyword">return</span> bytecode &#62; 255 &#38;&#38; !isPseudo(); }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;310</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;311<a name="src_311"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;4/4&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">boolean</span> isPseudo() { <span Class="keyword">return</span> bytecode &#62;= 0xFF00; }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;312</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;313<a name="src_313"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">int</span> sizeIfFixed() { <span Class="keyword">return</span> sizeIfFixed; }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;314</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;315<a name="src_315"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> CodeElement.Kind kind() { <span Class="keyword">return</span> kind; }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;316</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;317</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> TypeKind primaryTypeKind() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;318<a name="src_318"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> primaryTypeKind;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;319</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;320</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;321</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> TypeKind secondaryTypeKind() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;322<a name="src_322"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> secondaryTypeKind;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;323</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;324</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;325</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">int</span> slot() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;326<a name="src_326"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> slot;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;327</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;328</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;329</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> ConstantDesc constantValue() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;330<a name="src_330"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> constantValue;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;331</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;332</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;333</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">boolean</span> isUnconditionalBranch() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;334<a name="src_334"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;10/15&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">switch</span> (<span Class="keyword">this</span>) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;335</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;2/5&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> GOTO, ATHROW, GOTO_W, LOOKUPSWITCH, TABLESWITCH -&#62; <span Class="keyword">true</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;336</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">default</span> -&#62; kind() == CodeElement.Kind.RETURN;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;337</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        };</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;338</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;339</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;}</pre></td>
+ </tr>
+ </table>
+<p>
+<br><table cellpadding="0" cellspacing="0" class="report">  <tr class="report">    <td class="reportText"><span class="text">    Report generated 8/4/22, 3:35 PM    </span></td>  </tr></table>
+</body>
+</html>

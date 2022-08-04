@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>tests coverage</title>
+<link rel ="stylesheet" type="text/css" href="../../../style.css" title="Style">
+<script type="text/javascript" src="../../../sorttable.js"></script>
+<script type="text/javascript">
+  targetPage = "" + window.location.search;
+  if (targetPage != "" && targetPage != "undefined")
+    targetPage = targetPage.substring(1);
+  if (targetPage.indexOf(":") != -1 || (targetPage != "" && !validURL(targetPage)))
+    targetPage = "undefined";
+  function validURL(url) {
+    var pos = url.indexOf(".html");
+    if (pos == -1 || pos != url.length - 5)
+      return false;
+    var allowNumber = false;
+    var allowSep = false;
+    var seenDot = false;
+    for (var i = 0; i < url.length - 5; i++) {
+      var ch = url.charAt(i);
+      if ('a' <= ch && ch <= 'z' ||
+          'A' <= ch && ch <= 'Z' ||
+          ch == '$' ||
+          ch == '_') {
+            allowNumber = true;
+            allowSep = true;
+      } else if ('0' <= ch && ch <= '9' ||
+                 ch == '-') {
+                   if (!allowNumber)
+                     return false;
+      } else if (ch == '/' || ch == '.') {
+        if (!allowSep)
+          return false;
+        allowNumber = false;
+        allowSep = false;
+        if (ch == '.')
+          seenDot = true;
+        if (ch == '/' && seenDot)
+          return false;
+      } else {
+        return false;
+      }
+    }
+    return true;
+  }
+  function loadFrames() {
+    if (targetPage != "" && targetPage != "undefined")
+      top.classFrame.location = top.targetPage;
+  }
+</script>
+</head>
+<body>
+<table>
+<tr>
+<td>
+<a href="../../../index.html?jdk/classfile/impl/ClassHierarchyImpl.html" target="_top">Frames</a>
+<a href="ClassHierarchyImpl.html" target="_top">No Frames</a>
+</td>
+</tr>
+</table>
+<br>
+ <table cellspacing="0" cellpadding="0"class="report">
+ <tr class="report">
+ <th class="report">&nbsp;</th>
+ <th class="report">%method</th>
+ <th class="report">%block</th>
+ <th class="report">%branch</th>
+ <th class="report">%line</th>
+ </tr>
+ <tr class="report">
+ <td class="reportText"><span class="text"> <b>jdk.classfile.impl.ClassHierarchyImpl</b></span></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>100</b>%(9/9)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width=" 100"></td><td class="percentUnCovered" width="0"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>91</b>%(64/70)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  91"></td><td class="percentUnCovered" width="9"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>84</b>%(53/63)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  84"></td><td class="percentUnCovered" width="16"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>98</b>%(60/61)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  98"></td><td class="percentUnCovered" width="2"></td></tr></table></td></tr></table></td>
+ </tr>
+ </table>
+ <br>
+ <br>
+ <table cellspacing="0" cellpadding="0"class="report" id="mcoverage">
+ <tr class="report">
+ <th class="report">hit count</th>
+ <th class="report">method  name</th>
+ <th class="report">method modifiers</th>
+ <th class="report">method signature</th>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">36</span></td>
+ <td class="reportText"><span class="text"><a href="#src_116">$CachedClassHierarchyResolver.&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void $CachedClassHierarchyResolver.&lt;init&gt;(java.util.function.Function)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">504304</span></td>
+ <td class="reportText"><span class="text"><a href="#src_127">$CachedClassHierarchyResolver.getClassInfo</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.ClassHierarchyResolver$ClassHierarchyInfo $CachedClassHierarchyResolver.getClassInfo(java.lang.constant.ClassDesc)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">3</span></td>
+ <td class="reportText"><span class="text"><a href="#src_172">$StaticClassHierarchyResolver.&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void $StaticClassHierarchyResolver.&lt;init&gt;(java.util.Collection,java.util.Map)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">462</span></td>
+ <td class="reportText"><span class="text"><a href="#src_182">$StaticClassHierarchyResolver.getClassInfo</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.ClassHierarchyResolver$ClassHierarchyInfo $StaticClassHierarchyResolver.getClassInfo(java.lang.constant.ClassDesc)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">192488</span></td>
+ <td class="reportText"><span class="text"><a href="#src_55">&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void &lt;init&gt;(jdk.classfile.ClassHierarchyResolver)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">87463</span></td>
+ <td class="reportText"><span class="text"><a href="#src_90">commonAncestor</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">java.lang.constant.ClassDesc commonAncestor(java.lang.constant.ClassDesc,java.lang.constant.ClassDesc)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">55318</span></td>
+ <td class="reportText"><span class="text"><a href="#src_102">isAssignableFrom</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">boolean isAssignableFrom(java.lang.constant.ClassDesc,java.lang.constant.ClassDesc)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">333579</span></td>
+ <td class="reportText"><span class="text"><a href="#src_77">isInterface</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">boolean isInterface(java.lang.constant.ClassDesc)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">504425</span></td>
+ <td class="reportText"><span class="text"><a href="#src_60">resolve</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.ClassHierarchyResolver$ClassHierarchyInfo resolve(java.lang.constant.ClassDesc)</span></td>
+ </tr>
+ </table>
+ <br>
+ <table cellspacing="0" cellpadding="0" class="src">
+ <tr>
+ <td class="numLine">&nbsp;1</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">/*</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;2</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;3</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;4</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;5</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * This code is free software; you can redistribute it and/or modify it</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;6</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * under the terms of the GNU General Public License version 2 only, as</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;7</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * published by the Free Software Foundation.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;8</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;9</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * This code is distributed in the hope that it will be useful, but WITHOUT</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;10</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;11</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;12</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * version 2 for more details (a copy is included in the LICENSE file that</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;13</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * accompanied this code).</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;14</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;15</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * You should have received a copy of the GNU General Public License version</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;16</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * 2 along with this work; if not, write to the Free Software Foundation,</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;17</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;18</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;19</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;20</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * or visit www.oracle.com if you need additional information or have any</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;21</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * questions.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;22</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;23</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;24</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">package</span> jdk.classfile.impl;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;25</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;26</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.io.BufferedInputStream;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;27</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.io.DataInputStream;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;28</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.io.InputStream;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;29</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.lang.constant.ClassDesc;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;30</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.lang.constant.ConstantDescs;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;31</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.Collection;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;32</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.Collections;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;33</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.HashMap;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;34</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.Map;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;35</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.function.Function;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;36</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;37</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.ClassHierarchyResolver;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;38</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;39</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;40</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Class hierarchy resolution framework is answering questions about classes assignability, common classes ancestor and whether the class represents an interface.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;41</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * All the requests are handled without class loading nor full verification, optionally with incomplete dependencies and with focus on maximum performance.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;42</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;43</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;44</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">public</span> <span Class="keyword">final</span> <span Class="keyword">class</span> ClassHierarchyImpl {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;45</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;46</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">final</span> ClassHierarchyResolver resolver;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;47</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;48</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">//defer initialization of logging until needed</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;49</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> System.Logger logger;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;50</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;51</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;52</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Public constructor of &#60;code&#62;ClassHierarchyImpl&#60;/code&#62; accepting instances of &#60;code&#62;ClassHierarchyInfoResolver&#60;/code&#62; to resolve individual class streams.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;53</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param classHierarchyResolver &#60;code&#62;ClassHierarchyInfoResolver&#60;/code&#62; instance</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;54</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;55<a name="src_55"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> ClassHierarchyImpl(ClassHierarchyResolver classHierarchyResolver) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;56</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">this</span>.resolver = classHierarchyResolver;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;57</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;58</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;59</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> ClassHierarchyResolver.ClassHierarchyInfo resolve(ClassDesc classDesc) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;60<a name="src_60"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        var res = resolver.getClassInfo(classDesc);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;61</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (res != <span Class="keyword">null</span>) <span Class="keyword">return</span> res;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;62</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">//maybe throw an exception here to avoid construction of potentially invalid stack maps</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;63</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (logger == <span Class="keyword">null</span>)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;64</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            logger = System.getLogger(<span Class="string">"jdk.classfile"</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;65</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (logger.isLoggable(System.Logger.Level.DEBUG))</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;66</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            logger.log(System.Logger.Level.DEBUG, <span Class="string">"Could not resolve class "</span> + classDesc.displayName());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;67</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">new</span> ClassHierarchyResolver.ClassHierarchyInfo(classDesc, <span Class="keyword">false</span>, <span Class="keyword">null</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;68</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;69</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;70</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;71</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Method answering question whether given class is an interface,</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;72</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * responding without the class stream resolution and parsing is preferred in case the interface status is known from previous activities.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;73</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param classDesc class path in form of &#38;lt;package&#38;gt;/&#38;lt;class_name&#38;gt;.class</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;74</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @return true if the given class name represents an interface</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;75</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;76</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">boolean</span> isInterface(ClassDesc classDesc) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;77<a name="src_77"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> resolve(classDesc).isInterface();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;78</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;79</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;80</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;81</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Method resolving common ancestor of two classes</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;82</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param symbol1 first class descriptor</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;83</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param symbol2 second class descriptor</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;84</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @return common ancestor class name or &#60;code&#62;null&#60;/code&#62; if it could not be identified</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;85</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;86</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> ClassDesc commonAncestor(ClassDesc symbol1, ClassDesc symbol2) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;87</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">//calculation of common ancestor is a robust (yet fast) way to decide about assignability in incompletely resolved class hierarchy</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;88</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">//exact order of symbol loops is critical for performance of the above isAssignableFrom method, so standard situations are resolved in linear time</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;89</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">//this method returns null if common ancestor could not be identified</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;90<a name="src_90"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (isInterface(symbol1) || isInterface(symbol2)) <span Class="keyword">return</span> ConstantDescs.CD_Object;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;91</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">for</span> (var s1 = symbol1; s1 != <span Class="keyword">null</span>; s1 = resolve(s1).superClass()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;92</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">for</span> (var s2 = symbol2; s2 != <span Class="keyword">null</span>; s2 = resolve(s2).superClass()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;93</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">if</span> (s1.equals(s2)) <span Class="keyword">return</span> s1;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;94</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;95</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;96</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;6/6&nbsp;Branch:&nbsp;4/5&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">null</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;97</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;98</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;99</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">boolean</span> isAssignableFrom(ClassDesc thisClass, ClassDesc fromClass) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;100</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">//extra check if fromClass is an interface is necessay to handle situation when thisClass might not been fully resolved and so it is potentially an unidentified interface</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;101</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">//this special corner-case handling has been added based on better success rate of constructing stack maps with simulated broken resulution of classes and interfaces</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;102<a name="src_102"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (isInterface(fromClass)) <span Class="keyword">return</span> resolve(thisClass).superClass() == <span Class="keyword">null</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;103</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">//regular calculation of assignability is based on common ancestor calculation</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;104</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        var anc = commonAncestor(thisClass, fromClass);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;105</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">//if common ancestor does not exist (as the class hierarchy could not be fully resolved) we optimistically assume the classes might be accessible</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;106</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">//if common ancestor is equal to thisClass then the classes are clearly accessible</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;107</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">//if other common ancestor is calculated (which works even when their grand-parents could not be resolved) then it is clear that thisClass could not be asigned from fromClass</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;108</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;7/8&nbsp;Branch:&nbsp;6/7&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> anc == <span Class="keyword">null</span> || thisClass.equals(anc);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;109</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;110</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;111</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">static</span> <span Class="keyword">final</span> <span Class="keyword">class</span> CachedClassHierarchyResolver <span Class="keyword">implements</span> ClassHierarchyResolver {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;112</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;113</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">private</span> <span Class="keyword">final</span> Function&#60;ClassDesc, InputStream&#62; streamProvider;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;114</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">private</span> <span Class="keyword">final</span> Map&#60;ClassDesc, ClassHierarchyResolver.ClassHierarchyInfo&#62; resolvedCache;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;115</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;116<a name="src_116"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> CachedClassHierarchyResolver(Function&#60;ClassDesc, InputStream&#62; classStreamProvider) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;117</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">this</span>.streamProvider = classStreamProvider;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;118</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">this</span>.resolvedCache = Collections.synchronizedMap(<span Class="keyword">new</span> HashMap&#60;&#62;());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;119</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;120</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;121</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;122</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">// resolve method looks for the class file using &#60;code&#62;ClassStreamResolver&#60;/code&#62; instance and tries to briefly scan it just for minimal information necessary</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;123</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">// minimal information includes: identification of the class as interface, obtaining its superclass name and identification of all potential interfaces (to avoid unnecessary future resolutions of them)</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;124</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">// empty ClInfo is stored in case of an exception to avoid repeated scanning failures</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;125</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;126</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> ClassHierarchyResolver.ClassHierarchyInfo getClassInfo(ClassDesc classDesc) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;127<a name="src_127"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            var res = resolvedCache.get(classDesc);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;128</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">//additional test for null value is important to avoid repeated resolution attempts</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;129</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (res == <span Class="keyword">null</span> &#38;&#38; !resolvedCache.containsKey(classDesc)) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;130</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                var ci = streamProvider.apply(classDesc);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;131</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">if</span> (ci != <span Class="keyword">null</span>) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;132</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/2&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">try</span> (var in = <span Class="keyword">new</span> DataInputStream(<span Class="keyword">new</span> BufferedInputStream(ci))) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;133</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        in.skipBytes(8);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;134</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">int</span> cpLength = in.readUnsignedShort();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;135</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        String[] cpStrings = <span Class="keyword">new</span> String[cpLength];</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;136</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">int</span>[] cpClasses = <span Class="keyword">new</span> <span Class="keyword">int</span>[cpLength];</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;137</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;0/4&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">for</span> (<span Class="keyword">int</span> i=1; i&#60;cpLength; i++) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;138</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            <span Class="keyword">switch</span> (in.readUnsignedByte()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;139</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                <span Class="keyword">case</span> 1 -&#62; cpStrings[i] = in.readUTF();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;140</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                <span Class="keyword">case</span> 7 -&#62; cpClasses[i] = in.readUnsignedShort();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;141</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;2/4&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                <span Class="keyword">case</span> 8, 16, 19, 20 -&#62; in.skipBytes(2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;142</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                <span Class="keyword">case</span> 15 -&#62; in.skipBytes(3);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;143</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;7/8&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                <span Class="keyword">case</span> 3, 4, 9, 10, 11, 12, 17, 18 -&#62; in.skipBytes(4);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;144</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                <span Class="keyword">case</span> 5, 6 -&#62; {in.skipBytes(8); i++;}</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;145</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;146</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;147</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">boolean</span> isInterface = (in.readUnsignedShort() &#38; 0x0200) != 0;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;148</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        in.skipBytes(2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;149</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">int</span> superIndex = in.readUnsignedShort();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;150</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        var superClass = superIndex &#62; 0 ? Util.toClassDesc(cpStrings[cpClasses[superIndex]]) : <span Class="keyword">null</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;151</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        res = <span Class="keyword">new</span> ClassHierarchyInfo(classDesc, isInterface, superClass);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;152</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">int</span> interfCount = in.readUnsignedShort();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;153</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">for</span> (<span Class="keyword">int</span> i=0; i&#60;interfCount; i++) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;154</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            <span Class="comment">//all listed interfaces are cached without resolution</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;155</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            var intDesc = Util.toClassDesc(cpStrings[cpClasses[in.readUnsignedShort()]]);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;156</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            resolvedCache.put(intDesc, <span Class="keyword">new</span> ClassHierarchyResolver.ClassHierarchyInfo(intDesc, <span Class="keyword">true</span>, <span Class="keyword">null</span>));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;157</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;158</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/2&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    } <span Class="keyword">catch</span> (Exception ignore) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;159</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="comment">//ignore</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;160</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;161</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;162</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="comment">//null ClassHierarchyInfo value is also cached to avoid repeated resolution attempts</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;163</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                resolvedCache.put(classDesc, res);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;164</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;165</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;8/10&nbsp;Branch:&nbsp;7/7&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> res;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;166</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;167</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;168</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;169</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">static</span> <span Class="keyword">final</span> <span Class="keyword">class</span> StaticClassHierarchyResolver <span Class="keyword">implements</span> ClassHierarchyResolver {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;170</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">private</span> <span Class="keyword">final</span> Map&#60;ClassDesc, ClassHierarchyInfo&#62; map;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;171</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;172<a name="src_172"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> StaticClassHierarchyResolver(Collection&#60;ClassDesc&#62; interfaceNames, Map&#60;ClassDesc, ClassDesc&#62; classToSuperClass) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;173</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            map = <span Class="keyword">new</span> HashMap&#60;&#62;(interfaceNames.size() + classToSuperClass.size());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;174</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">for</span> (var e : classToSuperClass.entrySet())</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;175</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                map.put(e.getKey(), <span Class="keyword">new</span> ClassHierarchyInfo(e.getKey(), <span Class="keyword">false</span>, e.getValue()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;176</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">for</span> (var i : interfaceNames)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;177</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                map.put(i, <span Class="keyword">new</span> ClassHierarchyInfo(i, <span Class="keyword">true</span>, <span Class="keyword">null</span>));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;178</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;3/3&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;179</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;180</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;181</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> ClassHierarchyInfo getClassInfo(ClassDesc classDesc) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;182<a name="src_182"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> map.get(classDesc);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;183</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;184</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;185</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;}</pre></td>
+ </tr>
+ </table>
+<p>
+<br><table cellpadding="0" cellspacing="0" class="report">  <tr class="report">    <td class="reportText"><span class="text">    Report generated 8/4/22, 3:35 PM    </span></td>  </tr></table>
+</body>
+</html>

@@ -1,0 +1,3029 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>tests coverage</title>
+<link rel ="stylesheet" type="text/css" href="../../../style.css" title="Style">
+<script type="text/javascript" src="../../../sorttable.js"></script>
+<script type="text/javascript">
+  targetPage = "" + window.location.search;
+  if (targetPage != "" && targetPage != "undefined")
+    targetPage = targetPage.substring(1);
+  if (targetPage.indexOf(":") != -1 || (targetPage != "" && !validURL(targetPage)))
+    targetPage = "undefined";
+  function validURL(url) {
+    var pos = url.indexOf(".html");
+    if (pos == -1 || pos != url.length - 5)
+      return false;
+    var allowNumber = false;
+    var allowSep = false;
+    var seenDot = false;
+    for (var i = 0; i < url.length - 5; i++) {
+      var ch = url.charAt(i);
+      if ('a' <= ch && ch <= 'z' ||
+          'A' <= ch && ch <= 'Z' ||
+          ch == '$' ||
+          ch == '_') {
+            allowNumber = true;
+            allowSep = true;
+      } else if ('0' <= ch && ch <= '9' ||
+                 ch == '-') {
+                   if (!allowNumber)
+                     return false;
+      } else if (ch == '/' || ch == '.') {
+        if (!allowSep)
+          return false;
+        allowNumber = false;
+        allowSep = false;
+        if (ch == '.')
+          seenDot = true;
+        if (ch == '/' && seenDot)
+          return false;
+      } else {
+        return false;
+      }
+    }
+    return true;
+  }
+  function loadFrames() {
+    if (targetPage != "" && targetPage != "undefined")
+      top.classFrame.location = top.targetPage;
+  }
+</script>
+</head>
+<body>
+<table>
+<tr>
+<td>
+<a href="../../../index.html?java/lang/invoke/GenerateJLIClassesHelper.html" target="_top">Frames</a>
+<a href="GenerateJLIClassesHelper.html" target="_top">No Frames</a>
+</td>
+</tr>
+</table>
+<br>
+ <table cellspacing="0" cellpadding="0"class="report">
+ <tr class="report">
+ <th class="report">&nbsp;</th>
+ <th class="report">%method</th>
+ <th class="report">%block</th>
+ <th class="report">%branch</th>
+ <th class="report">%line</th>
+ </tr>
+ <tr class="report">
+ <td class="reportText"><span class="text"> <b>java.lang.invoke.GenerateJLIClassesHelper</b></span></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>0</b>%(0/24)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="   0"></td><td class="percentUnCovered" width="100"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>0</b>%(0/182)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="   0"></td><td class="percentUnCovered" width="100"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>0</b>%(0/161)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="   0"></td><td class="percentUnCovered" width="100"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>0</b>%(0/274)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="   0"></td><td class="percentUnCovered" width="100"></td></tr></table></td></tr></table></td>
+ </tr>
+ </table>
+ <br>
+ <br>
+ <table cellspacing="0" cellpadding="0"class="report" id="mcoverage">
+ <tr class="report">
+ <th class="report">hit count</th>
+ <th class="report">method  name</th>
+ <th class="report">method modifiers</th>
+ <th class="report">method signature</th>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_70">$HolderClassBuilder.&lt;clinit&gt;</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void $HolderClassBuilder.&lt;clinit&gt;()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_70">$HolderClassBuilder.&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">void $HolderClassBuilder.&lt;init&gt;()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_90">$HolderClassBuilder.addCallSiteType</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.GenerateJLIClassesHelper$HolderClassBuilder $HolderClassBuilder.addCallSiteType(java.lang.String)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_211">$HolderClassBuilder.addDMHMethodType</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">void $HolderClassBuilder.addDMHMethodType(java.lang.String,java.lang.String)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_84">$HolderClassBuilder.addInvokerType</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.GenerateJLIClassesHelper$HolderClassBuilder $HolderClassBuilder.addInvokerType(java.lang.String)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_79">$HolderClassBuilder.addSpeciesType</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.GenerateJLIClassesHelper$HolderClassBuilder $HolderClassBuilder.addSpeciesType(java.lang.String)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_194">$HolderClassBuilder.asMethodType</a></span></td>
+ <td class="reportText"><span class="text">[private, static]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.MethodType $HolderClassBuilder.asMethodType(java.lang.String)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_96">$HolderClassBuilder.build</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">java.util.Map $HolderClassBuilder.build()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_234">$HolderClassBuilder.expandSignature</a></span></td>
+ <td class="reportText"><span class="text">[private, static]</span></td>
+ <td class="reportText"><span class="text">java.lang.String $HolderClassBuilder.expandSignature(java.lang.String)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_180">$HolderClassBuilder.lambda$build$0</a></span></td>
+ <td class="reportText"><span class="text">[private, static, synthetic]</span></td>
+ <td class="reportText"><span class="text">void $HolderClassBuilder.lambda$build$0(java.util.Map,java.lang.String)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_264">$HolderClassBuilder.requireBasicType</a></span></td>
+ <td class="reportText"><span class="text">[private, static]</span></td>
+ <td class="reportText"><span class="text">void $HolderClassBuilder.requireBasicType(char)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_271">$HolderClassBuilder.simpleType</a></span></td>
+ <td class="reportText"><span class="text">[private, static]</span></td>
+ <td class="reportText"><span class="text">java.lang.Class $HolderClassBuilder.simpleType(char)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_221">$HolderClassBuilder.validateMethodType</a></span></td>
+ <td class="reportText"><span class="text">[private, static]</span></td>
+ <td class="reportText"><span class="text">void $HolderClassBuilder.validateMethodType(java.lang.String)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_50">&lt;clinit&gt;</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void &lt;clinit&gt;()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_50">&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">void &lt;init&gt;()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_341">generateBasicFormsClassBytes</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">byte[] generateBasicFormsClassBytes(java.lang.String)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_507">generateCodeBytesForLFs</a></span></td>
+ <td class="reportText"><span class="text">[private, static]</span></td>
+ <td class="reportText"><span class="text">byte[] generateCodeBytesForLFs(java.lang.String,java.lang.String[],java.lang.invoke.LambdaForm[])</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_545">generateConcreteBMHClassBytes</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">java.util.Map$Entry generateConcreteBMHClassBytes(java.lang.String)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_426">generateDelegatingMethodHandleHolderClassBytes</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">byte[] generateDelegatingMethodHandleHolderClassBytes(java.lang.String,java.lang.invoke.MethodType[])</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_373">generateDirectMethodHandleHolderClassBytes</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">byte[] generateDirectMethodHandleHolderClassBytes(java.lang.String,java.lang.invoke.MethodType[],int[])</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_295">generateHolderClasses</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">java.util.Map generateHolderClasses(java.util.stream.Stream)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_461">generateInvokersHolderClassBytes</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">byte[] generateInvokersHolderClassBytes(java.lang.String,java.lang.invoke.MethodType[],java.lang.invoke.MethodType[])</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_531">makeDelegateFor</a></span></td>
+ <td class="reportText"><span class="text">[private, static]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.LambdaForm makeDelegateFor(java.lang.invoke.MethodType)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_523">makeReinvokerFor</a></span></td>
+ <td class="reportText"><span class="text">[private, static]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.LambdaForm makeReinvokerFor(java.lang.invoke.MethodType)</span></td>
+ </tr>
+ </table>
+ <br>
+ <table cellspacing="0" cellpadding="0" class="src">
+ <tr>
+ <td class="numLine">&nbsp;1</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">/*</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;2</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;3</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;4</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;5</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * This code is free software; you can redistribute it and/or modify it</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;6</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * under the terms of the GNU General Public License version 2 only, as</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;7</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * published by the Free Software Foundation.  Oracle designates this</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;8</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * particular file as subject to the "Classpath" exception as provided</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;9</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * by Oracle in the LICENSE file that accompanied this code.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;10</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;11</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * This code is distributed in the hope that it will be useful, but WITHOUT</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;12</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;13</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;14</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * version 2 for more details (a copy is included in the LICENSE file that</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;15</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * accompanied this code).</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;16</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;17</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * You should have received a copy of the GNU General Public License version</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;18</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * 2 along with this work; if not, write to the Free Software Foundation,</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;19</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;20</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;21</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;22</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * or visit www.oracle.com if you need additional information or have any</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;23</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * questions.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;24</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;25</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;26</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">package</span> java.lang.invoke;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;27</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;28</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.internal.org.objectweb.asm.ClassWriter;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;29</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.internal.org.objectweb.asm.Opcodes;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;30</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> sun.invoke.util.Wrapper;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;31</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;32</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.ArrayList;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;33</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.HashSet;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;34</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.Map;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;35</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.Objects;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;36</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.Set;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;37</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.TreeMap;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;38</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.TreeSet;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;39</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.stream.Stream;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;40</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;41</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> java.lang.invoke.LambdaForm.BasicType.*;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;42</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> java.lang.invoke.MethodHandleStatics.CLASSFILE_VERSION;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;43</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> java.lang.invoke.MethodTypeForm.*;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;44</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> java.lang.invoke.LambdaForm.Kind.*;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;45</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;46</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;47</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Helper class to assist the GenerateJLIClassesPlugin to get access to</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;48</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * generate classes ahead of time.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;49</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;50<a name="src_50"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">class</span> GenerateJLIClassesHelper {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;51</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">// Map from DirectMethodHandle method type name to index to LambdForms</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;52</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">final</span> Map&#60;String, Integer&#62; DMH_METHOD_TYPE_MAP =</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;53</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            Map.of(</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;54</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    DIRECT_INVOKE_VIRTUAL.methodName,     LF_INVVIRTUAL,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;55</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    DIRECT_INVOKE_STATIC.methodName,      LF_INVSTATIC,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;56</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    DIRECT_INVOKE_SPECIAL.methodName,     LF_INVSPECIAL,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;57</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    DIRECT_NEW_INVOKE_SPECIAL.methodName, LF_NEWINVSPECIAL,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;58</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    DIRECT_INVOKE_INTERFACE.methodName,   LF_INVINTERFACE,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;59</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    DIRECT_INVOKE_STATIC_INIT.methodName, LF_INVSTATIC_INIT,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;60</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    DIRECT_INVOKE_SPECIAL_IFC.methodName, LF_INVSPECIAL_IFC</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;61</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            );</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;62</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;63</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">final</span> String DIRECT_HOLDER = <span Class="string">"java/lang/invoke/DirectMethodHandle$Holder"</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;64</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">final</span> String DELEGATING_HOLDER = <span Class="string">"java/lang/invoke/DelegatingMethodHandle$Holder"</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;65</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">final</span> String BASIC_FORMS_HOLDER = <span Class="string">"java/lang/invoke/LambdaForm$Holder"</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;66</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">final</span> String INVOKERS_HOLDER = <span Class="string">"java/lang/invoke/Invokers$Holder"</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;67</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/2&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">final</span> String INVOKERS_HOLDER_CLASS_NAME = INVOKERS_HOLDER.replace('/', '.');</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;68</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">final</span> String BMH_SPECIES_PREFIX = <span Class="string">"java.lang.invoke.BoundMethodHandle$Species_"</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;69</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;70<a name="src_70"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/5&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">class</span> HolderClassBuilder {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;71</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;72</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;73</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">private</span> <span Class="keyword">final</span> TreeSet&#60;String&#62; speciesTypes = <span Class="keyword">new</span> TreeSet&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;74</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">private</span> <span Class="keyword">final</span> TreeSet&#60;String&#62; invokerTypes = <span Class="keyword">new</span> TreeSet&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;75</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">private</span> <span Class="keyword">final</span> TreeSet&#60;String&#62; callSiteTypes = <span Class="keyword">new</span> TreeSet&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;76</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">private</span> <span Class="keyword">final</span> Map&#60;String, Set&#60;String&#62;&#62; dmhMethods = <span Class="keyword">new</span> TreeMap&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;77</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;78</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        HolderClassBuilder addSpeciesType(String type) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;79<a name="src_79"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            speciesTypes.add(expandSignature(type));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;80</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> <span Class="keyword">this</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;81</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;82</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;83</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        HolderClassBuilder addInvokerType(String methodType) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;84<a name="src_84"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            validateMethodType(methodType);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;85</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            invokerTypes.add(methodType);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;86</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> <span Class="keyword">this</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;87</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;88</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;89</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        HolderClassBuilder addCallSiteType(String csType) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;90<a name="src_90"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            validateMethodType(csType);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;91</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            callSiteTypes.add(csType);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;92</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> <span Class="keyword">this</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;93</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;94</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;95</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        Map&#60;String, <span Class="keyword">byte</span>[]&#62; build() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;96<a name="src_96"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">int</span> count = 0;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;97</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">for</span> (Set&#60;String&#62; entry : dmhMethods.values()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;98</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                count += entry.size();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;99</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;100</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            MethodType[] directMethodTypes = <span Class="keyword">new</span> MethodType[count];</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;101</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">int</span>[] dmhTypes = <span Class="keyword">new</span> <span Class="keyword">int</span>[count];</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;102</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">int</span> index = 0;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;103</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">for</span> (Map.Entry&#60;String, Set&#60;String&#62;&#62; entry : dmhMethods.entrySet()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;104</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                String dmhType = entry.getKey();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;105</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">for</span> (String type : entry.getValue()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;106</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="comment">// The DMH type to actually ask for is retrieved by removing</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;107</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="comment">// the first argument, which needs to be of Object.class</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;108</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    MethodType mt = asMethodType(type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;109</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">if</span> (mt.parameterCount() &#60; 1 ||</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;110</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            mt.parameterType(0) != Object.<span Class="keyword">class</span>) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;111</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">throw</span> <span Class="keyword">new</span> RuntimeException(</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;112</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                <span Class="string">"DMH type parameter must start with L: "</span> + dmhType + <span Class="string">" "</span> + type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;113</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;114</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;115</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="comment">// Adapt the method type of the LF to retrieve</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;116</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    directMethodTypes[index] = mt.dropParameterTypes(0, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;117</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;118</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="comment">// invokeVirtual and invokeInterface must have a leading Object</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;119</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="comment">// parameter, i.e., the receiver</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;120</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    dmhTypes[index] = DMH_METHOD_TYPE_MAP.get(dmhType);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;121</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">if</span> (dmhTypes[index] == LF_INVINTERFACE || dmhTypes[index] == LF_INVVIRTUAL) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;122</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">if</span> (mt.parameterCount() &#60; 2 ||</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;123</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                mt.parameterType(1) != Object.<span Class="keyword">class</span>) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;124</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            <span Class="keyword">throw</span> <span Class="keyword">new</span> RuntimeException(</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;125</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                    <span Class="string">"DMH type parameter must start with LL: "</span> + dmhType + <span Class="string">" "</span> + type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;126</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;127</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;128</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    index++;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;129</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;130</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;131</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;132</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// The invoker type to ask for is retrieved by removing the first</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;133</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// and the last argument, which needs to be of Object.class</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;134</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            MethodType[] invokerMethodTypes = <span Class="keyword">new</span> MethodType[invokerTypes.size()];</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;135</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            index = 0;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;136</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">for</span> (String invokerType : invokerTypes) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;137</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                MethodType mt = asMethodType(invokerType);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;138</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">final</span> <span Class="keyword">int</span> lastParam = mt.parameterCount() - 1;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;139</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">if</span> (mt.parameterCount() &#60; 2 ||</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;140</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        mt.parameterType(0) != Object.<span Class="keyword">class</span> ||</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;141</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        mt.parameterType(lastParam) != Object.<span Class="keyword">class</span>) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;142</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/3&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">throw</span> <span Class="keyword">new</span> RuntimeException(</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;143</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            <span Class="string">"Invoker type parameter must start and end with Object: "</span> + invokerType);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;144</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;145</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                mt = mt.dropParameterTypes(lastParam, lastParam + 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;146</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                invokerMethodTypes[index] = mt.dropParameterTypes(0, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;147</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                index++;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;148</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;149</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;150</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// The callSite type to ask for is retrieved by removing the last</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;151</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// argument, which needs to be of Object.class</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;152</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            MethodType[] callSiteMethodTypes = <span Class="keyword">new</span> MethodType[callSiteTypes.size()];</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;153</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            index = 0;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;154</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">for</span> (String callSiteType : callSiteTypes) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;155</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                MethodType mt = asMethodType(callSiteType);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;156</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">final</span> <span Class="keyword">int</span> lastParam = mt.parameterCount() - 1;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;157</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">if</span> (mt.parameterCount() &#60; 1 ||</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;158</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        mt.parameterType(lastParam) != Object.<span Class="keyword">class</span>) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;159</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">throw</span> <span Class="keyword">new</span> RuntimeException(</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;160</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            <span Class="string">"CallSite type parameter must end with Object: "</span> + callSiteType);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;161</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;162</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                callSiteMethodTypes[index] = mt.dropParameterTypes(lastParam, lastParam + 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;163</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                index++;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;164</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;165</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;166</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            Map&#60;String, <span Class="keyword">byte</span>[]&#62; result = <span Class="keyword">new</span> TreeMap&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;167</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            result.put(DIRECT_HOLDER,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;168</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                       generateDirectMethodHandleHolderClassBytes(</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;169</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            DIRECT_HOLDER, directMethodTypes, dmhTypes));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;170</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            result.put(DELEGATING_HOLDER,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;171</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                       generateDelegatingMethodHandleHolderClassBytes(</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;172</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            DELEGATING_HOLDER, directMethodTypes));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;173</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            result.put(INVOKERS_HOLDER,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;174</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                       generateInvokersHolderClassBytes(INVOKERS_HOLDER,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;175</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            invokerMethodTypes, callSiteMethodTypes));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;176</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            result.put(BASIC_FORMS_HOLDER,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;177</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                       generateBasicFormsClassBytes(BASIC_FORMS_HOLDER));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;178</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;179</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            speciesTypes.forEach(types -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;180<a name="src_180"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                Map.Entry&#60;String, <span Class="keyword">byte</span>[]&#62; entry = generateConcreteBMHClassBytes(types);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;181</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                result.put(entry.getKey(), entry.getValue());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;182</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            });</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;183</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;184</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// clear builder</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;185</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            speciesTypes.clear();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;186</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            invokerTypes.clear();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;187</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            callSiteTypes.clear();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;188</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            dmhMethods.clear();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;189</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;190</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/6&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> result;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;191</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;192</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;193</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">private</span> <span Class="keyword">static</span> MethodType asMethodType(String basicSignatureString) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;194<a name="src_194"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            String[] parts = basicSignatureString.split(<span Class="string">"_"</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;195</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">assert</span> (parts.length == 2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;196</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">assert</span> (parts[1].length() == 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;197</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            String parameters = expandSignature(parts[0]);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;198</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            Class&#60;?&#62; rtype = simpleType(parts[1].charAt(0));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;199</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (parameters.isEmpty()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;200</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">return</span> MethodType.methodType(rtype);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;201</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            } <span Class="keyword">else</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;202</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                Class&#60;?&#62;[] ptypes = <span Class="keyword">new</span> Class&#60;?&#62;[parameters.length()];</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;203</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">for</span> (<span Class="keyword">int</span> i = 0; i &#60; ptypes.length; i++) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;204</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    ptypes[i] = simpleType(parameters.charAt(i));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;205</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;206</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/6&nbsp;Branch:&nbsp;0/5&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">return</span> MethodType.methodType(rtype, ptypes);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;207</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;208</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;209</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;210</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">private</span> <span Class="keyword">void</span> addDMHMethodType(String dmh, String methodType) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;211<a name="src_211"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            validateMethodType(methodType);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;212</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            Set&#60;String&#62; methodTypes = dmhMethods.get(dmh);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;213</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (methodTypes == <span Class="keyword">null</span>) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;214</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                methodTypes = <span Class="keyword">new</span> TreeSet&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;215</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                dmhMethods.put(dmh, methodTypes);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;216</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;217</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            methodTypes.add(methodType);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;218</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;219</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;220</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">private</span> <span Class="keyword">static</span> <span Class="keyword">void</span> validateMethodType(String type) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;221<a name="src_221"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            String[] typeParts = type.split(<span Class="string">"_"</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;222</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// check return type (second part)</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;223</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (typeParts.length != 2 || typeParts[1].length() != 1</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;224</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    || !isBasicTypeChar(typeParts[1].charAt(0))) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;225</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/3&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">throw</span> <span Class="keyword">new</span> RuntimeException(</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;226</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="string">"Method type signature must be of form [LJIFD]*_[LJIFDV]"</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;227</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;228</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// expand and check arguments (first part)</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;229</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            expandSignature(typeParts[0]);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;230</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;231</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;232</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">// Convert LL -&#62; LL, L3 -&#62; LLL</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;233</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">private</span> <span Class="keyword">static</span> String expandSignature(String signature) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;234<a name="src_234"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            StringBuilder sb = <span Class="keyword">new</span> StringBuilder();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;235</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">char</span> last = 'X';</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;236</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">int</span> count = 0;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;237</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">for</span> (<span Class="keyword">int</span> i = 0; i &#60; signature.length(); i++) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;238</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">char</span> c = signature.charAt(i);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;239</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">if</span> (c &#62;= '0' &#38;&#38; c &#60;= '9') {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;240</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    count *= 10;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;241</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    count += (c - '0');</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;242</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                } <span Class="keyword">else</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;243</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    requireBasicType(c);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;244</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">for</span> (<span Class="keyword">int</span> j = 1; j &#60; count; j++) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;245</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        sb.append(last);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;246</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;247</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    sb.append(c);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;248</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    last = c;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;249</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    count = 0;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;250</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;251</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;252</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;253</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// ended with a number, e.g., "L2": append last char count - 1 times</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;254</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (count &#62; 1) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;255</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                requireBasicType(last);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;256</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">for</span> (<span Class="keyword">int</span> j = 1; j &#60; count; j++) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;257</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    sb.append(last);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;258</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;259</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;260</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/5&nbsp;Branch:&nbsp;0/3&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> sb.toString();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;261</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;262</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;263</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">private</span> <span Class="keyword">static</span> <span Class="keyword">void</span> requireBasicType(<span Class="keyword">char</span> c) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;264<a name="src_264"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (!isArgBasicTypeChar(c)) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;265</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">throw</span> <span Class="keyword">new</span> RuntimeException(</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;266</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="string">"Character "</span> + c + <span Class="string">" must correspond to a basic field type: LIJFD"</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;267</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;268</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;269</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;270</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">private</span> <span Class="keyword">static</span> Class&#60;?&#62; simpleType(<span Class="keyword">char</span> c) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;271<a name="src_271"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (isBasicTypeChar(c)) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;272</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">return</span> LambdaForm.BasicType.basicType(c).basicTypeClass();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;273</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;274</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">switch</span> (c) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;275</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> 'Z':</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;276</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> 'B':</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;277</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> 'S':</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;278</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> 'C':</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;279</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/4&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">throw</span> <span Class="keyword">new</span> IllegalArgumentException(<span Class="string">"Not a valid primitive: "</span> + c +</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;280</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            <span Class="string">" (use I instead)"</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;281</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">default</span>:</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;282</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">throw</span> <span Class="keyword">new</span> IllegalArgumentException(<span Class="string">"Not a primitive: "</span> + c);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;283</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;284</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;285</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;286</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;287</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;288</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Returns a map of class name in internal form to the corresponding class bytes</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;289</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * per the given stream of SPECIES_RESOLVE and LF_RESOLVE trace logs.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;290</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;291</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Used by GenerateJLIClassesPlugin to pre-generate holder classes during</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;292</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * jlink phase.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;293</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;294</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> Map&#60;String, <span Class="keyword">byte</span>[]&#62; generateHolderClasses(Stream&#60;String&#62; traces)  {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;295<a name="src_295"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        Objects.requireNonNull(traces);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;296</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        HolderClassBuilder builder = <span Class="keyword">new</span> HolderClassBuilder();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;297<a name="src_297"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        traces.map(line -&#62; line.split(<span Class="string">" "</span>))</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;298</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                .forEach(parts -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;299<a name="src_299"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">switch</span> (parts[0]) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;300</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">case</span> <span Class="string">"[SPECIES_RESOLVE]"</span>:</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;301</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            <span Class="comment">// Allow for new types of species data classes being resolved here</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;302</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            <span Class="keyword">assert</span> parts.length &#62;= 2;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;303</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            <span Class="keyword">if</span> (parts[1].startsWith(BMH_SPECIES_PREFIX)) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;304</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                String species = parts[1].substring(BMH_SPECIES_PREFIX.length());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;305</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                <span Class="keyword">if</span> (!<span Class="string">"L"</span>.equals(species)) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;306</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                    builder.addSpeciesType(species);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;307</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;308</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;309</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            <span Class="keyword">break</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;310</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">case</span> <span Class="string">"[LF_RESOLVE]"</span>:</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;311</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            <span Class="keyword">assert</span> parts.length &#62; 3;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;312</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            String methodType = parts[3];</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;313</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            <span Class="keyword">if</span> (parts[1].equals(INVOKERS_HOLDER_CLASS_NAME)) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;314</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                <span Class="keyword">if</span> (<span Class="string">"linkToTargetMethod"</span>.equals(parts[2]) ||</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;315</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                        <span Class="string">"linkToCallSite"</span>.equals(parts[2])) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;316</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                    builder.addCallSiteType(methodType);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;317</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                } <span Class="keyword">else</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;318</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                    builder.addInvokerType(methodType);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;319</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;320</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            } <span Class="keyword">else</span> <span Class="keyword">if</span> (parts[1].contains(<span Class="string">"DirectMethodHandle"</span>)) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;321</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                String dmh = parts[2];</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;322</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                <span Class="comment">// ignore getObject etc for now (generated by default)</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;323</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                <span Class="keyword">if</span> (DMH_METHOD_TYPE_MAP.containsKey(dmh)) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;324</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                    builder.addDMHMethodType(dmh, methodType);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;325</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;326</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;327</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            <span Class="keyword">break</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;328</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">default</span>:</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;329</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            <span Class="keyword">break</span>; <span Class="comment">// ignore</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;330</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;331</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/10&nbsp;Branch:&nbsp;0/14&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                });</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;332</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;333</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> builder.build();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;334</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;335</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;336</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;337</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Returns a {@code byte[]} representation of a class implementing</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;338</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * the zero and identity forms of all {@code LambdaForm.BasicType}s.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;339</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;340</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">byte</span>[] generateBasicFormsClassBytes(String className) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;341<a name="src_341"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        ArrayList&#60;LambdaForm&#62; forms = <span Class="keyword">new</span> ArrayList&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;342</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        ArrayList&#60;String&#62; names = <span Class="keyword">new</span> ArrayList&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;343</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        HashSet&#60;String&#62; dedupSet = <span Class="keyword">new</span> HashSet&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;344</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">for</span> (LambdaForm.BasicType type : LambdaForm.BasicType.values()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;345</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            LambdaForm zero = LambdaForm.zeroForm(type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;346</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            String name = zero.kind.defaultLambdaName</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;347</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                   + <span Class="string">"_"</span> + zero.returnType().basicTypeChar();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;348</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (dedupSet.add(name)) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;349</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                names.add(name);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;350</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                forms.add(zero);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;351</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;352</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;353</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            LambdaForm identity = LambdaForm.identityForm(type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;354</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            name = identity.kind.defaultLambdaName</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;355</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                   + <span Class="string">"_"</span> + identity.returnType().basicTypeChar();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;356</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (dedupSet.add(name)) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;357</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                names.add(name);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;358</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                forms.add(identity);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;359</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;360</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;361</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/2&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> generateCodeBytesForLFs(className,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;362</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                names.toArray(<span Class="keyword">new</span> String[0]),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;363</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                forms.toArray(<span Class="keyword">new</span> LambdaForm[0]));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;364</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;365</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;366</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;367</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Returns a {@code byte[]} representation of a class implementing</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;368</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * DirectMethodHandle of each pairwise combination of {@code MethodType} and</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;369</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * an {@code int} representing method type.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;370</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;371</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">byte</span>[] generateDirectMethodHandleHolderClassBytes(String className,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;372</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            MethodType[] methodTypes, <span Class="keyword">int</span>[] types) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;373<a name="src_373"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        ArrayList&#60;LambdaForm&#62; forms = <span Class="keyword">new</span> ArrayList&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;374</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        ArrayList&#60;String&#62; names = <span Class="keyword">new</span> ArrayList&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;375</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">for</span> (<span Class="keyword">int</span> i = 0; i &#60; methodTypes.length; i++) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;376</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// invokeVirtual and invokeInterface must have a leading Object</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;377</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// parameter, i.e., the receiver</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;378</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (types[i] == LF_INVVIRTUAL || types[i] == LF_INVINTERFACE) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;379</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">if</span> (methodTypes[i].parameterCount() &#60; 1 ||</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;380</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        methodTypes[i].parameterType(0) != Object.<span Class="keyword">class</span>) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;381</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">throw</span> <span Class="keyword">new</span> InternalError(<span Class="string">"Invalid method type for "</span> +</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;382</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            (types[i] == LF_INVVIRTUAL ? <span Class="string">"invokeVirtual"</span> : <span Class="string">"invokeInterface"</span>) +</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;383</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            <span Class="string">" DMH, needs at least two leading reference arguments: "</span> +</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;384</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            methodTypes[i]);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;385</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;386</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;387</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;388</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            LambdaForm form = DirectMethodHandle.makePreparedLambdaForm(methodTypes[i], types[i]);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;389</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            forms.add(form);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;390</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            names.add(form.kind.defaultLambdaName);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;391</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;392</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/2&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">for</span> (Wrapper wrapper : Wrapper.values()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;393</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (wrapper == Wrapper.VOID) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;394</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">continue</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;395</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;396</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/2&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">for</span> (<span Class="keyword">byte</span> b = DirectMethodHandle.AF_GETFIELD; b &#60; DirectMethodHandle.AF_LIMIT; b++) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;397</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">int</span> ftype = DirectMethodHandle.ftypeKind(wrapper.primitiveType());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;398</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                LambdaForm form = DirectMethodHandle</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;399</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        .makePreparedFieldLambdaForm(b, <span Class="comment">/*<span Class="comment">isVolatile*/</span><span Class="keyword">false</span>, ftype);</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;400</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">if</span> (form.kind != LambdaForm.Kind.GENERIC) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;401</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    forms.add(form);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;402</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    names.add(form.kind.defaultLambdaName);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;403</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;404</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="comment">// volatile</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;405</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                form = DirectMethodHandle</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;406</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        .makePreparedFieldLambdaForm(b, <span Class="comment">/*<span Class="comment">isVolatile*/</span><span Class="keyword">true</span>, ftype);</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;407</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">if</span> (form.kind != LambdaForm.Kind.GENERIC) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;408</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    forms.add(form);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;409</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    names.add(form.kind.defaultLambdaName);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;410</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;411</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;412</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;413</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/8&nbsp;Branch:&nbsp;0/4&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> generateCodeBytesForLFs(className,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;414</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                names.toArray(<span Class="keyword">new</span> String[0]),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;415</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                forms.toArray(<span Class="keyword">new</span> LambdaForm[0]));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;416</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;417</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;418</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;419</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Returns a {@code byte[]} representation of a class implementing</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;420</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * DelegatingMethodHandles of each {@code MethodType} kind in the</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;421</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@code methodTypes} argument.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;422</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;423</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">byte</span>[] generateDelegatingMethodHandleHolderClassBytes(String className,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;424</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            MethodType[] methodTypes) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;425</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;426<a name="src_426"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        HashSet&#60;MethodType&#62; dedupSet = <span Class="keyword">new</span> HashSet&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;427</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        ArrayList&#60;LambdaForm&#62; forms = <span Class="keyword">new</span> ArrayList&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;428</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        ArrayList&#60;String&#62; names = <span Class="keyword">new</span> ArrayList&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;429</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">for</span> (<span Class="keyword">int</span> i = 0; i &#60; methodTypes.length; i++) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;430</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// generate methods representing the DelegatingMethodHandle</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;431</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (dedupSet.add(methodTypes[i])) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;432</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="comment">// reinvokers are variant with the associated SpeciesData</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;433</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="comment">// and shape of the target LF, but we can easily pregenerate</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;434</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="comment">// the basic reinvokers associated with Species_L. Ultimately we</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;435</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="comment">// may want to consider pregenerating more of these, which will</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;436</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="comment">// require an even more complex naming scheme</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;437</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                LambdaForm reinvoker = makeReinvokerFor(methodTypes[i]);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;438</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                forms.add(reinvoker);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;439</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                String speciesSig = BoundMethodHandle.speciesDataFor(reinvoker).key();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;440</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">assert</span>(speciesSig.equals(<span Class="string">"L"</span>));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;441</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                names.add(reinvoker.kind.defaultLambdaName + <span Class="string">"_"</span> + speciesSig);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;442</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;443</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                LambdaForm delegate = makeDelegateFor(methodTypes[i]);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;444</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                forms.add(delegate);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;445</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                names.add(delegate.kind.defaultLambdaName);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;446</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;447</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;448</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/4&nbsp;Branch:&nbsp;0/3&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> generateCodeBytesForLFs(className,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;449</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                names.toArray(<span Class="keyword">new</span> String[0]),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;450</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                forms.toArray(<span Class="keyword">new</span> LambdaForm[0]));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;451</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;452</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;453</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;454</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Returns a {@code byte[]} representation of a class implementing</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;455</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * the invoker forms for the set of supplied {@code invokerMethodTypes}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;456</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * and {@code callSiteMethodTypes}.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;457</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;458</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">byte</span>[] generateInvokersHolderClassBytes(String className,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;459</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            MethodType[] invokerMethodTypes, MethodType[] callSiteMethodTypes) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;460</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;461<a name="src_461"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        HashSet&#60;MethodType&#62; dedupSet = <span Class="keyword">new</span> HashSet&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;462</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        ArrayList&#60;LambdaForm&#62; forms = <span Class="keyword">new</span> ArrayList&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;463</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        ArrayList&#60;String&#62; names = <span Class="keyword">new</span> ArrayList&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;464</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">int</span>[] types = {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;465</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            MethodTypeForm.LF_EX_LINKER,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;466</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            MethodTypeForm.LF_EX_INVOKER,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;467</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            MethodTypeForm.LF_GEN_LINKER,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;468</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            MethodTypeForm.LF_GEN_INVOKER</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;469</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        };</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;470</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;471</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">for</span> (<span Class="keyword">int</span> i = 0; i &#60; invokerMethodTypes.length; i++) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;472</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// generate methods representing invokers of the specified type</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;473</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (dedupSet.add(invokerMethodTypes[i])) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;474</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">for</span> (<span Class="keyword">int</span> type : types) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;475</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    LambdaForm invokerForm = Invokers.invokeHandleForm(invokerMethodTypes[i],</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;476</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            <span Class="comment">/*<span Class="comment">customized*/</span><span Class="keyword">false</span>, type);</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;477</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    forms.add(invokerForm);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;478</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    names.add(invokerForm.kind.defaultLambdaName);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;479</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;480</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;481</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;482</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;483</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        dedupSet = <span Class="keyword">new</span> HashSet&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;484</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">for</span> (<span Class="keyword">int</span> i = 0; i &#60; callSiteMethodTypes.length; i++) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;485</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// generate methods representing invokers of the specified type</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;486</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (dedupSet.add(callSiteMethodTypes[i])) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;487</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                LambdaForm callSiteForm = Invokers.callSiteForm(callSiteMethodTypes[i], <span Class="keyword">true</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;488</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                forms.add(callSiteForm);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;489</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                names.add(callSiteForm.kind.defaultLambdaName);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;490</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;491</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                LambdaForm methodHandleForm = Invokers.callSiteForm(callSiteMethodTypes[i], <span Class="keyword">false</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;492</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                forms.add(methodHandleForm);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;493</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                names.add(methodHandleForm.kind.defaultLambdaName);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;494</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;495</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;496</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;497</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/4&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> generateCodeBytesForLFs(className,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;498</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                names.toArray(<span Class="keyword">new</span> String[0]),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;499</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                forms.toArray(<span Class="keyword">new</span> LambdaForm[0]));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;500</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;501</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;502</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;503</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Generate customized code for a set of LambdaForms of specified types into</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;504</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * a class with a specified name.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;505</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;506</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> <span Class="keyword">byte</span>[] generateCodeBytesForLFs(String className, String[] names, LambdaForm[] forms) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;507<a name="src_507"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        ClassWriter cw = <span Class="keyword">new</span> ClassWriter(ClassWriter.COMPUTE_MAXS + ClassWriter.COMPUTE_FRAMES);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;508</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        cw.visit(CLASSFILE_VERSION, Opcodes.ACC_PRIVATE + Opcodes.ACC_FINAL + Opcodes.ACC_SUPER,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;509</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                className, <span Class="keyword">null</span>, InvokerBytecodeGenerator.INVOKER_SUPER_NAME, <span Class="keyword">null</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;510</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        cw.visitSource(className.substring(className.lastIndexOf('/') + 1), <span Class="keyword">null</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;511</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;512</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">for</span> (<span Class="keyword">int</span> i = 0; i &#60; forms.length; i++) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;513</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            InvokerBytecodeGenerator g</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;514</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                = <span Class="keyword">new</span> InvokerBytecodeGenerator(className, names[i], forms[i], forms[i].methodType());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;515</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            g.setClassWriter(cw);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;516</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            g.addMethod();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;517</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;518</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;519</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/2&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> cw.toByteArray();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;520</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;521</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;522</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> LambdaForm makeReinvokerFor(MethodType type) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;523<a name="src_523"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        MethodHandle emptyHandle = MethodHandles.empty(type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;524</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> DelegatingMethodHandle.makeReinvokerForm(emptyHandle,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;525</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                MethodTypeForm.LF_REBIND,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;526</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                BoundMethodHandle.speciesData_L(),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;527</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                BoundMethodHandle.speciesData_L().getterFunction(0));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;528</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;529</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;530</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> LambdaForm makeDelegateFor(MethodType type) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;531<a name="src_531"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        MethodHandle handle = MethodHandles.empty(type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;532</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> DelegatingMethodHandle.makeReinvokerForm(</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;533</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                handle,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;534</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                MethodTypeForm.LF_DELEGATE,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;535</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                DelegatingMethodHandle.<span Class="keyword">class</span>,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;536</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                DelegatingMethodHandle.NF_getTarget);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;537</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;538</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;539</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;540</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Returns a {@code byte[]} representation of {@code BoundMethodHandle}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;541</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * species class implementing the signature defined by {@code types}.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;542</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;543</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    @SuppressWarnings({<span Class="string">"rawtypes"</span>, <span Class="string">"unchecked"</span>})</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;544</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> Map.Entry&#60;String, <span Class="keyword">byte</span>[]&#62; generateConcreteBMHClassBytes(<span Class="keyword">final</span> String types) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;545<a name="src_545"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/2&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">for</span> (<span Class="keyword">char</span> c : types.toCharArray()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;546</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (!isArgBasicTypeChar(c)) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;547</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">throw</span> <span Class="keyword">new</span> IllegalArgumentException(<span Class="string">"All characters must "</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;548</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        + <span Class="string">"correspond to a basic field type: LIJFD"</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;549</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;550</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;551</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">final</span> BoundMethodHandle.SpeciesData species = BoundMethodHandle.SPECIALIZER.findSpecies(types);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;552</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">final</span> String className = species.speciesCode().getName();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;553</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">final</span> ClassSpecializer.Factory factory = BoundMethodHandle.SPECIALIZER.factory();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;554</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">final</span> <span Class="keyword">byte</span>[] code = factory.generateConcreteSpeciesCodeFile(className, species);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;555</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> Map.entry(className.replace('.', '/'), code);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;556</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;557</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;558</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;}</pre></td>
+ </tr>
+ </table>
+<p>
+<br><table cellpadding="0" cellspacing="0" class="report">  <tr class="report">    <td class="reportText"><span class="text">    Report generated 8/4/22, 3:35 PM    </span></td>  </tr></table>
+</body>
+</html>

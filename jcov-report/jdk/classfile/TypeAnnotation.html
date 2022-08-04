@@ -1,0 +1,3619 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>tests coverage</title>
+<link rel ="stylesheet" type="text/css" href="../../style.css" title="Style">
+<script type="text/javascript" src="../../sorttable.js"></script>
+<script type="text/javascript">
+  targetPage = "" + window.location.search;
+  if (targetPage != "" && targetPage != "undefined")
+    targetPage = targetPage.substring(1);
+  if (targetPage.indexOf(":") != -1 || (targetPage != "" && !validURL(targetPage)))
+    targetPage = "undefined";
+  function validURL(url) {
+    var pos = url.indexOf(".html");
+    if (pos == -1 || pos != url.length - 5)
+      return false;
+    var allowNumber = false;
+    var allowSep = false;
+    var seenDot = false;
+    for (var i = 0; i < url.length - 5; i++) {
+      var ch = url.charAt(i);
+      if ('a' <= ch && ch <= 'z' ||
+          'A' <= ch && ch <= 'Z' ||
+          ch == '$' ||
+          ch == '_') {
+            allowNumber = true;
+            allowSep = true;
+      } else if ('0' <= ch && ch <= '9' ||
+                 ch == '-') {
+                   if (!allowNumber)
+                     return false;
+      } else if (ch == '/' || ch == '.') {
+        if (!allowSep)
+          return false;
+        allowNumber = false;
+        allowSep = false;
+        if (ch == '.')
+          seenDot = true;
+        if (ch == '/' && seenDot)
+          return false;
+      } else {
+        return false;
+      }
+    }
+    return true;
+  }
+  function loadFrames() {
+    if (targetPage != "" && targetPage != "undefined")
+      top.classFrame.location = top.targetPage;
+  }
+</script>
+</head>
+<body>
+<table>
+<tr>
+<td>
+<a href="../../index.html?jdk/classfile/TypeAnnotation.html" target="_top">Frames</a>
+<a href="TypeAnnotation.html" target="_top">No Frames</a>
+</td>
+</tr>
+</table>
+<br>
+ <table cellspacing="0" cellpadding="0"class="report">
+ <tr class="report">
+ <th class="report">&nbsp;</th>
+ <th class="report">%method</th>
+ <th class="report">%block</th>
+ <th class="report">%branch</th>
+ <th class="report">%line</th>
+ </tr>
+ <tr class="report">
+ <td class="reportText"><span class="text"> <b>jdk.classfile.TypeAnnotation</b></span></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>52</b>%(23/44)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  52"></td><td class="percentUnCovered" width="48"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>56</b>%(28/50)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  56"></td><td class="percentUnCovered" width="44"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>80</b>%(4/5)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  80"></td><td class="percentUnCovered" width="20"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>73</b>%(62/84)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  73"></td><td class="percentUnCovered" width="27"></td></tr></table></td></tr></table></td>
+ </tr>
+ </table>
+ <br>
+ <br>
+ <table cellspacing="0" cellpadding="0"class="report" id="mcoverage">
+ <tr class="report">
+ <th class="report">hit count</th>
+ <th class="report">method  name</th>
+ <th class="report">method modifiers</th>
+ <th class="report">method signature</th>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">5</span></td>
+ <td class="reportText"><span class="text"><a href="#src_504">$LocalVarTargetInfo.of</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$LocalVarTargetInfo $LocalVarTargetInfo.of(jdk.classfile.Label,jdk.classfile.Label,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">630</span></td>
+ <td class="reportText"><span class="text"><a href="#src_270">$TargetInfo.of</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$EmptyTarget $TargetInfo.of(jdk.classfile.TypeAnnotation$TargetType)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">408</span></td>
+ <td class="reportText"><span class="text"><a href="#src_334">$TargetInfo.ofCastExpr</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$TypeArgumentTarget $TargetInfo.ofCastExpr(jdk.classfile.Label,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_254">$TargetInfo.ofClassExtends</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$SupertypeTarget $TargetInfo.ofClassExtends(int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_246">$TargetInfo.ofClassTypeParameter</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$TypeParameterTarget $TargetInfo.ofClassTypeParameter(int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_262">$TargetInfo.ofClassTypeParameterBound</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$TypeParameterBoundTarget $TargetInfo.ofClassTypeParameterBound(int,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_338">$TargetInfo.ofConstructorInvocationTypeArgument</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$TypeArgumentTarget $TargetInfo.ofConstructorInvocationTypeArgument(jdk.classfile.Label,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_322">$TargetInfo.ofConstructorReference</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$OffsetTarget $TargetInfo.ofConstructorReference(jdk.classfile.Label)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_346">$TargetInfo.ofConstructorReferenceTypeArgument</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$TypeArgumentTarget $TargetInfo.ofConstructorReferenceTypeArgument(jdk.classfile.Label,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_306">$TargetInfo.ofExceptionParameter</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$CatchTarget $TargetInfo.ofExceptionParameter(int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">604</span></td>
+ <td class="reportText"><span class="text"><a href="#src_274">$TargetInfo.ofField</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$EmptyTarget $TargetInfo.ofField()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">51</span></td>
+ <td class="reportText"><span class="text"><a href="#src_314">$TargetInfo.ofInstanceofExpr</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$OffsetTarget $TargetInfo.ofInstanceofExpr(jdk.classfile.Label)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">5</span></td>
+ <td class="reportText"><span class="text"><a href="#src_298">$TargetInfo.ofLocalVariable</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$LocalVarTarget $TargetInfo.ofLocalVariable(java.util.List)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">550</span></td>
+ <td class="reportText"><span class="text"><a href="#src_286">$TargetInfo.ofMethodFormalParameter</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$FormalParameterTarget $TargetInfo.ofMethodFormalParameter(int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_342">$TargetInfo.ofMethodInvocationTypeArgument</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$TypeArgumentTarget $TargetInfo.ofMethodInvocationTypeArgument(jdk.classfile.Label,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_282">$TargetInfo.ofMethodReceiver</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$EmptyTarget $TargetInfo.ofMethodReceiver()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_326">$TargetInfo.ofMethodReference</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$OffsetTarget $TargetInfo.ofMethodReference(jdk.classfile.Label)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_350">$TargetInfo.ofMethodReferenceTypeArgument</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$TypeArgumentTarget $TargetInfo.ofMethodReferenceTypeArgument(jdk.classfile.Label,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">4</span></td>
+ <td class="reportText"><span class="text"><a href="#src_278">$TargetInfo.ofMethodReturn</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$EmptyTarget $TargetInfo.ofMethodReturn()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_250">$TargetInfo.ofMethodTypeParameter</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$TypeParameterTarget $TargetInfo.ofMethodTypeParameter(int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_266">$TargetInfo.ofMethodTypeParameterBound</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$TypeParameterBoundTarget $TargetInfo.ofMethodTypeParameterBound(int,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">112</span></td>
+ <td class="reportText"><span class="text"><a href="#src_318">$TargetInfo.ofNewExpr</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$OffsetTarget $TargetInfo.ofNewExpr(jdk.classfile.Label)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">166</span></td>
+ <td class="reportText"><span class="text"><a href="#src_310">$TargetInfo.ofOffset</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$OffsetTarget $TargetInfo.ofOffset(jdk.classfile.TypeAnnotation$TargetType,jdk.classfile.Label)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_302">$TargetInfo.ofResourceVariable</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$LocalVarTarget $TargetInfo.ofResourceVariable(java.util.List)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_290">$TargetInfo.ofThrows</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$ThrowsTarget $TargetInfo.ofThrows(int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">416</span></td>
+ <td class="reportText"><span class="text"><a href="#src_330">$TargetInfo.ofTypeArgument</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$TypeArgumentTarget $TargetInfo.ofTypeArgument(jdk.classfile.TypeAnnotation$TargetType,jdk.classfile.Label,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_242">$TargetInfo.ofTypeParameter</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$TypeParameterTarget $TargetInfo.ofTypeParameter(jdk.classfile.TypeAnnotation$TargetType,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_258">$TargetInfo.ofTypeParameterBound</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$TypeParameterBoundTarget $TargetInfo.ofTypeParameterBound(jdk.classfile.TypeAnnotation$TargetType,int,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">5</span></td>
+ <td class="reportText"><span class="text"><a href="#src_294">$TargetInfo.ofVariable</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$LocalVarTarget $TargetInfo.ofVariable(jdk.classfile.TypeAnnotation$TargetType,java.util.List)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1671</span></td>
+ <td class="reportText"><span class="text"><a href="#src_238">$TargetInfo.size</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">int $TargetInfo.size()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">3</span></td>
+ <td class="reportText"><span class="text"><a href="#src_77">$TargetType.&lt;clinit&gt;</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void $TargetType.&lt;clinit&gt;()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">66</span></td>
+ <td class="reportText"><span class="text"><a href="#src_146">$TargetType.&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">void $TargetType.&lt;init&gt;(java.lang.String,int,int,int,java.util.Set)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_157">$TargetType.sizeIfFixed</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">int $TargetType.sizeIfFixed()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">3797</span></td>
+ <td class="reportText"><span class="text"><a href="#src_153">$TargetType.targetTypeValue</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">int $TargetType.targetTypeValue()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_161">$TargetType.whereApplicable</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">java.util.Set $TargetType.whereApplicable()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">2</span></td>
+ <td class="reportText"><span class="text"><a href="#src_601">$TypePathComponent$Kind.&lt;clinit&gt;</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void $TypePathComponent$Kind.&lt;clinit&gt;()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">8</span></td>
+ <td class="reportText"><span class="text"><a href="#src_608">$TypePathComponent$Kind.&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">void $TypePathComponent$Kind.&lt;init&gt;(java.lang.String,int,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1411</span></td>
+ <td class="reportText"><span class="text"><a href="#src_613">$TypePathComponent$Kind.tag</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">int $TypePathComponent$Kind.tag()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">2</span></td>
+ <td class="reportText"><span class="text"><a href="#src_617">$TypePathComponent.&lt;clinit&gt;</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void $TypePathComponent.&lt;clinit&gt;()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1708</span></td>
+ <td class="reportText"><span class="text"><a href="#src_643">$TypePathComponent.of</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation$TypePathComponent $TypePathComponent.of(int,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1829</span></td>
+ <td class="reportText"><span class="text"><a href="#src_186">of</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation of(jdk.classfile.TypeAnnotation$TargetInfo,java.util.List,jdk.classfile.constantpool.Utf8Entry,java.util.List)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_200">of</a></span></td>
+ <td class="reportText"><span class="text">[public, static, varargs]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation of(jdk.classfile.TypeAnnotation$TargetInfo,java.util.List,java.lang.constant.ClassDesc,jdk.classfile.AnnotationElement[])</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">153</span></td>
+ <td class="reportText"><span class="text"><a href="#src_213">of</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation of(jdk.classfile.TypeAnnotation$TargetInfo,java.util.List,java.lang.constant.ClassDesc,java.util.List)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_227">of</a></span></td>
+ <td class="reportText"><span class="text">[public, static, varargs]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation of(jdk.classfile.TypeAnnotation$TargetInfo,java.util.List,jdk.classfile.constantpool.Utf8Entry,jdk.classfile.AnnotationElement[])</span></td>
+ </tr>
+ </table>
+ <br>
+ <table cellspacing="0" cellpadding="0" class="src">
+ <tr>
+ <td class="numLine">&nbsp;1</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">/*</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;2</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;3</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;4</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;5</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * This code is free software; you can redistribute it and/or modify it</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;6</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * under the terms of the GNU General Public License version 2 only, as</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;7</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * published by the Free Software Foundation.  Oracle designates this</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;8</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * particular file as subject to the "Classpath" exception as provided</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;9</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * by Oracle in the LICENSE file that accompanied this code.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;10</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;11</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * This code is distributed in the hope that it will be useful, but WITHOUT</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;12</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;13</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;14</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * version 2 for more details (a copy is included in the LICENSE file that</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;15</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * accompanied this code).</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;16</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;17</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * You should have received a copy of the GNU General Public License version</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;18</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * 2 along with this work; if not, write to the Free Software Foundation,</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;19</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;20</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;21</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;22</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * or visit www.oracle.com if you need additional information or have any</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;23</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * questions.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;24</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;25</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;26</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">package</span> jdk.classfile;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;27</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;28</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.lang.constant.ClassDesc;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;29</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.List;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;30</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.Set;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;31</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;32</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.attribute.RuntimeInvisibleTypeAnnotationsAttribute;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;33</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.attribute.RuntimeVisibleTypeAnnotationsAttribute;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;34</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.constantpool.Utf8Entry;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;35</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.impl.TargetInfoImpl;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;36</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.impl.UnboundAttribute;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;37</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;38</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Classfile.TAT_CAST;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;39</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Classfile.TAT_CLASS_EXTENDS;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;40</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Classfile.TAT_CLASS_TYPE_PARAMETER;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;41</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Classfile.TAT_CLASS_TYPE_PARAMETER_BOUND;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;42</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Classfile.TAT_CONSTRUCTOR_INVOCATION_TYPE_ARGUMENT;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;43</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Classfile.TAT_CONSTRUCTOR_REFERENCE;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;44</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Classfile.TAT_CONSTRUCTOR_REFERENCE_TYPE_ARGUMENT;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;45</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Classfile.TAT_EXCEPTION_PARAMETER;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;46</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Classfile.TAT_FIELD;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;47</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Classfile.TAT_INSTANCEOF;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;48</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Classfile.TAT_LOCAL_VARIABLE;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;49</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Classfile.TAT_METHOD_FORMAL_PARAMETER;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;50</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Classfile.TAT_METHOD_INVOCATION_TYPE_ARGUMENT;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;51</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Classfile.TAT_METHOD_RECEIVER;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;52</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Classfile.TAT_METHOD_REFERENCE;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;53</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Classfile.TAT_METHOD_REFERENCE_TYPE_ARGUMENT;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;54</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Classfile.TAT_METHOD_RETURN;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;55</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Classfile.TAT_METHOD_TYPE_PARAMETER;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;56</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Classfile.TAT_METHOD_TYPE_PARAMETER_BOUND;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;57</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Classfile.TAT_NEW;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;58</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Classfile.TAT_RESOURCE_VARIABLE;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;59</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Classfile.TAT_THROWS;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;60</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.impl.TemporaryConstantPool;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;61</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;62</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;63</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Models an annotation on a type use.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;64</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;65</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * @see RuntimeVisibleTypeAnnotationsAttribute</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;66</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * @see RuntimeInvisibleTypeAnnotationsAttribute</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;67</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;68</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">public</span> sealed <span Class="keyword">interface</span> TypeAnnotation</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;69</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">extends</span> Annotation</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;70</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        permits UnboundAttribute.UnboundTypeAnnotation {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;71</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;72</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;73</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * The kind of target on which the annotation appears.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;74</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;75</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">enum</span> TargetType {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;76</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">* For annotations on a class type parameter declaration. */</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;77<a name="src_77"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        CLASS_TYPE_PARAMETER(TAT_CLASS_TYPE_PARAMETER, 1, AttributedElement.Kind.CLASS_ONLY),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;78</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;79</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">* For annotations on a method type parameter declaration. */</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;80</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        METHOD_TYPE_PARAMETER(TAT_METHOD_TYPE_PARAMETER, 1, AttributedElement.Kind.METHOD_ONLY),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;81</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;82</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">* For annotations on the type of an "extends" or "implements" clause. */</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;83</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        CLASS_EXTENDS(TAT_CLASS_EXTENDS, 2, AttributedElement.Kind.CLASS_ONLY),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;84</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;85</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">* For annotations on a bound of a type parameter of a class. */</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;86</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        CLASS_TYPE_PARAMETER_BOUND(TAT_CLASS_TYPE_PARAMETER_BOUND, 2, AttributedElement.Kind.CLASS_ONLY),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;87</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;88</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">* For annotations on a bound of a type parameter of a method. */</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;89</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        METHOD_TYPE_PARAMETER_BOUND(TAT_METHOD_TYPE_PARAMETER_BOUND, 2, AttributedElement.Kind.METHOD_ONLY),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;90</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;91</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">* For annotations on a field. */</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;92</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        FIELD(TAT_FIELD, 0, Set.of(AttributedElement.Kind.FIELD, AttributedElement.Kind.RECORD_COMPONENT)),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;93</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;94</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">* For annotations on a method return type. */</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;95</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        METHOD_RETURN(TAT_METHOD_RETURN, 0, AttributedElement.Kind.METHOD_ONLY),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;96</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;97</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">* For annotations on the method receiver. */</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;98</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        METHOD_RECEIVER(TAT_METHOD_RECEIVER, 0, AttributedElement.Kind.METHOD_ONLY),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;99</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;100</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">* For annotations on a method parameter. */</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;101</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        METHOD_FORMAL_PARAMETER(TAT_METHOD_FORMAL_PARAMETER, 1, AttributedElement.Kind.METHOD_ONLY),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;102</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;103</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">* For annotations on a throws clause in a method declaration. */</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;104</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        THROWS(TAT_THROWS, 2, AttributedElement.Kind.METHOD_ONLY),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;105</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;106</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">* For annotations on a local variable. */</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;107</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        LOCAL_VARIABLE(TAT_LOCAL_VARIABLE, -1, AttributedElement.Kind.CODE_ONLY),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;108</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;109</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">* For annotations on a resource variable. */</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;110</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        RESOURCE_VARIABLE(TAT_RESOURCE_VARIABLE, -1, AttributedElement.Kind.CODE_ONLY),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;111</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;112</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">* For annotations on an exception parameter. */</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;113</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        EXCEPTION_PARAMETER(TAT_EXCEPTION_PARAMETER, 2, AttributedElement.Kind.CODE_ONLY),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;114</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;115</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">* For annotations on a type test. */</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;116</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        INSTANCEOF(TAT_INSTANCEOF, 2, AttributedElement.Kind.CODE_ONLY),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;117</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;118</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">* For annotations on an object creation expression. */</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;119</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        NEW(TAT_NEW, 2, AttributedElement.Kind.CODE_ONLY),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;120</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;121</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">* For annotations on a constructor reference receiver. */</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;122</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        CONSTRUCTOR_REFERENCE(TAT_CONSTRUCTOR_REFERENCE, 2, AttributedElement.Kind.CODE_ONLY),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;123</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;124</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">* For annotations on a method reference receiver. */</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;125</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        METHOD_REFERENCE(TAT_METHOD_REFERENCE, 2, AttributedElement.Kind.CODE_ONLY),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;126</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;127</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">* For annotations on a typecast. */</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;128</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        CAST(TAT_CAST, 3, AttributedElement.Kind.CODE_ONLY),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;129</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;130</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">* For annotations on a type argument of an object creation expression. */</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;131</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        CONSTRUCTOR_INVOCATION_TYPE_ARGUMENT(TAT_CONSTRUCTOR_INVOCATION_TYPE_ARGUMENT, 3, AttributedElement.Kind.CODE_ONLY),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;132</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;133</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">* For annotations on a type argument of a method call. */</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;134</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        METHOD_INVOCATION_TYPE_ARGUMENT(TAT_METHOD_INVOCATION_TYPE_ARGUMENT, 3, AttributedElement.Kind.CODE_ONLY),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;135</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;136</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">* For annotations on a type argument of a constructor reference. */</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;137</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        CONSTRUCTOR_REFERENCE_TYPE_ARGUMENT(TAT_CONSTRUCTOR_REFERENCE_TYPE_ARGUMENT, 3, AttributedElement.Kind.CODE_ONLY),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;138</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;139</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">* For annotations on a type argument of a method reference. */</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;140</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        METHOD_REFERENCE_TYPE_ARGUMENT(TAT_METHOD_REFERENCE_TYPE_ARGUMENT, 3, AttributedElement.Kind.CODE_ONLY);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;141</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;142</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">private</span> <span Class="keyword">final</span> <span Class="keyword">int</span> targetTypeValue;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;143</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">private</span> <span Class="keyword">final</span> <span Class="keyword">int</span> sizeIfFixed;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;144</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">private</span> <span Class="keyword">final</span> Set&#60;AttributedElement.Kind&#62; whereApplicable;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;145</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;146<a name="src_146"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">private</span> TargetType(<span Class="keyword">int</span> targetTypeValue, <span Class="keyword">int</span> sizeIfFixed, Set&#60;AttributedElement.Kind&#62; whereApplicable) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;147</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">this</span>.targetTypeValue = targetTypeValue;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;148</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">this</span>.sizeIfFixed = sizeIfFixed;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;149</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">this</span>.whereApplicable = whereApplicable;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;150</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;151</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;152</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> <span Class="keyword">int</span> targetTypeValue() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;153<a name="src_153"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> targetTypeValue;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;154</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;155</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;156</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> <span Class="keyword">int</span> sizeIfFixed() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;157<a name="src_157"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> sizeIfFixed;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;158</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;159</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;160</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        Set&#60;AttributedElement.Kind&#62; whereApplicable() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;161<a name="src_161"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> whereApplicable;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;162</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;163</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;164</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;165</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;166</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@return information describing precisely which type in a declaration or expression</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;167</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * is annotated}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;168</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;169</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    TargetInfo targetInfo();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;170</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;171</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;172</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@return which part of the type indicated by {@link #targetInfo()} is annotated}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;173</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;174</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    List&#60;TypePathComponent&#62; targetPath();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;175</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;176</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;177</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@return a type annotation}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;178</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param targetInfo which type in a declaration or expression is annotated</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;179</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param targetPath which part of the type is annotated</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;180</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param annotationClassUtf8Entry the annotation class</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;181</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param annotationElements the annotation elements</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;182</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;183</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> TypeAnnotation of(TargetInfo targetInfo, List&#60;TypePathComponent&#62; targetPath,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;184</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                             Utf8Entry annotationClassUtf8Entry,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;185</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                             List&#60;AnnotationElement&#62; annotationElements) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;186<a name="src_186"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">new</span> UnboundAttribute.UnboundTypeAnnotation(targetInfo, targetPath,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;187</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                annotationClassUtf8Entry, annotationElements);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;188</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;189</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;190</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;191</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@return a type annotation}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;192</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param targetInfo which type in a declaration or expression is annotated</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;193</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param targetPath which part of the type is annotated</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;194</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param annotationClass the annotation class</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;195</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param annotationElements the annotation elements</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;196</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;197</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> TypeAnnotation of(TargetInfo targetInfo, List&#60;TypePathComponent&#62; targetPath,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;198</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                             ClassDesc annotationClass,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;199</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                             AnnotationElement... annotationElements) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;200<a name="src_200"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> of(targetInfo, targetPath, annotationClass, List.of(annotationElements));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;201</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;202</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;203</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;204</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@return a type annotation}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;205</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param targetInfo which type in a declaration or expression is annotated</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;206</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param targetPath which part of the type is annotated</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;207</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param annotationClass the annotation class</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;208</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param annotationElements the annotation elements</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;209</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;210</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> TypeAnnotation of(TargetInfo targetInfo, List&#60;TypePathComponent&#62; targetPath,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;211</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                             ClassDesc annotationClass,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;212</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                             List&#60;AnnotationElement&#62; annotationElements) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;213<a name="src_213"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> of(targetInfo, targetPath,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;214</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                TemporaryConstantPool.INSTANCE.utf8Entry(annotationClass.descriptorString()), annotationElements);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;215</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;216</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;217</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;218</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@return a type annotation}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;219</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param targetInfo which type in a declaration or expression is annotated</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;220</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param targetPath which part of the type is annotated</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;221</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param annotationClassUtf8Entry the annotation class</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;222</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param annotationElements the annotation elements</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;223</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;224</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> TypeAnnotation of(TargetInfo targetInfo, List&#60;TypePathComponent&#62; targetPath,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;225</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                             Utf8Entry annotationClassUtf8Entry,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;226</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                             AnnotationElement... annotationElements) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;227<a name="src_227"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> of(targetInfo, targetPath, annotationClassUtf8Entry, List.of(annotationElements));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;228</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;229</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;230</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;231</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Specifies which type in a declaration or expression is being annotated.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;232</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;233</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    sealed <span Class="keyword">interface</span> TargetInfo {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;234</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;235</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        TargetType targetType();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;236</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;237</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">default</span> <span Class="keyword">int</span> size() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;238<a name="src_238"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> targetType().sizeIfFixed;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;239</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;240</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;241</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> TypeParameterTarget ofTypeParameter(TargetType targetType, <span Class="keyword">int</span> typeParameterIndex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;242<a name="src_242"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> <span Class="keyword">new</span> TargetInfoImpl.TypeParameterTargetImpl(targetType, typeParameterIndex);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;243</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;244</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;245</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> TypeParameterTarget ofClassTypeParameter(<span Class="keyword">int</span> typeParameterIndex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;246<a name="src_246"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> ofTypeParameter(TargetType.CLASS_TYPE_PARAMETER, typeParameterIndex);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;247</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;248</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;249</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> TypeParameterTarget ofMethodTypeParameter(<span Class="keyword">int</span> typeParameterIndex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;250<a name="src_250"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> ofTypeParameter(TargetType.METHOD_TYPE_PARAMETER, typeParameterIndex);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;251</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;252</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;253</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> SupertypeTarget ofClassExtends(<span Class="keyword">int</span> supertypeIndex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;254<a name="src_254"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> <span Class="keyword">new</span> TargetInfoImpl.SupertypeTargetImpl(supertypeIndex);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;255</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;256</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;257</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> TypeParameterBoundTarget ofTypeParameterBound(TargetType targetType, <span Class="keyword">int</span> typeParameterIndex, <span Class="keyword">int</span> boundIndex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;258<a name="src_258"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> <span Class="keyword">new</span> TargetInfoImpl.TypeParameterBoundTargetImpl(targetType, typeParameterIndex, boundIndex);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;259</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;260</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;261</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> TypeParameterBoundTarget ofClassTypeParameterBound(<span Class="keyword">int</span> typeParameterIndex, <span Class="keyword">int</span> boundIndex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;262<a name="src_262"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> ofTypeParameterBound(TargetType.CLASS_TYPE_PARAMETER_BOUND, typeParameterIndex, boundIndex);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;263</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;264</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;265</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> TypeParameterBoundTarget ofMethodTypeParameterBound(<span Class="keyword">int</span> typeParameterIndex, <span Class="keyword">int</span> boundIndex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;266<a name="src_266"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> ofTypeParameterBound(TargetType.METHOD_TYPE_PARAMETER_BOUND, typeParameterIndex, boundIndex);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;267</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;268</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;269</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> EmptyTarget of(TargetType targetType) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;270<a name="src_270"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> <span Class="keyword">new</span> TargetInfoImpl.EmptyTargetImpl(targetType);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;271</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;272</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;273</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> EmptyTarget ofField() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;274<a name="src_274"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> of(TargetType.FIELD);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;275</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;276</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;277</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> EmptyTarget ofMethodReturn() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;278<a name="src_278"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> of(TargetType.METHOD_RETURN);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;279</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;280</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;281</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> EmptyTarget ofMethodReceiver() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;282<a name="src_282"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> of(TargetType.METHOD_RECEIVER);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;283</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;284</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;285</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> FormalParameterTarget ofMethodFormalParameter(<span Class="keyword">int</span> formalParameterIndex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;286<a name="src_286"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> <span Class="keyword">new</span> TargetInfoImpl.FormalParameterTargetImpl(formalParameterIndex);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;287</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;288</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;289</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> ThrowsTarget ofThrows(<span Class="keyword">int</span> throwsTargetIndex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;290<a name="src_290"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> <span Class="keyword">new</span> TargetInfoImpl.ThrowsTargetImpl(throwsTargetIndex);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;291</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;292</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;293</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> LocalVarTarget ofVariable(TargetType targetType, List&#60;LocalVarTargetInfo&#62; table) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;294<a name="src_294"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> <span Class="keyword">new</span> TargetInfoImpl.LocalVarTargetImpl(targetType, table);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;295</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;296</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;297</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> LocalVarTarget ofLocalVariable(List&#60;LocalVarTargetInfo&#62; table) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;298<a name="src_298"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> ofVariable(TargetType.LOCAL_VARIABLE, table);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;299</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;300</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;301</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> LocalVarTarget ofResourceVariable(List&#60;LocalVarTargetInfo&#62; table) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;302<a name="src_302"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> ofVariable(TargetType.RESOURCE_VARIABLE, table);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;303</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;304</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;305</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> CatchTarget ofExceptionParameter(<span Class="keyword">int</span> exceptionTableIndex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;306<a name="src_306"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> <span Class="keyword">new</span> TargetInfoImpl.CatchTargetImpl(exceptionTableIndex);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;307</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;308</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;309</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> OffsetTarget ofOffset(TargetType targetType, Label target) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;310<a name="src_310"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> <span Class="keyword">new</span> TargetInfoImpl.OffsetTargetImpl(targetType, target);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;311</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;312</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;313</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> OffsetTarget ofInstanceofExpr(Label target) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;314<a name="src_314"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> ofOffset(TargetType.INSTANCEOF, target);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;315</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;316</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;317</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> OffsetTarget ofNewExpr(Label target) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;318<a name="src_318"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> ofOffset(TargetType.NEW, target);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;319</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;320</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;321</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> OffsetTarget ofConstructorReference(Label target) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;322<a name="src_322"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> ofOffset(TargetType.CONSTRUCTOR_REFERENCE, target);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;323</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;324</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;325</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> OffsetTarget ofMethodReference(Label target) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;326<a name="src_326"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> ofOffset(TargetType.METHOD_REFERENCE, target);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;327</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;328</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;329</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> TypeArgumentTarget ofTypeArgument(TargetType targetType, Label target, <span Class="keyword">int</span> typeArgumentIndex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;330<a name="src_330"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> <span Class="keyword">new</span> TargetInfoImpl.TypeArgumentTargetImpl(targetType, target, typeArgumentIndex);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;331</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;332</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;333</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> TypeArgumentTarget ofCastExpr(Label target, <span Class="keyword">int</span> typeArgumentIndex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;334<a name="src_334"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> ofTypeArgument(TargetType.CAST, target, typeArgumentIndex);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;335</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;336</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;337</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> TypeArgumentTarget ofConstructorInvocationTypeArgument(Label target, <span Class="keyword">int</span> typeArgumentIndex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;338<a name="src_338"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> ofTypeArgument(TargetType.CONSTRUCTOR_INVOCATION_TYPE_ARGUMENT, target, typeArgumentIndex);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;339</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;340</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;341</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> TypeArgumentTarget ofMethodInvocationTypeArgument(Label target, <span Class="keyword">int</span> typeArgumentIndex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;342<a name="src_342"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> ofTypeArgument(TargetType.METHOD_INVOCATION_TYPE_ARGUMENT, target, typeArgumentIndex);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;343</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;344</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;345</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> TypeArgumentTarget ofConstructorReferenceTypeArgument(Label target, <span Class="keyword">int</span> typeArgumentIndex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;346<a name="src_346"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> ofTypeArgument(TargetType.CONSTRUCTOR_REFERENCE_TYPE_ARGUMENT, target, typeArgumentIndex);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;347</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;348</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;349</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> TypeArgumentTarget ofMethodReferenceTypeArgument(Label target, <span Class="keyword">int</span> typeArgumentIndex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;350<a name="src_350"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> ofTypeArgument(TargetType.METHOD_REFERENCE_TYPE_ARGUMENT, target, typeArgumentIndex);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;351</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;352</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;353</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;354</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;355</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Indicates that an annotation appears on the declaration of the i'th type</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;356</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * parameter of a generic class, generic interface, generic method, or</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;357</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * generic constructor.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;358</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;359</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    sealed <span Class="keyword">interface</span> TypeParameterTarget <span Class="keyword">extends</span> TargetInfo</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;360</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            permits TargetInfoImpl.TypeParameterTargetImpl {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;361</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;362</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;363</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * JVMS: The value of the type_parameter_index item specifies which type parameter declaration is annotated.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;364</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * A type_parameter_index value of 0 specifies the first type parameter declaration.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;365</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;366</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * @return the index into the type parameters</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;367</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;368</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">int</span> typeParameterIndex();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;369</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;370</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;371</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;372</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Indicates that an annotation appears on a type in the extends or implements</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;373</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * clause of a class or interface declaration.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;374</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;375</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    sealed <span Class="keyword">interface</span> SupertypeTarget <span Class="keyword">extends</span> TargetInfo</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;376</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            permits TargetInfoImpl.SupertypeTargetImpl {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;377</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;378</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;379</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * JVMS: A supertype_index value of 65535 specifies that the annotation appears on the superclass in an extends</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;380</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * clause of a class declaration.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;381</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;382</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * Any other supertype_index value is an index into the interfaces array of the enclosing ClassFile structure,</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;383</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * and specifies that the annotation appears on that superinterface in either the implements clause of a class</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;384</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * declaration or the extends clause of an interface declaration.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;385</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;386</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * @return the index into the interfaces array or 65535 to indicate it is the superclass</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;387</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;388</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">int</span> supertypeIndex();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;389</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;390</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;391</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;392</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Indicates that an annotation appears on the i'th bound of the j'th</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;393</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * type parameter declaration of a generic class, interface, method, or</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;394</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * constructor.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;395</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;396</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    sealed <span Class="keyword">interface</span> TypeParameterBoundTarget <span Class="keyword">extends</span> TargetInfo</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;397</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            permits TargetInfoImpl.TypeParameterBoundTargetImpl {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;398</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;399</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;400</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * Which type parameter declaration has an annotated bound.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;401</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;402</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * @return the zero-origin index into the type parameters</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;403</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;404</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">int</span> typeParameterIndex();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;405</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;406</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;407</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * Which bound of the type parameter declaration is annotated.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;408</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;409</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * @return the zero-origin index into bounds on the type parameter</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;410</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;411</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">int</span> boundIndex();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;412</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;413</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;414</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;415</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Indicates that an annotation appears on either the type in a field</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;416</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * declaration, the return type of a method, the type of a newly constructed</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;417</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * object, or the receiver type of a method or constructor.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;418</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;419</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    sealed <span Class="keyword">interface</span> EmptyTarget <span Class="keyword">extends</span> TargetInfo</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;420</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            permits TargetInfoImpl.EmptyTargetImpl {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;421</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;422</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;423</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;424</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Indicates that an annotation appears on the type in a formal parameter</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;425</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * declaration of a method, constructor, or lambda expression.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;426</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;427</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    sealed <span Class="keyword">interface</span> FormalParameterTarget <span Class="keyword">extends</span> TargetInfo</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;428</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            permits TargetInfoImpl.FormalParameterTargetImpl {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;429</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;430</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;431</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * Which formal parameter declaration has an annotated type.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;432</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;433</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * @return the index into the formal parameter declarations, in the order</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;434</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * declared in the source code</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;435</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;436</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">int</span> formalParameterIndex();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;437</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;438</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;439</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;440</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Indicates that an annotation appears on the i'th type in the throws</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;441</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * clause of a method or constructor declaration.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;442</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;443</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    sealed <span Class="keyword">interface</span> ThrowsTarget <span Class="keyword">extends</span> TargetInfo</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;444</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            permits TargetInfoImpl.ThrowsTargetImpl {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;445</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;446</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;447</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * The index into the exception_index_table array of the</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;448</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * Exceptions attribute of the method_info structure enclosing the</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;449</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * RuntimeVisibleTypeAnnotations attribute.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;450</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;451</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * @return index into the list jdk.classfile.attribute.ExceptionsAttribute.exceptions()</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;452</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;453</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">int</span> throwsTargetIndex();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;454</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;455</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;456</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;457</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Indicates that an annotation appears on the type in a local variable declaration,</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;458</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * including a variable declared as a resource in a try-with-resources statement.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;459</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;460</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    sealed <span Class="keyword">interface</span> LocalVarTarget <span Class="keyword">extends</span> TargetInfo</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;461</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            permits TargetInfoImpl.LocalVarTargetImpl {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;462</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;463</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;464</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * @return the table of local variable location/indicies.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;465</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;466</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        List&#60;LocalVarTargetInfo&#62; table();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;467</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;468</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;469</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;470</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Indicates a range of code array offsets within which a local variable</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;471</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * has a value, and the index into the local variable array of the current</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;472</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * frame at which that local variable can be found.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;473</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;474</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    sealed <span Class="keyword">interface</span> LocalVarTargetInfo</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;475</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            permits TargetInfoImpl.LocalVarTargetInfoImpl {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;476</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;477</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;478</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * The given local variable has a value at indices into the code array in the interval</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;479</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * [start_pc, start_pc + length), that is, between start_pc inclusive and start_pc + length exclusive.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;480</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;481</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * @return the start of the bytecode section.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;482</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;483</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        Label startLabel();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;484</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;485</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;486</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;487</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * The given local variable has a value at indices into the code array in the interval</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;488</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * [start_pc, start_pc + length), that is, between start_pc inclusive and start_pc + length exclusive.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;489</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;490</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * @return</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;491</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;492</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        Label endLabel();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;493</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;494</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;495</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * The given local variable must be at index in the local variable array of the current frame.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;496</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;497</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * If the local variable at index is of type double or long, it occupies both index and index + 1.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;498</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;499</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * @return index into the local variables</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;500</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;501</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">int</span> index();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;502</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;503</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> LocalVarTargetInfo of(Label startLabel, Label endLabel, <span Class="keyword">int</span> index) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;504<a name="src_504"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> <span Class="keyword">new</span> TargetInfoImpl.LocalVarTargetInfoImpl(startLabel, endLabel, index);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;505</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;506</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;507</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;508</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;509</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Indicates that an annotation appears on the i'th type in an exception parameter</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;510</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * declaration.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;511</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;512</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    sealed <span Class="keyword">interface</span> CatchTarget <span Class="keyword">extends</span> TargetInfo</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;513</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            permits TargetInfoImpl.CatchTargetImpl {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;514</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;515</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;516</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * The index into the exception_table array of the Code</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;517</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * attribute enclosing the RuntimeVisibleTypeAnnotations attribute.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;518</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;519</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * @return the index into the exception table</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;520</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;521</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">int</span> exceptionTableIndex();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;522</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;523</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;524</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;525</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Indicates that an annotation appears on either the type in an instanceof expression</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;526</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * or a new expression, or the type before the :: in a method reference expression.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;527</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;528</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    sealed <span Class="keyword">interface</span> OffsetTarget <span Class="keyword">extends</span> TargetInfo</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;529</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            permits TargetInfoImpl.OffsetTargetImpl {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;530</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;531</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;532</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * The code array offset of either the bytecode instruction</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;533</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * corresponding to the instanceof expression, the new bytecode instruction corresponding to the new</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;534</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * expression, or the bytecode instruction corresponding to the method reference expression.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;535</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;536</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * @return</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;537</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;538</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        Label target();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;539</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;540</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;541</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;542</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Indicates that an annotation appears either on the i'th type in a cast</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;543</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * expression, or on the i'th type argument in the explicit type argument list for any of the following: a new</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;544</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * expression, an explicit constructor invocation statement, a method invocation expression, or a method reference</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;545</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * expression.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;546</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;547</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    sealed <span Class="keyword">interface</span> TypeArgumentTarget <span Class="keyword">extends</span> TargetInfo</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;548</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            permits TargetInfoImpl.TypeArgumentTargetImpl {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;549</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;550</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;551</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * The code array offset of either the bytecode instruction</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;552</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * corresponding to the cast expression, the new bytecode instruction corresponding to the new expression, the</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;553</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * bytecode instruction corresponding to the explicit constructor invocation statement, the bytecode</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;554</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * instruction corresponding to the method invocation expression, or the bytecode instruction corresponding to</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;555</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * the method reference expression.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;556</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;557</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * @return</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;558</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;559</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        Label target();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;560</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;561</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;562</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * For a cast expression, the value of the type_argument_index item specifies which type in the cast</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;563</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * operator is annotated. A type_argument_index value of 0 specifies the first (or only) type in the cast</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;564</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * operator.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;565</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;566</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * The possibility of more than one type in a cast expression arises from a cast to an intersection type.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;567</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;568</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * For an explicit type argument list, the value of the type_argument_index item specifies which type argument</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;569</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * is annotated. A type_argument_index value of 0 specifies the first type argument.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;570</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;571</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * @return the index into the type arguments</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;572</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;573</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">int</span> typeArgumentIndex();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;574</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;575</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;576</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;577</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * type_path.path.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;578</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;579</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * JVMS: Wherever a type is used in a declaration or expression, the type_path structure identifies which part of</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;580</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * the type is annotated. An annotation may appear on the type itself, but if the type is a reference type, then</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;581</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * there are additional locations where an annotation may appear:</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;582</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;583</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * If an array type T[] is used in a declaration or expression, then an annotation may appear on any component type</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;584</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * of the array type, including the element type.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;585</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;586</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * If a nested type T1.T2 is used in a declaration or expression, then an annotation may appear on the name of the</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;587</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * innermost member type and any enclosing type for which a type annotation is admissible (JLS 9.7.4).</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;588</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;589</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * If a parameterized type {@literal T&#60;A&#62; or T&#60;? extends A&#62; or T&#60;? super A&#62;} is used in a declaration or expression, then an</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;590</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * annotation may appear on any type argument or on the bound of any wildcard type argument.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;591</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;592</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * JVMS: ...  each entry in the path array represents an iterative, left-to-right step towards the precise location</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;593</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * of the annotation in an array type, nested type, or parameterized type. (In an array type, the iteration visits</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;594</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * the array type itself, then its component type, then the component type of that component type, and so on,</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;595</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * until the element type is reached.)</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;596</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;597</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    sealed <span Class="keyword">interface</span> TypePathComponent</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;598</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            permits UnboundAttribute.TypePathComponentImpl {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;599</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;600</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> <span Class="keyword">enum</span> Kind {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;601<a name="src_601"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            ARRAY(0),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;602</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            INNER_TYPE(1),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;603</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            WILDCARD(2),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;604</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            TYPE_ARGUMENT(3);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;605</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;606</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">private</span> <span Class="keyword">final</span> <span Class="keyword">int</span> tag;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;607</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;608<a name="src_608"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">private</span> Kind(<span Class="keyword">int</span> tag) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;609</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">this</span>.tag = tag;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;610</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;611</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;612</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">public</span> <span Class="keyword">int</span> tag() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;613<a name="src_613"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">return</span> tag;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;614</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;615</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;616</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;617<a name="src_617"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> <span Class="keyword">static</span> <span Class="keyword">final</span> TypePathComponent ARRAY = <span Class="keyword">new</span> UnboundAttribute.TypePathComponentImpl(Kind.ARRAY, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;618</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> <span Class="keyword">static</span> <span Class="keyword">final</span> TypePathComponent INNER_TYPE = <span Class="keyword">new</span> UnboundAttribute.TypePathComponentImpl(Kind.INNER_TYPE, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;619</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> <span Class="keyword">static</span> <span Class="keyword">final</span> TypePathComponent WILDCARD = <span Class="keyword">new</span> UnboundAttribute.TypePathComponentImpl(Kind.WILDCARD, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;620</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;621</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;622</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;623</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * THe type path kind items from JVMS Table 4.7.20.2-A.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;624</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;625</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * @return the kind of path element</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;626</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;627</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        Kind typePathKind();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;628</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;629</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;630</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * JVMS: type_argument_index</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;631</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * If the value of the type_path_kind item is 0, 1, or 2, then the value of the type_argument_index item is 0.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;632</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;633</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * If the value of the type_path_kind item is 3, then the value of the type_argument_index item specifies which</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;634</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * type argument of a parameterized type is annotated, where 0 indicates the first type argument of a</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;635</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * parameterized type.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;636</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;637</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * @return the index within the type component</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;638</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;639</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">int</span> typeArgumentIndex();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;640</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;641</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> TypePathComponent of(<span Class="keyword">int</span> typePathKind, <span Class="keyword">int</span> typeArgumentIndex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;642</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;643<a name="src_643"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> <span Class="keyword">switch</span> (typePathKind) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;644</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> 0 -&#62; ARRAY;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;645</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> 1 -&#62; INNER_TYPE;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;646</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> 2 -&#62; WILDCARD;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;647</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> 3 -&#62; <span Class="keyword">new</span> UnboundAttribute.TypePathComponentImpl(Kind.TYPE_ARGUMENT, typeArgumentIndex);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;648</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">default</span> -&#62; <span Class="keyword">throw</span> <span Class="keyword">new</span> IllegalArgumentException(<span Class="string">"Unknown type annotation path component kind: "</span> + typePathKind);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;649</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            };</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;650</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;651</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;652</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;}</pre></td>
+ </tr>
+ </table>
+<p>
+<br><table cellpadding="0" cellspacing="0" class="report">  <tr class="report">    <td class="reportText"><span class="text">    Report generated 8/4/22, 3:35 PM    </span></td>  </tr></table>
+</body>
+</html>

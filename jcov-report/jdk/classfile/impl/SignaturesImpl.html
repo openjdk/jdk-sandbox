@@ -1,0 +1,2055 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>tests coverage</title>
+<link rel ="stylesheet" type="text/css" href="../../../style.css" title="Style">
+<script type="text/javascript" src="../../../sorttable.js"></script>
+<script type="text/javascript">
+  targetPage = "" + window.location.search;
+  if (targetPage != "" && targetPage != "undefined")
+    targetPage = targetPage.substring(1);
+  if (targetPage.indexOf(":") != -1 || (targetPage != "" && !validURL(targetPage)))
+    targetPage = "undefined";
+  function validURL(url) {
+    var pos = url.indexOf(".html");
+    if (pos == -1 || pos != url.length - 5)
+      return false;
+    var allowNumber = false;
+    var allowSep = false;
+    var seenDot = false;
+    for (var i = 0; i < url.length - 5; i++) {
+      var ch = url.charAt(i);
+      if ('a' <= ch && ch <= 'z' ||
+          'A' <= ch && ch <= 'Z' ||
+          ch == '$' ||
+          ch == '_') {
+            allowNumber = true;
+            allowSep = true;
+      } else if ('0' <= ch && ch <= '9' ||
+                 ch == '-') {
+                   if (!allowNumber)
+                     return false;
+      } else if (ch == '/' || ch == '.') {
+        if (!allowSep)
+          return false;
+        allowNumber = false;
+        allowSep = false;
+        if (ch == '.')
+          seenDot = true;
+        if (ch == '/' && seenDot)
+          return false;
+      } else {
+        return false;
+      }
+    }
+    return true;
+  }
+  function loadFrames() {
+    if (targetPage != "" && targetPage != "undefined")
+      top.classFrame.location = top.targetPage;
+  }
+</script>
+</head>
+<body>
+<table>
+<tr>
+<td>
+<a href="../../../index.html?jdk/classfile/impl/SignaturesImpl.html" target="_top">Frames</a>
+<a href="SignaturesImpl.html" target="_top">No Frames</a>
+</td>
+</tr>
+</table>
+<br>
+ <table cellspacing="0" cellpadding="0"class="report">
+ <tr class="report">
+ <th class="report">&nbsp;</th>
+ <th class="report">%method</th>
+ <th class="report">%block</th>
+ <th class="report">%branch</th>
+ <th class="report">%line</th>
+ </tr>
+ <tr class="report">
+ <td class="reportText"><span class="text"> <b>jdk.classfile.impl.SignaturesImpl</b></span></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>70</b>%(49/70)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  70"></td><td class="percentUnCovered" width="30"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>83</b>%(142/170)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  83"></td><td class="percentUnCovered" width="17"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>74</b>%(87/117)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  74"></td><td class="percentUnCovered" width="26"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>92</b>%(154/166)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  92"></td><td class="percentUnCovered" width="8"></td></tr></table></td></tr></table></td>
+ </tr>
+ </table>
+ <br>
+ <br>
+ <table cellspacing="0" cellpadding="0"class="report" id="mcoverage">
+ <tr class="report">
+ <th class="report">hit count</th>
+ <th class="report">method  name</th>
+ <th class="report">method modifiers</th>
+ <th class="report">method signature</th>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">7201</span></td>
+ <td class="reportText"><span class="text"><a href="#src_180">$ArrayTypeSigImpl.&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void $ArrayTypeSigImpl.&lt;init&gt;(int,jdk.classfile.Signature)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">35</span></td>
+ <td class="reportText"><span class="text"><a href="#src_180">$ArrayTypeSigImpl.arrayDepth</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">int $ArrayTypeSigImpl.arrayDepth()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1396</span></td>
+ <td class="reportText"><span class="text"><a href="#src_184">$ArrayTypeSigImpl.componentSignature</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.Signature $ArrayTypeSigImpl.componentSignature()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">35</span></td>
+ <td class="reportText"><span class="text"><a href="#src_180">$ArrayTypeSigImpl.elemType</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.Signature $ArrayTypeSigImpl.elemType()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_180">$ArrayTypeSigImpl.equals</a></span></td>
+ <td class="reportText"><span class="text">[public, final]</span></td>
+ <td class="reportText"><span class="text">boolean $ArrayTypeSigImpl.equals(java.lang.Object)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_180">$ArrayTypeSigImpl.hashCode</a></span></td>
+ <td class="reportText"><span class="text">[public, final]</span></td>
+ <td class="reportText"><span class="text">int $ArrayTypeSigImpl.hashCode()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">5770</span></td>
+ <td class="reportText"><span class="text"><a href="#src_189">$ArrayTypeSigImpl.signatureString</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">java.lang.String $ArrayTypeSigImpl.signatureString()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_180">$ArrayTypeSigImpl.toString</a></span></td>
+ <td class="reportText"><span class="text">[public, final]</span></td>
+ <td class="reportText"><span class="text">java.lang.String $ArrayTypeSigImpl.toString()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">19003</span></td>
+ <td class="reportText"><span class="text"><a href="#src_164">$BaseTypeSigImpl.&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void $BaseTypeSigImpl.&lt;init&gt;(char)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">2</span></td>
+ <td class="reportText"><span class="text"><a href="#src_164">$BaseTypeSigImpl.baseType</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">char $BaseTypeSigImpl.baseType()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_164">$BaseTypeSigImpl.equals</a></span></td>
+ <td class="reportText"><span class="text">[public, final]</span></td>
+ <td class="reportText"><span class="text">boolean $BaseTypeSigImpl.equals(java.lang.Object)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_164">$BaseTypeSigImpl.hashCode</a></span></td>
+ <td class="reportText"><span class="text">[public, final]</span></td>
+ <td class="reportText"><span class="text">int $BaseTypeSigImpl.hashCode()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">19001</span></td>
+ <td class="reportText"><span class="text"><a href="#src_168">$BaseTypeSigImpl.signatureString</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">java.lang.String $BaseTypeSigImpl.signatureString()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_164">$BaseTypeSigImpl.toString</a></span></td>
+ <td class="reportText"><span class="text">[public, final]</span></td>
+ <td class="reportText"><span class="text">java.lang.String $BaseTypeSigImpl.toString()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">7052</span></td>
+ <td class="reportText"><span class="text"><a href="#src_262">$ClassSignatureImpl.&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void $ClassSignatureImpl.&lt;init&gt;(java.util.List,jdk.classfile.Signature$RefTypeSig,java.util.List)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_258">$ClassSignatureImpl.equals</a></span></td>
+ <td class="reportText"><span class="text">[public, final]</span></td>
+ <td class="reportText"><span class="text">boolean $ClassSignatureImpl.equals(java.lang.Object)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_258">$ClassSignatureImpl.hashCode</a></span></td>
+ <td class="reportText"><span class="text">[public, final]</span></td>
+ <td class="reportText"><span class="text">int $ClassSignatureImpl.hashCode()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">5804</span></td>
+ <td class="reportText"><span class="text"><a href="#src_270">$ClassSignatureImpl.signatureString</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">java.lang.String $ClassSignatureImpl.signatureString()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1248</span></td>
+ <td class="reportText"><span class="text"><a href="#src_258">$ClassSignatureImpl.superclassSignature</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.Signature$RefTypeSig $ClassSignatureImpl.superclassSignature()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1248</span></td>
+ <td class="reportText"><span class="text"><a href="#src_258">$ClassSignatureImpl.superinterfaceSignatures</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">java.util.List $ClassSignatureImpl.superinterfaceSignatures()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_258">$ClassSignatureImpl.toString</a></span></td>
+ <td class="reportText"><span class="text">[public, final]</span></td>
+ <td class="reportText"><span class="text">java.lang.String $ClassSignatureImpl.toString()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1248</span></td>
+ <td class="reportText"><span class="text"><a href="#src_258">$ClassSignatureImpl.typeParameters</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">java.util.List $ClassSignatureImpl.typeParameters()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">4</span></td>
+ <td class="reportText"><span class="text"><a href="#src_193">$ClassTypeSigImpl.&lt;clinit&gt;</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void $ClassTypeSigImpl.&lt;clinit&gt;()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">164225</span></td>
+ <td class="reportText"><span class="text"><a href="#src_196">$ClassTypeSigImpl.&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void $ClassTypeSigImpl.&lt;init&gt;(java.util.Optional,java.lang.String,java.util.List)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">30376</span></td>
+ <td class="reportText"><span class="text"><a href="#src_193">$ClassTypeSigImpl.className</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">java.lang.String $ClassTypeSigImpl.className()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">6</span></td>
+ <td class="reportText"><span class="text"><a href="#src_193">$ClassTypeSigImpl.equals</a></span></td>
+ <td class="reportText"><span class="text">[public, final]</span></td>
+ <td class="reportText"><span class="text">boolean $ClassTypeSigImpl.equals(java.lang.Object)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_193">$ClassTypeSigImpl.hashCode</a></span></td>
+ <td class="reportText"><span class="text">[public, final]</span></td>
+ <td class="reportText"><span class="text">int $ClassTypeSigImpl.hashCode()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">30366</span></td>
+ <td class="reportText"><span class="text"><a href="#src_193">$ClassTypeSigImpl.outerType</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">java.util.Optional $ClassTypeSigImpl.outerType()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">133833</span></td>
+ <td class="reportText"><span class="text"><a href="#src_204">$ClassTypeSigImpl.signatureString</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">java.lang.String $ClassTypeSigImpl.signatureString()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_193">$ClassTypeSigImpl.toString</a></span></td>
+ <td class="reportText"><span class="text">[public, final]</span></td>
+ <td class="reportText"><span class="text">java.lang.String $ClassTypeSigImpl.toString()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">30366</span></td>
+ <td class="reportText"><span class="text"><a href="#src_193">$ClassTypeSigImpl.typeArgs</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">java.util.List $ClassTypeSigImpl.typeArgs()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">35967</span></td>
+ <td class="reportText"><span class="text"><a href="#src_284">$MethodSignatureImpl.&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void $MethodSignatureImpl.&lt;init&gt;(java.util.List,java.util.List,jdk.classfile.Signature,java.util.List)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">6280</span></td>
+ <td class="reportText"><span class="text"><a href="#src_278">$MethodSignatureImpl.arguments</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">java.util.List $MethodSignatureImpl.arguments()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_278">$MethodSignatureImpl.equals</a></span></td>
+ <td class="reportText"><span class="text">[public, final]</span></td>
+ <td class="reportText"><span class="text">boolean $MethodSignatureImpl.equals(java.lang.Object)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_278">$MethodSignatureImpl.hashCode</a></span></td>
+ <td class="reportText"><span class="text">[public, final]</span></td>
+ <td class="reportText"><span class="text">int $MethodSignatureImpl.hashCode()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">6280</span></td>
+ <td class="reportText"><span class="text"><a href="#src_278">$MethodSignatureImpl.result</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.Signature $MethodSignatureImpl.result()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">29687</span></td>
+ <td class="reportText"><span class="text"><a href="#src_293">$MethodSignatureImpl.signatureString</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">java.lang.String $MethodSignatureImpl.signatureString()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">6278</span></td>
+ <td class="reportText"><span class="text"><a href="#src_278">$MethodSignatureImpl.throwableSignatures</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">java.util.List $MethodSignatureImpl.throwableSignatures()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_278">$MethodSignatureImpl.toString</a></span></td>
+ <td class="reportText"><span class="text">[public, final]</span></td>
+ <td class="reportText"><span class="text">java.lang.String $MethodSignatureImpl.toString()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">6278</span></td>
+ <td class="reportText"><span class="text"><a href="#src_278">$MethodSignatureImpl.typeParameters</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">java.util.List $MethodSignatureImpl.typeParameters()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">25044</span></td>
+ <td class="reportText"><span class="text"><a href="#src_222">$TypeArgImpl.&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void $TypeArgImpl.&lt;init&gt;(jdk.classfile.Signature$TypeArg$WildcardIndicator,java.util.Optional)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">8</span></td>
+ <td class="reportText"><span class="text"><a href="#src_222">$TypeArgImpl.boundType</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">java.util.Optional $TypeArgImpl.boundType()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1</span></td>
+ <td class="reportText"><span class="text"><a href="#src_222">$TypeArgImpl.equals</a></span></td>
+ <td class="reportText"><span class="text">[public, final]</span></td>
+ <td class="reportText"><span class="text">boolean $TypeArgImpl.equals(java.lang.Object)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_222">$TypeArgImpl.hashCode</a></span></td>
+ <td class="reportText"><span class="text">[public, final]</span></td>
+ <td class="reportText"><span class="text">int $TypeArgImpl.hashCode()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">25033</span></td>
+ <td class="reportText"><span class="text"><a href="#src_226">$TypeArgImpl.signatureString</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">java.lang.String $TypeArgImpl.signatureString()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_222">$TypeArgImpl.toString</a></span></td>
+ <td class="reportText"><span class="text">[public, final]</span></td>
+ <td class="reportText"><span class="text">java.lang.String $TypeArgImpl.toString()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">8</span></td>
+ <td class="reportText"><span class="text"><a href="#src_222">$TypeArgImpl.wildcardIndicator</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.Signature$TypeArg$WildcardIndicator $TypeArgImpl.wildcardIndicator()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">7996</span></td>
+ <td class="reportText"><span class="text"><a href="#src_235">$TypeParamImpl.&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void $TypeParamImpl.&lt;init&gt;(java.lang.String,java.util.Optional,java.util.List)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">15346</span></td>
+ <td class="reportText"><span class="text"><a href="#src_233">$TypeParamImpl.classBound</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">java.util.Optional $TypeParamImpl.classBound()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_233">$TypeParamImpl.equals</a></span></td>
+ <td class="reportText"><span class="text">[public, final]</span></td>
+ <td class="reportText"><span class="text">boolean $TypeParamImpl.equals(java.lang.Object)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_233">$TypeParamImpl.hashCode</a></span></td>
+ <td class="reportText"><span class="text">[public, final]</span></td>
+ <td class="reportText"><span class="text">int $TypeParamImpl.hashCode()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">7996</span></td>
+ <td class="reportText"><span class="text"><a href="#src_233">$TypeParamImpl.identifier</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">java.lang.String $TypeParamImpl.identifier()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">15986</span></td>
+ <td class="reportText"><span class="text"><a href="#src_233">$TypeParamImpl.interfaceBounds</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">java.util.List $TypeParamImpl.interfaceBounds()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_233">$TypeParamImpl.toString</a></span></td>
+ <td class="reportText"><span class="text">[public, final]</span></td>
+ <td class="reportText"><span class="text">java.lang.String $TypeParamImpl.toString()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">91473</span></td>
+ <td class="reportText"><span class="text"><a href="#src_172">$TypeVarSigImpl.&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void $TypeVarSigImpl.&lt;init&gt;(java.lang.String)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">2</span></td>
+ <td class="reportText"><span class="text"><a href="#src_172">$TypeVarSigImpl.equals</a></span></td>
+ <td class="reportText"><span class="text">[public, final]</span></td>
+ <td class="reportText"><span class="text">boolean $TypeVarSigImpl.equals(java.lang.Object)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_172">$TypeVarSigImpl.hashCode</a></span></td>
+ <td class="reportText"><span class="text">[public, final]</span></td>
+ <td class="reportText"><span class="text">int $TypeVarSigImpl.hashCode()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">18</span></td>
+ <td class="reportText"><span class="text"><a href="#src_172">$TypeVarSigImpl.identifier</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">java.lang.String $TypeVarSigImpl.identifier()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">91451</span></td>
+ <td class="reportText"><span class="text"><a href="#src_176">$TypeVarSigImpl.signatureString</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">java.lang.String $TypeVarSigImpl.signatureString()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_172">$TypeVarSigImpl.toString</a></span></td>
+ <td class="reportText"><span class="text">[public, final]</span></td>
+ <td class="reportText"><span class="text">java.lang.String $TypeVarSigImpl.toString()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">4</span></td>
+ <td class="reportText"><span class="text"><a href="#src_35">&lt;clinit&gt;</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void &lt;clinit&gt;()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">86969</span></td>
+ <td class="reportText"><span class="text"><a href="#src_37">&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void &lt;init&gt;()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">232859</span></td>
+ <td class="reportText"><span class="text"><a href="#src_306">null2Empty</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">java.util.List null2Empty(java.util.List)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">5794</span></td>
+ <td class="reportText"><span class="text"><a href="#src_45">parseClassSignature</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.ClassSignature parseClassSignature(java.lang.String)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">29691</span></td>
+ <td class="reportText"><span class="text"><a href="#src_60">parseMethodSignature</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.MethodSignature parseMethodSignature(java.lang.String)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">35485</span></td>
+ <td class="reportText"><span class="text"><a href="#src_91">parseParamTypes</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">java.util.List parseParamTypes()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">51484</span></td>
+ <td class="reportText"><span class="text"><a href="#src_85">parseSignature</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.Signature parseSignature(java.lang.String)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">35491</span></td>
+ <td class="reportText"><span class="text"><a href="#src_243">printTypeParameters</a></span></td>
+ <td class="reportText"><span class="text">[private, static]</span></td>
+ <td class="reportText"><span class="text">java.lang.StringBuilder printTypeParameters(java.util.List)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">253662</span></td>
+ <td class="reportText"><span class="text"><a href="#src_127">referenceTypeSig</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.Signature$RefTypeSig referenceTypeSig()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">241593</span></td>
+ <td class="reportText"><span class="text"><a href="#src_117">typeSig</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.Signature typeSig()</span></td>
+ </tr>
+ </table>
+ <br>
+ <table cellspacing="0" cellpadding="0" class="src">
+ <tr>
+ <td class="numLine">&nbsp;1</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">/*</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;2</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;3</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;4</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;5</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * This code is free software; you can redistribute it and/or modify it</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;6</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * under the terms of the GNU General Public License version 2 only, as</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;7</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * published by the Free Software Foundation.  Oracle designates this</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;8</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * particular file as subject to the "Classpath" exception as provided</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;9</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * by Oracle in the LICENSE file that accompanied this code.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;10</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;11</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * This code is distributed in the hope that it will be useful, but WITHOUT</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;12</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;13</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;14</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * version 2 for more details (a copy is included in the LICENSE file that</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;15</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * accompanied this code).</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;16</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;17</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * You should have received a copy of the GNU General Public License version</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;18</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * 2 along with this work; if not, write to the Free Software Foundation,</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;19</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;20</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;21</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;22</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * or visit www.oracle.com if you need additional information or have any</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;23</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * questions.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;24</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;25</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">package</span> jdk.classfile.impl;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;26</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;27</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.ArrayList;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;28</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.List;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;29</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.Optional;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;30</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.ClassSignature;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;31</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.MethodSignature;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;32</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.Signature;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;33</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.Signature.*;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;34</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;35<a name="src_35"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;3/4&nbsp;Branch:&nbsp;1/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">public</span> <span Class="keyword">final</span> <span Class="keyword">class</span> SignaturesImpl {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;36</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;37<a name="src_37"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> SignaturesImpl() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;38</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;39</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;40</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> String sig;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;41</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">int</span> sigp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;42</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;43</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">// @@@ Move to ClassSignatureImpl to avoid list copying</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;44</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> ClassSignature parseClassSignature(String sig) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;45<a name="src_45"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">this</span>.sig = sig;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;46</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        sigp = 0;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;47</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        List&#60;TypeParam&#62; typeParamTypes = parseParamTypes();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;48</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        RefTypeSig superclass = referenceTypeSig();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;49</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        List&#60;RefTypeSig&#62; superinterfaces = <span Class="keyword">null</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;50</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">while</span> (sigp &#60; sig.length()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;51</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (superinterfaces == <span Class="keyword">null</span>)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;52</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                superinterfaces = <span Class="keyword">new</span> ArrayList&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;53</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            superinterfaces.add(referenceTypeSig());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;54</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;55</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">new</span> ClassSignatureImpl(typeParamTypes, superclass, null2Empty(superinterfaces));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;56</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;57</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;58</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">// @@@ Move to ClassSignatureImpl to avoid list copying</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;59</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> MethodSignature parseMethodSignature(String sig) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;60<a name="src_60"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">this</span>.sig = sig;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;61</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        sigp = 0;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;62</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        List&#60;TypeParam&#62; typeParamTypes = parseParamTypes();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;63</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">assert</span> sig.charAt(sigp) == '(';</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;64</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        sigp++;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;65</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        List&#60;Signature&#62; paramTypes = <span Class="keyword">new</span> ArrayList&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;66</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">while</span> (sig.charAt(sigp) != ')')</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;67</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            paramTypes.add(typeSig());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;68</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        sigp++;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;69</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        Signature returnType = typeSig();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;70</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        List&#60;ThrowableSig&#62; throwsTypes = <span Class="keyword">null</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;71</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">while</span> (sigp &#60; sig.length() &#38;&#38; sig.charAt(sigp) == '^') {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;72</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            sigp++;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;73</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (throwsTypes == <span Class="keyword">null</span>)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;74</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                throwsTypes = <span Class="keyword">new</span> ArrayList&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;75</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            var t = typeSig();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;76</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (t <span Class="keyword">instanceof</span> ThrowableSig ts)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;77</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                throwsTypes.add(ts);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;78</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">else</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;79</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">throw</span> <span Class="keyword">new</span> IllegalStateException(<span Class="string">"not a valid type signature: "</span> + sig);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;80</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;81</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;3/4&nbsp;Branch:&nbsp;3/5&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">new</span> MethodSignatureImpl(typeParamTypes, paramTypes, returnType, null2Empty(throwsTypes));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;82</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;83</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;84</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> Signature parseSignature(String sig) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;85<a name="src_85"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">this</span>.sig = sig;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;86</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        sigp = 0;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;87</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> typeSig();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;88</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;89</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;90</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> List&#60;TypeParam&#62; parseParamTypes() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;91<a name="src_91"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        List&#60;TypeParam&#62; typeParamTypes = <span Class="keyword">null</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;92</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (sig.charAt(sigp) == '&#60;') {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;93</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            sigp++;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;94</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            typeParamTypes = <span Class="keyword">new</span> ArrayList&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;95</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">while</span> (sig.charAt(sigp) != '&#62;') {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;96</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">int</span> sep = sig.indexOf(<span Class="string">":"</span>, sigp);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;97</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                String name = sig.substring(sigp, sep);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;98</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                RefTypeSig classBound = <span Class="keyword">null</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;99</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                List&#60;RefTypeSig&#62; interfaceBounds = <span Class="keyword">null</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;100</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                sigp = sep + 1;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;101</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">if</span> (sig.charAt(sigp) != ':')</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;102</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    classBound = referenceTypeSig();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;103</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">while</span> (sig.charAt(sigp) == ':') {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;104</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    sigp++;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;105</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">if</span> (interfaceBounds == <span Class="keyword">null</span>)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;106</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        interfaceBounds = <span Class="keyword">new</span> ArrayList&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;107</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    interfaceBounds.add(referenceTypeSig());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;108</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;109</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                typeParamTypes.add(<span Class="keyword">new</span> TypeParamImpl(name, Optional.ofNullable(classBound), null2Empty(interfaceBounds)));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;110</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;111</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            sigp++;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;112</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;113</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> null2Empty(typeParamTypes);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;114</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;115</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;116</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> Signature typeSig() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;117<a name="src_117"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">char</span> c = sig.charAt(sigp++);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;118</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">switch</span> (c) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;119</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;9/9&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> 'B','C','D','F','I','J','V','S','Z': <span Class="keyword">return</span> Signature.BaseTypeSig.of(c);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;120</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">default</span>:</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;121</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;3/17&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                sigp--;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;122</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">return</span> referenceTypeSig();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;123</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;124</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;125</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;126</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> RefTypeSig referenceTypeSig() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;127<a name="src_127"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">char</span> c = sig.charAt(sigp++);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;128</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">switch</span> (c) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;129</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> 'L':</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;130</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                StringBuilder sb = <span Class="keyword">new</span> StringBuilder();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;131</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                List&#60;Signature&#62; argTypes = <span Class="keyword">null</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;132</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                Signature.ClassTypeSig t = <span Class="keyword">null</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;133</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">char</span> sigch ;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;134</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">do</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;135</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">switch</span>  (sigch = sig.charAt(sigp++)) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;136</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">case</span> '&#60;' -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;137</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            argTypes = <span Class="keyword">new</span> ArrayList&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;138</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            <span Class="keyword">while</span> (sig.charAt(sigp) != '&#62;')</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;139</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                argTypes.add(typeSig());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;140</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            sigp++;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;141</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;142</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">case</span> '.',';' -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;143</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            t = <span Class="keyword">new</span> ClassTypeSigImpl(Optional.ofNullable(t), sb.toString(), null2Empty(argTypes));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;144</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            sb.setLength(0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;145</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            argTypes = <span Class="keyword">null</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;146</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;147</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">default</span> -&#62; sb.append(sigch);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;148</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;149</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                } <span Class="keyword">while</span> (sigch != ';');</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;150</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">return</span> t;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;151</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> 'T':</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;152</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">int</span> sep = sig.indexOf(';', sigp);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;153</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                var ty = Signature.TypeVarSig.of(sig.substring(sigp, sep));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;154</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                sigp = sep + 1;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;155</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">return</span> ty;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;156</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> '[': <span Class="keyword">return</span> ArrayTypeSig.of(typeSig());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;157</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> '*': <span Class="keyword">return</span> TypeArg.unbounded();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;158</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> '+': <span Class="keyword">return</span> TypeArg.extendsOf(referenceTypeSig());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;159</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> '-': <span Class="keyword">return</span> TypeArg.superOf(referenceTypeSig());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;160</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;161</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">throw</span> <span Class="keyword">new</span> IllegalStateException(<span Class="string">"not a valid type signature: "</span> + sig);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;162</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;163</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;164<a name="src_164"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;2/5&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">static</span> record BaseTypeSigImpl(<span Class="keyword">char</span> baseType) <span Class="keyword">implements</span> Signature.BaseTypeSig {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;165</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;166</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;167</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> String signatureString() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;168<a name="src_168"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> <span Class="string">""</span> + baseType;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;169</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;170</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;171</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;172<a name="src_172"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;3/5&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">static</span> record TypeVarSigImpl(String identifier) <span Class="keyword">implements</span> Signature.TypeVarSig {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;173</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;174</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;175</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> String signatureString() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;176<a name="src_176"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> <span Class="string">"T"</span> + identifier + ';';</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;177</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;178</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;179</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;180<a name="src_180"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;3/6&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">static</span> record ArrayTypeSigImpl(<span Class="keyword">int</span> arrayDepth, Signature elemType) <span Class="keyword">implements</span> Signature.ArrayTypeSig {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;181</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;182</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;183</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> Signature componentSignature() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;184<a name="src_184"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;4/4&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> arrayDepth &#62; 1 ? <span Class="keyword">new</span> ArrayTypeSigImpl(arrayDepth - 1, elemType) : elemType;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;185</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;186</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;187</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;188</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> String signatureString() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;189<a name="src_189"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> <span Class="string">"["</span>.repeat(arrayDepth) + elemType.signatureString();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;190</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;191</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;192</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;193<a name="src_193"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;7/10&nbsp;Branch:&nbsp;1/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">static</span> record ClassTypeSigImpl(Optional&#60;ClassTypeSig&#62; outerType, String className, List&#60;Signature&#62; typeArgs)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;194</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">implements</span> Signature.ClassTypeSig {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;195</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;196<a name="src_196"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> ClassTypeSigImpl(Optional&#60;ClassTypeSig&#62; outerType, String className, List&#60;Signature&#62; typeArgs) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;197</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">this</span>.outerType = outerType;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;198</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">this</span>.className = className;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;199</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">this</span>.typeArgs = List.copyOf(typeArgs);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;200</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;201</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;202</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;203</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> String signatureString() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;204<a name="src_204"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            String prefix = <span Class="string">"L"</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;205</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (outerType.isPresent()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;206</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                prefix = outerType.get().signatureString();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;207</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">assert</span> prefix.charAt(prefix.length() - 1) == ';';</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;208</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                prefix = prefix.substring(0, prefix.length() - 1) + '.';</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;209</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;210</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            String suffix = <span Class="string">";"</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;211</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (typeArgs != <span Class="keyword">null</span> &#38;&#38; !typeArgs.isEmpty()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;212</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                var sb = <span Class="keyword">new</span> StringBuilder();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;213</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                sb.append('&#60;');</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;214</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">for</span> (var ta : typeArgs)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;215</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    sb.append(ta.signatureString());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;216</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                suffix = sb.append(<span Class="string">"&#62;;"</span>).toString();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;217</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;218</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;4/5&nbsp;Branch:&nbsp;3/5&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> prefix + className + suffix;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;219</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;220</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;221</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;222<a name="src_222"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;4/6&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">static</span> record TypeArgImpl(WildcardIndicator wildcardIndicator, Optional&#60;RefTypeSig&#62; boundType) <span Class="keyword">implements</span> Signature.TypeArg {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;223</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;224</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;225</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> String signatureString() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;226<a name="src_226"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;6/10&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> <span Class="keyword">switch</span> (wildcardIndicator) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;227</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> EXTENDS, SUPER -&#62; wildcardIndicator.indicator + boundType.get().signatureString();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;228</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> UNBOUNDED -&#62; <span Class="string">"*"</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;229</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            };</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;230</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;231</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;232</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;233<a name="src_233"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;3/6&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">static</span> record TypeParamImpl(String identifier, Optional&#60;RefTypeSig&#62; classBound, List&#60;RefTypeSig&#62; interfaceBounds)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;234</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">implements</span> TypeParam {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;235<a name="src_235"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> TypeParamImpl(String identifier, Optional&#60;RefTypeSig&#62; classBound, List&#60;RefTypeSig&#62; interfaceBounds) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;236</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">this</span>.identifier = identifier;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;237</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">this</span>.classBound = classBound;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;238</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">this</span>.interfaceBounds = List.copyOf(interfaceBounds);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;239</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;240</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;241</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;242</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> StringBuilder printTypeParameters(List&#60;TypeParam&#62; typeParameters) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;243<a name="src_243"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        var sb = <span Class="keyword">new</span> StringBuilder();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;244</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (typeParameters != <span Class="keyword">null</span> &#38;&#38; !typeParameters.isEmpty()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;245</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            sb.append('&#60;');</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;246</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">for</span> (var tp : typeParameters) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;247</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                sb.append(tp.identifier()).append(':');</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;248</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">if</span> (tp.classBound().isPresent())</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;249</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    sb.append(tp.classBound().get().signatureString());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;250</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">if</span> (tp.interfaceBounds() != <span Class="keyword">null</span>) <span Class="keyword">for</span> (var is : tp.interfaceBounds())</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;251</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    sb.append(':').append(is.signatureString());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;252</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;253</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            sb.append('&#62;');</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;254</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;255</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;5/5&nbsp;Branch:&nbsp;3/4&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> sb;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;256</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;257</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;258<a name="src_258"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;3/6&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">static</span> record ClassSignatureImpl(List&#60;TypeParam&#62; typeParameters, RefTypeSig superclassSignature,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;259</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            List&#60;RefTypeSig&#62; superinterfaceSignatures) <span Class="keyword">implements</span> ClassSignature {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;260</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;261</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> ClassSignatureImpl(List&#60;TypeParam&#62; typeParameters, RefTypeSig superclassSignature,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;262<a name="src_262"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                  List&#60;RefTypeSig&#62; superinterfaceSignatures) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;263</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">this</span>.typeParameters = List.copyOf(typeParameters);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;264</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">this</span>.superclassSignature = superclassSignature;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;265</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">this</span>.superinterfaceSignatures = List.copyOf(superinterfaceSignatures);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;266</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;267</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;268</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;269</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> String signatureString() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;270<a name="src_270"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            var sb = printTypeParameters(typeParameters);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;271</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            sb.append(superclassSignature.signatureString());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;272</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (superinterfaceSignatures != <span Class="keyword">null</span>) <span Class="keyword">for</span> (var in : superinterfaceSignatures)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;273</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                sb.append(in.signatureString());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;274</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;3/3&nbsp;Branch:&nbsp;2/3&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> sb.toString();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;275</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;276</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;277</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;278<a name="src_278"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;4/7&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">static</span> record MethodSignatureImpl(List&#60;TypeParam&#62; typeParameters,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;279</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            List&#60;Signature&#62; arguments,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;280</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            Signature result,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;281</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            List&#60;ThrowableSig&#62; throwableSignatures) <span Class="keyword">implements</span> MethodSignature {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;282</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;283</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> MethodSignatureImpl(List&#60;TypeParam&#62; typeParameters, List&#60;Signature&#62; arguments, Signature result,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;284<a name="src_284"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                   List&#60;ThrowableSig&#62; throwableSignatures) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;285</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">this</span>.typeParameters = List.copyOf(typeParameters);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;286</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">this</span>.arguments = List.copyOf(arguments);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;287</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">this</span>.result = result;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;288</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">this</span>.throwableSignatures = List.copyOf(throwableSignatures);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;289</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;290</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;291</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;292</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> String signatureString() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;293<a name="src_293"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            var sb = printTypeParameters(typeParameters);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;294</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            sb.append('(');</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;295</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">for</span> (var a : arguments)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;296</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                sb.append(a.signatureString());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;297</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            sb.append(')').append(result.signatureString());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;298</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (throwableSignatures != <span Class="keyword">null</span> &#38;&#38; !throwableSignatures.isEmpty())</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;299</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">for</span> (var t : throwableSignatures)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;300</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    sb.append('^').append(t.signatureString());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;301</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;4/4&nbsp;Branch:&nbsp;3/4&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> sb.toString();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;302</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;303</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;304</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;305</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">static</span> &#60;T&#62; List&#60;T&#62; null2Empty(List&#60;T&#62; l) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;306<a name="src_306"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;4/4&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> l == <span Class="keyword">null</span> ? List.of() : l;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;307</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;308</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;}</pre></td>
+ </tr>
+ </table>
+<p>
+<br><table cellpadding="0" cellspacing="0" class="report">  <tr class="report">    <td class="reportText"><span class="text">    Report generated 8/4/22, 3:35 PM    </span></td>  </tr></table>
+</body>
+</html>

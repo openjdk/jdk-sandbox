@@ -1,0 +1,3983 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>tests coverage</title>
+<link rel ="stylesheet" type="text/css" href="../../../style.css" title="Style">
+<script type="text/javascript" src="../../../sorttable.js"></script>
+<script type="text/javascript">
+  targetPage = "" + window.location.search;
+  if (targetPage != "" && targetPage != "undefined")
+    targetPage = targetPage.substring(1);
+  if (targetPage.indexOf(":") != -1 || (targetPage != "" && !validURL(targetPage)))
+    targetPage = "undefined";
+  function validURL(url) {
+    var pos = url.indexOf(".html");
+    if (pos == -1 || pos != url.length - 5)
+      return false;
+    var allowNumber = false;
+    var allowSep = false;
+    var seenDot = false;
+    for (var i = 0; i < url.length - 5; i++) {
+      var ch = url.charAt(i);
+      if ('a' <= ch && ch <= 'z' ||
+          'A' <= ch && ch <= 'Z' ||
+          ch == '$' ||
+          ch == '_') {
+            allowNumber = true;
+            allowSep = true;
+      } else if ('0' <= ch && ch <= '9' ||
+                 ch == '-') {
+                   if (!allowNumber)
+                     return false;
+      } else if (ch == '/' || ch == '.') {
+        if (!allowSep)
+          return false;
+        allowNumber = false;
+        allowSep = false;
+        if (ch == '.')
+          seenDot = true;
+        if (ch == '/' && seenDot)
+          return false;
+      } else {
+        return false;
+      }
+    }
+    return true;
+  }
+  function loadFrames() {
+    if (targetPage != "" && targetPage != "undefined")
+      top.classFrame.location = top.targetPage;
+  }
+</script>
+</head>
+<body>
+<table>
+<tr>
+<td>
+<a href="../../../index.html?jdk/classfile/impl/DirectCodeBuilder.html" target="_top">Frames</a>
+<a href="DirectCodeBuilder.html" target="_top">No Frames</a>
+</td>
+</tr>
+</table>
+<br>
+ <table cellspacing="0" cellpadding="0"class="report">
+ <tr class="report">
+ <th class="report">&nbsp;</th>
+ <th class="report">%method</th>
+ <th class="report">%block</th>
+ <th class="report">%branch</th>
+ <th class="report">%line</th>
+ </tr>
+ <tr class="report">
+ <td class="reportText"><span class="text"> <b>jdk.classfile.impl.DirectCodeBuilder</b></span></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>81</b>%(47/58)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  81"></td><td class="percentUnCovered" width="19"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>87</b>%(203/231)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  87"></td><td class="percentUnCovered" width="13"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>84</b>%(130/154)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  84"></td><td class="percentUnCovered" width="16"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>90</b>%(317/350)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  90"></td><td class="percentUnCovered" width="10"></td></tr></table></td></tr></table></td>
+ </tr>
+ </table>
+ <br>
+ <br>
+ <table cellspacing="0" cellpadding="0"class="report" id="mcoverage">
+ <tr class="report">
+ <th class="report">hit count</th>
+ <th class="report">method  name</th>
+ <th class="report">method modifiers</th>
+ <th class="report">method signature</th>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">353173</span></td>
+ <td class="reportText"><span class="text"><a href="#src_320">$DedupLineNumberTableAttribute.&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">void $DedupLineNumberTableAttribute.&lt;init&gt;(jdk.classfile.constantpool.ConstantPoolBuilder)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">2047069</span></td>
+ <td class="reportText"><span class="text"><a href="#src_328">$DedupLineNumberTableAttribute.push</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">void $DedupLineNumberTableAttribute.push()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_347">$DedupLineNumberTableAttribute.writeBody</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">void $DedupLineNumberTableAttribute.writeBody(jdk.classfile.BufWriter)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1693973</span></td>
+ <td class="reportText"><span class="text"><a href="#src_338">$DedupLineNumberTableAttribute.writeLineNumber</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">void $DedupLineNumberTableAttribute.writeLineNumber(int,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">353148</span></td>
+ <td class="reportText"><span class="text"><a href="#src_352">$DedupLineNumberTableAttribute.writeTo</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">void $DedupLineNumberTableAttribute.writeTo(jdk.classfile.BufWriter)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">665117</span></td>
+ <td class="reportText"><span class="text"><a href="#src_378">$DeferredLabel.&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">void $DeferredLabel.&lt;init&gt;(int,int,int,jdk.classfile.Label)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_378">$DeferredLabel.equals</a></span></td>
+ <td class="reportText"><span class="text">[final]</span></td>
+ <td class="reportText"><span class="text">boolean $DeferredLabel.equals(java.lang.Object)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_378">$DeferredLabel.hashCode</a></span></td>
+ <td class="reportText"><span class="text">[final]</span></td>
+ <td class="reportText"><span class="text">int $DeferredLabel.hashCode()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_378">$DeferredLabel.instructionPc</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">int $DeferredLabel.instructionPc()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_378">$DeferredLabel.label</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.Label $DeferredLabel.label()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_378">$DeferredLabel.labelPc</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">int $DeferredLabel.labelPc()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_378">$DeferredLabel.size</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">int $DeferredLabel.size()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_378">$DeferredLabel.toString</a></span></td>
+ <td class="reportText"><span class="text">[final]</span></td>
+ <td class="reportText"><span class="text">java.lang.String $DeferredLabel.toString()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">187</span></td>
+ <td class="reportText"><span class="text"><a href="#src_705">$LabelOverflowException.&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">void $LabelOverflowException.&lt;init&gt;()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">360147</span></td>
+ <td class="reportText"><span class="text"><a href="#src_125">&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">void &lt;init&gt;(jdk.classfile.impl.MethodInfo,jdk.classfile.constantpool.ConstantPoolBuilder,jdk.classfile.CodeModel,boolean)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_675">addCharacterRange</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void addCharacterRange(jdk.classfile.instruction.CharacterRange)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">50656</span></td>
+ <td class="reportText"><span class="text"><a href="#src_679">addHandler</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void addHandler(jdk.classfile.instruction.ExceptionCatch)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">904782</span></td>
+ <td class="reportText"><span class="text"><a href="#src_687">addLocalVariable</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void addLocalVariable(jdk.classfile.instruction.LocalVariable)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">182214</span></td>
+ <td class="reportText"><span class="text"><a href="#src_691">addLocalVariableType</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void addLocalVariableType(jdk.classfile.instruction.LocalVariableType)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">12</span></td>
+ <td class="reportText"><span class="text"><a href="#src_176">allocateLocal</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">int allocateLocal(jdk.classfile.TypeKind)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">360062</span></td>
+ <td class="reportText"><span class="text"><a href="#src_108">build</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.Attribute build(jdk.classfile.impl.MethodInfo,java.util.function.Consumer,jdk.classfile.constantpool.ConstantPoolBuilder,jdk.classfile.CodeModel)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">360108</span></td>
+ <td class="reportText"><span class="text"><a href="#src_203">buildContent</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">void buildContent()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">359911</span></td>
+ <td class="reportText"><span class="text"><a href="#src_362">codeAndExceptionsMatch</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">boolean codeAndExceptionsMatch(int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">5555828</span></td>
+ <td class="reportText"><span class="text"><a href="#src_182">curPc</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">int curPc()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">180</span></td>
+ <td class="reportText"><span class="text"><a href="#src_171">curTopLocal</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">int curTopLocal()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">2</span></td>
+ <td class="reportText"><span class="text"><a href="#src_157">endLabel</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.Label endLabel()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_592">getLabel</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.Label getLabel(int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">7814290</span></td>
+ <td class="reportText"><span class="text"><a href="#src_597">labelToBci</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">int labelToBci(jdk.classfile.Label)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">136356</span></td>
+ <td class="reportText"><span class="text"><a href="#src_147">newLabel</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.Label newLabel()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">6</span></td>
+ <td class="reportText"><span class="text"><a href="#src_167">parameterSlot</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">int parameterSlot(int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">360108</span></td>
+ <td class="reportText"><span class="text"><a href="#src_397">processDeferredLabels</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">void processDeferredLabels()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1</span></td>
+ <td class="reportText"><span class="text"><a href="#src_162">receiverSlot</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">int receiverSlot()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">2073118</span></td>
+ <td class="reportText"><span class="text"><a href="#src_635">setLabelTarget</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void setLabelTarget(jdk.classfile.Label)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">2073122</span></td>
+ <td class="reportText"><span class="text"><a href="#src_640">setLabelTarget</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void setLabelTarget(jdk.classfile.Label,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1693973</span></td>
+ <td class="reportText"><span class="text"><a href="#src_629">setLineNumber</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void setLineNumber(int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">8</span></td>
+ <td class="reportText"><span class="text"><a href="#src_152">startLabel</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.Label startLabel()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_696">toString</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">java.lang.String toString()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">24280470</span></td>
+ <td class="reportText"><span class="text"><a href="#src_141">with</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.CodeBuilder with(jdk.classfile.CodeElement)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">56750</span></td>
+ <td class="reportText"><span class="text"><a href="#src_564">writeArgumentConstant</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void writeArgumentConstant(jdk.classfile.Opcode,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">665015</span></td>
+ <td class="reportText"><span class="text"><a href="#src_449">writeBranch</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void writeBranch(jdk.classfile.Opcode,jdk.classfile.Label)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">17561530</span></td>
+ <td class="reportText"><span class="text"><a href="#src_409">writeBytecode</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void writeBytecode(jdk.classfile.Opcode)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">448878</span></td>
+ <td class="reportText"><span class="text"><a href="#src_188">writeExceptionHandlers</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">void writeExceptionHandlers(jdk.classfile.BufWriter)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">370104</span></td>
+ <td class="reportText"><span class="text"><a href="#src_513">writeFieldAccess</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void writeFieldAccess(jdk.classfile.Opcode,jdk.classfile.constantpool.FieldRefEntry)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">3671</span></td>
+ <td class="reportText"><span class="text"><a href="#src_435">writeIncrement</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void writeIncrement(int,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">9005</span></td>
+ <td class="reportText"><span class="text"><a href="#src_532">writeInvokeDynamic</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void writeInvokeDynamic(jdk.classfile.constantpool.InvokeDynamicEntry)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">63012</span></td>
+ <td class="reportText"><span class="text"><a href="#src_525">writeInvokeInterface</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void writeInvokeInterface(jdk.classfile.Opcode,jdk.classfile.constantpool.InterfaceMethodRefEntry,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">528395</span></td>
+ <td class="reportText"><span class="text"><a href="#src_518">writeInvokeNormal</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void writeInvokeNormal(jdk.classfile.Opcode,jdk.classfile.constantpool.MemberRefEntry)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">718382</span></td>
+ <td class="reportText"><span class="text"><a href="#src_381">writeLabelOffset</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">void writeLabelOffset(int,int,jdk.classfile.Label)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1880978</span></td>
+ <td class="reportText"><span class="text"><a href="#src_415">writeLoad</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void writeLoad(jdk.classfile.Opcode,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">118276</span></td>
+ <td class="reportText"><span class="text"><a href="#src_575">writeLoadConstant</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void writeLoadConstant(jdk.classfile.Opcode,jdk.classfile.constantpool.LoadableConstantEntry)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1930</span></td>
+ <td class="reportText"><span class="text"><a href="#src_474">writeLookupSwitch</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void writeLookupSwitch(jdk.classfile.Label,java.util.List)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">22</span></td>
+ <td class="reportText"><span class="text"><a href="#src_553">writeNewMultidimensionalArray</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void writeNewMultidimensionalArray(int,jdk.classfile.constantpool.ClassEntry)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">79728</span></td>
+ <td class="reportText"><span class="text"><a href="#src_538">writeNewObject</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void writeNewObject(jdk.classfile.constantpool.ClassEntry)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1030</span></td>
+ <td class="reportText"><span class="text"><a href="#src_543">writeNewPrimitiveArray</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void writeNewPrimitiveArray(int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">8815</span></td>
+ <td class="reportText"><span class="text"><a href="#src_548">writeNewReferenceArray</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void writeNewReferenceArray(jdk.classfile.constantpool.ClassEntry)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">236778</span></td>
+ <td class="reportText"><span class="text"><a href="#src_425">writeStore</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void writeStore(jdk.classfile.Opcode,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">2851</span></td>
+ <td class="reportText"><span class="text"><a href="#src_495">writeTableSwitch</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void writeTableSwitch(int,int,jdk.classfile.Label,java.util.List)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">44977</span></td>
+ <td class="reportText"><span class="text"><a href="#src_559">writeTypeCheck</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void writeTypeCheck(jdk.classfile.Opcode,jdk.classfile.constantpool.ClassEntry)</span></td>
+ </tr>
+ </table>
+ <br>
+ <table cellspacing="0" cellpadding="0" class="src">
+ <tr>
+ <td class="numLine">&nbsp;1</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">/*</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;2</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;3</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;4</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;5</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * This code is free software; you can redistribute it and/or modify it</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;6</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * under the terms of the GNU General Public License version 2 only, as</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;7</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * published by the Free Software Foundation.  Oracle designates this</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;8</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * particular file as subject to the "Classpath" exception as provided</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;9</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * by Oracle in the LICENSE file that accompanied this code.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;10</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;11</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * This code is distributed in the hope that it will be useful, but WITHOUT</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;12</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;13</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;14</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * version 2 for more details (a copy is included in the LICENSE file that</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;15</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * accompanied this code).</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;16</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;17</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * You should have received a copy of the GNU General Public License version</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;18</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * 2 along with this work; if not, write to the Free Software Foundation,</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;19</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;20</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;21</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;22</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * or visit www.oracle.com if you need additional information or have any</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;23</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * questions.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;24</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;25</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">package</span> jdk.classfile.impl;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;26</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;27</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.lang.constant.MethodTypeDesc;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;28</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.ArrayList;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;29</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.Comparator;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;30</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.HashMap;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;31</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.IdentityHashMap;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;32</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.List;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;33</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.Map;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;34</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.function.Consumer;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;35</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.function.Function;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;36</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;37</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.Attribute;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;38</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.Attributes;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;39</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.BufWriter;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;40</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.Classfile;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;41</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.CodeBuilder;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;42</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.CodeElement;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;43</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.CodeModel;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;44</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.Label;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;45</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.Opcode;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;46</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.TypeKind;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;47</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.instruction.SwitchCase;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;48</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.attribute.CodeAttribute;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;49</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.attribute.LineNumberTableAttribute;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;50</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.attribute.StackMapTableAttribute;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;51</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.constantpool.ClassEntry;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;52</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.constantpool.ConstantPoolBuilder;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;53</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.constantpool.DoubleEntry;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;54</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.constantpool.FieldRefEntry;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;55</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.constantpool.InterfaceMethodRefEntry;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;56</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.constantpool.InvokeDynamicEntry;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;57</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.constantpool.LoadableConstantEntry;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;58</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.constantpool.LongEntry;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;59</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.constantpool.MemberRefEntry;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;60</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.instruction.CharacterRange;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;61</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.instruction.ExceptionCatch;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;62</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.instruction.LocalVariable;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;63</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.instruction.LocalVariableType;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;64</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;65</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Opcode.GOTO;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;66</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Opcode.GOTO_W;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;67</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Opcode.IINC;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;68</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Opcode.IINC_W;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;69</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Opcode.LDC2_W;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;70</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.Opcode.LDC_W;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;71</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;72</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;73</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * CodeWriter</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;74</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;75</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">public</span> <span Class="keyword">final</span> <span Class="keyword">class</span> DirectCodeBuilder</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;76</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">extends</span> AbstractDirectBuilder&#60;CodeBuilder, CodeModel&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;77</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">implements</span> TerminalCodeBuilder, LabelContext {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;78</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">final</span> List&#60;CharacterRange&#62; characterRanges = <span Class="keyword">new</span> ArrayList&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;79</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">final</span> List&#60;AbstractInstruction.ExceptionCatchImpl&#62; handlers = <span Class="keyword">new</span> ArrayList&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;80</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">final</span> List&#60;LocalVariable&#62; localVariables = <span Class="keyword">new</span> ArrayList&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;81</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">final</span> List&#60;LocalVariableType&#62; localVariableTypes = <span Class="keyword">new</span> ArrayList&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;82</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">final</span> <span Class="keyword">boolean</span> transformFwdJumps, transformBackJumps;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;83</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">final</span> Label startLabel, endLabel;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;84</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">final</span> MethodInfo methodInfo;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;85</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">final</span> BufWriter bytecodesBufWriter;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;86</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> CodeAttribute mruParent;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;87</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">int</span>[] mruParentTable;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;88</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> Map&#60;CodeAttribute, <span Class="keyword">int</span>[]&#62; parentMap;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;89</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> DedupLineNumberTableAttribute lineNumberWriter;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;90</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">int</span> topLocal;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;91</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;92</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    List&#60;DeferredLabel&#62; deferredLabels;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;93</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;94</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment"> Locals management</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;95</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">       lazily computed maxLocal = -1</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;96</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">       first time: derive count from methodType descriptor (for new methods) &#38; ACC_STATIC,</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;97</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">       or model maxLocals (for transformation)</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;98</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">       block builders inherit parent count</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;99</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">       allocLocal(TypeKind) bumps by nSlots</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;100</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;101</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;102</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">static</span> Attribute&#60;CodeAttribute&#62; build(MethodInfo methodInfo,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;103</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                                 Consumer&#60;? <span Class="keyword">super</span> CodeBuilder&#62; handler,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;104</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                                 ConstantPoolBuilder constantPool,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;105</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                                 CodeModel original) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;106</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        DirectCodeBuilder cb;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;107</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">try</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;108<a name="src_108"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            handler.accept(cb = <span Class="keyword">new</span> DirectCodeBuilder(methodInfo, constantPool, original, <span Class="keyword">false</span>));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;109</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            cb.buildContent();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;110</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        } <span Class="keyword">catch</span> (LabelOverflowException loe) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;111</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (constantPool.optionValue(Classfile.Option.Key.FIX_SHORT_JUMPS)) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;112</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                handler.accept(cb = <span Class="keyword">new</span> DirectCodeBuilder(methodInfo, constantPool, original, <span Class="keyword">true</span>));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;113</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                cb.buildContent();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;114</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;115</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">else</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;116</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">throw</span> loe;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;117</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;118</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> cb.content;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;119</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;120</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;121</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> DirectCodeBuilder(MethodInfo methodInfo,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;122</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                              ConstantPoolBuilder constantPool,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;123</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                              CodeModel original,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;124</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                              <span Class="keyword">boolean</span> transformFwdJumps) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;125<a name="src_125"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">super</span>(constantPool);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;126</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        setOriginal(original);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;127</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">this</span>.methodInfo = methodInfo;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;128</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">this</span>.transformFwdJumps = transformFwdJumps;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;129</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">this</span>.transformBackJumps = constantPool.optionValue(Classfile.Option.Key.FIX_SHORT_JUMPS);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;130</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        bytecodesBufWriter = (original <span Class="keyword">instanceof</span> CodeImpl cai) ? <span Class="keyword">new</span> BufWriterImpl(constantPool, cai.codeLength())</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;131</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                                               : <span Class="keyword">new</span> BufWriterImpl(constantPool);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;132</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">this</span>.startLabel = <span Class="keyword">new</span> LabelImpl(<span Class="keyword">this</span>, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;133</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">this</span>.endLabel = <span Class="keyword">new</span> LabelImpl(<span Class="keyword">this</span>, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;134</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">this</span>.topLocal = Util.maxLocals(methodInfo.methodFlags(), methodInfo.methodType().stringValue());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;135</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (original != <span Class="keyword">null</span>)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;136</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">this</span>.topLocal = Math.max(<span Class="keyword">this</span>.topLocal, original.maxLocals());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;137</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;138</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;139</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;140</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> CodeBuilder with(CodeElement element) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;141<a name="src_141"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        ((AbstractElement) element).writeTo(<span Class="keyword">this</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;142</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">this</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;143</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;144</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;145</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;146</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> Label newLabel() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;147<a name="src_147"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">new</span> LabelImpl(<span Class="keyword">this</span>, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;148</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;149</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;150</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;151</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> Label startLabel() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;152<a name="src_152"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> startLabel;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;153</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;154</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;155</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;156</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> Label endLabel() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;157<a name="src_157"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> endLabel;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;158</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;159</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;160</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;161</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">int</span> receiverSlot() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;162<a name="src_162"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> methodInfo.receiverSlot();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;163</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;164</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;165</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;166</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">int</span> parameterSlot(<span Class="keyword">int</span> paramNo) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;167<a name="src_167"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> methodInfo.parameterSlot(paramNo);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;168</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;169</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;170</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">int</span> curTopLocal() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;171<a name="src_171"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> topLocal;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;172</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;173</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;174</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;175</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">int</span> allocateLocal(TypeKind typeKind) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;176<a name="src_176"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">int</span> retVal = topLocal;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;177</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        topLocal += typeKind.slotSize();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;178</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> retVal;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;179</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;180</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;181</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">int</span> curPc() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;182<a name="src_182"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> bytecodesBufWriter.size();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;183</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;184</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;185</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> Attribute&#60;CodeAttribute&#62; content = <span Class="keyword">null</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;186</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;187</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">void</span> writeExceptionHandlers(BufWriter buf) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;188<a name="src_188"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        buf.writeU2(handlers.size());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;189</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">for</span> (AbstractInstruction.ExceptionCatchImpl h : handlers) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;190</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">int</span> startPc = labelToBci(h.tryStart());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;191</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">int</span> endPc = labelToBci(h.tryEnd());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;192</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">int</span> handlerPc = labelToBci(h.handler());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;193</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (startPc == -1 || endPc == -1 || handlerPc == -1)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;194</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/3&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">throw</span> <span Class="keyword">new</span> IllegalStateException(<span Class="string">"Unbound label in exception handler"</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;195</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            buf.writeU2(startPc);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;196</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            buf.writeU2(endPc);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;197</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            buf.writeU2(handlerPc);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;198</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            buf.writeIndexOrZero(h.catchTypeEntry());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;199</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;200</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;4/4&nbsp;Branch:&nbsp;3/3&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;201</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;202</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">void</span> buildContent() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;203<a name="src_203"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (content != <span Class="keyword">null</span>) <span Class="keyword">return</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;204</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        setLabelTarget(endLabel);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;205</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;206</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">// Backfill branches for which Label didn't have position yet</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;207</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        processDeferredLabels();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;208</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;209</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (constantPool.optionValue(Classfile.Option.Key.PROCESS_DEBUG)) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;210</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (!characterRanges.isEmpty()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;211<a name="src_211"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/2&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                Attribute&#60;?&#62; a = <span Class="keyword">new</span> UnboundAttribute.AdHocAttribute&#60;&#62;(Attributes.CHARACTER_RANGE_TABLE) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;212</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;213</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;214</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">public</span> <span Class="keyword">void</span> writeBody(BufWriter b) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;215</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="comment">// @@@ Filter out CRs whose boundary labels are not defined?</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;216<a name="src_216"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        b.writeU2(characterRanges.size());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;217</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">for</span> (CharacterRange cr : characterRanges) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;218</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            b.writeU2(labelToBci(cr.startScope()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;219</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            b.writeU2(labelToBci(cr.endScope()) - 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;220</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            b.writeInt(cr.characterRangeStart());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;221</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            b.writeInt(cr.characterRangeEnd());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;222</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            b.writeU2(cr.flags());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;223</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;224</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="comment">// @@@ If we're filtering, then also have to patch count</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;225</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/2&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;226</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                };</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;227</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                attributes.withAttribute(a);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;228</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;229</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;230</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (!localVariables.isEmpty()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;231<a name="src_231"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                Attribute&#60;?&#62; a = <span Class="keyword">new</span> UnboundAttribute.AdHocAttribute&#60;&#62;(Attributes.LOCAL_VARIABLE_TABLE) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;232</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;233</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">public</span> <span Class="keyword">void</span> writeBody(BufWriter b) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;234</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="comment">// @@@ Filter out LVs whose boundary labels are not defined?</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;235<a name="src_235"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        b.writeU2(localVariables.size());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;236</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">for</span> (LocalVariable l : localVariables) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;237</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            l.writeTo(b, DirectCodeBuilder.<span Class="keyword">this</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;238</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;239</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="comment">// @@@ If we're filtering, then also have to patch count</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;240</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;241</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                };</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;242</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;243</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                attributes.withAttribute(a);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;244</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;245</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;246</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (!localVariableTypes.isEmpty()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;247<a name="src_247"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                Attribute&#60;?&#62; a = <span Class="keyword">new</span> UnboundAttribute.AdHocAttribute&#60;&#62;(Attributes.LOCAL_VARIABLE_TYPE_TABLE) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;248</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;249</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">public</span> <span Class="keyword">void</span> writeBody(BufWriter b) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;250</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="comment">// @@@ Filter out LVs whose boundary labels are not defined?</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;251<a name="src_251"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        b.writeU2(localVariableTypes.size());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;252</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">for</span> (LocalVariableType l : localVariableTypes) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;253</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            l.writeTo(b, DirectCodeBuilder.<span Class="keyword">this</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;254</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;255</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="comment">// @@@ If we're filtering, then also have to patch count</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;256</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;257</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                };</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;258</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;259</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                attributes.withAttribute(a);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;260</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;261</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;262</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;263</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (lineNumberWriter != <span Class="keyword">null</span>) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;264</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            attributes.withAttribute(lineNumberWriter);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;265</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;266</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;267<a name="src_267"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        content = <span Class="keyword">new</span> UnboundAttribute.AdHocAttribute&#60;&#62;(Attributes.CODE) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;268</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;269</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">public</span> <span Class="keyword">void</span> writeBody(BufWriter b) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;270<a name="src_270"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                BufWriterImpl buf = (BufWriterImpl) b;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;271</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;272</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">int</span> codeLength = curPc();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;273</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">int</span> maxStack, maxLocals;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;274</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                Attribute&#60;? <span Class="keyword">extends</span> StackMapTableAttribute&#62; stackMapAttr;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;275</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">boolean</span> canReuseStackmaps = codeAndExceptionsMatch(codeLength);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;276</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;277</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">if</span> (!constantPool.&#60;Boolean&#62;optionValue(Classfile.Option.Key.GENERATE_STACK_MAPS)) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;278</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    maxStack = maxLocals = 255;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;279</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    stackMapAttr = <span Class="keyword">null</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;280</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;281</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">else</span> <span Class="keyword">if</span> (canReuseStackmaps) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;282</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    maxLocals = original.maxLocals();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;283</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    maxStack = original.maxStack();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;284</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    stackMapAttr = original.findAttribute(Attributes.STACK_MAP_TABLE).orElse(<span Class="keyword">null</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;285</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;286</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">else</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;287</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="comment">//new instance of generator immediately calculates maxStack, maxLocals, all frames,</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;288</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="comment">// patches dead bytecode blocks and removes them from exception table</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;289</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    StackMapGenerator gen = <span Class="keyword">new</span> StackMapGenerator(DirectCodeBuilder.<span Class="keyword">this</span>,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;290</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                                  buf.thisClass().asSymbol(),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;291</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                                  methodInfo.methodName().stringValue(),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;292</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                                  MethodTypeDesc.ofDescriptor(methodInfo.methodType().stringValue()),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;293</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                                  (methodInfo.methodFlags() &#38; Classfile.ACC_STATIC) != 0,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;294</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                                  bytecodesBufWriter.asByteBuffer().slice(0, codeLength),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;295</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                                  constantPool,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;296</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                                  handlers);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;297</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    maxStack = gen.maxStack();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;298</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    maxLocals = gen.maxLocals();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;299</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    stackMapAttr = gen.stackMapTableAttribute();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;300</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;301</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                attributes.withAttribute(stackMapAttr);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;302</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;303</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                buf.setLabelResolver(DirectCodeBuilder.<span Class="keyword">this</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;304</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                buf.writeU2(maxStack);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;305</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                buf.writeU2(maxLocals);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;306</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                buf.writeInt(codeLength);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;307</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                buf.writeBytes(bytecodesBufWriter);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;308</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                writeExceptionHandlers(b);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;309</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                attributes.writeTo(b);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;310</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                buf.setLabelResolver(<span Class="keyword">null</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;311</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;312</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        };</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;313</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;314</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;315</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> <span Class="keyword">class</span> DedupLineNumberTableAttribute <span Class="keyword">extends</span> UnboundAttribute.AdHocAttribute&#60;LineNumberTableAttribute&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;316</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">private</span> <span Class="keyword">final</span> BufWriterImpl buf;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;317</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">private</span> <span Class="keyword">int</span> lastPc, lastLine, writtenLine;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;318</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;319</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> DedupLineNumberTableAttribute(ConstantPoolBuilder constantPool) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;320<a name="src_320"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">super</span>(Attributes.LINE_NUMBER_TABLE);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;321</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            buf = <span Class="keyword">new</span> BufWriterImpl(constantPool);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;322</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            lastPc = -1;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;323</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            writtenLine = -1;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;324</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;325</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;326</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">private</span> <span Class="keyword">void</span> push() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;327</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">//subsequent identical line numbers are skipped</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;328<a name="src_328"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (lastPc &#62;= 0 &#38;&#38; lastLine != writtenLine) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;329</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                buf.writeU2(lastPc);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;330</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                buf.writeU2(lastLine);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;331</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                writtenLine = lastLine;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;332</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;333</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;2/3&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;334</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;335</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">//writes are expected ordered by pc in ascending sequence</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;336</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> <span Class="keyword">void</span> writeLineNumber(<span Class="keyword">int</span> pc, <span Class="keyword">int</span> lineNo) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;337</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">//for each pc only the latest line number is written</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;338<a name="src_338"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (lastPc != pc &#38;&#38; lastLine != lineNo) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;339</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                push();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;340</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                lastPc = pc;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;341</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;342</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            lastLine = lineNo;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;343</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;344</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;345</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;346</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> <span Class="keyword">void</span> writeBody(BufWriter b) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;347<a name="src_347"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> <span Class="keyword">new</span> UnsupportedOperationException();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;348</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;349</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;350</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;351</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> <span Class="keyword">void</span> writeTo(BufWriter b) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;352<a name="src_352"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            b.writeIndex(b.constantPool().utf8Entry(Attributes.NAME_LINE_NUMBER_TABLE));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;353</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            push();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;354</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            b.writeInt(buf.size() + 2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;355</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            b.writeU2(buf.size() / 4);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;356</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            b.writeBytes(buf);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;357</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;358</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;359</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;360</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">boolean</span> codeAndExceptionsMatch(<span Class="keyword">int</span> codeLength) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;361</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">boolean</span> codeAttributesMatch;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;362<a name="src_362"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (original <span Class="keyword">instanceof</span> CodeImpl cai &#38;&#38; canWriteDirect(cai.constantPool())) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;363</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            codeAttributesMatch = cai.codeLength == curPc()</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;364</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                  &#38;&#38; cai.compareCodeBytes(bytecodesBufWriter, 0, codeLength);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;365</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (codeAttributesMatch) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;366</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                BufWriter bw = <span Class="keyword">new</span> BufWriterImpl(constantPool);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;367</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                writeExceptionHandlers(bw);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;368</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                codeAttributesMatch = cai.classReader.compare(bw, 0, cai.exceptionHandlerPos, bw.size());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;369</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;370</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;371</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">else</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;372</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            codeAttributesMatch = <span Class="keyword">false</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;373</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;4/4&nbsp;Branch:&nbsp;5/5&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> codeAttributesMatch;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;374</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;375</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;376</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">// Writing support</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;377</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;378<a name="src_378"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/8&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> record DeferredLabel(<span Class="keyword">int</span> labelPc, <span Class="keyword">int</span> size, <span Class="keyword">int</span> instructionPc, Label label) { }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;379</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;380</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">void</span> writeLabelOffset(<span Class="keyword">int</span> nBytes, <span Class="keyword">int</span> instructionPc, Label label) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;381<a name="src_381"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">int</span> targetBci = labelToBci(label);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;382</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (targetBci == -1) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;383</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">int</span> pc = curPc();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;384</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            bytecodesBufWriter.writeIntBytes(nBytes, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;385</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (deferredLabels == <span Class="keyword">null</span>)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;386</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                deferredLabels = <span Class="keyword">new</span> ArrayList&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;387</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            deferredLabels.add(<span Class="keyword">new</span> DeferredLabel(pc, nBytes, instructionPc, label));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;388</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;389</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">else</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;390</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">int</span> branchOffset = targetBci - instructionPc;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;391</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (nBytes == 2 &#38;&#38; (<span Class="keyword">short</span>)branchOffset != branchOffset) <span Class="keyword">throw</span> <span Class="keyword">new</span> LabelOverflowException();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;392</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            bytecodesBufWriter.writeIntBytes(nBytes, branchOffset);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;393</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;394</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;3/3&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;395</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;396</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">void</span> processDeferredLabels() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;397<a name="src_397"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (deferredLabels != <span Class="keyword">null</span>) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;398</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">for</span> (DeferredLabel dl : deferredLabels) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;399</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">int</span> branchOffset = labelToBci(dl.label) - dl.instructionPc;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;400</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">if</span> (dl.size == 2 &#38;&#38; (<span Class="keyword">short</span>)branchOffset != branchOffset) <span Class="keyword">throw</span> <span Class="keyword">new</span> LabelOverflowException();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;401</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                bytecodesBufWriter.patchInt(dl.labelPc, dl.size, branchOffset);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;402</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;403</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;404</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;4/4&nbsp;Branch:&nbsp;4/4&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;405</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;406</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">// Instruction writing</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;407</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;408</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">void</span> writeBytecode(Opcode opcode) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;409<a name="src_409"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (opcode.isWide())</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;410</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            bytecodesBufWriter.writeU1(Classfile.WIDE);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;411</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        bytecodesBufWriter.writeU1(opcode.bytecode() &#38; 0xFF);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;412</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;413</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;414</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">void</span> writeLoad(Opcode opcode, <span Class="keyword">int</span> localVar) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;415<a name="src_415"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        writeBytecode(opcode);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;416</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">switch</span> (opcode.sizeIfFixed()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;417</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> 1 -&#62; { }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;418</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> 2 -&#62; bytecodesBufWriter.writeU1(localVar);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;419</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> 4 -&#62; bytecodesBufWriter.writeU2(localVar);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;420</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">default</span> -&#62; <span Class="keyword">throw</span> <span Class="keyword">new</span> IllegalArgumentException(<span Class="string">"Unexpected instruction size: "</span> + opcode);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;421</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;422</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;423</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;424</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">void</span> writeStore(Opcode opcode, <span Class="keyword">int</span> localVar) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;425<a name="src_425"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        writeBytecode(opcode);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;426</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">switch</span> (opcode.sizeIfFixed()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;427</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> 1 -&#62; { }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;428</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> 2 -&#62; bytecodesBufWriter.writeU1(localVar);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;429</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> 4 -&#62; bytecodesBufWriter.writeU2(localVar);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;430</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">default</span> -&#62; <span Class="keyword">throw</span> <span Class="keyword">new</span> IllegalArgumentException(<span Class="string">"Unexpected instruction size: "</span> + opcode);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;431</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;432</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;433</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;434</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">void</span> writeIncrement(<span Class="keyword">int</span> slot, <span Class="keyword">int</span> val) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;435<a name="src_435"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        Opcode opcode = (slot &#60; 256 &#38;&#38; val &#60; 128 &#38;&#38; val &#62; -127)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;436</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        ? IINC</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;437</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;2/3&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        : IINC_W;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;438</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        writeBytecode(opcode);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;439</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (opcode.isWide()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;440</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            bytecodesBufWriter.writeU2(slot);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;441</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            bytecodesBufWriter.writeU2(val);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;442</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        } <span Class="keyword">else</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;443</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            bytecodesBufWriter.writeU1(slot);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;444</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            bytecodesBufWriter.writeU1(val);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;445</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;446</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;3/3&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;447</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;448</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">void</span> writeBranch(Opcode op, Label target) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;449<a name="src_449"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">int</span> instructionPc = curPc();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;450</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">int</span> targetBci = labelToBci(target);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;451</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">//transform short-opcode forward jumps if enforced, and backward jumps if enabled and overflowing</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;452</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (op.sizeIfFixed() == 3 &#38;&#38; (targetBci == -1</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;453</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                      ? transformFwdJumps</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;454</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                      : (transformBackJumps</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;455</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                         &#38;&#38; targetBci - instructionPc &#60; Short.MIN_VALUE))) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;456</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (op == GOTO) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;457</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                writeBytecode(GOTO_W);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;458</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                writeLabelOffset(4, instructionPc, target);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;459</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            } <span Class="keyword">else</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;460</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                writeBytecode(BytecodeHelpers.reverseBranchOpcode(op));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;461</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                Label bypassJump = newLabel();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;462</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                writeLabelOffset(2, instructionPc, bypassJump);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;463</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                writeBytecode(GOTO_W);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;464</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                writeLabelOffset(4, instructionPc + 3, target);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;465</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                labelBinding(bypassJump);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;466</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;467</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        } <span Class="keyword">else</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;468</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;4/4&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            writeBytecode(op);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;469</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            writeLabelOffset(op.sizeIfFixed() == 3 ? 2 : 4, instructionPc, target);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;470</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;471</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;9/9&nbsp;Branch:&nbsp;7/7&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;472</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;473</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">void</span> writeLookupSwitch(Label defaultTarget, List&#60;SwitchCase&#62; cases) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;474<a name="src_474"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">int</span> instructionPc = curPc();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;475</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        writeBytecode(Opcode.LOOKUPSWITCH);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;476</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">int</span> pad = 4 - (curPc() % 4);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;477</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (pad != 4)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;478</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            bytecodesBufWriter.writeIntBytes(pad, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;479</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        writeLabelOffset(4, instructionPc, defaultTarget);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;480</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        bytecodesBufWriter.writeInt(cases.size());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;481</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        cases = <span Class="keyword">new</span> ArrayList&#60;&#62;(cases);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;482<a name="src_482"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        cases.sort(<span Class="keyword">new</span> Comparator&#60;SwitchCase&#62;() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;483</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;484</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">public</span> <span Class="keyword">int</span> compare(SwitchCase c1, SwitchCase c2) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;485<a name="src_485"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">return</span> Integer.compare(c1.caseValue(), c2.caseValue());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;486</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;487</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        });</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;488</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">for</span> (var c : cases) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;489</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            bytecodesBufWriter.writeInt(c.caseValue());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;490</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            writeLabelOffset(4, instructionPc, c.target());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;491</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;492</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;493</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;494</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">void</span> writeTableSwitch(<span Class="keyword">int</span> low, <span Class="keyword">int</span> high, Label defaultTarget, List&#60;SwitchCase&#62; cases) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;495<a name="src_495"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">int</span> instructionPc = curPc();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;496</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        writeBytecode(Opcode.TABLESWITCH);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;497</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">int</span> pad = 4 - (curPc() % 4);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;498</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (pad != 4)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;499</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            bytecodesBufWriter.writeIntBytes(pad, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;500</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        writeLabelOffset(4, instructionPc, defaultTarget);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;501</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        bytecodesBufWriter.writeInt(low);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;502</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        bytecodesBufWriter.writeInt(high);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;503</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        var caseMap = <span Class="keyword">new</span> HashMap&#60;Integer, Label&#62;(cases.size());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;504</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">for</span> (var c : cases) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;505</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            caseMap.put(c.caseValue(), c.target());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;506</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;507</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">for</span> (<span Class="keyword">long</span> l = low; l&#60;=high; l++) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;508</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            writeLabelOffset(4, instructionPc, caseMap.getOrDefault((<span Class="keyword">int</span>)l, defaultTarget));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;509</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;510</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;3/3&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;511</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;512</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">void</span> writeFieldAccess(Opcode opcode, FieldRefEntry ref) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;513<a name="src_513"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        writeBytecode(opcode);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;514</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        bytecodesBufWriter.writeIndex(ref);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;515</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;516</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;517</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">void</span> writeInvokeNormal(Opcode opcode, MemberRefEntry ref) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;518<a name="src_518"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        writeBytecode(opcode);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;519</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        bytecodesBufWriter.writeIndex(ref);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;520</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;521</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;522</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">void</span> writeInvokeInterface(Opcode opcode,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;523</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                     InterfaceMethodRefEntry ref,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;524</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                     <span Class="keyword">int</span> count) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;525<a name="src_525"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        writeBytecode(opcode);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;526</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        bytecodesBufWriter.writeIndex(ref);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;527</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        bytecodesBufWriter.writeU1(count);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;528</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        bytecodesBufWriter.writeU1(0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;529</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;530</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;531</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">void</span> writeInvokeDynamic(InvokeDynamicEntry ref) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;532<a name="src_532"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        writeBytecode(Opcode.INVOKEDYNAMIC);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;533</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        bytecodesBufWriter.writeIndex(ref);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;534</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        bytecodesBufWriter.writeU2(0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;535</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;536</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;537</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">void</span> writeNewObject(ClassEntry type) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;538<a name="src_538"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        writeBytecode(Opcode.NEW);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;539</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        bytecodesBufWriter.writeIndex(type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;540</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;541</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;542</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">void</span> writeNewPrimitiveArray(<span Class="keyword">int</span> newArrayCode) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;543<a name="src_543"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        writeBytecode(Opcode.NEWARRAY);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;544</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        bytecodesBufWriter.writeU1(newArrayCode);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;545</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;546</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;547</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">void</span> writeNewReferenceArray(ClassEntry type) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;548<a name="src_548"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        writeBytecode(Opcode.ANEWARRAY);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;549</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        bytecodesBufWriter.writeIndex(type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;550</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;551</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;552</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">void</span> writeNewMultidimensionalArray(<span Class="keyword">int</span> dimensions, ClassEntry type) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;553<a name="src_553"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        writeBytecode(Opcode.MULTIANEWARRAY);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;554</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        bytecodesBufWriter.writeIndex(type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;555</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        bytecodesBufWriter.writeU1(dimensions);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;556</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;557</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;558</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">void</span> writeTypeCheck(Opcode opcode, ClassEntry type) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;559<a name="src_559"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        writeBytecode(opcode);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;560</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        bytecodesBufWriter.writeIndex(type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;561</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;562</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;563</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">void</span> writeArgumentConstant(Opcode opcode, <span Class="keyword">int</span> value) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;564<a name="src_564"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        writeBytecode(opcode);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;565</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (opcode.sizeIfFixed() == 3) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;566</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            bytecodesBufWriter.writeU2(value);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;567</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        } <span Class="keyword">else</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;568</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            bytecodesBufWriter.writeU1(value);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;569</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;570</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;571</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;572</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">void</span> writeLoadConstant(Opcode opcode, LoadableConstantEntry value) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;573</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">// Make sure Long and Double have LDC2_W and</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;574</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">// rewrite to _W if index is &#62; 256</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;575<a name="src_575"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">int</span> index = constantPool.maybeClone(value).index();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;576</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        Opcode op = opcode;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;577</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (value <span Class="keyword">instanceof</span> LongEntry || value <span Class="keyword">instanceof</span> DoubleEntry) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;578</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            op = LDC2_W;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;579</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        } <span Class="keyword">else</span> <span Class="keyword">if</span> (index &#62;= 256)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;580</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            op = LDC_W;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;581</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;582</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        writeBytecode(op);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;583</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (op.sizeIfFixed() == 3) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;584</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            bytecodesBufWriter.writeU2(index);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;585</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        } <span Class="keyword">else</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;586</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            bytecodesBufWriter.writeU1(index);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;587</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;588</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;589</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;590</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;591</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> Label getLabel(<span Class="keyword">int</span> bci) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;592<a name="src_592"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">throw</span> <span Class="keyword">new</span> UnsupportedOperationException(<span Class="string">"Lookup by BCI not supported by CodeBuilder"</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;593</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;594</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;595</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;596</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">int</span> labelToBci(Label label) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;597<a name="src_597"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        LabelImpl lab = (LabelImpl) label;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;598</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        LabelContext context = lab.labelContext();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;599</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (context == <span Class="keyword">this</span>) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;600</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> lab.getContextInfo();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;601</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;602</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">else</span> <span Class="keyword">if</span> (context == mruParent) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;603</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> mruParentTable[lab.getContextInfo()] - 1;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;604</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;605</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">else</span> <span Class="keyword">if</span> (context <span Class="keyword">instanceof</span> CodeAttribute parent) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;606</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (parentMap == <span Class="keyword">null</span>)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;607</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                parentMap = <span Class="keyword">new</span> IdentityHashMap&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;608<a name="src_608"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">int</span>[] table = parentMap.computeIfAbsent(parent, <span Class="keyword">new</span> Function&#60;CodeAttribute, <span Class="keyword">int</span>[]&#62;() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;609</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;610</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">public</span> <span Class="keyword">int</span>[] apply(CodeAttribute x) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;611<a name="src_611"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">return</span> <span Class="keyword">new</span> <span Class="keyword">int</span>[parent.codeLength() + 1];</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;612</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;613</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            });</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;614</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;615</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            mruParent = parent;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;616</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            mruParentTable = table;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;617</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> mruParentTable[lab.getContextInfo()] - 1;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;618</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;619</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">else</span> <span Class="keyword">if</span> (context <span Class="keyword">instanceof</span> BufferedCodeBuilder) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;620</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// Hijack the label</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;621</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> lab.getContextInfo();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;622</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;623</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">else</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;624</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> <span Class="keyword">new</span> IllegalStateException(String.format(<span Class="string">"Unexpected label context %s in =%s"</span>, context, <span Class="keyword">this</span>));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;625</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;626</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;627</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;628</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">void</span> setLineNumber(<span Class="keyword">int</span> lineNo) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;629<a name="src_629"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (lineNumberWriter == <span Class="keyword">null</span>)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;630</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            lineNumberWriter = <span Class="keyword">new</span> DedupLineNumberTableAttribute(constantPool);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;631</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        lineNumberWriter.writeLineNumber(curPc(), lineNo);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;632</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;633</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;634</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">void</span> setLabelTarget(Label label) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;635<a name="src_635"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        setLabelTarget(label, curPc());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;636</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;637</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;638</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;639</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">void</span> setLabelTarget(Label label, <span Class="keyword">int</span> bci) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;640<a name="src_640"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        LabelImpl lab = (LabelImpl) label;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;641</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        LabelContext context = lab.labelContext();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;642</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;643</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (context == <span Class="keyword">this</span>) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;644</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (lab.getContextInfo() != -1)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;645</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">throw</span> <span Class="keyword">new</span> IllegalStateException(<span Class="string">"Setting label target for already-set label"</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;646</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            lab.setContextInfo(bci);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;647</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;648</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">else</span> <span Class="keyword">if</span> (context == mruParent) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;649</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            mruParentTable[lab.getContextInfo()] = bci + 1;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;650</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;651</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">else</span> <span Class="keyword">if</span> (context <span Class="keyword">instanceof</span> CodeAttribute parent) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;652</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (parentMap == <span Class="keyword">null</span>)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;653</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                parentMap = <span Class="keyword">new</span> IdentityHashMap&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;654<a name="src_654"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">int</span>[] table = parentMap.computeIfAbsent(parent, <span Class="keyword">new</span> Function&#60;CodeAttribute, <span Class="keyword">int</span>[]&#62;() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;655</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;656</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">public</span> <span Class="keyword">int</span>[] apply(CodeAttribute x) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;657<a name="src_657"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">return</span> <span Class="keyword">new</span> <span Class="keyword">int</span>[parent.codeLength() + 1];</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;658</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;659</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            });</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;660</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;661</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            mruParent = parent;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;662</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            mruParentTable = table;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;663</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            mruParentTable[lab.getContextInfo()] = bci + 1;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;664</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;665</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">else</span> <span Class="keyword">if</span> (context <span Class="keyword">instanceof</span> BufferedCodeBuilder) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;666</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// Hijack the label</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;667</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            lab.setContextInfo(bci);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;668</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;669</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">else</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;670</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> <span Class="keyword">new</span> IllegalStateException(String.format(<span Class="string">"Unexpected label context %s in =%s"</span>, context, <span Class="keyword">this</span>));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;671</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;672</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;673</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;674</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">void</span> addCharacterRange(CharacterRange element) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;675<a name="src_675"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        characterRanges.add(element);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;676</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;677</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;678</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">void</span> addHandler(ExceptionCatch element) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;679<a name="src_679"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        AbstractInstruction.ExceptionCatchImpl el = (AbstractInstruction.ExceptionCatchImpl) element;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;680</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        ClassEntry type = el.catchTypeEntry();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;681</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (type != <span Class="keyword">null</span> &#38;&#38; !constantPool.canWriteDirect(type.constantPool()))</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;682</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            el = <span Class="keyword">new</span> AbstractInstruction.ExceptionCatchImpl(element.handler(), element.tryStart(), element.tryEnd(), constantPool.maybeClone(type));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;683</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        handlers.add(el);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;684</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;685</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;686</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">void</span> addLocalVariable(LocalVariable element) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;687<a name="src_687"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        localVariables.add(element);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;688</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;689</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;690</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">void</span> addLocalVariableType(LocalVariableType element) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;691<a name="src_691"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        localVariableTypes.add(element);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;692</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;693</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;694</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;695</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> String toString() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;696<a name="src_696"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> String.format(<span Class="string">"CodeBuilder[id=%d]"</span>, System.identityHashCode(<span Class="keyword">this</span>));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;697</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;698</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;699</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">//ToDo: consolidate and open all exceptions</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;700</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> <span Class="keyword">final</span> <span Class="keyword">class</span> LabelOverflowException <span Class="keyword">extends</span> IllegalStateException {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;701</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;702</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">private</span> <span Class="keyword">static</span> <span Class="keyword">final</span> <span Class="keyword">long</span> serialVersionUID = 1L;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;703</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;704</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> LabelOverflowException() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;705<a name="src_705"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">super</span>(<span Class="string">"Label target offset overflow"</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;706</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;707</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;708</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;}</pre></td>
+ </tr>
+ </table>
+<p>
+<br><table cellpadding="0" cellspacing="0" class="report">  <tr class="report">    <td class="reportText"><span class="text">    Report generated 8/4/22, 3:35 PM    </span></td>  </tr></table>
+</body>
+</html>

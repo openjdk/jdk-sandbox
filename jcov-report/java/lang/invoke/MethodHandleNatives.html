@@ -1,0 +1,3810 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>tests coverage</title>
+<link rel ="stylesheet" type="text/css" href="../../../style.css" title="Style">
+<script type="text/javascript" src="../../../sorttable.js"></script>
+<script type="text/javascript">
+  targetPage = "" + window.location.search;
+  if (targetPage != "" && targetPage != "undefined")
+    targetPage = targetPage.substring(1);
+  if (targetPage.indexOf(":") != -1 || (targetPage != "" && !validURL(targetPage)))
+    targetPage = "undefined";
+  function validURL(url) {
+    var pos = url.indexOf(".html");
+    if (pos == -1 || pos != url.length - 5)
+      return false;
+    var allowNumber = false;
+    var allowSep = false;
+    var seenDot = false;
+    for (var i = 0; i < url.length - 5; i++) {
+      var ch = url.charAt(i);
+      if ('a' <= ch && ch <= 'z' ||
+          'A' <= ch && ch <= 'Z' ||
+          ch == '$' ||
+          ch == '_') {
+            allowNumber = true;
+            allowSep = true;
+      } else if ('0' <= ch && ch <= '9' ||
+                 ch == '-') {
+                   if (!allowNumber)
+                     return false;
+      } else if (ch == '/' || ch == '.') {
+        if (!allowSep)
+          return false;
+        allowNumber = false;
+        allowSep = false;
+        if (ch == '.')
+          seenDot = true;
+        if (ch == '/' && seenDot)
+          return false;
+      } else {
+        return false;
+      }
+    }
+    return true;
+  }
+  function loadFrames() {
+    if (targetPage != "" && targetPage != "undefined")
+      top.classFrame.location = top.targetPage;
+  }
+</script>
+</head>
+<body>
+<table>
+<tr>
+<td>
+<a href="../../../index.html?java/lang/invoke/MethodHandleNatives.html" target="_top">Frames</a>
+<a href="MethodHandleNatives.html" target="_top">No Frames</a>
+</td>
+</tr>
+</table>
+<br>
+ <table cellspacing="0" cellpadding="0"class="report">
+ <tr class="report">
+ <th class="report">&nbsp;</th>
+ <th class="report">%method</th>
+ <th class="report">%block</th>
+ <th class="report">%branch</th>
+ <th class="report">%line</th>
+ </tr>
+ <tr class="report">
+ <td class="reportText"><span class="text"> <b>java.lang.invoke.MethodHandleNatives</b></span></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>52</b>%(29/55)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  52"></td><td class="percentUnCovered" width="48"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>50</b>%(112/224)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  50"></td><td class="percentUnCovered" width="50"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>47</b>%(74/156)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  47"></td><td class="percentUnCovered" width="53"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>48</b>%(100/205)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  48"></td><td class="percentUnCovered" width="52"></td></tr></table></td></tr></table></td>
+ </tr>
+ </table>
+ <br>
+ <br>
+ <table cellspacing="0" cellpadding="0"class="report" id="mcoverage">
+ <tr class="report">
+ <th class="report">hit count</th>
+ <th class="report">method  name</th>
+ <th class="report">method modifiers</th>
+ <th class="report">method signature</th>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">13060</span></td>
+ <td class="reportText"><span class="text"><a href="#src_77">$CallSiteContext.&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">void $CallSiteContext.&lt;init&gt;()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">13060</span></td>
+ <td class="reportText"><span class="text"><a href="#src_82">$CallSiteContext.make</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.MethodHandleNatives$CallSiteContext $CallSiteContext.make(java.lang.invoke.CallSite)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">12676</span></td>
+ <td class="reportText"><span class="text"><a href="#src_94">$CallSiteContext.run</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">void $CallSiteContext.run()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_112">$Constants.&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">void $Constants.&lt;init&gt;()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">64</span></td>
+ <td class="reportText"><span class="text"><a href="#src_45">&lt;clinit&gt;</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void &lt;clinit&gt;()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_47">&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">void &lt;init&gt;()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">20321701</span></td>
+ <td class="reportText"><span class="text"><a href="#src_666">canBeCalledVirtual</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean canBeCalledVirtual(java.lang.invoke.MemberName)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_671">canBeCalledVirtual</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean canBeCalledVirtual(java.lang.invoke.MemberName,java.lang.Class)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_0">clearCallSiteContext</a></span></td>
+ <td class="reportText"><span class="text">[private, static, native]</span></td>
+ <td class="reportText"><span class="text">void clearCallSiteContext(java.lang.invoke.MethodHandleNatives$CallSiteContext)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_0">copyOutBootstrapArguments</a></span></td>
+ <td class="reportText"><span class="text">[static, native]</span></td>
+ <td class="reportText"><span class="text">void copyOutBootstrapArguments(java.lang.Class,int[],int,int,java.lang.Object[],int,boolean,java.lang.Object)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_0">expand</a></span></td>
+ <td class="reportText"><span class="text">[static, native]</span></td>
+ <td class="reportText"><span class="text">void expand(java.lang.invoke.MemberName)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">32875</span></td>
+ <td class="reportText"><span class="text"><a href="#src_396">findMethodHandleType</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.MethodType findMethodHandleType(java.lang.Class,java.lang.Class[])</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">905</span></td>
+ <td class="reportText"><span class="text"><a href="#src_497">fixMethodType</a></span></td>
+ <td class="reportText"><span class="text">[private, static]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.MethodType fixMethodType(java.lang.Class,java.lang.Object)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1605</span></td>
+ <td class="reportText"><span class="text"><a href="#src_593">getCharType</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">char getCharType(java.lang.Class)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_0">getMemberVMInfo</a></span></td>
+ <td class="reportText"><span class="text">[static, native]</span></td>
+ <td class="reportText"><span class="text">java.lang.Object getMemberVMInfo(java.lang.invoke.MemberName)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_0">getMembers</a></span></td>
+ <td class="reportText"><span class="text">[static, native]</span></td>
+ <td class="reportText"><span class="text">int getMembers(java.lang.Class,java.lang.String,java.lang.String,int,java.lang.Class,int,java.lang.invoke.MemberName[])</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_0">getNamedCon</a></span></td>
+ <td class="reportText"><span class="text">[private, static, native]</span></td>
+ <td class="reportText"><span class="text">int getNamedCon(int,java.lang.Object[])</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">435</span></td>
+ <td class="reportText"><span class="text"><a href="#src_581">getVarHandleGuardMethodName</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">java.lang.String getVarHandleGuardMethodName(java.lang.invoke.MethodType)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_0">init</a></span></td>
+ <td class="reportText"><span class="text">[static, native]</span></td>
+ <td class="reportText"><span class="text">void init(java.lang.invoke.MemberName,java.lang.Object)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_645">initCauseFrom</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">java.lang.Error initCauseFrom(java.lang.Error,java.lang.Exception)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">20321701</span></td>
+ <td class="reportText"><span class="text"><a href="#src_660">isCallerSensitive</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean isCallerSensitive(java.lang.invoke.MemberName)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">13061</span></td>
+ <td class="reportText"><span class="text"><a href="#src_388">isPullModeBSM</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean isPullModeBSM(java.lang.invoke.MethodHandle)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">13060</span></td>
+ <td class="reportText"><span class="text"><a href="#src_264">linkCallSite</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.MemberName linkCallSite(java.lang.Object,java.lang.Object,java.lang.Object,java.lang.Object,java.lang.Object,java.lang.Object[])</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">13060</span></td>
+ <td class="reportText"><span class="text"><a href="#src_279">linkCallSiteImpl</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.MemberName linkCallSiteImpl(java.lang.Class,java.lang.invoke.MethodHandle,java.lang.String,java.lang.invoke.MethodType,java.lang.Object,java.lang.Object[])</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_298">linkCallSiteTracing</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.MemberName linkCallSiteTracing(java.lang.Class,java.lang.invoke.MethodHandle,java.lang.String,java.lang.invoke.MethodType,java.lang.Object,java.lang.Object[])</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1</span></td>
+ <td class="reportText"><span class="text"><a href="#src_321">linkDynamicConstant</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">java.lang.Object linkDynamicConstant(java.lang.Object,java.lang.Object,java.lang.Object,java.lang.Object,java.lang.Object)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1</span></td>
+ <td class="reportText"><span class="text"><a href="#src_334">linkDynamicConstantImpl</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">java.lang.Object linkDynamicConstantImpl(java.lang.Class,java.lang.invoke.MethodHandle,java.lang.String,java.lang.Class,java.lang.Object)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_352">linkDynamicConstantTracing</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">java.lang.Object linkDynamicConstantTracing(java.lang.Class,java.lang.invoke.MethodHandle,java.lang.String,java.lang.Class,java.lang.Object)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">905</span></td>
+ <td class="reportText"><span class="text"><a href="#src_469">linkMethod</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.MemberName linkMethod(java.lang.Class,int,java.lang.Class,java.lang.String,java.lang.Object,java.lang.Object[])</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">17046</span></td>
+ <td class="reportText"><span class="text"><a href="#src_610">linkMethodHandleConstant</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.MethodHandle linkMethodHandleConstant(java.lang.Class,int,java.lang.Class,java.lang.String,java.lang.Object)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">905</span></td>
+ <td class="reportText"><span class="text"><a href="#src_477">linkMethodImpl</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.MemberName linkMethodImpl(java.lang.Class,int,java.lang.Class,java.lang.String,java.lang.Object,java.lang.Object[])</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_506">linkMethodTracing</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.MemberName linkMethodTracing(java.lang.Class,int,java.lang.Class,java.lang.String,java.lang.Object,java.lang.Object[])</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_623">mapLookupExceptionToError</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">java.lang.LinkageError mapLookupExceptionToError(java.lang.ReflectiveOperationException)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_596">newNoSuchMethodErrorOnVarHandle</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">java.lang.NoSuchMethodError newNoSuchMethodErrorOnVarHandle(java.lang.String,java.lang.invoke.MethodType)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_0">objectFieldOffset</a></span></td>
+ <td class="reportText"><span class="text">[static, native]</span></td>
+ <td class="reportText"><span class="text">long objectFieldOffset(java.lang.invoke.MemberName)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">20323190</span></td>
+ <td class="reportText"><span class="text"><a href="#src_190">refKindDoesDispatch</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean refKindDoesDispatch(byte)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">40612952</span></td>
+ <td class="reportText"><span class="text"><a href="#src_183">refKindHasReceiver</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean refKindHasReceiver(byte)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_180">refKindIsConstructor</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean refKindIsConstructor(byte)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">61025933</span></td>
+ <td class="reportText"><span class="text"><a href="#src_166">refKindIsField</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean refKindIsField(byte)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">10361</span></td>
+ <td class="reportText"><span class="text"><a href="#src_170">refKindIsGetter</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean refKindIsGetter(byte)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">20342538</span></td>
+ <td class="reportText"><span class="text"><a href="#src_177">refKindIsMethod</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean refKindIsMethod(byte)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1261</span></td>
+ <td class="reportText"><span class="text"><a href="#src_174">refKindIsSetter</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean refKindIsSetter(byte)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">20314388</span></td>
+ <td class="reportText"><span class="text"><a href="#src_187">refKindIsStatic</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean refKindIsStatic(byte)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">142343768</span></td>
+ <td class="reportText"><span class="text"><a href="#src_163">refKindIsValid</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean refKindIsValid(int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_206">refKindName</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">java.lang.String refKindName(byte)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_0">registerNatives</a></span></td>
+ <td class="reportText"><span class="text">[private, static, native]</span></td>
+ <td class="reportText"><span class="text">void registerNatives()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_0">resolve</a></span></td>
+ <td class="reportText"><span class="text">[static, native]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.MemberName resolve(java.lang.invoke.MemberName,java.lang.Class,int,boolean)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_0">setCallSiteTargetNormal</a></span></td>
+ <td class="reportText"><span class="text">[static, native]</span></td>
+ <td class="reportText"><span class="text">void setCallSiteTargetNormal(java.lang.invoke.CallSite,java.lang.invoke.MethodHandle)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_0">setCallSiteTargetVolatile</a></span></td>
+ <td class="reportText"><span class="text">[static, native]</span></td>
+ <td class="reportText"><span class="text">void setCallSiteTargetVolatile(java.lang.invoke.CallSite,java.lang.invoke.MethodHandle)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_338">staticArglistForTrace</a></span></td>
+ <td class="reportText"><span class="text">[private, static]</span></td>
+ <td class="reportText"><span class="text">java.lang.String staticArglistForTrace(java.lang.Object)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">13061</span></td>
+ <td class="reportText"><span class="text"><a href="#src_375">staticArgumentsPulled</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean staticArgumentsPulled(java.lang.Object)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_0">staticFieldBase</a></span></td>
+ <td class="reportText"><span class="text">[static, native]</span></td>
+ <td class="reportText"><span class="text">java.lang.Object staticFieldBase(java.lang.invoke.MemberName)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_0">staticFieldOffset</a></span></td>
+ <td class="reportText"><span class="text">[static, native]</span></td>
+ <td class="reportText"><span class="text">long staticFieldOffset(java.lang.invoke.MemberName)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">435</span></td>
+ <td class="reportText"><span class="text"><a href="#src_527">varHandleOperationLinkerMethod</a></span></td>
+ <td class="reportText"><span class="text">[private, static]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.MemberName varHandleOperationLinkerMethod(java.lang.String,java.lang.invoke.MethodType,java.lang.Object[])</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">59</span></td>
+ <td class="reportText"><span class="text"><a href="#src_223">verifyConstants</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean verifyConstants()</span></td>
+ </tr>
+ </table>
+ <br>
+ <table cellspacing="0" cellpadding="0" class="src">
+ <tr>
+ <td class="numLine">&nbsp;1</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">/*</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;2</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Copyright (c) 2008, 2022, Oracle and/or its affiliates. All rights reserved.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;3</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;4</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;5</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * This code is free software; you can redistribute it and/or modify it</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;6</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * under the terms of the GNU General Public License version 2 only, as</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;7</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * published by the Free Software Foundation.  Oracle designates this</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;8</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * particular file as subject to the "Classpath" exception as provided</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;9</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * by Oracle in the LICENSE file that accompanied this code.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;10</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;11</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * This code is distributed in the hope that it will be useful, but WITHOUT</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;12</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;13</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;14</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * version 2 for more details (a copy is included in the LICENSE file that</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;15</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * accompanied this code).</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;16</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;17</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * You should have received a copy of the GNU General Public License version</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;18</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * 2 along with this work; if not, write to the Free Software Foundation,</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;19</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;20</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;21</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;22</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * or visit www.oracle.com if you need additional information or have any</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;23</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * questions.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;24</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;25</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;26</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">package</span> java.lang.invoke;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;27</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;28</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.internal.misc.VM;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;29</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.internal.ref.CleanerFactory;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;30</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> sun.invoke.util.Wrapper;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;31</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;32</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.lang.invoke.MethodHandles.Lookup;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;33</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.lang.reflect.Field;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;34</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;35</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> java.lang.invoke.MethodHandleNatives.Constants.*;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;36</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> java.lang.invoke.MethodHandleStatics.TRACE_METHOD_LINKAGE;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;37</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> java.lang.invoke.MethodHandles.Lookup.IMPL_LOOKUP;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;38</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;39</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;40</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * The JVM interface for the method handles package is all here.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;41</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * This is an interface internal and private to an implementation of JSR 292.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;42</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * &#60;em&#62;This class is not part of the JSR 292 standard.&#60;/em&#62;</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;43</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * @author jrose</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;44</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;45<a name="src_45"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">class</span> MethodHandleNatives {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;46</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;47<a name="src_47"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> MethodHandleNatives() { } <span Class="comment">// static only</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;48</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;49</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/// MemberName support</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;50</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;51</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">native</span> <span Class="keyword">void</span> init(MemberName self, Object ref);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;52</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">native</span> <span Class="keyword">void</span> expand(MemberName self);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;53</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">native</span> MemberName resolve(MemberName self, Class&#60;?&#62; caller, <span Class="keyword">int</span> lookupMode,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;54</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">boolean</span> speculativeResolve) <span Class="keyword">throws</span> LinkageError, ClassNotFoundException;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;55</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">native</span> <span Class="keyword">int</span> getMembers(Class&#60;?&#62; defc, String matchName, String matchSig,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;56</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">int</span> matchFlags, Class&#60;?&#62; caller, <span Class="keyword">int</span> skip, MemberName[] results);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;57</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;58</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/// Field layout queries parallel to jdk.internal.misc.Unsafe:</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;59</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">native</span> <span Class="keyword">long</span> objectFieldOffset(MemberName self);  <span Class="comment">// e.g., returns vmindex</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;60</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">native</span> <span Class="keyword">long</span> staticFieldOffset(MemberName self);  <span Class="comment">// e.g., returns vmindex</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;61</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">native</span> Object staticFieldBase(MemberName self);  <span Class="comment">// e.g., returns clazz</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;62</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">native</span> Object getMemberVMInfo(MemberName self);  <span Class="comment">// returns {vmindex,vmtarget}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;63</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;64</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/// CallSite support</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;65</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;66</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">* Tell the JVM that we need to change the target of a CallSite. */</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;67</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">native</span> <span Class="keyword">void</span> setCallSiteTargetNormal(CallSite site, MethodHandle target);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;68</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">native</span> <span Class="keyword">void</span> setCallSiteTargetVolatile(CallSite site, MethodHandle target);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;69</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;70</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">native</span> <span Class="keyword">void</span> copyOutBootstrapArguments(Class&#60;?&#62; caller, <span Class="keyword">int</span>[] indexInfo,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;71</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                                 <span Class="keyword">int</span> start, <span Class="keyword">int</span> end,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;72</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                                 Object[] buf, <span Class="keyword">int</span> pos,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;73</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                                 <span Class="keyword">boolean</span> resolve,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;74</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                                 Object ifNotAvailable);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;75</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;76</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">* Represents a context to track nmethod dependencies on CallSite instance target. */</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;77<a name="src_77"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">class</span> CallSiteContext <span Class="keyword">implements</span> Runnable {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;78</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">//@Injected JVM_nmethodBucket* vmdependencies;</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;79</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">//@Injected jlong last_cleanup;</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;80</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;81</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> CallSiteContext make(CallSite cs) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;82<a name="src_82"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">final</span> CallSiteContext newContext = <span Class="keyword">new</span> CallSiteContext();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;83</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// CallSite instance is tracked by a Cleanable which clears native</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;84</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// structures allocated for CallSite context. Though the CallSite can</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;85</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// become unreachable, its Context is retained by the Cleanable instance</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;86</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// (which is referenced from Cleaner instance which is referenced from</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;87</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// CleanerFactory class) until cleanup is performed.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;88</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            CleanerFactory.cleaner().register(cs, newContext);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;89</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> newContext;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;90</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;91</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;92</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;93</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> <span Class="keyword">void</span> run() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;94<a name="src_94"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            MethodHandleNatives.clearCallSiteContext(<span Class="keyword">this</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;95</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;96</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;97</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;98</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">* Invalidate all recorded nmethods. */</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;99</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> <span Class="keyword">native</span> <span Class="keyword">void</span> clearCallSiteContext(CallSiteContext context);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;100</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;101</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> <span Class="keyword">native</span> <span Class="keyword">void</span> registerNatives();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;102</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;103</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        registerNatives();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;104</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;105</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;106</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;107</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Compile-time constants go here. This collection exists not only for</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;108</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * reference from clients, but also for ensuring the VM and JDK agree on the</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;109</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * values of these constants (see {@link #verifyConstants()}).</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;110</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;111</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">class</span> Constants {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;112<a name="src_112"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        Constants() { } <span Class="comment">// static only</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;113</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;114</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> <span Class="keyword">final</span> <span Class="keyword">int</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;115</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            MN_IS_METHOD           = 0x00010000, <span Class="comment">// method (not constructor)</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;116</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            MN_IS_CONSTRUCTOR      = 0x00020000, <span Class="comment">// constructor</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;117</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            MN_IS_FIELD            = 0x00040000, <span Class="comment">// field</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;118</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            MN_IS_TYPE             = 0x00080000, <span Class="comment">// nested type</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;119</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            MN_CALLER_SENSITIVE    = 0x00100000, <span Class="comment">// @CallerSensitive annotation detected</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;120</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            MN_TRUSTED_FINAL       = 0x00200000, <span Class="comment">// trusted final field</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;121</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            MN_REFERENCE_KIND_SHIFT = 24, <span Class="comment">// refKind</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;122</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            MN_REFERENCE_KIND_MASK = 0x0F000000 &#62;&#62; MN_REFERENCE_KIND_SHIFT,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;123</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// The SEARCH_* bits are not for MN.flags but for the matchFlags argument of MHN.getMembers:</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;124</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            MN_SEARCH_SUPERCLASSES = 0x00100000,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;125</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            MN_SEARCH_INTERFACES   = 0x00200000;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;126</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;127</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;128</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * Constant pool reference-kind codes, as used by CONSTANT_MethodHandle CP entries.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;129</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;130</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> <span Class="keyword">final</span> <span Class="keyword">byte</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;131</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            REF_NONE                    = 0,  <span Class="comment">// null value</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;132</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            REF_getField                = 1,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;133</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            REF_getStatic               = 2,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;134</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            REF_putField                = 3,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;135</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            REF_putStatic               = 4,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;136</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            REF_invokeVirtual           = 5,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;137</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            REF_invokeStatic            = 6,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;138</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            REF_invokeSpecial           = 7,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;139</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            REF_newInvokeSpecial        = 8,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;140</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            REF_invokeInterface         = 9,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;141</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            REF_LIMIT                  = 10;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;142</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;143</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;144</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * Flags for Lookup.ClassOptions</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;145</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;146</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> <span Class="keyword">final</span> <span Class="keyword">int</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;147</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            NESTMATE_CLASS            = 0x00000001,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;148</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            HIDDEN_CLASS              = 0x00000002,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;149</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            STRONG_LOADER_LINK        = 0x00000004,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;150</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            ACCESS_VM_ANNOTATIONS     = 0x00000008;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;151</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;152</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;153</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * Lookup modes</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;154</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;155</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">static</span> <span Class="keyword">final</span> <span Class="keyword">int</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;156</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            LM_MODULE        = Lookup.MODULE,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;157</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            LM_UNCONDITIONAL = Lookup.UNCONDITIONAL,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;158</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            LM_TRUSTED       = -1;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;159</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;160</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;161</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;162</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">boolean</span> refKindIsValid(<span Class="keyword">int</span> refKind) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;163<a name="src_163"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;4/5&nbsp;Branch:&nbsp;2/4&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> (refKind &#62; REF_NONE &#38;&#38; refKind &#60; REF_LIMIT);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;164</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;165</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">boolean</span> refKindIsField(<span Class="keyword">byte</span> refKind) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;166<a name="src_166"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">assert</span>(refKindIsValid(refKind));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;167</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;5/6&nbsp;Branch:&nbsp;5/6&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> (refKind &#60;= REF_putStatic);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;168</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;169</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">boolean</span> refKindIsGetter(<span Class="keyword">byte</span> refKind) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;170<a name="src_170"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">assert</span>(refKindIsValid(refKind));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;171</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;5/6&nbsp;Branch:&nbsp;5/6&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> (refKind &#60;= REF_getStatic);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;172</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;173</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">boolean</span> refKindIsSetter(<span Class="keyword">byte</span> refKind) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;174<a name="src_174"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;5/5&nbsp;Branch:&nbsp;4/4&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> refKindIsField(refKind) &#38;&#38; !refKindIsGetter(refKind);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;175</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;176</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">boolean</span> refKindIsMethod(<span Class="keyword">byte</span> refKind) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;177<a name="src_177"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;5/5&nbsp;Branch:&nbsp;3/4&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> !refKindIsField(refKind) &#38;&#38; (refKind != REF_newInvokeSpecial);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;178</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;179</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">boolean</span> refKindIsConstructor(<span Class="keyword">byte</span> refKind) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;180<a name="src_180"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/4&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> (refKind == REF_newInvokeSpecial);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;181</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;182</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">boolean</span> refKindHasReceiver(<span Class="keyword">byte</span> refKind) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;183<a name="src_183"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">assert</span>(refKindIsValid(refKind));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;184</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;5/6&nbsp;Branch:&nbsp;5/6&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> (refKind &#38; 1) != 0;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;185</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;186</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">boolean</span> refKindIsStatic(<span Class="keyword">byte</span> refKind) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;187<a name="src_187"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;5/5&nbsp;Branch:&nbsp;3/4&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> !refKindHasReceiver(refKind) &#38;&#38; (refKind != REF_newInvokeSpecial);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;188</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;189</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">boolean</span> refKindDoesDispatch(<span Class="keyword">byte</span> refKind) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;190<a name="src_190"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">assert</span>(refKindIsValid(refKind));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;191</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;6/7&nbsp;Branch:&nbsp;6/8&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> (refKind == REF_invokeVirtual ||</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;192</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                refKind == REF_invokeInterface);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;193</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;194</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;195</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">final</span> <span Class="keyword">int</span> HR_MASK = ((1 &#60;&#60; REF_getField) |</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;196</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                             (1 &#60;&#60; REF_putField) |</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;197</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                             (1 &#60;&#60; REF_invokeVirtual) |</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;198</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                             (1 &#60;&#60; REF_invokeSpecial) |</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;199</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                             (1 &#60;&#60; REF_invokeInterface)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;200</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            );</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;201</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">for</span> (<span Class="keyword">byte</span> refKind = REF_NONE+1; refKind &#60; REF_LIMIT; refKind++) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;202</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">assert</span>(refKindHasReceiver(refKind) == (((1&#60;&#60;refKind) &#38; HR_MASK) != 0)) : refKind;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;203</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;204</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;205</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> String refKindName(<span Class="keyword">byte</span> refKind) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;206<a name="src_206"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">assert</span>(refKindIsValid(refKind));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;207</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/4&nbsp;Branch:&nbsp;0/4&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">switch</span> (refKind) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;208</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> REF_getField         -&#62; <span Class="string">"getField"</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;209</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> REF_getStatic        -&#62; <span Class="string">"getStatic"</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;210</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> REF_putField         -&#62; <span Class="string">"putField"</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;211</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> REF_putStatic        -&#62; <span Class="string">"putStatic"</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;212</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> REF_invokeVirtual    -&#62; <span Class="string">"invokeVirtual"</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;213</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> REF_invokeStatic     -&#62; <span Class="string">"invokeStatic"</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;214</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> REF_invokeSpecial    -&#62; <span Class="string">"invokeSpecial"</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;215</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> REF_newInvokeSpecial -&#62; <span Class="string">"newInvokeSpecial"</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;216</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> REF_invokeInterface  -&#62; <span Class="string">"invokeInterface"</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;217</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">default</span> -&#62; <span Class="string">"REF_???"</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;218</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        };</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;219</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;220</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;221</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> <span Class="keyword">native</span> <span Class="keyword">int</span> getNamedCon(<span Class="keyword">int</span> which, Object[] name);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;222</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">boolean</span> verifyConstants() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;223<a name="src_223"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        Object[] box = { <span Class="keyword">null</span> };</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;224</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">for</span> (<span Class="keyword">int</span> i = 0; ; i++) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;225</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            box[0] = <span Class="keyword">null</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;226</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">int</span> vmval = getNamedCon(i, box);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;227</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (box[0] == <span Class="keyword">null</span>)  <span Class="keyword">break</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;228</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            String name = (String) box[0];</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;229</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">try</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;230</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                Field con = Constants.<span Class="keyword">class</span>.getDeclaredField(name);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;231</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">int</span> jval = con.getInt(<span Class="keyword">null</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;232</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">if</span> (jval == vmval)  <span Class="keyword">continue</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;233</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                String err = (name+<span Class="string">": JVM has "</span>+vmval+<span Class="string">" while Java has "</span>+jval);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;234</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">if</span> (name.equals(<span Class="string">"CONV_OP_LIMIT"</span>)) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;235</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    System.err.println(<span Class="string">"warning: "</span>+err);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;236</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">continue</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;237</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;238</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">throw</span> <span Class="keyword">new</span> InternalError(err);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;239</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            } <span Class="keyword">catch</span> (NoSuchFieldException | IllegalAccessException ex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;240</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                String err = (name+<span Class="string">": JVM has "</span>+vmval+<span Class="string">" which Java does not define"</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;241</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="comment">// ignore exotic ops the JVM cares about; we just won't issue them</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;242</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="comment">//System.err.println("warning: "+err);</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;243</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">continue</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;244</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;245</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;246</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;2/3&nbsp;Branch:&nbsp;1/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">true</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;247</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;248</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;249</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        VM.setJavaLangInvokeInited();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;250</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">assert</span>(verifyConstants());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;251</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;9/11&nbsp;Branch:&nbsp;8/10&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;252</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;253</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">// Up-calls from the JVM.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;254</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">// These must NOT be public.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;255</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;256</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;257</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * The JVM is linking an invokedynamic instruction.  Create a reified call site for it.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;258</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;259</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> MemberName linkCallSite(Object callerObj,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;260</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                   Object bootstrapMethodObj,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;261</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                   Object nameObj, Object typeObj,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;262</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                   Object staticArguments,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;263</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                   Object[] appendixResult) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;264<a name="src_264"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        MethodHandle bootstrapMethod = (MethodHandle)bootstrapMethodObj;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;265</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        Class&#60;?&#62; caller = (Class&#60;?&#62;)callerObj;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;266</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        String name = nameObj.toString().intern();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;267</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        MethodType type = (MethodType)typeObj;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;268</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (!TRACE_METHOD_LINKAGE)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;269</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> linkCallSiteImpl(caller, bootstrapMethod, name, type,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;270</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                    staticArguments, appendixResult);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;271</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> linkCallSiteTracing(caller, bootstrapMethod, name, type,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;272</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                   staticArguments, appendixResult);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;273</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;274</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> MemberName linkCallSiteImpl(Class&#60;?&#62; caller,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;275</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                       MethodHandle bootstrapMethod,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;276</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                       String name, MethodType type,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;277</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                       Object staticArguments,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;278</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                       Object[] appendixResult) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;279<a name="src_279"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        CallSite callSite = CallSite.makeSite(bootstrapMethod,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;280</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                              name,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;281</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                              type,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;282</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                              staticArguments,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;283</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                              caller);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;284</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (callSite <span Class="keyword">instanceof</span> ConstantCallSite) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;285</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            appendixResult[0] = callSite.dynamicInvoker();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;286</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> Invokers.linkToTargetMethod(type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;287</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        } <span Class="keyword">else</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;288</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            appendixResult[0] = callSite;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;289</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> Invokers.linkToCallSiteMethod(type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;290</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;291</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;292</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">// Tracing logic:</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;293</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> MemberName linkCallSiteTracing(Class&#60;?&#62; caller,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;294</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                          MethodHandle bootstrapMethod,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;295</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                          String name, MethodType type,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;296</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                          Object staticArguments,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;297</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                          Object[] appendixResult) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;298<a name="src_298"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        Object bsmReference = bootstrapMethod.internalMemberName();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;299</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (bsmReference == <span Class="keyword">null</span>)  bsmReference = bootstrapMethod;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;300</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        String staticArglist = staticArglistForTrace(staticArguments);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;301</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        System.out.println(<span Class="string">"linkCallSite "</span>+caller.getName()+<span Class="string">" "</span>+</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;302</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                           bsmReference+<span Class="string">" "</span>+</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;303</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                           name+type+<span Class="string">"/"</span>+staticArglist);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;304</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">try</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;305</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            MemberName res = linkCallSiteImpl(caller, bootstrapMethod, name, type,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;306</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                              staticArguments, appendixResult);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;307</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            System.out.println(<span Class="string">"linkCallSite =&#62; "</span>+res+<span Class="string">" + "</span>+appendixResult[0]);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;308</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> res;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;309</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        } <span Class="keyword">catch</span> (Throwable ex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;310</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            ex.printStackTrace(); <span Class="comment">// print now in case exception is swallowed</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;311</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            System.out.println(<span Class="string">"linkCallSite =&#62; throw "</span>+ex);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;312</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> ex;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;313</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;314</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;315</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;316</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">// this implements the upcall from the JVM, MethodHandleNatives.linkDynamicConstant:</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;317</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> Object linkDynamicConstant(Object callerObj,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;318</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                      Object bootstrapMethodObj,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;319</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                      Object nameObj, Object typeObj,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;320</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                      Object staticArguments) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;321<a name="src_321"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        MethodHandle bootstrapMethod = (MethodHandle)bootstrapMethodObj;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;322</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        Class&#60;?&#62; caller = (Class&#60;?&#62;)callerObj;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;323</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        String name = nameObj.toString().intern();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;324</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        Class&#60;?&#62; type = (Class&#60;?&#62;)typeObj;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;325</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (!TRACE_METHOD_LINKAGE)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;326</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> linkDynamicConstantImpl(caller, bootstrapMethod, name, type, staticArguments);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;327</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> linkDynamicConstantTracing(caller, bootstrapMethod, name, type, staticArguments);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;328</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;329</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;330</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> Object linkDynamicConstantImpl(Class&#60;?&#62; caller,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;331</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                          MethodHandle bootstrapMethod,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;332</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                          String name, Class&#60;?&#62; type,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;333</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                          Object staticArguments) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;334<a name="src_334"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> ConstantBootstraps.makeConstant(bootstrapMethod, name, type, staticArguments, caller);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;335</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;336</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;337</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> String staticArglistForTrace(Object staticArguments) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;338<a name="src_338"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (staticArguments <span Class="keyword">instanceof</span> Object[])</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;339</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> <span Class="string">"BSA="</span>+java.util.Arrays.asList((Object[]) staticArguments);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;340</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (staticArguments <span Class="keyword">instanceof</span> <span Class="keyword">int</span>[])</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;341</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> <span Class="string">"BSA@"</span>+java.util.Arrays.toString((<span Class="keyword">int</span>[]) staticArguments);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;342</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (staticArguments == <span Class="keyword">null</span>)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;343</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> <span Class="string">"BSA0=null"</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;344</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="string">"BSA1="</span>+staticArguments;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;345</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;346</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;347</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">// Tracing logic:</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;348</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> Object linkDynamicConstantTracing(Class&#60;?&#62; caller,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;349</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                             MethodHandle bootstrapMethod,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;350</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                             String name, Class&#60;?&#62; type,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;351</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                             Object staticArguments) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;352<a name="src_352"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        Object bsmReference = bootstrapMethod.internalMemberName();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;353</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (bsmReference == <span Class="keyword">null</span>)  bsmReference = bootstrapMethod;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;354</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        String staticArglist = staticArglistForTrace(staticArguments);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;355</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        System.out.println(<span Class="string">"linkDynamicConstant "</span>+caller.getName()+<span Class="string">" "</span>+</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;356</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                           bsmReference+<span Class="string">" "</span>+</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;357</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                           name+type+<span Class="string">"/"</span>+staticArglist);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;358</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">try</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;359</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            Object res = linkDynamicConstantImpl(caller, bootstrapMethod, name, type, staticArguments);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;360</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            System.out.println(<span Class="string">"linkDynamicConstantImpl =&#62; "</span>+res);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;361</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> res;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;362</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        } <span Class="keyword">catch</span> (Throwable ex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;363</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            ex.printStackTrace(); <span Class="comment">// print now in case exception is swallowed</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;364</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            System.out.println(<span Class="string">"linkDynamicConstant =&#62; throw "</span>+ex);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;365</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> ex;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;366</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;367</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;368</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;369</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">* The JVM is requesting pull-mode bootstrap when it provides</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;370</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *  a tuple of the form int[]{ argc, vmindex }.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;371</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *  The BSM is expected to call back to the JVM using the caller</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;372</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *  class and vmindex to resolve the static arguments.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;373</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;374</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">boolean</span> staticArgumentsPulled(Object staticArguments) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;375<a name="src_375"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> staticArguments <span Class="keyword">instanceof</span> <span Class="keyword">int</span>[];</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;376</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;377</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;378</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">* A BSM runs in pull-mode if and only if its sole arguments</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;379</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * are (Lookup, BootstrapCallInfo), or can be converted pairwise</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;380</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * to those types, and it is not of variable arity.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;381</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Excluding error cases, we can just test that the arity is a constant 2.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;382</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;383</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * NOTE: This method currently returns false, since pulling is not currently</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;384</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * exposed to a BSM. When pull mode is supported the method block will be</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;385</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * replaced with currently commented out code.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;386</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;387</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">boolean</span> isPullModeBSM(MethodHandle bsm) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;388<a name="src_388"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">false</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;389</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">//        return bsm.type().parameterCount() == 2 &#38;&#38; !bsm.isVarargsCollector();</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;390</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;391</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;392</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;393</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * The JVM wants a pointer to a MethodType.  Oblige it by finding or creating one.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;394</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;395</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> MethodType findMethodHandleType(Class&#60;?&#62; rtype, Class&#60;?&#62;[] ptypes) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;396<a name="src_396"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> MethodType.methodType(rtype, ptypes, <span Class="keyword">true</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;397</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;398</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;399</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;400</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * The JVM wants to link a call site that requires a dynamic type check.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;401</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Name is a type-checking invoker, invokeExact or invoke.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;402</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Return a JVM method (MemberName) to handle the invoking.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;403</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * The method assumes the following arguments on the stack:</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;404</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * 0: the method handle being invoked</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;405</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * 1-N: the arguments to the method handle invocation</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;406</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * N+1: an optional, implicitly added argument (typically the given MethodType)</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;407</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * &#60;p&#62;</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;408</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * The nominal method at such a call site is an instance of</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;409</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * a signature-polymorphic method (see @PolymorphicSignature).</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;410</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Such method instances are user-visible entities which are</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;411</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * "split" from the generic placeholder method in {@code MethodHandle}.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;412</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * (Note that the placeholder method is not identical with any of</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;413</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * its instances.  If invoked reflectively, is guaranteed to throw an</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;414</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@code UnsupportedOperationException}.)</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;415</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * If the signature-polymorphic method instance is ever reified,</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;416</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * it appears as a "copy" of the original placeholder</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;417</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * (a native final member of {@code MethodHandle}) except</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;418</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * that its type descriptor has shape required by the instance,</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;419</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * and the method instance is &#60;em&#62;not&#60;/em&#62; varargs.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;420</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * The method instance is also marked synthetic, since the</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;421</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * method (by definition) does not appear in Java source code.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;422</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * &#60;p&#62;</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;423</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * The JVM is allowed to reify this method as instance metadata.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;424</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * For example, {@code invokeBasic} is always reified.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;425</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * But the JVM may instead call {@code linkMethod}.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;426</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * If the result is an * ordered pair of a {@code (method, appendix)},</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;427</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * the method gets all the arguments (0..N inclusive)</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;428</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * plus the appendix (N+1), and uses the appendix to complete the call.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;429</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * In this way, one reusable method (called a "linker method")</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;430</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * can perform the function of any number of polymorphic instance</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;431</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * methods.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;432</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * &#60;p&#62;</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;433</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Linker methods are allowed to be weakly typed, with any or</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;434</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * all references rewritten to {@code Object} and any primitives</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;435</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * (except {@code long}/{@code float}/{@code double})</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;436</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * rewritten to {@code int}.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;437</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * A linker method is trusted to return a strongly typed result,</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;438</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * according to the specific method type descriptor of the</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;439</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * signature-polymorphic instance it is emulating.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;440</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * This can involve (as necessary) a dynamic check using</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;441</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * data extracted from the appendix argument.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;442</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * &#60;p&#62;</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;443</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * The JVM does not inspect the appendix, other than to pass</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;444</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * it verbatim to the linker method at every call.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;445</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * This means that the JDK runtime has wide latitude</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;446</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * for choosing the shape of each linker method and its</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;447</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * corresponding appendix.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;448</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Linker methods should be generated from {@code LambdaForm}s</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;449</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * so that they do not become visible on stack traces.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;450</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * &#60;p&#62;</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;451</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * The {@code linkMethod} call is free to omit the appendix</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;452</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * (returning null) and instead emulate the required function</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;453</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * completely in the linker method.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;454</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * As a corner case, if N==255, no appendix is possible.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;455</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * In this case, the method returned must be custom-generated to</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;456</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * perform any needed type checking.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;457</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * &#60;p&#62;</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;458</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * If the JVM does not reify a method at a call site, but instead</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;459</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * calls {@code linkMethod}, the corresponding call represented</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;460</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * in the bytecodes may mention a valid method which is not</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;461</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * representable with a {@code MemberName}.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;462</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Therefore, use cases for {@code linkMethod} tend to correspond to</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;463</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * special cases in reflective code such as {@code findVirtual}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;464</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * or {@code revealDirect}.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;465</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;466</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> MemberName linkMethod(Class&#60;?&#62; callerClass, <span Class="keyword">int</span> refKind,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;467</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                 Class&#60;?&#62; defc, String name, Object type,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;468</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                 Object[] appendixResult) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;469<a name="src_469"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (!TRACE_METHOD_LINKAGE)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;470</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> linkMethodImpl(callerClass, refKind, defc, name, type, appendixResult);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;471</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> linkMethodTracing(callerClass, refKind, defc, name, type, appendixResult);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;472</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;473</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> MemberName linkMethodImpl(Class&#60;?&#62; callerClass, <span Class="keyword">int</span> refKind,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;474</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                     Class&#60;?&#62; defc, String name, Object type,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;475</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                     Object[] appendixResult) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;476</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">try</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;477<a name="src_477"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (refKind == REF_invokeVirtual) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;478</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">if</span> (defc == MethodHandle.<span Class="keyword">class</span>) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;479</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">return</span> Invokers.methodHandleInvokeLinkerMethod(</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;480</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            name, fixMethodType(callerClass, type), appendixResult);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;481</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                } <span Class="keyword">else</span> <span Class="keyword">if</span> (defc == VarHandle.<span Class="keyword">class</span>) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;482</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">return</span> varHandleOperationLinkerMethod(</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;483</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            name, fixMethodType(callerClass, type), appendixResult);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;484</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;485</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;486</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        } <span Class="keyword">catch</span> (Error e) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;487</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// Pass through an Error, including say StackOverflowError or</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;488</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// OutOfMemoryError</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;489</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> e;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;490</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        } <span Class="keyword">catch</span> (Throwable ex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;491</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// Wrap anything else in LinkageError</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;492</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> <span Class="keyword">new</span> LinkageError(ex.getMessage(), ex);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;493</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;494</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">throw</span> <span Class="keyword">new</span> LinkageError(<span Class="string">"no such method "</span>+defc.getName()+<span Class="string">"."</span>+name+type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;495</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;496</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> MethodType fixMethodType(Class&#60;?&#62; callerClass, Object type) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;497<a name="src_497"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (type <span Class="keyword">instanceof</span> MethodType)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;498</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> (MethodType) type;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;499</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">else</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;500</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> MethodType.fromDescriptor((String)type, callerClass.getClassLoader());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;501</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;502</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">// Tracing logic:</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;503</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> MemberName linkMethodTracing(Class&#60;?&#62; callerClass, <span Class="keyword">int</span> refKind,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;504</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                        Class&#60;?&#62; defc, String name, Object type,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;505</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                        Object[] appendixResult) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;506<a name="src_506"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        System.out.println(<span Class="string">"linkMethod "</span>+defc.getName()+<span Class="string">"."</span>+</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;507</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                           name+type+<span Class="string">"/"</span>+Integer.toHexString(refKind));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;508</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">try</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;509</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            MemberName res = linkMethodImpl(callerClass, refKind, defc, name, type, appendixResult);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;510</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            System.out.println(<span Class="string">"linkMethod =&#62; "</span>+res+<span Class="string">" + "</span>+appendixResult[0]);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;511</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> res;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;512</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        } <span Class="keyword">catch</span> (Throwable ex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;513</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            System.out.println(<span Class="string">"linkMethod =&#62; throw "</span>+ex);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;514</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> ex;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;515</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;516</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;517</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;518</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;519</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Obtain the method to link to the VarHandle operation.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;520</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * This method is located here and not in Invokers to avoid</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;521</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * initializing that and other classes early on in VM bootup.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;522</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;523</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> MemberName varHandleOperationLinkerMethod(String name,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;524</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                                             MethodType mtype,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;525</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                                             Object[] appendixResult) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;526</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">// Get the signature method type</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;527<a name="src_527"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">final</span> MethodType sigType = mtype.basicType();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;528</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;529</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">// Get the access kind from the method name</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;530</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        VarHandle.AccessMode ak;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;531</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">try</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;532</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            ak = VarHandle.AccessMode.valueFromMethodName(name);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;533</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        } <span Class="keyword">catch</span> (IllegalArgumentException e) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;534</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> MethodHandleStatics.newInternalError(e);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;535</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;536</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;537</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">// Create the appendix descriptor constant</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;538</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        VarHandle.AccessDescriptor ad = <span Class="keyword">new</span> VarHandle.AccessDescriptor(mtype, ak.at.ordinal(), ak.ordinal());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;539</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        appendixResult[0] = ad;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;540</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;541</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (MethodHandleStatics.VAR_HANDLE_GUARDS) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;542</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// If not polymorphic in the return type, such as the compareAndSet</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;543</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// methods that return boolean</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;544</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            Class&#60;?&#62; guardReturnType = sigType.returnType();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;545</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (ak.at.isMonomorphicInReturnType) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;546</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">if</span> (ak.at.returnType != mtype.returnType()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;547</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="comment">// The caller contains a different return type than that</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;548</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="comment">// defined by the method</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;549</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">throw</span> newNoSuchMethodErrorOnVarHandle(name, mtype);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;550</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;551</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="comment">// Adjust the return type of the signature method type</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;552</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                guardReturnType = ak.at.returnType;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;553</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;554</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;555</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// Get the guard method type for linking</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;556</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">final</span> Class&#60;?&#62;[] guardParams = <span Class="keyword">new</span> Class&#60;?&#62;[sigType.parameterCount() + 2];</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;557</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// VarHandle at start</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;558</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            guardParams[0] = VarHandle.<span Class="keyword">class</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;559</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">for</span> (<span Class="keyword">int</span> i = 0; i &#60; sigType.parameterCount(); i++) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;560</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                guardParams[i + 1] = sigType.parameterType(i);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;561</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;562</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// Access descriptor at end</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;563</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            guardParams[guardParams.length - 1] = VarHandle.AccessDescriptor.<span Class="keyword">class</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;564</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            MethodType guardType = MethodType.methodType(guardReturnType, guardParams, <span Class="keyword">true</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;565</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;566</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            MemberName linker = <span Class="keyword">new</span> MemberName(</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;567</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    VarHandleGuards.<span Class="keyword">class</span>, getVarHandleGuardMethodName(guardType),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;568</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    guardType, REF_invokeStatic);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;569</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;570</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            linker = MemberName.getFactory().resolveOrNull(REF_invokeStatic, linker,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;571</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                                           VarHandleGuards.<span Class="keyword">class</span>, LM_TRUSTED);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;572</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (linker != <span Class="keyword">null</span>) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;573</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">return</span> linker;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;574</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;575</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// Fall back to lambda form linkage if guard method is not available</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;576</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="comment">// TODO Optionally log fallback ?</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;577</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;578</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/2&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> Invokers.varHandleInvokeLinkerMethod(mtype);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;579</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;580</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> String getVarHandleGuardMethodName(MethodType guardType) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;581<a name="src_581"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        String prefix = <span Class="string">"guard_"</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;582</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        StringBuilder sb = <span Class="keyword">new</span> StringBuilder(prefix.length() + guardType.parameterCount());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;583</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;584</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        sb.append(prefix);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;585</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">for</span> (<span Class="keyword">int</span> i = 1; i &#60; guardType.parameterCount() - 1; i++) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;586</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            Class&#60;?&#62; pt = guardType.parameterType(i);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;587</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            sb.append(getCharType(pt));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;588</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;589</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        sb.append('_').append(getCharType(guardType.returnType()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;590</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> sb.toString();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;591</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;592</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">char</span> getCharType(Class&#60;?&#62; pt) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;593<a name="src_593"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> Wrapper.forBasicType(pt).basicTypeChar();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;594</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;595</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> NoSuchMethodError newNoSuchMethodErrorOnVarHandle(String name, MethodType mtype) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;596<a name="src_596"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">new</span> NoSuchMethodError(<span Class="string">"VarHandle."</span> + name + mtype);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;597</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;598</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;599</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;600</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * The JVM is resolving a CONSTANT_MethodHandle CP entry.  And it wants our help.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;601</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * It will make an up-call to this method.  (Do not change the name or signature.)</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;602</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * The type argument is a Class for field requests and a MethodType for non-fields.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;603</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * &#60;p&#62;</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;604</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Recent versions of the JVM may also pass a resolved MemberName for the type.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;605</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * In that case, the name is ignored and may be null.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;606</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;607</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> MethodHandle linkMethodHandleConstant(Class&#60;?&#62; callerClass, <span Class="keyword">int</span> refKind,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;608</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                                 Class&#60;?&#62; defc, String name, Object type) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;609</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">try</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;610<a name="src_610"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            Lookup lookup = IMPL_LOOKUP.in(callerClass);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;611</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">assert</span>(refKindIsValid(refKind));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;612</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> lookup.linkMethodHandleConstant((<span Class="keyword">byte</span>) refKind, defc, name, type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;613</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        } <span Class="keyword">catch</span> (ReflectiveOperationException ex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;614</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/2&nbsp;Branch:&nbsp;1/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> mapLookupExceptionToError(ex);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;615</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;616</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;617</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;618</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;619</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Map a reflective exception to a linkage error.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;620</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;621</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> LinkageError mapLookupExceptionToError(ReflectiveOperationException ex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;622</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        LinkageError err;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;623<a name="src_623"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (ex <span Class="keyword">instanceof</span> IllegalAccessException) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;624</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            Throwable cause = ex.getCause();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;625</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (cause <span Class="keyword">instanceof</span> AbstractMethodError) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;626</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">return</span> (AbstractMethodError) cause;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;627</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            } <span Class="keyword">else</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;628</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                err = <span Class="keyword">new</span> IllegalAccessError(ex.getMessage());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;629</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;630</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        } <span Class="keyword">else</span> <span Class="keyword">if</span> (ex <span Class="keyword">instanceof</span> NoSuchMethodException) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;631</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            err = <span Class="keyword">new</span> NoSuchMethodError(ex.getMessage());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;632</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        } <span Class="keyword">else</span> <span Class="keyword">if</span> (ex <span Class="keyword">instanceof</span> NoSuchFieldException) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;633</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            err = <span Class="keyword">new</span> NoSuchFieldError(ex.getMessage());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;634</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        } <span Class="keyword">else</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;635</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            err = <span Class="keyword">new</span> IncompatibleClassChangeError();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;636</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;637</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/2&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> initCauseFrom(err, ex);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;638</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;639</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;640</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;641</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Use best possible cause for err.initCause(), substituting the</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;642</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * cause for err itself if the cause has the same (or better) type.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;643</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;644</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> &#60;E <span Class="keyword">extends</span> Error&#62; E initCauseFrom(E err, Exception ex) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;645<a name="src_645"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        Throwable th = ex.getCause();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;646</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        @SuppressWarnings(<span Class="string">"unchecked"</span>)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;647</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">final</span> Class&#60;E&#62; Eclass = (Class&#60;E&#62;) err.getClass();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;648</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (Eclass.isInstance(th))</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;649</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;           <span Class="keyword">return</span> Eclass.cast(th);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;650</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        err.initCause(th == <span Class="keyword">null</span> ? ex : th);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;651</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/3&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> err;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;652</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;653</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;654</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;655</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Is this method a caller-sensitive method?</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;656</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * I.e., does it call Reflection.getCallerClass or a similar method</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;657</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * to ask about the identity of its caller?</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;658</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;659</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">boolean</span> isCallerSensitive(MemberName mem) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;660<a name="src_660"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (!mem.isInvocable())  <span Class="keyword">return</span> <span Class="keyword">false</span>;  <span Class="comment">// fields are not caller sensitive</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;661</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;662</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;4/6&nbsp;Branch:&nbsp;3/6&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> mem.isCallerSensitive() || canBeCalledVirtual(mem);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;663</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;664</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;665</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">boolean</span> canBeCalledVirtual(MemberName mem) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;666<a name="src_666"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">assert</span>(mem.isInvocable());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;667</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;4/7&nbsp;Branch:&nbsp;4/8&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> mem.getName().equals(<span Class="string">"getContextClassLoader"</span>) &#38;&#38; canBeCalledVirtual(mem, java.lang.Thread.<span Class="keyword">class</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;668</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;669</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;670</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">boolean</span> canBeCalledVirtual(MemberName symbolicRef, Class&#60;?&#62; definingClass) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;671<a name="src_671"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        Class&#60;?&#62; symbolicRefClass = symbolicRef.getDeclaringClass();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;672</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (symbolicRefClass == definingClass)  <span Class="keyword">return</span> <span Class="keyword">true</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;673</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (symbolicRef.isStatic() || symbolicRef.isPrivate())  <span Class="keyword">return</span> <span Class="keyword">false</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;674</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/7&nbsp;Branch:&nbsp;0/8&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> (definingClass.isAssignableFrom(symbolicRefClass) ||  <span Class="comment">// Msym overrides Mdef</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;675</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                symbolicRefClass.isInterface());                     <span Class="comment">// Mdef implements Msym</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;676</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;677</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;}</pre></td>
+ </tr>
+ </table>
+<p>
+<br><table cellpadding="0" cellspacing="0" class="report">  <tr class="report">    <td class="reportText"><span class="text">    Report generated 8/4/22, 3:35 PM    </span></td>  </tr></table>
+</body>
+</html>

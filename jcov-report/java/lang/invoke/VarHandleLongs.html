@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>tests coverage</title>
+<link rel ="stylesheet" type="text/css" href="../../../style.css" title="Style">
+<script type="text/javascript" src="../../../sorttable.js"></script>
+<script type="text/javascript">
+  targetPage = "" + window.location.search;
+  if (targetPage != "" && targetPage != "undefined")
+    targetPage = targetPage.substring(1);
+  if (targetPage.indexOf(":") != -1 || (targetPage != "" && !validURL(targetPage)))
+    targetPage = "undefined";
+  function validURL(url) {
+    var pos = url.indexOf(".html");
+    if (pos == -1 || pos != url.length - 5)
+      return false;
+    var allowNumber = false;
+    var allowSep = false;
+    var seenDot = false;
+    for (var i = 0; i < url.length - 5; i++) {
+      var ch = url.charAt(i);
+      if ('a' <= ch && ch <= 'z' ||
+          'A' <= ch && ch <= 'Z' ||
+          ch == '$' ||
+          ch == '_') {
+            allowNumber = true;
+            allowSep = true;
+      } else if ('0' <= ch && ch <= '9' ||
+                 ch == '-') {
+                   if (!allowNumber)
+                     return false;
+      } else if (ch == '/' || ch == '.') {
+        if (!allowSep)
+          return false;
+        allowNumber = false;
+        allowSep = false;
+        if (ch == '.')
+          seenDot = true;
+        if (ch == '/' && seenDot)
+          return false;
+      } else {
+        return false;
+      }
+    }
+    return true;
+  }
+  function loadFrames() {
+    if (targetPage != "" && targetPage != "undefined")
+      top.classFrame.location = top.targetPage;
+  }
+</script>
+</head>
+<body>
+<table>
+<tr>
+<td>
+<a href="../../../index.html?java/lang/invoke/VarHandleLongs.html" target="_top">Frames</a>
+<a href="VarHandleLongs.html" target="_top">No Frames</a>
+</td>
+</tr>
+</table>
+<br>
+ <table cellspacing="0" cellpadding="0"class="report">
+ <tr class="report">
+ <th class="report">&nbsp;</th>
+ <th class="report">%method</th>
+ <th class="report">%block</th>
+ <th class="report">%branch</th>
+ <th class="report">%line</th>
+ </tr>
+ <tr class="report">
+ <td class="reportText"><span class="text"> <b>java.lang.invoke.VarHandleLongs</b></span></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>4</b>%(6/125)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="   4"></td><td class="percentUnCovered" width="96"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>3</b>%(6/164)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="   3"></td><td class="percentUnCovered" width="97"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>0</b>%(0/30)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="   0"></td><td class="percentUnCovered" width="100"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>3</b>%(12/342)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="   3"></td><td class="percentUnCovered" width="97"></td></tr></table></td></tr></table></td>
+ </tr>
+ </table>
+ <br>
+ <br>
+ <table cellspacing="0" cellpadding="0"class="report" id="mcoverage">
+ <tr class="report">
+ <th class="report">hit count</th>
+ <th class="report">method  name</th>
+ <th class="report">method modifiers</th>
+ <th class="report">method signature</th>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.&lt;clinit&gt;</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void $Array.&lt;clinit&gt;()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.&lt;init&gt;</span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">void $Array.&lt;init&gt;(int,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.&lt;init&gt;</span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">void $Array.&lt;init&gt;(int,int,boolean)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.accessModeTypeUncached</span></td>
+ <td class="reportText"><span class="text">[final]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.MethodType $Array.accessModeTypeUncached(java.lang.invoke.VarHandle$AccessType)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.compareAndExchange</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $Array.compareAndExchange(java.lang.invoke.VarHandle,java.lang.Object,int,long,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.compareAndExchangeAcquire</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $Array.compareAndExchangeAcquire(java.lang.invoke.VarHandle,java.lang.Object,int,long,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.compareAndExchangeRelease</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $Array.compareAndExchangeRelease(java.lang.invoke.VarHandle,java.lang.Object,int,long,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.compareAndSet</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean $Array.compareAndSet(java.lang.invoke.VarHandle,java.lang.Object,int,long,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.describeConstable</span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">java.util.Optional $Array.describeConstable()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.get</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $Array.get(java.lang.invoke.VarHandle,java.lang.Object,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.getAcquire</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $Array.getAcquire(java.lang.invoke.VarHandle,java.lang.Object,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.getAndAdd</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $Array.getAndAdd(java.lang.invoke.VarHandle,java.lang.Object,int,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.getAndAddAcquire</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $Array.getAndAddAcquire(java.lang.invoke.VarHandle,java.lang.Object,int,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.getAndAddRelease</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $Array.getAndAddRelease(java.lang.invoke.VarHandle,java.lang.Object,int,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.getAndBitwiseAnd</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $Array.getAndBitwiseAnd(java.lang.invoke.VarHandle,java.lang.Object,int,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.getAndBitwiseAndAcquire</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $Array.getAndBitwiseAndAcquire(java.lang.invoke.VarHandle,java.lang.Object,int,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.getAndBitwiseAndRelease</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $Array.getAndBitwiseAndRelease(java.lang.invoke.VarHandle,java.lang.Object,int,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.getAndBitwiseOr</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $Array.getAndBitwiseOr(java.lang.invoke.VarHandle,java.lang.Object,int,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.getAndBitwiseOrAcquire</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $Array.getAndBitwiseOrAcquire(java.lang.invoke.VarHandle,java.lang.Object,int,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.getAndBitwiseOrRelease</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $Array.getAndBitwiseOrRelease(java.lang.invoke.VarHandle,java.lang.Object,int,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.getAndBitwiseXor</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $Array.getAndBitwiseXor(java.lang.invoke.VarHandle,java.lang.Object,int,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.getAndBitwiseXorAcquire</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $Array.getAndBitwiseXorAcquire(java.lang.invoke.VarHandle,java.lang.Object,int,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.getAndBitwiseXorRelease</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $Array.getAndBitwiseXorRelease(java.lang.invoke.VarHandle,java.lang.Object,int,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.getAndSet</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $Array.getAndSet(java.lang.invoke.VarHandle,java.lang.Object,int,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.getAndSetAcquire</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $Array.getAndSetAcquire(java.lang.invoke.VarHandle,java.lang.Object,int,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.getAndSetRelease</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $Array.getAndSetRelease(java.lang.invoke.VarHandle,java.lang.Object,int,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.getOpaque</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $Array.getOpaque(java.lang.invoke.VarHandle,java.lang.Object,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.getVolatile</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $Array.getVolatile(java.lang.invoke.VarHandle,java.lang.Object,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.set</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void $Array.set(java.lang.invoke.VarHandle,java.lang.Object,int,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.setOpaque</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void $Array.setOpaque(java.lang.invoke.VarHandle,java.lang.Object,int,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.setRelease</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void $Array.setRelease(java.lang.invoke.VarHandle,java.lang.Object,int,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.setVolatile</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void $Array.setVolatile(java.lang.invoke.VarHandle,java.lang.Object,int,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.weakCompareAndSet</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean $Array.weakCompareAndSet(java.lang.invoke.VarHandle,java.lang.Object,int,long,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.weakCompareAndSetAcquire</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean $Array.weakCompareAndSetAcquire(java.lang.invoke.VarHandle,java.lang.Object,int,long,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.weakCompareAndSetPlain</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean $Array.weakCompareAndSetPlain(java.lang.invoke.VarHandle,java.lang.Object,int,long,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.weakCompareAndSetRelease</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean $Array.weakCompareAndSetRelease(java.lang.invoke.VarHandle,java.lang.Object,int,long,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.withInvokeBehavior</span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.VarHandleLongs$Array $Array.withInvokeBehavior()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$Array.withInvokeExactBehavior</span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.VarHandleLongs$Array $Array.withInvokeExactBehavior()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">16</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadOnly.&lt;clinit&gt;</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void $FieldInstanceReadOnly.&lt;clinit&gt;()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadOnly.&lt;init&gt;</span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">void $FieldInstanceReadOnly.&lt;init&gt;(java.lang.Class,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">16</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadOnly.&lt;init&gt;</span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">void $FieldInstanceReadOnly.&lt;init&gt;(java.lang.Class,long,java.lang.invoke.VarForm,boolean)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadOnly.accessModeTypeUncached</span></td>
+ <td class="reportText"><span class="text">[final]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.MethodType $FieldInstanceReadOnly.accessModeTypeUncached(java.lang.invoke.VarHandle$AccessType)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadOnly.describeConstable</span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">java.util.Optional $FieldInstanceReadOnly.describeConstable()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadOnly.get</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldInstanceReadOnly.get(java.lang.invoke.VarHandle,java.lang.Object)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadOnly.getAcquire</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldInstanceReadOnly.getAcquire(java.lang.invoke.VarHandle,java.lang.Object)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadOnly.getOpaque</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldInstanceReadOnly.getOpaque(java.lang.invoke.VarHandle,java.lang.Object)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadOnly.getVolatile</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldInstanceReadOnly.getVolatile(java.lang.invoke.VarHandle,java.lang.Object)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadOnly.withInvokeBehavior</span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.VarHandleLongs$FieldInstanceReadOnly $FieldInstanceReadOnly.withInvokeBehavior()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadOnly.withInvokeExactBehavior</span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.VarHandleLongs$FieldInstanceReadOnly $FieldInstanceReadOnly.withInvokeExactBehavior()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">16</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.&lt;clinit&gt;</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void $FieldInstanceReadWrite.&lt;clinit&gt;()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">16</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.&lt;init&gt;</span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">void $FieldInstanceReadWrite.&lt;init&gt;(java.lang.Class,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">16</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.&lt;init&gt;</span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">void $FieldInstanceReadWrite.&lt;init&gt;(java.lang.Class,long,boolean)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.compareAndExchange</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldInstanceReadWrite.compareAndExchange(java.lang.invoke.VarHandle,java.lang.Object,long,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.compareAndExchangeAcquire</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldInstanceReadWrite.compareAndExchangeAcquire(java.lang.invoke.VarHandle,java.lang.Object,long,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.compareAndExchangeRelease</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldInstanceReadWrite.compareAndExchangeRelease(java.lang.invoke.VarHandle,java.lang.Object,long,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.compareAndSet</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean $FieldInstanceReadWrite.compareAndSet(java.lang.invoke.VarHandle,java.lang.Object,long,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.getAndAdd</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldInstanceReadWrite.getAndAdd(java.lang.invoke.VarHandle,java.lang.Object,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.getAndAddAcquire</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldInstanceReadWrite.getAndAddAcquire(java.lang.invoke.VarHandle,java.lang.Object,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.getAndAddRelease</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldInstanceReadWrite.getAndAddRelease(java.lang.invoke.VarHandle,java.lang.Object,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.getAndBitwiseAnd</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldInstanceReadWrite.getAndBitwiseAnd(java.lang.invoke.VarHandle,java.lang.Object,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.getAndBitwiseAndAcquire</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldInstanceReadWrite.getAndBitwiseAndAcquire(java.lang.invoke.VarHandle,java.lang.Object,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.getAndBitwiseAndRelease</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldInstanceReadWrite.getAndBitwiseAndRelease(java.lang.invoke.VarHandle,java.lang.Object,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.getAndBitwiseOr</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldInstanceReadWrite.getAndBitwiseOr(java.lang.invoke.VarHandle,java.lang.Object,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.getAndBitwiseOrAcquire</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldInstanceReadWrite.getAndBitwiseOrAcquire(java.lang.invoke.VarHandle,java.lang.Object,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.getAndBitwiseOrRelease</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldInstanceReadWrite.getAndBitwiseOrRelease(java.lang.invoke.VarHandle,java.lang.Object,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.getAndBitwiseXor</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldInstanceReadWrite.getAndBitwiseXor(java.lang.invoke.VarHandle,java.lang.Object,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.getAndBitwiseXorAcquire</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldInstanceReadWrite.getAndBitwiseXorAcquire(java.lang.invoke.VarHandle,java.lang.Object,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.getAndBitwiseXorRelease</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldInstanceReadWrite.getAndBitwiseXorRelease(java.lang.invoke.VarHandle,java.lang.Object,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.getAndSet</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldInstanceReadWrite.getAndSet(java.lang.invoke.VarHandle,java.lang.Object,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.getAndSetAcquire</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldInstanceReadWrite.getAndSetAcquire(java.lang.invoke.VarHandle,java.lang.Object,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.getAndSetRelease</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldInstanceReadWrite.getAndSetRelease(java.lang.invoke.VarHandle,java.lang.Object,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.set</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void $FieldInstanceReadWrite.set(java.lang.invoke.VarHandle,java.lang.Object,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.setOpaque</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void $FieldInstanceReadWrite.setOpaque(java.lang.invoke.VarHandle,java.lang.Object,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.setRelease</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void $FieldInstanceReadWrite.setRelease(java.lang.invoke.VarHandle,java.lang.Object,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.setVolatile</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void $FieldInstanceReadWrite.setVolatile(java.lang.invoke.VarHandle,java.lang.Object,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.weakCompareAndSet</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean $FieldInstanceReadWrite.weakCompareAndSet(java.lang.invoke.VarHandle,java.lang.Object,long,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.weakCompareAndSetAcquire</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean $FieldInstanceReadWrite.weakCompareAndSetAcquire(java.lang.invoke.VarHandle,java.lang.Object,long,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.weakCompareAndSetPlain</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean $FieldInstanceReadWrite.weakCompareAndSetPlain(java.lang.invoke.VarHandle,java.lang.Object,long,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">32</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.weakCompareAndSetRelease</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean $FieldInstanceReadWrite.weakCompareAndSetRelease(java.lang.invoke.VarHandle,java.lang.Object,long,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.withInvokeBehavior</span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.VarHandleLongs$FieldInstanceReadWrite $FieldInstanceReadWrite.withInvokeBehavior()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldInstanceReadWrite.withInvokeExactBehavior</span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.VarHandleLongs$FieldInstanceReadWrite $FieldInstanceReadWrite.withInvokeExactBehavior()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadOnly.&lt;clinit&gt;</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void $FieldStaticReadOnly.&lt;clinit&gt;()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadOnly.&lt;init&gt;</span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">void $FieldStaticReadOnly.&lt;init&gt;(java.lang.Object,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadOnly.&lt;init&gt;</span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">void $FieldStaticReadOnly.&lt;init&gt;(java.lang.Object,long,java.lang.invoke.VarForm,boolean)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadOnly.accessModeTypeUncached</span></td>
+ <td class="reportText"><span class="text">[final]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.MethodType $FieldStaticReadOnly.accessModeTypeUncached(java.lang.invoke.VarHandle$AccessType)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadOnly.describeConstable</span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">java.util.Optional $FieldStaticReadOnly.describeConstable()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadOnly.get</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldStaticReadOnly.get(java.lang.invoke.VarHandle)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadOnly.getAcquire</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldStaticReadOnly.getAcquire(java.lang.invoke.VarHandle)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadOnly.getOpaque</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldStaticReadOnly.getOpaque(java.lang.invoke.VarHandle)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadOnly.getVolatile</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldStaticReadOnly.getVolatile(java.lang.invoke.VarHandle)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadOnly.withInvokeBehavior</span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.VarHandleLongs$FieldStaticReadOnly $FieldStaticReadOnly.withInvokeBehavior()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadOnly.withInvokeExactBehavior</span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.VarHandleLongs$FieldStaticReadOnly $FieldStaticReadOnly.withInvokeExactBehavior()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.&lt;clinit&gt;</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void $FieldStaticReadWrite.&lt;clinit&gt;()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.&lt;init&gt;</span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">void $FieldStaticReadWrite.&lt;init&gt;(java.lang.Object,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.&lt;init&gt;</span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">void $FieldStaticReadWrite.&lt;init&gt;(java.lang.Object,long,boolean)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.compareAndExchange</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldStaticReadWrite.compareAndExchange(java.lang.invoke.VarHandle,long,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.compareAndExchangeAcquire</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldStaticReadWrite.compareAndExchangeAcquire(java.lang.invoke.VarHandle,long,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.compareAndExchangeRelease</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldStaticReadWrite.compareAndExchangeRelease(java.lang.invoke.VarHandle,long,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.compareAndSet</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean $FieldStaticReadWrite.compareAndSet(java.lang.invoke.VarHandle,long,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.getAndAdd</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldStaticReadWrite.getAndAdd(java.lang.invoke.VarHandle,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.getAndAddAcquire</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldStaticReadWrite.getAndAddAcquire(java.lang.invoke.VarHandle,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.getAndAddRelease</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldStaticReadWrite.getAndAddRelease(java.lang.invoke.VarHandle,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.getAndBitwiseAnd</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldStaticReadWrite.getAndBitwiseAnd(java.lang.invoke.VarHandle,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.getAndBitwiseAndAcquire</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldStaticReadWrite.getAndBitwiseAndAcquire(java.lang.invoke.VarHandle,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.getAndBitwiseAndRelease</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldStaticReadWrite.getAndBitwiseAndRelease(java.lang.invoke.VarHandle,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.getAndBitwiseOr</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldStaticReadWrite.getAndBitwiseOr(java.lang.invoke.VarHandle,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.getAndBitwiseOrAcquire</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldStaticReadWrite.getAndBitwiseOrAcquire(java.lang.invoke.VarHandle,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.getAndBitwiseOrRelease</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldStaticReadWrite.getAndBitwiseOrRelease(java.lang.invoke.VarHandle,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.getAndBitwiseXor</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldStaticReadWrite.getAndBitwiseXor(java.lang.invoke.VarHandle,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.getAndBitwiseXorAcquire</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldStaticReadWrite.getAndBitwiseXorAcquire(java.lang.invoke.VarHandle,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.getAndBitwiseXorRelease</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldStaticReadWrite.getAndBitwiseXorRelease(java.lang.invoke.VarHandle,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.getAndSet</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldStaticReadWrite.getAndSet(java.lang.invoke.VarHandle,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.getAndSetAcquire</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldStaticReadWrite.getAndSetAcquire(java.lang.invoke.VarHandle,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.getAndSetRelease</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">long $FieldStaticReadWrite.getAndSetRelease(java.lang.invoke.VarHandle,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.set</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void $FieldStaticReadWrite.set(java.lang.invoke.VarHandle,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.setOpaque</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void $FieldStaticReadWrite.setOpaque(java.lang.invoke.VarHandle,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.setRelease</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void $FieldStaticReadWrite.setRelease(java.lang.invoke.VarHandle,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.setVolatile</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void $FieldStaticReadWrite.setVolatile(java.lang.invoke.VarHandle,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.weakCompareAndSet</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean $FieldStaticReadWrite.weakCompareAndSet(java.lang.invoke.VarHandle,long,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.weakCompareAndSetAcquire</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean $FieldStaticReadWrite.weakCompareAndSetAcquire(java.lang.invoke.VarHandle,long,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.weakCompareAndSetPlain</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean $FieldStaticReadWrite.weakCompareAndSetPlain(java.lang.invoke.VarHandle,long,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.weakCompareAndSetRelease</span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean $FieldStaticReadWrite.weakCompareAndSetRelease(java.lang.invoke.VarHandle,long,long)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.withInvokeBehavior</span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.VarHandleLongs$FieldStaticReadWrite $FieldStaticReadWrite.withInvokeBehavior()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">$FieldStaticReadWrite.withInvokeExactBehavior</span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">java.lang.invoke.VarHandleLongs$FieldStaticReadWrite $FieldStaticReadWrite.withInvokeExactBehavior()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text">&lt;init&gt;</span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">void &lt;init&gt;()</span></td>
+ </tr>
+ </table>
+ <br>
+<p>
+<br><table cellpadding="0" cellspacing="0" class="report">  <tr class="report">    <td class="reportText"><span class="text">    Report generated 8/4/22, 3:35 PM    </span></td>  </tr></table>
+</body>
+</html>

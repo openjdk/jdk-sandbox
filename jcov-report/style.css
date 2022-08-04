@@ -1,0 +1,336 @@
+/*
+ * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ *
+ * This code is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 only, as
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
+ *
+ * This code is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * version 2 for more details (a copy is included in the LICENSE file that
+ * accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License version
+ * 2 along with this work; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
+ */
+body {
+	font-family: verdana, arial, sans-serif;
+	font-size: 12px;
+}
+
+a {
+	font-size: 12px;
+}
+
+table.src {
+	font-size: 12px;
+	border-left: #dcdcdc 1px solid;
+	border-right: #dcdcdc 1px solid;
+	border-bottom: #dcdcdc 1px solid;
+	border-top: #dcdcdc 1px solid;
+}
+
+table.report {
+	font-size: 12px !important;
+	border-collapse: collapse;
+	width: 100%;
+}
+
+tr.report {
+	border: #dcdcdc 1px solid;
+    width: 13%;
+}
+
+tr.report_number {
+    border: #dcdcdc 1px solid;
+    width: 6%;
+}
+
+tr.report:hover {
+    background: #fbfbfb;
+}
+
+table.percentGraph {
+	height: 10px;
+	width: 100px;
+}
+
+th.report {
+    background: #F0F0F0;
+	font-size: inherit !important;
+	font-weight: bold;
+	border: #dcdcdc 1px solid;
+	cursor:			default;
+}
+
+th.report_number{
+    background: #F0F0F0;
+    font-size: inherit !important;
+    font-weight: bold;
+    border: #dcdcdc 1px solid;
+    cursor:			default;
+    width: 6%;
+}
+
+
+th.report:hover {
+    background: #dcdcdc;
+}
+
+table.report a.sortheader {
+    color: black;
+    text-decoration: none;
+	display: block;
+}
+table.report span.sortarrow {
+    color: black;
+    text-decoration: none;
+}
+
+
+
+
+td.reportText {
+	font-size: inherit !important;
+	border: #dcdcdc 1px solid;
+}
+
+td.reportValue {
+	font-size: inherit !important;
+	border: #dcdcdc 1px solid;
+	text-align: center;
+    width: 13%;
+}
+
+td.reportValue_number {
+    font-size: inherit !important;
+    border: #dcdcdc 1px solid;
+    text-align: center;
+    width: 6%;
+}
+
+td.reportValue_covered {
+	font-size: inherit !important;
+	border: #dcdcdc 1px solid;
+	text-align: right;
+    background: #73FF95;
+}
+
+td.reportValue_uncovered {
+	font-size: inherit !important;
+	border: #dcdcdc 1px solid;
+	text-align: right;
+    background: #FF4652;
+}
+
+td.reportValue_anc{
+    font-size: inherit !important;
+    border: #dcdcdc 1px solid;
+    text-align: right;
+    background: #FFFF52;
+}
+
+td.spacer {
+	border-left: #FF4652 0px none;
+	border-right: #FF4652 0px none;
+	height: 30px;
+	padding-top: 15px;
+}
+
+td.percentCovered {
+    background: #73FF95;
+	empty-cells: show;
+}
+
+td.percentUnCovered {
+    background: #FF4652;
+	empty-cells: show;
+}
+
+td.percentAnc {
+    background: #FFFF52;
+    empty-cells: show;
+}
+
+td.numLine {
+    background: #F0F0F0;
+    border-right: #dcdcdc 1px solid;
+    padding-right: 3px;
+    text-align: right;
+}
+
+td.numLineCover {
+    background: #73FF95;
+    border-right: #dcdcdc 1px solid;
+    padding-right: 3px;
+    text-align: right;
+}
+
+td.numLineUnCover {
+    background: #FF4652;
+    border-right: #dcdcdc 1px solid;
+    padding-right: 3px;
+    text-align: right;
+}
+
+td.numLineAnc {
+    background: #FFFF52;
+    border-right: #dcdcdc 1px solid;
+    padding-right: 3px;
+    text-align: right;
+}
+
+td.nbHits {
+    background: #F0F0F0;
+    border-right: #dcdcdc 1px solid;
+    padding-right: 3px;
+    text-align: left;
+}
+
+td.nbHitsCovered {
+    background: #73FF95;
+    border-right: #dcdcdc 1px solid;
+    padding-right: 3px;
+    text-align: left;
+}
+
+td.nbHitsUncovered {
+    background: #FF4652;
+    border-right: #dcdcdc 1px solid;
+    padding-right: 3px;
+    text-align: left;
+}
+
+td.nbHitsAnc {
+    background: #FFFF52;
+    border-right: #dcdcdc 1px solid;
+    padding-right: 3px;
+    text-align: left;
+}
+
+td.src {
+    width: 100%;
+}
+
+td.coverage_left{
+    width : 30%;
+    text-align: right;
+    padding-bottom: 3px;
+    padding-top: 3px;
+}
+
+td.coverage_right{
+    width : 70%;
+    text-align: right;
+    padding-bottom: 3px;
+    padding-top: 3px;
+    padding-right: 3px;
+}
+pre.src {
+    background: #ffffff;
+    margin-top: 0px;
+    margin-bottom: 0px;
+}
+
+span.srcUncovered {
+    background: #FF4652;
+    border-right: #dcdcdc 1px solid;
+    padding-right: 3px;
+    text-align: right;
+}
+
+span.keyword {
+    color: #0000ff;
+}
+
+span.comment {
+    color: #008080;
+    font-style: italic;
+}
+
+span.string {
+    color: #000000;
+}
+
+span.title {
+    font-weight: bold;
+    font-size: 16px;
+}
+
+span.title2 {
+    font-weight: bold;
+    font-size: 14px;
+}
+span.text {
+	font-size: 12px;
+}
+span.text_bold {
+    font-size: 12px;
+    font-weight: bold;
+}
+
+span.text_italic {
+	font-size: 12px;
+    font-style: italic;
+}
+
+iframe {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    border: 1;
+}
+
+.container{
+    margin:0 auto;
+    padding:0;
+    height:100%;
+    width:100%;
+    position:fixed;
+    top:0;
+    left:0;
+}
+
+.left20Container{
+    width: 20%;
+    height: 100%;
+    float: left;
+}
+
+.left30Container{
+    width: 30%;
+    height: 100%;
+    float: left;
+}
+
+.leftTop {
+    width: 100%;
+    height: 30%;
+}
+
+.leftBottom {
+    width: 100%;
+    height: 70%;
+}
+
+.right70Container {
+    width: 70%;
+    height: 100%;
+    float: right;
+}
+
+.right80Container {
+    width: 80%;
+    height: 100%;
+    float: right;
+}

@@ -1,0 +1,2183 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>tests coverage</title>
+<link rel ="stylesheet" type="text/css" href="../../../style.css" title="Style">
+<script type="text/javascript" src="../../../sorttable.js"></script>
+<script type="text/javascript">
+  targetPage = "" + window.location.search;
+  if (targetPage != "" && targetPage != "undefined")
+    targetPage = targetPage.substring(1);
+  if (targetPage.indexOf(":") != -1 || (targetPage != "" && !validURL(targetPage)))
+    targetPage = "undefined";
+  function validURL(url) {
+    var pos = url.indexOf(".html");
+    if (pos == -1 || pos != url.length - 5)
+      return false;
+    var allowNumber = false;
+    var allowSep = false;
+    var seenDot = false;
+    for (var i = 0; i < url.length - 5; i++) {
+      var ch = url.charAt(i);
+      if ('a' <= ch && ch <= 'z' ||
+          'A' <= ch && ch <= 'Z' ||
+          ch == '$' ||
+          ch == '_') {
+            allowNumber = true;
+            allowSep = true;
+      } else if ('0' <= ch && ch <= '9' ||
+                 ch == '-') {
+                   if (!allowNumber)
+                     return false;
+      } else if (ch == '/' || ch == '.') {
+        if (!allowSep)
+          return false;
+        allowNumber = false;
+        allowSep = false;
+        if (ch == '.')
+          seenDot = true;
+        if (ch == '/' && seenDot)
+          return false;
+      } else {
+        return false;
+      }
+    }
+    return true;
+  }
+  function loadFrames() {
+    if (targetPage != "" && targetPage != "undefined")
+      top.classFrame.location = top.targetPage;
+  }
+</script>
+</head>
+<body>
+<table>
+<tr>
+<td>
+<a href="../../../index.html?jdk/classfile/transforms/ClassRemapper.html" target="_top">Frames</a>
+<a href="ClassRemapper.html" target="_top">No Frames</a>
+</td>
+</tr>
+</table>
+<br>
+ <table cellspacing="0" cellpadding="0"class="report">
+ <tr class="report">
+ <th class="report">&nbsp;</th>
+ <th class="report">%method</th>
+ <th class="report">%block</th>
+ <th class="report">%branch</th>
+ <th class="report">%line</th>
+ </tr>
+ <tr class="report">
+ <td class="reportText"><span class="text"> <b>jdk.classfile.transforms.ClassRemapper</b></span></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>90</b>%(39/43)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  90"></td><td class="percentUnCovered" width="10"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>84</b>%(106/126)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  84"></td><td class="percentUnCovered" width="16"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>76</b>%(57/75)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  76"></td><td class="percentUnCovered" width="24"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>84</b>%(147/174)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  84"></td><td class="percentUnCovered" width="16"></td></tr></table></td></tr></table></td>
+ </tr>
+ </table>
+ <br>
+ <br>
+ <table cellspacing="0" cellpadding="0"class="report" id="mcoverage">
+ <tr class="report">
+ <th class="report">hit count</th>
+ <th class="report">method  name</th>
+ <th class="report">method modifiers</th>
+ <th class="report">method signature</th>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">3177</span></td>
+ <td class="reportText"><span class="text"><a href="#src_124">$ClassRemapperImpl.&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">void $ClassRemapperImpl.&lt;init&gt;(java.util.function.Function)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">3177</span></td>
+ <td class="reportText"><span class="text"><a href="#src_130">$ClassRemapperImpl.classTransform</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.ClassTransform $ClassRemapperImpl.classTransform()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">29657</span></td>
+ <td class="reportText"><span class="text"><a href="#src_224">$ClassRemapperImpl.codeTransform</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.CodeTransform $ClassRemapperImpl.codeTransform()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">10154</span></td>
+ <td class="reportText"><span class="text"><a href="#src_176">$ClassRemapperImpl.fieldTransform</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.FieldTransform $ClassRemapperImpl.fieldTransform()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">10154</span></td>
+ <td class="reportText"><span class="text"><a href="#src_133">$ClassRemapperImpl.lambda$classTransform$0</a></span></td>
+ <td class="reportText"><span class="text">[private, synthetic]</span></td>
+ <td class="reportText"><span class="text">void $ClassRemapperImpl.lambda$classTransform$0(jdk.classfile.FieldModel,jdk.classfile.FieldBuilder)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">32008</span></td>
+ <td class="reportText"><span class="text"><a href="#src_135">$ClassRemapperImpl.lambda$classTransform$1</a></span></td>
+ <td class="reportText"><span class="text">[private, synthetic]</span></td>
+ <td class="reportText"><span class="text">void $ClassRemapperImpl.lambda$classTransform$1(jdk.classfile.MethodModel,jdk.classfile.MethodBuilder)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1568</span></td>
+ <td class="reportText"><span class="text"><a href="#src_139">$ClassRemapperImpl.lambda$classTransform$2</a></span></td>
+ <td class="reportText"><span class="text">[private, synthetic]</span></td>
+ <td class="reportText"><span class="text">java.lang.constant.ClassDesc $ClassRemapperImpl.lambda$classTransform$2(jdk.classfile.constantpool.ClassEntry)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">6171</span></td>
+ <td class="reportText"><span class="text"><a href="#src_145">$ClassRemapperImpl.lambda$classTransform$3</a></span></td>
+ <td class="reportText"><span class="text">[private, synthetic]</span></td>
+ <td class="reportText"><span class="text">java.lang.constant.ClassDesc $ClassRemapperImpl.lambda$classTransform$3(jdk.classfile.constantpool.ClassEntry)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">7369</span></td>
+ <td class="reportText"><span class="text"><a href="#src_144">$ClassRemapperImpl.lambda$classTransform$4</a></span></td>
+ <td class="reportText"><span class="text">[private, synthetic]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.attribute.InnerClassInfo $ClassRemapperImpl.lambda$classTransform$4(jdk.classfile.attribute.InnerClassInfo)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">97</span></td>
+ <td class="reportText"><span class="text"><a href="#src_157">$ClassRemapperImpl.lambda$classTransform$5</a></span></td>
+ <td class="reportText"><span class="text">[private, synthetic]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.constantpool.ClassEntry $ClassRemapperImpl.lambda$classTransform$5(jdk.classfile.ClassBuilder,jdk.classfile.constantpool.ClassEntry)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">128</span></td>
+ <td class="reportText"><span class="text"><a href="#src_159">$ClassRemapperImpl.lambda$classTransform$6</a></span></td>
+ <td class="reportText"><span class="text">[private, synthetic]</span></td>
+ <td class="reportText"><span class="text">java.lang.constant.ClassDesc $ClassRemapperImpl.lambda$classTransform$6(jdk.classfile.constantpool.ClassEntry)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">62</span></td>
+ <td class="reportText"><span class="text"><a href="#src_158">$ClassRemapperImpl.lambda$classTransform$7</a></span></td>
+ <td class="reportText"><span class="text">[private, synthetic]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.attribute.ModuleProvideInfo $ClassRemapperImpl.lambda$classTransform$7(jdk.classfile.attribute.ModuleProvideInfo)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">64618</span></td>
+ <td class="reportText"><span class="text"><a href="#src_131">$ClassRemapperImpl.lambda$classTransform$8</a></span></td>
+ <td class="reportText"><span class="text">[private, synthetic]</span></td>
+ <td class="reportText"><span class="text">void $ClassRemapperImpl.lambda$classTransform$8(jdk.classfile.ClassBuilder,jdk.classfile.ClassElement)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">2048</span></td>
+ <td class="reportText"><span class="text"><a href="#src_241">$ClassRemapperImpl.lambda$codeTransform$12</a></span></td>
+ <td class="reportText"><span class="text">[private, synthetic]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.constantpool.ClassEntry $ClassRemapperImpl.lambda$codeTransform$12(jdk.classfile.constantpool.ClassEntry)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1035330</span></td>
+ <td class="reportText"><span class="text"><a href="#src_225">$ClassRemapperImpl.lambda$codeTransform$13</a></span></td>
+ <td class="reportText"><span class="text">[private, synthetic]</span></td>
+ <td class="reportText"><span class="text">void $ClassRemapperImpl.lambda$codeTransform$13(jdk.classfile.CodeBuilder,jdk.classfile.CodeElement)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">13666</span></td>
+ <td class="reportText"><span class="text"><a href="#src_177">$ClassRemapperImpl.lambda$fieldTransform$9</a></span></td>
+ <td class="reportText"><span class="text">[private, synthetic]</span></td>
+ <td class="reportText"><span class="text">void $ClassRemapperImpl.lambda$fieldTransform$9(jdk.classfile.FieldBuilder,jdk.classfile.FieldElement)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">274</span></td>
+ <td class="reportText"><span class="text"><a href="#src_348">$ClassRemapperImpl.lambda$mapAnnotation$19</a></span></td>
+ <td class="reportText"><span class="text">[private, synthetic]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.AnnotationElement $ClassRemapperImpl.lambda$mapAnnotation$19(jdk.classfile.AnnotationElement)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1244</span></td>
+ <td class="reportText"><span class="text"><a href="#src_273">$ClassRemapperImpl.lambda$mapClassSignature$15</a></span></td>
+ <td class="reportText"><span class="text">[private, static, synthetic]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.Signature$RefTypeSig[] $ClassRemapperImpl.lambda$mapClassSignature$15(int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_328">$ClassRemapperImpl.lambda$mapDynamicConstant$17</a></span></td>
+ <td class="reportText"><span class="text">[private, static, synthetic]</span></td>
+ <td class="reportText"><span class="text">java.lang.constant.ConstantDesc[] $ClassRemapperImpl.lambda$mapDynamicConstant$17(int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">128120</span></td>
+ <td class="reportText"><span class="text"><a href="#src_267">$ClassRemapperImpl.lambda$mapMethodDesc$14</a></span></td>
+ <td class="reportText"><span class="text">[private, static, synthetic]</span></td>
+ <td class="reportText"><span class="text">java.lang.constant.ClassDesc[] $ClassRemapperImpl.lambda$mapMethodDesc$14(int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">45</span></td>
+ <td class="reportText"><span class="text"><a href="#src_286">$ClassRemapperImpl.lambda$mapRecordComponent$16</a></span></td>
+ <td class="reportText"><span class="text">[private, synthetic]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.Attribute $ClassRemapperImpl.lambda$mapRecordComponent$16(jdk.classfile.Attribute)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">30332</span></td>
+ <td class="reportText"><span class="text"><a href="#src_338">$ClassRemapperImpl.lambda$mapSignature$18</a></span></td>
+ <td class="reportText"><span class="text">[private, static, synthetic]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.Signature[] $ClassRemapperImpl.lambda$mapSignature$18(int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_363">$ClassRemapperImpl.lambda$mapTypeAnnotations$20</a></span></td>
+ <td class="reportText"><span class="text">[private, synthetic]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.AnnotationElement $ClassRemapperImpl.lambda$mapTypeAnnotations$20(jdk.classfile.AnnotationElement)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">62</span></td>
+ <td class="reportText"><span class="text"><a href="#src_362">$ClassRemapperImpl.lambda$mapTypeAnnotations$21</a></span></td>
+ <td class="reportText"><span class="text">[private, synthetic]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeAnnotation $ClassRemapperImpl.lambda$mapTypeAnnotations$21(jdk.classfile.TypeAnnotation)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">3411</span></td>
+ <td class="reportText"><span class="text"><a href="#src_201">$ClassRemapperImpl.lambda$methodTransform$10</a></span></td>
+ <td class="reportText"><span class="text">[private, synthetic]</span></td>
+ <td class="reportText"><span class="text">java.lang.constant.ClassDesc $ClassRemapperImpl.lambda$methodTransform$10(jdk.classfile.constantpool.ClassEntry)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">72232</span></td>
+ <td class="reportText"><span class="text"><a href="#src_197">$ClassRemapperImpl.lambda$methodTransform$11</a></span></td>
+ <td class="reportText"><span class="text">[private, synthetic]</span></td>
+ <td class="reportText"><span class="text">void $ClassRemapperImpl.lambda$methodTransform$11(jdk.classfile.MethodBuilder,jdk.classfile.MethodElement)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">671619</span></td>
+ <td class="reportText"><span class="text"><a href="#src_260">$ClassRemapperImpl.map</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">java.lang.constant.ClassDesc $ClassRemapperImpl.map(java.lang.constant.ClassDesc)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">2177</span></td>
+ <td class="reportText"><span class="text"><a href="#src_348">$ClassRemapperImpl.mapAnnotation</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.Annotation $ClassRemapperImpl.mapAnnotation(jdk.classfile.Annotation)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">314</span></td>
+ <td class="reportText"><span class="text"><a href="#src_352">$ClassRemapperImpl.mapAnnotationValue</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.AnnotationValue $ClassRemapperImpl.mapAnnotationValue(jdk.classfile.AnnotationValue)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1334</span></td>
+ <td class="reportText"><span class="text"><a href="#src_344">$ClassRemapperImpl.mapAnnotations</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">java.util.List $ClassRemapperImpl.mapAnnotations(java.util.List)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1244</span></td>
+ <td class="reportText"><span class="text"><a href="#src_271">$ClassRemapperImpl.mapClassSignature</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.ClassSignature $ClassRemapperImpl.mapClassSignature(jdk.classfile.ClassSignature)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">20045</span></td>
+ <td class="reportText"><span class="text"><a href="#src_311">$ClassRemapperImpl.mapConstantValue</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">java.lang.constant.ConstantDesc $ClassRemapperImpl.mapConstantValue(java.lang.constant.ConstantDesc)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_302">$ClassRemapperImpl.mapDirectMethodHandle</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">java.lang.constant.DirectMethodHandleDesc $ClassRemapperImpl.mapDirectMethodHandle(java.lang.constant.DirectMethodHandleDesc)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_325">$ClassRemapperImpl.mapDynamicConstant</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">java.lang.constant.DynamicConstantDesc $ClassRemapperImpl.mapDynamicConstant(java.lang.constant.DynamicConstantDesc)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">128120</span></td>
+ <td class="reportText"><span class="text"><a href="#src_267">$ClassRemapperImpl.mapMethodDesc</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">java.lang.constant.MethodTypeDesc $ClassRemapperImpl.mapMethodDesc(java.lang.constant.MethodTypeDesc)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">6274</span></td>
+ <td class="reportText"><span class="text"><a href="#src_277">$ClassRemapperImpl.mapMethodSignature</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.MethodSignature $ClassRemapperImpl.mapMethodSignature(jdk.classfile.MethodSignature)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">185</span></td>
+ <td class="reportText"><span class="text"><a href="#src_284">$ClassRemapperImpl.mapRecordComponent</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.attribute.RecordComponentInfo $ClassRemapperImpl.mapRecordComponent(jdk.classfile.attribute.RecordComponentInfo)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">65352</span></td>
+ <td class="reportText"><span class="text"><a href="#src_333">$ClassRemapperImpl.mapSignature</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.Signature $ClassRemapperImpl.mapSignature(jdk.classfile.Signature)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">31</span></td>
+ <td class="reportText"><span class="text"><a href="#src_362">$ClassRemapperImpl.mapTypeAnnotations</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">java.util.List $ClassRemapperImpl.mapTypeAnnotations(java.util.List)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">32008</span></td>
+ <td class="reportText"><span class="text"><a href="#src_196">$ClassRemapperImpl.methodTransform</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.MethodTransform $ClassRemapperImpl.methodTransform()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">3177</span></td>
+ <td class="reportText"><span class="text"><a href="#src_98">of</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.transforms.ClassRemapper of(java.util.Map)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">3177</span></td>
+ <td class="reportText"><span class="text"><a href="#src_102">of</a></span></td>
+ <td class="reportText"><span class="text">[public, static]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.transforms.ClassRemapper of(java.util.function.Function)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">3176</span></td>
+ <td class="reportText"><span class="text"><a href="#src_116">remapClass</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">byte[] remapClass(jdk.classfile.ClassModel)</span></td>
+ </tr>
+ </table>
+ <br>
+ <table cellspacing="0" cellpadding="0" class="src">
+ <tr>
+ <td class="numLine">&nbsp;1</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">/*</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;2</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;3</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;4</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;5</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * This code is free software; you can redistribute it and/or modify it</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;6</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * under the terms of the GNU General Public License version 2 only, as</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;7</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * published by the Free Software Foundation.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;8</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;9</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * This code is distributed in the hope that it will be useful, but WITHOUT</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;10</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;11</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;12</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * version 2 for more details (a copy is included in the LICENSE file that</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;13</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * accompanied this code).</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;14</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;15</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * You should have received a copy of the GNU General Public License version</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;16</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * 2 along with this work; if not, write to the Free Software Foundation,</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;17</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;18</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;19</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;20</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * or visit www.oracle.com if you need additional information or have any</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;21</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * questions.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;22</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;23</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;24</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">package</span> jdk.classfile.transforms;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;25</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;26</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.lang.constant.ClassDesc;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;27</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.lang.constant.ConstantDesc;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;28</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.lang.constant.DirectMethodHandleDesc;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;29</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.lang.constant.DynamicCallSiteDesc;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;30</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.lang.constant.DynamicConstantDesc;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;31</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.lang.constant.MethodHandleDesc;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;32</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.lang.constant.MethodTypeDesc;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;33</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.List;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;34</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.Map;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;35</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.function.Function;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;36</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.Annotation;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;37</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.AnnotationElement;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;38</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.AnnotationValue;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;39</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.ClassBuilder;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;40</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.ClassElement;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;41</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.ClassModel;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;42</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.ClassSignature;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;43</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.ClassTransform;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;44</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.Classfile;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;45</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.CodeBuilder;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;46</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.CodeElement;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;47</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.CodeModel;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;48</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.CodeTransform;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;49</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.FieldBuilder;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;50</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.FieldElement;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;51</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.FieldModel;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;52</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.FieldTransform;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;53</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.Interfaces;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;54</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.MethodBuilder;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;55</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.MethodElement;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;56</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.impl.TemporaryConstantPool;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;57</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.instruction.FieldInstruction;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;58</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.instruction.InvokeDynamicInstruction;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;59</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.instruction.InvokeInstruction;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;60</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.instruction.NewMultiArrayInstruction;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;61</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.instruction.NewObjectInstruction;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;62</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.instruction.NewReferenceArrayInstruction;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;63</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.instruction.TypeCheckInstruction;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;64</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.MethodModel;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;65</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.MethodSignature;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;66</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.MethodTransform;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;67</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.Signature;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;68</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.Superclass;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;69</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.TypeAnnotation;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;70</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.attribute.EnclosingMethodAttribute;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;71</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.attribute.ExceptionsAttribute;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;72</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.attribute.InnerClassInfo;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;73</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.attribute.InnerClassesAttribute;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;74</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.attribute.ModuleAttribute;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;75</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.attribute.ModuleProvideInfo;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;76</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.attribute.RecordAttribute;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;77</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.attribute.RecordComponentInfo;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;78</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.attribute.RuntimeInvisibleAnnotationsAttribute;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;79</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.attribute.RuntimeInvisibleParameterAnnotationsAttribute;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;80</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.attribute.RuntimeInvisibleTypeAnnotationsAttribute;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;81</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.attribute.RuntimeVisibleAnnotationsAttribute;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;82</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.attribute.RuntimeVisibleParameterAnnotationsAttribute;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;83</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.attribute.RuntimeVisibleTypeAnnotationsAttribute;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;84</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.attribute.SignatureAttribute;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;85</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.constantpool.Utf8Entry;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;86</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.instruction.ExceptionCatch;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;87</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.instruction.LocalVariable;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;88</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.instruction.LocalVariableType;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;89</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.impl.Util;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;90</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.instruction.ConstantInstruction.LoadConstantInstruction;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;91</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;92</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;93</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;94</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;95</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">public</span> sealed <span Class="keyword">interface</span> ClassRemapper {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;96</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;97</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> ClassRemapper of(Map&#60;ClassDesc, ClassDesc&#62; classMap) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;98<a name="src_98"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> of(desc -&#62; classMap.getOrDefault(desc, desc));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;99</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;100</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;101</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> ClassRemapper of(Function&#60;ClassDesc, ClassDesc&#62; mapFunction) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;102<a name="src_102"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">new</span> ClassRemapperImpl(mapFunction);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;103</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;104</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;105</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ClassDesc map(ClassDesc desc);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;106</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;107</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    ClassTransform classTransform();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;108</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;109</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    FieldTransform fieldTransform();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;110</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;111</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    MethodTransform methodTransform();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;112</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;113</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    CodeTransform codeTransform();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;114</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;115</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">default</span> <span Class="keyword">byte</span>[] remapClass(ClassModel clm) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;116<a name="src_116"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> Classfile.build(map(clm.thisClass().asSymbol()),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;117<a name="src_117"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                clb -&#62; clm.forEachElement(classTransform().resolve(clb).consumer()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;118</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;119</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;120</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">final</span> <span Class="keyword">static</span> <span Class="keyword">class</span> ClassRemapperImpl <span Class="keyword">implements</span> ClassRemapper {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;121</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;122</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">private</span> <span Class="keyword">final</span> Function&#60;ClassDesc, ClassDesc&#62; mapFunction;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;123</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;124<a name="src_124"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        ClassRemapperImpl(Function&#60;ClassDesc, ClassDesc&#62; mapFunction) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;125</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">this</span>.mapFunction = mapFunction;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;126</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;127</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;128</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;129</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> ClassTransform classTransform() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;130<a name="src_130"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> (ClassBuilder clb, ClassElement cle) -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;131<a name="src_131"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">switch</span> (cle) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;132</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> FieldModel fm -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;133<a name="src_133"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        clb.withField(fm.fieldName().stringValue(), map(fm.fieldTypeSymbol()), fb -&#62; fm.forEachElement(fieldTransform().resolve(fb).consumer()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;134</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> MethodModel mm -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;135<a name="src_135"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        clb.withMethod(mm.methodName().stringValue(), mapMethodDesc(mm.methodTypeSymbol()), mm.flags().flagsMask(), mb -&#62; mm.forEachElement(methodTransform().resolve(mb).consumer()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;136</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> Superclass sc -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;137</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        clb.withSuperclass(map(sc.superclassEntry().asSymbol()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;138</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> Interfaces ins -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;139<a name="src_139"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        clb.withInterfaceSymbols(Util.mappedList(ins.interfaces(), in -&#62; map(in.asSymbol())));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;140</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> SignatureAttribute sa -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;141</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        clb.with(SignatureAttribute.of(mapClassSignature(sa.asClassSignature())));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;142</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> InnerClassesAttribute ica -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;143</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        clb.with(InnerClassesAttribute.of(ica.classes().stream().map(ici -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;144<a name="src_144"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                InnerClassInfo.of(map(ici.innerClass().asSymbol()),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;145<a name="src_145"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                        ici.outerClass().map(oc -&#62; map(oc.asSymbol())),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;146</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                        ici.innerName().map(Utf8Entry::stringValue),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;147</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                        ici.flagsMask())).toList()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;148</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> EnclosingMethodAttribute ema -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;149</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        clb.with(EnclosingMethodAttribute.of(map(ema.enclosingClass().asSymbol()),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;150</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                ema.enclosingMethodName().map(Utf8Entry::stringValue),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;151</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                ema.enclosingMethodTypeSymbol().map(<span Class="keyword">this</span>::mapMethodDesc)));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;152</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> RecordAttribute ra -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;153</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        clb.with(RecordAttribute.of(ra.components().stream().map(<span Class="keyword">this</span>::mapRecordComponent).toList()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;154</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> ModuleAttribute ma -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;155</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        clb.with(ModuleAttribute.of(ma.moduleName(), ma.moduleFlagsMask(), ma.moduleVersion().orElse(<span Class="keyword">null</span>),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;156</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                ma.requires(), ma.exports(), ma.opens(),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;157<a name="src_157"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                ma.uses().stream().map(ce -&#62; clb.constantPool().classEntry(map(ce.asSymbol()))).toList(),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;158<a name="src_158"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                ma.provides().stream().map(mp -&#62; ModuleProvideInfo.of(map(mp.provides().asSymbol()),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;159<a name="src_159"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                        mp.providesWith().stream().map(pw -&#62; map(pw.asSymbol())).toList())).toList()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;160</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> RuntimeVisibleAnnotationsAttribute aa -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;161</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        clb.with(RuntimeVisibleAnnotationsAttribute.of(mapAnnotations(aa.annotations())));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;162</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> RuntimeInvisibleAnnotationsAttribute aa -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;163</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        clb.with(RuntimeInvisibleAnnotationsAttribute.of(mapAnnotations(aa.annotations())));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;164</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> RuntimeVisibleTypeAnnotationsAttribute aa -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;165</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        clb.with(RuntimeVisibleTypeAnnotationsAttribute.of(mapTypeAnnotations(aa.annotations())));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;166</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> RuntimeInvisibleTypeAnnotationsAttribute aa -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;167</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        clb.with(RuntimeInvisibleTypeAnnotationsAttribute.of(mapTypeAnnotations(aa.annotations())));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;168</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">default</span> -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;169</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        clb.with(cle);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;170</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;171</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            };</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;172</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;173</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;174</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;175</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> FieldTransform fieldTransform() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;176<a name="src_176"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> (FieldBuilder fb, FieldElement fe) -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;177<a name="src_177"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">switch</span> (fe) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;178</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> SignatureAttribute sa -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;179</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        fb.with(SignatureAttribute.of(mapSignature(sa.asTypeSignature())));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;180</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> RuntimeVisibleAnnotationsAttribute aa -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;181</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        fb.with(RuntimeVisibleAnnotationsAttribute.of(mapAnnotations(aa.annotations())));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;182</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> RuntimeInvisibleAnnotationsAttribute aa -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;183</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        fb.with(RuntimeInvisibleAnnotationsAttribute.of(mapAnnotations(aa.annotations())));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;184</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> RuntimeVisibleTypeAnnotationsAttribute aa -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;185</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        fb.with(RuntimeVisibleTypeAnnotationsAttribute.of(mapTypeAnnotations(aa.annotations())));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;186</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> RuntimeInvisibleTypeAnnotationsAttribute aa -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;187</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        fb.with(RuntimeInvisibleTypeAnnotationsAttribute.of(mapTypeAnnotations(aa.annotations())));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;188</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">default</span> -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;189</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        fb.with(fe);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;190</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;191</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            };</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;192</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;193</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;194</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;195</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> MethodTransform methodTransform() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;196<a name="src_196"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> (MethodBuilder mb, MethodElement me) -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;197<a name="src_197"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">switch</span> (me) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;198</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> CodeModel com -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;199</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        mb.transformCode(com, codeTransform());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;200</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> ExceptionsAttribute ea -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;201<a name="src_201"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        mb.with(ExceptionsAttribute.ofSymbols(ea.exceptions().stream().map(ce -&#62; map(ce.asSymbol())).toList()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;202</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> SignatureAttribute sa -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;203</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        mb.with(SignatureAttribute.of(mapMethodSignature(sa.asMethodSignature())));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;204</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> RuntimeVisibleAnnotationsAttribute aa -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;205</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        mb.with(RuntimeVisibleAnnotationsAttribute.of(mapAnnotations(aa.annotations())));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;206</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> RuntimeInvisibleAnnotationsAttribute aa -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;207</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        mb.with(RuntimeInvisibleAnnotationsAttribute.of(mapAnnotations(aa.annotations())));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;208</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> RuntimeVisibleParameterAnnotationsAttribute paa -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;209</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        mb.with(RuntimeVisibleParameterAnnotationsAttribute.of(paa.parameterAnnotations().stream().map(<span Class="keyword">this</span>::mapAnnotations).toList()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;210</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> RuntimeInvisibleParameterAnnotationsAttribute paa -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;211</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        mb.with(RuntimeInvisibleParameterAnnotationsAttribute.of(paa.parameterAnnotations().stream().map(<span Class="keyword">this</span>::mapAnnotations).toList()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;212</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> RuntimeVisibleTypeAnnotationsAttribute aa -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;213</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        mb.with(RuntimeVisibleTypeAnnotationsAttribute.of(mapTypeAnnotations(aa.annotations())));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;214</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> RuntimeInvisibleTypeAnnotationsAttribute aa -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;215</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        mb.with(RuntimeInvisibleTypeAnnotationsAttribute.of(mapTypeAnnotations(aa.annotations())));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;216</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">default</span> -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;217</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        mb.with(me);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;218</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;219</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            };</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;220</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;221</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;222</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;223</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> CodeTransform codeTransform() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;224<a name="src_224"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> (CodeBuilder cob, CodeElement coe) -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;225<a name="src_225"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">switch</span> (coe) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;226</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> FieldInstruction fai -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;227</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        cob.fieldInstruction(fai.opcode(), map(fai.owner().asSymbol()), fai.name().stringValue(), map(fai.typeSymbol()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;228</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> InvokeInstruction ii -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;229</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        cob.invokeInstruction(ii.opcode(), map(ii.owner().asSymbol()), ii.name().stringValue(), mapMethodDesc(ii.typeSymbol()), ii.isInterface());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;230</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> InvokeDynamicInstruction idi -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;231</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        cob.invokeDynamicInstruction(DynamicCallSiteDesc.of(idi.bootstrapMethod(), idi.name().stringValue(), mapMethodDesc(idi.typeSymbol())));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;232</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> NewObjectInstruction c -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;233</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        cob.newObjectInstruction(map(c.className().asSymbol()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;234</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> NewReferenceArrayInstruction c -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;235</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        cob.anewarray(map(c.componentType().asSymbol()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;236</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> NewMultiArrayInstruction c -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;237</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        cob.multianewarray(map(c.arrayType().asSymbol()), c.dimensions());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;238</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> TypeCheckInstruction c -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;239</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        cob.typeCheckInstruction(c.opcode(), map(c.type().asSymbol()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;240</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> ExceptionCatch c -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;241<a name="src_241"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        cob.exceptionCatch(c.tryStart(), c.tryEnd(), c.handler(), c.catchType().map(d -&#62; TemporaryConstantPool.INSTANCE.classEntry(map(d.asSymbol()))));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;242</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> LocalVariable c -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;243</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        cob.localVariable(c.slot(), c.name().stringValue(), map(c.typeSymbol()), c.startScope(), c.endScope());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;244</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> LocalVariableType c -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;245</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        cob.localVariableType(c.slot(), c.name().stringValue(), mapSignature(c.signatureSymbol()), c.startScope(), c.endScope());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;246</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> LoadConstantInstruction ldc -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;247</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        cob.constantInstruction(ldc.opcode(), mapConstantValue(ldc.constantValue()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;248</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> RuntimeVisibleTypeAnnotationsAttribute aa -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;249</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        cob.with(RuntimeVisibleTypeAnnotationsAttribute.of(mapTypeAnnotations(aa.annotations())));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;250</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> RuntimeInvisibleTypeAnnotationsAttribute aa -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;251</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        cob.with(RuntimeInvisibleTypeAnnotationsAttribute.of(mapTypeAnnotations(aa.annotations())));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;252</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">default</span> -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;253</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        cob.with(coe);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;254</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;255</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            };</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;256</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;257</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;258</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;259</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> ClassDesc map(ClassDesc desc) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;260<a name="src_260"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (desc == <span Class="keyword">null</span>) <span Class="keyword">return</span> <span Class="keyword">null</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;261</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (desc.isArray()) <span Class="keyword">return</span> map(desc.componentType()).arrayType();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;262</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (desc.isPrimitive()) <span Class="keyword">return</span> desc;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;263</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;3/4&nbsp;Branch:&nbsp;3/4&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> mapFunction.apply(desc);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;264</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;265</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;266</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        MethodTypeDesc mapMethodDesc(MethodTypeDesc desc) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;267<a name="src_267"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> MethodTypeDesc.of(map(desc.returnType()), desc.parameterList().stream().map(<span Class="keyword">this</span>::map).toArray(ClassDesc[]::<span Class="keyword">new</span>));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;268</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;269</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;270</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        ClassSignature mapClassSignature(ClassSignature signature) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;271<a name="src_271"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> ClassSignature.of(signature.typeParameters(),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;272</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    mapSignature(signature.superclassSignature()),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;273<a name="src_273"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    signature.superinterfaceSignatures().stream().map(<span Class="keyword">this</span>::mapSignature).toArray(Signature.RefTypeSig[]::<span Class="keyword">new</span>));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;274</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;275</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;276</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        MethodSignature mapMethodSignature(MethodSignature signature) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;277<a name="src_277"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> MethodSignature.of(signature.typeParameters(),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;278</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    signature.arguments().stream().map(<span Class="keyword">this</span>::mapSignature).toList(),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;279</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    mapSignature(signature.result()),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;280</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    signature.throwableSignatures().stream().map(<span Class="keyword">this</span>::mapSignature).toList());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;281</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;282</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;283</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        RecordComponentInfo mapRecordComponent(RecordComponentInfo component) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;284<a name="src_284"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> RecordComponentInfo.of(component.name().stringValue(), map(component.descriptorSymbol()),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;285</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    component.attributes().stream().map(atr -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;286<a name="src_286"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">switch</span> (atr) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;287</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            <span Class="keyword">case</span> SignatureAttribute sa -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;288</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                SignatureAttribute.of(mapSignature(sa.asTypeSignature()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;289</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            <span Class="keyword">case</span> RuntimeVisibleAnnotationsAttribute aa -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;290</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                RuntimeVisibleAnnotationsAttribute.of(mapAnnotations(aa.annotations()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;291</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            <span Class="keyword">case</span> RuntimeInvisibleAnnotationsAttribute aa -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;292</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                RuntimeInvisibleAnnotationsAttribute.of(mapAnnotations(aa.annotations()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;293</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            <span Class="keyword">case</span> RuntimeVisibleTypeAnnotationsAttribute aa -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;294</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                RuntimeVisibleTypeAnnotationsAttribute.of(mapTypeAnnotations(aa.annotations()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;295</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            <span Class="keyword">case</span> RuntimeInvisibleTypeAnnotationsAttribute aa -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;296</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                RuntimeInvisibleTypeAnnotationsAttribute.of(mapTypeAnnotations(aa.annotations()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;297</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/2&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            <span Class="keyword">default</span> -&#62; atr;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;298</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        }).toList());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;299</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;300</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;301</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        DirectMethodHandleDesc mapDirectMethodHandle(DirectMethodHandleDesc dmhd) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;302<a name="src_302"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/11&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> <span Class="keyword">switch</span> (dmhd.kind()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;303</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> GETTER, SETTER, STATIC_GETTER, STATIC_SETTER -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;304</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/4&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    MethodHandleDesc.ofField(dmhd.kind(), map(dmhd.owner()), dmhd.methodName(), map(ClassDesc.ofDescriptor(dmhd.lookupDescriptor())));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;305</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">default</span> -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;306</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    MethodHandleDesc.ofMethod(dmhd.kind(), map(dmhd.owner()), dmhd.methodName(), mapMethodDesc(MethodTypeDesc.ofDescriptor(dmhd.lookupDescriptor())));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;307</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            };</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;308</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;309</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;310</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        ConstantDesc mapConstantValue(ConstantDesc value) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;311<a name="src_311"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> <span Class="keyword">switch</span> (value) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;312</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> ClassDesc cd -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;313</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    map(cd);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;314</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> DynamicConstantDesc&#60;?&#62; dcd -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;315</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    mapDynamicConstant(dcd);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;316</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> DirectMethodHandleDesc dmhd -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;317</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    mapDirectMethodHandle(dmhd);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;318</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> MethodTypeDesc mtd -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;319</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    mapMethodDesc(mtd);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;320</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">default</span> -&#62; value;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;321</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            };</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;322</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;323</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;324</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        DynamicConstantDesc&#60;?&#62; mapDynamicConstant(DynamicConstantDesc&#60;?&#62; dcd) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;325<a name="src_325"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> DynamicConstantDesc.ofNamed(mapDirectMethodHandle(dcd.bootstrapMethod()),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;326</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    dcd.constantName(),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;327</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    map(dcd.constantType()),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;328<a name="src_328"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    dcd.bootstrapArgsList().stream().map(<span Class="keyword">this</span>::mapConstantValue).toArray(ConstantDesc[]::<span Class="keyword">new</span>));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;329</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;330</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;331</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        @SuppressWarnings(<span Class="string">"unchecked"</span>)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;332</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        &#60;S <span Class="keyword">extends</span> Signature&#62; S mapSignature(S signature) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;333<a name="src_333"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> (S) <span Class="keyword">switch</span> (signature) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;334</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> Signature.ArrayTypeSig ats -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;335</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    Signature.ArrayTypeSig.of(mapSignature(ats.componentSignature()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;336</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> Signature.ClassTypeSig cts -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;337</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    Signature.ClassTypeSig.of(cts.outerType().map(<span Class="keyword">this</span>::mapSignature).orElse(<span Class="keyword">null</span>),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;338<a name="src_338"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            map(cts.classDesc()), cts.typeArgs().stream().map(<span Class="keyword">this</span>::mapSignature).toArray(Signature[]::<span Class="keyword">new</span>));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;339</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">default</span> -&#62; signature;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;340</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            };</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;341</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;342</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;343</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        List&#60;Annotation&#62; mapAnnotations(List&#60;Annotation&#62; annotations) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;344<a name="src_344"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> annotations.stream().map(<span Class="keyword">this</span>::mapAnnotation).toList();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;345</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;346</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;347</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        Annotation mapAnnotation(Annotation a) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;348<a name="src_348"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> Annotation.of(map(a.classSymbol()), a.elements().stream().map(el -&#62; AnnotationElement.of(el.name(), mapAnnotationValue(el.value()))).toList());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;349</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;350</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;351</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        AnnotationValue mapAnnotationValue(AnnotationValue val) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;352<a name="src_352"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;2/3&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> <span Class="keyword">switch</span> (val) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;353</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> AnnotationValue.OfAnnotation oa -&#62; AnnotationValue.ofAnnotation(mapAnnotation(oa.annotation()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;354</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> AnnotationValue.OfArray oa -&#62; AnnotationValue.ofArray(oa.values().stream().map(<span Class="keyword">this</span>::mapAnnotationValue).toList());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;355</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> AnnotationValue.OfConstant oc -&#62; oc;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;356</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> AnnotationValue.OfClass oc -&#62; AnnotationValue.ofClass(map(oc.classSymbol()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;357</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> AnnotationValue.OfEnum oe -&#62; AnnotationValue.ofEnum(map(oe.classSymbol()), oe.constantName().stringValue());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;358</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            };</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;359</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;360</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;361</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        List&#60;TypeAnnotation&#62; mapTypeAnnotations(List&#60;TypeAnnotation&#62; typeAnnotations) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;362<a name="src_362"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> typeAnnotations.stream().map(a -&#62; TypeAnnotation.of(a.targetInfo(), a.targetPath(), map(a.classSymbol()),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;363<a name="src_363"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    a.elements().stream().map(el -&#62; AnnotationElement.of(el.name(), mapAnnotationValue(el.value()))).toList())).toList();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;364</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;365</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;366</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;}</pre></td>
+ </tr>
+ </table>
+<p>
+<br><table cellpadding="0" cellspacing="0" class="report">  <tr class="report">    <td class="reportText"><span class="text">    Report generated 8/4/22, 3:35 PM    </span></td>  </tr></table>
+</body>
+</html>

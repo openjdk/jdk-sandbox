@@ -1,0 +1,2182 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>tests coverage</title>
+<link rel ="stylesheet" type="text/css" href="../../../../style.css" title="Style">
+<script type="text/javascript" src="../../../../sorttable.js"></script>
+<script type="text/javascript">
+  targetPage = "" + window.location.search;
+  if (targetPage != "" && targetPage != "undefined")
+    targetPage = targetPage.substring(1);
+  if (targetPage.indexOf(":") != -1 || (targetPage != "" && !validURL(targetPage)))
+    targetPage = "undefined";
+  function validURL(url) {
+    var pos = url.indexOf(".html");
+    if (pos == -1 || pos != url.length - 5)
+      return false;
+    var allowNumber = false;
+    var allowSep = false;
+    var seenDot = false;
+    for (var i = 0; i < url.length - 5; i++) {
+      var ch = url.charAt(i);
+      if ('a' <= ch && ch <= 'z' ||
+          'A' <= ch && ch <= 'Z' ||
+          ch == '$' ||
+          ch == '_') {
+            allowNumber = true;
+            allowSep = true;
+      } else if ('0' <= ch && ch <= '9' ||
+                 ch == '-') {
+                   if (!allowNumber)
+                     return false;
+      } else if (ch == '/' || ch == '.') {
+        if (!allowSep)
+          return false;
+        allowNumber = false;
+        allowSep = false;
+        if (ch == '.')
+          seenDot = true;
+        if (ch == '/' && seenDot)
+          return false;
+      } else {
+        return false;
+      }
+    }
+    return true;
+  }
+  function loadFrames() {
+    if (targetPage != "" && targetPage != "undefined")
+      top.classFrame.location = top.targetPage;
+  }
+</script>
+</head>
+<body>
+<table>
+<tr>
+<td>
+<a href="../../../../index.html?jdk/classfile/impl/verifier/VerificationBytecodes.html" target="_top">Frames</a>
+<a href="VerificationBytecodes.html" target="_top">No Frames</a>
+</td>
+</tr>
+</table>
+<br>
+ <table cellspacing="0" cellpadding="0"class="report">
+ <tr class="report">
+ <th class="report">&nbsp;</th>
+ <th class="report">%method</th>
+ <th class="report">%block</th>
+ <th class="report">%branch</th>
+ <th class="report">%line</th>
+ </tr>
+ <tr class="report">
+ <td class="reportText"><span class="text"> <b>jdk.classfile.impl.verifier.VerificationBytecodes</b></span></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>41</b>%(5/12)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  41"></td><td class="percentUnCovered" width="59"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>30</b>%(16/53)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  30"></td><td class="percentUnCovered" width="70"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>26</b>%(10/38)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  26"></td><td class="percentUnCovered" width="74"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>89</b>%(250/280)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  89"></td><td class="percentUnCovered" width="11"></td></tr></table></td></tr></table></td>
+ </tr>
+ </table>
+ <br>
+ <br>
+ <table cellspacing="0" cellpadding="0"class="report" id="mcoverage">
+ <tr class="report">
+ <th class="report">hit count</th>
+ <th class="report">method  name</th>
+ <th class="report">method modifiers</th>
+ <th class="report">method signature</th>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">5</span></td>
+ <td class="reportText"><span class="text"><a href="#src_99">&lt;clinit&gt;</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void &lt;clinit&gt;()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_400">&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">void &lt;init&gt;(int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">17543</span></td>
+ <td class="reportText"><span class="text"><a href="#src_134">align</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">int align(int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_80">code_or_bp_at</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">int code_or_bp_at(byte[],int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1020</span></td>
+ <td class="reportText"><span class="text"><a href="#src_147">def</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void def(int,java.lang.String,java.lang.String,java.lang.String,jdk.classfile.impl.verifier.VerificationSignature$BasicType,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1195</span></td>
+ <td class="reportText"><span class="text"><a href="#src_151">def</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">void def(int,java.lang.String,java.lang.String,java.lang.String,jdk.classfile.impl.verifier.VerificationSignature$BasicType,int,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">2471591</span></td>
+ <td class="reportText"><span class="text"><a href="#src_96">is_store_into_local</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean is_store_into_local(int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_84">is_valid</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">boolean is_valid(int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_88">length_for</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">int length_for(int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_138">raw_special_length_at</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">int raw_special_length_at(byte[],int,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_102">special_length_at</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">int special_length_at(int,byte[],int,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_92">wide_length_for</a></span></td>
+ <td class="reportText"><span class="text">[static]</span></td>
+ <td class="reportText"><span class="text">int wide_length_for(int)</span></td>
+ </tr>
+ </table>
+ <br>
+ <table cellspacing="0" cellpadding="0" class="src">
+ <tr>
+ <td class="numLine">&nbsp;1</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">/*</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;2</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;3</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;4</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;5</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * This code is free software; you can redistribute it and/or modify it</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;6</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * under the terms of the GNU General Public License version 2 only, as</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;7</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * published by the Free Software Foundation.  Oracle designates this</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;8</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * particular file as subject to the "Classpath" exception as provided</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;9</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * by Oracle in the LICENSE file that accompanied this code.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;10</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;11</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * This code is distributed in the hope that it will be useful, but WITHOUT</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;12</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;13</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;14</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * version 2 for more details (a copy is included in the LICENSE file that</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;15</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * accompanied this code).</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;16</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;17</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * You should have received a copy of the GNU General Public License version</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;18</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * 2 along with this work; if not, write to the Free Software Foundation,</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;19</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;20</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;21</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;22</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * or visit www.oracle.com if you need additional information or have any</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;23</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * questions.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;24</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;25</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">package</span> jdk.classfile.impl.verifier;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;26</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;27</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.nio.ByteBuffer;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;28</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;29</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.Classfile;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;30</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.impl.verifier.VerificationSignature.BasicType;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;31</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> <span Class="keyword">static</span> jdk.classfile.impl.verifier.VerificationSignature.BasicType.*;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;32</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;33</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;34</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * @see &#60;a href="https://raw.githubusercontent.com/openjdk/jdk/master/src/hotspot/share/interpreter/bytecodes.hpp"&#62;hotspot/share/interpreter/bytecodes.hpp&#60;/a&#62;</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;35</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * @see &#60;a href="https://raw.githubusercontent.com/openjdk/jdk/master/src/hotspot/share/interpreter/bytecodes.cpp"&#62;hotspot/share/interpreter/bytecodes.cpp&#60;/a&#62;</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;36</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;37</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">class</span> VerificationBytecodes {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;38</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;39</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">final</span> <span Class="keyword">int</span> _breakpoint = 202,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;40</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            number_of_java_codes = 203,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;41</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_agetfield = 203,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;42</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_bgetfield = 204,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;43</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_cgetfield = 205,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;44</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_dgetfield = 206,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;45</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_fgetfield = 207,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;46</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_igetfield = 208,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;47</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_lgetfield = 209,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;48</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_sgetfield = 210,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;49</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_aputfield = 211,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;50</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_bputfield = 212,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;51</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_zputfield = 213,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;52</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_cputfield = 214,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;53</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_dputfield = 215,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;54</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_fputfield = 216,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;55</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_iputfield = 217,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;56</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_lputfield = 218,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;57</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_sputfield = 219,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;58</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_aload_0 = 220,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;59</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_iaccess_0 = 221,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;60</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_aaccess_0 = 222,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;61</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_faccess_0 = 223,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;62</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_iload = 224,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;63</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_iload2 = 225,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;64</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_icaload = 226,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;65</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_invokevfinal = 227,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;66</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_linearswitch = 228,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;67</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_binaryswitch = 229,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;68</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_aldc = 230,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;69</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _fast_aldc_w = 231,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;70</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _return_register_finalizer = 232,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;71</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _invokehandle = 233,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;72</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _nofast_getfield = 234,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;73</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _nofast_putfield = 235,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;74</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _nofast_aload_0 = 236,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;75</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _nofast_iload = 237,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;76</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            _shouldnotreachhere = 238,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;77</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            number_of_codes = 239;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;78</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;79</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">int</span> code_or_bp_at(<span Class="keyword">byte</span>[] code, <span Class="keyword">int</span> bci) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;80<a name="src_80"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> code[bci] &#38; 0xff;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;81</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;82</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;83</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">boolean</span> is_valid(<span Class="keyword">int</span> code) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;84<a name="src_84"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/5&nbsp;Branch:&nbsp;0/4&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> 0 &#60;= code &#38;&#38; code &#60; number_of_codes;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;85</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;86</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;87</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">int</span> length_for(<span Class="keyword">int</span> code) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;88<a name="src_88"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/4&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> is_valid(code) ? _lengths[code] &#38; 0xf : -1;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;89</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;90</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;91</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">int</span> wide_length_for(<span Class="keyword">int</span> code) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;92<a name="src_92"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/4&nbsp;Branch:&nbsp;0/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> is_valid(code) ? _lengths[code] &#62;&#62; 4 : -1;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;93</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;94</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;95</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">boolean</span> is_store_into_local(<span Class="keyword">int</span> code) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;96<a name="src_96"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;5/5&nbsp;Branch:&nbsp;4/4&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> (Classfile.ISTORE &#60;= code &#38;&#38; code &#60;= Classfile.ASTORE_3);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;97</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;98</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;99<a name="src_99"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">final</span> <span Class="keyword">int</span> _lengths[] = <span Class="keyword">new</span> <span Class="keyword">int</span>[number_of_codes];</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;100</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;101</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">int</span> special_length_at(<span Class="keyword">int</span> code, <span Class="keyword">byte</span> bytecode[], <span Class="keyword">int</span> bci, <span Class="keyword">int</span> end) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;102<a name="src_102"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">switch</span> (code) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;103</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> Classfile.WIDE:</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;104</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">if</span> (bci + 1 &#62;= end) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;105</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">return</span> -1;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;106</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;107</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">return</span> wide_length_for(bytecode[bci + 1] &#38; 0xff);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;108</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> Classfile.TABLESWITCH:</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;109</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">int</span> aligned_bci = align(bci + 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;110</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">if</span> (aligned_bci + 3 * 4 &#62;= end) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;111</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">return</span> -1;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;112</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;113</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                ByteBuffer bb = ByteBuffer.wrap(bytecode, aligned_bci + 1 * 4, 2 * 4);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;114</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">int</span> lo = bb.getInt();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;115</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">int</span> hi = bb.getInt();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;116</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">int</span> len = aligned_bci - bci + (3 + hi - lo + 1) * 4;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;117</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">return</span> len &#62; 0 ? len : -1;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;118</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> Classfile.LOOKUPSWITCH:</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;119</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> _fast_binaryswitch:</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;120</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> _fast_linearswitch:</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;121</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/3&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                aligned_bci = align(bci + 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;122</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">if</span> (aligned_bci + 2 * 4 &#62;= end) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;123</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">return</span> -1;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;124</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;125</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">int</span> npairs = ByteBuffer.wrap(bytecode, aligned_bci + 4, 4).getInt();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;126</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                len = aligned_bci - bci + (2 + 2 * npairs) * 4;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;127</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">return</span> len &#62; 0 ? len : -1;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;128</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">default</span>:</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;129</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/7&nbsp;Branch:&nbsp;0/5&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">return</span> 0;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;130</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;131</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;132</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;133</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">int</span> align(<span Class="keyword">int</span> n) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;134<a name="src_134"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> (n + 3) &#38; ~3;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;135</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;136</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;137</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">int</span> raw_special_length_at(<span Class="keyword">byte</span> bytecode[], <span Class="keyword">int</span> bci, <span Class="keyword">int</span> end) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;138<a name="src_138"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">int</span> code = code_or_bp_at(bytecode, bci);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;139</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (code == _breakpoint) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;140</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> 1;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;141</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        } <span Class="keyword">else</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;142</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> special_length_at(code, bytecode, bci, end);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;143</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;144</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;145</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;146</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">void</span> def(<span Class="keyword">int</span> code, String name, String format, String wide_format, BasicType result_type, <span Class="keyword">int</span> depth) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;147<a name="src_147"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(code, name, format, wide_format, result_type, depth, code);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;148</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;149</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;150</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> <span Class="keyword">void</span> def(<span Class="keyword">int</span> code, String name, String format, String wide_format, BasicType result_type, <span Class="keyword">int</span> depth, <span Class="keyword">int</span> java_code) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;151<a name="src_151"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (wide_format != <span Class="keyword">null</span> &#38;&#38; format == <span Class="keyword">null</span>) <span Class="keyword">throw</span> <span Class="keyword">new</span> IllegalArgumentException(<span Class="string">"short form must exist if there's a wide form"</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;152</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">int</span> len = format != <span Class="keyword">null</span> ? format.length() : 0;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;153</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">int</span> wlen = wide_format != <span Class="keyword">null</span> ? wide_format.length() : 0;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;154</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        _lengths[code] = (wlen &#60;&#60; 4) | (len &#38; 0xf);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;155</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;4/6&nbsp;Branch:&nbsp;4/6&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;156</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;157</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;158</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.NOP, <span Class="string">"nop"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;159</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ACONST_NULL, <span Class="string">"aconst_null"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_OBJECT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;160</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ICONST_M1, <span Class="string">"iconst_m1"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;161</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ICONST_0, <span Class="string">"iconst_0"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;162</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ICONST_1, <span Class="string">"iconst_1"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;163</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ICONST_2, <span Class="string">"iconst_2"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;164</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ICONST_3, <span Class="string">"iconst_3"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;165</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ICONST_4, <span Class="string">"iconst_4"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;166</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ICONST_5, <span Class="string">"iconst_5"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;167</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LCONST_0, <span Class="string">"lconst_0"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_LONG, 2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;168</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LCONST_1, <span Class="string">"lconst_1"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_LONG, 2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;169</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.FCONST_0, <span Class="string">"fconst_0"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_FLOAT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;170</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.FCONST_1, <span Class="string">"fconst_1"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_FLOAT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;171</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.FCONST_2, <span Class="string">"fconst_2"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_FLOAT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;172</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DCONST_0, <span Class="string">"dconst_0"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_DOUBLE, 2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;173</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DCONST_1, <span Class="string">"dconst_1"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_DOUBLE, 2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;174</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.BIPUSH, <span Class="string">"bipush"</span>, <span Class="string">"bc"</span>, <span Class="keyword">null</span>, T_INT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;175</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.SIPUSH, <span Class="string">"sipush"</span>, <span Class="string">"bcc"</span>, <span Class="keyword">null</span>, T_INT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;176</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LDC, <span Class="string">"ldc"</span>, <span Class="string">"bk"</span>, <span Class="keyword">null</span>, T_ILLEGAL, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;177</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LDC_W, <span Class="string">"ldc_w"</span>, <span Class="string">"bkk"</span>, <span Class="keyword">null</span>, T_ILLEGAL, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;178</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LDC2_W, <span Class="string">"ldc2_w"</span>, <span Class="string">"bkk"</span>, <span Class="keyword">null</span>, T_ILLEGAL, 2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;179</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ILOAD, <span Class="string">"iload"</span>, <span Class="string">"bi"</span>, <span Class="string">"wbii"</span>, T_INT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;180</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LLOAD, <span Class="string">"lload"</span>, <span Class="string">"bi"</span>, <span Class="string">"wbii"</span>, T_LONG, 2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;181</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.FLOAD, <span Class="string">"fload"</span>, <span Class="string">"bi"</span>, <span Class="string">"wbii"</span>, T_FLOAT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;182</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DLOAD, <span Class="string">"dload"</span>, <span Class="string">"bi"</span>, <span Class="string">"wbii"</span>, T_DOUBLE, 2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;183</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ALOAD, <span Class="string">"aload"</span>, <span Class="string">"bi"</span>, <span Class="string">"wbii"</span>, T_OBJECT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;184</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ILOAD_0, <span Class="string">"iload_0"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;185</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ILOAD_1, <span Class="string">"iload_1"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;186</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ILOAD_2, <span Class="string">"iload_2"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;187</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ILOAD_3, <span Class="string">"iload_3"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;188</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LLOAD_0, <span Class="string">"lload_0"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_LONG, 2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;189</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LLOAD_1, <span Class="string">"lload_1"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_LONG, 2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;190</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LLOAD_2, <span Class="string">"lload_2"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_LONG, 2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;191</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LLOAD_3, <span Class="string">"lload_3"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_LONG, 2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;192</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.FLOAD_0, <span Class="string">"fload_0"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_FLOAT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;193</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.FLOAD_1, <span Class="string">"fload_1"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_FLOAT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;194</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.FLOAD_2, <span Class="string">"fload_2"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_FLOAT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;195</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.FLOAD_3, <span Class="string">"fload_3"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_FLOAT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;196</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DLOAD_0, <span Class="string">"dload_0"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_DOUBLE, 2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;197</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DLOAD_1, <span Class="string">"dload_1"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_DOUBLE, 2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;198</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DLOAD_2, <span Class="string">"dload_2"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_DOUBLE, 2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;199</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DLOAD_3, <span Class="string">"dload_3"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_DOUBLE, 2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;200</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ALOAD_0, <span Class="string">"aload_0"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_OBJECT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;201</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ALOAD_1, <span Class="string">"aload_1"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_OBJECT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;202</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ALOAD_2, <span Class="string">"aload_2"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_OBJECT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;203</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ALOAD_3, <span Class="string">"aload_3"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_OBJECT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;204</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IALOAD, <span Class="string">"iaload"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;205</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LALOAD, <span Class="string">"laload"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_LONG, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;206</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.FALOAD, <span Class="string">"faload"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_FLOAT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;207</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DALOAD, <span Class="string">"daload"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_DOUBLE, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;208</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.AALOAD, <span Class="string">"aaload"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_OBJECT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;209</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.BALOAD, <span Class="string">"baload"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;210</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.CALOAD, <span Class="string">"caload"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;211</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.SALOAD, <span Class="string">"saload"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;212</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ISTORE, <span Class="string">"istore"</span>, <span Class="string">"bi"</span>, <span Class="string">"wbii"</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;213</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LSTORE, <span Class="string">"lstore"</span>, <span Class="string">"bi"</span>, <span Class="string">"wbii"</span>, T_VOID, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;214</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.FSTORE, <span Class="string">"fstore"</span>, <span Class="string">"bi"</span>, <span Class="string">"wbii"</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;215</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DSTORE, <span Class="string">"dstore"</span>, <span Class="string">"bi"</span>, <span Class="string">"wbii"</span>, T_VOID, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;216</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ASTORE, <span Class="string">"astore"</span>, <span Class="string">"bi"</span>, <span Class="string">"wbii"</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;217</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ISTORE_0, <span Class="string">"istore_0"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;218</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ISTORE_1, <span Class="string">"istore_1"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;219</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ISTORE_2, <span Class="string">"istore_2"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;220</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ISTORE_3, <span Class="string">"istore_3"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;221</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LSTORE_0, <span Class="string">"lstore_0"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;222</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LSTORE_1, <span Class="string">"lstore_1"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;223</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LSTORE_2, <span Class="string">"lstore_2"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;224</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LSTORE_3, <span Class="string">"lstore_3"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;225</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.FSTORE_0, <span Class="string">"fstore_0"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;226</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.FSTORE_1, <span Class="string">"fstore_1"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;227</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.FSTORE_2, <span Class="string">"fstore_2"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;228</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.FSTORE_3, <span Class="string">"fstore_3"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;229</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DSTORE_0, <span Class="string">"dstore_0"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;230</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DSTORE_1, <span Class="string">"dstore_1"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;231</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DSTORE_2, <span Class="string">"dstore_2"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;232</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DSTORE_3, <span Class="string">"dstore_3"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;233</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ASTORE_0, <span Class="string">"astore_0"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;234</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ASTORE_1, <span Class="string">"astore_1"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;235</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ASTORE_2, <span Class="string">"astore_2"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;236</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ASTORE_3, <span Class="string">"astore_3"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;237</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IASTORE, <span Class="string">"iastore"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -3);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;238</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LASTORE, <span Class="string">"lastore"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -4);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;239</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.FASTORE, <span Class="string">"fastore"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -3);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;240</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DASTORE, <span Class="string">"dastore"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -4);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;241</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.AASTORE, <span Class="string">"aastore"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -3);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;242</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.BASTORE, <span Class="string">"bastore"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -3);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;243</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.CASTORE, <span Class="string">"castore"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -3);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;244</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.SASTORE, <span Class="string">"sastore"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -3);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;245</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.POP, <span Class="string">"pop"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;246</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.POP2, <span Class="string">"pop2"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;247</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DUP, <span Class="string">"dup"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;248</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DUP_X1, <span Class="string">"dup_x1"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;249</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DUP_X2, <span Class="string">"dup_x2"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;250</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DUP2, <span Class="string">"dup2"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, 2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;251</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DUP2_X1, <span Class="string">"dup2_x1"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, 2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;252</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DUP2_X2, <span Class="string">"dup2_x2"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, 2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;253</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.SWAP, <span Class="string">"swap"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;254</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IADD, <span Class="string">"iadd"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;255</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LADD, <span Class="string">"ladd"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_LONG, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;256</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.FADD, <span Class="string">"fadd"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_FLOAT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;257</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DADD, <span Class="string">"dadd"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_DOUBLE, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;258</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ISUB, <span Class="string">"isub"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;259</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LSUB, <span Class="string">"lsub"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_LONG, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;260</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.FSUB, <span Class="string">"fsub"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_FLOAT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;261</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DSUB, <span Class="string">"dsub"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_DOUBLE, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;262</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IMUL, <span Class="string">"imul"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;263</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LMUL, <span Class="string">"lmul"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_LONG, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;264</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.FMUL, <span Class="string">"fmul"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_FLOAT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;265</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DMUL, <span Class="string">"dmul"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_DOUBLE, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;266</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IDIV, <span Class="string">"idiv"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;267</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LDIV, <span Class="string">"ldiv"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_LONG, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;268</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.FDIV, <span Class="string">"fdiv"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_FLOAT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;269</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DDIV, <span Class="string">"ddiv"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_DOUBLE, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;270</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IREM, <span Class="string">"irem"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;271</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LREM, <span Class="string">"lrem"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_LONG, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;272</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.FREM, <span Class="string">"frem"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_FLOAT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;273</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DREM, <span Class="string">"drem"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_DOUBLE, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;274</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.INEG, <span Class="string">"ineg"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;275</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LNEG, <span Class="string">"lneg"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_LONG, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;276</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.FNEG, <span Class="string">"fneg"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_FLOAT, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;277</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DNEG, <span Class="string">"dneg"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_DOUBLE, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;278</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ISHL, <span Class="string">"ishl"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;279</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LSHL, <span Class="string">"lshl"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_LONG, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;280</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ISHR, <span Class="string">"ishr"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;281</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LSHR, <span Class="string">"lshr"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_LONG, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;282</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IUSHR, <span Class="string">"iushr"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;283</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LUSHR, <span Class="string">"lushr"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_LONG, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;284</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IAND, <span Class="string">"iand"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;285</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LAND, <span Class="string">"land"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_LONG, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;286</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IOR, <span Class="string">"ior"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;287</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LOR, <span Class="string">"lor"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_LONG, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;288</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IXOR, <span Class="string">"ixor"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;289</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LXOR, <span Class="string">"lxor"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_LONG, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;290</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IINC, <span Class="string">"iinc"</span>, <span Class="string">"bic"</span>, <span Class="string">"wbiicc"</span>, T_VOID, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;291</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.I2L, <span Class="string">"i2l"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_LONG, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;292</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.I2F, <span Class="string">"i2f"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_FLOAT, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;293</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.I2D, <span Class="string">"i2d"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_DOUBLE, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;294</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.L2I, <span Class="string">"l2i"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;295</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.L2F, <span Class="string">"l2f"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_FLOAT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;296</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.L2D, <span Class="string">"l2d"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_DOUBLE, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;297</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.F2I, <span Class="string">"f2i"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;298</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.F2L, <span Class="string">"f2l"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_LONG, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;299</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.F2D, <span Class="string">"f2d"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_DOUBLE, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;300</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.D2I, <span Class="string">"d2i"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;301</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.D2L, <span Class="string">"d2l"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_LONG, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;302</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.D2F, <span Class="string">"d2f"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_FLOAT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;303</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.I2B, <span Class="string">"i2b"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_BYTE, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;304</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.I2C, <span Class="string">"i2c"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_CHAR, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;305</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.I2S, <span Class="string">"i2s"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_SHORT, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;306</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LCMP, <span Class="string">"lcmp"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -3);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;307</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.FCMPL, <span Class="string">"fcmpl"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;308</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.FCMPG, <span Class="string">"fcmpg"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;309</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DCMPL, <span Class="string">"dcmpl"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -3);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;310</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DCMPG, <span Class="string">"dcmpg"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -3);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;311</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IFEQ, <span Class="string">"ifeq"</span>, <span Class="string">"boo"</span>, <span Class="keyword">null</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;312</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IFNE, <span Class="string">"ifne"</span>, <span Class="string">"boo"</span>, <span Class="keyword">null</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;313</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IFLT, <span Class="string">"iflt"</span>, <span Class="string">"boo"</span>, <span Class="keyword">null</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;314</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IFGE, <span Class="string">"ifge"</span>, <span Class="string">"boo"</span>, <span Class="keyword">null</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;315</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IFGT, <span Class="string">"ifgt"</span>, <span Class="string">"boo"</span>, <span Class="keyword">null</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;316</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IFLE, <span Class="string">"ifle"</span>, <span Class="string">"boo"</span>, <span Class="keyword">null</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;317</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IF_ICMPEQ, <span Class="string">"if_icmpeq"</span>, <span Class="string">"boo"</span>, <span Class="keyword">null</span>, T_VOID, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;318</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IF_ICMPNE, <span Class="string">"if_icmpne"</span>, <span Class="string">"boo"</span>, <span Class="keyword">null</span>, T_VOID, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;319</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IF_ICMPLT, <span Class="string">"if_icmplt"</span>, <span Class="string">"boo"</span>, <span Class="keyword">null</span>, T_VOID, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;320</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IF_ICMPGE, <span Class="string">"if_icmpge"</span>, <span Class="string">"boo"</span>, <span Class="keyword">null</span>, T_VOID, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;321</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IF_ICMPGT, <span Class="string">"if_icmpgt"</span>, <span Class="string">"boo"</span>, <span Class="keyword">null</span>, T_VOID, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;322</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IF_ICMPLE, <span Class="string">"if_icmple"</span>, <span Class="string">"boo"</span>, <span Class="keyword">null</span>, T_VOID, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;323</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IF_ACMPEQ, <span Class="string">"if_acmpeq"</span>, <span Class="string">"boo"</span>, <span Class="keyword">null</span>, T_VOID, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;324</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IF_ACMPNE, <span Class="string">"if_acmpne"</span>, <span Class="string">"boo"</span>, <span Class="keyword">null</span>, T_VOID, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;325</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.GOTO, <span Class="string">"goto"</span>, <span Class="string">"boo"</span>, <span Class="keyword">null</span>, T_VOID, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;326</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.JSR, <span Class="string">"jsr"</span>, <span Class="string">"boo"</span>, <span Class="keyword">null</span>, T_INT, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;327</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.RET, <span Class="string">"ret"</span>, <span Class="string">"bi"</span>, <span Class="string">"wbii"</span>, T_VOID, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;328</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.TABLESWITCH, <span Class="string">"tableswitch"</span>, <span Class="string">""</span>, <span Class="keyword">null</span>, T_VOID, -1); <span Class="comment">// may have backward branches</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;329</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LOOKUPSWITCH, <span Class="string">"lookupswitch"</span>, <span Class="string">""</span>, <span Class="keyword">null</span>, T_VOID, -1); <span Class="comment">// rewriting in interpreter</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;330</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IRETURN, <span Class="string">"ireturn"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_INT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;331</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.LRETURN, <span Class="string">"lreturn"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_LONG, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;332</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.FRETURN, <span Class="string">"freturn"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_FLOAT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;333</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.DRETURN, <span Class="string">"dreturn"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_DOUBLE, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;334</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ARETURN, <span Class="string">"areturn"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_OBJECT, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;335</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.RETURN, <span Class="string">"return"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;336</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.GETSTATIC, <span Class="string">"getstatic"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_ILLEGAL, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;337</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.PUTSTATIC, <span Class="string">"putstatic"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_ILLEGAL, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;338</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.GETFIELD, <span Class="string">"getfield"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_ILLEGAL, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;339</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.PUTFIELD, <span Class="string">"putfield"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_ILLEGAL, -2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;340</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.INVOKEVIRTUAL, <span Class="string">"invokevirtual"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_ILLEGAL, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;341</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.INVOKESPECIAL, <span Class="string">"invokespecial"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_ILLEGAL, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;342</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.INVOKESTATIC, <span Class="string">"invokestatic"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_ILLEGAL, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;343</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.INVOKEINTERFACE, <span Class="string">"invokeinterface"</span>, <span Class="string">"bJJ__"</span>, <span Class="keyword">null</span>, T_ILLEGAL, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;344</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.INVOKEDYNAMIC, <span Class="string">"invokedynamic"</span>, <span Class="string">"bJJJJ"</span>, <span Class="keyword">null</span>, T_ILLEGAL, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;345</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.NEW, <span Class="string">"new"</span>, <span Class="string">"bkk"</span>, <span Class="keyword">null</span>, T_OBJECT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;346</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.NEWARRAY, <span Class="string">"newarray"</span>, <span Class="string">"bc"</span>, <span Class="keyword">null</span>, T_OBJECT, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;347</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ANEWARRAY, <span Class="string">"anewarray"</span>, <span Class="string">"bkk"</span>, <span Class="keyword">null</span>, T_OBJECT, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;348</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ARRAYLENGTH, <span Class="string">"arraylength"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;349</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.ATHROW, <span Class="string">"athrow"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;350</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.CHECKCAST, <span Class="string">"checkcast"</span>, <span Class="string">"bkk"</span>, <span Class="keyword">null</span>, T_OBJECT, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;351</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.INSTANCEOF, <span Class="string">"instanceof"</span>, <span Class="string">"bkk"</span>, <span Class="keyword">null</span>, T_INT, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;352</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.MONITORENTER, <span Class="string">"monitorenter"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;353</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.MONITOREXIT, <span Class="string">"monitorexit"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;354</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.WIDE, <span Class="string">"wide"</span>, <span Class="string">""</span>, <span Class="keyword">null</span>, T_VOID, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;355</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.MULTIANEWARRAY, <span Class="string">"multianewarray"</span>, <span Class="string">"bkkc"</span>, <span Class="keyword">null</span>, T_OBJECT, 1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;356</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IFNULL, <span Class="string">"ifnull"</span>, <span Class="string">"boo"</span>, <span Class="keyword">null</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;357</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.IFNONNULL, <span Class="string">"ifnonnull"</span>, <span Class="string">"boo"</span>, <span Class="keyword">null</span>, T_VOID, -1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;358</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.GOTO_W, <span Class="string">"goto_w"</span>, <span Class="string">"boooo"</span>, <span Class="keyword">null</span>, T_VOID, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;359</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(Classfile.JSR_W, <span Class="string">"jsr_w"</span>, <span Class="string">"boooo"</span>, <span Class="keyword">null</span>, T_INT, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;360</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_breakpoint, <span Class="string">"breakpoint"</span>, <span Class="string">""</span>, <span Class="keyword">null</span>, T_VOID, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;361</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_agetfield, <span Class="string">"fast_agetfield"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_OBJECT, 0, Classfile.GETFIELD);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;362</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_bgetfield, <span Class="string">"fast_bgetfield"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_INT, 0, Classfile.GETFIELD);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;363</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_cgetfield, <span Class="string">"fast_cgetfield"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_CHAR, 0, Classfile.GETFIELD);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;364</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_dgetfield, <span Class="string">"fast_dgetfield"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_DOUBLE, 0, Classfile.GETFIELD);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;365</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_fgetfield, <span Class="string">"fast_fgetfield"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_FLOAT, 0, Classfile.GETFIELD);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;366</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_igetfield, <span Class="string">"fast_igetfield"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_INT, 0, Classfile.GETFIELD);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;367</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_lgetfield, <span Class="string">"fast_lgetfield"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_LONG, 0, Classfile.GETFIELD);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;368</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_sgetfield, <span Class="string">"fast_sgetfield"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_SHORT, 0, Classfile.GETFIELD);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;369</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_aputfield, <span Class="string">"fast_aputfield"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_OBJECT, 0, Classfile.PUTFIELD);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;370</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_bputfield, <span Class="string">"fast_bputfield"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_INT, 0, Classfile.PUTFIELD);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;371</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_zputfield, <span Class="string">"fast_zputfield"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_INT, 0, Classfile.PUTFIELD);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;372</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_cputfield, <span Class="string">"fast_cputfield"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_CHAR, 0, Classfile.PUTFIELD);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;373</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_dputfield, <span Class="string">"fast_dputfield"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_DOUBLE, 0, Classfile.PUTFIELD);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;374</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_fputfield, <span Class="string">"fast_fputfield"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_FLOAT, 0, Classfile.PUTFIELD);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;375</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_iputfield, <span Class="string">"fast_iputfield"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_INT, 0, Classfile.PUTFIELD);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;376</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_lputfield, <span Class="string">"fast_lputfield"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_LONG, 0, Classfile.PUTFIELD);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;377</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_sputfield, <span Class="string">"fast_sputfield"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_SHORT, 0, Classfile.PUTFIELD);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;378</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_aload_0, <span Class="string">"fast_aload_0"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_OBJECT, 1, Classfile.ALOAD_0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;379</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_iaccess_0, <span Class="string">"fast_iaccess_0"</span>, <span Class="string">"b_JJ"</span>, <span Class="keyword">null</span>, T_INT, 1, Classfile.ALOAD_0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;380</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_aaccess_0, <span Class="string">"fast_aaccess_0"</span>, <span Class="string">"b_JJ"</span>, <span Class="keyword">null</span>, T_OBJECT, 1, Classfile.ALOAD_0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;381</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_faccess_0, <span Class="string">"fast_faccess_0"</span>, <span Class="string">"b_JJ"</span>, <span Class="keyword">null</span>, T_OBJECT, 1, Classfile.ALOAD_0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;382</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_iload, <span Class="string">"fast_iload"</span>, <span Class="string">"bi"</span>, <span Class="keyword">null</span>, T_INT, 1, Classfile.ILOAD);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;383</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_iload2, <span Class="string">"fast_iload2"</span>, <span Class="string">"bi_i"</span>, <span Class="keyword">null</span>, T_INT, 2, Classfile.ILOAD);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;384</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_icaload, <span Class="string">"fast_icaload"</span>, <span Class="string">"bi_"</span>, <span Class="keyword">null</span>, T_INT, 0, Classfile.ILOAD);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;385</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_invokevfinal, <span Class="string">"fast_invokevfinal"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_ILLEGAL, -1, Classfile.INVOKEVIRTUAL);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;386</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_linearswitch, <span Class="string">"fast_linearswitch"</span>, <span Class="string">""</span>, <span Class="keyword">null</span>, T_VOID, -1, Classfile.LOOKUPSWITCH);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;387</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_binaryswitch, <span Class="string">"fast_binaryswitch"</span>, <span Class="string">""</span>, <span Class="keyword">null</span>, T_VOID, -1, Classfile.LOOKUPSWITCH);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;388</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_return_register_finalizer, <span Class="string">"return_register_finalizer"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, 0, Classfile.RETURN);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;389</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_invokehandle, <span Class="string">"invokehandle"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_ILLEGAL, -1, Classfile.INVOKEVIRTUAL);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;390</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_aldc, <span Class="string">"fast_aldc"</span>, <span Class="string">"bj"</span>, <span Class="keyword">null</span>, T_OBJECT, 1, Classfile.LDC);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;391</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_fast_aldc_w, <span Class="string">"fast_aldc_w"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_OBJECT, 1, Classfile.LDC_W);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;392</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_nofast_getfield, <span Class="string">"nofast_getfield"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_ILLEGAL, 0, Classfile.GETFIELD);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;393</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_nofast_putfield, <span Class="string">"nofast PUTFIELD"</span>, <span Class="string">"bJJ"</span>, <span Class="keyword">null</span>, T_ILLEGAL, -2, Classfile.PUTFIELD);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;394</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_nofast_aload_0, <span Class="string">"nofast_aload_0"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_ILLEGAL, 1, Classfile.ALOAD_0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;395</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_nofast_iload, <span Class="string">"nofast_iload"</span>, <span Class="string">"bi"</span>, <span Class="keyword">null</span>, T_ILLEGAL, 1, Classfile.ILOAD);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;396</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        def(_shouldnotreachhere, <span Class="string">"_shouldnotreachhere"</span>, <span Class="string">"b"</span>, <span Class="keyword">null</span>, T_VOID, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;397</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;398</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;399</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">final</span> <span Class="keyword">int</span> code;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;400<a name="src_400"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    VerificationBytecodes(<span Class="keyword">int</span> code) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;401</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">this</span>.code = code;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;402</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;403</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;}</pre></td>
+ </tr>
+ </table>
+<p>
+<br><table cellpadding="0" cellspacing="0" class="report">  <tr class="report">    <td class="reportText"><span class="text">    Report generated 8/4/22, 3:35 PM    </span></td>  </tr></table>
+</body>
+</html>
