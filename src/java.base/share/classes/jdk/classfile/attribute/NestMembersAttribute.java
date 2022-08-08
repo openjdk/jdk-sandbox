@@ -81,4 +81,42 @@ public sealed interface NestMembersAttribute extends Attribute<NestMembersAttrib
         // List view, since ref to nestMembers is temporary
         return ofSymbols(Arrays.asList(nestMembers));
     }
+
+    /**
+     * {@return a {@code NestMembers} attribute}
+     * @param base the provider of the base set of nest member classes
+     * @param additions the additions to nest members
+     */
+    static NestMembersAttribute with(NestMembersAttribute base, List<ClassEntry> additions) {
+        return new UnboundAttribute.UnboundNestMembersAttribute(base.nestMembers().addAll(additions));
+    }
+
+    /**
+     * {@return a {@code NestMembers} attribute}
+     * @param base the provider of the base set of nest member classes
+     * @param additions the additions to nest members
+     */
+    static NestMembersAttribute with(NestMembersAttribute base, ClassEntry... additions) {
+        return with(base, List.of(additions));
+    }
+
+    /**
+     * {@return a {@code NestMembers} attribute}
+     * @param nma the provider of the base set of nest member classes
+     * @param additions the additions to nest members
+     *
+     */
+    static NestMembersAttribute withSymbols(NestMembersAttribute nma, List<ClassDesc> additions) {
+        return of(Util.entryList(nma.nestMembers(), additions));
+    }
+
+    /**
+     * {@return a {@code NestMembers} attribute}
+     * @param base the provider of the base set of nest member classes
+     * @param additions the additions to nest members
+     *
+     */
+    static NestMembersAttribute withSymbols(NestMembersAttribute base, ClassDesc... additions) {
+        return withSymbols(nma, Arrays.asList(additions));
+    }
 }

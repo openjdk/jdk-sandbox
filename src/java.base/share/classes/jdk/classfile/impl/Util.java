@@ -26,6 +26,7 @@ package jdk.classfile.impl;
 
 import java.lang.constant.ClassDesc;
 import java.util.AbstractList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Iterator;
@@ -193,6 +194,17 @@ public class Util {
         ClassEntry[] result = new ClassEntry[list.size()]; // null check
         for (int i = 0; i < result.length; i++) {
             result[i] = TemporaryConstantPool.INSTANCE.classEntry(TemporaryConstantPool.INSTANCE.utf8Entry(toInternalName(list.get(i))));
+        }
+        return List.of(result);
+    }
+
+    public static List<ClassEntry> entryList(List<? extends ClassEntry> firstList, List<? extends ClassDesc> secondList) {
+        int firstSize = firstList.size(); // implicit null check
+        int secondSize = secondList.size(); // implicit null check
+        ClassEntry[] result = Arrays.copyOf(original, firstSize + secondSize, ClassEntry[].class);
+
+        for (int i = 0; i < secondSize; i++) {
+            result[firstSize + i] = TemporaryConstantPool.INSTANCE.classEntry(TemporaryConstantPool.INSTANCE.utf8Entry(toInternalName(list.get(i))));
         }
         return List.of(result);
     }
