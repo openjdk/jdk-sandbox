@@ -234,25 +234,27 @@ public abstract sealed class BoundAttribute<T extends Attribute<T>>
             extends BoundAttribute<StackMapTableAttribute>
             implements StackMapTableAttribute {
         final MethodModel method;
+        final LabelContext ctx;
         List<StackMapFrame> entries = null;
         StackMapFrame.Full initFrame = null;
 
-        public BoundStackMapTableAttribute(CodeModel code, ClassReader cf, AttributeMapper<StackMapTableAttribute> mapper, int pos) {
+        public BoundStackMapTableAttribute(CodeImpl code, ClassReader cf, AttributeMapper<StackMapTableAttribute> mapper, int pos) {
             super(cf, mapper, pos);
             method = code.parent().orElseThrow();
+            ctx = code;
         }
 
         @Override
         public StackMapFrame.Full initFrame() {
             if (initFrame == null)
-                initFrame = StackMapDecoder.initFrame(method);
+                initFrame = StackMapDecoder.initFrame(method, ctx);
             return initFrame;
         }
 
         @Override
         public List<StackMapFrame> entries() {
             if (entries == null) {
-                entries = new StackMapDecoder(classReader, payloadStart, initFrame()).entries();
+                entries = new StackMapDecoder(classReader, payloadStart, ctx, initFrame()).entries();
             }
             return entries;
         }

@@ -740,7 +740,7 @@ public class Attributes {
             STACK_MAP_TABLE = new AbstractAttributeMapper<>(NAME_STACK_MAP_TABLE, CODE_ONLY, Classfile.JAVA_6_VERSION) {
                 @Override
                 public StackMapTableAttribute readAttribute(AttributedElement e, ClassReader cf, int p) {
-                    return new BoundAttribute.BoundStackMapTableAttribute((CodeModel)e, cf, this, p);
+                    return new BoundAttribute.BoundStackMapTableAttribute((CodeImpl)e, cf, this, p);
                 }
 
                 @Override

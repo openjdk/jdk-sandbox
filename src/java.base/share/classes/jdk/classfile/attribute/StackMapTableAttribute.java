@@ -25,9 +25,11 @@
 
 package jdk.classfile.attribute;
 
+import java.lang.constant.ClassDesc;
 import java.util.List;
 
 import jdk.classfile.Attribute;
+import jdk.classfile.Label;
 import jdk.classfile.constantpool.ClassEntry;
 import jdk.classfile.impl.BoundAttribute;
 import jdk.classfile.impl.StackMapDecoder;
@@ -83,31 +85,6 @@ public sealed interface StackMapTableAttribute
     }
 
     /**
-     * Kinds of stack values.
-     */
-    enum FrameKind {
-        SAME(0, 63),
-        SAME_LOCALS_1_STACK_ITEM(64, 127),
-        RESERVED_FOR_FUTURE_USE(128, 246),
-        SAME_LOCALS_1_STACK_ITEM_EXTENDED(247, 247),
-        CHOP(248, 250),
-        SAME_FRAME_EXTENDED(251, 251),
-        APPEND(252, 254),
-        FULL_FRAME(255, 255);
-
-        int start;
-        int end;
-
-        public int start() { return start; }
-        public int end() { return end; }
-
-        FrameKind(int start, int end) {
-            this.start = start;
-            this.end = end;
-        }
-    }
-
-    /**
      * The type of a stack value.
      */
     sealed interface VerificationTypeInfo {
@@ -130,6 +107,10 @@ public sealed interface StackMapTableAttribute
          * {@return the class of the value}
          */
         ClassEntry className();
+
+        default ClassDesc classSymbol() {
+            return className().asSymbol();
+        }
     }
 
     /**
@@ -137,7 +118,7 @@ public sealed interface StackMapTableAttribute
      */
     sealed interface UninitializedVerificationTypeInfo extends VerificationTypeInfo
             permits StackMapDecoder.UninitializedVerificationTypeInfoImpl {
-        int offset();
+        Label newTarget();
     }
 
     /**
@@ -146,10 +127,7 @@ public sealed interface StackMapTableAttribute
     sealed interface StackMapFrame
             permits StackMapFrame.Same, StackMapFrame.Same1, StackMapFrame.Append, StackMapFrame.Chop, StackMapFrame.Full {
 
-        int frameType();
-        FrameKind frameKind();
-        int offsetDelta();
-        int absoluteOffset();
+        Label target();
         List<VerificationTypeInfo> effectiveLocals();
         List<VerificationTypeInfo> effectiveStack();
 
