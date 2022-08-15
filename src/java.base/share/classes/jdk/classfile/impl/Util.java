@@ -198,17 +198,6 @@ public class Util {
         return List.of(result);
     }
 
-    public static List<ClassEntry> entryList(List<? extends ClassEntry> firstList, List<? extends ClassDesc> secondList) {
-        int firstSize = firstList.size(); // implicit null check
-        int secondSize = secondList.size(); // implicit null check
-        ClassEntry[] result = Arrays.copyOf(original, firstSize + secondSize, ClassEntry[].class);
-
-        for (int i = 0; i < secondSize; i++) {
-            result[firstSize + i] = TemporaryConstantPool.INSTANCE.classEntry(TemporaryConstantPool.INSTANCE.utf8Entry(toInternalName(list.get(i))));
-        }
-        return List.of(result);
-    }
-
     public static void checkKind(Opcode op, CodeElement.Kind k) {
         if (op.kind() != k)
             throw new IllegalArgumentException(
