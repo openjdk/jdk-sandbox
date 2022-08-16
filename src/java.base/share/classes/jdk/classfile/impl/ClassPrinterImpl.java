@@ -649,8 +649,8 @@ public final class ClassPrinterImpl {
 
     private static Node frameToTree(ConstantDesc name, LabelResolver lr, StackMapFrame f) {
         return new MapNodeImpl(FLOW, name).with(
-                list("locals", "item", convertVTIs(lr, f.effectiveLocals())),
-                list("stack", "item", convertVTIs(lr, f.effectiveStack())));
+                list("locals", "item", convertVTIs(lr, f.locals())),
+                list("stack", "item", convertVTIs(lr, f.stack())));
     }
 
     private static MapNode fieldToTree(FieldModel f, Verbosity verbosity) {
@@ -740,7 +740,9 @@ public final class ClassPrinterImpl {
             }
             codeNode.with(attributesToTree(com.attributes(), verbosity));
             if (!stackMap.containsKey(0)) {
-                codeNode.with(frameToTree("//stack map frame @0", com, StackMapDecoder.initFrame(com.parent().get(), com)));
+                codeNode.with(new MapNodeImpl(FLOW, "//stack map frame @0").with(
+                    list("locals", "item", convertVTIs(com, StackMapDecoder.initFrameLocals(com.parent().get()))),
+                    list("stack", "item", Stream.of())));
             }
             var excHandlers = com.exceptionHandlers().stream().map(exc -> new ExceptionHandler(com.labelToBci(exc.tryStart()), com.labelToBci(exc.tryEnd()), com.labelToBci(exc.handler()), exc.catchType().map(ct -> ct.name().stringValue()).orElse(null))).toList();
             int bci = 0;
