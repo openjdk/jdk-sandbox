@@ -516,7 +516,7 @@ public final class ClassPrinterImpl {
         return vtis.stream().mapMulti((vti, ret) -> {
             switch (vti) {
                 case SimpleVerificationTypeInfo s -> {
-                    switch (s.type()) {
+                    switch (s) {
                         case ITEM_DOUBLE -> {
                             ret.accept("double");
                             ret.accept("double2");

@@ -33,6 +33,8 @@ import jdk.classfile.Label;
 import jdk.classfile.constantpool.ClassEntry;
 import jdk.classfile.impl.BoundAttribute;
 import jdk.classfile.impl.StackMapDecoder;
+import jdk.classfile.impl.TemporaryConstantPool;
+import jdk.classfile.impl.UnboundAttribute;
 import static jdk.classfile.Classfile.*;
 
 /**
@@ -41,56 +43,59 @@ import static jdk.classfile.Classfile.*;
  */
 public sealed interface StackMapTableAttribute
         extends Attribute<StackMapTableAttribute>
-        permits BoundAttribute.BoundStackMapTableAttribute {
+        permits BoundAttribute.BoundStackMapTableAttribute, UnboundAttribute.UnboundStackMapTableAttribute {
 
     /**
      * {@return the stack map frames}
      */
     List<StackMapFrame> entries();
 
-    /**
-     * The possible types for a stack slot.
-     */
-    enum VerificationType {
-        ITEM_TOP(VT_TOP),
-        ITEM_INTEGER(VT_INTEGER),
-        ITEM_FLOAT(VT_FLOAT),
-        ITEM_DOUBLE(VT_DOUBLE, 2),
-        ITEM_LONG(VT_LONG, 2),
-        ITEM_NULL(VT_NULL),
-        ITEM_UNINITIALIZED_THIS(VT_UNINITIALIZED_THIS),
-        ITEM_OBJECT(VT_OBJECT),
-        ITEM_UNINITIALIZED(VT_UNINITIALIZED);
-
-        private final int tag;
-        private final int width;
-
-        VerificationType(int tag) {
-            this(tag, 1);
-        }
-
-        VerificationType(int tag, int width) {
-            this.tag = tag;
-            this.width = width;
-        }
-
-        public int tag() {
-            return tag;
-        }
+    public static StackMapTableAttribute of(List<StackMapFrame> entries) {
+        return new UnboundAttribute.UnboundStackMapTableAttribute(entries);
     }
 
     /**
      * The type of a stack value.
      */
     sealed interface VerificationTypeInfo {
-        VerificationType type();
+        int tag();
     }
 
     /**
      * A simple stack value.
      */
-    sealed interface SimpleVerificationTypeInfo extends VerificationTypeInfo
-            permits StackMapDecoder.SimpleVerificationTypeInfoImpl {
+    public enum SimpleVerificationTypeInfo implements VerificationTypeInfo {
+        ITEM_TOP(VT_TOP),
+        ITEM_INTEGER(VT_INTEGER),
+        ITEM_FLOAT(VT_FLOAT),
+        ITEM_DOUBLE(VT_DOUBLE),
+        ITEM_LONG(VT_LONG),
+        ITEM_NULL(VT_NULL),
+        ITEM_UNINITIALIZED_THIS(VT_UNINITIALIZED_THIS);
+
+
+        private final int tag;
+
+        SimpleVerificationTypeInfo(int tag) {
+            this.tag = tag;
+        }
+
+        public int tag() {
+            return tag;
+        }
+
+        @Override
+        public String toString() {
+            return switch (this) {
+                case ITEM_DOUBLE -> "D";
+                case ITEM_FLOAT -> "F";
+                case ITEM_INTEGER -> "I";
+                case ITEM_LONG -> "J";
+                case ITEM_NULL -> "null";
+                case ITEM_TOP -> "?";
+                case ITEM_UNINITIALIZED_THIS -> "THIS";
+            };
+        }
     }
 
     /**
@@ -98,6 +103,15 @@ public sealed interface StackMapTableAttribute
      */
     sealed interface ObjectVerificationTypeInfo extends VerificationTypeInfo
             permits StackMapDecoder.ObjectVerificationTypeInfoImpl {
+
+        public static ObjectVerificationTypeInfo of(ClassEntry className) {
+            return new StackMapDecoder.ObjectVerificationTypeInfoImpl(className);
+        }
+
+        public static ObjectVerificationTypeInfo of(ClassDesc classDesc) {
+            return of(TemporaryConstantPool.INSTANCE.classEntry(classDesc));
+        }
+
         /**
          * {@return the class of the value}
          */
@@ -114,6 +128,10 @@ public sealed interface StackMapTableAttribute
     sealed interface UninitializedVerificationTypeInfo extends VerificationTypeInfo
             permits StackMapDecoder.UninitializedVerificationTypeInfoImpl {
         Label newTarget();
+
+        public static UninitializedVerificationTypeInfo of(Label newTarget) {
+            return new StackMapDecoder.UninitializedVerificationTypeInfoImpl(newTarget);
+        }
     }
 
     /**
@@ -126,5 +144,12 @@ public sealed interface StackMapTableAttribute
         Label target();
         List<VerificationTypeInfo> locals();
         List<VerificationTypeInfo> stack();
+
+        public static StackMapFrame of(Label target,
+                List<VerificationTypeInfo> locals,
+                List<VerificationTypeInfo> stack) {
+
+            return new StackMapDecoder.StackMapFrameImpl(255, target, locals, stack);
+        }
     }
 }
