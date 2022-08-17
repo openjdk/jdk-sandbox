@@ -93,7 +93,6 @@ import static jdk.classfile.Classfile.TABLESWITCH;
 import static jdk.classfile.Classfile.WIDE;
 import jdk.classfile.attribute.RuntimeInvisibleTypeAnnotationsAttribute;
 import jdk.classfile.attribute.RuntimeVisibleTypeAnnotationsAttribute;
-import jdk.classfile.attribute.StackMapTableAttribute;
 
 /**
  * CodeAttr
@@ -153,8 +152,6 @@ public final class CodeImpl
                 labels = new LabelImpl[codeLength + 1];
             if (classReader.optionValue(Classfile.Option.Key.PROCESS_LINE_NUMBERS))
                 inflateLineNumbers();
-            if (classReader.optionValue(Classfile.Option.Key.PROCESS_STACK_MAPS))
-                inflateStackMaps();
             inflateJumpTargets();
             inflateTypeAnnotations();
             inflated = true;
@@ -208,7 +205,8 @@ public final class CodeImpl
         inflateMetadata();
         boolean doLineNumbers = (lineNumbers != null);
         generateCatchTargets(consumer);
-        generateElements(consumer);
+        if (classReader.optionValue(Classfile.Option.Key.PROCESS_DEBUG))
+            generateDebugElements(consumer);
         for (int pos=codeStart; pos<codeEnd; ) {
             if (labels[pos - codeStart] != null)
                 consumer.accept(labels[pos - codeStart]);
@@ -250,8 +248,11 @@ public final class CodeImpl
                && classReader.compare(buf, offset, codeStart, codeLength);
     }
 
-    private static int adjustForLongDouble(int vt, int v) {
-        return (vt == 7 || vt == 8) ? v + 2 : v;
+    private int adjustForObjectOrUninitialized(int bci) {
+        int vt = classReader.readU1(bci);
+        //inflate newTarget labels from Uninitialized VTIs
+        if (vt == 8) inflateLabel(classReader.readU2(bci + 1));
+        return (vt == 7 || vt == 8) ? bci + 3 : bci + 1;
     }
 
     private void inflateLabel(int bci) {
@@ -297,13 +298,13 @@ public final class CodeImpl
             }
             else if (frameType < 128) {
                 offsetDelta = frameType & 0x3f;
-                p += adjustForLongDouble(classReader.readU1(p + 1), 2);
+                p = adjustForObjectOrUninitialized(p + 1);
             }
             else
                 switch (frameType) {
                     case 247 -> {
                         offsetDelta = classReader.readU2(p + 1);
-                        p += adjustForLongDouble(classReader.readU1(p + 3), 4);
+                        p = adjustForObjectOrUninitialized(p + 3);
                     }
                     case 248, 249, 250, 251 -> {
                         offsetDelta = classReader.readU2(p + 1);
@@ -314,7 +315,7 @@ public final class CodeImpl
                         int k = frameType - 251;
                         p += 3;
                         for (int c = 0; c < k; ++c) {
-                            p += adjustForLongDouble(classReader.readU1(p), 1);
+                            p = adjustForObjectOrUninitialized(p);
                         }
                     }
                     case 255 -> {
@@ -323,12 +324,12 @@ public final class CodeImpl
                         int k = classReader.readU2(p);
                         p += 2;
                         for (int c = 0; c < k; ++c) {
-                            p += adjustForLongDouble(classReader.readU1(p), 1);
+                            p = adjustForObjectOrUninitialized(p);
                         }
                         k = classReader.readU2(p);
                         p += 2;
                         for (int c = 0; c < k; ++c) {
-                            p += adjustForLongDouble(classReader.readU1(p), 1);
+                            p = adjustForObjectOrUninitialized(p);
                         }
                     }
                     default -> throw new IllegalArgumentException("Bad frame type: " + frameType);
@@ -336,10 +337,6 @@ public final class CodeImpl
             bci += offsetDelta + 1;
             inflateLabel(bci);
         }
-    }
-
-    private void inflateStackMaps() {
-        findAttribute(Attributes.STACK_MAP_TABLE).ifPresent(StackMapTableAttribute::entries);
     }
 
     private void inflateTypeAnnotations() {
@@ -361,55 +358,49 @@ public final class CodeImpl
         });
     }
 
-    private void generateElements(Consumer<CodeElement> consumer) {
-        boolean debug = classReader.optionValue(Classfile.Option.Key.PROCESS_DEBUG);
-        boolean maps = classReader.optionValue(Classfile.Option.Key.PROCESS_STACK_MAPS);
+    private void generateDebugElements(Consumer<CodeElement> consumer) {
         for (Attribute<?> a : attributes()) {
-            if (debug) {
-                if (a.attributeMapper() == Attributes.CHARACTER_RANGE_TABLE) {
-                    var attr = (BoundCharacterRangeTableAttribute) a;
-                    int cnt = classReader.readU2(attr.payloadStart);
-                    int p = attr.payloadStart + 2;
-                    int pEnd = p + (cnt * 14);
-                    for (; p < pEnd; p += 14) {
-                        var instruction = new BoundCharacterRange(this, p);
-                        inflateLabel(instruction.startPc());
-                        inflateLabel(instruction.endPc() + 1);
-                        consumer.accept(instruction);
-                    }
-                }
-                else if (a.attributeMapper() == Attributes.LOCAL_VARIABLE_TABLE) {
-                    var attr = (BoundLocalVariableTableAttribute) a;
-                    int cnt = classReader.readU2(attr.payloadStart);
-                    int p = attr.payloadStart + 2;
-                    int pEnd = p + (cnt * 10);
-                    for (; p < pEnd; p += 10) {
-                        BoundLocalVariable instruction = new BoundLocalVariable(this, p);
-                        inflateLabel(instruction.startPc());
-                        inflateLabel(instruction.startPc() + instruction.length());
-                        consumer.accept(instruction);
-                    }
-                }
-                else if (a.attributeMapper() == Attributes.LOCAL_VARIABLE_TYPE_TABLE) {
-                    var attr = (BoundLocalVariableTypeTableAttribute) a;
-                    int cnt = classReader.readU2(attr.payloadStart);
-                    int p = attr.payloadStart + 2;
-                    int pEnd = p + (cnt * 10);
-                    for (; p < pEnd; p += 10) {
-                        BoundLocalVariableType instruction = new BoundLocalVariableType(this, p);
-                        inflateLabel(instruction.startPc());
-                        inflateLabel(instruction.startPc() + instruction.length());
-                        consumer.accept(instruction);
-                    }
+            if (a.attributeMapper() == Attributes.CHARACTER_RANGE_TABLE) {
+                var attr = (BoundCharacterRangeTableAttribute) a;
+                int cnt = classReader.readU2(attr.payloadStart);
+                int p = attr.payloadStart + 2;
+                int pEnd = p + (cnt * 14);
+                for (; p < pEnd; p += 14) {
+                    var instruction = new BoundCharacterRange(this, p);
+                    inflateLabel(instruction.startPc());
+                    inflateLabel(instruction.endPc() + 1);
+                    consumer.accept(instruction);
                 }
             }
-            if (a.attributeMapper() == Attributes.RUNTIME_VISIBLE_TYPE_ANNOTATIONS) {
+            else if (a.attributeMapper() == Attributes.LOCAL_VARIABLE_TABLE) {
+                var attr = (BoundLocalVariableTableAttribute) a;
+                int cnt = classReader.readU2(attr.payloadStart);
+                int p = attr.payloadStart + 2;
+                int pEnd = p + (cnt * 10);
+                for (; p < pEnd; p += 10) {
+                    BoundLocalVariable instruction = new BoundLocalVariable(this, p);
+                    inflateLabel(instruction.startPc());
+                    inflateLabel(instruction.startPc() + instruction.length());
+                    consumer.accept(instruction);
+                }
+            }
+            else if (a.attributeMapper() == Attributes.LOCAL_VARIABLE_TYPE_TABLE) {
+                var attr = (BoundLocalVariableTypeTableAttribute) a;
+                int cnt = classReader.readU2(attr.payloadStart);
+                int p = attr.payloadStart + 2;
+                int pEnd = p + (cnt * 10);
+                for (; p < pEnd; p += 10) {
+                    BoundLocalVariableType instruction = new BoundLocalVariableType(this, p);
+                    inflateLabel(instruction.startPc());
+                    inflateLabel(instruction.startPc() + instruction.length());
+                    consumer.accept(instruction);
+                }
+            }
+            else if (a.attributeMapper() == Attributes.RUNTIME_VISIBLE_TYPE_ANNOTATIONS) {
                 consumer.accept((BoundRuntimeVisibleTypeAnnotationsAttribute) a);
             }
             else if (a.attributeMapper() == Attributes.RUNTIME_INVISIBLE_TYPE_ANNOTATIONS) {
                 consumer.accept((BoundRuntimeInvisibleTypeAnnotationsAttribute) a);
-            } else if (maps && a.attributeMapper() == Attributes.STACK_MAP_TABLE) {
-                consumer.accept((StackMapTableAttribute) a);
             }
         }
     }

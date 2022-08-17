@@ -278,7 +278,7 @@ public final class DirectCodeBuilder
                 Attribute<? extends StackMapTableAttribute> stackMapAttr;
                 boolean canReuseStackmaps = codeAndExceptionsMatch(codeLength);
 
-                if (!constantPool.<Boolean>optionValue(Classfile.Option.Key.GENERATE_STACK_MAPS) || attributes.isPresent(Attributes.STACK_MAP_TABLE)) {
+                if (!constantPool.<Boolean>optionValue(Classfile.Option.Key.GENERATE_STACK_MAPS)) {
                     maxStack = maxLocals = 255;
                     stackMapAttr = null;
                 }
