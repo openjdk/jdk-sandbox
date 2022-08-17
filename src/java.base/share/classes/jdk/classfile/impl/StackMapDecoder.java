@@ -29,6 +29,7 @@ import java.lang.constant.ConstantDescs;
 import java.lang.constant.MethodTypeDesc;
 import java.lang.reflect.AccessFlag;
 import java.util.List;
+import java.util.TreeMap;
 import jdk.classfile.BufWriter;
 
 import jdk.classfile.constantpool.ClassEntry;
@@ -101,9 +102,15 @@ public class StackMapDecoder {
                 mi.methodType().stringValue(),
                 (mi.methodFlags() & ACC_STATIC) != 0);
         int prevOffset = -1;
-        b.writeU2(entries.size());
+        var map = new TreeMap<Integer, StackMapFrameInfo>();
+        //sort by resolved label offsets first to allow unordered entries
         for (var fr : entries) {
-            int offset = dcb.labelToBci(fr.target());
+            map.put(dcb.labelToBci(fr.target()), fr);
+        }
+        b.writeU2(map.size());
+        for (var me : map.entrySet()) {
+            int offset = me.getKey();
+            var fr = me.getValue();
             writeFrame(buf, offset - prevOffset - 1, prevLocals, fr);
             prevOffset = offset;
             prevLocals = fr.locals();
