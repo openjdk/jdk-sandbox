@@ -251,6 +251,20 @@ public abstract sealed class BoundAttribute<T extends Attribute<T>>
             return entries;
         }
 
+        @Override
+        public Kind codeKind() {
+            return Kind.STACK_MAP;
+        }
+
+        @Override
+        public Opcode opcode() {
+            return Opcode.TYPE_ANNO;
+        }
+
+        @Override
+        public int sizeInBytes() {
+            return 0;
+        }
     }
 
     public static final class BoundSyntheticAttribute extends BoundAttribute<SyntheticAttribute>

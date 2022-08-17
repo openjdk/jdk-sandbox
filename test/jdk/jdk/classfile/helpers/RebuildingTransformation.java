@@ -442,6 +442,11 @@ class RebuildingTransformation {
                                                     cob.with(RuntimeInvisibleTypeAnnotationsAttribute.of(transformTypeAnnotations(a.annotations(), cob, labels)));
                                                 case RuntimeVisibleTypeAnnotationsAttribute a ->
                                                     cob.with(RuntimeVisibleTypeAnnotationsAttribute.of(transformTypeAnnotations(a.annotations(), cob, labels)));
+                                                case StackMapTableAttribute smta ->
+                                                    cob.with(StackMapTableAttribute.of(smta.entries().stream().map(fr ->
+                                                            StackMapTableAttribute.StackMapFrameInfo.of(labels.computeIfAbsent(fr.target(), l -> cob.newLabel()),
+                                                                    transformFrameTypeInfos(fr.locals(), cob, labels),
+                                                                    transformFrameTypeInfos(fr.stack(), cob, labels))).toList()));
                                                 case CustomAttribute a ->
                                                     throw new AssertionError("Unexpected custom attribute: " + a.attributeName());
                                             }
@@ -568,5 +573,15 @@ class RebuildingTransformation {
             case TypeAnnotation.TypeArgumentTarget t -> TypeAnnotation.TargetInfo.ofTypeArgument(t.targetType(),
                             labels.computeIfAbsent(t.target(), l -> cob.newLabel()), t.typeArgumentIndex());
         };
+    }
+
+    static List<StackMapTableAttribute.VerificationTypeInfo> transformFrameTypeInfos(List<StackMapTableAttribute.VerificationTypeInfo> infos, CodeBuilder cob, HashMap<Label, Label> labels) {
+        return infos.stream().map(ti -> {
+            return switch (ti) {
+                case StackMapTableAttribute.SimpleVerificationTypeInfo i -> i;
+                case StackMapTableAttribute.ObjectVerificationTypeInfo i -> StackMapTableAttribute.ObjectVerificationTypeInfo.of(i.className());
+                case StackMapTableAttribute.UninitializedVerificationTypeInfo i -> StackMapTableAttribute.UninitializedVerificationTypeInfo.of(labels.computeIfAbsent(i.newTarget(), l -> cob.newLabel()));
+            };
+        }).toList();
     }
 }

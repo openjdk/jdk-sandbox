@@ -29,6 +29,7 @@ import java.lang.constant.ClassDesc;
 import java.util.List;
 
 import jdk.classfile.Attribute;
+import jdk.classfile.CodeElement;
 import jdk.classfile.Label;
 import jdk.classfile.constantpool.ClassEntry;
 import jdk.classfile.impl.BoundAttribute;
@@ -42,7 +43,7 @@ import static jdk.classfile.Classfile.*;
  * on a {@code Code} attribute.
  */
 public sealed interface StackMapTableAttribute
-        extends Attribute<StackMapTableAttribute>
+        extends Attribute<StackMapTableAttribute>, CodeElement
         permits BoundAttribute.BoundStackMapTableAttribute, UnboundAttribute.UnboundStackMapTableAttribute {
 
     /**
