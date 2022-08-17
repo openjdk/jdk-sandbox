@@ -87,6 +87,7 @@ import static jdk.classfile.AttributedElement.Kind.CODE_ONLY;
 import static jdk.classfile.AttributedElement.Kind.EVERYWHERE;
 import static jdk.classfile.AttributedElement.Kind.FIELD_ONLY;
 import static jdk.classfile.AttributedElement.Kind.METHOD_ONLY;
+import jdk.classfile.impl.StackMapDecoder;
 
 /**
  * Attribute mappers for standard classfile attributes.
@@ -744,8 +745,8 @@ public class Attributes {
                 }
 
                 @Override
-                protected void writeBody(BufWriter buf, StackMapTableAttribute attr) {
-                    throw new AssertionError("should never reach here");
+                protected void writeBody(BufWriter b, StackMapTableAttribute attr) {
+                    StackMapDecoder.writeFrames(b, attr.entries());
                 }
             };
 

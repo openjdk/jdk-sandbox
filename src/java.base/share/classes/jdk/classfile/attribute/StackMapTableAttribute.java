@@ -48,9 +48,9 @@ public sealed interface StackMapTableAttribute
     /**
      * {@return the stack map frames}
      */
-    List<StackMapFrame> entries();
+    List<StackMapFrameInfo> entries();
 
-    public static StackMapTableAttribute of(List<StackMapFrame> entries) {
+    public static StackMapTableAttribute of(List<StackMapFrameInfo> entries) {
         return new UnboundAttribute.UnboundStackMapTableAttribute(entries);
     }
 
@@ -137,7 +137,7 @@ public sealed interface StackMapTableAttribute
     /**
      * A stack map frame.
      */
-    sealed interface StackMapFrame
+    sealed interface StackMapFrameInfo
             permits StackMapDecoder.StackMapFrameImpl {
 
         int frameType();
@@ -145,7 +145,7 @@ public sealed interface StackMapTableAttribute
         List<VerificationTypeInfo> locals();
         List<VerificationTypeInfo> stack();
 
-        public static StackMapFrame of(Label target,
+        public static StackMapFrameInfo of(Label target,
                 List<VerificationTypeInfo> locals,
                 List<VerificationTypeInfo> stack) {
 

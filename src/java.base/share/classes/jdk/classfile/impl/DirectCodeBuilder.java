@@ -182,6 +182,10 @@ public final class DirectCodeBuilder
         return bytecodesBufWriter.size();
     }
 
+    public MethodInfo methodInfo() {
+        return methodInfo;
+    }
+
     private Attribute<CodeAttribute> content = null;
 
     private void writeExceptionHandlers(BufWriter buf) {
@@ -274,7 +278,7 @@ public final class DirectCodeBuilder
                 Attribute<? extends StackMapTableAttribute> stackMapAttr;
                 boolean canReuseStackmaps = codeAndExceptionsMatch(codeLength);
 
-                if (!constantPool.<Boolean>optionValue(Classfile.Option.Key.GENERATE_STACK_MAPS)) {
+                if (!constantPool.<Boolean>optionValue(Classfile.Option.Key.GENERATE_STACK_MAPS) || attributes.isPresent(Attributes.STACK_MAP_TABLE)) {
                     maxStack = maxLocals = 255;
                     stackMapAttr = null;
                 }

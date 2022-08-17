@@ -86,7 +86,7 @@ import jdk.classfile.attribute.SourceDebugExtensionAttribute;
 import jdk.classfile.attribute.SourceFileAttribute;
 import jdk.classfile.attribute.SourceIDAttribute;
 import jdk.classfile.attribute.StackMapTableAttribute;
-import jdk.classfile.attribute.StackMapTableAttribute.StackMapFrame;
+import jdk.classfile.attribute.StackMapTableAttribute.StackMapFrameInfo;
 import jdk.classfile.attribute.SyntheticAttribute;
 import jdk.classfile.constantpool.ConstantValueEntry;
 import jdk.classfile.constantpool.ModuleEntry;
@@ -246,15 +246,15 @@ public abstract sealed class UnboundAttribute<T extends Attribute<T>>
 
     public static final class UnboundStackMapTableAttribute extends UnboundAttribute<StackMapTableAttribute>
             implements StackMapTableAttribute {
-        private final List<StackMapFrame> entries;
+        private final List<StackMapFrameInfo> entries;
 
-        public UnboundStackMapTableAttribute(List<StackMapFrame> entries) {
+        public UnboundStackMapTableAttribute(List<StackMapFrameInfo> entries) {
             super(Attributes.STACK_MAP_TABLE);
             this.entries = List.copyOf(entries);
         }
 
         @Override
-        public List<StackMapFrame> entries() {
+        public List<StackMapFrameInfo> entries() {
             return entries;
         }
 

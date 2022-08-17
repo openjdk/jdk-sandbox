@@ -26,10 +26,12 @@
 package jdk.classfile.impl;
 
 import java.lang.constant.ConstantDescs;
+import java.lang.constant.MethodTypeDesc;
+import java.lang.reflect.AccessFlag;
 import java.util.List;
+import jdk.classfile.BufWriter;
 
 import jdk.classfile.constantpool.ClassEntry;
-import java.lang.reflect.AccessFlag;
 import jdk.classfile.attribute.StackMapTableAttribute.*;
 import jdk.classfile.ClassReader;
 
@@ -57,13 +59,19 @@ public class StackMapDecoder {
     }
 
     static List<VerificationTypeInfo> initFrameLocals(MethodModel method) {
+        return initFrameLocals(method.parent().orElseThrow().thisClass(),
+                method.methodName().stringValue(),
+                method.methodType().stringValue(),
+                method.flags().has(AccessFlag.STATIC));
+    }
+
+    public static List<VerificationTypeInfo> initFrameLocals(ClassEntry thisClass, String methodName, String methodType, boolean isStatic) {
+        var mdesc = MethodTypeDesc.ofDescriptor(methodType);
         VerificationTypeInfo vtis[];
-        var mdesc = method.methodTypeSymbol();
         int i = 0;
-        if (!method.flags().has(AccessFlag.STATIC)) {
+        if (!isStatic) {
             vtis = new VerificationTypeInfo[mdesc.parameterCount() + 1];
-            var thisClass = method.parent().orElseThrow().thisClass();
-            if ("<init>".equals(method.methodName().stringValue()) && !ConstantDescs.CD_Object.equals(thisClass.asSymbol())) {
+            if ("<init>".equals(methodName) && !ConstantDescs.CD_Object.equals(thisClass.asSymbol())) {
                 vtis[i++] = SimpleVerificationTypeInfo.ITEM_UNINITIALIZED_THIS;
             } else {
                 vtis[i++] = new StackMapDecoder.ObjectVerificationTypeInfoImpl(thisClass);
@@ -84,11 +92,82 @@ public class StackMapDecoder {
         return List.of(vtis);
     }
 
-    List<StackMapFrame> entries() {
+    public static void writeFrames(BufWriter b, List<StackMapFrameInfo> entries) {
+        var buf = (BufWriterImpl)b;
+        var dcb = (DirectCodeBuilder)buf.labelResolver();
+        var mi = dcb.methodInfo();
+        var prevLocals = StackMapDecoder.initFrameLocals(buf.thisClass(),
+                mi.methodName().stringValue(),
+                mi.methodType().stringValue(),
+                (mi.methodFlags() & ACC_STATIC) != 0);
+        int prevOffset = -1;
+        b.writeU2(entries.size());
+        for (var fr : entries) {
+            int offset = dcb.labelToBci(fr.target());
+            writeFrame(buf, offset, offset - prevOffset - 1, prevLocals, fr);
+            prevOffset = offset;
+            prevLocals = fr.locals();
+        }
+    }
+
+    private static void writeFrame(BufWriterImpl out, int bci, int offsetDelta, List<VerificationTypeInfo> prevLocals, StackMapFrameInfo fr) {
+        if (offsetDelta < 0) throw new IllegalArgumentException("Invalid stack map frames order");
+        if (fr.stack().isEmpty()) {
+            int commonLocalsSize = Math.min(prevLocals.size(), fr.locals().size());
+            int diffLocalsSize = fr.locals().size() - prevLocals.size();
+            if (-3 <= diffLocalsSize && diffLocalsSize <= 3 && equals(fr.locals(), prevLocals, commonLocalsSize)) {
+                if (diffLocalsSize == 0 && offsetDelta < 64) { //same frame
+                    out.writeU1(offsetDelta);
+                } else {   //chop, same extended or append frame
+                    out.writeU1(251 + diffLocalsSize);
+                    out.writeU2(offsetDelta);
+                    for (int i=commonLocalsSize; i<fr.locals().size(); i++) writeTypeInfo(out, fr.locals().get(i), bci);
+                }
+                return;
+            }
+        } else if (fr.stack().size() == 1 && fr.locals().equals(prevLocals)) {
+            if (offsetDelta < 64) {  //same locals 1 stack item frame
+                out.writeU1(64 + offsetDelta);
+            } else {  //same locals 1 stack item extended frame
+                out.writeU1(247);
+                out.writeU2(offsetDelta);
+            }
+            writeTypeInfo(out, fr.stack().get(0), bci);
+            return;
+        }
+        //full frame
+        out.writeU1(255);
+        out.writeU2(offsetDelta);
+        out.writeU2(fr.locals().size());
+        for (var l : fr.locals()) writeTypeInfo(out, l, bci);
+        out.writeU2(fr.stack().size());
+        for (var s : fr.stack()) writeTypeInfo(out, s, bci);
+    }
+
+    private static boolean equals(List<VerificationTypeInfo> l1, List<VerificationTypeInfo> l2, int compareSize) {
+        for (int i = 0; i < compareSize; i++) {
+            if (!l1.get(i).equals(l2.get(i))) return false;
+        }
+        return true;
+    }
+
+    private static void writeTypeInfo(BufWriterImpl bw, VerificationTypeInfo vti, int frameBci) {
+        bw.writeU1(vti.tag());
+        switch (vti) {
+            case SimpleVerificationTypeInfo svti ->
+                {}
+            case ObjectVerificationTypeInfo ovti ->
+                bw.writeIndex(ovti.className());
+            case UninitializedVerificationTypeInfo uvti ->
+                bw.writeU2(bw.labelResolver().labelToBci(uvti.newTarget()) - frameBci);
+        }
+    }
+
+    List<StackMapFrameInfo> entries() {
         p = pos;
         List<VerificationTypeInfo> locals = initFrameLocals, stack = List.of();
         int bci = -1;
-        var entries = new StackMapFrame[u2()];
+        var entries = new StackMapFrameInfo[u2()];
         for (int ei = 0; ei < entries.length; ei++) {
             int frameType = classReader.readU1(p++);
             if (frameType < 64) {
@@ -183,6 +262,6 @@ public class StackMapDecoder {
                                            Label target,
                                            List<VerificationTypeInfo> locals,
                                            List<VerificationTypeInfo> stack)
-            implements StackMapFrame {
+            implements StackMapFrameInfo {
     }
 }

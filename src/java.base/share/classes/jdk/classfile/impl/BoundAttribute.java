@@ -235,7 +235,7 @@ public abstract sealed class BoundAttribute<T extends Attribute<T>>
             implements StackMapTableAttribute {
         final MethodModel method;
         final LabelContext ctx;
-        List<StackMapFrame> entries = null;
+        List<StackMapFrameInfo> entries = null;
 
         public BoundStackMapTableAttribute(CodeImpl code, ClassReader cf, AttributeMapper<StackMapTableAttribute> mapper, int pos) {
             super(cf, mapper, pos);
@@ -244,7 +244,7 @@ public abstract sealed class BoundAttribute<T extends Attribute<T>>
         }
 
         @Override
-        public List<StackMapFrame> entries() {
+        public List<StackMapFrameInfo> entries() {
             if (entries == null) {
                 entries = new StackMapDecoder(classReader, payloadStart, ctx, StackMapDecoder.initFrameLocals(method)).entries();
             }

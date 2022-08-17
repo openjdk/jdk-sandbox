@@ -647,7 +647,7 @@ public final class ClassPrinterImpl {
         }
     }
 
-    private static Node frameToTree(ConstantDesc name, LabelResolver lr, StackMapFrame f) {
+    private static Node frameToTree(ConstantDesc name, LabelResolver lr, StackMapFrameInfo f) {
         return new MapNodeImpl(FLOW, name).with(
                 list("locals", "item", convertVTIs(lr, f.locals())),
                 list("stack", "item", convertVTIs(lr, f.stack())));
