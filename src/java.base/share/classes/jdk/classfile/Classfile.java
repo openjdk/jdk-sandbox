@@ -70,7 +70,7 @@ public class Classfile {
          * Key values for defined options.
          */
         enum Key {
-            GENERATE_STACK_MAPS, PROCESS_DEBUG, PROCESS_LINE_NUMBERS, PROCESS_UNKNOWN_ATTRIBUTES,
+            GENERATE_STACK_MAPS, PROCESS_DEBUG, PROCESS_LINE_NUMBERS, PROCESS_STACK_MAPS, PROCESS_UNKNOWN_ATTRIBUTES,
             CP_SHARING, FIX_SHORT_JUMPS, PATCH_DEAD_CODE, HIERARCHY_RESOLVER, ATTRIBUTE_MAPPER;
         }
 
@@ -99,6 +99,14 @@ public class Classfile {
          * @param b whether or not to process line numbers
          */
         static Option<Boolean> processLineNumbers(boolean b) { return new Options.OptionValue<>(Key.PROCESS_LINE_NUMBERS, b); }
+
+        /**
+         * {@return an option describing whether to process or discard stack maps}
+         * Processed stack maps allows user-controlled stack maps transformation.
+         * Default is to discard stack maps.
+         * @param b whether or not to process stack maps
+         */
+        static Option<Boolean> processStackMaps(boolean b) { return new Options.OptionValue<>(Key.PROCESS_STACK_MAPS, b); }
 
         /**
          * {@return an option describing whether to process or discard unrecognized

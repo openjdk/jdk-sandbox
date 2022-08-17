@@ -93,6 +93,7 @@ import static jdk.classfile.Classfile.TABLESWITCH;
 import static jdk.classfile.Classfile.WIDE;
 import jdk.classfile.attribute.RuntimeInvisibleTypeAnnotationsAttribute;
 import jdk.classfile.attribute.RuntimeVisibleTypeAnnotationsAttribute;
+import jdk.classfile.attribute.StackMapTableAttribute;
 
 /**
  * CodeAttr
@@ -152,6 +153,8 @@ public final class CodeImpl
                 labels = new LabelImpl[codeLength + 1];
             if (classReader.optionValue(Classfile.Option.Key.PROCESS_LINE_NUMBERS))
                 inflateLineNumbers();
+            if (classReader.optionValue(Classfile.Option.Key.PROCESS_STACK_MAPS))
+                inflateStackMaps();
             inflateJumpTargets();
             inflateTypeAnnotations();
             inflated = true;
@@ -205,8 +208,7 @@ public final class CodeImpl
         inflateMetadata();
         boolean doLineNumbers = (lineNumbers != null);
         generateCatchTargets(consumer);
-        if (classReader.optionValue(Classfile.Option.Key.PROCESS_DEBUG))
-            generateDebugElements(consumer);
+        generateElements(consumer);
         for (int pos=codeStart; pos<codeEnd; ) {
             if (labels[pos - codeStart] != null)
                 consumer.accept(labels[pos - codeStart]);
@@ -336,6 +338,10 @@ public final class CodeImpl
         }
     }
 
+    private void inflateStackMaps() {
+        findAttribute(Attributes.STACK_MAP_TABLE).ifPresent(StackMapTableAttribute::entries);
+    }
+
     private void inflateTypeAnnotations() {
         findAttribute(Attributes.RUNTIME_VISIBLE_TYPE_ANNOTATIONS).ifPresent(RuntimeVisibleTypeAnnotationsAttribute::annotations);
         findAttribute(Attributes.RUNTIME_INVISIBLE_TYPE_ANNOTATIONS).ifPresent(RuntimeInvisibleTypeAnnotationsAttribute::annotations);
@@ -355,49 +361,55 @@ public final class CodeImpl
         });
     }
 
-    private void generateDebugElements(Consumer<CodeElement> consumer) {
+    private void generateElements(Consumer<CodeElement> consumer) {
+        boolean debug = classReader.optionValue(Classfile.Option.Key.PROCESS_DEBUG);
+        boolean maps = classReader.optionValue(Classfile.Option.Key.PROCESS_STACK_MAPS);
         for (Attribute<?> a : attributes()) {
-            if (a.attributeMapper() == Attributes.CHARACTER_RANGE_TABLE) {
-                var attr = (BoundCharacterRangeTableAttribute) a;
-                int cnt = classReader.readU2(attr.payloadStart);
-                int p = attr.payloadStart + 2;
-                int pEnd = p + (cnt * 14);
-                for (; p < pEnd; p += 14) {
-                    var instruction = new BoundCharacterRange(this, p);
-                    inflateLabel(instruction.startPc());
-                    inflateLabel(instruction.endPc() + 1);
-                    consumer.accept(instruction);
+            if (debug) {
+                if (a.attributeMapper() == Attributes.CHARACTER_RANGE_TABLE) {
+                    var attr = (BoundCharacterRangeTableAttribute) a;
+                    int cnt = classReader.readU2(attr.payloadStart);
+                    int p = attr.payloadStart + 2;
+                    int pEnd = p + (cnt * 14);
+                    for (; p < pEnd; p += 14) {
+                        var instruction = new BoundCharacterRange(this, p);
+                        inflateLabel(instruction.startPc());
+                        inflateLabel(instruction.endPc() + 1);
+                        consumer.accept(instruction);
+                    }
+                }
+                else if (a.attributeMapper() == Attributes.LOCAL_VARIABLE_TABLE) {
+                    var attr = (BoundLocalVariableTableAttribute) a;
+                    int cnt = classReader.readU2(attr.payloadStart);
+                    int p = attr.payloadStart + 2;
+                    int pEnd = p + (cnt * 10);
+                    for (; p < pEnd; p += 10) {
+                        BoundLocalVariable instruction = new BoundLocalVariable(this, p);
+                        inflateLabel(instruction.startPc());
+                        inflateLabel(instruction.startPc() + instruction.length());
+                        consumer.accept(instruction);
+                    }
+                }
+                else if (a.attributeMapper() == Attributes.LOCAL_VARIABLE_TYPE_TABLE) {
+                    var attr = (BoundLocalVariableTypeTableAttribute) a;
+                    int cnt = classReader.readU2(attr.payloadStart);
+                    int p = attr.payloadStart + 2;
+                    int pEnd = p + (cnt * 10);
+                    for (; p < pEnd; p += 10) {
+                        BoundLocalVariableType instruction = new BoundLocalVariableType(this, p);
+                        inflateLabel(instruction.startPc());
+                        inflateLabel(instruction.startPc() + instruction.length());
+                        consumer.accept(instruction);
+                    }
                 }
             }
-            if (a.attributeMapper() == Attributes.LOCAL_VARIABLE_TABLE) {
-                var attr = (BoundLocalVariableTableAttribute) a;
-                int cnt = classReader.readU2(attr.payloadStart);
-                int p = attr.payloadStart + 2;
-                int pEnd = p + (cnt * 10);
-                for (; p < pEnd; p += 10) {
-                    BoundLocalVariable instruction = new BoundLocalVariable(this, p);
-                    inflateLabel(instruction.startPc());
-                    inflateLabel(instruction.startPc() + instruction.length());
-                    consumer.accept(instruction);
-                }
-            }
-            else if (a.attributeMapper() == Attributes.LOCAL_VARIABLE_TYPE_TABLE) {
-                var attr = (BoundLocalVariableTypeTableAttribute) a;
-                int cnt = classReader.readU2(attr.payloadStart);
-                int p = attr.payloadStart + 2;
-                int pEnd = p + (cnt * 10);
-                for (; p < pEnd; p += 10) {
-                    BoundLocalVariableType instruction = new BoundLocalVariableType(this, p);
-                    inflateLabel(instruction.startPc());
-                    inflateLabel(instruction.startPc() + instruction.length());
-                    consumer.accept(instruction);
-                }
-            }
-            else if (a.attributeMapper() == Attributes.RUNTIME_VISIBLE_TYPE_ANNOTATIONS) {
+            if (a.attributeMapper() == Attributes.RUNTIME_VISIBLE_TYPE_ANNOTATIONS) {
                 consumer.accept((BoundRuntimeVisibleTypeAnnotationsAttribute) a);
             }
             else if (a.attributeMapper() == Attributes.RUNTIME_INVISIBLE_TYPE_ANNOTATIONS) {
                 consumer.accept((BoundRuntimeInvisibleTypeAnnotationsAttribute) a);
+            } else if (maps && a.attributeMapper() == Attributes.STACK_MAP_TABLE) {
+                consumer.accept((StackMapTableAttribute) a);
             }
         }
     }

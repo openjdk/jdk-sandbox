@@ -44,6 +44,7 @@ public class Options {
     public Boolean generateStackmaps = true;
     public Boolean processDebug = true;
     public Boolean processLineNumbers = true;
+    public Boolean processStackMaps = false;
     public Boolean processUnknownAttributes = true;
     public Boolean cpSharing = true;
     public Boolean fixJumps = true;
@@ -63,6 +64,7 @@ public class Options {
                 case GENERATE_STACK_MAPS -> generateStackmaps = (Boolean) v.value();
                 case PROCESS_DEBUG -> processDebug = (Boolean) v.value();
                 case PROCESS_LINE_NUMBERS -> processLineNumbers = (Boolean) v.value();
+                case PROCESS_STACK_MAPS -> processStackMaps = (Boolean) v.value();
                 case PROCESS_UNKNOWN_ATTRIBUTES -> processUnknownAttributes = (Boolean) v.value();
                 case CP_SHARING -> cpSharing = (Boolean) v.value();
                 case FIX_SHORT_JUMPS -> fixJumps = (Boolean) v.value();
@@ -77,6 +79,7 @@ public class Options {
         return switch (key) {
             case PROCESS_DEBUG -> (T) processDebug;
             case PROCESS_LINE_NUMBERS -> (T) processLineNumbers;
+            case PROCESS_STACK_MAPS -> (T) processStackMaps;
             case PROCESS_UNKNOWN_ATTRIBUTES -> (T) processUnknownAttributes;
             case CP_SHARING -> (T) cpSharing;
             case FIX_SHORT_JUMPS -> (T) fixJumps;

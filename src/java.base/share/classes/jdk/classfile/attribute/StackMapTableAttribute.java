@@ -41,6 +41,8 @@ import static jdk.classfile.Classfile.*;
 /**
  * Models the {@code StackMapTable} attribute (JVMS 4.7.4), which can appear
  * on a {@code Code} attribute.
+ * Delivered when traversing the elements of a {@link jdk.classfile.CodeModel},
+ * according to the setting of the {@link jdk.classfile.Classfile.Option.Key#PROCESS_STACK_MAPS} option.
  */
 public sealed interface StackMapTableAttribute
         extends Attribute<StackMapTableAttribute>, CodeElement

@@ -104,13 +104,13 @@ public class StackMapDecoder {
         b.writeU2(entries.size());
         for (var fr : entries) {
             int offset = dcb.labelToBci(fr.target());
-            writeFrame(buf, offset, offset - prevOffset - 1, prevLocals, fr);
+            writeFrame(buf, offset - prevOffset - 1, prevLocals, fr);
             prevOffset = offset;
             prevLocals = fr.locals();
         }
     }
 
-    private static void writeFrame(BufWriterImpl out, int bci, int offsetDelta, List<VerificationTypeInfo> prevLocals, StackMapFrameInfo fr) {
+    private static void writeFrame(BufWriterImpl out, int offsetDelta, List<VerificationTypeInfo> prevLocals, StackMapFrameInfo fr) {
         if (offsetDelta < 0) throw new IllegalArgumentException("Invalid stack map frames order");
         if (fr.stack().isEmpty()) {
             int commonLocalsSize = Math.min(prevLocals.size(), fr.locals().size());
@@ -121,7 +121,7 @@ public class StackMapDecoder {
                 } else {   //chop, same extended or append frame
                     out.writeU1(251 + diffLocalsSize);
                     out.writeU2(offsetDelta);
-                    for (int i=commonLocalsSize; i<fr.locals().size(); i++) writeTypeInfo(out, fr.locals().get(i), bci);
+                    for (int i=commonLocalsSize; i<fr.locals().size(); i++) writeTypeInfo(out, fr.locals().get(i));
                 }
                 return;
             }
@@ -132,16 +132,16 @@ public class StackMapDecoder {
                 out.writeU1(247);
                 out.writeU2(offsetDelta);
             }
-            writeTypeInfo(out, fr.stack().get(0), bci);
+            writeTypeInfo(out, fr.stack().get(0));
             return;
         }
         //full frame
         out.writeU1(255);
         out.writeU2(offsetDelta);
         out.writeU2(fr.locals().size());
-        for (var l : fr.locals()) writeTypeInfo(out, l, bci);
+        for (var l : fr.locals()) writeTypeInfo(out, l);
         out.writeU2(fr.stack().size());
-        for (var s : fr.stack()) writeTypeInfo(out, s, bci);
+        for (var s : fr.stack()) writeTypeInfo(out, s);
     }
 
     private static boolean equals(List<VerificationTypeInfo> l1, List<VerificationTypeInfo> l2, int compareSize) {
@@ -151,7 +151,7 @@ public class StackMapDecoder {
         return true;
     }
 
-    private static void writeTypeInfo(BufWriterImpl bw, VerificationTypeInfo vti, int frameBci) {
+    private static void writeTypeInfo(BufWriterImpl bw, VerificationTypeInfo vti) {
         bw.writeU1(vti.tag());
         switch (vti) {
             case SimpleVerificationTypeInfo svti ->
@@ -159,7 +159,7 @@ public class StackMapDecoder {
             case ObjectVerificationTypeInfo ovti ->
                 bw.writeIndex(ovti.className());
             case UninitializedVerificationTypeInfo uvti ->
-                bw.writeU2(bw.labelResolver().labelToBci(uvti.newTarget()) - frameBci);
+                bw.writeU2(bw.labelResolver().labelToBci(uvti.newTarget()));
         }
     }
 
@@ -224,7 +224,7 @@ public class StackMapDecoder {
             case VT_NULL -> SimpleVerificationTypeInfo.ITEM_NULL;
             case VT_UNINITIALIZED_THIS -> SimpleVerificationTypeInfo.ITEM_UNINITIALIZED_THIS;
             case VT_OBJECT -> new ObjectVerificationTypeInfoImpl((ClassEntry)classReader.entryByIndex(u2()));
-            case VT_UNINITIALIZED -> new UninitializedVerificationTypeInfoImpl(ctx.getLabel(bci + u2()));
+            case VT_UNINITIALIZED -> new UninitializedVerificationTypeInfoImpl(ctx.getLabel(u2()));
             default -> throw new IllegalArgumentException("Invalid verification type tag: " + tag);
         };
     }
