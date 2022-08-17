@@ -258,7 +258,7 @@ public abstract sealed class BoundAttribute<T extends Attribute<T>>
 
         @Override
         public Opcode opcode() {
-            return Opcode.TYPE_ANNO;
+            return Opcode.STACK_MAP;
         }
 
         @Override

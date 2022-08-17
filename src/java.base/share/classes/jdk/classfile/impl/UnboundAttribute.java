@@ -265,7 +265,7 @@ public abstract sealed class UnboundAttribute<T extends Attribute<T>>
 
         @Override
         public Opcode opcode() {
-            return Opcode.TYPE_ANNO;
+            return Opcode.STACK_MAP;
         }
 
         @Override
