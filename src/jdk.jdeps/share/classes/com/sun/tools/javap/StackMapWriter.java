@@ -69,9 +69,9 @@ public class StackMapWriter extends InstructionDetailWriter {
         }
         var m = code.parent().get();
         if ((m.flags().flagsMask() & Classfile.ACC_STATIC) == 0) {
-            thisClassName = null;
-        } else {
             thisClassName =  m.parent().get().thisClass().asInternalName();
+        } else {
+            thisClassName = null;
         }
 
         map = new HashMap<>();
