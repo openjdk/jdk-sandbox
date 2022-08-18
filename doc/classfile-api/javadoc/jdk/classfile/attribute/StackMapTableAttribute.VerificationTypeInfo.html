@@ -88,11 +88,11 @@ loadScripts(document, 'script');</script>
 <section class="class-description" id="class-description">
 <dl class="notes">
 <dt>All Known Subinterfaces:</dt>
-<dd><code><a href="StackMapTableAttribute.ObjectVerificationTypeInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.ObjectVerificationTypeInfo</a></code>, <code><a href="StackMapTableAttribute.SimpleVerificationTypeInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.SimpleVerificationTypeInfo</a></code>, <code><a href="StackMapTableAttribute.UninitializedVerificationTypeInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.UninitializedVerificationTypeInfo</a></code></dd>
+<dd><code><a href="StackMapTableAttribute.ObjectVerificationTypeInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.ObjectVerificationTypeInfo</a></code>, <code><a href="StackMapTableAttribute.UninitializedVerificationTypeInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.UninitializedVerificationTypeInfo</a></code></dd>
 </dl>
 <dl class="notes">
 <dt>All Known Implementing Classes:</dt>
-<dd><code><a href="../impl/StackMapDecoder.ObjectVerificationTypeInfoImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.ObjectVerificationTypeInfoImpl</a></code>, <code><a href="../impl/StackMapDecoder.SimpleVerificationTypeInfoImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.SimpleVerificationTypeInfoImpl</a></code>, <code><a href="../impl/StackMapDecoder.UninitializedVerificationTypeInfoImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.UninitializedVerificationTypeInfoImpl</a></code></dd>
+<dd><code><a href="../impl/StackMapDecoder.ObjectVerificationTypeInfoImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.ObjectVerificationTypeInfoImpl</a></code>, <code><a href="../impl/StackMapDecoder.UninitializedVerificationTypeInfoImpl.html" title="class in jdk.classfile.impl">StackMapDecoder.UninitializedVerificationTypeInfoImpl</a></code>, <code><a href="StackMapTableAttribute.SimpleVerificationTypeInfo.html" title="enum class in jdk.classfile.attribute">StackMapTableAttribute.SimpleVerificationTypeInfo</a></code></dd>
 </dl>
 <dl class="notes">
 <dt>Enclosing interface:</dt>
@@ -100,7 +100,7 @@ loadScripts(document, 'script');</script>
 </dl>
 <hr>
 <div class="type-signature"><span class="modifiers">public static sealed interface </span><span class="element-name type-name-label">StackMapTableAttribute.VerificationTypeInfo</span>
-<span class="permits">permits <a href="StackMapTableAttribute.SimpleVerificationTypeInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.SimpleVerificationTypeInfo</a>, <a href="StackMapTableAttribute.ObjectVerificationTypeInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.ObjectVerificationTypeInfo</a>, <a href="StackMapTableAttribute.UninitializedVerificationTypeInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.UninitializedVerificationTypeInfo</a></span></div>
+<span class="permits">permits <a href="StackMapTableAttribute.SimpleVerificationTypeInfo.html" title="enum class in jdk.classfile.attribute">StackMapTableAttribute.SimpleVerificationTypeInfo</a>, <a href="StackMapTableAttribute.ObjectVerificationTypeInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.ObjectVerificationTypeInfo</a>, <a href="StackMapTableAttribute.UninitializedVerificationTypeInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.UninitializedVerificationTypeInfo</a></span></div>
 <div class="block">The type of a stack value.</div>
 </section>
 <section class="summary">
@@ -116,8 +116,8 @@ loadScripts(document, 'script');</script>
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="StackMapTableAttribute.VerificationType.html" title="enum class in jdk.classfile.attribute">StackMapTableAttribute.VerificationType</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#type()" class="member-name-link">type</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#tag()" class="member-name-link">tag</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 </div>
 </div>
@@ -134,9 +134,9 @@ loadScripts(document, 'script');</script>
 <h2>Method Details</h2>
 <ul class="member-list">
 <li>
-<section class="detail" id="type()">
-<h3>type</h3>
-<div class="member-signature"><span class="return-type"><a href="StackMapTableAttribute.VerificationType.html" title="enum class in jdk.classfile.attribute">StackMapTableAttribute.VerificationType</a></span>&nbsp;<span class="element-name">type</span>()</div>
+<section class="detail" id="tag()">
+<h3>tag</h3>
+<div class="member-signature"><span class="return-type">int</span>&nbsp;<span class="element-name">tag</span>()</div>
 </section>
 </li>
 </ul>

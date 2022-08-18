@@ -111,21 +111,24 @@ extends <a href="StackMapTableAttribute.VerificationTypeInfo.html" title="interf
 <section class="method-summary" id="method-summary">
 <h2>Method Summary</h2>
 <div id="method-summary-table">
-<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-controls="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table', 3)" class="active-table-tab">All Methods</button><button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="table-tab">Instance Methods</button><button id="method-summary-table-tab3" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab3', 3)" class="table-tab">Abstract Methods</button></div>
+<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-controls="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table', 3)" class="active-table-tab">All Methods</button><button id="method-summary-table-tab1" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab1', 3)" class="table-tab">Static Methods</button><button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="table-tab">Instance Methods</button><button id="method-summary-table-tab3" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab3', 3)" class="table-tab">Abstract Methods</button></div>
 <div id="method-summary-table.tabpanel" role="tabpanel">
 <div class="summary-table three-column-summary" aria-labelledby="method-summary-table-tab0">
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#offset()" class="member-name-link">offset</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="../Label.html" title="interface in jdk.classfile">Label</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#newTarget()" class="member-name-link">newTarget</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1"><code>static <a href="StackMapTableAttribute.UninitializedVerificationTypeInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.UninitializedVerificationTypeInfo</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(jdk.classfile.Label)" class="member-name-link">of</a><wbr>(<a href="../Label.html" title="interface in jdk.classfile">Label</a>&nbsp;newTarget)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1">&nbsp;</div>
 </div>
 </div>
 </div>
 <div class="inherited-list">
 <h3 id="methods-inherited-from-class-jdk.classfile.attribute.StackMapTableAttribute.VerificationTypeInfo">Methods inherited from interface&nbsp;jdk.classfile.attribute.<a href="StackMapTableAttribute.VerificationTypeInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.VerificationTypeInfo</a></h3>
-<code><a href="StackMapTableAttribute.VerificationTypeInfo.html#type()">type</a></code></div>
+<code><a href="StackMapTableAttribute.VerificationTypeInfo.html#tag()">tag</a></code></div>
 </section>
 </li>
 </ul>
@@ -138,9 +141,15 @@ extends <a href="StackMapTableAttribute.VerificationTypeInfo.html" title="interf
 <h2>Method Details</h2>
 <ul class="member-list">
 <li>
-<section class="detail" id="offset()">
-<h3>offset</h3>
-<div class="member-signature"><span class="return-type">int</span>&nbsp;<span class="element-name">offset</span>()</div>
+<section class="detail" id="newTarget()">
+<h3>newTarget</h3>
+<div class="member-signature"><span class="return-type"><a href="../Label.html" title="interface in jdk.classfile">Label</a></span>&nbsp;<span class="element-name">newTarget</span>()</div>
+</section>
+</li>
+<li>
+<section class="detail" id="of(jdk.classfile.Label)">
+<h3>of</h3>
+<div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="StackMapTableAttribute.UninitializedVerificationTypeInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.UninitializedVerificationTypeInfo</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="../Label.html" title="interface in jdk.classfile">Label</a>&nbsp;newTarget)</span></div>
 </section>
 </li>
 </ul>

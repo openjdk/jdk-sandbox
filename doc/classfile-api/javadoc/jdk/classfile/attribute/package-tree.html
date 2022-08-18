@@ -102,6 +102,7 @@ loadScripts(document, 'script');</script>
 <ul>
 <li class="circle">jdk.classfile.attribute.<a href="RuntimeInvisibleTypeAnnotationsAttribute.html" class="type-name-link" title="interface in jdk.classfile.attribute">RuntimeInvisibleTypeAnnotationsAttribute</a> (also extends jdk.classfile.<a href="../Attribute.html" title="interface in jdk.classfile">Attribute</a>&lt;A&gt;, jdk.classfile.<a href="../ClassElement.html" title="interface in jdk.classfile">ClassElement</a>, jdk.classfile.<a href="../FieldElement.html" title="interface in jdk.classfile">FieldElement</a>, jdk.classfile.<a href="../MethodElement.html" title="interface in jdk.classfile">MethodElement</a>)</li>
 <li class="circle">jdk.classfile.attribute.<a href="RuntimeVisibleTypeAnnotationsAttribute.html" class="type-name-link" title="interface in jdk.classfile.attribute">RuntimeVisibleTypeAnnotationsAttribute</a> (also extends jdk.classfile.<a href="../Attribute.html" title="interface in jdk.classfile">Attribute</a>&lt;A&gt;, jdk.classfile.<a href="../ClassElement.html" title="interface in jdk.classfile">ClassElement</a>, jdk.classfile.<a href="../FieldElement.html" title="interface in jdk.classfile">FieldElement</a>, jdk.classfile.<a href="../MethodElement.html" title="interface in jdk.classfile">MethodElement</a>)</li>
+<li class="circle">jdk.classfile.attribute.<a href="StackMapTableAttribute.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute</a> (also extends jdk.classfile.<a href="../Attribute.html" title="interface in jdk.classfile">Attribute</a>&lt;A&gt;)</li>
 </ul>
 </li>
 <li class="circle">jdk.classfile.<a href="../CompoundElement.html" class="type-name-link" title="interface in jdk.classfile">CompoundElement</a>&lt;E&gt; (also extends java.lang.<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/Iterable.html" title="class or interface in java.lang" class="external-link">Iterable</a>&lt;T&gt;)
@@ -186,7 +187,7 @@ loadScripts(document, 'script');</script>
 <li class="circle">jdk.classfile.attribute.<a href="SourceDebugExtensionAttribute.html" class="type-name-link" title="interface in jdk.classfile.attribute">SourceDebugExtensionAttribute</a> (also extends jdk.classfile.<a href="../ClassElement.html" title="interface in jdk.classfile">ClassElement</a>)</li>
 <li class="circle">jdk.classfile.attribute.<a href="SourceFileAttribute.html" class="type-name-link" title="interface in jdk.classfile.attribute">SourceFileAttribute</a> (also extends jdk.classfile.<a href="../ClassElement.html" title="interface in jdk.classfile">ClassElement</a>)</li>
 <li class="circle">jdk.classfile.attribute.<a href="SourceIDAttribute.html" class="type-name-link" title="interface in jdk.classfile.attribute">SourceIDAttribute</a> (also extends jdk.classfile.<a href="../ClassElement.html" title="interface in jdk.classfile">ClassElement</a>)</li>
-<li class="circle">jdk.classfile.attribute.<a href="StackMapTableAttribute.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute</a></li>
+<li class="circle">jdk.classfile.attribute.<a href="StackMapTableAttribute.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute</a> (also extends jdk.classfile.<a href="../CodeElement.html" title="interface in jdk.classfile">CodeElement</a>)</li>
 <li class="circle">jdk.classfile.attribute.<a href="SyntheticAttribute.html" class="type-name-link" title="interface in jdk.classfile.attribute">SyntheticAttribute</a> (also extends jdk.classfile.<a href="../ClassElement.html" title="interface in jdk.classfile">ClassElement</a>, jdk.classfile.<a href="../FieldElement.html" title="interface in jdk.classfile">FieldElement</a>, jdk.classfile.<a href="../MethodElement.html" title="interface in jdk.classfile">MethodElement</a>)</li>
 <li class="circle">jdk.classfile.attribute.<a href="UnknownAttribute.html" class="type-name-link" title="interface in jdk.classfile.attribute">UnknownAttribute</a> (also extends jdk.classfile.<a href="../ClassElement.html" title="interface in jdk.classfile">ClassElement</a>, jdk.classfile.<a href="../FieldElement.html" title="interface in jdk.classfile">FieldElement</a>, jdk.classfile.<a href="../MethodElement.html" title="interface in jdk.classfile">MethodElement</a>)</li>
 </ul>
@@ -228,19 +229,10 @@ loadScripts(document, 'script');</script>
 <li class="circle">jdk.classfile.attribute.<a href="ModuleOpenInfo.html" class="type-name-link" title="interface in jdk.classfile.attribute">ModuleOpenInfo</a></li>
 <li class="circle">jdk.classfile.attribute.<a href="ModuleProvideInfo.html" class="type-name-link" title="interface in jdk.classfile.attribute">ModuleProvideInfo</a></li>
 <li class="circle">jdk.classfile.attribute.<a href="ModuleRequireInfo.html" class="type-name-link" title="interface in jdk.classfile.attribute">ModuleRequireInfo</a></li>
-<li class="circle">jdk.classfile.attribute.<a href="StackMapTableAttribute.StackMapFrame.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame</a>
-<ul>
-<li class="circle">jdk.classfile.attribute.<a href="StackMapTableAttribute.StackMapFrame.Append.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Append</a></li>
-<li class="circle">jdk.classfile.attribute.<a href="StackMapTableAttribute.StackMapFrame.Chop.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Chop</a></li>
-<li class="circle">jdk.classfile.attribute.<a href="StackMapTableAttribute.StackMapFrame.Full.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Full</a></li>
-<li class="circle">jdk.classfile.attribute.<a href="StackMapTableAttribute.StackMapFrame.Same.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Same</a></li>
-<li class="circle">jdk.classfile.attribute.<a href="StackMapTableAttribute.StackMapFrame.Same1.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Same1</a></li>
-</ul>
-</li>
+<li class="circle">jdk.classfile.attribute.<a href="StackMapTableAttribute.StackMapFrameInfo.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrameInfo</a></li>
 <li class="circle">jdk.classfile.attribute.<a href="StackMapTableAttribute.VerificationTypeInfo.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.VerificationTypeInfo</a>
 <ul>
 <li class="circle">jdk.classfile.attribute.<a href="StackMapTableAttribute.ObjectVerificationTypeInfo.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.ObjectVerificationTypeInfo</a></li>
-<li class="circle">jdk.classfile.attribute.<a href="StackMapTableAttribute.SimpleVerificationTypeInfo.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.SimpleVerificationTypeInfo</a></li>
 <li class="circle">jdk.classfile.attribute.<a href="StackMapTableAttribute.UninitializedVerificationTypeInfo.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.UninitializedVerificationTypeInfo</a></li>
 </ul>
 </li>
@@ -253,8 +245,7 @@ loadScripts(document, 'script');</script>
 <ul>
 <li class="circle">java.lang.<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/Enum.html" class="type-name-link external-link" title="class or interface in java.lang">Enum</a>&lt;E&gt; (implements java.lang.<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/Comparable.html" title="class or interface in java.lang" class="external-link">Comparable</a>&lt;T&gt;, java.lang.constant.<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/Constable.html" title="class or interface in java.lang.constant" class="external-link">Constable</a>, java.io.<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/io/Serializable.html" title="class or interface in java.io" class="external-link">Serializable</a>)
 <ul>
-<li class="circle">jdk.classfile.attribute.<a href="StackMapTableAttribute.FrameKind.html" class="type-name-link" title="enum class in jdk.classfile.attribute">StackMapTableAttribute.FrameKind</a></li>
-<li class="circle">jdk.classfile.attribute.<a href="StackMapTableAttribute.VerificationType.html" class="type-name-link" title="enum class in jdk.classfile.attribute">StackMapTableAttribute.VerificationType</a></li>
+<li class="circle">jdk.classfile.attribute.<a href="StackMapTableAttribute.SimpleVerificationTypeInfo.html" class="type-name-link" title="enum class in jdk.classfile.attribute">StackMapTableAttribute.SimpleVerificationTypeInfo</a> (implements jdk.classfile.attribute.<a href="StackMapTableAttribute.VerificationTypeInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.VerificationTypeInfo</a>)</li>
 </ul>
 </li>
 </ul>

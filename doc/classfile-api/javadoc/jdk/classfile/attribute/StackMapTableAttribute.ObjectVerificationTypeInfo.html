@@ -111,7 +111,7 @@ extends <a href="StackMapTableAttribute.VerificationTypeInfo.html" title="interf
 <section class="method-summary" id="method-summary">
 <h2>Method Summary</h2>
 <div id="method-summary-table">
-<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-controls="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table', 3)" class="active-table-tab">All Methods</button><button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="table-tab">Instance Methods</button><button id="method-summary-table-tab3" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab3', 3)" class="table-tab">Abstract Methods</button></div>
+<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-controls="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table', 3)" class="active-table-tab">All Methods</button><button id="method-summary-table-tab1" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab1', 3)" class="table-tab">Static Methods</button><button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="table-tab">Instance Methods</button><button id="method-summary-table-tab3" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab3', 3)" class="table-tab">Abstract Methods</button><button id="method-summary-table-tab5" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab5', 3)" class="table-tab">Default Methods</button></div>
 <div id="method-summary-table.tabpanel" role="tabpanel">
 <div class="summary-table three-column-summary" aria-labelledby="method-summary-table-tab0">
 <div class="table-header col-first">Modifier and Type</div>
@@ -122,12 +122,21 @@ extends <a href="StackMapTableAttribute.VerificationTypeInfo.html" title="interf
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns the class of the value.</div>
 </div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#classSymbol()" class="member-name-link">classSymbol</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1"><code>static <a href="StackMapTableAttribute.ObjectVerificationTypeInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.ObjectVerificationTypeInfo</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(java.lang.constant.ClassDesc)" class="member-name-link">of</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;classDesc)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1"><code>static <a href="StackMapTableAttribute.ObjectVerificationTypeInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.ObjectVerificationTypeInfo</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(jdk.classfile.constantpool.ClassEntry)" class="member-name-link">of</a><wbr>(<a href="../constantpool/ClassEntry.html" title="interface in jdk.classfile.constantpool">ClassEntry</a>&nbsp;className)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1">&nbsp;</div>
 </div>
 </div>
 </div>
 <div class="inherited-list">
 <h3 id="methods-inherited-from-class-jdk.classfile.attribute.StackMapTableAttribute.VerificationTypeInfo">Methods inherited from interface&nbsp;jdk.classfile.attribute.<a href="StackMapTableAttribute.VerificationTypeInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.VerificationTypeInfo</a></h3>
-<code><a href="StackMapTableAttribute.VerificationTypeInfo.html#type()">type</a></code></div>
+<code><a href="StackMapTableAttribute.VerificationTypeInfo.html#tag()">tag</a></code></div>
 </section>
 </li>
 </ul>
@@ -140,6 +149,18 @@ extends <a href="StackMapTableAttribute.VerificationTypeInfo.html" title="interf
 <h2>Method Details</h2>
 <ul class="member-list">
 <li>
+<section class="detail" id="of(jdk.classfile.constantpool.ClassEntry)">
+<h3>of</h3>
+<div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="StackMapTableAttribute.ObjectVerificationTypeInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.ObjectVerificationTypeInfo</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="../constantpool/ClassEntry.html" title="interface in jdk.classfile.constantpool">ClassEntry</a>&nbsp;className)</span></div>
+</section>
+</li>
+<li>
+<section class="detail" id="of(java.lang.constant.ClassDesc)">
+<h3>of</h3>
+<div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="StackMapTableAttribute.ObjectVerificationTypeInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.ObjectVerificationTypeInfo</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;classDesc)</span></div>
+</section>
+</li>
+<li>
 <section class="detail" id="className()">
 <h3>className</h3>
 <div class="member-signature"><span class="return-type"><a href="../constantpool/ClassEntry.html" title="interface in jdk.classfile.constantpool">ClassEntry</a></span>&nbsp;<span class="element-name">className</span>()</div>
@@ -148,6 +169,12 @@ extends <a href="StackMapTableAttribute.VerificationTypeInfo.html" title="interf
 <dt>Returns:</dt>
 <dd>the class of the value</dd>
 </dl>
+</section>
+</li>
+<li>
+<section class="detail" id="classSymbol()">
+<h3>classSymbol</h3>
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a></span>&nbsp;<span class="element-name">classSymbol</span>()</div>
 </section>
 </li>
 </ul>

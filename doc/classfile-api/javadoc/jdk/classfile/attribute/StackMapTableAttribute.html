@@ -88,16 +88,16 @@ loadScripts(document, 'script');</script>
 <section class="class-description" id="class-description">
 <dl class="notes">
 <dt>All Superinterfaces:</dt>
-<dd><code><a href="../Attribute.html" title="interface in jdk.classfile">Attribute</a>&lt;<a href="StackMapTableAttribute.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute</a>&gt;</code>, <code><a href="../ClassfileElement.html" title="interface in jdk.classfile">ClassfileElement</a></code>, <code><a href="../WritableElement.html" title="interface in jdk.classfile">WritableElement</a>&lt;<a href="StackMapTableAttribute.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute</a>&gt;</code></dd>
+<dd><code><a href="../Attribute.html" title="interface in jdk.classfile">Attribute</a>&lt;<a href="StackMapTableAttribute.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute</a>&gt;</code>, <code><a href="../ClassfileElement.html" title="interface in jdk.classfile">ClassfileElement</a></code>, <code><a href="../CodeElement.html" title="interface in jdk.classfile">CodeElement</a></code>, <code><a href="../WritableElement.html" title="interface in jdk.classfile">WritableElement</a>&lt;<a href="StackMapTableAttribute.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute</a>&gt;</code></dd>
 </dl>
 <dl class="notes">
 <dt>All Known Implementing Classes:</dt>
-<dd><code><a href="../impl/BoundAttribute.BoundStackMapTableAttribute.html" title="class in jdk.classfile.impl">BoundAttribute.BoundStackMapTableAttribute</a></code></dd>
+<dd><code><a href="../impl/BoundAttribute.BoundStackMapTableAttribute.html" title="class in jdk.classfile.impl">BoundAttribute.BoundStackMapTableAttribute</a></code>, <code><a href="../impl/UnboundAttribute.UnboundStackMapTableAttribute.html" title="class in jdk.classfile.impl">UnboundAttribute.UnboundStackMapTableAttribute</a></code></dd>
 </dl>
 <hr>
 <div class="type-signature"><span class="modifiers">public sealed interface </span><span class="element-name type-name-label">StackMapTableAttribute</span><span class="extends-implements">
-extends <a href="../Attribute.html" title="interface in jdk.classfile">Attribute</a>&lt;<a href="StackMapTableAttribute.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute</a>&gt;</span>
-<span class="permits">permits <a href="../impl/BoundAttribute.BoundStackMapTableAttribute.html" title="class in jdk.classfile.impl">BoundAttribute.BoundStackMapTableAttribute</a></span></div>
+extends <a href="../Attribute.html" title="interface in jdk.classfile">Attribute</a>&lt;<a href="StackMapTableAttribute.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute</a>&gt;, <a href="../CodeElement.html" title="interface in jdk.classfile">CodeElement</a></span>
+<span class="permits">permits <a href="../impl/BoundAttribute.BoundStackMapTableAttribute.html" title="class in jdk.classfile.impl">BoundAttribute.BoundStackMapTableAttribute</a>, <a href="../impl/UnboundAttribute.UnboundStackMapTableAttribute.html" title="class in jdk.classfile.impl">UnboundAttribute.UnboundStackMapTableAttribute</a></span></div>
 <div class="block">Models the <code>StackMapTable</code> attribute (JVMS 4.7.4), which can appear
  on a <code>Code</code> attribute.</div>
 </section>
@@ -112,35 +112,25 @@ extends <a href="../Attribute.html" title="interface in jdk.classfile">Attribute
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Interface</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color"><code>static enum&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="StackMapTableAttribute.FrameKind.html" class="type-name-link" title="enum class in jdk.classfile.attribute">StackMapTableAttribute.FrameKind</a></code></div>
+<div class="col-first even-row-color"><code>static interface&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="StackMapTableAttribute.ObjectVerificationTypeInfo.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.ObjectVerificationTypeInfo</a></code></div>
 <div class="col-last even-row-color">
-<div class="block">Kinds of stack values.</div>
-</div>
-<div class="col-first odd-row-color"><code>static interface&nbsp;</code></div>
-<div class="col-second odd-row-color"><code><a href="StackMapTableAttribute.ObjectVerificationTypeInfo.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.ObjectVerificationTypeInfo</a></code></div>
-<div class="col-last odd-row-color">
 <div class="block">A stack value for an object type.</div>
 </div>
-<div class="col-first even-row-color"><code>static interface&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="StackMapTableAttribute.SimpleVerificationTypeInfo.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.SimpleVerificationTypeInfo</a></code></div>
-<div class="col-last even-row-color">
+<div class="col-first odd-row-color"><code>static enum&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="StackMapTableAttribute.SimpleVerificationTypeInfo.html" class="type-name-link" title="enum class in jdk.classfile.attribute">StackMapTableAttribute.SimpleVerificationTypeInfo</a></code></div>
+<div class="col-last odd-row-color">
 <div class="block">A simple stack value.</div>
 </div>
-<div class="col-first odd-row-color"><code>static interface&nbsp;</code></div>
-<div class="col-second odd-row-color"><code><a href="StackMapTableAttribute.StackMapFrame.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame</a></code></div>
-<div class="col-last odd-row-color">
+<div class="col-first even-row-color"><code>static interface&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="StackMapTableAttribute.StackMapFrameInfo.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrameInfo</a></code></div>
+<div class="col-last even-row-color">
 <div class="block">A stack map frame.</div>
 </div>
-<div class="col-first even-row-color"><code>static interface&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="StackMapTableAttribute.UninitializedVerificationTypeInfo.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.UninitializedVerificationTypeInfo</a></code></div>
-<div class="col-last even-row-color">
-<div class="block">An uninitialized stack value.</div>
-</div>
-<div class="col-first odd-row-color"><code>static enum&nbsp;</code></div>
-<div class="col-second odd-row-color"><code><a href="StackMapTableAttribute.VerificationType.html" class="type-name-link" title="enum class in jdk.classfile.attribute">StackMapTableAttribute.VerificationType</a></code></div>
+<div class="col-first odd-row-color"><code>static interface&nbsp;</code></div>
+<div class="col-second odd-row-color"><code><a href="StackMapTableAttribute.UninitializedVerificationTypeInfo.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.UninitializedVerificationTypeInfo</a></code></div>
 <div class="col-last odd-row-color">
-<div class="block">The possible types for a stack slot.</div>
+<div class="block">An uninitialized stack value.</div>
 </div>
 <div class="col-first even-row-color"><code>static interface&nbsp;</code></div>
 <div class="col-second even-row-color"><code><a href="StackMapTableAttribute.VerificationTypeInfo.html" class="type-name-link" title="interface in jdk.classfile.attribute">StackMapTableAttribute.VerificationTypeInfo</a></code></div>
@@ -148,6 +138,9 @@ extends <a href="../Attribute.html" title="interface in jdk.classfile">Attribute
 <div class="block">The type of a stack value.</div>
 </div>
 </div>
+<div class="inherited-list">
+<h2 id="nested-classes-inherited-from-class-jdk.classfile.CodeElement">Nested classes/interfaces inherited from interface&nbsp;jdk.classfile.<a href="../CodeElement.html" title="interface in jdk.classfile">CodeElement</a></h2>
+<code><a href="../CodeElement.Kind.html" title="enum class in jdk.classfile">CodeElement.Kind</a></code></div>
 </section>
 </li>
 <!-- ========== METHOD SUMMARY =========== -->
@@ -155,28 +148,29 @@ extends <a href="../Attribute.html" title="interface in jdk.classfile">Attribute
 <section class="method-summary" id="method-summary">
 <h2>Method Summary</h2>
 <div id="method-summary-table">
-<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-controls="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table', 3)" class="active-table-tab">All Methods</button><button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="table-tab">Instance Methods</button><button id="method-summary-table-tab3" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab3', 3)" class="table-tab">Abstract Methods</button></div>
+<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-controls="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table', 3)" class="active-table-tab">All Methods</button><button id="method-summary-table-tab1" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab1', 3)" class="table-tab">Static Methods</button><button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="table-tab">Instance Methods</button><button id="method-summary-table-tab3" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab3', 3)" class="table-tab">Abstract Methods</button></div>
 <div id="method-summary-table.tabpanel" role="tabpanel">
 <div class="summary-table three-column-summary" aria-labelledby="method-summary-table-tab0">
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="StackMapTableAttribute.StackMapFrame.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame</a>&gt;</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="StackMapTableAttribute.StackMapFrameInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrameInfo</a>&gt;</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#entries()" class="member-name-link">entries</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns the stack map frames.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="StackMapTableAttribute.StackMapFrame.Full.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Full</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#initFrame()" class="member-name-link">initFrame</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Returns the initial frame.</div>
-</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1"><code>static <a href="StackMapTableAttribute.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(java.util.List)" class="member-name-link">of</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="StackMapTableAttribute.StackMapFrameInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrameInfo</a>&gt;&nbsp;entries)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1">&nbsp;</div>
 </div>
 </div>
 </div>
 <div class="inherited-list">
 <h3 id="methods-inherited-from-class-jdk.classfile.Attribute">Methods inherited from interface&nbsp;jdk.classfile.<a href="../Attribute.html" title="interface in jdk.classfile">Attribute</a></h3>
 <code><a href="../Attribute.html#attributeMapper()">attributeMapper</a>, <a href="../Attribute.html#attributeName()">attributeName</a></code></div>
+<div class="inherited-list">
+<h3 id="methods-inherited-from-class-jdk.classfile.CodeElement">Methods inherited from interface&nbsp;jdk.classfile.<a href="../CodeElement.html" title="interface in jdk.classfile">CodeElement</a></h3>
+<code><a href="../CodeElement.html#codeKind()">codeKind</a>, <a href="../CodeElement.html#opcode()">opcode</a>, <a href="../CodeElement.html#sizeInBytes()">sizeInBytes</a></code></div>
 <div class="inherited-list">
 <h3 id="methods-inherited-from-class-jdk.classfile.WritableElement">Methods inherited from interface&nbsp;jdk.classfile.<a href="../WritableElement.html" title="interface in jdk.classfile">WritableElement</a></h3>
 <code><a href="../WritableElement.html#writeTo(jdk.classfile.BufWriter)">writeTo</a></code></div>
@@ -194,7 +188,7 @@ extends <a href="../Attribute.html" title="interface in jdk.classfile">Attribute
 <li>
 <section class="detail" id="entries()">
 <h3>entries</h3>
-<div class="member-signature"><span class="return-type"><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="StackMapTableAttribute.StackMapFrame.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame</a>&gt;</span>&nbsp;<span class="element-name">entries</span>()</div>
+<div class="member-signature"><span class="return-type"><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="StackMapTableAttribute.StackMapFrameInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrameInfo</a>&gt;</span>&nbsp;<span class="element-name">entries</span>()</div>
 <div class="block">Returns the stack map frames.</div>
 <dl class="notes">
 <dt>Returns:</dt>
@@ -203,14 +197,9 @@ extends <a href="../Attribute.html" title="interface in jdk.classfile">Attribute
 </section>
 </li>
 <li>
-<section class="detail" id="initFrame()">
-<h3>initFrame</h3>
-<div class="member-signature"><span class="return-type"><a href="StackMapTableAttribute.StackMapFrame.Full.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrame.Full</a></span>&nbsp;<span class="element-name">initFrame</span>()</div>
-<div class="block">Returns the initial frame.</div>
-<dl class="notes">
-<dt>Returns:</dt>
-<dd>the initial frame</dd>
-</dl>
+<section class="detail" id="of(java.util.List)">
+<h3>of</h3>
+<div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="StackMapTableAttribute.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="StackMapTableAttribute.StackMapFrameInfo.html" title="interface in jdk.classfile.attribute">StackMapTableAttribute.StackMapFrameInfo</a>&gt;&nbsp;entries)</span></div>
 </section>
 </li>
 </ul>

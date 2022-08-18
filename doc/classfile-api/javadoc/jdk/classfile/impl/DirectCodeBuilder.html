@@ -165,114 +165,117 @@ implements <a href="TerminalCodeBuilder.html" title="interface in jdk.classfile.
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the bytecode offset associated with the specified label.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../Label.html" title="interface in jdk.classfile">Label</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#newLabel()" class="member-name-link">newLabel</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="MethodInfo.html" title="interface in jdk.classfile.impl">MethodInfo</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#methodInfo()" class="member-name-link">methodInfo</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../Label.html" title="interface in jdk.classfile">Label</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#newLabel()" class="member-name-link">newLabel</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns a fresh unbound label.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>int</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#parameterSlot(int)" class="member-name-link">parameterSlot</a><wbr>(int&nbsp;paramNo)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>int</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#parameterSlot(int)" class="member-name-link">parameterSlot</a><wbr>(int&nbsp;paramNo)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the local variable slot associated with the specified parameter.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>int</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#receiverSlot()" class="member-name-link">receiverSlot</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>int</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#receiverSlot()" class="member-name-link">receiverSlot</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the local variable slot associated with the receiver.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setLabelTarget(jdk.classfile.Label)" class="member-name-link">setLabelTarget</a><wbr>(<a href="../Label.html" title="interface in jdk.classfile">Label</a>&nbsp;label)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setLabelTarget(jdk.classfile.Label,int)" class="member-name-link">setLabelTarget</a><wbr>(<a href="../Label.html" title="interface in jdk.classfile">Label</a>&nbsp;label,
- int&nbsp;bci)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setLabelTarget(jdk.classfile.Label)" class="member-name-link">setLabelTarget</a><wbr>(<a href="../Label.html" title="interface in jdk.classfile">Label</a>&nbsp;label)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setLineNumber(int)" class="member-name-link">setLineNumber</a><wbr>(int&nbsp;lineNo)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setLabelTarget(jdk.classfile.Label,int)" class="member-name-link">setLabelTarget</a><wbr>(<a href="../Label.html" title="interface in jdk.classfile">Label</a>&nbsp;label,
+ int&nbsp;bci)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../Label.html" title="interface in jdk.classfile">Label</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#startLabel()" class="member-name-link">startLabel</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setLineNumber(int)" class="member-name-link">setLineNumber</a><wbr>(int&nbsp;lineNo)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../Label.html" title="interface in jdk.classfile">Label</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#startLabel()" class="member-name-link">startLabel</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the label associated with the beginning of the current block.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toString()" class="member-name-link">toString</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#with(jdk.classfile.CodeElement)" class="member-name-link">with</a><wbr>(<a href="../CodeElement.html" title="interface in jdk.classfile">CodeElement</a>&nbsp;element)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toString()" class="member-name-link">toString</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#with(jdk.classfile.CodeElement)" class="member-name-link">with</a><wbr>(<a href="../CodeElement.html" title="interface in jdk.classfile">CodeElement</a>&nbsp;element)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Integrate the <a href="../ClassfileElement.html" title="interface in jdk.classfile"><code>ClassfileElement</code></a> into the entity being built.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeArgumentConstant(jdk.classfile.Opcode,int)" class="member-name-link">writeArgumentConstant</a><wbr>(<a href="../Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeArgumentConstant(jdk.classfile.Opcode,int)" class="member-name-link">writeArgumentConstant</a><wbr>(<a href="../Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode,
  int&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeBranch(jdk.classfile.Opcode,jdk.classfile.Label)" class="member-name-link">writeBranch</a><wbr>(<a href="../Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;op,
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeBranch(jdk.classfile.Opcode,jdk.classfile.Label)" class="member-name-link">writeBranch</a><wbr>(<a href="../Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;op,
  <a href="../Label.html" title="interface in jdk.classfile">Label</a>&nbsp;target)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeBytecode(jdk.classfile.Opcode)" class="member-name-link">writeBytecode</a><wbr>(<a href="../Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeFieldAccess(jdk.classfile.Opcode,jdk.classfile.constantpool.FieldRefEntry)" class="member-name-link">writeFieldAccess</a><wbr>(<a href="../Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode,
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeBytecode(jdk.classfile.Opcode)" class="member-name-link">writeBytecode</a><wbr>(<a href="../Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeFieldAccess(jdk.classfile.Opcode,jdk.classfile.constantpool.FieldRefEntry)" class="member-name-link">writeFieldAccess</a><wbr>(<a href="../Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode,
  <a href="../constantpool/FieldRefEntry.html" title="interface in jdk.classfile.constantpool">FieldRefEntry</a>&nbsp;ref)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeIncrement(int,int)" class="member-name-link">writeIncrement</a><wbr>(int&nbsp;slot,
- int&nbsp;val)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeInvokeDynamic(jdk.classfile.constantpool.InvokeDynamicEntry)" class="member-name-link">writeInvokeDynamic</a><wbr>(<a href="../constantpool/InvokeDynamicEntry.html" title="interface in jdk.classfile.constantpool">InvokeDynamicEntry</a>&nbsp;ref)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeIncrement(int,int)" class="member-name-link">writeIncrement</a><wbr>(int&nbsp;slot,
+ int&nbsp;val)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeInvokeInterface(jdk.classfile.Opcode,jdk.classfile.constantpool.InterfaceMethodRefEntry,int)" class="member-name-link">writeInvokeInterface</a><wbr>(<a href="../Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeInvokeDynamic(jdk.classfile.constantpool.InvokeDynamicEntry)" class="member-name-link">writeInvokeDynamic</a><wbr>(<a href="../constantpool/InvokeDynamicEntry.html" title="interface in jdk.classfile.constantpool">InvokeDynamicEntry</a>&nbsp;ref)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeInvokeInterface(jdk.classfile.Opcode,jdk.classfile.constantpool.InterfaceMethodRefEntry,int)" class="member-name-link">writeInvokeInterface</a><wbr>(<a href="../Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode,
  <a href="../constantpool/InterfaceMethodRefEntry.html" title="interface in jdk.classfile.constantpool">InterfaceMethodRefEntry</a>&nbsp;ref,
  int&nbsp;count)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeInvokeNormal(jdk.classfile.Opcode,jdk.classfile.constantpool.MemberRefEntry)" class="member-name-link">writeInvokeNormal</a><wbr>(<a href="../Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode,
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeInvokeNormal(jdk.classfile.Opcode,jdk.classfile.constantpool.MemberRefEntry)" class="member-name-link">writeInvokeNormal</a><wbr>(<a href="../Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode,
  <a href="../constantpool/MemberRefEntry.html" title="interface in jdk.classfile.constantpool">MemberRefEntry</a>&nbsp;ref)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeLoad(jdk.classfile.Opcode,int)" class="member-name-link">writeLoad</a><wbr>(<a href="../Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode,
- int&nbsp;localVar)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeLoadConstant(jdk.classfile.Opcode,jdk.classfile.constantpool.LoadableConstantEntry)" class="member-name-link">writeLoadConstant</a><wbr>(<a href="../Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode,
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeLoad(jdk.classfile.Opcode,int)" class="member-name-link">writeLoad</a><wbr>(<a href="../Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode,
+ int&nbsp;localVar)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeLoadConstant(jdk.classfile.Opcode,jdk.classfile.constantpool.LoadableConstantEntry)" class="member-name-link">writeLoadConstant</a><wbr>(<a href="../Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode,
  <a href="../constantpool/LoadableConstantEntry.html" title="interface in jdk.classfile.constantpool">LoadableConstantEntry</a>&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeLookupSwitch(jdk.classfile.Label,java.util.List)" class="member-name-link">writeLookupSwitch</a><wbr>(<a href="../Label.html" title="interface in jdk.classfile">Label</a>&nbsp;defaultTarget,
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeLookupSwitch(jdk.classfile.Label,java.util.List)" class="member-name-link">writeLookupSwitch</a><wbr>(<a href="../Label.html" title="interface in jdk.classfile">Label</a>&nbsp;defaultTarget,
  <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../instruction/SwitchCase.html" title="interface in jdk.classfile.instruction">SwitchCase</a>&gt;&nbsp;cases)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeNewMultidimensionalArray(int,jdk.classfile.constantpool.ClassEntry)" class="member-name-link">writeNewMultidimensionalArray</a><wbr>(int&nbsp;dimensions,
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeNewMultidimensionalArray(int,jdk.classfile.constantpool.ClassEntry)" class="member-name-link">writeNewMultidimensionalArray</a><wbr>(int&nbsp;dimensions,
  <a href="../constantpool/ClassEntry.html" title="interface in jdk.classfile.constantpool">ClassEntry</a>&nbsp;type)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeNewObject(jdk.classfile.constantpool.ClassEntry)" class="member-name-link">writeNewObject</a><wbr>(<a href="../constantpool/ClassEntry.html" title="interface in jdk.classfile.constantpool">ClassEntry</a>&nbsp;type)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeNewPrimitiveArray(int)" class="member-name-link">writeNewPrimitiveArray</a><wbr>(int&nbsp;newArrayCode)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeNewObject(jdk.classfile.constantpool.ClassEntry)" class="member-name-link">writeNewObject</a><wbr>(<a href="../constantpool/ClassEntry.html" title="interface in jdk.classfile.constantpool">ClassEntry</a>&nbsp;type)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeNewReferenceArray(jdk.classfile.constantpool.ClassEntry)" class="member-name-link">writeNewReferenceArray</a><wbr>(<a href="../constantpool/ClassEntry.html" title="interface in jdk.classfile.constantpool">ClassEntry</a>&nbsp;type)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeNewPrimitiveArray(int)" class="member-name-link">writeNewPrimitiveArray</a><wbr>(int&nbsp;newArrayCode)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeStore(jdk.classfile.Opcode,int)" class="member-name-link">writeStore</a><wbr>(<a href="../Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode,
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeNewReferenceArray(jdk.classfile.constantpool.ClassEntry)" class="member-name-link">writeNewReferenceArray</a><wbr>(<a href="../constantpool/ClassEntry.html" title="interface in jdk.classfile.constantpool">ClassEntry</a>&nbsp;type)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeStore(jdk.classfile.Opcode,int)" class="member-name-link">writeStore</a><wbr>(<a href="../Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode,
  int&nbsp;localVar)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeTableSwitch(int,int,jdk.classfile.Label,java.util.List)" class="member-name-link">writeTableSwitch</a><wbr>(int&nbsp;low,
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeTableSwitch(int,int,jdk.classfile.Label,java.util.List)" class="member-name-link">writeTableSwitch</a><wbr>(int&nbsp;low,
  int&nbsp;high,
  <a href="../Label.html" title="interface in jdk.classfile">Label</a>&nbsp;defaultTarget,
  <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../instruction/SwitchCase.html" title="interface in jdk.classfile.instruction">SwitchCase</a>&gt;&nbsp;cases)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeTypeCheck(jdk.classfile.Opcode,jdk.classfile.constantpool.ClassEntry)" class="member-name-link">writeTypeCheck</a><wbr>(<a href="../Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode,
- <a href="../constantpool/ClassEntry.html" title="interface in jdk.classfile.constantpool">ClassEntry</a>&nbsp;type)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#writeTypeCheck(jdk.classfile.Opcode,jdk.classfile.constantpool.ClassEntry)" class="member-name-link">writeTypeCheck</a><wbr>(<a href="../Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode,
+ <a href="../constantpool/ClassEntry.html" title="interface in jdk.classfile.constantpool">ClassEntry</a>&nbsp;type)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -445,6 +448,12 @@ implements <a href="TerminalCodeBuilder.html" title="interface in jdk.classfile.
 <section class="detail" id="curPc()">
 <h3>curPc</h3>
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">int</span>&nbsp;<span class="element-name">curPc</span>()</div>
+</section>
+</li>
+<li>
+<section class="detail" id="methodInfo()">
+<h3>methodInfo</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="MethodInfo.html" title="interface in jdk.classfile.impl">MethodInfo</a></span>&nbsp;<span class="element-name">methodInfo</span>()</div>
 </section>
 </li>
 <li>
