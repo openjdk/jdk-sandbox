@@ -73,7 +73,7 @@
  <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>78</b>%(58/74)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  78"></td><td class="percentUnCovered" width="22"></td></tr></table></td></tr></table></td>
  <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>81</b>%(364/449)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  81"></td><td class="percentUnCovered" width="19"></td></tr></table></td></tr></table></td>
  <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>72</b>%(235/326)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  72"></td><td class="percentUnCovered" width="28"></td></tr></table></td></tr></table></td>
- <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>81</b>%(533/652)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  81"></td><td class="percentUnCovered" width="19"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>81</b>%(535/654)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  81"></td><td class="percentUnCovered" width="19"></td></tr></table></td></tr></table></td>
  </tr>
  </table>
  <br>
@@ -345,13 +345,13 @@
  </tr>
  <tr class="report">
  <td class="reportValue_covered"><span class="text">12</span></td>
- <td class="reportText"><span class="text"><a href="#src_953">annotationsToTree</a></span></td>
+ <td class="reportText"><span class="text"><a href="#src_955">annotationsToTree</a></span></td>
  <td class="reportText"><span class="text">[private, static]</span></td>
  <td class="reportText"><span class="text">jdk.classfile.ClassPrinter$Node annotationsToTree(java.lang.String,java.util.List)</span></td>
  </tr>
  <tr class="report">
  <td class="reportValue_covered"><span class="text">71</span></td>
- <td class="reportText"><span class="text"><a href="#src_841">attributesToTree</a></span></td>
+ <td class="reportText"><span class="text"><a href="#src_843">attributesToTree</a></span></td>
  <td class="reportText"><span class="text">[private, static]</span></td>
  <td class="reportText"><span class="text">jdk.classfile.ClassPrinter$Node[] attributesToTree(java.util.List,jdk.classfile.ClassPrinter$Verbosity)</span></td>
  </tr>
@@ -365,7 +365,7 @@
  <td class="reportValue_covered"><span class="text">23</span></td>
  <td class="reportText"><span class="text"><a href="#src_676">codeToTree</a></span></td>
  <td class="reportText"><span class="text">[private, static]</span></td>
- <td class="reportText"><span class="text">jdk.classfile.ClassPrinter$MapNode codeToTree(jdk.classfile.CodeModel,jdk.classfile.ClassPrinter$Verbosity)</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.ClassPrinter$MapNode codeToTree(jdk.classfile.impl.CodeImpl,jdk.classfile.ClassPrinter$Verbosity)</span></td>
  </tr>
  <tr class="report">
  <td class="reportValue_covered"><span class="text">13</span></td>
@@ -374,10 +374,10 @@
  <td class="reportText"><span class="text">jdk.classfile.ClassPrinter$Node[] constantPoolToTree(jdk.classfile.constantpool.ConstantPool,jdk.classfile.ClassPrinter$Verbosity)</span></td>
  </tr>
  <tr class="report">
- <td class="reportValue_covered"><span class="text">168</span></td>
+ <td class="reportValue_covered"><span class="text">149</span></td>
  <td class="reportText"><span class="text"><a href="#src_516">convertVTIs</a></span></td>
  <td class="reportText"><span class="text">[private, static]</span></td>
- <td class="reportText"><span class="text">java.util.stream.Stream convertVTIs(int,java.util.List)</span></td>
+ <td class="reportText"><span class="text">java.util.stream.Stream convertVTIs(jdk.classfile.impl.LabelResolver,java.util.List)</span></td>
  </tr>
  <tr class="report">
  <td class="reportValue_covered"><span class="text">42</span></td>
@@ -405,15 +405,15 @@
  </tr>
  <tr class="report">
  <td class="reportValue_covered"><span class="text">11</span></td>
- <td class="reportText"><span class="text"><a href="#src_996">forEachOffset</a></span></td>
+ <td class="reportText"><span class="text"><a href="#src_998">forEachOffset</a></span></td>
  <td class="reportText"><span class="text">[private, static]</span></td>
  <td class="reportText"><span class="text">void forEachOffset(jdk.classfile.TypeAnnotation,jdk.classfile.impl.LabelResolver,java.util.function.BiConsumer)</span></td>
  </tr>
  <tr class="report">
- <td class="reportValue_covered"><span class="text">84</span></td>
+ <td class="reportValue_covered"><span class="text">65</span></td>
  <td class="reportText"><span class="text"><a href="#src_651">frameToTree</a></span></td>
  <td class="reportText"><span class="text">[private, static]</span></td>
- <td class="reportText"><span class="text">jdk.classfile.ClassPrinter$Node frameToTree(java.lang.constant.ConstantDesc,jdk.classfile.attribute.StackMapTableAttribute$StackMapFrame)</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.ClassPrinter$Node frameToTree(java.lang.constant.ConstantDesc,jdk.classfile.impl.LabelResolver,jdk.classfile.attribute.StackMapTableAttribute$StackMapFrameInfo)</span></td>
  </tr>
  <tr class="report">
  <td class="reportValue_covered"><span class="text">3895</span></td>
@@ -435,7 +435,7 @@
  </tr>
  <tr class="report">
  <td class="reportValue_covered"><span class="text">285</span></td>
- <td class="reportText"><span class="text"><a href="#src_984">localInfoToTree</a></span></td>
+ <td class="reportText"><span class="text"><a href="#src_986">localInfoToTree</a></span></td>
  <td class="reportText"><span class="text">[private, static]</span></td>
  <td class="reportText"><span class="text">jdk.classfile.ClassPrinter$Node[] localInfoToTree(java.util.List,int,int)</span></td>
  </tr>
@@ -459,7 +459,7 @@
  </tr>
  <tr class="report">
  <td class="reportValue_covered"><span class="text">8</span></td>
- <td class="reportText"><span class="text"><a href="#src_970">parameterAnnotationsToTree</a></span></td>
+ <td class="reportText"><span class="text"><a href="#src_972">parameterAnnotationsToTree</a></span></td>
  <td class="reportText"><span class="text">[private, static]</span></td>
  <td class="reportText"><span class="text">jdk.classfile.impl.ClassPrinterImpl$MapNodeImpl parameterAnnotationsToTree(java.lang.String,java.util.List)</span></td>
  </tr>
@@ -519,7 +519,7 @@
  </tr>
  <tr class="report">
  <td class="reportValue_covered"><span class="text">20</span></td>
- <td class="reportText"><span class="text"><a href="#src_961">typeAnnotationsToTree</a></span></td>
+ <td class="reportText"><span class="text"><a href="#src_963">typeAnnotationsToTree</a></span></td>
  <td class="reportText"><span class="text">[private, static]</span></td>
  <td class="reportText"><span class="text">jdk.classfile.ClassPrinter$Node typeAnnotationsToTree(jdk.classfile.impl.ClassPrinterImpl$Style,java.lang.String,java.util.List)</span></td>
  </tr>
@@ -3105,7 +3105,7 @@
  <tr>
  <td class="numLine">&nbsp;515</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> Stream&#60;ConstantDesc&#62; convertVTIs(<span Class="keyword">int</span> bci, List&#60;StackMapTableAttribute.VerificationTypeInfo&#62; vtis) {</pre></td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> Stream&#60;ConstantDesc&#62; convertVTIs(LabelResolver lr, List&#60;StackMapTableAttribute.VerificationTypeInfo&#62; vtis) {</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;516<a name="src_516"></a></td>
@@ -3125,7 +3125,7 @@
  <tr>
  <td class="numLineCover">&nbsp;519<a name="src_519"></a></td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">switch</span> (s.type()) {</pre></td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">switch</span> (s) {</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;520</td>
@@ -3230,7 +3230,7 @@
  <tr>
  <td class="numLineUnCover">&nbsp;540</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                    ret.accept(<span Class="string">"UNITIALIZED @"</span> + (bci + u.offset()));</pre></td>
+ <td class="src"><pre class="src">&nbsp;                    ret.accept(<span Class="string">"UNITIALIZED @"</span> + lr.labelToBci(u.newTarget()));</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;541</td>
@@ -3290,7 +3290,7 @@
  <tr>
  <td class="numLineCover">&nbsp;552</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> CodeModel com -&#62; codeToTree(com, verbosity);</pre></td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> CodeModel com -&#62; codeToTree((CodeImpl)com, verbosity);</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;553</td>
@@ -3780,7 +3780,7 @@
  <tr>
  <td class="numLine">&nbsp;650</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> Node frameToTree(ConstantDesc name, StackMapFrame f) {</pre></td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> Node frameToTree(ConstantDesc name, LabelResolver lr, StackMapFrameInfo f) {</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;651<a name="src_651"></a></td>
@@ -3790,12 +3790,12 @@
  <tr>
  <td class="numLineCover">&nbsp;652</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                list(<span Class="string">"locals"</span>, <span Class="string">"item"</span>, convertVTIs(f.absoluteOffset(), f.effectiveLocals())),</pre></td>
+ <td class="src"><pre class="src">&nbsp;                list(<span Class="string">"locals"</span>, <span Class="string">"item"</span>, convertVTIs(lr, f.locals())),</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;653</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                list(<span Class="string">"stack"</span>, <span Class="string">"item"</span>, convertVTIs(f.absoluteOffset(), f.effectiveStack())));</pre></td>
+ <td class="src"><pre class="src">&nbsp;                list(<span Class="string">"stack"</span>, <span Class="string">"item"</span>, convertVTIs(lr, f.stack())));</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;654</td>
@@ -3890,7 +3890,7 @@
  <tr>
  <td class="numLineCover">&nbsp;672</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                .with(codeToTree(m.code().orElse(<span Class="keyword">null</span>), verbosity));</pre></td>
+ <td class="src"><pre class="src">&nbsp;                .with(codeToTree((CodeImpl)m.code().orElse(<span Class="keyword">null</span>), verbosity));</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;673</td>
@@ -3905,7 +3905,7 @@
  <tr>
  <td class="numLine">&nbsp;675</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> MapNode codeToTree(CodeModel com, Verbosity verbosity) {</pre></td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> MapNode codeToTree(CodeImpl com, Verbosity verbosity) {</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;676<a name="src_676"></a></td>
@@ -3975,7 +3975,7 @@
  <tr>
  <td class="numLineCover">&nbsp;689</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                        stackMap.with(frameToTree(smf.absoluteOffset(), smf));</pre></td>
+ <td class="src"><pre class="src">&nbsp;                        stackMap.with(frameToTree(com.labelToBci(smf.target()), com, smf));</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;690</td>
@@ -4245,392 +4245,392 @@
  <tr>
  <td class="numLineCover">&nbsp;743</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                codeNode.with(frameToTree(<span Class="string">"//stack map frame @0"</span>, StackMapDecoder.initFrame(com.parent().get())));</pre></td>
+ <td class="src"><pre class="src">&nbsp;                codeNode.with(<span Class="keyword">new</span> MapNodeImpl(FLOW, <span Class="string">"//stack map frame @0"</span>).with(</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;744</td>
+ <td class="numLineCover">&nbsp;744</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    list(<span Class="string">"locals"</span>, <span Class="string">"item"</span>, convertVTIs(com, StackMapDecoder.initFrameLocals(com.parent().get()))),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;745</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    list(<span Class="string">"stack"</span>, <span Class="string">"item"</span>, Stream.of())));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;746</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;            }</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;745<a name="src_745"></a></td>
+ <td class="numLineCover">&nbsp;747<a name="src_747"></a></td>
  <td class="nbHitsUncovered">&nbsp;Block:&nbsp;3/3&nbsp;Branch:&nbsp;0/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;            var excHandlers = com.exceptionHandlers().stream().map(exc -&#62; <span Class="keyword">new</span> ExceptionHandler(com.labelToBci(exc.tryStart()), com.labelToBci(exc.tryEnd()), com.labelToBci(exc.handler()), exc.catchType().map(ct -&#62; ct.name().stringValue()).orElse(<span Class="keyword">null</span>))).toList();</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;746</td>
+ <td class="numLineCover">&nbsp;748</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;            <span Class="keyword">int</span> bci = 0;</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;747</td>
+ <td class="numLineCover">&nbsp;749</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;            <span Class="keyword">for</span> (var coe : com) {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;748</td>
+ <td class="numLineCover">&nbsp;750</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">if</span> (coe <span Class="keyword">instanceof</span> Instruction ins) {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;749</td>
+ <td class="numLineCover">&nbsp;751</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    var frame = stackMap.get(bci);</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;750</td>
+ <td class="numLineCover">&nbsp;752</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">if</span> (frame != <span Class="keyword">null</span>) {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;751</td>
+ <td class="numLineCover">&nbsp;753</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        codeNode.with(<span Class="keyword">new</span> MapNodeImpl(FLOW, <span Class="string">"//stack map frame @"</span> + bci).with(((MapNodeImpl)frame).values().toArray(<span Class="keyword">new</span> Node[2])));</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;752</td>
+ <td class="numLine">&nbsp;754</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    }</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;753</td>
+ <td class="numLineCover">&nbsp;755</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    var annos = invisibleTypeAnnos.get(bci);</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;754</td>
+ <td class="numLineCover">&nbsp;756</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">if</span> (annos != <span Class="keyword">null</span>) {</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;755</td>
+ <td class="numLineUnCover">&nbsp;757</td>
  <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        codeNode.with(typeAnnotationsToTree(FLOW, <span Class="string">"//invisible type annotations @"</span> + bci, annos));</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;756</td>
+ <td class="numLine">&nbsp;758</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    }</pre></td>
- </tr>
- <tr>
- <td class="numLineCover">&nbsp;757</td>
- <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                    annos = visibleTypeAnnos.get(bci);</pre></td>
- </tr>
- <tr>
- <td class="numLineCover">&nbsp;758</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">if</span> (annos != <span Class="keyword">null</span>) {</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;759</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    annos = visibleTypeAnnos.get(bci);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;760</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">if</span> (annos != <span Class="keyword">null</span>) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;761</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        codeNode.with(typeAnnotationsToTree(FLOW, <span Class="string">"//visible type annotations @"</span> + bci, annos));</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;760</td>
+ <td class="numLine">&nbsp;762</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    }</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;761</td>
+ <td class="numLineCover">&nbsp;763</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;2/2&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">for</span> (<span Class="keyword">int</span> i = 0; i &#60; excHandlers.size(); i++) {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;762</td>
+ <td class="numLineCover">&nbsp;764</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        var exc = excHandlers.get(i);</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;763</td>
+ <td class="numLineCover">&nbsp;765</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">if</span> (exc.start() == bci) {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;764</td>
+ <td class="numLineCover">&nbsp;766</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                            codeNode.with(map(<span Class="string">"//try block "</span> + (i + 1) + <span Class="string">" start"</span>, <span Class="string">"start"</span>, exc.start(), <span Class="string">"end"</span>, exc.end(), <span Class="string">"handler"</span>, exc.handler(), <span Class="string">"catch type"</span>, exc.catchType()));</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;765</td>
+ <td class="numLine">&nbsp;767</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        }</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;766</td>
+ <td class="numLineCover">&nbsp;768</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">if</span> (exc.end() == bci) {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;767</td>
+ <td class="numLineCover">&nbsp;769</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                            codeNode.with(map(<span Class="string">"//try block "</span> + (i + 1) + <span Class="string">" end"</span>, <span Class="string">"start"</span>, exc.start(), <span Class="string">"end"</span>, exc.end(), <span Class="string">"handler"</span>, exc.handler(), <span Class="string">"catch type"</span>, exc.catchType()));</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;768</td>
+ <td class="numLine">&nbsp;770</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        }</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;769</td>
+ <td class="numLineCover">&nbsp;771</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">if</span> (exc.handler() == bci) {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;770</td>
+ <td class="numLineCover">&nbsp;772</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                            codeNode.with(map(<span Class="string">"//exception handler "</span> + (i + 1) + <span Class="string">" start"</span>, <span Class="string">"start"</span>, exc.start(), <span Class="string">"end"</span>, exc.end(), <span Class="string">"handler"</span>, exc.handler(), <span Class="string">"catch type"</span>, exc.catchType()));</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;771</td>
+ <td class="numLine">&nbsp;773</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        }</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;772</td>
+ <td class="numLine">&nbsp;774</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    }</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;773</td>
+ <td class="numLineCover">&nbsp;775</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    var in = <span Class="keyword">new</span> MapNodeImpl(FLOW, bci).with(leaf(<span Class="string">"opcode"</span>, ins.opcode().name()));</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;774</td>
+ <td class="numLineCover">&nbsp;776</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    codeNode.with(in);</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;775</td>
+ <td class="numLineCover">&nbsp;777</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">switch</span> (coe) {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;776</td>
+ <td class="numLineCover">&nbsp;778</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">case</span> IncrementInstruction inc -&#62;  in.with(leafs(</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;777</td>
+ <td class="numLineCover">&nbsp;779</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                <span Class="string">"slot"</span>, inc.slot(),</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;778</td>
+ <td class="numLineCover">&nbsp;780</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                <span Class="string">"const"</span>, inc.constant()))</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;779</td>
+ <td class="numLineCover">&nbsp;781</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                .with(localInfoToTree(locals, inc.slot(), bci));</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;780</td>
+ <td class="numLineCover">&nbsp;782</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">case</span> LoadInstruction lv -&#62;  in.with(leaf(</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;781</td>
+ <td class="numLineCover">&nbsp;783</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                <span Class="string">"slot"</span>, lv.slot()))</pre></td>
- </tr>
- <tr>
- <td class="numLineCover">&nbsp;782</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                                .with(localInfoToTree(locals, lv.slot(), bci));</pre></td>
- </tr>
- <tr>
- <td class="numLineCover">&nbsp;783</td>
- <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">case</span> StoreInstruction lv -&#62;  in.with(leaf(</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;784</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                                <span Class="string">"slot"</span>, lv.slot()))</pre></td>
- </tr>
- <tr>
- <td class="numLineCover">&nbsp;785</td>
- <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                .with(localInfoToTree(locals, lv.slot(), bci));</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;786</td>
+ <td class="numLineCover">&nbsp;785</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">case</span> FieldInstruction fa -&#62; in.with(leafs(</pre></td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">case</span> StoreInstruction lv -&#62;  in.with(leaf(</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;786</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                <span Class="string">"slot"</span>, lv.slot()))</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;787</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                                <span Class="string">"owner"</span>, fa.owner().name().stringValue(),</pre></td>
+ <td class="src"><pre class="src">&nbsp;                                .with(localInfoToTree(locals, lv.slot(), bci));</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;788</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                                <span Class="string">"field name"</span>, fa.name().stringValue(),</pre></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">case</span> FieldInstruction fa -&#62; in.with(leafs(</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;789</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                                <span Class="string">"field type"</span>, fa.type().stringValue()));</pre></td>
+ <td class="src"><pre class="src">&nbsp;                                <span Class="string">"owner"</span>, fa.owner().name().stringValue(),</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;790</td>
- <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">case</span> InvokeInstruction inv -&#62; in.with(leafs(</pre></td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                <span Class="string">"field name"</span>, fa.name().stringValue(),</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;791</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                                <span Class="string">"owner"</span>, inv.owner().name().stringValue(),</pre></td>
+ <td class="src"><pre class="src">&nbsp;                                <span Class="string">"field type"</span>, fa.type().stringValue()));</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;792</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                                <span Class="string">"method name"</span>, inv.name().stringValue(),</pre></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">case</span> InvokeInstruction inv -&#62; in.with(leafs(</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;793</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                                <span Class="string">"method type"</span>, inv.type().stringValue()));</pre></td>
+ <td class="src"><pre class="src">&nbsp;                                <span Class="string">"owner"</span>, inv.owner().name().stringValue(),</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;794</td>
- <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">case</span> InvokeDynamicInstruction invd -&#62; in.with(leafs(</pre></td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                <span Class="string">"method name"</span>, inv.name().stringValue(),</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;795</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                                <span Class="string">"name"</span>, invd.name().stringValue(),</pre></td>
+ <td class="src"><pre class="src">&nbsp;                                <span Class="string">"method type"</span>, inv.type().stringValue()));</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;796</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                                <span Class="string">"descriptor"</span>, invd.type().stringValue(),</pre></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">case</span> InvokeDynamicInstruction invd -&#62; in.with(leafs(</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;797</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                                <span Class="string">"kind"</span>, invd.bootstrapMethod().kind().name(),</pre></td>
+ <td class="src"><pre class="src">&nbsp;                                <span Class="string">"name"</span>, invd.name().stringValue(),</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;798</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                                <span Class="string">"owner"</span>, invd.bootstrapMethod().owner().descriptorString(),</pre></td>
+ <td class="src"><pre class="src">&nbsp;                                <span Class="string">"descriptor"</span>, invd.type().stringValue(),</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;799</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                                <span Class="string">"method name"</span>, invd.bootstrapMethod().methodName(),</pre></td>
+ <td class="src"><pre class="src">&nbsp;                                <span Class="string">"kind"</span>, invd.bootstrapMethod().kind().name(),</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;800</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                                <span Class="string">"invocation type"</span>, invd.bootstrapMethod().invocationType().descriptorString()));</pre></td>
+ <td class="src"><pre class="src">&nbsp;                                <span Class="string">"owner"</span>, invd.bootstrapMethod().owner().descriptorString(),</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;801</td>
- <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">case</span> NewObjectInstruction newo -&#62; in.with(leaf(</pre></td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                <span Class="string">"method name"</span>, invd.bootstrapMethod().methodName(),</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;802</td>
  <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                <span Class="string">"invocation type"</span>, invd.bootstrapMethod().invocationType().descriptorString()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;803</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">case</span> NewObjectInstruction newo -&#62; in.with(leaf(</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;804</td>
+ <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                <span Class="string">"type"</span>, newo.className().name().stringValue()));</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;803</td>
+ <td class="numLineUnCover">&nbsp;805</td>
  <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">case</span> NewPrimitiveArrayInstruction newa -&#62; in.with(leafs(</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;804</td>
+ <td class="numLineUnCover">&nbsp;806</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                <span Class="string">"dimensions"</span>, 1,</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;805</td>
+ <td class="numLineUnCover">&nbsp;807</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                <span Class="string">"descriptor"</span>, newa.typeKind().typeName()));</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;806</td>
+ <td class="numLineCover">&nbsp;808</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">case</span> NewReferenceArrayInstruction newa -&#62; in.with(leafs(</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;807</td>
+ <td class="numLineCover">&nbsp;809</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                <span Class="string">"dimensions"</span>, 1,</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;808</td>
+ <td class="numLineCover">&nbsp;810</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                <span Class="string">"descriptor"</span>, newa.componentType().name().stringValue()));</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;809</td>
+ <td class="numLineUnCover">&nbsp;811</td>
  <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">case</span> NewMultiArrayInstruction newa -&#62; in.with(leafs(</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;810</td>
+ <td class="numLineUnCover">&nbsp;812</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                <span Class="string">"dimensions"</span>, newa.dimensions(),</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;811</td>
+ <td class="numLineUnCover">&nbsp;813</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                <span Class="string">"descriptor"</span>, newa.arrayType().name().stringValue()));</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;812</td>
+ <td class="numLineCover">&nbsp;814</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">case</span> TypeCheckInstruction tch -&#62; in.with(leaf(</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;813</td>
+ <td class="numLineCover">&nbsp;815</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                <span Class="string">"type"</span>, tch.type().name().stringValue()));</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;814</td>
+ <td class="numLineCover">&nbsp;816</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">case</span> ConstantInstruction cons -&#62; in.with(leaf(</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;815</td>
+ <td class="numLineCover">&nbsp;817</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                <span Class="string">"constant value"</span>, cons.constantValue()));</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;816</td>
+ <td class="numLineCover">&nbsp;818</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">case</span> BranchInstruction br -&#62; in.with(leaf(</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;817</td>
+ <td class="numLineCover">&nbsp;819</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                <span Class="string">"target"</span>, com.labelToBci(br.target())));</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;818</td>
- <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">case</span> LookupSwitchInstruction si -&#62; in.with(list(</pre></td>
- </tr>
- <tr>
- <td class="numLineUnCover">&nbsp;819<a name="src_819"></a></td>
- <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                                <span Class="string">"targets"</span>, <span Class="string">"target"</span>, Stream.concat(Stream.of(si.defaultTarget()).map(com::labelToBci), si.cases().stream().map(sc -&#62; com.labelToBci(sc.target())))));</pre></td>
- </tr>
- <tr>
  <td class="numLineUnCover">&nbsp;820</td>
  <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">case</span> TableSwitchInstruction si -&#62; in.with(list(</pre></td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">case</span> LookupSwitchInstruction si -&#62; in.with(list(</pre></td>
  </tr>
  <tr>
  <td class="numLineUnCover">&nbsp;821<a name="src_821"></a></td>
@@ -4638,689 +4638,689 @@
  <td class="src"><pre class="src">&nbsp;                                <span Class="string">"targets"</span>, <span Class="string">"target"</span>, Stream.concat(Stream.of(si.defaultTarget()).map(com::labelToBci), si.cases().stream().map(sc -&#62; com.labelToBci(sc.target())))));</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;822</td>
+ <td class="numLineUnCover">&nbsp;822</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">case</span> TableSwitchInstruction si -&#62; in.with(list(</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;823<a name="src_823"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                <span Class="string">"targets"</span>, <span Class="string">"target"</span>, Stream.concat(Stream.of(si.defaultTarget()).map(com::labelToBci), si.cases().stream().map(sc -&#62; com.labelToBci(sc.target())))));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;824</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">default</span> -&#62; {}</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;823</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                    }</pre></td>
- </tr>
- <tr>
- <td class="numLineCover">&nbsp;824</td>
- <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                    bci += ins.sizeInBytes();</pre></td>
- </tr>
- <tr>
  <td class="numLine">&nbsp;825</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ <td class="src"><pre class="src">&nbsp;                    }</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;826</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ <td class="src"><pre class="src">&nbsp;                    bci += ins.sizeInBytes();</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;827</td>
- <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (!excHandlers.isEmpty()) {</pre></td>
+ <td class="numLine">&nbsp;827</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;828</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                var handlersNode = <span Class="keyword">new</span> MapNodeImpl(BLOCK, <span Class="string">"exception handlers"</span>);</pre></td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;829</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (!excHandlers.isEmpty()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;830</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                var handlersNode = <span Class="keyword">new</span> MapNodeImpl(BLOCK, <span Class="string">"exception handlers"</span>);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;831</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                codeNode.with(handlersNode);</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;830</td>
+ <td class="numLineCover">&nbsp;832</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">for</span> (<span Class="keyword">int</span> i = 0; i &#60; excHandlers.size(); i++) {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;831</td>
+ <td class="numLineCover">&nbsp;833</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    var exc = excHandlers.get(i);</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;832</td>
+ <td class="numLineCover">&nbsp;834</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    handlersNode.with(map(<span Class="string">"handler "</span> + (i + 1), <span Class="string">"start"</span>, exc.start(), <span Class="string">"end"</span>, exc.end(), <span Class="string">"handler"</span>, exc.handler(), <span Class="string">"type"</span>, exc.catchType()));</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;833</td>
+ <td class="numLine">&nbsp;835</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                }</pre></td>
- </tr>
- <tr>
- <td class="numLine">&nbsp;834</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;            }</pre></td>
- </tr>
- <tr>
- <td class="numLineCover">&nbsp;835</td>
- <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;2/2&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> codeNode;</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;836</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
  </tr>
  <tr>
  <td class="numLineCover">&nbsp;837</td>
- <td class="nbHitsUncovered">&nbsp;Block:&nbsp;9/9&nbsp;Branch:&nbsp;4/5&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">null</span>;</pre></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> codeNode;</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;838</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;839</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;</pre></td>
+ <td class="numLineCover">&nbsp;839</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;9/9&nbsp;Branch:&nbsp;4/5&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">null</span>;</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;840</td>
  <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;841</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;842</td>
+ <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> Node[] attributesToTree(List&#60;Attribute&#60;?&#62;&#62; attributes, Verbosity verbosity) {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;841<a name="src_841"></a></td>
+ <td class="numLineCover">&nbsp;843<a name="src_843"></a></td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;        var nodes = <span Class="keyword">new</span> LinkedList&#60;Node&#62;();</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;842</td>
+ <td class="numLineCover">&nbsp;844</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (verbosity != Verbosity.MEMBERS_ONLY) <span Class="keyword">for</span> (var attr : attributes) {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;843</td>
+ <td class="numLineCover">&nbsp;845</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;            <span Class="keyword">switch</span> (attr) {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;844</td>
+ <td class="numLineCover">&nbsp;846</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> BootstrapMethodsAttribute bma -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;845</td>
+ <td class="numLineCover">&nbsp;847</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    nodes.add(<span Class="keyword">new</span> ListNodeImpl(BLOCK, <span Class="string">"bootstrap methods"</span>, bma.bootstrapMethods().stream().map(</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;846</td>
+ <td class="numLine">&nbsp;848</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    bm -&#62; {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;847<a name="src_847"></a></td>
+ <td class="numLineCover">&nbsp;849<a name="src_849"></a></td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        var mh = bm.bootstrapMethod();</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;848</td>
+ <td class="numLineCover">&nbsp;850</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        var mref = mh.reference();</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;849</td>
+ <td class="numLineCover">&nbsp;851</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">return</span> map(<span Class="string">"bm"</span>,</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;850</td>
+ <td class="numLineCover">&nbsp;852</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                <span Class="string">"kind"</span>, DirectMethodHandleDesc.Kind.valueOf(mh.kind(), mref.isInterface()).name(),</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;851</td>
+ <td class="numLineCover">&nbsp;853</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                <span Class="string">"owner"</span>, mref.owner().name().stringValue(),</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;852</td>
+ <td class="numLineCover">&nbsp;854</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                <span Class="string">"name"</span>, mref.nameAndType().name().stringValue(),</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;853</td>
+ <td class="numLineCover">&nbsp;855</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                <span Class="string">"type"</span>, mref.nameAndType().type().stringValue(),</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;854</td>
+ <td class="numLineCover">&nbsp;856</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                <span Class="string">"is interface"</span>, String.valueOf(mref.isInterface()),</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;855</td>
+ <td class="numLineCover">&nbsp;857</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                <span Class="string">"is method"</span>, String.valueOf(mref.isMethod()));</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;856</td>
+ <td class="numLine">&nbsp;858</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    })));</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;857</td>
+ <td class="numLineUnCover">&nbsp;859</td>
  <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> ConstantValueAttribute cva -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;858</td>
+ <td class="numLineUnCover">&nbsp;860</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    nodes.add(leaf(<span Class="string">"constant value"</span>, cva.constant().constantValue()));</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;859</td>
+ <td class="numLineCover">&nbsp;861</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> NestHostAttribute nha -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;860</td>
+ <td class="numLineCover">&nbsp;862</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    nodes.add(leaf(<span Class="string">"nest host"</span>, nha.nestHost().name().stringValue()));</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;861</td>
+ <td class="numLineCover">&nbsp;863</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> NestMembersAttribute nma -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;862<a name="src_862"></a></td>
+ <td class="numLineCover">&nbsp;864<a name="src_864"></a></td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    nodes.add(list(<span Class="string">"nest members"</span>, <span Class="string">"member"</span>, nma.nestMembers().stream().map(mp -&#62; mp.name().stringValue())));</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;863</td>
+ <td class="numLineCover">&nbsp;865</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> PermittedSubclassesAttribute psa -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;864<a name="src_864"></a></td>
+ <td class="numLineCover">&nbsp;866<a name="src_866"></a></td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    nodes.add(list(<span Class="string">"permitted subclasses"</span>, <span Class="string">"subclass"</span>, psa.permittedSubclasses().stream().map(e -&#62; e.name().stringValue())));</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;865</td>
+ <td class="numLine">&nbsp;867</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">default</span> -&#62; {}</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;866</td>
+ <td class="numLine">&nbsp;868</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;            }</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;867</td>
+ <td class="numLineCover">&nbsp;869</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (verbosity == Verbosity.TRACE_ALL) <span Class="keyword">switch</span> (attr) {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;868</td>
+ <td class="numLineCover">&nbsp;870</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> EnclosingMethodAttribute ema -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;869</td>
+ <td class="numLineCover">&nbsp;871</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    nodes.add(map(<span Class="string">"enclosing method"</span>,</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;870</td>
+ <td class="numLineCover">&nbsp;872</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                            <span Class="string">"class"</span>, ema.enclosingClass().name().stringValue(),</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;871</td>
+ <td class="numLineCover">&nbsp;873</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                            <span Class="string">"method name"</span>, ema.enclosingMethodName().map(Utf8Entry::stringValue).orElse(<span Class="string">"null"</span>),</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;872</td>
+ <td class="numLineCover">&nbsp;874</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                            <span Class="string">"method type"</span>, ema.enclosingMethodType().map(Utf8Entry::stringValue).orElse(<span Class="string">"null"</span>)));</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;873</td>
+ <td class="numLineCover">&nbsp;875</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> ExceptionsAttribute exa -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;874<a name="src_874"></a></td>
+ <td class="numLineCover">&nbsp;876<a name="src_876"></a></td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    nodes.add(list(<span Class="string">"excceptions"</span>, <span Class="string">"exc"</span>, exa.exceptions().stream().map(e -&#62; e.name().stringValue())));</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;875</td>
+ <td class="numLineCover">&nbsp;877</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> InnerClassesAttribute ica -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;876</td>
+ <td class="numLineCover">&nbsp;878</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    nodes.add(<span Class="keyword">new</span> ListNodeImpl(BLOCK, <span Class="string">"inner classes"</span>, ica.classes().stream().map(ic -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;877<a name="src_877"></a></td>
+ <td class="numLineCover">&nbsp;879<a name="src_879"></a></td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">new</span> MapNodeImpl(FLOW, <span Class="string">"cls"</span>).with(</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;878</td>
+ <td class="numLineCover">&nbsp;880</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                leaf(<span Class="string">"inner class"</span>, ic.innerClass().name().stringValue()),</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;879<a name="src_879"></a></td>
+ <td class="numLineCover">&nbsp;881<a name="src_881"></a></td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                leaf(<span Class="string">"outer class"</span>, ic.outerClass().map(cle -&#62; cle.name().stringValue()).orElse(<span Class="string">"null"</span>)),</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;880</td>
+ <td class="numLineCover">&nbsp;882</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                leaf(<span Class="string">"inner name"</span>, ic.innerName().map(Utf8Entry::stringValue).orElse(<span Class="string">"null"</span>)),</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;881</td>
+ <td class="numLineCover">&nbsp;883</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                list(<span Class="string">"flags"</span>, <span Class="string">"flag"</span>, ic.flags().stream().map(AccessFlag::name))))));</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;882</td>
+ <td class="numLineCover">&nbsp;884</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> MethodParametersAttribute mpa -&#62; {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;883</td>
+ <td class="numLineCover">&nbsp;885</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    var n = <span Class="keyword">new</span> MapNodeImpl(BLOCK, <span Class="string">"method parameters"</span>);</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;884</td>
+ <td class="numLineCover">&nbsp;886</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">for</span> (<span Class="keyword">int</span> i = 0; i &#60; mpa.parameters().size(); i++) {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;885</td>
+ <td class="numLineCover">&nbsp;887</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        var p = mpa.parameters().get(i);</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;886</td>
+ <td class="numLineCover">&nbsp;888</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        n.with(<span Class="keyword">new</span> MapNodeImpl(FLOW, i + 1).with(</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;887</td>
+ <td class="numLineCover">&nbsp;889</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                leaf(<span Class="string">"name"</span>, p.name().map(Utf8Entry::stringValue).orElse(<span Class="string">"null"</span>)),</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;888</td>
+ <td class="numLineCover">&nbsp;890</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                list(<span Class="string">"flags"</span>, <span Class="string">"flag"</span>, p.flags().stream().map(AccessFlag::name))));</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;889</td>
+ <td class="numLine">&nbsp;891</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    }</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;890</td>
+ <td class="numLineCover">&nbsp;892</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                }</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;891</td>
+ <td class="numLineUnCover">&nbsp;893</td>
  <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> ModuleAttribute ma -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;892</td>
+ <td class="numLineUnCover">&nbsp;894</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    nodes.add(<span Class="keyword">new</span> MapNodeImpl(BLOCK, <span Class="string">"module"</span>)</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;893</td>
+ <td class="numLineUnCover">&nbsp;895</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                            .with(leaf(<span Class="string">"name"</span>, ma.moduleName().name().stringValue()),</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;894</td>
+ <td class="numLineUnCover">&nbsp;896</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                  list(<span Class="string">"flags"</span>, <span Class="string">"flag"</span>, ma.moduleFlags().stream().map(AccessFlag::name)),</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;895</td>
+ <td class="numLineUnCover">&nbsp;897</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                  leaf(<span Class="string">"version"</span>, ma.moduleVersion().map(Utf8Entry::stringValue).orElse(<span Class="string">"null"</span>)),</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;896<a name="src_896"></a></td>
+ <td class="numLineUnCover">&nbsp;898<a name="src_898"></a></td>
  <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                  list(<span Class="string">"uses"</span>, <span Class="string">"class"</span>, ma.uses().stream().map(ce -&#62; ce.name().stringValue())),</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;897</td>
+ <td class="numLineUnCover">&nbsp;899</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                  <span Class="keyword">new</span> ListNodeImpl(BLOCK, <span Class="string">"requires"</span>, ma.requires().stream().map(req -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;898<a name="src_898"></a></td>
+ <td class="numLineUnCover">&nbsp;900<a name="src_900"></a></td>
  <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                    <span Class="keyword">new</span> MapNodeImpl(FLOW, <span Class="string">"req"</span>).with(</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;899</td>
+ <td class="numLineUnCover">&nbsp;901</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                            leaf(<span Class="string">"name"</span>, req.requires().name().stringValue()),</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;900</td>
+ <td class="numLineUnCover">&nbsp;902</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                            list(<span Class="string">"flags"</span>, <span Class="string">"flag"</span>, req.requiresFlags().stream().map(AccessFlag::name)),</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;901</td>
+ <td class="numLineUnCover">&nbsp;903</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                            leaf(<span Class="string">"version"</span>, req.requiresVersion().map(Utf8Entry::stringValue).orElse(<span Class="keyword">null</span>))))),</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;902</td>
+ <td class="numLineUnCover">&nbsp;904</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                  <span Class="keyword">new</span> ListNodeImpl(BLOCK, <span Class="string">"exports"</span>, ma.exports().stream().map(exp -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;903<a name="src_903"></a></td>
+ <td class="numLineUnCover">&nbsp;905<a name="src_905"></a></td>
  <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                    <span Class="keyword">new</span> MapNodeImpl(FLOW, <span Class="string">"exp"</span>).with(</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;904</td>
+ <td class="numLineUnCover">&nbsp;906</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                            leaf(<span Class="string">"package"</span>, exp.exportedPackage().asSymbol().packageName()),</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;905</td>
+ <td class="numLineUnCover">&nbsp;907</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                            list(<span Class="string">"flags"</span>, <span Class="string">"flag"</span>, exp.exportsFlags().stream().map(AccessFlag::name)),</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;906<a name="src_906"></a></td>
+ <td class="numLineUnCover">&nbsp;908<a name="src_908"></a></td>
  <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                            list(<span Class="string">"to"</span>, <span Class="string">"module"</span>, exp.exportsTo().stream().map(me -&#62; me.name().stringValue()))))),</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;907</td>
+ <td class="numLineUnCover">&nbsp;909</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                  <span Class="keyword">new</span> ListNodeImpl(BLOCK, <span Class="string">"opens"</span>, ma.opens().stream().map(opn -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;908<a name="src_908"></a></td>
+ <td class="numLineUnCover">&nbsp;910<a name="src_910"></a></td>
  <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                    <span Class="keyword">new</span> MapNodeImpl(FLOW, <span Class="string">"opn"</span>).with(</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;909</td>
+ <td class="numLineUnCover">&nbsp;911</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                            leaf(<span Class="string">"package"</span>, opn.openedPackage().asSymbol().packageName()),</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;910</td>
+ <td class="numLineUnCover">&nbsp;912</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                            list(<span Class="string">"flags"</span>, <span Class="string">"flag"</span>, opn.opensFlags().stream().map(AccessFlag::name)),</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;911<a name="src_911"></a></td>
+ <td class="numLineUnCover">&nbsp;913<a name="src_913"></a></td>
  <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                            list(<span Class="string">"to"</span>, <span Class="string">"module"</span>, opn.opensTo().stream().map(me -&#62; me.name().stringValue()))))),</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;912</td>
+ <td class="numLineUnCover">&nbsp;914</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                  <span Class="keyword">new</span> ListNodeImpl(BLOCK, <span Class="string">"provides"</span>, ma.provides().stream().map(prov -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;913<a name="src_913"></a></td>
+ <td class="numLineUnCover">&nbsp;915<a name="src_915"></a></td>
  <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                    <span Class="keyword">new</span> MapNodeImpl(FLOW, <span Class="string">"prov"</span>).with(</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;914</td>
+ <td class="numLineUnCover">&nbsp;916</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                            leaf(<span Class="string">"class"</span>, prov.provides().name().stringValue()),</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;915<a name="src_915"></a></td>
+ <td class="numLineUnCover">&nbsp;917<a name="src_917"></a></td>
  <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                            list(<span Class="string">"with"</span>, <span Class="string">"cls"</span>, prov.providesWith().stream().map(ce -&#62; ce.name().stringValue())))))));</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;916</td>
+ <td class="numLineUnCover">&nbsp;918</td>
  <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> ModulePackagesAttribute mopa -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;917<a name="src_917"></a></td>
+ <td class="numLineUnCover">&nbsp;919<a name="src_919"></a></td>
  <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    nodes.add(list(<span Class="string">"module packages"</span>, <span Class="string">"subclass"</span>, mopa.packages().stream().map(mp -&#62; mp.asSymbol().packageName())));</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;918</td>
+ <td class="numLineUnCover">&nbsp;920</td>
  <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> ModuleMainClassAttribute mmca -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;919</td>
+ <td class="numLineUnCover">&nbsp;921</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    nodes.add(leaf(<span Class="string">"module main class"</span>, mmca.mainClass().name().stringValue()));</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;920</td>
+ <td class="numLineCover">&nbsp;922</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> RecordAttribute ra -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;921</td>
+ <td class="numLineCover">&nbsp;923</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    nodes.add(<span Class="keyword">new</span> ListNodeImpl(BLOCK, <span Class="string">"record components"</span>, ra.components().stream().map(rc -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;922<a name="src_922"></a></td>
+ <td class="numLineCover">&nbsp;924<a name="src_924"></a></td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                            <span Class="keyword">new</span> MapNodeImpl(BLOCK, <span Class="string">"record"</span>)</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;923</td>
+ <td class="numLineCover">&nbsp;925</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                .with(leafs(</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;924</td>
+ <td class="numLineCover">&nbsp;926</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                    <span Class="string">"name"</span>, rc.name().stringValue(),</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;925</td>
+ <td class="numLineCover">&nbsp;927</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                    <span Class="string">"type"</span>, rc.descriptor().stringValue()))</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;926</td>
+ <td class="numLineCover">&nbsp;928</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                .with(list(<span Class="string">"attributes"</span>, <span Class="string">"attribute"</span>, rc.attributes().stream().map(Attribute::attributeName)))</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;927</td>
+ <td class="numLineCover">&nbsp;929</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                .with(attributesToTree(rc.attributes(), verbosity)))));</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;928</td>
+ <td class="numLineCover">&nbsp;930</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> AnnotationDefaultAttribute ada -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;929</td>
+ <td class="numLineCover">&nbsp;931</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    nodes.add(<span Class="keyword">new</span> MapNodeImpl(FLOW, <span Class="string">"annotation default"</span>).with(elementValueToTree(ada.defaultValue())));</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;930</td>
+ <td class="numLineCover">&nbsp;932</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> RuntimeInvisibleAnnotationsAttribute aa -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;931</td>
+ <td class="numLineCover">&nbsp;933</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    nodes.add(annotationsToTree(<span Class="string">"invisible annotations"</span>, aa.annotations()));</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;932</td>
+ <td class="numLineCover">&nbsp;934</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> RuntimeVisibleAnnotationsAttribute aa -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;933</td>
+ <td class="numLineCover">&nbsp;935</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    nodes.add(annotationsToTree(<span Class="string">"visible annotations"</span>, aa.annotations()));</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;934</td>
+ <td class="numLineCover">&nbsp;936</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> RuntimeInvisibleParameterAnnotationsAttribute aa -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;935</td>
+ <td class="numLineCover">&nbsp;937</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    nodes.add(parameterAnnotationsToTree(<span Class="string">"invisible parameter annotations"</span>, aa.parameterAnnotations()));</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;936</td>
+ <td class="numLineCover">&nbsp;938</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> RuntimeVisibleParameterAnnotationsAttribute aa -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;937</td>
+ <td class="numLineCover">&nbsp;939</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    nodes.add(parameterAnnotationsToTree(<span Class="string">"visible parameter annotations"</span>, aa.parameterAnnotations()));</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;938</td>
+ <td class="numLineCover">&nbsp;940</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> RuntimeInvisibleTypeAnnotationsAttribute aa -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;939</td>
+ <td class="numLineCover">&nbsp;941</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    nodes.add(typeAnnotationsToTree(BLOCK, <span Class="string">"invisible type annotations"</span>, aa.annotations()));</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;940</td>
+ <td class="numLineCover">&nbsp;942</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> RuntimeVisibleTypeAnnotationsAttribute aa -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;941</td>
+ <td class="numLineCover">&nbsp;943</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    nodes.add(typeAnnotationsToTree(BLOCK, <span Class="string">"visible type annotations"</span>, aa.annotations()));</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;942</td>
+ <td class="numLineCover">&nbsp;944</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> SignatureAttribute sa -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;943</td>
+ <td class="numLineCover">&nbsp;945</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    nodes.add(leaf(<span Class="string">"signature"</span>, sa.signature().stringValue()));</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;944</td>
+ <td class="numLineCover">&nbsp;946</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">case</span> SourceFileAttribute sfa -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;945</td>
+ <td class="numLineCover">&nbsp;947</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                    nodes.add(leaf(<span Class="string">"source file"</span>, sfa.sourceFile().stringValue()));</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;946</td>
+ <td class="numLine">&nbsp;948</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">default</span> -&#62; {}</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;947</td>
+ <td class="numLine">&nbsp;949</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;            }</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;948</td>
+ <td class="numLineCover">&nbsp;950</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;2/2&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;        }</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;949<a name="src_949"></a></td>
+ <td class="numLineCover">&nbsp;951<a name="src_951"></a></td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;6/6&nbsp;Branch:&nbsp;4/4&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> nodes.toArray(Node[]::<span Class="keyword">new</span>);</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;950</td>
+ <td class="numLine">&nbsp;952</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;    }</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;951</td>
+ <td class="numLine">&nbsp;953</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;952</td>
+ <td class="numLine">&nbsp;954</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> Node annotationsToTree(String name, List&#60;Annotation&#62; annos) {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;953<a name="src_953"></a></td>
+ <td class="numLineCover">&nbsp;955<a name="src_955"></a></td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">new</span> ListNodeImpl(BLOCK, name, annos.stream().map(a -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;954<a name="src_954"></a></td>
+ <td class="numLineCover">&nbsp;956<a name="src_956"></a></td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                <span Class="keyword">new</span> MapNodeImpl(FLOW, <span Class="string">"anno"</span>)</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;955</td>
+ <td class="numLineCover">&nbsp;957</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        .with(leaf(<span Class="string">"annotation class"</span>, a.className().stringValue()))</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;956</td>
+ <td class="numLineCover">&nbsp;958</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                        .with(elementValuePairsToTree(a.elements()))));</pre></td>
- </tr>
- <tr>
- <td class="numLine">&nbsp;957</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;</pre></td>
- </tr>
- <tr>
- <td class="numLine">&nbsp;958</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    }</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;959</td>
@@ -5330,42 +5330,42 @@
  <tr>
  <td class="numLine">&nbsp;960</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> Node typeAnnotationsToTree(Style style, String name, List&#60;TypeAnnotation&#62; annos) {</pre></td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;961<a name="src_961"></a></td>
- <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">new</span> ListNodeImpl(style, name, annos.stream().map(a -&#62;</pre></td>
- </tr>
- <tr>
- <td class="numLineCover">&nbsp;962<a name="src_962"></a></td>
- <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                <span Class="keyword">new</span> MapNodeImpl(FLOW, <span Class="string">"anno"</span>)</pre></td>
- </tr>
- <tr>
- <td class="numLineCover">&nbsp;963</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                        .with(leaf(<span Class="string">"annotation class"</span>, a.className().stringValue()),</pre></td>
- </tr>
- <tr>
- <td class="numLineCover">&nbsp;964</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                              leaf(<span Class="string">"target info"</span>, a.targetInfo().targetType().name()))</pre></td>
- </tr>
- <tr>
- <td class="numLineCover">&nbsp;965</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                        .with(elementValuePairsToTree(a.elements()))));</pre></td>
- </tr>
- <tr>
- <td class="numLine">&nbsp;966</td>
+ <td class="numLine">&nbsp;961</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;967</td>
+ <td class="numLine">&nbsp;962</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> Node typeAnnotationsToTree(Style style, String name, List&#60;TypeAnnotation&#62; annos) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;963<a name="src_963"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">new</span> ListNodeImpl(style, name, annos.stream().map(a -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;964<a name="src_964"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">new</span> MapNodeImpl(FLOW, <span Class="string">"anno"</span>)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;965</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        .with(leaf(<span Class="string">"annotation class"</span>, a.className().stringValue()),</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;966</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                              leaf(<span Class="string">"target info"</span>, a.targetInfo().targetType().name()))</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;967</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        .with(elementValuePairsToTree(a.elements()))));</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;968</td>
@@ -5375,180 +5375,190 @@
  <tr>
  <td class="numLine">&nbsp;969</td>
  <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;970</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;971</td>
+ <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> MapNodeImpl parameterAnnotationsToTree(String name, List&#60;List&#60;Annotation&#62;&#62; paramAnnotations) {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;970<a name="src_970"></a></td>
+ <td class="numLineCover">&nbsp;972<a name="src_972"></a></td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;        var node = <span Class="keyword">new</span> MapNodeImpl(BLOCK, name);</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;971</td>
+ <td class="numLineCover">&nbsp;973</td>
  <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;        <span Class="keyword">for</span> (<span Class="keyword">int</span> i = 0; i &#60; paramAnnotations.size(); i++) {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;972</td>
+ <td class="numLineCover">&nbsp;974</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;            var annos = paramAnnotations.get(i);</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;973</td>
+ <td class="numLineCover">&nbsp;975</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (!annos.isEmpty()) {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;974</td>
+ <td class="numLineCover">&nbsp;976</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                node.with(<span Class="keyword">new</span> ListNodeImpl(FLOW, <span Class="string">"parameter "</span> + (i + 1), annos.stream().map(a -&#62;</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;975<a name="src_975"></a></td>
+ <td class="numLineCover">&nbsp;977<a name="src_977"></a></td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                <span Class="keyword">new</span> MapNodeImpl(FLOW, <span Class="string">"anno"</span>)</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;976</td>
+ <td class="numLineCover">&nbsp;978</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                        .with(leaf(<span Class="string">"annotation class"</span>, a.className().stringValue()))</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;977</td>
+ <td class="numLineCover">&nbsp;979</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                                        .with(elementValuePairsToTree(a.elements())))));</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;978</td>
+ <td class="numLine">&nbsp;980</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;            }</pre></td>
- </tr>
- <tr>
- <td class="numLine">&nbsp;979</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;        }</pre></td>
- </tr>
- <tr>
- <td class="numLineCover">&nbsp;980</td>
- <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;1/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> node;</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;981</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;982</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;</pre></td>
+ <td class="numLineCover">&nbsp;982</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> node;</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;983</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> Node[] localInfoToTree(List&#60;LocalVariableInfo&#62; locals, <span Class="keyword">int</span> slot, <span Class="keyword">int</span> bci) {</pre></td>
- </tr>
- <tr>
- <td class="numLineCover">&nbsp;984<a name="src_984"></a></td>
- <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (locals != <span Class="keyword">null</span>) {</pre></td>
- </tr>
- <tr>
- <td class="numLineCover">&nbsp;985</td>
- <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;            <span Class="keyword">for</span> (var l : locals) {</pre></td>
- </tr>
- <tr>
- <td class="numLineCover">&nbsp;986</td>
- <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                <span Class="keyword">if</span> (l.slot() == slot &#38;&#38; l.startPc() &#60;= bci &#38;&#38; l.length() + l.startPc() &#62;= bci) {</pre></td>
- </tr>
- <tr>
- <td class="numLineCover">&nbsp;987</td>
- <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">return</span> leafs(<span Class="string">"type"</span>, l.type().stringValue(),</pre></td>
- </tr>
- <tr>
- <td class="numLineCover">&nbsp;988</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                                 <span Class="string">"variable name"</span>, l.name().stringValue());</pre></td>
- </tr>
- <tr>
- <td class="numLine">&nbsp;989</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                }</pre></td>
- </tr>
- <tr>
- <td class="numLineCover">&nbsp;990</td>
- <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/3&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;            }</pre></td>
- </tr>
- <tr>
- <td class="numLine">&nbsp;991</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;        }</pre></td>
- </tr>
- <tr>
- <td class="numLineCover">&nbsp;992</td>
- <td class="nbHitsUncovered">&nbsp;Block:&nbsp;4/4&nbsp;Branch:&nbsp;3/4&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">new</span> Node[0];</pre></td>
- </tr>
- <tr>
- <td class="numLine">&nbsp;993</td>
- <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;    }</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;994</td>
+ <td class="numLine">&nbsp;984</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;995</td>
+ <td class="numLine">&nbsp;985</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> <span Class="keyword">void</span> forEachOffset(TypeAnnotation ta, LabelResolver lr, BiConsumer&#60;Integer, TypeAnnotation&#62; consumer) {</pre></td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> Node[] localInfoToTree(List&#60;LocalVariableInfo&#62; locals, <span Class="keyword">int</span> slot, <span Class="keyword">int</span> bci) {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;996<a name="src_996"></a></td>
+ <td class="numLineCover">&nbsp;986<a name="src_986"></a></td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;        <span Class="keyword">switch</span> (ta.targetInfo()) {</pre></td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (locals != <span Class="keyword">null</span>) {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;997</td>
+ <td class="numLineCover">&nbsp;987</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> TypeAnnotation.OffsetTarget ot -&#62; consumer.accept(lr.labelToBci(ot.target()), ta);</pre></td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">for</span> (var l : locals) {</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;998</td>
- <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> TypeAnnotation.TypeArgumentTarget tat -&#62; consumer.accept(lr.labelToBci(tat.target()), ta);</pre></td>
+ <td class="numLineCover">&nbsp;988</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">if</span> (l.slot() == slot &#38;&#38; l.startPc() &#60;= bci &#38;&#38; l.length() + l.startPc() &#62;= bci) {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;999<a name="src_999"></a></td>
- <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;1/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> TypeAnnotation.LocalVarTarget lvt -&#62; lvt.table().forEach(lvti -&#62; consumer.accept(lr.labelToBci(lvti.startLabel()), ta));</pre></td>
+ <td class="numLineCover">&nbsp;989</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">return</span> leafs(<span Class="string">"type"</span>, l.type().stringValue(),</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;1000</td>
+ <td class="numLineCover">&nbsp;990</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;            <span Class="keyword">default</span> -&#62; {}</pre></td>
+ <td class="src"><pre class="src">&nbsp;                                 <span Class="string">"variable name"</span>, l.name().stringValue());</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;1001</td>
+ <td class="numLine">&nbsp;991</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;992</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/3&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;993</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;        }</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;1002</td>
+ <td class="numLineCover">&nbsp;994</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;4/4&nbsp;Branch:&nbsp;3/4&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">new</span> Node[0];</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;995</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;996</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;997</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> <span Class="keyword">void</span> forEachOffset(TypeAnnotation ta, LabelResolver lr, BiConsumer&#60;Integer, TypeAnnotation&#62; consumer) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;998<a name="src_998"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">switch</span> (ta.targetInfo()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;999</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> TypeAnnotation.OffsetTarget ot -&#62; consumer.accept(lr.labelToBci(ot.target()), ta);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;1000</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> TypeAnnotation.TypeArgumentTarget tat -&#62; consumer.accept(lr.labelToBci(tat.target()), ta);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;1001<a name="src_1001"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> TypeAnnotation.LocalVarTarget lvt -&#62; lvt.table().forEach(lvti -&#62; consumer.accept(lr.labelToBci(lvti.startLabel()), ta));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;1002</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">default</span> -&#62; {}</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;1003</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;1004</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;    }</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;1003</td>
+ <td class="numLine">&nbsp;1005</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;}</pre></td>
  </tr>
  </table>
 <p>
-<br><table cellpadding="0" cellspacing="0" class="report">  <tr class="report">    <td class="reportText"><span class="text">    Report generated 8/4/22, 3:35 PM    </span></td>  </tr></table>
+<br><table cellpadding="0" cellspacing="0" class="report">  <tr class="report">    <td class="reportText"><span class="text">    Report generated 8/18/22, 7:57 AM    </span></td>  </tr></table>
 </body>
 </html>

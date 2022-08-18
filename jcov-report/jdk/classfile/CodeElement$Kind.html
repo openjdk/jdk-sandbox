@@ -87,13 +87,13 @@
  </tr>
  <tr class="report">
  <td class="reportValue_covered"><span class="text">26</span></td>
- <td class="reportText"><span class="text"><a href="#src_61">&lt;clinit&gt;</a></span></td>
+ <td class="reportText"><span class="text"><a href="#src_63">&lt;clinit&gt;</a></span></td>
  <td class="reportText"><span class="text">[static]</span></td>
  <td class="reportText"><span class="text">void &lt;clinit&gt;()</span></td>
  </tr>
  <tr class="report">
- <td class="reportValue_covered"><span class="text">884</span></td>
- <td class="reportText"><span class="text"><a href="#src_60">&lt;init&gt;</a></span></td>
+ <td class="reportValue_covered"><span class="text">910</span></td>
+ <td class="reportText"><span class="text"><a href="#src_62">&lt;init&gt;</a></span></td>
  <td class="reportText"><span class="text">[private]</span></td>
  <td class="reportText"><span class="text">void &lt;init&gt;(java.lang.String,int)</span></td>
  </tr>
@@ -243,215 +243,225 @@
  <tr>
  <td class="numLine">&nbsp;29</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.impl.AbstractInstruction;</pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.attribute.StackMapTableAttribute;</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;30</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;</pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.impl.AbstractInstruction;</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;31</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;32</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment"> * A {@link ClassfileElement} that can appear when traversing the elements</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">/*<span Class="comment">*</span></span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;33</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment"> * of a {@link CodeModel} or be presented to a {@link CodeBuilder}.  Code elements</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * A {@link ClassfileElement} that can appear when traversing the elements</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;34</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment"> * are either an {@link Instruction}, which models an instruction in the body</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * of a {@link CodeModel} or be presented to a {@link CodeBuilder}.  Code elements</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;35</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment"> * of a method, or a {@link PseudoInstruction}, which models metadata from</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * are either an {@link Instruction}, which models an instruction in the body</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;36</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment"> * the code attribute, such as line number metadata, local variable metadata,</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * of a method, or a {@link PseudoInstruction}, which models metadata from</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;37</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment"> * exception metadata, label target metadata, etc.</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * the code attribute, such as line number metadata, local variable metadata,</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;38</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment"> */</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * exception metadata, label target metadata, etc.</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;39</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="keyword">public</span> sealed <span Class="keyword">interface</span> CodeElement <span Class="keyword">extends</span> ClassfileElement</pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> */</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;40</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;        permits Instruction, PseudoInstruction, AbstractInstruction,</pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">public</span> sealed <span Class="keyword">interface</span> CodeElement <span Class="keyword">extends</span> ClassfileElement</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;41</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                CustomAttribute, RuntimeVisibleTypeAnnotationsAttribute, RuntimeInvisibleTypeAnnotationsAttribute {</pre></td>
+ <td class="src"><pre class="src">&nbsp;        permits Instruction, PseudoInstruction, AbstractInstruction,</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;42</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ <td class="src"><pre class="src">&nbsp;                CustomAttribute, RuntimeVisibleTypeAnnotationsAttribute, RuntimeInvisibleTypeAnnotationsAttribute,</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;43</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@return the kind of this instruction}</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;                StackMapTableAttribute {</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;44</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;45</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    Kind codeKind();</pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@return the kind of this instruction}</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;46</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;</pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;47</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ <td class="src"><pre class="src">&nbsp;    Kind codeKind();</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;48</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@return the opcode of this instruction}</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;49</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;50</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    Opcode opcode();</pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@return the opcode of this instruction}</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;51</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;</pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;52</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ <td class="src"><pre class="src">&nbsp;    Opcode opcode();</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;53</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@return the size in bytes of this instruction}</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;54</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;55</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    <span Class="keyword">int</span> sizeInBytes();</pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@return the size in bytes of this instruction}</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;56</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;</pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;57</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">int</span> sizeInBytes();</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;58</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Kinds of instructions.</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;59</td>
  <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;60</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Kinds of instructions.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;61</td>
+ <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;60<a name="src_60"></a></td>
+ <td class="numLineCover">&nbsp;62<a name="src_62"></a></td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;    <span Class="keyword">enum</span> Kind {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;61<a name="src_61"></a></td>
+ <td class="numLineCover">&nbsp;63<a name="src_63"></a></td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;        LOAD, STORE, INCREMENT, BRANCH, LOOKUP_SWITCH, TABLE_SWITCH, RETURN, THROW_EXCEPTION,</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;62</td>
+ <td class="numLineCover">&nbsp;64</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;        FIELD_ACCESS, INVOKE, INVOKE_DYNAMIC,</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;63</td>
+ <td class="numLineCover">&nbsp;65</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;        NEW_OBJECT, NEW_PRIMITIVE_ARRAY, NEW_REF_ARRAY, NEW_MULTI_ARRAY,</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;64</td>
+ <td class="numLineCover">&nbsp;66</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;        TYPE_CHECK, ARRAY_LOAD, ARRAY_STORE, STACK, CONVERT, OPERATOR, CONSTANT,</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;65</td>
+ <td class="numLineCover">&nbsp;67</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;        MONITOR, NOP, UNSUPPORTED,</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;66</td>
+ <td class="numLineCover">&nbsp;68</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;        LABEL_TARGET, EXCEPTION_CATCH, CHARACTER_RANGE, LOCAL_VARIABLE, LOCAL_VARIABLE_TYPE, LINE_NUMBER,</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;67</td>
+ <td class="numLineCover">&nbsp;69</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;        PARAMETER_ANNOTATION, TYPE_ANNOTATION, END;</pre></td>
+ <td class="src"><pre class="src">&nbsp;        PARAMETER_ANNOTATION, STACK_MAP, TYPE_ANNOTATION, END;</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;68</td>
+ <td class="numLine">&nbsp;70</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;    }</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;69</td>
+ <td class="numLine">&nbsp;71</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;70</td>
+ <td class="numLine">&nbsp;72</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;}</pre></td>
  </tr>
  </table>
 <p>
-<br><table cellpadding="0" cellspacing="0" class="report">  <tr class="report">    <td class="reportText"><span class="text">    Report generated 8/4/22, 3:35 PM    </span></td>  </tr></table>
+<br><table cellpadding="0" cellspacing="0" class="report">  <tr class="report">    <td class="reportText"><span class="text">    Report generated 8/18/22, 7:57 AM    </span></td>  </tr></table>
 </body>
 </html>
