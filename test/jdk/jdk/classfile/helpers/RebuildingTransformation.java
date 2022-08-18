@@ -581,7 +581,7 @@ class RebuildingTransformation {
         return infos.stream().map(ti -> {
             return switch (ti) {
                 case StackMapTableAttribute.SimpleVerificationTypeInfo i -> i;
-                case StackMapTableAttribute.ObjectVerificationTypeInfo i -> StackMapTableAttribute.ObjectVerificationTypeInfo.of(i.className());
+                case StackMapTableAttribute.ObjectVerificationTypeInfo i -> StackMapTableAttribute.ObjectVerificationTypeInfo.of(i.classSymbol());
                 case StackMapTableAttribute.UninitializedVerificationTypeInfo i -> StackMapTableAttribute.UninitializedVerificationTypeInfo.of(labels.computeIfAbsent(i.newTarget(), l -> cob.newLabel()));
             };
         }).toList();
