@@ -238,7 +238,7 @@ public final class DirectCodeBuilder
                         // @@@ Filter out LVs whose boundary labels are not defined?
                         b.writeU2(localVariables.size());
                         for (LocalVariable l : localVariables) {
-                            l.writeTo(b, DirectCodeBuilder.this);
+                            l.writeTo(b);
                         }
                         // @@@ If we're filtering, then also have to patch count
                     }
@@ -254,7 +254,7 @@ public final class DirectCodeBuilder
                         // @@@ Filter out LVs whose boundary labels are not defined?
                         b.writeU2(localVariableTypes.size());
                         for (LocalVariableType l : localVariableTypes) {
-                            l.writeTo(b, DirectCodeBuilder.this);
+                            l.writeTo(b);
                         }
                         // @@@ If we're filtering, then also have to patch count
                     }
@@ -272,6 +272,7 @@ public final class DirectCodeBuilder
             @Override
             public void writeBody(BufWriter b) {
                 BufWriterImpl buf = (BufWriterImpl) b;
+                buf.setLabelContext(DirectCodeBuilder.this);
 
                 int codeLength = curPc();
                 int maxStack, maxLocals;
@@ -304,7 +305,6 @@ public final class DirectCodeBuilder
                 }
                 attributes.withAttribute(stackMapAttr);
 
-                buf.setLabelContext(DirectCodeBuilder.this);
                 buf.writeU2(maxStack);
                 buf.writeU2(maxLocals);
                 buf.writeInt(codeLength);
