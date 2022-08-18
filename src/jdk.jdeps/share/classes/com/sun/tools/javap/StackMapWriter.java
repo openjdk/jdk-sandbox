@@ -33,7 +33,6 @@ import jdk.classfile.Classfile;
 
 import jdk.classfile.CodeModel;
 import jdk.classfile.Instruction;
-import jdk.classfile.MethodModel;
 import jdk.classfile.attribute.StackMapTableAttribute;
 
 /**
@@ -58,25 +57,27 @@ public class StackMapWriter extends InstructionDetailWriter {
         classWriter = ClassWriter.instance(context);
     }
 
-    public void reset(CodeModel attr) {
-        setStackMap(attr.findAttribute(Attributes.STACK_MAP_TABLE).orElse(null), attr.parent().get());
+    public void reset(CodeModel code) {
+        setStackMap(code);
     }
 
-    void setStackMap(StackMapTableAttribute attr, MethodModel m) {
+    void setStackMap(CodeModel code) {
+        StackMapTableAttribute attr = code.findAttribute(Attributes.STACK_MAP_TABLE).orElse(null);
         if (attr == null) {
             map = null;
             return;
         }
-        var args = m.methodTypeSymbol().parameterArray();
-        boolean isStatic = (m.flags().flagsMask() & Classfile.ACC_STATIC) != 0;
+        var m = code.parent().get();
+        if ((m.flags().flagsMask() & Classfile.ACC_STATIC) == 0) {
+            thisClassName = null;
+        } else {
+            thisClassName =  m.parent().get().thisClass().asInternalName();
+        }
 
         map = new HashMap<>();
-        var initFrame = attr.initFrame();
-        firstLocal = isStatic ? null : initFrame.declaredLocals().get(0);
-        map.put(-1, initFrame);
-
+        this.code = code;
         for (var fr : attr.entries())
-            map.put(fr.absoluteOffset(), fr);
+            map.put(code.labelToBci(fr.target()), fr);
     }
 
     public void writeInitialDetails() {
@@ -94,59 +95,67 @@ public class StackMapWriter extends InstructionDetailWriter {
 
         var m = map.get(pc);
         if (m != null) {
-            print("StackMap locals: ", m.effectiveLocals());
-            print("StackMap stack: ", m.effectiveStack());
+            print("StackMap locals: ", m.locals(), true);
+            print("StackMap stack: ", m.stack(), false);
         }
 
     }
 
-    void print(String label, List<StackMapTableAttribute.VerificationTypeInfo> entries) {
+    void print(String label, List<StackMapTableAttribute.VerificationTypeInfo> entries, boolean firstThis) {
         print(label);
         for (var e : entries) {
             print(" ");
-            print(e);
+            print(e, firstThis);
+            firstThis = false;
         }
         println();
     }
 
-    void print(StackMapTableAttribute.VerificationTypeInfo entry) {
+    void print(StackMapTableAttribute.VerificationTypeInfo entry, boolean firstThis) {
         if (entry == null) {
             print("ERROR");
             return;
         }
 
-        switch (entry.type()) {
-            case ITEM_TOP ->
-                print("top");
+        switch (entry) {
+            case StackMapTableAttribute.SimpleVerificationTypeInfo s -> {
+                switch (s) {
+                    case ITEM_TOP ->
+                        print("top");
 
-            case ITEM_INTEGER ->
-                print("int");
+                    case ITEM_INTEGER ->
+                        print("int");
 
-            case ITEM_FLOAT ->
-                print("float");
+                    case ITEM_FLOAT ->
+                        print("float");
 
-            case ITEM_LONG ->
-                print("long");
+                    case ITEM_LONG ->
+                        print("long");
 
-            case ITEM_DOUBLE ->
-                print("double");
+                    case ITEM_DOUBLE ->
+                        print("double");
 
-            case ITEM_NULL ->
-                print("null");
+                    case ITEM_NULL ->
+                        print("null");
 
-            case ITEM_UNINITIALIZED_THIS ->
-                print("uninit_this");
+                    case ITEM_UNINITIALIZED_THIS ->
+                        print("uninit_this");
+                }
+            }
 
-            case ITEM_OBJECT ->
-                print(entry == firstLocal ? "this" : ((StackMapTableAttribute.ObjectVerificationTypeInfo)entry).className().asInternalName());
+            case StackMapTableAttribute.ObjectVerificationTypeInfo o -> {
+                String cln = o.className().asInternalName();
+                print(firstThis && cln.equals(thisClassName) ? "this" : cln);
+            }
 
-            case ITEM_UNINITIALIZED ->
-                print(((StackMapTableAttribute.UninitializedVerificationTypeInfo) entry).offset());
+            case StackMapTableAttribute.UninitializedVerificationTypeInfo u ->
+                print(code.labelToBci(u.newTarget()));
         }
 
     }
 
-    private Map<Integer, StackMapTableAttribute.StackMapFrame> map;
+    private Map<Integer, StackMapTableAttribute.StackMapFrameInfo> map;
     private ClassWriter classWriter;
-    private StackMapTableAttribute.VerificationTypeInfo firstLocal;
+    private String thisClassName;
+    private CodeModel code;
 }

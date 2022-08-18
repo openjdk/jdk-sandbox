@@ -533,59 +533,57 @@ public class AttributeWriter extends BasicWriter {
                 var entries = attr.entries();
                 println("StackMapTable: number_of_entries = " + entries.size());
                 indent(+1);
+                int lastOffset = -1;
                 for (var frame : entries) {
-                    switch (frame) {
-                        case StackMapTableAttribute.StackMapFrame.Same same -> {
-                            if (same.extended()) {
-                                printHeader(same, "/* same_frame_extended */");
+                    int frameType = frame.frameType();
+                    if (frameType < 64) {
+                        printHeader("SAME", "/* same */");
+                    } else if (frameType < 128) {
+                        printHeader("SAME_LOCALS_1_STACK_ITEM", "/* same_locals_1_stack_item */");
+                        indent(+1);
+                        printMap("stack", frame.stack(), lr);
+                        indent(-1);
+                    } else {
+                        int offsetDelta = lr.labelToBci(frame.target()) - lastOffset - 1;
+                        switch (frameType) {
+                            case 247 -> {
+                                printHeader("SAME_LOCALS_1_STACK_ITEM_EXTENDED", "/* same_locals_1_stack_item_frame_extended */");
                                 indent(+1);
-                                println("offset_delta = " + same.offsetDelta());
-                                indent(-1);
-                            } else {
-                                printHeader(same, "/* same */");
-                            }
-                        }
-                        case StackMapTableAttribute.StackMapFrame.Same1 same1 -> {
-                            if (same1.extended()) {
-                                printHeader(same1, "/* same_locals_1_stack_item_frame_extended */");
-                                indent(+1);
-                                println("offset_delta = " + same1.offsetDelta());
-                                printMap("stack", List.of(same1.declaredStack()));
-                                indent(-1);
-                            } else {
-                                printHeader(same1, "/* same_locals_1_stack_item */");
-                                indent(+1);
-                                printMap("stack", List.of(same1.declaredStack()));
+                                println("offset_delta = " + offsetDelta);
+                                printMap("stack", frame.stack(), lr);
                                 indent(-1);
                             }
-                        }
-                        case StackMapTableAttribute.StackMapFrame.Chop chop -> {
-                            printHeader(chop, "/* chop */");
-                            indent(+1);
-                            println("offset_delta = " + chop.offsetDelta());
-                            indent(-1);
-                        }
-                        case StackMapTableAttribute.StackMapFrame.Append append -> {
-                            printHeader(append, "/* append */");
-                            indent(+1);
-                            println("offset_delta = " + append.offsetDelta());
-                            printMap("locals", append.declaredLocals());
-                            indent(-1);
-                        }
-                        case StackMapTableAttribute.StackMapFrame.Full full -> {
-//full frame used in StackMapAttribute
-//                            if (frame instanceof StackMap_attribute.stack_map_frame) {
-//                                printHeader(full, "offset = " + full.offset_delta);
-//                                indent(+1);
-//                            } else {
-                            printHeader(full, "/* full_frame */");
-                            indent(+1);
-                            println("offset_delta = " + full.offsetDelta());
-                            printMap("locals", full.declaredLocals());
-                            printMap("stack", full.declaredStack());
-                            indent(-1);
+                            case 248, 249, 250 -> {
+                                printHeader("CHOP", "/* chop */");
+                                indent(+1);
+                                println("offset_delta = " + offsetDelta);
+                                indent(-1);
+                            }
+                            case 251 -> {
+                                printHeader("SAME_FRAME_EXTENDED", "/* same_frame_extended */");
+                                indent(+1);
+                                println("offset_delta = " + offsetDelta);
+                                indent(-1);
+                            }
+                            case 252, 253, 254 -> {
+                                printHeader("APPEND", "/* append */");
+                                indent(+1);
+                                println("offset_delta = " + offsetDelta);
+                                var locals = frame.locals();
+                                printMap("locals", locals.subList(locals.size() - frameType + 251, locals.size()), lr);
+                                indent(-1);
+                            }
+                            case 255 -> {
+                                printHeader("FULL_FRAME", "/* full_frame */");
+                                indent(+1);
+                                println("offset_delta = " + offsetDelta);
+                                printMap("locals", frame.locals(), lr);
+                                printMap("stack", frame.stack(), lr);
+                                indent(-1);
+                            }
                         }
                     }
+                    lastOffset = lr.labelToBci(frame.target());
                 }
                 indent(-1);
             }
@@ -665,12 +663,12 @@ public class AttributeWriter extends BasicWriter {
         indent(-1);
     }
 
-    void printHeader(StackMapFrame frame, String extra) {
-        print("frame_type = " + frame.frameType() + " ");
+    void printHeader(String frameType, String extra) {
+        print("frame_type = " + frameType + " ");
         println(extra);
     }
 
-    void printMap(String name, List<VerificationTypeInfo> map) {
+    void printMap(String name, List<VerificationTypeInfo> map, CodeModel lr) {
         print(name + " = [");
         for (int i = 0; i < map.size(); i++) {
             var info = map.get(i);
@@ -680,18 +678,17 @@ public class AttributeWriter extends BasicWriter {
                     constantWriter.write(obj.className().index());
                 }
                 case UninitializedVerificationTypeInfo u -> {
-                    print(" " + mapTypeName(info.type()));
-                    print(" " + u.offset());
+                    print(" uninitialized " + lr.labelToBci(u.newTarget()));
                 }
-                default ->
-                    print(" " + mapTypeName(info.type()));
+                case SimpleVerificationTypeInfo s ->
+                    print(" " + mapTypeName(s));
             }
             print(i == (map.size() - 1) ? " " : ",");
         }
         println("]");
     }
 
-    String mapTypeName(VerificationType type) {
+    String mapTypeName(SimpleVerificationTypeInfo type) {
         return switch (type) {
             case ITEM_TOP -> "top";
             case ITEM_INTEGER -> "int";
@@ -700,8 +697,6 @@ public class AttributeWriter extends BasicWriter {
             case ITEM_DOUBLE -> "double";
             case ITEM_NULL -> "null";
             case ITEM_UNINITIALIZED_THIS -> "this";
-            case ITEM_OBJECT -> "CP";
-            case ITEM_UNINITIALIZED -> "uninitialized";
         };
     }
 
