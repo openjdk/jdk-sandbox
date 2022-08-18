@@ -304,14 +304,14 @@ public final class DirectCodeBuilder
                 }
                 attributes.withAttribute(stackMapAttr);
 
-                buf.setLabelResolver(DirectCodeBuilder.this);
+                buf.setLabelContext(DirectCodeBuilder.this);
                 buf.writeU2(maxStack);
                 buf.writeU2(maxLocals);
                 buf.writeInt(codeLength);
                 buf.writeBytes(bytecodesBufWriter);
                 writeExceptionHandlers(b);
                 attributes.writeTo(b);
-                buf.setLabelResolver(null);
+                buf.setLabelContext(null);
             }
         };
     }
