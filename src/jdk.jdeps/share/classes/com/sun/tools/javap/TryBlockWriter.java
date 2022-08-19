@@ -29,9 +29,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import jdk.classfile.CodeModel;
 import jdk.classfile.Instruction;
 import jdk.classfile.instruction.ExceptionCatch;
+import jdk.classfile.attribute.CodeAttribute;
 
 /**
  * Annotate instructions with details about try blocks.
@@ -44,24 +44,24 @@ import jdk.classfile.instruction.ExceptionCatch;
 public class TryBlockWriter extends InstructionDetailWriter {
     public enum NoteKind {
         START("try") {
-            public boolean match(ExceptionCatch entry, int pc, CodeModel lr) {
+            public boolean match(ExceptionCatch entry, int pc, CodeAttribute lr) {
                 return (pc == lr.labelToBci(entry.tryStart()));
             }
         },
         END("end try") {
-            public boolean match(ExceptionCatch entry, int pc, CodeModel lr) {
+            public boolean match(ExceptionCatch entry, int pc, CodeAttribute lr) {
                 return (pc == lr.labelToBci(entry.tryEnd()));
             }
         },
         HANDLER("catch") {
-            public boolean match(ExceptionCatch entry, int pc, CodeModel lr) {
+            public boolean match(ExceptionCatch entry, int pc, CodeAttribute lr) {
                 return (pc == lr.labelToBci(entry.handler()));
             }
         };
         NoteKind(String text) {
             this.text = text;
         }
-        public abstract boolean match(ExceptionCatch entry, int pc, CodeModel lr);
+        public abstract boolean match(ExceptionCatch entry, int pc, CodeAttribute lr);
         public final String text;
     }
 
@@ -78,7 +78,7 @@ public class TryBlockWriter extends InstructionDetailWriter {
         constantWriter = ConstantWriter.instance(context);
     }
 
-    public void reset(CodeModel attr) {
+    public void reset(CodeAttribute attr) {
         indexMap = new HashMap<>();
         pcMap = new HashMap<>();
         lr = attr;
@@ -141,5 +141,5 @@ public class TryBlockWriter extends InstructionDetailWriter {
     private Map<Integer, List<ExceptionCatch>> pcMap;
     private Map<ExceptionCatch, Integer> indexMap;
     private ConstantWriter constantWriter;
-    private CodeModel lr;
+    private CodeAttribute lr;
 }

@@ -47,6 +47,7 @@ import jdk.classfile.FieldModel;
 import jdk.classfile.MethodModel;
 import jdk.classfile.MethodSignature;
 import jdk.classfile.Signature;
+import jdk.classfile.attribute.CodeAttribute;
 import jdk.classfile.attribute.SignatureAttribute;
 
 /*
@@ -512,7 +513,7 @@ public class ClassWriter extends BasicWriter {
             println(sb.toString());
         }
 
-        var code = m.code().orElse(null);
+        var code = (CodeAttribute)m.code().orElse(null);
 
         if (options.showAllAttrs) {
             attrWriter.write(m.attributes());

@@ -31,7 +31,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
 import jdk.classfile.Classfile;
-import jdk.classfile.CodeModel;
 import jdk.classfile.Opcode;
 import jdk.classfile.constantpool.*;
 import jdk.classfile.Instruction;
@@ -90,7 +89,7 @@ public class CodeWriter extends BasicWriter {
                 ", args_size=" + Integer.toString(n));
     }
 
-    public void writeInstrs(CodeModel attr) {
+    public void writeInstrs(CodeAttribute attr) {
         List<InstructionDetailWriter> detailWriters = getDetailWriters(attr);
 
         int pc = 0;
@@ -110,7 +109,7 @@ public class CodeWriter extends BasicWriter {
             w.flush(pc);
     }
 
-    public void writeInstr(int pc, Instruction ins, CodeModel lr) {
+    public void writeInstr(int pc, Instruction ins, CodeAttribute lr) {
         print(String.format("%4d: %-13s ", pc, ins.opcode().name().toLowerCase(Locale.US)));
         // compute the number of indentations for the body of multi-line instructions
         // This is 6 (the width of "%4d: "), divided by the width of each indentation level,
@@ -185,7 +184,7 @@ public class CodeWriter extends BasicWriter {
         constantWriter.write(entry.index());
     }
 
-    public void writeExceptionTable(CodeModel attr) {
+    public void writeExceptionTable(CodeAttribute attr) {
         var excTable = attr.exceptionHandlers();
         if (excTable.size() > 0) {
             println("Exception table:");
@@ -208,7 +207,7 @@ public class CodeWriter extends BasicWriter {
 
     }
 
-    private List<InstructionDetailWriter> getDetailWriters(CodeModel attr) {
+    private List<InstructionDetailWriter> getDetailWriters(CodeAttribute attr) {
         List<InstructionDetailWriter> detailWriters = new ArrayList<>();
         if (options.details.contains(InstructionDetailWriter.Kind.SOURCE)) {
             sourceWriter.reset(attr);

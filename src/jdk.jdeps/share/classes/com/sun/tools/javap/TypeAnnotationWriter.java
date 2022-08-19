@@ -32,10 +32,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import jdk.classfile.Attributes;
-import jdk.classfile.CodeModel;
 import jdk.classfile.Instruction;
 import jdk.classfile.MethodModel;
 import jdk.classfile.TypeAnnotation;
+import jdk.classfile.attribute.CodeAttribute;
 
 /**
  * Annotate instructions with details about type annotations.
@@ -71,7 +71,7 @@ public class TypeAnnotationWriter extends InstructionDetailWriter {
         classWriter = ClassWriter.instance(context);
     }
 
-    public void reset(CodeModel attr) {
+    public void reset(CodeAttribute attr) {
         MethodModel m = attr.parent().get();
         pcMap = new HashMap<>();
         lr = attr;
@@ -127,5 +127,5 @@ public class TypeAnnotationWriter extends InstructionDetailWriter {
     private AnnotationWriter annotationWriter;
     private ClassWriter classWriter;
     private Map<Integer, List<Note>> pcMap;
-    private CodeModel lr;
+    private CodeAttribute lr;
 }

@@ -30,9 +30,9 @@ import jdk.classfile.Annotation;
 import jdk.classfile.AnnotationElement;
 import jdk.classfile.AnnotationValue;
 import jdk.classfile.constantpool.*;
-import jdk.classfile.CodeModel;
 import jdk.classfile.Signature;
 import jdk.classfile.TypeAnnotation;
+import jdk.classfile.attribute.CodeAttribute;
 
 /**
  *  A writer for writing annotations as text.
@@ -91,7 +91,7 @@ public class AnnotationWriter extends BasicWriter {
         }
     }
 
-    public void write(TypeAnnotation annot, CodeModel lr) {
+    public void write(TypeAnnotation annot, CodeAttribute lr) {
         write(annot, true, false, lr);
         println();
         indent(+1);
@@ -99,13 +99,13 @@ public class AnnotationWriter extends BasicWriter {
         indent(-1);
     }
 
-    public void write(TypeAnnotation annot, boolean showOffsets, boolean resolveIndices, CodeModel lr) {
+    public void write(TypeAnnotation annot, boolean showOffsets, boolean resolveIndices, CodeAttribute lr) {
         write(annot, resolveIndices);
         print(": ");
         write(annot.targetInfo(), annot.targetPath(), showOffsets, lr);
     }
 
-    public void write(TypeAnnotation.TargetInfo targetInfo, List<TypeAnnotation.TypePathComponent> targetPath, boolean showOffsets, CodeModel lr) {
+    public void write(TypeAnnotation.TargetInfo targetInfo, List<TypeAnnotation.TypePathComponent> targetPath, boolean showOffsets, CodeAttribute lr) {
         print(targetInfo.targetType());
 
         switch (targetInfo) {

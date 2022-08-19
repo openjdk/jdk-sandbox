@@ -31,8 +31,8 @@ import java.util.Map;
 import jdk.classfile.Attributes;
 import jdk.classfile.Classfile;
 
-import jdk.classfile.CodeModel;
 import jdk.classfile.Instruction;
+import jdk.classfile.attribute.CodeAttribute;
 import jdk.classfile.attribute.StackMapTableAttribute;
 
 /**
@@ -57,11 +57,11 @@ public class StackMapWriter extends InstructionDetailWriter {
         classWriter = ClassWriter.instance(context);
     }
 
-    public void reset(CodeModel code) {
+    public void reset(CodeAttribute code) {
         setStackMap(code);
     }
 
-    void setStackMap(CodeModel code) {
+    void setStackMap(CodeAttribute code) {
         StackMapTableAttribute attr = code.findAttribute(Attributes.STACK_MAP_TABLE).orElse(null);
         if (attr == null) {
             map = null;
@@ -157,5 +157,5 @@ public class StackMapWriter extends InstructionDetailWriter {
     private Map<Integer, StackMapTableAttribute.StackMapFrameInfo> map;
     private ClassWriter classWriter;
     private String thisClassName;
-    private CodeModel code;
+    private CodeAttribute code;
 }

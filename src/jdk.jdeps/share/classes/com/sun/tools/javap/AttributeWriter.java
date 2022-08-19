@@ -67,7 +67,7 @@ public class AttributeWriter extends BasicWriter {
         write(attrs, null);
     }
 
-    public void write(List<Attribute<?>> attrs, CodeModel lr) {
+    public void write(List<Attribute<?>> attrs, CodeAttribute lr) {
         if (attrs != null) {
             for (var attr : attrs) {
                 write(attr, lr);
@@ -75,7 +75,7 @@ public class AttributeWriter extends BasicWriter {
         }
     }
 
-    public void write(Attribute<?> a, CodeModel lr) {
+    public void write(Attribute<?> a, CodeAttribute lr) {
         switch (a) {
             case UnknownAttribute attr -> {
                 byte[] data = attr.contents();
@@ -635,7 +635,7 @@ public class AttributeWriter extends BasicWriter {
         indent(-1);
     }
 
-    private void printTypeAnnotations(String message, List<? extends TypeAnnotation> anno, CodeModel lr) {
+    private void printTypeAnnotations(String message, List<? extends TypeAnnotation> anno, CodeAttribute lr) {
         println(message);
         indent(+1);
         for (int i = 0; i < anno.size(); i++) {
@@ -668,7 +668,7 @@ public class AttributeWriter extends BasicWriter {
         println(extra);
     }
 
-    void printMap(String name, List<VerificationTypeInfo> map, CodeModel lr) {
+    void printMap(String name, List<VerificationTypeInfo> map, CodeAttribute lr) {
         print(name + " = [");
         for (int i = 0; i < map.size(); i++) {
             var info = map.get(i);
