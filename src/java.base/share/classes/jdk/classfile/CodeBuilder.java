@@ -31,6 +31,7 @@ import java.lang.constant.DirectMethodHandleDesc;
 import java.lang.constant.DynamicCallSiteDesc;
 import java.lang.constant.MethodTypeDesc;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -1388,6 +1389,9 @@ public sealed interface CodeBuilder
         return tableSwitchInstruction(low, high, defaultTarget, cases);
     }
 
+    default Optional<Collection<TypeKind>> stack() {
+        return Optional.empty();
+    }
 
     // Structured conveniences:
 

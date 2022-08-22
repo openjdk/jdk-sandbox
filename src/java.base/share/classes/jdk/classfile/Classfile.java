@@ -71,7 +71,7 @@ public class Classfile {
          */
         enum Key {
             GENERATE_STACK_MAPS, PROCESS_DEBUG, PROCESS_LINE_NUMBERS, PROCESS_UNKNOWN_ATTRIBUTES,
-            CP_SHARING, FIX_SHORT_JUMPS, PATCH_DEAD_CODE, HIERARCHY_RESOLVER, ATTRIBUTE_MAPPER;
+            CP_SHARING, FIX_SHORT_JUMPS, PATCH_DEAD_CODE, TRACK_STACK, HIERARCHY_RESOLVER, ATTRIBUTE_MAPPER;
         }
 
         /**
@@ -134,6 +134,13 @@ public class Classfile {
          * @param b whether or not to automatically patch out unreachable code
          */
         static Option<Boolean> patchDeadCode(boolean b) { return new Options.OptionValue<>(Key.PATCH_DEAD_CODE, b); }
+
+        /**
+         * {@return an option describing whether or not to track stack during code build}
+         * Default is to do not track stack information.
+         * @param b whether or not to track stack during code building
+         */
+        static Option<Boolean> trackStack(boolean b) { return new Options.OptionValue<>(Key.TRACK_STACK, b); }
 
         /**
          * {@return an option describing the class hierarchy resolver to use when
