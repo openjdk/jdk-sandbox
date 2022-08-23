@@ -129,7 +129,7 @@ public final class StackTracker implements Consumer<CodeElement> {
     private Integer maxSize = 0;
 
     public Collection<TypeKind> stack() {
-        return stack;
+        return fork();
     }
 
     public Integer maxSize() {
