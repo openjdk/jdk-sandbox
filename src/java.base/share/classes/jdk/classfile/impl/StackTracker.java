@@ -139,8 +139,8 @@ public final class StackTracker implements Consumer<CodeElement> {
     private Map<Label, Stack> map = new HashMap<>();
 
     private void push(TypeKind type) {
-        if (stack != null && type != TypeKind.VoidType) {
-            stack.push(type);
+        if (stack != null) {
+            if (type != TypeKind.VoidType) stack.push(type);
         } else {
             maxSize = null;
         }
