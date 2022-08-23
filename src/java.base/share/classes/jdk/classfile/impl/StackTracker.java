@@ -71,14 +71,15 @@ public final class StackTracker implements Consumer<CodeElement> {
     private static record Item(TypeKind type, Item next) {
     }
 
-    private static final class Stack extends AbstractCollection<TypeKind> {
+    private final class Stack extends AbstractCollection<TypeKind> {
 
         private Item top;
-        private int size;
+        private int count, realSize;
 
-        Stack(Item top, int size) {
+        Stack(Item top, int count, int realSize) {
             this.top = top;
-            this.size = size;
+            this.count = count;
+            this.realSize = realSize;
         }
 
         @Override
@@ -105,40 +106,34 @@ public final class StackTracker implements Consumer<CodeElement> {
 
         @Override
         public int size() {
-            return size;
+            return count;
         }
 
         private void push(TypeKind type) {
             top = new Item(type, top);
-            size += type.slotSize();
+            realSize += type.slotSize();
+            count++;
+            if (maxSize != null && realSize > maxSize) maxSize = realSize;
         }
 
         private TypeKind pop() {
             var t = top.type;
-            size -= t.slotSize();
+            realSize -= t.slotSize();
+            count--;
             top = top.next;
             return t;
         }
-
-        @Override
-        public String toString() {
-            var sb = new StringBuilder();
-            sb.append("stack: [");
-            boolean first = true;
-            for (var it : this) {
-                if (first) first = false;
-                else sb.append(", ");
-                sb.append(it);
-            }
-            sb.append(']');
-            return sb.toString();
-        }
     }
 
-    private Stack stack = new Stack(null, 0);
+    private Stack stack = new Stack(null, 0, 0);
+    private Integer maxSize = 0;
 
     public Collection<TypeKind> stack() {
         return stack;
+    }
+
+    public Integer maxSize() {
+        return maxSize;
     }
 
     private Map<Label, Stack> map = new HashMap<>();
@@ -146,17 +141,26 @@ public final class StackTracker implements Consumer<CodeElement> {
     private void push(TypeKind type) {
         if (stack != null && type != TypeKind.VoidType) {
             stack.push(type);
+        } else {
+            maxSize = null;
         }
     }
 
     private void pop(int i) {
         if (stack != null) {
             while (i-- > 0) stack.pop();
+        } else {
+            maxSize = null;
         }
+    }
+
+    private Stack fork() {
+        return stack == null ? null : new Stack(stack.top, stack.count, stack.realSize);
     }
 
     private void withStack(Consumer<Stack> c) {
         if (stack != null) c.accept(stack);
+        else maxSize = null;
     }
 
     @Override
@@ -168,8 +172,13 @@ public final class StackTracker implements Consumer<CodeElement> {
             case ArrayStoreInstruction i ->
                 pop(3);
             case BranchInstruction i -> {
-                map.put(i.target(), stack);
-                if (i.opcode() == Opcode.GOTO || i.opcode() == Opcode.GOTO_W) stack = null;
+                if (i.opcode() == Opcode.GOTO || i.opcode() == Opcode.GOTO_W) {
+                    map.put(i.target(), stack);
+                    stack = null;
+                } else {
+                    pop(1);
+                    map.put(i.target(), fork());
+                }
             }
             case ConstantInstruction i ->
                 push(i.typeKind());
@@ -206,7 +215,7 @@ public final class StackTracker implements Consumer<CodeElement> {
                 pop(1);
             case LookupSwitchInstruction i -> {
                 map.put(i.defaultTarget(), stack);
-                for (var c : i.cases()) map.put(c.target(), stack);
+                for (var c : i.cases()) map.put(c.target(), fork());
                 stack = null;
             }
             case MonitorInstruction i ->
@@ -225,7 +234,7 @@ public final class StackTracker implements Consumer<CodeElement> {
             case NopInstruction i -> {}
             case OperatorInstruction i -> {
                 switch (i.opcode()) {
-                    case INEG, LNEG, FNEG, DNEG -> pop(1);
+                    case ARRAYLENGTH, INEG, LNEG, FNEG, DNEG -> pop(1);
                     default -> pop(2);
                 }
                 push(i.typeKind());
@@ -305,7 +314,7 @@ public final class StackTracker implements Consumer<CodeElement> {
             }
             case TableSwitchInstruction i -> {
                 map.put(i.defaultTarget(), stack);
-                for (var c : i.cases()) map.put(c.target(), stack);
+                for (var c : i.cases()) map.put(c.target(), fork());
                 stack = null;
             }
             case ThrowInstruction i ->
@@ -321,12 +330,10 @@ public final class StackTracker implements Consumer<CodeElement> {
                 }
             }
             case ExceptionCatch i ->
-                map.put(i.handler(), new Stack(new Item(TypeKind.ReferenceType, null), 1));
+                map.put(i.handler(), new Stack(new Item(TypeKind.ReferenceType, null), 1, 1));
             case LabelTarget i ->
                 stack = map.getOrDefault(i.label(), stack);
             default -> {}
         }
-//        System.out.println(el);
-//        System.out.println(stack);
     }
 }

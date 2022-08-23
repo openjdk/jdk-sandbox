@@ -1389,9 +1389,28 @@ public sealed interface CodeBuilder
         return tableSwitchInstruction(low, high, defaultTarget, cases);
     }
 
-    default Optional<Collection<TypeKind>> stack() {
-        return Optional.empty();
-    }
+    /**
+     * Returns {@linkplain Collection} of {@linkplain TypeKind} representing current stack
+     * as tracked by this {@linkplain CodeBuilder}.
+     * Returns an empty {@linkplain Optional} in following cases:
+     * <p>
+     * <ul>
+     *   <li>Tracking has not been enabled by {@link jdk.classfile.Classfile.Option#trackStack(boolean)}
+     *   <li>Stack content is actually unknown
+     * @return actual stack content, or an empty {@linkplain Optional} if not available
+     */
+    Optional<Collection<TypeKind>> stack();
+
+    /**
+     * Returns max stack size as tracked by this {@linkplain CodeBuilder}.
+     * Returns an empty {@linkplain Optional} in following cases:
+     * <p>
+     * <ul>
+     *   <li>Tracking has not been enabled by {@link jdk.classfile.Classfile.Option#trackStack(boolean)}
+     *   <li>Stack content has been lost during tracking and max stack size could not be determined
+     * @return calculated max stack size, or an empty {@linkplain Optional} if not available
+     */
+    Optional<Integer> maxStackSize();
 
     // Structured conveniences:
 

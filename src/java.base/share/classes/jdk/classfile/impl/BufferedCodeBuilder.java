@@ -38,9 +38,11 @@ import jdk.classfile.instruction.LoadInstruction;
 import jdk.classfile.instruction.StoreInstruction;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
+import jdk.classfile.Classfile;
 
 /**
  * BufferedCodeBuilder
@@ -54,6 +56,7 @@ public final class BufferedCodeBuilder
     private final MethodInfo methodInfo;
     private boolean finished;
     private int maxLocals;
+    private final StackTracker stackTracker;
 
     public BufferedCodeBuilder(MethodInfo methodInfo,
                                ConstantPoolBuilder constantPool,
@@ -66,6 +69,7 @@ public final class BufferedCodeBuilder
         this.maxLocals = Util.maxLocals(methodInfo.methodFlags(), methodInfo.methodType().stringValue());
         if (original != null)
             this.maxLocals = Math.max(this.maxLocals, original.maxLocals());
+        this.stackTracker = constantPool.optionValue(Classfile.Option.Key.TRACK_STACK) ? new StackTracker() : null;
 
         elements.add(startLabel);
     }
@@ -136,6 +140,7 @@ public final class BufferedCodeBuilder
         if (finished)
             throw new IllegalStateException("Can't add elements after traversal");
         elements.add(element);
+        if (stackTracker != null) stackTracker.accept(element);
         return this;
     }
 
@@ -147,6 +152,16 @@ public final class BufferedCodeBuilder
     public BufferedCodeBuilder run(Consumer<? super CodeBuilder> handler) {
         handler.accept(this);
         return this;
+    }
+
+    @Override
+    public Optional<Collection<TypeKind>> stack() {
+        return Optional.ofNullable(stackTracker).map(StackTracker::stack);
+    }
+
+    @Override
+    public Optional<Integer> maxStackSize() {
+        return Optional.ofNullable(stackTracker).map(StackTracker::maxSize);
     }
 
     public CodeModel toModel() {

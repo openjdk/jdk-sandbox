@@ -24,11 +24,13 @@
  */
 package jdk.classfile.impl;
 
+import java.util.Collection;
 import java.util.Optional;
 
 import jdk.classfile.CodeBuilder;
 import jdk.classfile.CodeModel;
 import jdk.classfile.Label;
+import jdk.classfile.TypeKind;
 import jdk.classfile.constantpool.ConstantPoolBuilder;
 
 /**
@@ -69,5 +71,15 @@ public abstract sealed class NonterminalCodeBuilder implements CodeBuilder
     @Override
     public Label newLabel() {
         return terminal.newLabel();
+    }
+
+    @Override
+    public Optional<Collection<TypeKind>> stack() {
+        return terminal.stack();
+    }
+
+    @Override
+    public Optional<Integer> maxStackSize() {
+        return terminal.maxStackSize();
     }
 }

@@ -136,9 +136,9 @@ public class Classfile {
         static Option<Boolean> patchDeadCode(boolean b) { return new Options.OptionValue<>(Key.PATCH_DEAD_CODE, b); }
 
         /**
-         * {@return an option describing whether or not to track stack during code build}
+         * {@return an option describing whether or not to track stack when building the code}
          * Default is to do not track stack information.
-         * @param b whether or not to track stack during code building
+         * @param b whether or not to track stack when building the code
          */
         static Option<Boolean> trackStack(boolean b) { return new Options.OptionValue<>(Key.TRACK_STACK, b); }
 

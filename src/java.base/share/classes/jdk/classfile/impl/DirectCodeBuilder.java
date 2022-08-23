@@ -196,6 +196,11 @@ public final class DirectCodeBuilder
         return Optional.ofNullable(stackTracker).map(StackTracker::stack);
     }
 
+    @Override
+    public Optional<Integer> maxStackSize() {
+        return Optional.ofNullable(stackTracker).map(StackTracker::maxSize);
+    }
+
     private Attribute<CodeAttribute> content = null;
 
     private void writeExceptionHandlers(BufWriter buf) {
