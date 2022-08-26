@@ -24,50 +24,71 @@
  */
 package jdk.classfile.impl;
 
-import java.util.Optional;
-
 import jdk.classfile.CodeBuilder;
 import jdk.classfile.CodeModel;
+import java.util.Optional;
+import java.util.function.Consumer;
+import jdk.classfile.CodeElement;
 import jdk.classfile.Label;
+import jdk.classfile.TypeKind;
 import jdk.classfile.constantpool.ConstantPoolBuilder;
 
 /**
- * NonterminalCodeBuilder
+ * TransformingCodeBuilder
  */
-public abstract sealed class NonterminalCodeBuilder implements CodeBuilder
-    permits ChainedCodeBuilder, BlockCodeBuilderImpl {
-    protected final TerminalCodeBuilder terminal;
+public final class TransformingCodeBuilder implements TerminalCodeBuilder {
 
-    public NonterminalCodeBuilder(CodeBuilder downstream) {
-        this.terminal = switch (downstream) {
-            case ChainedCodeBuilder cb -> cb.terminal;
-            case BlockCodeBuilderImpl cb -> cb.terminal;
-            case TerminalCodeBuilder cb -> cb;
-        };
+    final CodeBuilder delegate;
+    final Consumer<CodeElement> consumer;
+
+    public TransformingCodeBuilder(CodeBuilder delegate, Consumer<CodeElement> consumer) {
+        this.delegate = delegate;
+        this.consumer = consumer;
     }
 
     @Override
-    public int receiverSlot() {
-        return terminal.receiverSlot();
-    }
-
-    @Override
-    public int parameterSlot(int paramNo) {
-        return terminal.parameterSlot(paramNo);
-    }
-
-    @Override
-    public ConstantPoolBuilder constantPool() {
-        return terminal.constantPool();
+    public CodeBuilder with(CodeElement e) {
+        consumer.accept(e);
+        return this;
     }
 
     @Override
     public Optional<CodeModel> original() {
-        return terminal.original();
+        return delegate.original();
     }
 
     @Override
     public Label newLabel() {
-        return terminal.newLabel();
+        return delegate.newLabel();
+    }
+
+    @Override
+    public Label startLabel() {
+        return delegate.startLabel();
+    }
+
+    @Override
+    public Label endLabel() {
+        return delegate.endLabel();
+    }
+
+    @Override
+    public int receiverSlot() {
+        return delegate.receiverSlot();
+    }
+
+    @Override
+    public int parameterSlot(int paramNo) {
+        return delegate.parameterSlot(paramNo);
+    }
+
+    @Override
+    public int allocateLocal(TypeKind typeKind) {
+        return delegate.allocateLocal(typeKind);
+    }
+
+    @Override
+    public ConstantPoolBuilder constantPool() {
+        return delegate.constantPool();
     }
 }

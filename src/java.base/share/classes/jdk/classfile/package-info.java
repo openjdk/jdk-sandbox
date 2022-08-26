@@ -180,7 +180,6 @@
  *   <li>{@link jdk.classfile.Classfile.Option#generateStackmap(boolean)} -- generate stackmaps (default is true)</li>
  *   <li>{@link jdk.classfile.Classfile.Option#processDebug(boolean)} -- processing of debug information, such as local variable metadata (default is true) </li>
  *   <li>{@link jdk.classfile.Classfile.Option#processLineNumbers(boolean)} -- processing of line numbers (default is true) </li>
- *   <li>{@link jdk.classfile.Classfile.Option#trackStack(boolean)} -- tracking stack during code build (default is false)</li>
  *   <li>{@link jdk.classfile.Classfile.Option#processUnknownAttributes(boolean)} -- processing of unrecognized attributes (default is true)</li>
  *   <li>{@link jdk.classfile.Classfile.Option#constantPoolSharing(boolean)}} -- share constant pool when transforming (default is true)</li>
  *   <li>{@link jdk.classfile.Classfile.Option#classHierarchyResolver(jdk.classfile.ClassHierarchyResolver)} -- specify a custom class hierarchy

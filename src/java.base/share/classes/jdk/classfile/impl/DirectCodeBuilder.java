@@ -26,13 +26,11 @@ package jdk.classfile.impl;
 
 import java.lang.constant.MethodTypeDesc;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -90,7 +88,6 @@ public final class DirectCodeBuilder
     private Map<CodeAttribute, int[]> parentMap;
     private DedupLineNumberTableAttribute lineNumberWriter;
     private int topLocal;
-    private final StackTracker stackTracker;
 
     List<DeferredLabel> deferredLabels;
 
@@ -137,13 +134,11 @@ public final class DirectCodeBuilder
         this.topLocal = Util.maxLocals(methodInfo.methodFlags(), methodInfo.methodType().stringValue());
         if (original != null)
             this.topLocal = Math.max(this.topLocal, original.maxLocals());
-        this.stackTracker = constantPool.optionValue(Classfile.Option.Key.TRACK_STACK) ? new StackTracker() : null;
     }
 
     @Override
     public CodeBuilder with(CodeElement element) {
         ((AbstractElement) element).writeTo(this);
-        if (stackTracker != null) stackTracker.accept(element);
         return this;
     }
 
@@ -189,16 +184,6 @@ public final class DirectCodeBuilder
 
     public MethodInfo methodInfo() {
         return methodInfo;
-    }
-
-    @Override
-    public Optional<Collection<TypeKind>> stack() {
-        return Optional.ofNullable(stackTracker).map(StackTracker::stack);
-    }
-
-    @Override
-    public Optional<Integer> maxStackSize() {
-        return Optional.ofNullable(stackTracker).map(StackTracker::maxSize);
     }
 
     private Attribute<CodeAttribute> content = null;

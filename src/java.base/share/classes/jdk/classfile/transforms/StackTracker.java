@@ -21,7 +21,7 @@
  * questions.
  *
  */
-package jdk.classfile.impl;
+package jdk.classfile.transforms;
 
 import java.util.AbstractCollection;
 import java.util.Collection;
@@ -29,44 +29,20 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.function.Consumer;
+import jdk.classfile.CodeBuilder;
 import jdk.classfile.CodeElement;
+import jdk.classfile.CodeTransform;
 import jdk.classfile.Label;
 import jdk.classfile.Opcode;
-import static jdk.classfile.Opcode.DNEG;
-import static jdk.classfile.Opcode.FNEG;
-import static jdk.classfile.Opcode.LNEG;
 import jdk.classfile.TypeKind;
-import jdk.classfile.instruction.ArrayLoadInstruction;
-import jdk.classfile.instruction.ArrayStoreInstruction;
-import jdk.classfile.instruction.BranchInstruction;
-import jdk.classfile.instruction.ConstantInstruction;
-import jdk.classfile.instruction.ConvertInstruction;
-import jdk.classfile.instruction.ExceptionCatch;
-import jdk.classfile.instruction.FieldInstruction;
-import jdk.classfile.instruction.InvokeDynamicInstruction;
-import jdk.classfile.instruction.InvokeInstruction;
-import jdk.classfile.instruction.LabelTarget;
-import jdk.classfile.instruction.LoadInstruction;
-import jdk.classfile.instruction.LookupSwitchInstruction;
-import jdk.classfile.instruction.MonitorInstruction;
-import jdk.classfile.instruction.NewMultiArrayInstruction;
-import jdk.classfile.instruction.NewObjectInstruction;
-import jdk.classfile.instruction.NewPrimitiveArrayInstruction;
-import jdk.classfile.instruction.NewReferenceArrayInstruction;
-import jdk.classfile.instruction.NopInstruction;
-import jdk.classfile.instruction.OperatorInstruction;
-import jdk.classfile.instruction.ReturnInstruction;
-import jdk.classfile.instruction.StackInstruction;
-import jdk.classfile.instruction.StoreInstruction;
-import jdk.classfile.instruction.TableSwitchInstruction;
-import jdk.classfile.instruction.ThrowInstruction;
-import jdk.classfile.instruction.TypeCheckInstruction;
+import jdk.classfile.instruction.*;
 
 /**
  *
  */
-public final class StackTracker implements Consumer<CodeElement> {
+public final class StackTracker implements CodeTransform {
 
     private static record Item(TypeKind type, Item next) {
     }
@@ -128,12 +104,12 @@ public final class StackTracker implements Consumer<CodeElement> {
     private Stack stack = new Stack(null, 0, 0);
     private Integer maxSize = 0;
 
-    public Collection<TypeKind> stack() {
-        return fork();
+    public Optional<Collection<TypeKind>> stack() {
+        return Optional.ofNullable(fork());
     }
 
-    public Integer maxSize() {
-        return maxSize;
+    public Optional<Integer> maxStackSize() {
+        return Optional.ofNullable(maxSize);
     }
 
     private Map<Label, Stack> map = new HashMap<>();
@@ -164,7 +140,8 @@ public final class StackTracker implements Consumer<CodeElement> {
     }
 
     @Override
-    public void accept(CodeElement el) {
+    public void accept(CodeBuilder cb, CodeElement el) {
+        cb.with(el);
         switch (el) {
             case ArrayLoadInstruction i -> {
                 pop(2);push(i.typeKind());

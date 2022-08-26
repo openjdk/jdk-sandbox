@@ -28,13 +28,12 @@
  * @summary Testing StackTracker in CodeBuilder.
  * @run testng StackTrackerTest
  */
-import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
 import java.lang.constant.ConstantDescs;
 import jdk.classfile.*;
+import jdk.classfile.transforms.StackTracker;
 import static jdk.classfile.TypeKind.*;
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
@@ -46,66 +45,64 @@ import static org.testng.Assert.*;
 public class StackTrackerTest {
 
     public void testStackTracker() {
-        Classfile.build(ClassDesc.of("Foo"), List.of(Classfile.Option.trackStack(true)), clb ->
+        Classfile.build(ClassDesc.of("Foo"), clb ->
             clb.withMethodBody("m", MethodTypeDesc.of(ConstantDescs.CD_Void), 0, cob -> {
-                assertEquals(cob.stack().get(), List.of());
-                cob.aload(0);
-                assertEquals(cob.stack().get(), List.of(ReferenceType));
-                cob.lconst_0();
-                assertEquals(cob.stack().get(), List.of(LongType, ReferenceType));
-                cob.trying(tryb -> {
-                    assertEquals(tryb.stack().get(), List.of(LongType, ReferenceType));
-                    tryb.iconst_1();
-                    assertEquals(tryb.stack().get(), List.of(IntType, LongType, ReferenceType));
-                    tryb.ifThen(thb -> {
-                        assertEquals(thb.stack().get(), List.of(LongType, ReferenceType));
-                        thb.constantInstruction(ClassDesc.of("Phee"));
-                        assertEquals(thb.stack().get(), List.of(ReferenceType, LongType, ReferenceType));
-                        thb.athrow();
-                        assertFalse(thb.stack().isPresent());
-                    });
-                    assertEquals(tryb.stack().get(), List.of(LongType, ReferenceType));
-                    tryb.return_();
-                    assertFalse(tryb.stack().isPresent());
-                }, catchb -> catchb.catching(ClassDesc.of("Phee"), cb -> {
-                    assertEquals(cb.stack().get(), List.of(ReferenceType));
-                    cb.athrow();
-                    assertFalse(cb.stack().isPresent());
-                }));
-                assertTrue(cob.maxStackSize().isPresent());
-                assertEquals((int)cob.maxStackSize().get(), 4);
+                var stackTracker = new StackTracker();
+                cob.transforming(stackTracker, stcb -> {
+                    assertEquals(stackTracker.stack().get(), List.of());
+                    stcb.aload(0);
+                    assertEquals(stackTracker.stack().get(), List.of(ReferenceType));
+                    stcb.lconst_0();
+                    assertEquals(stackTracker.stack().get(), List.of(LongType, ReferenceType));
+                    stcb.trying(tryb -> {
+                        assertEquals(stackTracker.stack().get(), List.of(LongType, ReferenceType));
+                        tryb.iconst_1();
+                        assertEquals(stackTracker.stack().get(), List.of(IntType, LongType, ReferenceType));
+                        tryb.ifThen(thb -> {
+                            assertEquals(stackTracker.stack().get(), List.of(LongType, ReferenceType));
+                            thb.constantInstruction(ClassDesc.of("Phee"));
+                            assertEquals(stackTracker.stack().get(), List.of(ReferenceType, LongType, ReferenceType));
+                            thb.athrow();
+                            assertFalse(stackTracker.stack().isPresent());
+                        });
+                        assertEquals(stackTracker.stack().get(), List.of(LongType, ReferenceType));
+                        tryb.return_();
+                        assertFalse(stackTracker.stack().isPresent());
+                    }, catchb -> catchb.catching(ClassDesc.of("Phee"), cb -> {
+                        assertEquals(stackTracker.stack().get(), List.of(ReferenceType));
+                        cb.athrow();
+                        assertFalse(stackTracker.stack().isPresent());
+                    }));
+                });
+                assertTrue(stackTracker.maxStackSize().isPresent());
+                assertEquals((int)stackTracker.maxStackSize().get(), 4);
             }));
     }
 
     public void testTrackingLost() {
-        Classfile.build(ClassDesc.of("Foo"), List.of(Classfile.Option.trackStack(true)), clb ->
+        Classfile.build(ClassDesc.of("Foo"), clb ->
             clb.withMethodBody("m", MethodTypeDesc.of(ConstantDescs.CD_Void), 0, cob -> {
-                assertEquals(cob.stack().get(), List.of());
-                var l1 = cob.newLabel();
-                cob.goto_(l1); //forward jump
-                assertFalse(cob.stack().isPresent()); //no stack
-                assertTrue(cob.maxStackSize().isPresent()); //however still tracking
-                var l2 = cob.newBoundLabel(); //back jump target
-                assertFalse(cob.stack().isPresent()); //no stack
-                assertTrue(cob.maxStackSize().isPresent()); //however still tracking
-                cob.constantInstruction(ClassDesc.of("Phee")); //stack instruction on unknown stack cause tracking lost
-                assertFalse(cob.stack().isPresent()); //no stack
-                assertFalse(cob.maxStackSize().isPresent()); //because tracking lost
-                cob.athrow();
-                cob.labelBinding(l1); //forward jump target
-                assertTrue(cob.stack().isPresent()); //stack known here
-                assertFalse(cob.maxStackSize().isPresent()); //no max stack size because tracking lost in back jump
-                cob.goto_(l2); //back jump
-                assertFalse(cob.stack().isPresent()); //no stack
-                assertFalse(cob.maxStackSize().isPresent()); //still no max stack size because tracking previously lost
-            }));
-    }
-
-    public void testDisabledStackTracker() {
-        Classfile.build(ClassDesc.of("Foo"), List.of(Classfile.Option.trackStack(false)), clb ->
-            clb.withMethodBody("m", MethodTypeDesc.of(ConstantDescs.CD_Void), 0, cob -> {
-                assertFalse(cob.stack().isPresent());
-                assertFalse(cob.maxStackSize().isPresent());
+                var stackTracker = new StackTracker();
+                cob.transforming(stackTracker, stcb -> {
+                    assertEquals(stackTracker.stack().get(), List.of());
+                    var l1 = stcb.newLabel();
+                    stcb.goto_(l1); //forward jump
+                    assertFalse(stackTracker.stack().isPresent()); //no stack
+                    assertTrue(stackTracker.maxStackSize().isPresent()); //however still tracking
+                    var l2 = stcb.newBoundLabel(); //back jump target
+                    assertFalse(stackTracker.stack().isPresent()); //no stack
+                    assertTrue(stackTracker.maxStackSize().isPresent()); //however still tracking
+                    stcb.constantInstruction(ClassDesc.of("Phee")); //stack instruction on unknown stack cause tracking lost
+                    assertFalse(stackTracker.stack().isPresent()); //no stack
+                    assertFalse(stackTracker.maxStackSize().isPresent()); //because tracking lost
+                    stcb.athrow();
+                    stcb.labelBinding(l1); //forward jump target
+                    assertTrue(stackTracker.stack().isPresent()); //stack known here
+                    assertFalse(stackTracker.maxStackSize().isPresent()); //no max stack size because tracking lost in back jump
+                    stcb.goto_(l2); //back jump
+                    assertFalse(stackTracker.stack().isPresent()); //no stack
+                    assertFalse(stackTracker.maxStackSize().isPresent()); //still no max stack size because tracking previously lost
+                });
             }));
     }
 }

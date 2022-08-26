@@ -48,7 +48,6 @@ public class Options {
     public Boolean cpSharing = true;
     public Boolean fixJumps = true;
     public Boolean patchCode = true;
-    public Boolean trackStack = false;
     public ClassHierarchyResolver classHierarchyResolver = DEFAULT_CLASS_HIERARCHY_RESOLVER;
     public Function<Utf8Entry, AttributeMapper<?>> attributeMapper = new Function<>() {
         @Override
@@ -68,7 +67,6 @@ public class Options {
                 case CP_SHARING -> cpSharing = (Boolean) v.value();
                 case FIX_SHORT_JUMPS -> fixJumps = (Boolean) v.value();
                 case PATCH_DEAD_CODE -> patchCode = (Boolean) v.value();
-                case TRACK_STACK -> trackStack = (Boolean) v.value();
                 case HIERARCHY_RESOLVER -> classHierarchyResolver = (ClassHierarchyResolver) v.value();
                 case ATTRIBUTE_MAPPER -> attributeMapper = (Function<Utf8Entry, AttributeMapper<?>>) v.value();
             }
@@ -83,7 +81,6 @@ public class Options {
             case CP_SHARING -> (T) cpSharing;
             case FIX_SHORT_JUMPS -> (T) fixJumps;
             case PATCH_DEAD_CODE -> (T) patchCode;
-            case TRACK_STACK -> (T) trackStack;
             case ATTRIBUTE_MAPPER -> (T) attributeMapper;
             case GENERATE_STACK_MAPS -> (T) generateStackmaps;
             case HIERARCHY_RESOLVER -> (T) classHierarchyResolver;
