@@ -151,7 +151,7 @@ final class JIClassInstrumentation {
         var instrumentorClassRemapper = ClassRemapper.of(Map.of(instrumentor.thisClass().asSymbol(), target.thisClass().asSymbol()));
         return target.transform(
                 ClassTransform.transformingMethods(
-                        mm -> instrumentorCodeMap.containsKey(mm.methodName().stringValue() + mm.methodType().stringValue()),
+                        instrumentedMethodsFilter,
                         (mb, me) -> {
                             if (me instanceof CodeModel targetCodeModel) {
                                 var mm = targetCodeModel.parent().get();
@@ -182,6 +182,7 @@ final class JIClassInstrumentation {
                                                 var endLabel = codeBuilder.newLabel();
                                                 //inlined target locals must be shifted based on the actual instrumentor locals
                                                 codeBuilder.transform(targetCodeModel, instrumentorLocalsShifter.fork()
+                                                        .andThen(LabelsRemapper.remapLabels())
                                                         .andThen((innerBuilder, shiftedTargetCode) -> {
                                                             //returns must be replaced with jump to the end of the inlined method
                                                             if (shiftedTargetCode.codeKind() == CodeElement.Kind.RETURN)
