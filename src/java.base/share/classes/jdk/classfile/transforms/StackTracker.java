@@ -44,6 +44,35 @@ import jdk.classfile.instruction.*;
  */
 public final class StackTracker implements CodeTransform {
 
+
+    /**
+      * Returns {@linkplain Collection} of {@linkplain TypeKind} representing current stack.
+      * Returns an empty {@linkplain Optional} when the Stack content is unknown
+      * (right after {@code xRETURN, ATHROW, GOTO, GOTO_W, LOOKUPSWITCH, TABLESWITCH} instructions).
+      *
+      * Temporary unknown stack content can be recovered by binding of a {@linkplain Label} used as
+      * target of a branch instruction from existing code with known Stack (forward branch target),
+      * or by binding of a {@linkplain Label} defining an exception handler (exception handler code start).
+      *
+      * @return actual stack content, or an empty {@linkplain Optional} if unknown
+      */
+    public Optional<Collection<TypeKind>> stack() {
+        return Optional.ofNullable(fork());
+    }
+
+    /**
+      * Returns tracked max stack size.
+      * Returns an empty {@linkplain Optional} when Max stack size tracking has been lost.
+      *
+      * Max stack size tracking is permanently lost when a stack instruction appears
+      * and the actual stack content is unknown.
+      *
+      * @return tracked max stack size, or an empty {@linkplain Optional} if tracking has been lost
+      */
+    public Optional<Integer> maxStackSize() {
+        return Optional.ofNullable(maxSize);
+    }
+
     private static record Item(TypeKind type, Item next) {
     }
 
@@ -103,14 +132,6 @@ public final class StackTracker implements CodeTransform {
 
     private Stack stack = new Stack(null, 0, 0);
     private Integer maxSize = 0;
-
-    public Optional<Collection<TypeKind>> stack() {
-        return Optional.ofNullable(fork());
-    }
-
-    public Optional<Integer> maxStackSize() {
-        return Optional.ofNullable(maxSize);
-    }
 
     private Map<Label, Stack> map = new HashMap<>();
 
