@@ -146,6 +146,10 @@ module java.base {
     // compiled with "--enable-preview".
     // It is recommended for any modules that do participate that their
     // module declaration be annotated with jdk.internal.javac.ParticipatesInPreview
+    exports jdk.classfile to
+        jdk.jshell;
+    exports jdk.classfile.instruction to
+        jdk.jshell;
     exports jdk.internal.javac to
         java.compiler,
         java.management, // participates in preview features

@@ -24,9 +24,15 @@
  */
 package jdk.jshell.execution;
 
+import java.lang.constant.ClassDesc;
+import java.lang.constant.MethodTypeDesc;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
+import jdk.classfile.Classfile;
+import jdk.classfile.ClassTransform;
+import jdk.classfile.instruction.BranchInstruction;
 
 /**
  * An implementation of {@link jdk.jshell.spi.ExecutionControl} which executes
@@ -36,6 +42,16 @@ import java.util.concurrent.atomic.AtomicReference;
  * @since 9
  */
 public class LocalExecutionControl extends DirectExecutionControl {
+
+
+    private static final ClassDesc CD_LocalExecutionControl = ClassDesc.ofDescriptor(LocalExecutionControl.class.descriptorString());
+    private static final MethodTypeDesc MTD_void = MethodTypeDesc.ofDescriptor("()V");
+
+    private static volatile boolean allStop = false;
+
+    public static void stopCheck() {
+        if (allStop) throw new ThreadDeath();
+    }
 
     private final Object STOP_LOCK = new Object();
     private boolean userCodeRunning = false;
@@ -55,6 +71,18 @@ public class LocalExecutionControl extends DirectExecutionControl {
      * Create an instance using the default class loading.
      */
     public LocalExecutionControl() {
+    }
+
+    @Override
+    public void load(ClassBytecodes[] cbcs)
+            throws ClassInstallException, NotImplementedException, EngineTerminationException {
+        super.load(Stream.of(cbcs).map(cbc ->
+                new ClassBytecodes(cbc.name(), Classfile.parse(cbc.bytecodes())
+                        .transform(ClassTransform.transformingMethodBodies((cob, coe) -> {
+                            if (coe instanceof BranchInstruction br)
+                                cob.invokestatic(CD_LocalExecutionControl, "stopCheck", MTD_void);
+                            cob.with(coe);
+                        })))).toArray(ClassBytecodes[]::new));
     }
 
     @Override
@@ -133,17 +161,7 @@ public class LocalExecutionControl extends DirectExecutionControl {
             if (execThreadGroup == null) {
                 throw new InternalException("Process-local code snippets thread group is null. Aborting stop.");
             }
-
-            Thread[] threads;
-            int len, threadCount;
-            do {
-                len = execThreadGroup.activeCount() + 4;
-                threads = new Thread[len];
-                threadCount = execThreadGroup.enumerate(threads);
-            } while (threadCount == len);
-            for (int i = 0; i < threadCount; i++) {
-                threads[i].stop();
-            }
+            allStop = true;
         }
     }
 
@@ -151,6 +169,7 @@ public class LocalExecutionControl extends DirectExecutionControl {
     protected void clientCodeEnter() {
         synchronized (STOP_LOCK) {
             userCodeRunning = true;
+            allStop = false;
         }
     }
 

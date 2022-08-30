@@ -24,3 +24,4 @@
 #
 
 COPY += .jsh .properties
+JAVAC_FLAGS += -XDignorePreview
