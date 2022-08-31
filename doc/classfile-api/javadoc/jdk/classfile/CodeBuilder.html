@@ -9,7 +9,6 @@
 <meta name="generator" content="javadoc/ClassWriterImpl">
 <link rel="stylesheet" type="text/css" href="../../stylesheet.css" title="Style">
 <link rel="stylesheet" type="text/css" href="../../script-dir/jquery-ui.min.css" title="Style">
-<link rel="stylesheet" type="text/css" href="../../jquery-ui.overrides.css" title="Style">
 <script type="text/javascript" src="../../script.js"></script>
 <script type="text/javascript" src="../../script-dir/jquery-3.6.0.min.js"></script>
 <script type="text/javascript" src="../../script-dir/jquery-ui.min.js"></script>
@@ -96,7 +95,7 @@ loadScripts(document, 'script');</script>
 </dl>
 <dl class="notes">
 <dt>All Known Implementing Classes:</dt>
-<dd><code><a href="impl/BlockCodeBuilderImpl.html" title="class in jdk.classfile.impl">BlockCodeBuilderImpl</a></code>, <code><a href="impl/BufferedCodeBuilder.html" title="class in jdk.classfile.impl">BufferedCodeBuilder</a></code>, <code><a href="impl/ChainedCodeBuilder.html" title="class in jdk.classfile.impl">ChainedCodeBuilder</a></code>, <code><a href="impl/DirectCodeBuilder.html" title="class in jdk.classfile.impl">DirectCodeBuilder</a></code>, <code><a href="impl/NonterminalCodeBuilder.html" title="class in jdk.classfile.impl">NonterminalCodeBuilder</a></code></dd>
+<dd><code><a href="impl/BlockCodeBuilderImpl.html" title="class in jdk.classfile.impl">BlockCodeBuilderImpl</a></code>, <code><a href="impl/BufferedCodeBuilder.html" title="class in jdk.classfile.impl">BufferedCodeBuilder</a></code>, <code><a href="impl/ChainedCodeBuilder.html" title="class in jdk.classfile.impl">ChainedCodeBuilder</a></code>, <code><a href="impl/DirectCodeBuilder.html" title="class in jdk.classfile.impl">DirectCodeBuilder</a></code>, <code><a href="impl/NonterminalCodeBuilder.html" title="class in jdk.classfile.impl">NonterminalCodeBuilder</a></code>, <code><a href="impl/TransformingCodeBuilder.html" title="class in jdk.classfile.impl">TransformingCodeBuilder</a></code></dd>
 </dl>
 <hr>
 <div class="type-signature"><span class="modifiers">public sealed interface </span><span class="element-name type-name-label">CodeBuilder</span><span class="extends-implements">
@@ -696,267 +695,268 @@ extends <a href="ClassfileBuilder.html" title="interface in jdk.classfile">Class
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#labelBinding(jdk.classfile.Label)" class="member-name-link">labelBinding</a><wbr>(<a href="Label.html" title="interface in jdk.classfile">Label</a>&nbsp;label)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#labelToBci(jdk.classfile.Label)" class="member-name-link">labelToBci</a><wbr>(<a href="Label.html" title="interface in jdk.classfile">Label</a>&nbsp;label)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Returns the bytecode offset associated with the specified label.</div>
-</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#ladd()" class="member-name-link">ladd</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#laload()" class="member-name-link">laload</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#ladd()" class="member-name-link">ladd</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#land()" class="member-name-link">land</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#laload()" class="member-name-link">laload</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lastore()" class="member-name-link">lastore</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#land()" class="member-name-link">land</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lcmp()" class="member-name-link">lcmp</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lastore()" class="member-name-link">lastore</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lconst_0()" class="member-name-link">lconst_0</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lcmp()" class="member-name-link">lcmp</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lconst_1()" class="member-name-link">lconst_1</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lconst_0()" class="member-name-link">lconst_0</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#ldiv()" class="member-name-link">ldiv</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lconst_1()" class="member-name-link">lconst_1</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lineNumber(int)" class="member-name-link">lineNumber</a><wbr>(int&nbsp;line)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#ldiv()" class="member-name-link">ldiv</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lload(int)" class="member-name-link">lload</a><wbr>(int&nbsp;slot)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lineNumber(int)" class="member-name-link">lineNumber</a><wbr>(int&nbsp;line)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lmul()" class="member-name-link">lmul</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lload(int)" class="member-name-link">lload</a><wbr>(int&nbsp;slot)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lneg()" class="member-name-link">lneg</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lmul()" class="member-name-link">lmul</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#loadInstruction(jdk.classfile.TypeKind,int)" class="member-name-link">loadInstruction</a><wbr>(<a href="TypeKind.html" title="enum class in jdk.classfile">TypeKind</a>&nbsp;tk,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lneg()" class="member-name-link">lneg</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#loadInstruction(jdk.classfile.TypeKind,int)" class="member-name-link">loadInstruction</a><wbr>(<a href="TypeKind.html" title="enum class in jdk.classfile">TypeKind</a>&nbsp;tk,
  int&nbsp;slot)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#localVariable(int,java.lang.String,java.lang.constant.ClassDesc,jdk.classfile.Label,jdk.classfile.Label)" class="member-name-link">localVariable</a><wbr>(int&nbsp;slot,
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#localVariable(int,java.lang.String,java.lang.constant.ClassDesc,jdk.classfile.Label,jdk.classfile.Label)" class="member-name-link">localVariable</a><wbr>(int&nbsp;slot,
  <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name,
  <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;descriptor,
  <a href="Label.html" title="interface in jdk.classfile">Label</a>&nbsp;startScope,
  <a href="Label.html" title="interface in jdk.classfile">Label</a>&nbsp;endScope)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#localVariable(int,jdk.classfile.constantpool.Utf8Entry,jdk.classfile.constantpool.Utf8Entry,jdk.classfile.Label,jdk.classfile.Label)" class="member-name-link">localVariable</a><wbr>(int&nbsp;slot,
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#localVariable(int,jdk.classfile.constantpool.Utf8Entry,jdk.classfile.constantpool.Utf8Entry,jdk.classfile.Label,jdk.classfile.Label)" class="member-name-link">localVariable</a><wbr>(int&nbsp;slot,
  <a href="constantpool/Utf8Entry.html" title="interface in jdk.classfile.constantpool">Utf8Entry</a>&nbsp;nameEntry,
  <a href="constantpool/Utf8Entry.html" title="interface in jdk.classfile.constantpool">Utf8Entry</a>&nbsp;descriptorEntry,
  <a href="Label.html" title="interface in jdk.classfile">Label</a>&nbsp;startScope,
  <a href="Label.html" title="interface in jdk.classfile">Label</a>&nbsp;endScope)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#localVariableType(int,java.lang.String,jdk.classfile.Signature,jdk.classfile.Label,jdk.classfile.Label)" class="member-name-link">localVariableType</a><wbr>(int&nbsp;slot,
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#localVariableType(int,java.lang.String,jdk.classfile.Signature,jdk.classfile.Label,jdk.classfile.Label)" class="member-name-link">localVariableType</a><wbr>(int&nbsp;slot,
  <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name,
  <a href="Signature.html" title="interface in jdk.classfile">Signature</a>&nbsp;signature,
  <a href="Label.html" title="interface in jdk.classfile">Label</a>&nbsp;startScope,
  <a href="Label.html" title="interface in jdk.classfile">Label</a>&nbsp;endScope)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#localVariableType(int,jdk.classfile.constantpool.Utf8Entry,jdk.classfile.constantpool.Utf8Entry,jdk.classfile.Label,jdk.classfile.Label)" class="member-name-link">localVariableType</a><wbr>(int&nbsp;slot,
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#localVariableType(int,jdk.classfile.constantpool.Utf8Entry,jdk.classfile.constantpool.Utf8Entry,jdk.classfile.Label,jdk.classfile.Label)" class="member-name-link">localVariableType</a><wbr>(int&nbsp;slot,
  <a href="constantpool/Utf8Entry.html" title="interface in jdk.classfile.constantpool">Utf8Entry</a>&nbsp;nameEntry,
  <a href="constantpool/Utf8Entry.html" title="interface in jdk.classfile.constantpool">Utf8Entry</a>&nbsp;signatureEntry,
  <a href="Label.html" title="interface in jdk.classfile">Label</a>&nbsp;startScope,
  <a href="Label.html" title="interface in jdk.classfile">Label</a>&nbsp;endScope)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lookupswitch(jdk.classfile.Label,java.util.List)" class="member-name-link">lookupswitch</a><wbr>(<a href="Label.html" title="interface in jdk.classfile">Label</a>&nbsp;defaultTarget,
- <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="instruction/SwitchCase.html" title="interface in jdk.classfile.instruction">SwitchCase</a>&gt;&nbsp;cases)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lookupSwitchInstruction(jdk.classfile.Label,java.util.List)" class="member-name-link">lookupSwitchInstruction</a><wbr>(<a href="Label.html" title="interface in jdk.classfile">Label</a>&nbsp;defaultTarget,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lookupswitch(jdk.classfile.Label,java.util.List)" class="member-name-link">lookupswitch</a><wbr>(<a href="Label.html" title="interface in jdk.classfile">Label</a>&nbsp;defaultTarget,
  <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="instruction/SwitchCase.html" title="interface in jdk.classfile.instruction">SwitchCase</a>&gt;&nbsp;cases)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lor()" class="member-name-link">lor</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lookupSwitchInstruction(jdk.classfile.Label,java.util.List)" class="member-name-link">lookupSwitchInstruction</a><wbr>(<a href="Label.html" title="interface in jdk.classfile">Label</a>&nbsp;defaultTarget,
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="instruction/SwitchCase.html" title="interface in jdk.classfile.instruction">SwitchCase</a>&gt;&nbsp;cases)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lrem()" class="member-name-link">lrem</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lor()" class="member-name-link">lor</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lreturn()" class="member-name-link">lreturn</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lrem()" class="member-name-link">lrem</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lshl()" class="member-name-link">lshl</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lreturn()" class="member-name-link">lreturn</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lshr()" class="member-name-link">lshr</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lshl()" class="member-name-link">lshl</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lstore(int)" class="member-name-link">lstore</a><wbr>(int&nbsp;slot)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lshr()" class="member-name-link">lshr</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lsub()" class="member-name-link">lsub</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lstore(int)" class="member-name-link">lstore</a><wbr>(int&nbsp;slot)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lushr()" class="member-name-link">lushr</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lsub()" class="member-name-link">lsub</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lxor()" class="member-name-link">lxor</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lushr()" class="member-name-link">lushr</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#monitorenter()" class="member-name-link">monitorenter</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#lxor()" class="member-name-link">lxor</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#monitorexit()" class="member-name-link">monitorexit</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#monitorenter()" class="member-name-link">monitorenter</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#monitorInstruction(jdk.classfile.Opcode)" class="member-name-link">monitorInstruction</a><wbr>(<a href="Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#monitorexit()" class="member-name-link">monitorexit</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#multianewarray(java.lang.constant.ClassDesc,int)" class="member-name-link">multianewarray</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;array,
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#monitorInstruction(jdk.classfile.Opcode)" class="member-name-link">monitorInstruction</a><wbr>(<a href="Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#multianewarray(java.lang.constant.ClassDesc,int)" class="member-name-link">multianewarray</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;array,
+ int&nbsp;dims)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#multianewarray(jdk.classfile.constantpool.ClassEntry,int)" class="member-name-link">multianewarray</a><wbr>(<a href="constantpool/ClassEntry.html" title="interface in jdk.classfile.constantpool">ClassEntry</a>&nbsp;array,
  int&nbsp;dims)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#multianewarray(jdk.classfile.constantpool.ClassEntry,int)" class="member-name-link">multianewarray</a><wbr>(<a href="constantpool/ClassEntry.html" title="interface in jdk.classfile.constantpool">ClassEntry</a>&nbsp;array,
- int&nbsp;dims)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#new_(java.lang.constant.ClassDesc)" class="member-name-link">new_</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;clazz)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#new_(java.lang.constant.ClassDesc)" class="member-name-link">new_</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;clazz)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#new_(jdk.classfile.constantpool.ClassEntry)" class="member-name-link">new_</a><wbr>(<a href="constantpool/ClassEntry.html" title="interface in jdk.classfile.constantpool">ClassEntry</a>&nbsp;clazz)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#new_(jdk.classfile.constantpool.ClassEntry)" class="member-name-link">new_</a><wbr>(<a href="constantpool/ClassEntry.html" title="interface in jdk.classfile.constantpool">ClassEntry</a>&nbsp;clazz)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#newarray(jdk.classfile.TypeKind)" class="member-name-link">newarray</a><wbr>(<a href="TypeKind.html" title="enum class in jdk.classfile">TypeKind</a>&nbsp;typeKind)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#newarray(jdk.classfile.TypeKind)" class="member-name-link">newarray</a><wbr>(<a href="TypeKind.html" title="enum class in jdk.classfile">TypeKind</a>&nbsp;typeKind)</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Label.html" title="interface in jdk.classfile">Label</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#newBoundLabel()" class="member-name-link">newBoundLabel</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Label.html" title="interface in jdk.classfile">Label</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#newBoundLabel()" class="member-name-link">newBoundLabel</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="Label.html" title="interface in jdk.classfile">Label</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#newLabel()" class="member-name-link">newLabel</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="Label.html" title="interface in jdk.classfile">Label</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#newLabel()" class="member-name-link">newLabel</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns a fresh unbound label.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#newMultidimensionalArrayInstruction(int,java.lang.constant.ClassDesc)" class="member-name-link">newMultidimensionalArrayInstruction</a><wbr>(int&nbsp;dimensions,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#newMultidimensionalArrayInstruction(int,java.lang.constant.ClassDesc)" class="member-name-link">newMultidimensionalArrayInstruction</a><wbr>(int&nbsp;dimensions,
  <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;type)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#newMultidimensionalArrayInstruction(int,jdk.classfile.constantpool.ClassEntry)" class="member-name-link">newMultidimensionalArrayInstruction</a><wbr>(int&nbsp;dimensions,
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#newMultidimensionalArrayInstruction(int,jdk.classfile.constantpool.ClassEntry)" class="member-name-link">newMultidimensionalArrayInstruction</a><wbr>(int&nbsp;dimensions,
  <a href="constantpool/ClassEntry.html" title="interface in jdk.classfile.constantpool">ClassEntry</a>&nbsp;type)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#newObjectInstruction(java.lang.constant.ClassDesc)" class="member-name-link">newObjectInstruction</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;type)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#newObjectInstruction(jdk.classfile.constantpool.ClassEntry)" class="member-name-link">newObjectInstruction</a><wbr>(<a href="constantpool/ClassEntry.html" title="interface in jdk.classfile.constantpool">ClassEntry</a>&nbsp;type)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#newObjectInstruction(java.lang.constant.ClassDesc)" class="member-name-link">newObjectInstruction</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;type)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#newPrimitiveArrayInstruction(jdk.classfile.TypeKind)" class="member-name-link">newPrimitiveArrayInstruction</a><wbr>(<a href="TypeKind.html" title="enum class in jdk.classfile">TypeKind</a>&nbsp;typeKind)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#newObjectInstruction(jdk.classfile.constantpool.ClassEntry)" class="member-name-link">newObjectInstruction</a><wbr>(<a href="constantpool/ClassEntry.html" title="interface in jdk.classfile.constantpool">ClassEntry</a>&nbsp;type)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#newReferenceArrayInstruction(java.lang.constant.ClassDesc)" class="member-name-link">newReferenceArrayInstruction</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;type)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#newPrimitiveArrayInstruction(jdk.classfile.TypeKind)" class="member-name-link">newPrimitiveArrayInstruction</a><wbr>(<a href="TypeKind.html" title="enum class in jdk.classfile">TypeKind</a>&nbsp;typeKind)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#newReferenceArrayInstruction(jdk.classfile.constantpool.ClassEntry)" class="member-name-link">newReferenceArrayInstruction</a><wbr>(<a href="constantpool/ClassEntry.html" title="interface in jdk.classfile.constantpool">ClassEntry</a>&nbsp;type)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#newReferenceArrayInstruction(java.lang.constant.ClassDesc)" class="member-name-link">newReferenceArrayInstruction</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;type)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#nop()" class="member-name-link">nop</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#newReferenceArrayInstruction(jdk.classfile.constantpool.ClassEntry)" class="member-name-link">newReferenceArrayInstruction</a><wbr>(<a href="constantpool/ClassEntry.html" title="interface in jdk.classfile.constantpool">ClassEntry</a>&nbsp;type)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#nopInstruction()" class="member-name-link">nopInstruction</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#nop()" class="member-name-link">nop</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#operatorInstruction(jdk.classfile.Opcode)" class="member-name-link">operatorInstruction</a><wbr>(<a href="Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#nopInstruction()" class="member-name-link">nopInstruction</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="CodeModel.html" title="interface in jdk.classfile">CodeModel</a>&gt;</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#original()" class="member-name-link">original</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#operatorInstruction(jdk.classfile.Opcode)" class="member-name-link">operatorInstruction</a><wbr>(<a href="Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="CodeModel.html" title="interface in jdk.classfile">CodeModel</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#original()" class="member-name-link">original</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns the <a href="CodeModel.html" title="interface in jdk.classfile"><code>CodeModel</code></a> representing the method body being transformed,
  if this code builder represents the transformation of some <a href="CodeModel.html" title="interface in jdk.classfile"><code>CodeModel</code></a>.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#parameterSlot(int)" class="member-name-link">parameterSlot</a><wbr>(int&nbsp;paramNo)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#parameterSlot(int)" class="member-name-link">parameterSlot</a><wbr>(int&nbsp;paramNo)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns the local variable slot associated with the specified parameter.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#pop()" class="member-name-link">pop</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#pop2()" class="member-name-link">pop2</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#pop()" class="member-name-link">pop</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#putfield(java.lang.constant.ClassDesc,java.lang.String,java.lang.constant.ClassDesc)" class="member-name-link">putfield</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;owner,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#pop2()" class="member-name-link">pop2</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#putfield(java.lang.constant.ClassDesc,java.lang.String,java.lang.constant.ClassDesc)" class="member-name-link">putfield</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;owner,
  <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name,
  <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;type)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#putfield(jdk.classfile.constantpool.FieldRefEntry)" class="member-name-link">putfield</a><wbr>(<a href="constantpool/FieldRefEntry.html" title="interface in jdk.classfile.constantpool">FieldRefEntry</a>&nbsp;ref)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#putstatic(java.lang.constant.ClassDesc,java.lang.String,java.lang.constant.ClassDesc)" class="member-name-link">putstatic</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;owner,
- <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name,
- <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;type)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#putfield(jdk.classfile.constantpool.FieldRefEntry)" class="member-name-link">putfield</a><wbr>(<a href="constantpool/FieldRefEntry.html" title="interface in jdk.classfile.constantpool">FieldRefEntry</a>&nbsp;ref)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#putstatic(jdk.classfile.constantpool.FieldRefEntry)" class="member-name-link">putstatic</a><wbr>(<a href="constantpool/FieldRefEntry.html" title="interface in jdk.classfile.constantpool">FieldRefEntry</a>&nbsp;ref)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#putstatic(java.lang.constant.ClassDesc,java.lang.String,java.lang.constant.ClassDesc)" class="member-name-link">putstatic</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;owner,
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name,
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;type)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#receiverSlot()" class="member-name-link">receiverSlot</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#putstatic(jdk.classfile.constantpool.FieldRefEntry)" class="member-name-link">putstatic</a><wbr>(<a href="constantpool/FieldRefEntry.html" title="interface in jdk.classfile.constantpool">FieldRefEntry</a>&nbsp;ref)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#receiverSlot()" class="member-name-link">receiverSlot</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns the local variable slot associated with the receiver.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#return_()" class="member-name-link">return_</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#returnInstruction(jdk.classfile.TypeKind)" class="member-name-link">returnInstruction</a><wbr>(<a href="TypeKind.html" title="enum class in jdk.classfile">TypeKind</a>&nbsp;tk)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#return_()" class="member-name-link">return_</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#saload()" class="member-name-link">saload</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#returnInstruction(jdk.classfile.TypeKind)" class="member-name-link">returnInstruction</a><wbr>(<a href="TypeKind.html" title="enum class in jdk.classfile">TypeKind</a>&nbsp;tk)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#sastore()" class="member-name-link">sastore</a>()</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#saload()" class="member-name-link">saload</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#sipush(int)" class="member-name-link">sipush</a><wbr>(int&nbsp;s)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#sastore()" class="member-name-link">sastore</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#stackInstruction(jdk.classfile.Opcode)" class="member-name-link">stackInstruction</a><wbr>(<a href="Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#sipush(int)" class="member-name-link">sipush</a><wbr>(int&nbsp;s)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="Label.html" title="interface in jdk.classfile">Label</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#startLabel()" class="member-name-link">startLabel</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#stackInstruction(jdk.classfile.Opcode)" class="member-name-link">stackInstruction</a><wbr>(<a href="Opcode.html" title="enum class in jdk.classfile">Opcode</a>&nbsp;opcode)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="Label.html" title="interface in jdk.classfile">Label</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#startLabel()" class="member-name-link">startLabel</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns the label associated with the beginning of the current block.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#storeInstruction(jdk.classfile.TypeKind,int)" class="member-name-link">storeInstruction</a><wbr>(<a href="TypeKind.html" title="enum class in jdk.classfile">TypeKind</a>&nbsp;tk,
- int&nbsp;slot)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#swap()" class="member-name-link">swap</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#storeInstruction(jdk.classfile.TypeKind,int)" class="member-name-link">storeInstruction</a><wbr>(<a href="TypeKind.html" title="enum class in jdk.classfile">TypeKind</a>&nbsp;tk,
+ int&nbsp;slot)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#tableswitch(int,int,jdk.classfile.Label,java.util.List)" class="member-name-link">tableswitch</a><wbr>(int&nbsp;low,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#swap()" class="member-name-link">swap</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#tableswitch(int,int,jdk.classfile.Label,java.util.List)" class="member-name-link">tableswitch</a><wbr>(int&nbsp;low,
  int&nbsp;high,
  <a href="Label.html" title="interface in jdk.classfile">Label</a>&nbsp;defaultTarget,
  <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="instruction/SwitchCase.html" title="interface in jdk.classfile.instruction">SwitchCase</a>&gt;&nbsp;cases)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#tableswitch(jdk.classfile.Label,java.util.List)" class="member-name-link">tableswitch</a><wbr>(<a href="Label.html" title="interface in jdk.classfile">Label</a>&nbsp;defaultTarget,
- <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="instruction/SwitchCase.html" title="interface in jdk.classfile.instruction">SwitchCase</a>&gt;&nbsp;cases)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#tableSwitchInstruction(int,int,jdk.classfile.Label,java.util.List)" class="member-name-link">tableSwitchInstruction</a><wbr>(int&nbsp;lowValue,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#tableswitch(jdk.classfile.Label,java.util.List)" class="member-name-link">tableswitch</a><wbr>(<a href="Label.html" title="interface in jdk.classfile">Label</a>&nbsp;defaultTarget,
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="instruction/SwitchCase.html" title="interface in jdk.classfile.instruction">SwitchCase</a>&gt;&nbsp;cases)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#tableSwitchInstruction(int,int,jdk.classfile.Label,java.util.List)" class="member-name-link">tableSwitchInstruction</a><wbr>(int&nbsp;lowValue,
  int&nbsp;highValue,
  <a href="Label.html" title="interface in jdk.classfile">Label</a>&nbsp;defaultTarget,
  <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="instruction/SwitchCase.html" title="interface in jdk.classfile.instruction">SwitchCase</a>&gt;&nbsp;cases)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#throwInstruction()" class="member-name-link">throwInstruction</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#throwInstruction()" class="member-name-link">throwInstruction</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#transforming(jdk.classfile.CodeTransform,java.util.function.Consumer)" class="member-name-link">transforming</a><wbr>(<a href="CodeTransform.html" title="interface in jdk.classfile">CodeTransform</a>&nbsp;transform,
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a>&gt;&nbsp;handler)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Builds code fragment generated by the handler and synchronously transformed.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#trying(java.util.function.Consumer,java.util.function.Consumer)" class="member-name-link">trying</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.BlockCodeBuilder.html" title="interface in jdk.classfile">CodeBuilder.BlockCodeBuilder</a>&gt;&nbsp;tryHandler,
  <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.CatchBuilder.html" title="interface in jdk.classfile">CodeBuilder.CatchBuilder</a>&gt;&nbsp;catchesHandler)</code></div>
@@ -1044,17 +1044,6 @@ extends <a href="ClassfileBuilder.html" title="interface in jdk.classfile">Class
 </section>
 </li>
 <li>
-<section class="detail" id="labelToBci(jdk.classfile.Label)">
-<h3>labelToBci</h3>
-<div class="member-signature"><span class="return-type">int</span>&nbsp;<span class="element-name">labelToBci</span><wbr><span class="parameters">(<a href="Label.html" title="interface in jdk.classfile">Label</a>&nbsp;label)</span></div>
-<div class="block">Returns the bytecode offset associated with the specified label.</div>
-<dl class="notes">
-<dt>Returns:</dt>
-<dd>the bytecode offset associated with the specified label</dd>
-</dl>
-</section>
-</li>
-<li>
 <section class="detail" id="receiverSlot()">
 <h3>receiverSlot</h3>
 <div class="member-signature"><span class="return-type">int</span>&nbsp;<span class="element-name">receiverSlot</span>()</div>
@@ -1102,6 +1091,22 @@ extends <a href="ClassfileBuilder.html" title="interface in jdk.classfile">Class
 <dd><code>typeKind</code> - the type of the local variable</dd>
 <dt>Returns:</dt>
 <dd>the local variable slot of a fresh local variable</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="transforming(jdk.classfile.CodeTransform,java.util.function.Consumer)">
+<h3>transforming</h3>
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a></span>&nbsp;<span class="element-name">transforming</span><wbr><span class="parameters">(<a href="CodeTransform.html" title="interface in jdk.classfile">CodeTransform</a>&nbsp;transform,
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a>&gt;&nbsp;handler)</span></div>
+<div class="block">Builds code fragment generated by the handler and synchronously transformed.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>transform</code> - the transform to apply to the code generated by the handler</dd>
+<dd><code>handler</code> - handler that receives a <a href="CodeBuilder.html" title="interface in jdk.classfile">CodeBuilder</a> to
+ generate the code.</dd>
+<dt>Returns:</dt>
+<dd>this builder</dd>
 </dl>
 </section>
 </li>

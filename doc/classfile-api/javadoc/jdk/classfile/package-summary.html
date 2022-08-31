@@ -9,7 +9,6 @@
 <meta name="generator" content="javadoc/PackageWriterImpl">
 <link rel="stylesheet" type="text/css" href="../../stylesheet.css" title="Style">
 <link rel="stylesheet" type="text/css" href="../../script-dir/jquery-ui.min.css" title="Style">
-<link rel="stylesheet" type="text/css" href="../../jquery-ui.overrides.css" title="Style">
 <script type="text/javascript" src="../../script.js"></script>
 <script type="text/javascript" src="../../script-dir/jquery-3.6.0.min.js"></script>
 <script type="text/javascript" src="../../script-dir/jquery-ui.min.js"></script>
@@ -70,12 +69,12 @@ loadScripts(document, 'script');</script>
 <hr>
 <div class="package-signature">package <span class="element-name">jdk.classfile</span></div>
 <section class="package-description" id="package-description">
-<div class="block"><h1>Classfile parsing, generation, and transformation</h1>
+<div class="block"><h1 id="classfile-parsing-generation-and-transformation-heading">Classfile parsing, generation, and transformation</h1>
  The <code>jdk.classfile</code> package contains classes for reading, writing, and
  modifying Java class files, as specified in Chapter 4 of the <a href="https://docs.oracle.com/javase/specs/jvms/se17/html/index.html">Java
  Java Virtual Machine Specification</a>.
 
- <h2>Reading classfiles</h2>
+ <h2 id="reading-classfiles-heading">Reading classfiles</h2>
  The main class for reading classfiles is <a href="ClassModel.html" title="interface in jdk.classfile"><code>ClassModel</code></a>; we
  convert bytes into a <a href="ClassModel.html" title="interface in jdk.classfile"><code>ClassModel</code></a> with <a href="Classfile.html#parse(byte%5B%5D,jdk.classfile.Classfile.Option...)"><code>Classfile.parse(byte[], jdk.classfile.Classfile.Option[])</code></a>:
  <p>
@@ -192,7 +191,7 @@ Set&lt;ClassDesc&gt; dependencies = cm.elementStream()
 </div>
 
 
- <h3>Models and elements</h3>
+ <h3 id="models-and-elements-heading">Models and elements</h3>
  The view of classfiles presented by this API is framed in terms of
  <em>models</em> and <em>elements</em>.  Models represent complex structures,
  such as classes, methods, fields, record elements, or the code body of a
@@ -204,7 +203,7 @@ Set&lt;ClassDesc&gt; dependencies = cm.elementStream()
  and are inflated lazily so creating a model does not necessarily require
  processing its entire content.
 
- <h3>The constant pool</h3>
+ <h3 id="the-constant-pool-heading">The constant pool</h3>
  Much of the interesting content in a classfile lives in the <em>constant
  pool</em>. <a href="ClassModel.html" title="interface in jdk.classfile"><code>ClassModel</code></a> provides a lazily-inflated,
  read-only view of the constant pool via <a href="ClassModel.html#constantPool()"><code>ClassModel.constantPool()</code></a>.
@@ -216,7 +215,7 @@ Set&lt;ClassDesc&gt; dependencies = cm.elementStream()
  element exposed a method for <code>owner</code> that corresponds to a <code>
  Constant_Class_info</code> entry in the constant pool.
 
- <h3>Attributes</h3>
+ <h3 id="attributes-heading">Attributes</h3>
  Much of the contents of a classfile is stored in attributes; attributes are
  found on classes, methods, fields, record components, and on the <code>Code</code>
  attribute.  Most attributes are surfaced as elements; for example, <a href="attribute/SignatureAttribute.html" title="interface in jdk.classfile.attribute"><code>SignatureAttribute</code></a> is a <a href="ClassElement.html" title="interface in jdk.classfile"><code>ClassElement</code></a>, <a href="MethodElement.html" title="interface in jdk.classfile"><code>MethodElement</code></a>, and <a href="FieldElement.html" title="interface in jdk.classfile"><code>FieldElement</code></a> since it can appear in all of those places, and is
@@ -241,7 +240,7 @@ Set&lt;ClassDesc&gt; dependencies = cm.elementStream()
  as well as factories taking <a href="constantpool/Utf8Entry.html" title="interface in jdk.classfile.constantpool"><code>Utf8Entry</code></a> or
  <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link"><code>String</code></a>.
 
- <h3>Custom attributes</h3>
+ <h3 id="custom-attributes-heading">Custom attributes</h3>
  Attributes are converted between their classfile form and their corresponding
  object form via an <a href="AttributeMapper.html" title="interface in jdk.classfile"><code>AttributeMapper</code></a>.  An <code>
  AttributeMapper</code> provides the <a href="AttributeMapper.html#readAttribute(jdk.classfile.AttributedElement,jdk.classfile.ClassReader,int)"><code>AttributeMapper.readAttribute(AttributedElement, ClassReader, int)</code></a> method for mapping from the classfile format
@@ -263,7 +262,7 @@ Set&lt;ClassDesc&gt; dependencies = cm.elementStream()
  classfile option.  Implementations of custom attributes should extend <a href="CustomAttribute.html" title="class in jdk.classfile"><code>CustomAttribute</code></a>. Custom attributes will be delivered as
  elements in all of the contexts specified by <a href="AttributeMapper.html#whereApplicable()"><code>AttributeMapper.whereApplicable()</code></a>.
  <p>
- <h3>Options</h3>
+ <h3 id="options-heading">Options</h3>
  <p>
  <a href="Classfile.html#parse(byte%5B%5D,jdk.classfile.Classfile.Option...)"><code>Classfile.parse(byte[], jdk.classfile.Classfile.Option[])</code></a>
  accepts a list of options.  <a href="Classfile.Option.html" title="interface in jdk.classfile"><code>Classfile.Option</code></a> exports some
@@ -289,7 +288,7 @@ Set&lt;ClassDesc&gt; dependencies = cm.elementStream()
  cost (both in writing and reading.)  If you don't need this information, you
  can suppress it with options to gain some performance.
 
- <h2>Writing classfiles</h2>
+ <h2 id="writing-classfiles-heading">Writing classfiles</h2>
  Classfile generation is accomplished through <em>builders</em>.  For each
  entity type that has a model, there is also a corresponding builder type;
  classes are built through <a href="ClassBuilder.html" title="interface in jdk.classfile"><code>ClassBuilder</code></a>, methods through
@@ -344,7 +343,7 @@ Set&lt;ClassDesc&gt; dependencies = cm.elementStream()
  as if it calls method <code>CodeBuilder.with</code>. This composing of method calls on the
  builder enables the composing of transforms (as described later).
 
- <h3>Symbolic information</h3>
+ <h3 id="symbolic-information-heading">Symbolic information</h3>
  To describe symbolic information for classes and types, the API uses the
  nominal descriptor abstractions from <code>java.lang.constant</code> such as <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link"><code>ClassDesc</code></a> and <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/MethodTypeDesc.html" title="class or interface in java.lang.constant" class="external-link"><code>MethodTypeDesc</code></a>,
  which is less error-prone than using raw strings.
@@ -358,7 +357,7 @@ Set&lt;ClassDesc&gt; dependencies = cm.elementStream()
  symbolic information, one accepting nominal descriptors, and the other
  accepting constant pool entries.
 
- <h2>Transforming classfiles</h2>
+ <h2 id="transforming-classfiles-heading">Transforming classfiles</h2>
  Classfile Processing APIs are most frequently used to combine reading and
  writing into transformation, where a classfile is read, localized changes are
  made, but much of the classfile is passed through unchanged.  For each kind
@@ -415,7 +414,7 @@ byte[] newBytes = Classfile.parse(bytes).transform(ct);
 </div>
 
 
- <h3>Lifting transforms</h3>
+ <h3 id="lifting-transforms-heading">Lifting transforms</h3>
  While the second example is only slightly shorter than the first, the
  advantage of expressing transformation in this way is that the transform
  operations can be more easily combined.  Suppose we want to redirect
@@ -503,7 +502,7 @@ byte[] newBytes = Classfile.parse(bytes).transform(ct);
 </div>
 
 
- <h3>Composing transforms</h3>
+ <h3 id="composing-transforms-heading">Composing transforms</h3>
  Transforms on the same type of element can be composed in sequence, where the
  output of the first is fed to the input of the second.  Suppose we want to
  instrument all method calls, where we print the name of a method before
@@ -540,7 +539,7 @@ byte[] newBytes = Classfile.parse(bytes).transform(ct);
  transform <code>forToBar</code>, either those code elements from the original classfile
  or replacements (replacing static invocations to <code>Foo</code> with those to <code>Bar</code>).
 
- <h3>Constant pool sharing</h3>
+ <h3 id="constant-pool-sharing-heading">Constant pool sharing</h3>
  Transformation doesn't merely handle the logistics of reading, transforming
  elements, and writing.  Most of the time when we are transforming a
  classfile, we are making relatively minor changes.  To optimize such cases,
@@ -553,7 +552,7 @@ byte[] newBytes = Classfile.parse(bytes).transform(ct);
  Such suppression may be beneficial when transformation removes many elements,
  resulting in many unreferenced constant pool entries.
 
- <h2>API conventions</h2>
+ <h2 id="api-conventions-heading">API conventions</h2>
  <p>
  The API is largely derived from a <a href="#data_model"><em>data model</em></a>
  for the classfile format, which defines each element kind (which includes models and

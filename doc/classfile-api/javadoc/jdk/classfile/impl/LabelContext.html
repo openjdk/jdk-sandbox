@@ -9,7 +9,6 @@
 <meta name="generator" content="javadoc/ClassWriterImpl">
 <link rel="stylesheet" type="text/css" href="../../../stylesheet.css" title="Style">
 <link rel="stylesheet" type="text/css" href="../../../script-dir/jquery-ui.min.css" title="Style">
-<link rel="stylesheet" type="text/css" href="../../../jquery-ui.overrides.css" title="Style">
 <script type="text/javascript" src="../../../script.js"></script>
 <script type="text/javascript" src="../../../script-dir/jquery-3.6.0.min.js"></script>
 <script type="text/javascript" src="../../../script-dir/jquery-ui.min.js"></script>
@@ -87,16 +86,11 @@ loadScripts(document, 'script');</script>
 </div>
 <section class="class-description" id="class-description">
 <dl class="notes">
-<dt>All Superinterfaces:</dt>
-<dd><code><a href="LabelResolver.html" title="interface in jdk.classfile.impl">LabelResolver</a></code></dd>
-</dl>
-<dl class="notes">
 <dt>All Known Implementing Classes:</dt>
 <dd><code><a href="BufferedCodeBuilder.html" title="class in jdk.classfile.impl">BufferedCodeBuilder</a></code>, <code><a href="CodeImpl.html" title="class in jdk.classfile.impl">CodeImpl</a></code>, <code><a href="DirectCodeBuilder.html" title="class in jdk.classfile.impl">DirectCodeBuilder</a></code></dd>
 </dl>
 <hr>
-<div class="type-signature"><span class="modifiers">public sealed interface </span><span class="element-name type-name-label">LabelContext</span><span class="extends-implements">
-extends <a href="LabelResolver.html" title="interface in jdk.classfile.impl">LabelResolver</a></span>
+<div class="type-signature"><span class="modifiers">public sealed interface </span><span class="element-name type-name-label">LabelContext</span>
 <span class="permits">permits <a href="BufferedCodeBuilder.html" title="class in jdk.classfile.impl">BufferedCodeBuilder</a>, <a href="CodeImpl.html" title="class in jdk.classfile.impl">CodeImpl</a>, <a href="DirectCodeBuilder.html" title="class in jdk.classfile.impl">DirectCodeBuilder</a></span></div>
 <div class="block">LabelContext</div>
 </section>
@@ -116,19 +110,19 @@ extends <a href="LabelResolver.html" title="interface in jdk.classfile.impl">Lab
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="../Label.html" title="interface in jdk.classfile">Label</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#getLabel(int)" class="member-name-link">getLabel</a><wbr>(int&nbsp;bci)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="../Label.html" title="interface in jdk.classfile">Label</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#newLabel()" class="member-name-link">newLabel</a>()</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#labelToBci(jdk.classfile.Label)" class="member-name-link">labelToBci</a><wbr>(<a href="../Label.html" title="interface in jdk.classfile">Label</a>&nbsp;label)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#setLabelTarget(jdk.classfile.Label,int)" class="member-name-link">setLabelTarget</a><wbr>(<a href="../Label.html" title="interface in jdk.classfile">Label</a>&nbsp;label,
- int&nbsp;bci)</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="../Label.html" title="interface in jdk.classfile">Label</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#newLabel()" class="member-name-link">newLabel</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#setLabelTarget(jdk.classfile.Label,int)" class="member-name-link">setLabelTarget</a><wbr>(<a href="../Label.html" title="interface in jdk.classfile">Label</a>&nbsp;label,
+ int&nbsp;bci)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 </div>
 </div>
 </div>
-<div class="inherited-list">
-<h3 id="methods-inherited-from-class-jdk.classfile.impl.LabelResolver">Methods inherited from interface&nbsp;jdk.classfile.impl.<a href="LabelResolver.html" title="interface in jdk.classfile.impl">LabelResolver</a></h3>
-<code><a href="LabelResolver.html#labelToBci(jdk.classfile.Label)">labelToBci</a></code></div>
 </section>
 </li>
 </ul>
@@ -157,6 +151,12 @@ extends <a href="LabelResolver.html" title="interface in jdk.classfile.impl">Lab
 <h3>setLabelTarget</h3>
 <div class="member-signature"><span class="return-type">void</span>&nbsp;<span class="element-name">setLabelTarget</span><wbr><span class="parameters">(<a href="../Label.html" title="interface in jdk.classfile">Label</a>&nbsp;label,
  int&nbsp;bci)</span></div>
+</section>
+</li>
+<li>
+<section class="detail" id="labelToBci(jdk.classfile.Label)">
+<h3>labelToBci</h3>
+<div class="member-signature"><span class="return-type">int</span>&nbsp;<span class="element-name">labelToBci</span><wbr><span class="parameters">(<a href="../Label.html" title="interface in jdk.classfile">Label</a>&nbsp;label)</span></div>
 </section>
 </li>
 </ul>

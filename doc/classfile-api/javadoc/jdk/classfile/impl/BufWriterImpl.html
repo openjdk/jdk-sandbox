@@ -9,7 +9,6 @@
 <meta name="generator" content="javadoc/ClassWriterImpl">
 <link rel="stylesheet" type="text/css" href="../../../stylesheet.css" title="Style">
 <link rel="stylesheet" type="text/css" href="../../../script-dir/jquery-ui.min.css" title="Style">
-<link rel="stylesheet" type="text/css" href="../../../jquery-ui.overrides.css" title="Style">
 <script type="text/javascript" src="../../../script.js"></script>
 <script type="text/javascript" src="../../../script-dir/jquery-3.6.0.min.js"></script>
 <script type="text/javascript" src="../../../script-dir/jquery-ui.min.js"></script>
@@ -149,8 +148,8 @@ implements <a href="../BufWriter.html" title="interface in jdk.classfile">BufWri
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Copy the contents of the buffer into a byte array.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="LabelResolver.html" title="interface in jdk.classfile.impl">LabelResolver</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#labelResolver()" class="member-name-link">labelResolver</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="LabelContext.html" title="interface in jdk.classfile.impl">LabelContext</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#labelContext()" class="member-name-link">labelContext</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#patchInt(int,int,int)" class="member-name-link">patchInt</a><wbr>(int&nbsp;offset,
@@ -165,7 +164,7 @@ implements <a href="../BufWriter.html" title="interface in jdk.classfile">BufWri
 <div class="block">Ensure that the buffer has at least <code>freeBytes</code> bytes of unused space</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setLabelResolver(jdk.classfile.impl.LabelResolver)" class="member-name-link">setLabelResolver</a><wbr>(<a href="LabelResolver.html" title="interface in jdk.classfile.impl">LabelResolver</a>&nbsp;labelResolver)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setLabelContext(jdk.classfile.impl.LabelContext)" class="member-name-link">setLabelContext</a><wbr>(<a href="LabelContext.html" title="interface in jdk.classfile.impl">LabelContext</a>&nbsp;labelContext)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setThisClass(jdk.classfile.constantpool.ClassEntry)" class="member-name-link">setThisClass</a><wbr>(<a href="../constantpool/ClassEntry.html" title="interface in jdk.classfile.constantpool">ClassEntry</a>&nbsp;thisClass)</code></div>
@@ -306,15 +305,15 @@ implements <a href="../BufWriter.html" title="interface in jdk.classfile">BufWri
 </section>
 </li>
 <li>
-<section class="detail" id="labelResolver()">
-<h3>labelResolver</h3>
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="LabelResolver.html" title="interface in jdk.classfile.impl">LabelResolver</a></span>&nbsp;<span class="element-name">labelResolver</span>()</div>
+<section class="detail" id="labelContext()">
+<h3>labelContext</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="LabelContext.html" title="interface in jdk.classfile.impl">LabelContext</a></span>&nbsp;<span class="element-name">labelContext</span>()</div>
 </section>
 </li>
 <li>
-<section class="detail" id="setLabelResolver(jdk.classfile.impl.LabelResolver)">
-<h3>setLabelResolver</h3>
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">setLabelResolver</span><wbr><span class="parameters">(<a href="LabelResolver.html" title="interface in jdk.classfile.impl">LabelResolver</a>&nbsp;labelResolver)</span></div>
+<section class="detail" id="setLabelContext(jdk.classfile.impl.LabelContext)">
+<h3>setLabelContext</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">setLabelContext</span><wbr><span class="parameters">(<a href="LabelContext.html" title="interface in jdk.classfile.impl">LabelContext</a>&nbsp;labelContext)</span></div>
 </section>
 </li>
 <li>

@@ -9,7 +9,6 @@
 <meta name="generator" content="javadoc/TreeWriter">
 <link rel="stylesheet" type="text/css" href="stylesheet.css" title="Style">
 <link rel="stylesheet" type="text/css" href="script-dir/jquery-ui.min.css" title="Style">
-<link rel="stylesheet" type="text/css" href="jquery-ui.overrides.css" title="Style">
 <script type="text/javascript" src="script.js"></script>
 <script type="text/javascript" src="script-dir/jquery-3.6.0.min.js"></script>
 <script type="text/javascript" src="script-dir/jquery-ui.min.js"></script>
@@ -329,9 +328,11 @@ loadScripts(document, 'script');</script>
 <li class="circle">jdk.classfile.impl.<a href="jdk/classfile/impl/SplitConstantPool.html" class="type-name-link" title="class in jdk.classfile.impl">SplitConstantPool</a> (implements jdk.classfile.constantpool.<a href="jdk/classfile/constantpool/ConstantPoolBuilder.html" title="interface in jdk.classfile.constantpool">ConstantPoolBuilder</a>)</li>
 <li class="circle">jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapDecoder.html" class="type-name-link" title="class in jdk.classfile.impl">StackMapDecoder</a></li>
 <li class="circle">jdk.classfile.impl.<a href="jdk/classfile/impl/StackMapGenerator.html" class="type-name-link" title="class in jdk.classfile.impl">StackMapGenerator</a></li>
+<li class="circle">jdk.classfile.transforms.<a href="jdk/classfile/transforms/StackTracker.html" class="type-name-link" title="class in jdk.classfile.transforms">StackTracker</a> (implements jdk.classfile.<a href="jdk/classfile/CodeTransform.html" title="interface in jdk.classfile">CodeTransform</a>)</li>
 <li class="circle">jdk.classfile.impl.<a href="jdk/classfile/impl/TargetInfoImpl.html" class="type-name-link" title="class in jdk.classfile.impl">TargetInfoImpl</a></li>
 <li class="circle">jdk.classfile.impl.<a href="jdk/classfile/impl/TemporaryConstantPool.html" class="type-name-link" title="class in jdk.classfile.impl">TemporaryConstantPool</a> (implements jdk.classfile.constantpool.<a href="jdk/classfile/constantpool/ConstantPoolBuilder.html" title="interface in jdk.classfile.constantpool">ConstantPoolBuilder</a>)</li>
 <li class="circle">jdk.classfile.impl.<a href="jdk/classfile/impl/TransformImpl.html" class="type-name-link" title="class in jdk.classfile.impl">TransformImpl</a></li>
+<li class="circle">jdk.classfile.impl.<a href="jdk/classfile/impl/TransformingCodeBuilder.html" class="type-name-link" title="class in jdk.classfile.impl">TransformingCodeBuilder</a> (implements jdk.classfile.impl.<a href="jdk/classfile/impl/TerminalCodeBuilder.html" title="interface in jdk.classfile.impl">TerminalCodeBuilder</a>)</li>
 <li class="circle">jdk.classfile.impl.<a href="jdk/classfile/impl/Util.html" class="type-name-link" title="class in jdk.classfile.impl">Util</a></li>
 <li class="circle">jdk.classfile.impl.verifier.<a href="jdk/classfile/impl/verifier/VerificationWrapper.html" class="type-name-link" title="class in jdk.classfile.impl.verifier">VerificationWrapper</a></li>
 <li class="circle">jdk.classfile.impl.verifier.<a href="jdk/classfile/impl/verifier/VerifierImpl.html" class="type-name-link" title="class in jdk.classfile.impl.verifier">VerifierImpl</a></li>
@@ -356,7 +357,7 @@ loadScripts(document, 'script');</script>
 <li class="circle">jdk.classfile.<a href="jdk/classfile/AttributedElement.html" class="type-name-link" title="interface in jdk.classfile">AttributedElement</a>
 <ul>
 <li class="circle">jdk.classfile.<a href="jdk/classfile/ClassModel.html" class="type-name-link" title="interface in jdk.classfile">ClassModel</a> (also extends jdk.classfile.<a href="jdk/classfile/CompoundElement.html" title="interface in jdk.classfile">CompoundElement</a>&lt;E&gt;)</li>
-<li class="circle">jdk.classfile.<a href="jdk/classfile/CodeModel.html" class="type-name-link" title="interface in jdk.classfile">CodeModel</a> (also extends jdk.classfile.<a href="jdk/classfile/CompoundElement.html" title="interface in jdk.classfile">CompoundElement</a>&lt;E&gt;, jdk.classfile.impl.<a href="jdk/classfile/impl/LabelResolver.html" title="interface in jdk.classfile.impl">LabelResolver</a>, jdk.classfile.<a href="jdk/classfile/MethodElement.html" title="interface in jdk.classfile">MethodElement</a>)
+<li class="circle">jdk.classfile.<a href="jdk/classfile/CodeModel.html" class="type-name-link" title="interface in jdk.classfile">CodeModel</a> (also extends jdk.classfile.<a href="jdk/classfile/CompoundElement.html" title="interface in jdk.classfile">CompoundElement</a>&lt;E&gt;, jdk.classfile.<a href="jdk/classfile/MethodElement.html" title="interface in jdk.classfile">MethodElement</a>)
 <ul>
 <li class="circle">jdk.classfile.attribute.<a href="jdk/classfile/attribute/CodeAttribute.html" class="type-name-link" title="interface in jdk.classfile.attribute">CodeAttribute</a> (also extends jdk.classfile.<a href="jdk/classfile/Attribute.html" title="interface in jdk.classfile">Attribute</a>&lt;A&gt;)</li>
 </ul>
@@ -454,7 +455,7 @@ loadScripts(document, 'script');</script>
 <li class="circle">jdk.classfile.<a href="jdk/classfile/CompoundElement.html" class="type-name-link" title="interface in jdk.classfile">CompoundElement</a>&lt;E&gt; (also extends java.lang.<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/Iterable.html" title="class or interface in java.lang" class="external-link">Iterable</a>&lt;T&gt;)
 <ul>
 <li class="circle">jdk.classfile.<a href="jdk/classfile/ClassModel.html" class="type-name-link" title="interface in jdk.classfile">ClassModel</a> (also extends jdk.classfile.<a href="jdk/classfile/AttributedElement.html" title="interface in jdk.classfile">AttributedElement</a>)</li>
-<li class="circle">jdk.classfile.<a href="jdk/classfile/CodeModel.html" class="type-name-link" title="interface in jdk.classfile">CodeModel</a> (also extends jdk.classfile.<a href="jdk/classfile/AttributedElement.html" title="interface in jdk.classfile">AttributedElement</a>, jdk.classfile.impl.<a href="jdk/classfile/impl/LabelResolver.html" title="interface in jdk.classfile.impl">LabelResolver</a>, jdk.classfile.<a href="jdk/classfile/MethodElement.html" title="interface in jdk.classfile">MethodElement</a>)
+<li class="circle">jdk.classfile.<a href="jdk/classfile/CodeModel.html" class="type-name-link" title="interface in jdk.classfile">CodeModel</a> (also extends jdk.classfile.<a href="jdk/classfile/AttributedElement.html" title="interface in jdk.classfile">AttributedElement</a>, jdk.classfile.<a href="jdk/classfile/MethodElement.html" title="interface in jdk.classfile">MethodElement</a>)
 <ul>
 <li class="circle">jdk.classfile.attribute.<a href="jdk/classfile/attribute/CodeAttribute.html" class="type-name-link" title="interface in jdk.classfile.attribute">CodeAttribute</a> (also extends jdk.classfile.<a href="jdk/classfile/Attribute.html" title="interface in jdk.classfile">Attribute</a>&lt;A&gt;)</li>
 </ul>
@@ -481,7 +482,7 @@ loadScripts(document, 'script');</script>
 <ul>
 <li class="circle">jdk.classfile.<a href="jdk/classfile/AccessFlags.html" class="type-name-link" title="interface in jdk.classfile">AccessFlags</a> (also extends jdk.classfile.<a href="jdk/classfile/ClassElement.html" title="interface in jdk.classfile">ClassElement</a>, jdk.classfile.<a href="jdk/classfile/FieldElement.html" title="interface in jdk.classfile">FieldElement</a>)</li>
 <li class="circle">jdk.classfile.attribute.<a href="jdk/classfile/attribute/AnnotationDefaultAttribute.html" class="type-name-link" title="interface in jdk.classfile.attribute">AnnotationDefaultAttribute</a> (also extends jdk.classfile.<a href="jdk/classfile/Attribute.html" title="interface in jdk.classfile">Attribute</a>&lt;A&gt;)</li>
-<li class="circle">jdk.classfile.<a href="jdk/classfile/CodeModel.html" class="type-name-link" title="interface in jdk.classfile">CodeModel</a> (also extends jdk.classfile.<a href="jdk/classfile/AttributedElement.html" title="interface in jdk.classfile">AttributedElement</a>, jdk.classfile.<a href="jdk/classfile/CompoundElement.html" title="interface in jdk.classfile">CompoundElement</a>&lt;E&gt;, jdk.classfile.impl.<a href="jdk/classfile/impl/LabelResolver.html" title="interface in jdk.classfile.impl">LabelResolver</a>)
+<li class="circle">jdk.classfile.<a href="jdk/classfile/CodeModel.html" class="type-name-link" title="interface in jdk.classfile">CodeModel</a> (also extends jdk.classfile.<a href="jdk/classfile/AttributedElement.html" title="interface in jdk.classfile">AttributedElement</a>, jdk.classfile.<a href="jdk/classfile/CompoundElement.html" title="interface in jdk.classfile">CompoundElement</a>&lt;E&gt;)
 <ul>
 <li class="circle">jdk.classfile.attribute.<a href="jdk/classfile/attribute/CodeAttribute.html" class="type-name-link" title="interface in jdk.classfile.attribute">CodeAttribute</a> (also extends jdk.classfile.<a href="jdk/classfile/Attribute.html" title="interface in jdk.classfile">Attribute</a>&lt;A&gt;)</li>
 </ul>
@@ -692,7 +693,7 @@ loadScripts(document, 'script');</script>
 <li class="circle">jdk.classfile.<a href="jdk/classfile/CompoundElement.html" class="type-name-link" title="interface in jdk.classfile">CompoundElement</a>&lt;E&gt; (also extends jdk.classfile.<a href="jdk/classfile/ClassfileElement.html" title="interface in jdk.classfile">ClassfileElement</a>)
 <ul>
 <li class="circle">jdk.classfile.<a href="jdk/classfile/ClassModel.html" class="type-name-link" title="interface in jdk.classfile">ClassModel</a> (also extends jdk.classfile.<a href="jdk/classfile/AttributedElement.html" title="interface in jdk.classfile">AttributedElement</a>)</li>
-<li class="circle">jdk.classfile.<a href="jdk/classfile/CodeModel.html" class="type-name-link" title="interface in jdk.classfile">CodeModel</a> (also extends jdk.classfile.<a href="jdk/classfile/AttributedElement.html" title="interface in jdk.classfile">AttributedElement</a>, jdk.classfile.impl.<a href="jdk/classfile/impl/LabelResolver.html" title="interface in jdk.classfile.impl">LabelResolver</a>, jdk.classfile.<a href="jdk/classfile/MethodElement.html" title="interface in jdk.classfile">MethodElement</a>)
+<li class="circle">jdk.classfile.<a href="jdk/classfile/CodeModel.html" class="type-name-link" title="interface in jdk.classfile">CodeModel</a> (also extends jdk.classfile.<a href="jdk/classfile/AttributedElement.html" title="interface in jdk.classfile">AttributedElement</a>, jdk.classfile.<a href="jdk/classfile/MethodElement.html" title="interface in jdk.classfile">MethodElement</a>)
 <ul>
 <li class="circle">jdk.classfile.attribute.<a href="jdk/classfile/attribute/CodeAttribute.html" class="type-name-link" title="interface in jdk.classfile.attribute">CodeAttribute</a> (also extends jdk.classfile.<a href="jdk/classfile/Attribute.html" title="interface in jdk.classfile">Attribute</a>&lt;A&gt;)</li>
 </ul>
@@ -704,16 +705,7 @@ loadScripts(document, 'script');</script>
 </ul>
 </li>
 <li class="circle">jdk.classfile.<a href="jdk/classfile/Label.html" class="type-name-link" title="interface in jdk.classfile">Label</a></li>
-<li class="circle">jdk.classfile.impl.<a href="jdk/classfile/impl/LabelResolver.html" class="type-name-link" title="interface in jdk.classfile.impl">LabelResolver</a>
-<ul>
-<li class="circle">jdk.classfile.<a href="jdk/classfile/CodeModel.html" class="type-name-link" title="interface in jdk.classfile">CodeModel</a> (also extends jdk.classfile.<a href="jdk/classfile/AttributedElement.html" title="interface in jdk.classfile">AttributedElement</a>, jdk.classfile.<a href="jdk/classfile/CompoundElement.html" title="interface in jdk.classfile">CompoundElement</a>&lt;E&gt;, jdk.classfile.<a href="jdk/classfile/MethodElement.html" title="interface in jdk.classfile">MethodElement</a>)
-<ul>
-<li class="circle">jdk.classfile.attribute.<a href="jdk/classfile/attribute/CodeAttribute.html" class="type-name-link" title="interface in jdk.classfile.attribute">CodeAttribute</a> (also extends jdk.classfile.<a href="jdk/classfile/Attribute.html" title="interface in jdk.classfile">Attribute</a>&lt;A&gt;)</li>
-</ul>
-</li>
 <li class="circle">jdk.classfile.impl.<a href="jdk/classfile/impl/LabelContext.html" class="type-name-link" title="interface in jdk.classfile.impl">LabelContext</a></li>
-</ul>
-</li>
 <li class="circle">jdk.classfile.attribute.<a href="jdk/classfile/attribute/LineNumberInfo.html" class="type-name-link" title="interface in jdk.classfile.attribute">LineNumberInfo</a></li>
 <li class="circle">jdk.classfile.attribute.<a href="jdk/classfile/attribute/LocalVariableInfo.html" class="type-name-link" title="interface in jdk.classfile.attribute">LocalVariableInfo</a></li>
 <li class="circle">jdk.classfile.attribute.<a href="jdk/classfile/attribute/LocalVariableTypeInfo.html" class="type-name-link" title="interface in jdk.classfile.attribute">LocalVariableTypeInfo</a></li>
