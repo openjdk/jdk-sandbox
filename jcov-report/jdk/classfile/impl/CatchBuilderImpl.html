@@ -86,13 +86,13 @@
  <th class="report">method signature</th>
  </tr>
  <tr class="report">
- <td class="reportValue_covered"><span class="text">18</span></td>
+ <td class="reportValue_covered"><span class="text">19</span></td>
  <td class="reportText"><span class="text"><a href="#src_45">&lt;init&gt;</a></span></td>
  <td class="reportText"><span class="text">[public]</span></td>
  <td class="reportText"><span class="text">void &lt;init&gt;(jdk.classfile.CodeBuilder,jdk.classfile.impl.BlockCodeBuilderImpl,jdk.classfile.Label)</span></td>
  </tr>
  <tr class="report">
- <td class="reportValue_covered"><span class="text">20</span></td>
+ <td class="reportValue_covered"><span class="text">21</span></td>
  <td class="reportText"><span class="text"><a href="#src_54">catching</a></span></td>
  <td class="reportText"><span class="text">[public]</span></td>
  <td class="reportText"><span class="text">jdk.classfile.CodeBuilder$CatchBuilder catching(java.lang.constant.ClassDesc,java.util.function.Consumer)</span></td>
@@ -104,7 +104,7 @@
  <td class="reportText"><span class="text">void catchingAll(java.util.function.Consumer)</span></td>
  </tr>
  <tr class="report">
- <td class="reportValue_covered"><span class="text">18</span></td>
+ <td class="reportValue_covered"><span class="text">19</span></td>
  <td class="reportText"><span class="text"><a href="#src_95">finish</a></span></td>
  <td class="reportText"><span class="text">[public]</span></td>
  <td class="reportText"><span class="text">void finish()</span></td>
@@ -495,41 +495,41 @@
  <tr>
  <td class="numLineCover">&nbsp;77</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;        catchBlock.start();</pre></td>
- </tr>
- <tr>
- <td class="numLineCover">&nbsp;78</td>
- <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (exceptionType == <span Class="keyword">null</span>) {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;79</td>
+ <td class="numLineCover">&nbsp;78</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;            catchBlock.exceptionCatchAll(tryStart, tryEnd, catchBlock.startLabel());</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;80</td>
+ <td class="numLine">&nbsp;79</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;        }</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;81</td>
+ <td class="numLine">&nbsp;80</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;        <span Class="keyword">else</span> {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;82</td>
+ <td class="numLineCover">&nbsp;81</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;            catchBlock.exceptionCatch(tryStart, tryEnd, catchBlock.startLabel(), exceptionType);</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;83</td>
+ <td class="numLine">&nbsp;82</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;        }</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;84</td>
+ <td class="numLineCover">&nbsp;83</td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        catchBlock.start();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;84</td>
+ <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;        catchHandler.accept(catchBlock);</pre></td>
  </tr>
  <tr>
@@ -614,6 +614,6 @@
  </tr>
  </table>
 <p>
-<br><table cellpadding="0" cellspacing="0" class="report">  <tr class="report">    <td class="reportText"><span class="text">    Report generated 8/18/22, 9:04 AM    </span></td>  </tr></table>
+<br><table cellpadding="0" cellspacing="0" class="report">  <tr class="report">    <td class="reportText"><span class="text">    Report generated 8/31/22, 2:17 PM    </span></td>  </tr></table>
 </body>
 </html>

@@ -70,10 +70,10 @@
  </tr>
  <tr class="report">
  <td class="reportText"><span class="text"> <b>jdk.classfile.impl.NonterminalCodeBuilder</b></span></td>
- <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>42</b>%(3/7)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  42"></td><td class="percentUnCovered" width="58"></td></tr></table></td></tr></table></td>
- <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>58</b>%(7/12)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  58"></td><td class="percentUnCovered" width="42"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>50</b>%(3/6)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  50"></td><td class="percentUnCovered" width="50"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>63</b>%(7/11)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  63"></td><td class="percentUnCovered" width="37"></td></tr></table></td></tr></table></td>
  <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>75</b>%(3/4)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  75"></td><td class="percentUnCovered" width="25"></td></tr></table></td></tr></table></td>
- <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>66</b>%(8/12)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  66"></td><td class="percentUnCovered" width="34"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>72</b>%(8/11)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  72"></td><td class="percentUnCovered" width="28"></td></tr></table></td></tr></table></td>
  </tr>
  </table>
  <br>
@@ -86,25 +86,19 @@
  <th class="report">method signature</th>
  </tr>
  <tr class="report">
- <td class="reportValue_covered"><span class="text">29717</span></td>
+ <td class="reportValue_covered"><span class="text">29802</span></td>
  <td class="reportText"><span class="text"><a href="#src_41">&lt;init&gt;</a></span></td>
  <td class="reportText"><span class="text">[public]</span></td>
  <td class="reportText"><span class="text">void &lt;init&gt;(jdk.classfile.CodeBuilder)</span></td>
  </tr>
  <tr class="report">
- <td class="reportValue_covered"><span class="text">110</span></td>
+ <td class="reportValue_covered"><span class="text">90</span></td>
  <td class="reportText"><span class="text"><a href="#src_61">constantPool</a></span></td>
  <td class="reportText"><span class="text">[public]</span></td>
  <td class="reportText"><span class="text">jdk.classfile.constantpool.ConstantPoolBuilder constantPool()</span></td>
  </tr>
  <tr class="report">
- <td class="reportValue_uncovered"><span class="text">0</span></td>
- <td class="reportText"><span class="text"><a href="#src_76">labelToBci</a></span></td>
- <td class="reportText"><span class="text">[public]</span></td>
- <td class="reportText"><span class="text">int labelToBci(jdk.classfile.Label)</span></td>
- </tr>
- <tr class="report">
- <td class="reportValue_covered"><span class="text">38</span></td>
+ <td class="reportValue_covered"><span class="text">41</span></td>
  <td class="reportText"><span class="text"><a href="#src_71">newLabel</a></span></td>
  <td class="reportText"><span class="text">[public]</span></td>
  <td class="reportText"><span class="text">jdk.classfile.Label newLabel()</span></td>
@@ -493,35 +487,10 @@
  <tr>
  <td class="numLine">&nbsp;73</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;</pre></td>
- </tr>
- <tr>
- <td class="numLine">&nbsp;74</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    @Override</pre></td>
- </tr>
- <tr>
- <td class="numLine">&nbsp;75</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">int</span> labelToBci(Label label) {</pre></td>
- </tr>
- <tr>
- <td class="numLineUnCover">&nbsp;76<a name="src_76"></a></td>
- <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> terminal.labelToBci(label);</pre></td>
- </tr>
- <tr>
- <td class="numLine">&nbsp;77</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    }</pre></td>
- </tr>
- <tr>
- <td class="numLine">&nbsp;78</td>
- <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;}</pre></td>
  </tr>
  </table>
 <p>
-<br><table cellpadding="0" cellspacing="0" class="report">  <tr class="report">    <td class="reportText"><span class="text">    Report generated 8/18/22, 9:04 AM    </span></td>  </tr></table>
+<br><table cellpadding="0" cellspacing="0" class="report">  <tr class="report">    <td class="reportText"><span class="text">    Report generated 8/31/22, 2:17 PM    </span></td>  </tr></table>
 </body>
 </html>

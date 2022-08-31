@@ -70,10 +70,10 @@
  </tr>
  <tr class="report">
  <td class="reportText"><span class="text"> <b>jdk.classfile.CodeTransform</b></span></td>
- <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>80</b>%(4/5)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  80"></td><td class="percentUnCovered" width="20"></td></tr></table></td></tr></table></td>
- <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>92</b>%(12/13)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  92"></td><td class="percentUnCovered" width="8"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>60</b>%(3/5)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  60"></td><td class="percentUnCovered" width="40"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>61</b>%(8/13)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  61"></td><td class="percentUnCovered" width="39"></td></tr></table></td></tr></table></td>
  <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>-</b>%</span></td></tr></table></td>
- <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>92</b>%(12/13)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  92"></td><td class="percentUnCovered" width="8"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>53</b>%(7/13)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  53"></td><td class="percentUnCovered" width="47"></td></tr></table></td></tr></table></td>
  </tr>
  </table>
  <br>
@@ -86,19 +86,19 @@
  <th class="report">method signature</th>
  </tr>
  <tr class="report">
- <td class="reportValue_covered"><span class="text">8</span></td>
+ <td class="reportValue_covered"><span class="text">9</span></td>
  <td class="reportText"><span class="text"><a href="#src_45">&lt;clinit&gt;</a></span></td>
  <td class="reportText"><span class="text">[static]</span></td>
  <td class="reportText"><span class="text">void &lt;clinit&gt;()</span></td>
  </tr>
  <tr class="report">
- <td class="reportValue_covered"><span class="text">29646</span></td>
+ <td class="reportValue_covered"><span class="text">29728</span></td>
  <td class="reportText"><span class="text"><a href="#src_87">andThen</a></span></td>
  <td class="reportText"><span class="text">[public]</span></td>
  <td class="reportText"><span class="text">jdk.classfile.CodeTransform andThen(jdk.classfile.CodeTransform)</span></td>
  </tr>
  <tr class="report">
- <td class="reportValue_covered"><span class="text">2</span></td>
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
  <td class="reportText"><span class="text"><a href="#src_72">endHandler</a></span></td>
  <td class="reportText"><span class="text">[public, static]</span></td>
  <td class="reportText"><span class="text">jdk.classfile.CodeTransform endHandler(java.util.function.Consumer)</span></td>
@@ -110,7 +110,7 @@
  <td class="reportText"><span class="text">jdk.classfile.CodeTransform ofStateful(java.util.function.Supplier)</span></td>
  </tr>
  <tr class="report">
- <td class="reportValue_covered"><span class="text">296695</span></td>
+ <td class="reportValue_covered"><span class="text">330811</span></td>
  <td class="reportText"><span class="text"><a href="#src_92">resolve</a></span></td>
  <td class="reportText"><span class="text">[public]</span></td>
  <td class="reportText"><span class="text">jdk.classfile.ClassfileTransform$ResolvedTransform resolve(jdk.classfile.CodeBuilder)</span></td>
@@ -474,8 +474,8 @@
  <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> CodeTransform endHandler(Consumer&#60;CodeBuilder&#62; finisher) {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;72<a name="src_72"></a></td>
- <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;</td>
+ <td class="numLineUnCover">&nbsp;72<a name="src_72"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/2&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">new</span> CodeTransform() {</pre></td>
  </tr>
  <tr>
@@ -489,12 +489,12 @@
  <td class="src"><pre class="src">&nbsp;            <span Class="keyword">public</span> <span Class="keyword">void</span> accept(CodeBuilder builder, CodeElement element) {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;75<a name="src_75"></a></td>
- <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="numLineUnCover">&nbsp;75<a name="src_75"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                builder.with(element);</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;76</td>
+ <td class="numLineUnCover">&nbsp;76</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;            }</pre></td>
  </tr>
@@ -514,12 +514,12 @@
  <td class="src"><pre class="src">&nbsp;            <span Class="keyword">public</span> <span Class="keyword">void</span> atEnd(CodeBuilder builder) {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;80<a name="src_80"></a></td>
- <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="numLineUnCover">&nbsp;80<a name="src_80"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                finisher.accept(builder);</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;81</td>
+ <td class="numLineUnCover">&nbsp;81</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;            }</pre></td>
  </tr>
@@ -600,6 +600,6 @@
  </tr>
  </table>
 <p>
-<br><table cellpadding="0" cellspacing="0" class="report">  <tr class="report">    <td class="reportText"><span class="text">    Report generated 8/18/22, 9:04 AM    </span></td>  </tr></table>
+<br><table cellpadding="0" cellspacing="0" class="report">  <tr class="report">    <td class="reportText"><span class="text">    Report generated 8/31/22, 2:17 PM    </span></td>  </tr></table>
 </body>
 </html>

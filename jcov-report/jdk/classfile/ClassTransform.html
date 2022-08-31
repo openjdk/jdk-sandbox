@@ -70,10 +70,10 @@
  </tr>
  <tr class="report">
  <td class="reportText"><span class="text"> <b>jdk.classfile.ClassTransform</b></span></td>
- <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>54</b>%(6/11)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  54"></td><td class="percentUnCovered" width="46"></td></tr></table></td></tr></table></td>
- <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>50</b>%(12/24)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  50"></td><td class="percentUnCovered" width="50"></td></tr></table></td></tr></table></td>
- <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>0</b>%(0/2)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="   0"></td><td class="percentUnCovered" width="100"></td></tr></table></td></tr></table></td>
- <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>45</b>%(10/22)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  45"></td><td class="percentUnCovered" width="55"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>72</b>%(8/11)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  72"></td><td class="percentUnCovered" width="28"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>83</b>%(20/24)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  83"></td><td class="percentUnCovered" width="17"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>100</b>%(2/2)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width=" 100"></td><td class="percentUnCovered" width="0"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>86</b>%(19/22)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  86"></td><td class="percentUnCovered" width="14"></td></tr></table></td></tr></table></td>
  </tr>
  </table>
  <br>
@@ -92,19 +92,19 @@
  <td class="reportText"><span class="text">void &lt;clinit&gt;()</span></td>
  </tr>
  <tr class="report">
- <td class="reportValue_covered"><span class="text">72</span></td>
+ <td class="reportValue_covered"><span class="text">74</span></td>
  <td class="reportText"><span class="text"><a href="#src_161">andThen</a></span></td>
  <td class="reportText"><span class="text">[public]</span></td>
  <td class="reportText"><span class="text">jdk.classfile.ClassTransform andThen(jdk.classfile.ClassTransform)</span></td>
  </tr>
  <tr class="report">
- <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportValue_covered"><span class="text">1</span></td>
  <td class="reportText"><span class="text"><a href="#src_94">dropping</a></span></td>
  <td class="reportText"><span class="text">[public, static]</span></td>
  <td class="reportText"><span class="text">jdk.classfile.ClassTransform dropping(java.util.function.Predicate)</span></td>
  </tr>
  <tr class="report">
- <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportValue_covered"><span class="text">1</span></td>
  <td class="reportText"><span class="text"><a href="#src_73">endHandler</a></span></td>
  <td class="reportText"><span class="text">[public, static]</span></td>
  <td class="reportText"><span class="text">jdk.classfile.ClassTransform endHandler(java.util.function.Consumer)</span></td>
@@ -116,7 +116,7 @@
  <td class="reportText"><span class="text">jdk.classfile.ClassTransform ofStateful(java.util.function.Supplier)</span></td>
  </tr>
  <tr class="report">
- <td class="reportValue_covered"><span class="text">41353</span></td>
+ <td class="reportValue_covered"><span class="text">41628</span></td>
  <td class="reportText"><span class="text"><a href="#src_166">resolve</a></span></td>
  <td class="reportText"><span class="text">[public]</span></td>
  <td class="reportText"><span class="text">jdk.classfile.ClassfileTransform$ResolvedTransform resolve(jdk.classfile.ClassBuilder)</span></td>
@@ -140,7 +140,7 @@
  <td class="reportText"><span class="text">jdk.classfile.ClassTransform transformingMethodBodies(jdk.classfile.CodeTransform)</span></td>
  </tr>
  <tr class="report">
- <td class="reportValue_covered"><span class="text">141</span></td>
+ <td class="reportValue_covered"><span class="text">142</span></td>
  <td class="reportText"><span class="text"><a href="#src_110">transformingMethods</a></span></td>
  <td class="reportText"><span class="text">[public, static]</span></td>
  <td class="reportText"><span class="text">jdk.classfile.ClassTransform transformingMethods(java.util.function.Predicate,jdk.classfile.MethodTransform)</span></td>
@@ -515,8 +515,8 @@
  <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> ClassTransform endHandler(Consumer&#60;ClassBuilder&#62; finisher) {</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;73<a name="src_73"></a></td>
- <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/2&nbsp;</td>
+ <td class="numLineCover">&nbsp;73<a name="src_73"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">new</span> ClassTransform() {</pre></td>
  </tr>
  <tr>
@@ -530,12 +530,12 @@
  <td class="src"><pre class="src">&nbsp;            <span Class="keyword">public</span> <span Class="keyword">void</span> accept(ClassBuilder builder, ClassElement element) {</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;76<a name="src_76"></a></td>
- <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="numLineCover">&nbsp;76<a name="src_76"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                builder.with(element);</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;77</td>
+ <td class="numLineCover">&nbsp;77</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;            }</pre></td>
  </tr>
@@ -555,12 +555,12 @@
  <td class="src"><pre class="src">&nbsp;            <span Class="keyword">public</span> <span Class="keyword">void</span> atEnd(ClassBuilder builder) {</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;81<a name="src_81"></a></td>
- <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="numLineCover">&nbsp;81<a name="src_81"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                finisher.accept(builder);</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;82</td>
+ <td class="numLineCover">&nbsp;82</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;            }</pre></td>
  </tr>
@@ -620,23 +620,23 @@
  <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> ClassTransform dropping(Predicate&#60;ClassElement&#62; filter) {</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;94<a name="src_94"></a></td>
- <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="numLineCover">&nbsp;94<a name="src_94"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> (b, e) -&#62; {</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;95<a name="src_95"></a></td>
- <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="numLineCover">&nbsp;95<a name="src_95"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (!filter.test(e))</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;96</td>
- <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="numLineCover">&nbsp;96</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;                b.with(e);</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;97</td>
- <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="numLineCover">&nbsp;97</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;        };</pre></td>
  </tr>
  <tr>
@@ -1006,6 +1006,6 @@
  </tr>
  </table>
 <p>
-<br><table cellpadding="0" cellspacing="0" class="report">  <tr class="report">    <td class="reportText"><span class="text">    Report generated 8/18/22, 9:04 AM    </span></td>  </tr></table>
+<br><table cellpadding="0" cellspacing="0" class="report">  <tr class="report">    <td class="reportText"><span class="text">    Report generated 8/31/22, 2:17 PM    </span></td>  </tr></table>
 </body>
 </html>

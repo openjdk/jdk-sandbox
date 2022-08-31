@@ -70,10 +70,10 @@
  </tr>
  <tr class="report">
  <td class="reportText"><span class="text"> <b>jdk.classfile.instruction.ConstantInstruction</b></span></td>
- <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>100</b>%(3/3)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width=" 100"></td><td class="percentUnCovered" width="0"></td></tr></table></td></tr></table></td>
- <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>76</b>%(10/13)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  76"></td><td class="percentUnCovered" width="24"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>100</b>%(6/6)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width=" 100"></td><td class="percentUnCovered" width="0"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>81</b>%(13/16)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  81"></td><td class="percentUnCovered" width="19"></td></tr></table></td></tr></table></td>
  <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>78</b>%(11/14)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  78"></td><td class="percentUnCovered" width="22"></td></tr></table></td></tr></table></td>
- <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>75</b>%(9/12)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  75"></td><td class="percentUnCovered" width="25"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>80</b>%(12/15)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  80"></td><td class="percentUnCovered" width="20"></td></tr></table></td></tr></table></td>
  </tr>
  </table>
  <br>
@@ -86,20 +86,38 @@
  <th class="report">method signature</th>
  </tr>
  <tr class="report">
- <td class="reportValue_covered"><span class="text">56659</span></td>
- <td class="reportText"><span class="text"><a href="#src_108">ofArgument</a></span></td>
+ <td class="reportValue_covered"><span class="text">56731</span></td>
+ <td class="reportText"><span class="text"><a href="#src_89">$ArgumentConstantInstruction.typeKind</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeKind $ArgumentConstantInstruction.typeKind()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">23429</span></td>
+ <td class="reportText"><span class="text"><a href="#src_70">$IntrinsicConstantInstruction.typeKind</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeKind $IntrinsicConstantInstruction.typeKind()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">20900</span></td>
+ <td class="reportText"><span class="text"><a href="#src_110">$LoadConstantInstruction.typeKind</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeKind $LoadConstantInstruction.typeKind()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">56740</span></td>
+ <td class="reportText"><span class="text"><a href="#src_135">ofArgument</a></span></td>
  <td class="reportText"><span class="text">[public, static]</span></td>
  <td class="reportText"><span class="text">jdk.classfile.instruction.ConstantInstruction$ArgumentConstantInstruction ofArgument(jdk.classfile.Opcode,int)</span></td>
  </tr>
  <tr class="report">
- <td class="reportValue_covered"><span class="text">24031</span></td>
- <td class="reportText"><span class="text"><a href="#src_94">ofIntrinsic</a></span></td>
+ <td class="reportValue_covered"><span class="text">24084</span></td>
+ <td class="reportText"><span class="text"><a href="#src_121">ofIntrinsic</a></span></td>
  <td class="reportText"><span class="text">[public, static]</span></td>
  <td class="reportText"><span class="text">jdk.classfile.instruction.ConstantInstruction$IntrinsicConstantInstruction ofIntrinsic(jdk.classfile.Opcode)</span></td>
  </tr>
  <tr class="report">
- <td class="reportValue_covered"><span class="text">40980</span></td>
- <td class="reportText"><span class="text"><a href="#src_122">ofLoad</a></span></td>
+ <td class="reportValue_covered"><span class="text">41026</span></td>
+ <td class="reportText"><span class="text"><a href="#src_149">ofLoad</a></span></td>
  <td class="reportText"><span class="text">[public, static]</span></td>
  <td class="reportText"><span class="text">jdk.classfile.instruction.ConstantInstruction$LoadConstantInstruction ofLoad(jdk.classfile.Opcode,jdk.classfile.constantpool.LoadableConstantEntry)</span></td>
  </tr>
@@ -269,127 +287,127 @@
  <tr>
  <td class="numLine">&nbsp;33</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.constantpool.LoadableConstantEntry;</pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.TypeKind;</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;34</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.impl.AbstractInstruction;</pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.constantpool.ConstantDynamicEntry;</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;35</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.impl.Util;</pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.constantpool.LoadableConstantEntry;</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;36</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;</pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.impl.AbstractInstruction;</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;37</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.impl.Util;</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;38</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Models a constant-load instruction in the {@code code} array of a {@code</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;39</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Code} attribute, including "intrinsic constant" instructions (e.g., {@code</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">/*<span Class="comment">*</span></span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;40</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment"> * aload_0}), "argument constant" instructions (e.g., {@code bipush}), and "load</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Models a constant-load instruction in the {@code code} array of a {@code</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;41</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment"> * constant" instructions (e.g., {@code LDC}).  Corresponding opcodes will have</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Code} attribute, including "intrinsic constant" instructions (e.g., {@code</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;42</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment"> * a {@code kind} of {@link CodeElement.Kind#CONSTANT}.  Delivered as a {@link</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * aload_0}), "argument constant" instructions (e.g., {@code bipush}), and "load</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;43</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment"> * CodeElement} when traversing the elements of a {@link CodeModel}.</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * constant" instructions (e.g., {@code LDC}).  Corresponding opcodes will have</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;44</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment"> */</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * a {@code kind} of {@link CodeElement.Kind#CONSTANT}.  Delivered as a {@link</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;45</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;sealed <span Class="keyword">public</span> <span Class="keyword">interface</span> ConstantInstruction <span Class="keyword">extends</span> Instruction {</pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * CodeElement} when traversing the elements of a {@link CodeModel}.</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;46</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;</pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> */</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;47</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ <td class="src"><pre class="src">&nbsp;sealed <span Class="keyword">public</span> <span Class="keyword">interface</span> ConstantInstruction <span Class="keyword">extends</span> Instruction {</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;48</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@return the constant value}</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;49</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;50</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    ConstantDesc constantValue();</pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@return the constant value}</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;51</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;</pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;52</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ <td class="src"><pre class="src">&nbsp;    ConstantDesc constantValue();</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;53</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Models an "intrinsic constant" instruction (e.g., {@code</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;54</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     * aload_0}).</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;55</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@return the type of the constant}</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;56</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    sealed <span Class="keyword">interface</span> IntrinsicConstantInstruction <span Class="keyword">extends</span> ConstantInstruction</pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;57</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;            permits AbstractInstruction.UnboundIntrinsicConstantInstruction {</pre></td>
+ <td class="src"><pre class="src">&nbsp;    TypeKind typeKind();</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;58</td>
@@ -399,267 +417,267 @@
  <tr>
  <td class="numLine">&nbsp;59</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;60</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;</pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Models an "intrinsic constant" instruction (e.g., {@code</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;61</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * aload_0}).</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;62</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Models an "argument constant" instruction (e.g., {@code</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;63</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     * bipush}).</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;    sealed <span Class="keyword">interface</span> IntrinsicConstantInstruction <span Class="keyword">extends</span> ConstantInstruction</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;64</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;            permits AbstractInstruction.UnboundIntrinsicConstantInstruction {</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;65</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    sealed <span Class="keyword">interface</span> ArgumentConstantInstruction <span Class="keyword">extends</span> ConstantInstruction</pre></td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;66</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;            permits AbstractInstruction.BoundArgumentConstantInstruction,</pre></td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;67</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                    AbstractInstruction.UnboundArgumentConstantInstruction {</pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * {@return the type of the constant}</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;68</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;</pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         */</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;69</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;        @Override</pre></td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">default</span> TypeKind typeKind() {</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;70</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;        Integer constantValue();</pre></td>
+ <td class="numLineCover">&nbsp;70<a name="src_70"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> opcode().primaryTypeKind();</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;71</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;72</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;</pre></td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;73</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;74</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Models a "load constant" instruction (e.g., {@code</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;75</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     * ldc}).</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Models an "argument constant" instruction (e.g., {@code</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;76</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * bipush}).</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;77</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    sealed <span Class="keyword">interface</span> LoadConstantInstruction <span Class="keyword">extends</span> ConstantInstruction</pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;78</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;            permits AbstractInstruction.BoundLoadConstantInstruction,</pre></td>
+ <td class="src"><pre class="src">&nbsp;    sealed <span Class="keyword">interface</span> ArgumentConstantInstruction <span Class="keyword">extends</span> ConstantInstruction</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;79</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;                    AbstractInstruction.UnboundLoadConstantInstruction {</pre></td>
+ <td class="src"><pre class="src">&nbsp;            permits AbstractInstruction.BoundArgumentConstantInstruction,</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;80</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;</pre></td>
+ <td class="src"><pre class="src">&nbsp;                    AbstractInstruction.UnboundArgumentConstantInstruction {</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;81</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;82</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">         * {@return the constant value}</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;        @Override</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;83</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">         */</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;        Integer constantValue();</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;84</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;        LoadableConstantEntry constantEntry();</pre></td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;85</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;86</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;</pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * {@return the type of the constant}</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;87</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         */</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;88</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@return an intrinsic constant instruction}</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">default</span> TypeKind typeKind() {</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;89</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     *</span></pre></td>
+ <td class="numLineCover">&nbsp;89<a name="src_89"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> opcode().primaryTypeKind();</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;90</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param op the opcode for the specific type of intrinsic constant instruction,</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;91</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     *           which must be of kind {@link Kind#CONSTANT}</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;92</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;93</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> IntrinsicConstantInstruction ofIntrinsic(Opcode op) {</pre></td>
- </tr>
- <tr>
- <td class="numLineCover">&nbsp;94<a name="src_94"></a></td>
- <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;        Util.checkKind(op, Kind.CONSTANT);</pre></td>
- </tr>
- <tr>
- <td class="numLineCover">&nbsp;95</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (op.constantValue() == <span Class="keyword">null</span> &#38;&#38; op != Opcode.ACONST_NULL)</pre></td>
- </tr>
- <tr>
- <td class="numLineUnCover">&nbsp;96</td>
- <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> <span Class="keyword">new</span> IllegalArgumentException(String.format(<span Class="string">"Wrong opcode specified; found %s, expected xCONST_val"</span>, op));</pre></td>
- </tr>
- <tr>
- <td class="numLineCover">&nbsp;97</td>
- <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;3/3&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">new</span> AbstractInstruction.UnboundIntrinsicConstantInstruction(op);</pre></td>
- </tr>
- <tr>
- <td class="numLine">&nbsp;98</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    }</pre></td>
- </tr>
- <tr>
- <td class="numLine">&nbsp;99</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;</pre></td>
- </tr>
- <tr>
- <td class="numLine">&nbsp;100</td>
- <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;101</td>
+ <td class="numLine">&nbsp;94</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@return an argument constant instruction}</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * Models a "load constant" instruction (e.g., {@code</span></pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;102</td>
+ <td class="numLine">&nbsp;95</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     *</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * ldc}).</span></pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;103</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param op the opcode for the specific type of intrinsic constant instruction,</span></pre></td>
- </tr>
- <tr>
- <td class="numLine">&nbsp;104</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     *           which must be of kind {@link Kind#CONSTANT}</span></pre></td>
- </tr>
- <tr>
- <td class="numLine">&nbsp;105</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param value the constant value</span></pre></td>
- </tr>
- <tr>
- <td class="numLine">&nbsp;106</td>
+ <td class="numLine">&nbsp;96</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
  </tr>
  <tr>
+ <td class="numLine">&nbsp;97</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    sealed <span Class="keyword">interface</span> LoadConstantInstruction <span Class="keyword">extends</span> ConstantInstruction</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;98</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            permits AbstractInstruction.BoundLoadConstantInstruction,</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;99</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    AbstractInstruction.UnboundLoadConstantInstruction {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;100</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;101</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;102</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * {@return the constant value}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;103</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;104</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        LoadableConstantEntry constantEntry();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;105</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;106</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
  <td class="numLine">&nbsp;107</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> ArgumentConstantInstruction ofArgument(Opcode op, <span Class="keyword">int</span> value) {</pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         * {@return the type of the constant}</span></pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;108<a name="src_108"></a></td>
- <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;        Util.checkKind(op, Kind.CONSTANT);</pre></td>
- </tr>
- <tr>
- <td class="numLineCover">&nbsp;109</td>
+ <td class="numLine">&nbsp;108</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (op != Opcode.BIPUSH &#38;&#38; op != Opcode.SIPUSH)</pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">         */</span></pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;110</td>
- <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> <span Class="keyword">new</span> IllegalArgumentException(String.format(<span Class="string">"Wrong opcode specified; found %s, expected BIPUSH or SIPUSH"</span>, op, op.kind()));</pre></td>
+ <td class="numLine">&nbsp;109</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">default</span> TypeKind typeKind() {</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;111</td>
- <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;3/3&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">new</span> AbstractInstruction.UnboundArgumentConstantInstruction(op, value);</pre></td>
+ <td class="numLineCover">&nbsp;110<a name="src_110"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> constantEntry().typeKind();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;111</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;112</td>
@@ -679,7 +697,7 @@
  <tr>
  <td class="numLine">&nbsp;115</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@return a load constant instruction}</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@return an intrinsic constant instruction}</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;116</td>
@@ -689,7 +707,7 @@
  <tr>
  <td class="numLine">&nbsp;117</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param op the opcode for the specific type of load constant instruction,</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param op the opcode for the specific type of intrinsic constant instruction,</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;118</td>
@@ -699,50 +717,185 @@
  <tr>
  <td class="numLine">&nbsp;119</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param constant the constant value</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
  </tr>
  <tr>
  <td class="numLine">&nbsp;120</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> IntrinsicConstantInstruction ofIntrinsic(Opcode op) {</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;121</td>
- <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> LoadConstantInstruction ofLoad(Opcode op, LoadableConstantEntry constant) {</pre></td>
- </tr>
- <tr>
- <td class="numLineCover">&nbsp;122<a name="src_122"></a></td>
+ <td class="numLineCover">&nbsp;121<a name="src_121"></a></td>
  <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;        Util.checkKind(op, Kind.CONSTANT);</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;123</td>
+ <td class="numLineCover">&nbsp;122</td>
  <td class="nbHits">&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (op != Opcode.LDC &#38;&#38; op != Opcode.LDC_W &#38;&#38; op != Opcode.LDC2_W)</pre></td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (op.constantValue() == <span Class="keyword">null</span> &#38;&#38; op != Opcode.ACONST_NULL)</pre></td>
  </tr>
  <tr>
- <td class="numLineUnCover">&nbsp;124</td>
+ <td class="numLineUnCover">&nbsp;123</td>
  <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> <span Class="keyword">new</span> IllegalArgumentException(String.format(<span Class="string">"Wrong opcode specified; found %s, expected LDC, LDC_W or LDC2_W"</span>, op, op.kind()));</pre></td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> <span Class="keyword">new</span> IllegalArgumentException(String.format(<span Class="string">"Wrong opcode specified; found %s, expected xCONST_val"</span>, op));</pre></td>
  </tr>
  <tr>
- <td class="numLineCover">&nbsp;125</td>
- <td class="nbHitsCovered">&nbsp;Block:&nbsp;3/3&nbsp;Branch:&nbsp;5/5&nbsp;</td>
- <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">new</span> AbstractInstruction.UnboundLoadConstantInstruction(op, constant);</pre></td>
+ <td class="numLineCover">&nbsp;124</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;3/3&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">new</span> AbstractInstruction.UnboundIntrinsicConstantInstruction(op);</pre></td>
  </tr>
  <tr>
- <td class="numLine">&nbsp;126</td>
+ <td class="numLine">&nbsp;125</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;    }</pre></td>
  </tr>
  <tr>
+ <td class="numLine">&nbsp;126</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
  <td class="numLine">&nbsp;127</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;128</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@return an argument constant instruction}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;129</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;130</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param op the opcode for the specific type of intrinsic constant instruction,</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;131</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *           which must be of kind {@link Kind#CONSTANT}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;132</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param value the constant value</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;133</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;134</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> ArgumentConstantInstruction ofArgument(Opcode op, <span Class="keyword">int</span> value) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;135<a name="src_135"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        Util.checkKind(op, Kind.CONSTANT);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;136</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (op != Opcode.BIPUSH &#38;&#38; op != Opcode.SIPUSH)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;137</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> <span Class="keyword">new</span> IllegalArgumentException(String.format(<span Class="string">"Wrong opcode specified; found %s, expected BIPUSH or SIPUSH"</span>, op, op.kind()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;138</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;3/3&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">new</span> AbstractInstruction.UnboundArgumentConstantInstruction(op, value);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;139</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;140</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;141</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;142</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * {@return a load constant instruction}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;143</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;144</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param op the opcode for the specific type of load constant instruction,</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;145</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     *           which must be of kind {@link Kind#CONSTANT}</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;146</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     * @param constant the constant value</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;147</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">     */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;148</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">static</span> LoadConstantInstruction ofLoad(Opcode op, LoadableConstantEntry constant) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;149<a name="src_149"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        Util.checkKind(op, Kind.CONSTANT);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;150</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (op != Opcode.LDC &#38;&#38; op != Opcode.LDC_W &#38;&#38; op != Opcode.LDC2_W)</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;151</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">throw</span> <span Class="keyword">new</span> IllegalArgumentException(String.format(<span Class="string">"Wrong opcode specified; found %s, expected LDC, LDC_W or LDC2_W"</span>, op, op.kind()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;152</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;3/3&nbsp;Branch:&nbsp;5/5&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> <span Class="keyword">new</span> AbstractInstruction.UnboundLoadConstantInstruction(op, constant);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;153</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;154</td>
  <td class="nbHits">&nbsp;</td>
  <td class="src"><pre class="src">&nbsp;}</pre></td>
  </tr>
  </table>
 <p>
-<br><table cellpadding="0" cellspacing="0" class="report">  <tr class="report">    <td class="reportText"><span class="text">    Report generated 8/18/22, 9:04 AM    </span></td>  </tr></table>
+<br><table cellpadding="0" cellspacing="0" class="report">  <tr class="report">    <td class="reportText"><span class="text">    Report generated 8/31/22, 2:17 PM    </span></td>  </tr></table>
 </body>
 </html>

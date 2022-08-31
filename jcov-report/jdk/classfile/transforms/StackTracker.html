@@ -1,0 +1,1912 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>tests coverage</title>
+<link rel ="stylesheet" type="text/css" href="../../../style.css" title="Style">
+<script type="text/javascript" src="../../../sorttable.js"></script>
+<script type="text/javascript">
+  targetPage = "" + window.location.search;
+  if (targetPage != "" && targetPage != "undefined")
+    targetPage = targetPage.substring(1);
+  if (targetPage.indexOf(":") != -1 || (targetPage != "" && !validURL(targetPage)))
+    targetPage = "undefined";
+  function validURL(url) {
+    var pos = url.indexOf(".html");
+    if (pos == -1 || pos != url.length - 5)
+      return false;
+    var allowNumber = false;
+    var allowSep = false;
+    var seenDot = false;
+    for (var i = 0; i < url.length - 5; i++) {
+      var ch = url.charAt(i);
+      if ('a' <= ch && ch <= 'z' ||
+          'A' <= ch && ch <= 'Z' ||
+          ch == '$' ||
+          ch == '_') {
+            allowNumber = true;
+            allowSep = true;
+      } else if ('0' <= ch && ch <= '9' ||
+                 ch == '-') {
+                   if (!allowNumber)
+                     return false;
+      } else if (ch == '/' || ch == '.') {
+        if (!allowSep)
+          return false;
+        allowNumber = false;
+        allowSep = false;
+        if (ch == '.')
+          seenDot = true;
+        if (ch == '/' && seenDot)
+          return false;
+      } else {
+        return false;
+      }
+    }
+    return true;
+  }
+  function loadFrames() {
+    if (targetPage != "" && targetPage != "undefined")
+      top.classFrame.location = top.targetPage;
+  }
+</script>
+</head>
+<body>
+<table>
+<tr>
+<td>
+<a href="../../../index.html?jdk/classfile/transforms/StackTracker.html" target="_top">Frames</a>
+<a href="StackTracker.html" target="_top">No Frames</a>
+</td>
+</tr>
+</table>
+<br>
+ <table cellspacing="0" cellpadding="0"class="report">
+ <tr class="report">
+ <th class="report">&nbsp;</th>
+ <th class="report">%method</th>
+ <th class="report">%block</th>
+ <th class="report">%branch</th>
+ <th class="report">%line</th>
+ </tr>
+ <tr class="report">
+ <td class="reportText"><span class="text"> <b>jdk.classfile.transforms.StackTracker</b></span></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>77</b>%(17/22)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  77"></td><td class="percentUnCovered" width="23"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>82</b>%(107/129)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  82"></td><td class="percentUnCovered" width="18"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>81</b>%(77/94)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  81"></td><td class="percentUnCovered" width="19"></td></tr></table></td></tr></table></td>
+ <td class="reportValue"><table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td><span class="text"><b>82</b>%(161/194)</span></td><tr><td><table class="percentGraph" cellpadding="0" cellspacing="0"><tr><td class="percentCovered" width="  82"></td><td class="percentUnCovered" width="18"></td></tr></table></td></tr></table></td>
+ </tr>
+ </table>
+ <br>
+ <br>
+ <table cellspacing="0" cellpadding="0"class="report" id="mcoverage">
+ <tr class="report">
+ <th class="report">hit count</th>
+ <th class="report">method  name</th>
+ <th class="report">method modifiers</th>
+ <th class="report">method signature</th>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">588512</span></td>
+ <td class="reportText"><span class="text"><a href="#src_76">$Item.&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">void $Item.&lt;init&gt;(jdk.classfile.TypeKind,jdk.classfile.transforms.StackTracker$Item)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_76">$Item.equals</a></span></td>
+ <td class="reportText"><span class="text">[final]</span></td>
+ <td class="reportText"><span class="text">boolean $Item.equals(java.lang.Object)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_76">$Item.hashCode</a></span></td>
+ <td class="reportText"><span class="text">[final]</span></td>
+ <td class="reportText"><span class="text">int $Item.hashCode()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_76">$Item.next</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.transforms.StackTracker$Item $Item.next()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_76">$Item.toString</a></span></td>
+ <td class="reportText"><span class="text">[final]</span></td>
+ <td class="reportText"><span class="text">java.lang.String $Item.toString()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_uncovered"><span class="text">0</span></td>
+ <td class="reportText"><span class="text"><a href="#src_76">$Item.type</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeKind $Item.type()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">10</span></td>
+ <td class="reportText"><span class="text"><a href="#src_92">$Stack$1.&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">void $Stack$1.&lt;init&gt;(jdk.classfile.transforms.StackTracker$Stack)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">26</span></td>
+ <td class="reportText"><span class="text"><a href="#src_97">$Stack$1.hasNext</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">boolean $Stack$1.hasNext()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">16</span></td>
+ <td class="reportText"><span class="text"><a href="#src_102">$Stack$1.next</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeKind $Stack$1.next()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">83324</span></td>
+ <td class="reportText"><span class="text"><a href="#src_84">$Stack.&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">void $Stack.&lt;init&gt;(jdk.classfile.transforms.StackTracker,jdk.classfile.transforms.StackTracker$Item,int,int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">10</span></td>
+ <td class="reportText"><span class="text"><a href="#src_92">$Stack.iterator</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">java.util.Iterator $Stack.iterator()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">530822</span></td>
+ <td class="reportText"><span class="text"><a href="#src_125">$Stack.pop</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.TypeKind $Stack.pop()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">584089</span></td>
+ <td class="reportText"><span class="text"><a href="#src_118">$Stack.push</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">void $Stack.push(jdk.classfile.TypeKind)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">10</span></td>
+ <td class="reportText"><span class="text"><a href="#src_114">$Stack.size</a></span></td>
+ <td class="reportText"><span class="text">[]</span></td>
+ <td class="reportText"><span class="text">int $Stack.size()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">33278</span></td>
+ <td class="reportText"><span class="text"><a href="#src_45">&lt;init&gt;</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void &lt;init&gt;()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">1187421</span></td>
+ <td class="reportText"><span class="text"><a href="#src_165">accept</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">void accept(jdk.classfile.CodeBuilder,jdk.classfile.CodeElement)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">45656</span></td>
+ <td class="reportText"><span class="text"><a href="#src_155">fork</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">jdk.classfile.transforms.StackTracker$Stack fork()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">7</span></td>
+ <td class="reportText"><span class="text"><a href="#src_73">maxStackSize</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">java.util.Optional maxStackSize()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">419041</span></td>
+ <td class="reportText"><span class="text"><a href="#src_147">pop</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">void pop(int)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">565842</span></td>
+ <td class="reportText"><span class="text"><a href="#src_139">push</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">void push(jdk.classfile.TypeKind)</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">18</span></td>
+ <td class="reportText"><span class="text"><a href="#src_60">stack</a></span></td>
+ <td class="reportText"><span class="text">[public]</span></td>
+ <td class="reportText"><span class="text">java.util.Optional stack()</span></td>
+ </tr>
+ <tr class="report">
+ <td class="reportValue_covered"><span class="text">32666</span></td>
+ <td class="reportText"><span class="text"><a href="#src_159">withStack</a></span></td>
+ <td class="reportText"><span class="text">[private]</span></td>
+ <td class="reportText"><span class="text">void withStack(java.util.function.Consumer)</span></td>
+ </tr>
+ </table>
+ <br>
+ <table cellspacing="0" cellpadding="0" class="src">
+ <tr>
+ <td class="numLine">&nbsp;1</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">/*</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;2</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;3</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;4</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;5</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * This code is free software; you can redistribute it and/or modify it</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;6</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * under the terms of the GNU General Public License version 2 only, as</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;7</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * published by the Free Software Foundation.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;8</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;9</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * This code is distributed in the hope that it will be useful, but WITHOUT</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;10</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;11</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;12</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * version 2 for more details (a copy is included in the LICENSE file that</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;13</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * accompanied this code).</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;14</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;15</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * You should have received a copy of the GNU General Public License version</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;16</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * 2 along with this work; if not, write to the Free Software Foundation,</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;17</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;18</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;19</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;20</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * or visit www.oracle.com if you need additional information or have any</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;21</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> * questions.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;22</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;23</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;24</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">package</span> jdk.classfile.transforms;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;25</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;26</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.AbstractCollection;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;27</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.Collection;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;28</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.HashMap;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;29</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.Iterator;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;30</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.Map;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;31</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.NoSuchElementException;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;32</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.Optional;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;33</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> java.util.function.Consumer;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;34</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.CodeBuilder;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;35</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.CodeElement;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;36</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.CodeTransform;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;37</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.Label;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;38</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.Opcode;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;39</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.TypeKind;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;40</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">import</span> jdk.classfile.instruction.*;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;41</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;42</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;43</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;44</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment"> */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;45<a name="src_45"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="keyword">public</span> <span Class="keyword">final</span> <span Class="keyword">class</span> StackTracker <span Class="keyword">implements</span> CodeTransform {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;46</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;47</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;48</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;49</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">      * Returns {@linkplain Collection} of {@linkplain TypeKind} representing current stack.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;50</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">      * Returns an empty {@linkplain Optional} when the Stack content is unknown</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;51</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">      * (right after {@code xRETURN, ATHROW, GOTO, GOTO_W, LOOKUPSWITCH, TABLESWITCH} instructions).</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;52</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">      *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;53</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">      * Temporary unknown stack content can be recovered by binding of a {@linkplain Label} used as</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;54</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">      * target of a branch instruction from existing code with known Stack (forward branch target),</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;55</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">      * or by binding of a {@linkplain Label} defining an exception handler (exception handler code start).</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;56</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">      *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;57</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">      * @return actual stack content, or an empty {@linkplain Optional} if unknown</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;58</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">      */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;59</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> Optional&#60;Collection&#60;TypeKind&#62;&#62; stack() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;60<a name="src_60"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> Optional.ofNullable(fork());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;61</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;62</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;63</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="comment">/*<span Class="comment">*</span></span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;64</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">      * Returns tracked max stack size.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;65</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">      * Returns an empty {@linkplain Optional} when Max stack size tracking has been lost.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;66</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">      *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;67</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">      * Max stack size tracking is permanently lost when a stack instruction appears</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;68</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">      * and the actual stack content is unknown.</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;69</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">      *</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;70</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">      * @return tracked max stack size, or an empty {@linkplain Optional} if tracking has been lost</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;71</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;<span Class="comment">      */</span></pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;72</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> Optional&#60;Integer&#62; maxStackSize() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;73<a name="src_73"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> Optional.ofNullable(maxSize);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;74</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;75</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;76<a name="src_76"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/6&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">static</span> record Item(TypeKind type, Item next) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;77</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;78</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;79</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">final</span> <span Class="keyword">class</span> Stack <span Class="keyword">extends</span> AbstractCollection&#60;TypeKind&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;80</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;81</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">private</span> Item top;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;82</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">private</span> <span Class="keyword">int</span> count, realSize;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;83</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;84<a name="src_84"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        Stack(Item top, <span Class="keyword">int</span> count, <span Class="keyword">int</span> realSize) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;85</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">this</span>.top = top;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;86</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">this</span>.count = count;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;87</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">this</span>.realSize = realSize;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;88</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;89</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;90</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;91</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> Iterator&#60;TypeKind&#62; iterator() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;92<a name="src_92"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> <span Class="keyword">new</span> Iterator&#60;TypeKind&#62;() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;93</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                Item i = top;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;94</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;95</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;96</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">public</span> <span Class="keyword">boolean</span> hasNext() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;97<a name="src_97"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;4/4&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">return</span> i != <span Class="keyword">null</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;98</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;99</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;100</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;101</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">public</span> TypeKind next() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;102<a name="src_102"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">if</span> (i == <span Class="keyword">null</span>) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;103</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">throw</span> <span Class="keyword">new</span> NoSuchElementException();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;104</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;105</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    var t = i.type;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;106</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    i = i.next;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;107</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">return</span> t;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;108</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;109</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            };</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;110</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;111</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;112</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;113</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">public</span> <span Class="keyword">int</span> size() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;114<a name="src_114"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> count;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;115</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;116</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;117</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">private</span> <span Class="keyword">void</span> push(TypeKind type) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;118<a name="src_118"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            top = <span Class="keyword">new</span> Item(type, top);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;119</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            realSize += type.slotSize();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;120</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            count++;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;121</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (maxSize != <span Class="keyword">null</span> &#38;&#38; realSize &#62; maxSize) maxSize = realSize;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;122</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;3/3&nbsp;Branch:&nbsp;4/4&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;123</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;124</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">private</span> TypeKind pop() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;125<a name="src_125"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            var t = top.type;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;126</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            realSize -= t.slotSize();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;127</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            count--;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;128</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            top = top.next;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;129</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">return</span> t;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;130</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;131</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;132</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;133</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> Stack stack = <span Class="keyword">new</span> Stack(<span Class="keyword">null</span>, 0, 0);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;134</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> Integer maxSize = 0;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;135</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;136</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> Map&#60;Label, Stack&#62; map = <span Class="keyword">new</span> HashMap&#60;&#62;();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;137</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;138</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">void</span> push(TypeKind type) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;139<a name="src_139"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (stack != <span Class="keyword">null</span>) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;140</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">if</span> (type != TypeKind.VoidType) stack.push(type);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;141</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        } <span Class="keyword">else</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;142</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            maxSize = <span Class="keyword">null</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;143</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;144</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;145</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;146</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">void</span> pop(<span Class="keyword">int</span> i) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;147<a name="src_147"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (stack != <span Class="keyword">null</span>) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;148</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">while</span> (i-- &#62; 0) stack.pop();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;149</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        } <span Class="keyword">else</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;150</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            maxSize = <span Class="keyword">null</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;151</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;152</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;153</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;154</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> Stack fork() {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;155<a name="src_155"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;4/4&nbsp;Branch:&nbsp;2/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">return</span> stack == <span Class="keyword">null</span> ? <span Class="keyword">null</span> : <span Class="keyword">new</span> Stack(stack.top, stack.count, stack.realSize);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;156</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;157</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;158</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">private</span> <span Class="keyword">void</span> withStack(Consumer&#60;Stack&#62; c) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;159<a name="src_159"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">if</span> (stack != <span Class="keyword">null</span>) c.accept(stack);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;160</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">else</span> maxSize = <span Class="keyword">null</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;161</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;2/2&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;162</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;163</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    @Override</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;164</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    <span Class="keyword">public</span> <span Class="keyword">void</span> accept(CodeBuilder cb, CodeElement el) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;165<a name="src_165"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        cb.with(el);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;166</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        <span Class="keyword">switch</span> (el) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;167</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> ArrayLoadInstruction i -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;168</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                pop(2);push(i.typeKind());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;169</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;170</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> ArrayStoreInstruction i -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;171</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                pop(3);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;172</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> BranchInstruction i -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;173</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">if</span> (i.opcode() == Opcode.GOTO || i.opcode() == Opcode.GOTO_W) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;174</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    map.put(i.target(), stack);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;175</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    stack = <span Class="keyword">null</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;176</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                } <span Class="keyword">else</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;177</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    pop(1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;178</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    map.put(i.target(), fork());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;179</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;180</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;181</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> ConstantInstruction i -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;182</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                push(i.typeKind());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;183</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> ConvertInstruction i -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;184</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                pop(1);push(i.toType());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;185</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;186</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> FieldInstruction i -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;187<a name="src_187"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;21/41&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">switch</span> (i.opcode()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;188</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> GETSTATIC -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;189</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        push(TypeKind.fromDescriptor(i.type().stringValue()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;190</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> GETFIELD -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;191</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        pop(1);push(TypeKind.fromDescriptor(i.type().stringValue()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;192</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;193</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> PUTSTATIC -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;194</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        pop(1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;195</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> PUTFIELD -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;196</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        pop(2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;197</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;198</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;199</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> InvokeDynamicInstruction i -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;200</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                var type = i.typeSymbol();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;201</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                pop(type.parameterCount());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;202</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                push(TypeKind.fromDescriptor(type.returnType().descriptorString()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;203</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;204</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> InvokeInstruction i -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;205</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                var type = i.typeSymbol();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;206</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                pop(type.parameterCount());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;207</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">if</span> (i.opcode() != Opcode.INVOKESTATIC) pop(1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;208</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                push(TypeKind.fromDescriptor(type.returnType().descriptorString()));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;209</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;210</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> LoadInstruction i -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;211</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                push(i.typeKind());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;212</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> StoreInstruction i -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;213</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                pop(1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;214</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> LookupSwitchInstruction i -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;215</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                map.put(i.defaultTarget(), stack);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;216</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">for</span> (var c : i.cases()) map.put(c.target(), fork());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;217</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                stack = <span Class="keyword">null</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;218</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;219</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> MonitorInstruction i -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;220</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                pop(1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;221</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> NewMultiArrayInstruction i -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;222</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                pop(i.dimensions());push(TypeKind.ReferenceType);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;223</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;224</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> NewObjectInstruction i -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;225</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                push(TypeKind.ReferenceType);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;226</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> NewPrimitiveArrayInstruction i -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;227</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                pop(1);push(TypeKind.ReferenceType);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;228</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;229</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> NewReferenceArrayInstruction i -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;230</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                pop(1);push(TypeKind.ReferenceType);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;231</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;232</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> NopInstruction i -&#62; {}</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;233</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> OperatorInstruction i -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;234</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">switch</span> (i.opcode()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;235</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;5/5&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> ARRAYLENGTH, INEG, LNEG, FNEG, DNEG -&#62; pop(1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;236</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">default</span> -&#62; pop(2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;237</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;238</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                push(i.typeKind());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;239</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;240</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> ReturnInstruction i -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;241</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                stack = <span Class="keyword">null</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;242</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> StackInstruction i -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;243</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">switch</span> (i.opcode()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;244</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> POP -&#62; pop(1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;245</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> POP2 -&#62; withStack(s -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;246<a name="src_246"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">if</span> (s.pop().slotSize() == 1) s.pop();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;247</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/2&nbsp;Branch:&nbsp;1/2&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    });</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;248</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> DUP -&#62;  withStack(s -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;249<a name="src_249"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        var v = s.pop();s.push(v);s.push(v);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;250</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    });</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;251</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> DUP2 -&#62; withStack(s -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;252<a name="src_252"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        var v1 = s.pop();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;253</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">if</span> (v1.slotSize() == 1) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;254</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            var v2 = s.pop();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;255</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            s.push(v2);s.push(v1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;256</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            s.push(v2);s.push(v1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;257</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        } <span Class="keyword">else</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;258</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            s.push(v1);s.push(v1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;259</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;260</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    });</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;261</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> DUP_X1 -&#62; withStack(s -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;262<a name="src_262"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        var v1 = s.pop();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;263</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        var v2 = s.pop();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;264</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        s.push(v1);s.push(v2);s.push(v1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;265</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    });</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;266</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> DUP_X2 -&#62; withStack(s -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;267<a name="src_267"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        var v1 = s.pop();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;268</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        var v2 = s.pop();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;269</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">if</span> (v2.slotSize() == 1) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;270</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            var v3 = s.pop();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;271</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            s.push(v1);s.push(v3);s.push(v2);s.push(v1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;272</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        } <span Class="keyword">else</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;273</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            s.push(v1);s.push(v2);s.push(v1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;274</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;275</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    });</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;276</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> DUP2_X1 -&#62; withStack(s -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;277<a name="src_277"></a></td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        var v1 = s.pop();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;278</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        var v2 = s.pop();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;279</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">if</span> (v1.slotSize() == 1) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;280</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            var v3 = s.pop();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;281</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            s.push(v2);s.push(v1);s.push(v3);s.push(v2);s.push(v1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;282</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        } <span Class="keyword">else</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;283</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            s.push(v1);s.push(v2);s.push(v1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;284</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;285</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    });</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;286</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> DUP2_X2 -&#62; withStack(s -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;287<a name="src_287"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        var v1 = s.pop();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;288</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        var v2 = s.pop();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;289</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        <span Class="keyword">if</span> (v1.slotSize() == 1) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;290</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            var v3 = s.pop();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;291</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            <span Class="keyword">if</span> (v3.slotSize() == 1) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;292</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                var v4 = s.pop();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;293</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                s.push(v2);s.push(v1);s.push(v4);s.push(v3);s.push(v2);s.push(v1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;294</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            } <span Class="keyword">else</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;295</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                s.push(v2);s.push(v1);s.push(v3);s.push(v2);s.push(v1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;296</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;297</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        } <span Class="keyword">else</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;298</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            <span Class="keyword">if</span> (v2.slotSize() == 1) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;299</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                var v3 = s.pop();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;300</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                s.push(v1);s.push(v3);s.push(v2);s.push(v1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;301</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            } <span Class="keyword">else</span> {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;302</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                                s.push(v1);s.push(v2);s.push(v1);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;303</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;304</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;305</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    });</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;306</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> SWAP -&#62; withStack(s -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;307<a name="src_307"></a></td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        var v1 = s.pop();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;308</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        var v2 = s.pop();</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;309</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        s.push(v1);s.push(v2);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineUnCover">&nbsp;310</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    });</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;311</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;312</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;313</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> TableSwitchInstruction i -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;314</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                map.put(i.defaultTarget(), stack);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;315</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">for</span> (var c : i.cases()) map.put(c.target(), fork());</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;316</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                stack = <span Class="keyword">null</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;317</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;318</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> ThrowInstruction i -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;319</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                stack = <span Class="keyword">null</span>;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;320</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> TypeCheckInstruction i -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;321</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                <span Class="keyword">switch</span> (i.opcode()) {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;322</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> CHECKCAST -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;323</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        pop(1);push(TypeKind.ReferenceType);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;324</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;325</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    <span Class="keyword">case</span> INSTANCEOF -&#62; {</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;326</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                        pop(1);push(TypeKind.IntType);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;327</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;328</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;329</td>
+ <td class="nbHitsUncovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;0/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;330</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> ExceptionCatch i -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;331</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                map.put(i.handler(), <span Class="keyword">new</span> Stack(<span Class="keyword">new</span> Item(TypeKind.ReferenceType, <span Class="keyword">null</span>), 1, 1));</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;332</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;1/1&nbsp;Branch:&nbsp;1/1&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">case</span> LabelTarget i -&#62;</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;333</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;                stack = map.getOrDefault(i.label(), stack);</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;334</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;            <span Class="keyword">default</span> -&#62; {}</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;335</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;        }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLineCover">&nbsp;336</td>
+ <td class="nbHitsCovered">&nbsp;Block:&nbsp;7/7&nbsp;Branch:&nbsp;5/5&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;    }</pre></td>
+ </tr>
+ <tr>
+ <td class="numLine">&nbsp;337</td>
+ <td class="nbHits">&nbsp;</td>
+ <td class="src"><pre class="src">&nbsp;}</pre></td>
+ </tr>
+ </table>
+<p>
+<br><table cellpadding="0" cellspacing="0" class="report">  <tr class="report">    <td class="reportText"><span class="text">    Report generated 8/31/22, 2:17 PM    </span></td>  </tr></table>
+</body>
+</html>
