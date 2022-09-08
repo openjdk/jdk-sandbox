@@ -95,3 +95,5 @@ Following use cases of Classfile Processing API are included in this JDK branch:
     [EventWriterMethod](src/jdk.jfr/share/classes/jdk/jfr/internal/EventWriterMethod.java)
     - jdk.jfr.internal.instrument.[ConstructorTracerWriter](src/jdk.jfr/share/classes/jdk/jfr/internal/instrument/ConstructorTracerWriter.java),
     [JIClassInstrumentation](src/jdk.jfr/share/classes/jdk/jfr/internal/instrument/JIClassInstrumentation.java)
+- module `jdk.jshell`:
+    - jdk.jshell.execution.[LocalExecutionControl](src/jdk.jshell/share/classes/jdk/jshell/execution/LocalExecutionControl.java)

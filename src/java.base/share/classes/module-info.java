@@ -183,8 +183,6 @@ module java.base {
         jdk.jlink;
     exports jdk.internal.logger to
         java.logging;
-    exports jdk.internal.org.objectweb.asm to
-        jdk.jshell;
     exports jdk.internal.org.xml.sax to
         jdk.jfr;
     exports jdk.internal.org.xml.sax.helpers to
@@ -361,7 +359,8 @@ module java.base {
         jdk.jartool,
         jdk.jdeps,
         jdk.jlink,
-        jdk.jfr;
+        jdk.jfr,
+        jdk.jshell;
     exports jdk.classfile.attribute to
         jdk.jartool,
         jdk.jdeps,
@@ -370,7 +369,8 @@ module java.base {
     exports jdk.classfile.instruction to
         jdk.jdeps,
         jdk.jlink,
-        jdk.jfr;
+        jdk.jfr,
+        jdk.jshell;
     exports jdk.classfile.constantpool to
         jdk.jartool,
         jdk.jdeps,
