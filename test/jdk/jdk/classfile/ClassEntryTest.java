@@ -11,6 +11,7 @@ import java.lang.constant.ClassDesc;
 import java.lang.constant.ConstantDescs;
 import java.lang.constant.MethodTypeDesc;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.testng.Assert.*;
@@ -116,6 +117,30 @@ public class ClassEntryTest {
         Assert.assertEquals(base, ClassEntry.adding(base, new ClassEntry[0]));
         Assert.assertEquals(base, ClassEntry.addingSymbols(base, List.of()));
         Assert.assertEquals(base, ClassEntry.addingSymbols(base, new ClassDesc[0]));
+    }
+
+    @Test
+    void dedup() {
+        {
+            List<ClassEntry> duplicates = ClassEntry.adding(base, base);
+            List<ClassEntry> dedup = ClassEntry.deduplicate(duplicates);
+            boolean result = listCompare(base, dedup);
+            if (!result) {
+                fail("Different: " + Arrays.toString(base.toArray())+ " : " + Arrays.toString(dedup.toArray()));
+            }
+            Assert.assertTrue(result);
+        }
+        {
+            List<ClassEntry> duplicates = ClassEntry.addingSymbols(List.of(), additionCD);
+            duplicates = ClassEntry.addingSymbols(duplicates, additionCD);
+            List<ClassEntry> dedup = ClassEntry.deduplicate(duplicates);
+            boolean result = listCompare(base, dedup);
+            if (!result) {
+                fail("Different: " + Arrays.toString(base.toArray())+ " : " + Arrays.toString(dedup.toArray()));
+            }
+            Assert.assertTrue(result);
+        }
+
     }
 
 }
