@@ -108,4 +108,20 @@ sealed public interface ClassEntry
         }
         return List.copyOf(members);
     }
+
+    /**
+     * Remove duplicate ClassEntry elements from the List.
+     *
+     * @param original The list to deduplicate
+     * @return a List without any duplicate ClassEntry
+     */
+    static List<ClassEntry> deduplicate(List<ClassEntry> original) {
+        ArrayList<ClassEntry> newList = new ArrayList<>(original.size());
+        for (ClassEntry e : original) {
+            if (!newList.contains(e)) {
+                newList.add(e);
+            }
+        }
+        return List.copyOf(newList);
+    }
 }
