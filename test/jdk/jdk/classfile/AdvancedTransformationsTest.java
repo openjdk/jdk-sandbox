@@ -59,7 +59,7 @@ import jdk.classfile.impl.RawBytecodeHelper;
 import jdk.classfile.instruction.InvokeInstruction;
 import jdk.classfile.instruction.StoreInstruction;
 import java.lang.reflect.AccessFlag;
-import jdk.classfile.transforms.LabelsRemapper;
+import jdk.classfile.transforms.CodeRelabeler;
 import jdk.classfile.jdktypes.ModuleDesc;
 import jdk.classfile.ClassPrinter;
 import static java.lang.annotation.ElementType.*;
@@ -77,20 +77,19 @@ public class AdvancedTransformationsTest {
                 if (cle instanceof MethodModel mm) {
                     clb.transformMethod(mm, (mb, me) -> {
                         if (me instanceof CodeModel com) {
-                            var shifter = new CodeLocalsShifter(mm.flags(), mm.methodTypeSymbol());
+                            var shifter = CodeLocalsShifter.of(mm.flags(), mm.methodTypeSymbol());
                             shifter.addLocal(TypeKind.ReferenceType);
                             shifter.addLocal(TypeKind.LongType);
                             shifter.addLocal(TypeKind.IntType);
                             shifter.addLocal(TypeKind.DoubleType);
                             mb.transformCode(com, shifter);
-                        }
-                        mb.with(me);
+                        } else mb.with(me);
                     });
                 }
                 else
                     clb.with(cle);
             }));
-            remapped.verify(null); //System.out::print);
+            remapped.verify(null);
         }
     }
 
@@ -292,11 +291,11 @@ public class AdvancedTransformationsTest {
                         (mb, me) -> {
                             if (me instanceof CodeModel targetCodeModel) {
                                 var mm = targetCodeModel.parent().get();
-                                var instrumentorLocalsShifter = new CodeLocalsShifter(mm.flags(), mm.methodTypeSymbol());
+                                var localsShifter = CodeLocalsShifter.of(mm.flags(), mm.methodTypeSymbol());
                                 //instrumented methods code is taken from instrumentor
                                 mb.transformCode(instrumentorCodeMap.get(mm.methodName().stringValue() + mm.methodType().stringValue()),
                                         //locals shifter monitors locals
-                                        instrumentorLocalsShifter
+                                        localsShifter
                                         .andThen((codeBuilder, instrumentorCodeElement) -> {
                                             //all invocations of target methods from instrumentor are inlined
                                             if (instrumentorCodeElement instanceof InvokeInstruction inv
@@ -318,8 +317,8 @@ public class AdvancedTransformationsTest {
 
                                                 var endLabel = codeBuilder.newLabel();
                                                 //inlined target locals must be shifted based on the actual instrumentor locals
-                                                codeBuilder.transform(targetCodeModel, instrumentorLocalsShifter.fork()
-                                                        .andThen(LabelsRemapper.remapLabels())
+                                                codeBuilder.transform(targetCodeModel, localsShifter.fork()
+                                                        .andThen(CodeRelabeler.of())
                                                         .andThen((innerBuilder, shiftedTargetCode) -> {
                                                             //returns must be replaced with jump to the end of the inlined method
                                                             if (shiftedTargetCode.codeKind() == CodeElement.Kind.RETURN)
@@ -332,7 +331,7 @@ public class AdvancedTransformationsTest {
                                                 codeBuilder.with(instrumentorCodeElement);
                                         })
                                         //all references to the instrumentor class are remapped to target class
-                                        .andThen(instrumentorClassRemapper.codeTransform()));
+                                        .andThen(instrumentorClassRemapper.asCodeTransform()));
                             } else
                                 mb.with(me);
                         })
@@ -346,6 +345,6 @@ public class AdvancedTransformationsTest {
                                             && !"<init>".equals(mm.methodName().stringValue())
                                             && !targetMethods.contains(mm.methodName().stringValue() + mm.methodType().stringValue())))
                             //and instrumentor class references remapped to target class
-                            .andThen(instrumentorClassRemapper.classTransform())))));
+                            .andThen(instrumentorClassRemapper)))));
     }
 }
