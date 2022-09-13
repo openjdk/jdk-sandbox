@@ -41,34 +41,20 @@ import jdk.classfile.instruction.LocalVariableType;
 
 /**
  * CodeLocalsShifter is a {@link jdk.classfile.CodeTransform} shifting locals to
- * new index possitions to avoid conflicts during code injection.
- * Locals with indexes pointing to the 'this' or method arguments are never shifted.
- * All locals with indexes pointing beyond the method arguments are re-indexed
- * in order of appearance.
+ * newly allocated positions to avoid conflicts during code injection.
+ * Locals pointing to the receiver or to method arguments slots are never shifted.
+ * All locals pointing beyond the method arguments are re-indexed in order of appearance.
  * <p>
- * A unique index for additional local variable can be manually allocated using
- * {@link jdk.classfile.transforms.CodeLocalsShifter#addLocal(jdk.classfile.TypeKind)}
- * at any time before, during, or after the transformation.
- * <p>
- * A fork of the actual CodeLocalsShifter can be obtained from
- * {@link jdk.classfile.transforms.CodeLocalsShifter#fork()}.
- * Forked CodeLocalsShifter starts with clean locals mapping, however it respects original
- * method argument locals and avoids conflicts with previously allocated or shifted locals.
- * Forked CodeLocalsShifter does not dynamically sync with its parent, nor vice versa.
- * <p>
- * Sample use in complex transformation:
+ * Sample use in code injection transformation:
  * <p>
  * {@snippet lang=java :
- *     var localsShifter = new CodeLocalsShifter(methodModel.flags(), methodModel.methodTypeSymbol());
- *     methodBuilder.transformCode(codeModel,
- *          localsShifter
- *          .andThen((codeBuilder, codeElement) -> {
- *              ...
- *              codeBuilder.transform(injectedCodeModel,
- *                                    localsShifter.fork()
- *                                    .andThen(otherInjectedCodeTransforms));
- *              ...
- *          }));
+ *     methodBuilder.transformCode(codeModel, (codeBuilder, codeElement) -> {
+ *         ...
+ *         codeBuilder.transform(injectedCodeModel,
+ *                               CodeLocalsShifter.of(methodModel.flags(), methodModel.methodTypeSymbol())
+ *                               .andThen(otherInjectedCodeTransforms));
+ *         ...
+ *     }));
  * }
  */
 public sealed interface CodeLocalsShifter extends CodeTransform {
@@ -81,49 +67,19 @@ public sealed interface CodeLocalsShifter extends CodeTransform {
      * @return new instance of CodeLocalsShifter
      */
     static CodeLocalsShifter of(AccessFlags methodFlags, MethodTypeDesc methodDescriptor) {
-        int next = methodFlags.has(AccessFlag.STATIC) ? 0 : 1;
+        int fixed = methodFlags.has(AccessFlag.STATIC) ? 0 : 1;
         for (var param : methodDescriptor.parameterList())
-            next += TypeKind.fromDescriptor(param.descriptorString()).slotSize();
-        return new CodeLocalsShifterImpl(next, next);
+            fixed += TypeKind.fromDescriptor(param.descriptorString()).slotSize();
+        return new CodeLocalsShifterImpl(fixed);
     }
-
-    /**
-     * Reserves additional local variable for exclusive use
-     * @param tk type of local variable to reserve
-     * @return index of the reserved local variable
-     */
-    int addLocal(TypeKind tk);
-
-    /**
-     * Creates a new instance of CodeLocalsShifter forked from the actual state.
-     * Forked CodeLocalsShifter starts with clean locals mapping, however it respects original
-     * method argument locals and avoids conflicts with previously allocated or shifted locals.
-     * Forked CodeLocalsShifter does not dynamically sync with its parent, nor vice versa.
-     * @return new instance of CodeLocalsShifter forked from the actual state
-     */
-    CodeLocalsShifter fork();
 
     final static class CodeLocalsShifterImpl implements CodeLocalsShifter {
 
         private int[] locals = new int[0];
         private final int fixed;
-        private int next;
 
-        private CodeLocalsShifterImpl(int fixed, int next) {
+        private CodeLocalsShifterImpl(int fixed) {
             this.fixed = fixed;
-            this.next = next;
-        }
-
-        @Override
-        public CodeLocalsShifter fork() {
-            return new CodeLocalsShifterImpl(fixed, next);
-        }
-
-        @Override
-        public int addLocal(TypeKind tk) {
-            int local = next;
-            next += tk.slotSize();
-            return local;
         }
 
         @Override
@@ -132,25 +88,25 @@ public sealed interface CodeLocalsShifter extends CodeTransform {
                 case LoadInstruction li ->
                     cob.loadInstruction(
                             li.typeKind(),
-                            shift(li.slot(), li.typeKind()));
+                            shift(cob, li.slot(), li.typeKind()));
                 case StoreInstruction si ->
                     cob.storeInstruction(
                             si.typeKind(),
-                            shift(si.slot(), si.typeKind()));
+                            shift(cob, si.slot(), si.typeKind()));
                 case IncrementInstruction ii ->
                     cob.incrementInstruction(
-                            shift(ii.slot(), TypeKind.IntType),
+                            shift(cob, ii.slot(), TypeKind.IntType),
                             ii.constant());
                 case LocalVariable lv ->
                     cob.localVariable(
-                            shift(lv.slot(), TypeKind.fromDescriptor(lv.type().stringValue())),
+                            shift(cob, lv.slot(), TypeKind.fromDescriptor(lv.type().stringValue())),
                             lv.name(),
                             lv.type(),
                             lv.startScope(),
                             lv.endScope());
                 case LocalVariableType lvt ->
                     cob.localVariableType(
-                            shift(lvt.slot(),
+                            shift(cob, lvt.slot(),
                                     (lvt.signatureSymbol() instanceof Signature.BaseTypeSig bsig)
                                             ? TypeKind.fromDescriptor(bsig.signatureString())
                                             : TypeKind.ReferenceType),
@@ -162,14 +118,14 @@ public sealed interface CodeLocalsShifter extends CodeTransform {
             }
         }
 
-        private int shift(int slot, TypeKind tk) {
+        private int shift(CodeBuilder cob, int slot, TypeKind tk) {
             if (tk == TypeKind.VoidType)  throw new IllegalArgumentException("Illegal local void type");
             if (slot >= fixed) {
                 int key = 2*slot - fixed + tk.slotSize() - 1;
                 if (key >= locals.length) locals = Arrays.copyOf(locals, key + 20);
                 slot = locals[key] - 1;
                 if (slot < 0) {
-                    slot = addLocal(tk);
+                    slot = cob.allocateLocal(tk);
                     locals[key] = slot + 1;
                     if (tk.slotSize() == 2) locals[key - 1] = slot + 1;
                 }
