@@ -325,7 +325,7 @@ public class AdvancedTransformationsTest {
                                                 storeStack.forEach(codeBuilder::with);
 
                                                 //inlined target locals must be shifted based on the actual instrumentor locals
-                                                codeBuilder.block(inlinedBlockBuilder ->inlinedBlockBuilder
+                                                codeBuilder.block(inlinedBlockBuilder -> inlinedBlockBuilder
                                                         .transform(targetCodeModel, CodeLocalsShifter.of(mm.flags(), mm.methodTypeSymbol())
                                                         .andThen(CodeRelabeler.of())
                                                         .andThen((innerBuilder, shiftedTargetCode) -> {

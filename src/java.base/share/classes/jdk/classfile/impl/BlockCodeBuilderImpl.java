@@ -39,16 +39,14 @@ import java.util.Objects;
 public final class BlockCodeBuilderImpl
         extends NonterminalCodeBuilder
         implements CodeBuilder.BlockCodeBuilder {
-    private final CodeBuilder parent;
     private final Label startLabel, endLabel, breakLabel;
     private boolean reachable = true;
     private boolean hasInstructions = false;
     private int topLocal;
-//    private int terminalMaxLocals;
+    private int terminalMaxLocals;
 
     public BlockCodeBuilderImpl(CodeBuilder parent, Label breakLabel) {
         super(parent);
-        this.parent = parent;
         this.startLabel = parent.newLabel();
         this.endLabel = parent.newLabel();
         this.breakLabel = Objects.requireNonNull(breakLabel);
@@ -56,15 +54,15 @@ public final class BlockCodeBuilderImpl
 
     public void start() {
         topLocal = topLocal(parent);
-//        terminalMaxLocals = topLocal(terminal);
+        terminalMaxLocals = topLocal(terminal);
         terminal.with((LabelTarget) startLabel);
     }
 
     public void end() {
         terminal.with((LabelTarget) endLabel);
-//        if (terminalMaxLocals != topLocal(terminal)) {
-//            throw new IllegalStateException("Interference in local variable slot management");
-//        }
+        if (terminalMaxLocals != topLocal(terminal)) {
+            throw new IllegalStateException("Interference in local variable slot management");
+        }
     }
 
     public boolean reachable() {
