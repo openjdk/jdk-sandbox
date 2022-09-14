@@ -63,7 +63,7 @@ import jdk.classfile.instruction.StoreInstruction;
 import java.lang.reflect.AccessFlag;
 import jdk.classfile.components.CodeRelabeler;
 import jdk.classfile.jdktypes.ModuleDesc;
-import jdk.classfile.ClassPrinter;
+import jdk.classfile.components.ClassPrinter;
 import static java.lang.annotation.ElementType.*;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
