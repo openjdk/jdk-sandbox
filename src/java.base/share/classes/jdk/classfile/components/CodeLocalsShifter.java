@@ -21,7 +21,7 @@
  * questions.
  *
  */
-package jdk.classfile.transforms;
+package jdk.classfile.components;
 
 import java.lang.constant.MethodTypeDesc;
 import java.util.Arrays;

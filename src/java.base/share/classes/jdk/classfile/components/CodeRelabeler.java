@@ -21,7 +21,7 @@
  * questions.
  *
  */
-package jdk.classfile.transforms;
+package jdk.classfile.components;
 
 import java.util.IdentityHashMap;
 import java.util.Map;

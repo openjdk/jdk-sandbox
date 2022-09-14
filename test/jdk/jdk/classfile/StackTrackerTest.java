@@ -33,7 +33,7 @@ import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
 import java.lang.constant.ConstantDescs;
 import jdk.classfile.*;
-import jdk.classfile.transforms.CodeStackTracker;
+import jdk.classfile.components.CodeStackTracker;
 import static jdk.classfile.TypeKind.*;
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
