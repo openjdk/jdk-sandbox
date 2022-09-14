@@ -50,9 +50,9 @@ import jdk.classfile.instruction.InvokeInstruction;
 import jdk.classfile.instruction.LookupSwitchInstruction;
 import jdk.classfile.instruction.StoreInstruction;
 import jdk.classfile.instruction.TableSwitchInstruction;
-import jdk.classfile.transforms.ClassRemapper;
-import jdk.classfile.transforms.CodeLocalsShifter;
-import jdk.classfile.transforms.LabelsRemapper;
+import jdk.classfile.components.ClassRemapper;
+import jdk.classfile.components.CodeLocalsShifter;
+import jdk.classfile.components.CodeRelabeler;
 
 import jdk.jfr.internal.SecuritySupport;
 
@@ -155,15 +155,14 @@ final class JIClassInstrumentation {
                         (mb, me) -> {
                             if (me instanceof CodeModel targetCodeModel) {
                                 var mm = targetCodeModel.parent().get();
-                                var instrumentorLocalsShifter = new CodeLocalsShifter(mm.flags(), mm.methodTypeSymbol());
                                 //instrumented methods code is taken from instrumentor
                                 mb.transformCode(instrumentorCodeMap.get(mm.methodName().stringValue() + mm.methodType().stringValue()),
-                                        //locals shifter monitors locals
-                                        instrumentorLocalsShifter
+                                        //all references to the instrumentor class are remapped to target class
+                                        instrumentorClassRemapper.asCodeTransform()
                                         .andThen((codeBuilder, instrumentorCodeElement) -> {
                                             //all invocations of target methods from instrumentor are inlined
                                             if (instrumentorCodeElement instanceof InvokeInstruction inv
-                                                && instrumentor.thisClass().asInternalName().equals(inv.owner().asInternalName())
+                                                && target.thisClass().asInternalName().equals(inv.owner().asInternalName())
                                                 && mm.methodName().stringValue().equals(inv.name().stringValue())
                                                 && mm.methodType().stringValue().equals(inv.type().stringValue())) {
 
@@ -179,23 +178,20 @@ final class JIClassInstrumentation {
                                                 }
                                                 storeStack.forEach(codeBuilder::with);
 
-                                                var endLabel = codeBuilder.newLabel();
                                                 //inlined target locals must be shifted based on the actual instrumentor locals
-                                                codeBuilder.transform(targetCodeModel, instrumentorLocalsShifter.fork()
-                                                        .andThen(LabelsRemapper.remapLabels())
+                                                codeBuilder.block(inlinedBlockBuilder -> inlinedBlockBuilder
+                                                        .transform(targetCodeModel, CodeLocalsShifter.of(mm.flags(), mm.methodTypeSymbol())
+                                                        .andThen(CodeRelabeler.of())
                                                         .andThen((innerBuilder, shiftedTargetCode) -> {
                                                             //returns must be replaced with jump to the end of the inlined method
                                                             if (shiftedTargetCode.codeKind() == CodeElement.Kind.RETURN)
-                                                                innerBuilder.goto_(endLabel);
+                                                                innerBuilder.goto_(inlinedBlockBuilder.breakLabel());
                                                             else
                                                                 innerBuilder.with(shiftedTargetCode);
-                                                        }));
-                                                codeBuilder.labelBinding(endLabel);
+                                                        })));
                                             } else
                                                 codeBuilder.with(instrumentorCodeElement);
-                                        })
-                                        //all references to the instrumentor class are remapped to target class
-                                        .andThen(instrumentorClassRemapper.codeTransform()));
+                                        }));
                             } else
                                 mb.with(me);
                         })
@@ -209,6 +205,6 @@ final class JIClassInstrumentation {
                                             && !"<init>".equals(mm.methodName().stringValue())
                                             && !targetMethods.contains(mm.methodName().stringValue() + mm.methodType().stringValue())))
                             //and instrumentor class references remapped to target class
-                            .andThen(instrumentorClassRemapper.classTransform())))));
+                            .andThen(instrumentorClassRemapper)))));
     }
 }
