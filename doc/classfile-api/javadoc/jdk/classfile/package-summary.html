@@ -330,12 +330,7 @@ Set&lt;ClassDesc&gt; dependencies = cm.elementStream()
  <p>
  Builders often support multiple ways of expressing the same entity at
  different levels of abstraction.  For example, the <code>invokevirtual</code>
- instruction invoking <code>println</code> could have been generated with 
-<details class="invalid-tag">
-<summary>invalid @link</summary>
-<pre><code>CodeBuilder.invokevirtual</code></pre>
-</details>
-, <a href="CodeBuilder.html#invokeInstruction(jdk.classfile.Opcode,java.lang.constant.ClassDesc,java.lang.String,java.lang.constant.MethodTypeDesc,boolean)"><code>CodeBuilder.invokeInstruction</code></a>, or
+ instruction invoking <code>println</code> could have been generated with <a href="CodeBuilder.html#invokevirtual(java.lang.constant.ClassDesc,java.lang.String,java.lang.constant.MethodTypeDesc)"><code>CodeBuilder.invokevirtual</code></a>, <a href="CodeBuilder.html#invokeInstruction(jdk.classfile.Opcode,java.lang.constant.ClassDesc,java.lang.String,java.lang.constant.MethodTypeDesc,boolean)"><code>CodeBuilder.invokeInstruction</code></a>, or
  <a href="ClassfileBuilder.html#with(E)"><code>CodeBuilder.with</code></a>.
  <p>
  The convenience method <code>CodeBuilder.invokevirtual</code> behaves as if it calls
@@ -559,12 +554,7 @@ byte[] newBytes = Classfile.parse(bytes).transform(ct);
  attributes) and its properties.  For each element kind, there is a
  corresponding interface to describe that element, and factory methods to
  create that element.  Some element kinds also have convenience methods on the
- corresponding builder (e.g., 
-<details class="invalid-tag">
-<summary>invalid @link</summary>
-<pre><code>jdk.classfile.CodeBuilder#invokevirtual(java.lang.constant.ClassDesc, java.lang.String, java.lang.constant.MethodTypeDesc, boolean)</code></pre>
-</details>
-).
+ corresponding builder (e.g., <a href="CodeBuilder.html#invokevirtual(java.lang.constant.ClassDesc,java.lang.String,java.lang.constant.MethodTypeDesc)"><code>CodeBuilder.invokevirtual(java.lang.constant.ClassDesc, java.lang.String, java.lang.constant.MethodTypeDesc)</code></a>).
  <p>
  Most symbolic information in elements is represented by constant pool entries
  (for example, the owner of a field is represented by a <a href="constantpool/ClassEntry.html" title="interface in jdk.classfile.constantpool"><code>ClassEntry</code></a>.) Factories and builders also accept nominal
@@ -700,15 +690,17 @@ PseudoInstruction =
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color"><a href="attribute/package-summary.html">jdk.classfile.attribute</a></div>
 <div class="col-last even-row-color">&nbsp;</div>
-<div class="col-first odd-row-color"><a href="constantpool/package-summary.html">jdk.classfile.constantpool</a></div>
-<div class="col-last odd-row-color">&nbsp;</div>
-<div class="col-first even-row-color"><a href="impl/package-summary.html">jdk.classfile.impl</a></div>
+<div class="col-first odd-row-color"><a href="components/package-summary.html">jdk.classfile.components</a></div>
+<div class="col-last odd-row-color">
+<div class="block">Specific components, transformations, and tools built on top of the Classfile API</div>
+</div>
+<div class="col-first even-row-color"><a href="constantpool/package-summary.html">jdk.classfile.constantpool</a></div>
 <div class="col-last even-row-color">&nbsp;</div>
-<div class="col-first odd-row-color"><a href="instruction/package-summary.html">jdk.classfile.instruction</a></div>
+<div class="col-first odd-row-color"><a href="impl/package-summary.html">jdk.classfile.impl</a></div>
 <div class="col-last odd-row-color">&nbsp;</div>
-<div class="col-first even-row-color"><a href="jdktypes/package-summary.html">jdk.classfile.jdktypes</a></div>
+<div class="col-first even-row-color"><a href="instruction/package-summary.html">jdk.classfile.instruction</a></div>
 <div class="col-last even-row-color">&nbsp;</div>
-<div class="col-first odd-row-color"><a href="transforms/package-summary.html">jdk.classfile.transforms</a></div>
+<div class="col-first odd-row-color"><a href="jdktypes/package-summary.html">jdk.classfile.jdktypes</a></div>
 <div class="col-last odd-row-color">&nbsp;</div>
 </div>
 </div>
@@ -877,18 +869,6 @@ PseudoInstruction =
 <div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">Models a classfile.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab2"><a href="ClassPrinter.html" title="class in jdk.classfile">ClassPrinter</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab2">&nbsp;</div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="ClassPrinter.LeafNode.html" title="interface in jdk.classfile">ClassPrinter.LeafNode</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">&nbsp;</div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="ClassPrinter.ListNode.html" title="interface in jdk.classfile">ClassPrinter.ListNode</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">&nbsp;</div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="ClassPrinter.MapNode.html" title="interface in jdk.classfile">ClassPrinter.MapNode</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">&nbsp;</div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="ClassPrinter.Node.html" title="interface in jdk.classfile">ClassPrinter.Node</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">&nbsp;</div>
-<div class="col-first odd-row-color class-summary class-summary-tab3"><a href="ClassPrinter.Verbosity.html" title="enum class in jdk.classfile">ClassPrinter.Verbosity</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab3">&nbsp;</div>
 <div class="col-first even-row-color class-summary class-summary-tab1"><a href="ClassReader.html" title="interface in jdk.classfile">ClassReader</a></div>
 <div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">Supports reading from a classfile.</div>

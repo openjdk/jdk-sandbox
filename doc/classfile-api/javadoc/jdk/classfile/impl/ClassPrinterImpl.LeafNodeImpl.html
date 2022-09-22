@@ -92,7 +92,7 @@ loadScripts(document, 'script');</script>
 <section class="class-description" id="class-description">
 <dl class="notes">
 <dt>All Implemented Interfaces:</dt>
-<dd><code><a href="../ClassPrinter.LeafNode.html" title="interface in jdk.classfile">ClassPrinter.LeafNode</a></code>, <code><a href="../ClassPrinter.Node.html" title="interface in jdk.classfile">ClassPrinter.Node</a></code></dd>
+<dd><code><a href="../components/ClassPrinter.LeafNode.html" title="interface in jdk.classfile.components">ClassPrinter.LeafNode</a></code>, <code><a href="../components/ClassPrinter.Node.html" title="interface in jdk.classfile.components">ClassPrinter.Node</a></code></dd>
 </dl>
 <dl class="notes">
 <dt>Enclosing class:</dt>
@@ -101,7 +101,7 @@ loadScripts(document, 'script');</script>
 <hr>
 <div class="type-signature"><span class="modifiers">public static record </span><span class="element-name type-name-label">ClassPrinterImpl.LeafNodeImpl</span>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ConstantDesc.html" title="class or interface in java.lang.constant" class="external-link">ConstantDesc</a>&nbsp;name, <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/ConstantDesc.html" title="class or interface in java.lang.constant" class="external-link">ConstantDesc</a>&nbsp;value)
 <span class="extends-implements">extends <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/Record.html" title="class or interface in java.lang" class="external-link">Record</a>
-implements <a href="../ClassPrinter.LeafNode.html" title="interface in jdk.classfile">ClassPrinter.LeafNode</a></span></div>
+implements <a href="../components/ClassPrinter.LeafNode.html" title="interface in jdk.classfile.components">ClassPrinter.LeafNode</a></span></div>
 </section>
 <section class="summary">
 <ul class="summary-list">
@@ -157,9 +157,11 @@ implements <a href="../ClassPrinter.LeafNode.html" title="interface in jdk.class
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the value of the <code>value</code> record component.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/stream/Stream.html" title="class or interface in java.util.stream" class="external-link">Stream</a>&lt;<a href="../ClassPrinter.Node.html" title="interface in jdk.classfile">ClassPrinter.Node</a>&gt;</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/stream/Stream.html" title="class or interface in java.util.stream" class="external-link">Stream</a>&lt;<a href="../components/ClassPrinter.Node.html" title="interface in jdk.classfile.components">ClassPrinter.Node</a>&gt;</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#walk()" class="member-name-link">walk</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Walks through the underlying tree.</div>
+</div>
 </div>
 </div>
 </div>
@@ -167,8 +169,8 @@ implements <a href="../ClassPrinter.LeafNode.html" title="interface in jdk.class
 <h3 id="methods-inherited-from-class-java.lang.Object">Methods inherited from class&nbsp;java.lang.<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></h3>
 <code><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/Object.html#getClass()" title="class or interface in java.lang" class="external-link">getClass</a>, <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/Object.html#notify()" title="class or interface in java.lang" class="external-link">notify</a>, <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/Object.html#notifyAll()" title="class or interface in java.lang" class="external-link">notifyAll</a>, <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/Object.html#wait()" title="class or interface in java.lang" class="external-link">wait</a>, <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/Object.html#wait(long)" title="class or interface in java.lang" class="external-link">wait</a>, <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/Object.html#wait(long,int)" title="class or interface in java.lang" class="external-link">wait</a></code></div>
 <div class="inherited-list">
-<h3 id="methods-inherited-from-class-jdk.classfile.ClassPrinter.Node">Methods inherited from interface&nbsp;jdk.classfile.<a href="../ClassPrinter.Node.html" title="interface in jdk.classfile">ClassPrinter.Node</a></h3>
-<code><a href="../ClassPrinter.Node.html#toJson(java.util.function.Consumer)">toJson</a>, <a href="../ClassPrinter.Node.html#toXml(java.util.function.Consumer)">toXml</a>, <a href="../ClassPrinter.Node.html#toYaml(java.util.function.Consumer)">toYaml</a></code></div>
+<h3 id="methods-inherited-from-class-jdk.classfile.components.ClassPrinter.Node">Methods inherited from interface&nbsp;jdk.classfile.components.<a href="../components/ClassPrinter.Node.html" title="interface in jdk.classfile.components">ClassPrinter.Node</a></h3>
+<code><a href="../components/ClassPrinter.Node.html#toJson(java.util.function.Consumer)">toJson</a>, <a href="../components/ClassPrinter.Node.html#toXml(java.util.function.Consumer)">toXml</a>, <a href="../components/ClassPrinter.Node.html#toYaml(java.util.function.Consumer)">toYaml</a></code></div>
 </section>
 </li>
 </ul>
@@ -204,10 +206,14 @@ implements <a href="../ClassPrinter.LeafNode.html" title="interface in jdk.class
 <li>
 <section class="detail" id="walk()">
 <h3>walk</h3>
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/stream/Stream.html" title="class or interface in java.util.stream" class="external-link">Stream</a>&lt;<a href="../ClassPrinter.Node.html" title="interface in jdk.classfile">ClassPrinter.Node</a>&gt;</span>&nbsp;<span class="element-name">walk</span>()</div>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/stream/Stream.html" title="class or interface in java.util.stream" class="external-link">Stream</a>&lt;<a href="../components/ClassPrinter.Node.html" title="interface in jdk.classfile.components">ClassPrinter.Node</a>&gt;</span>&nbsp;<span class="element-name">walk</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../components/ClassPrinter.Node.html#walk()">ClassPrinter.Node</a></code></span></div>
+<div class="block">Walks through the underlying tree.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
-<dd><code><a href="../ClassPrinter.Node.html#walk()">walk</a></code>&nbsp;in interface&nbsp;<code><a href="../ClassPrinter.Node.html" title="interface in jdk.classfile">ClassPrinter.Node</a></code></dd>
+<dd><code><a href="../components/ClassPrinter.Node.html#walk()">walk</a></code>&nbsp;in interface&nbsp;<code><a href="../components/ClassPrinter.Node.html" title="interface in jdk.classfile.components">ClassPrinter.Node</a></code></dd>
+<dt>Returns:</dt>
+<dd>ordered stream of nodes</dd>
 </dl>
 </section>
 </li>
@@ -259,7 +265,7 @@ implements <a href="../ClassPrinter.LeafNode.html" title="interface in jdk.class
 <div class="block">Returns the value of the <code>name</code> record component.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
-<dd><code><a href="../ClassPrinter.Node.html#name()">name</a></code>&nbsp;in interface&nbsp;<code><a href="../ClassPrinter.Node.html" title="interface in jdk.classfile">ClassPrinter.Node</a></code></dd>
+<dd><code><a href="../components/ClassPrinter.Node.html#name()">name</a></code>&nbsp;in interface&nbsp;<code><a href="../components/ClassPrinter.Node.html" title="interface in jdk.classfile.components">ClassPrinter.Node</a></code></dd>
 <dt>Returns:</dt>
 <dd>the value of the <code>name</code> record component</dd>
 </dl>
@@ -272,7 +278,7 @@ implements <a href="../ClassPrinter.LeafNode.html" title="interface in jdk.class
 <div class="block">Returns the value of the <code>value</code> record component.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
-<dd><code><a href="../ClassPrinter.LeafNode.html#value()">value</a></code>&nbsp;in interface&nbsp;<code><a href="../ClassPrinter.LeafNode.html" title="interface in jdk.classfile">ClassPrinter.LeafNode</a></code></dd>
+<dd><code><a href="../components/ClassPrinter.LeafNode.html#value()">value</a></code>&nbsp;in interface&nbsp;<code><a href="../components/ClassPrinter.LeafNode.html" title="interface in jdk.classfile.components">ClassPrinter.LeafNode</a></code></dd>
 <dt>Returns:</dt>
 <dd>the value of the <code>value</code> record component</dd>
 </dl>
