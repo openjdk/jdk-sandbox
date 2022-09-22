@@ -24,7 +24,7 @@
  */
 package java.lang.constant;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -136,7 +136,8 @@ class ConstantUtils {
      */
     static List<String> parseMethodDescriptor(String descriptor) {
         int cur = 0, end = descriptor.length();
-        LinkedList<String> ptypes = new LinkedList<>();
+        ArrayList<String> ptypes = new ArrayList<>();
+        ptypes.add(null); //placeholder for return type
 
         if (cur >= end || descriptor.charAt(cur) != '(')
             throw new IllegalArgumentException("Bad method descriptor: " + descriptor);
@@ -146,7 +147,7 @@ class ConstantUtils {
             int len = skipOverFieldSignature(descriptor, cur, end, false);
             if (len == 0)
                 throw new IllegalArgumentException("Bad method descriptor: " + descriptor);
-            ptypes.addLast(descriptor.substring(cur, cur + len));
+            ptypes.add(descriptor.substring(cur, cur + len));
             cur += len;
         }
         if (cur >= end)
@@ -156,7 +157,7 @@ class ConstantUtils {
         int rLen = skipOverFieldSignature(descriptor, cur, end, true);
         if (rLen == 0 || cur + rLen != end)
             throw new IllegalArgumentException("Bad method descriptor: " + descriptor);
-        ptypes.addFirst(descriptor.substring(cur, cur + rLen));
+        ptypes.set(0, descriptor.substring(cur, cur + rLen));
         return ptypes;
     }
 
@@ -203,16 +204,21 @@ class ConstantUtils {
                 case JVM_SIGNATURE_DOUBLE:
                     return index - start + 1;
                 case JVM_SIGNATURE_CLASS:
+                    // state variable for detection of illegal states, such as:
+                    // empty unqualified name, '//', leading '/', or trailing '/'
                     boolean legal = false;
                     while (++index < end) {
                         switch (descriptor.charAt(index)) {
                             case ';' -> {
+                                // illegal state on parser exit indicates empty unqualified name or trailing '/'
                                 return legal ? index - start + 1 : 0;
                             }
                             case '.', '[' -> {
+                                // do not permit '.' or '['
                                 return 0;
                             }
                             case '/' -> {
+                                // illegal state when received '/' indicates '//' or leading '/'
                                 if (!legal) return 0;
                                 legal = false;
                             }
