@@ -41,6 +41,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.ListIterator;
@@ -431,24 +432,26 @@ final class ProxyGenerator {
         }
     }
 
-//    /**
-//     * Returns the {@link ClassLoader} to be used by the default implementation of {@link
-//     * #getCommonSuperClass(String, String)}, that of this {@link ClassWriter}'s runtime type by
-//     * default.
-//     *
-//     * @return ClassLoader
-//     */
-//    protected ClassLoader getClassLoader() {
-//        return loader;
-//    }
-
     /**
      * Generate a class file for the proxy class.  This method drives the
      * class file generation process.
      */
     private byte[] generateClassFile() {
-// Here we are missing SPI to provide custom class loader used by ClassHierarchy in SM Generator
-        return Classfile.build(ClassDesc.of(className), clb -> {
+        var localCache = new HashMap<ClassDesc, ClassHierarchyResolver.ClassHierarchyInfo>();
+        return Classfile.build(ClassDesc.of(className), List.of(Classfile.Option.classHierarchyResolver(classDesc ->
+                localCache.computeIfAbsent(classDesc, cd -> {
+                    try {
+                        var desc = cd.descriptorString();
+                        var cls = Class.forName(desc.substring(1, desc.length() - 1).replace('/', '.'), false, loader);
+                        var superCls = cls.getSuperclass();
+                        return new ClassHierarchyResolver.ClassHierarchyInfo(cd,
+                                cls.isInterface(),
+                                superCls == null ? null : ClassDesc.ofDescriptor(superCls.descriptorString()));
+                    } catch (ClassNotFoundException e) {
+                        throw new TypeNotPresentException(cd.descriptorString(), e);
+                    }
+                })
+        )), clb -> {
             clb.withFlags(accessFlags);
             clb.withSuperclass(JLR_PROXY);
             clb.withInterfaceSymbols(typeNames(interfaces));
@@ -559,69 +562,49 @@ final class ProxyGenerator {
      * Generate the constructor method for the proxy class.
      */
     private void generateConstructor(ClassBuilder clb) {
-        clb.withMethod(NAME_CTOR, MJLR_INVOCATIONHANDLER, ACC_PUBLIC, mb -> mb.withFlags(Modifier.PUBLIC).withCode(cob -> {
-            cob.loadInstruction(TypeKind.ReferenceType, 0);
-            cob.loadInstruction(TypeKind.ReferenceType, 1);
-            cob.invokeInstruction(Opcode.INVOKESPECIAL, JLR_PROXY, NAME_CTOR,
-                    MJLR_INVOCATIONHANDLER, false);
-            cob.returnInstruction(TypeKind.VoidType);
-        }));
+        clb.withMethodBody(NAME_CTOR, MJLR_INVOCATIONHANDLER, ACC_PUBLIC, cob ->
+            cob.aload(0)
+               .aload(1)
+               .invokespecial(JLR_PROXY, NAME_CTOR, MJLR_INVOCATIONHANDLER)
+               .return_());
     }
 
     /**
      * Generate the static initializer method for the proxy class.
      */
     private void generateStaticInitializer(ClassBuilder clb) {
-        clb.withMethod(NAME_CLINIT, MethodTypeDesc.of(CD_void), ACC_STATIC, mb -> mb.withFlags(Modifier.STATIC).withCode(cob -> {
-            var L_startBlock = cob.newLabel();
-            var L_endBlock = cob.newLabel();
-            var L_NoMethodHandler = cob.newLabel();
-            var L_NoClassHandler = cob.newLabel();
-
-            cob.exceptionCatch(L_startBlock, L_endBlock, L_NoMethodHandler,
-                    JL_NO_SUCH_METHOD_EX);
-            cob.exceptionCatch(L_startBlock, L_endBlock, L_NoClassHandler,
-                    JL_CLASS_NOT_FOUND_EX);
-
+        clb.withMethodBody(NAME_CLINIT, MethodTypeDesc.of(CD_void), ACC_STATIC, cob -> {
             // Put ClassLoader at local variable index 0, used by
             // Class.forName(String, boolean, ClassLoader) calls
-            cob.constantInstruction(ClassDesc.of(className));
-            cob.invokeInstruction(Opcode.INVOKEVIRTUAL, CD_Class,
-                    "getClassLoader", MethodTypeDesc.of(LJL_CLASSLOADER), false);
-            cob.astore(0);
+            cob.constantInstruction(ClassDesc.of(className))
+               .invokevirtual(CD_Class, "getClassLoader", MethodTypeDesc.of(LJL_CLASSLOADER))
+               .astore(0);
 
-            cob.labelBinding(L_startBlock);
-            for (List<ProxyMethod> sigmethods : proxyMethods.values()) {
-                for (ProxyMethod pm : sigmethods) {
-                    pm.codeFieldInitialization(cob, className);
+            cob.trying(tryb -> {
+                for (List<ProxyMethod> sigmethods : proxyMethods.values()) {
+                    for (ProxyMethod pm : sigmethods) {
+                        pm.codeFieldInitialization(tryb, className);
+                    }
                 }
-            }
-            cob.returnInstruction(TypeKind.VoidType);
-            cob.labelBinding(L_endBlock);
-            // Generate exception handler
-
-            cob.labelBinding(L_NoMethodHandler);
-            cob.storeInstruction(TypeKind.ReferenceType, 1);
-            cob.new_(JL_NO_SUCH_METHOD_ERROR);
-            cob.stackInstruction(Opcode.DUP);
-            cob.loadInstruction(TypeKind.ReferenceType, 1);
-            cob.invokeInstruction(Opcode.INVOKEVIRTUAL, CD_Throwable,
-                    "getMessage", MethodTypeDesc.of(CD_String), false);
-            cob.invokeInstruction(Opcode.INVOKESPECIAL, JL_NO_SUCH_METHOD_ERROR,
-                    "<init>", MethodTypeDesc.of(CD_void, CD_String), false);
-            cob.throwInstruction();
-
-            cob.labelBinding(L_NoClassHandler);
-            cob.storeInstruction(TypeKind.ReferenceType, 1);
-            cob.new_(JL_NO_CLASS_DEF_FOUND_ERROR);
-            cob.stackInstruction(Opcode.DUP);
-            cob.loadInstruction(TypeKind.ReferenceType, 1);
-            cob.invokeInstruction(Opcode.INVOKEVIRTUAL, CD_Throwable,
-                    "getMessage", MethodTypeDesc.of(CD_String), false);
-            cob.invokeInstruction(Opcode.INVOKESPECIAL, JL_NO_CLASS_DEF_FOUND_ERROR,
-                    "<init>", MethodTypeDesc.of(CD_void, CD_String), false);
-            cob.throwInstruction();
-        }));
+                tryb.return_();
+            }, cb -> cb
+                .catching(JL_NO_SUCH_METHOD_EX, nsmb -> nsmb
+                        .astore(1)
+                        .new_(JL_NO_SUCH_METHOD_ERROR)
+                        .dup()
+                        .aload(1)
+                        .invokevirtual(CD_Throwable, "getMessage", MethodTypeDesc.of(CD_String))
+                        .invokespecial(JL_NO_SUCH_METHOD_ERROR, "<init>", MethodTypeDesc.of(CD_void, CD_String))
+                        .athrow())
+                .catching(JL_CLASS_NOT_FOUND_EX, cnfb -> cnfb
+                        .astore(1)
+                        .new_(JL_NO_CLASS_DEF_FOUND_ERROR)
+                        .dup()
+                        .aload(1)
+                        .invokevirtual(CD_Throwable, "getMessage", MethodTypeDesc.of(CD_String))
+                        .invokespecial(JL_NO_CLASS_DEF_FOUND_ERROR, "<init>", MethodTypeDesc.of(CD_void, CD_String))
+                        .athrow()));
+        });
     }
 
     /**
@@ -630,35 +613,27 @@ final class ProxyGenerator {
      * otherwise, IllegalAccessException is thrown
      */
     private void generateLookupAccessor(ClassBuilder clb) {
-        clb.withMethod(NAME_LOOKUP_ACCESSOR, MethodTypeDesc.ofDescriptor("(Ljava/lang/invoke/MethodHandles$Lookup;)Ljava/lang/invoke/MethodHandles$Lookup;"), ACC_PRIVATE | ACC_STATIC,
-                mb -> {
-                    mb.withFlags(ACC_PRIVATE | ACC_STATIC);
+        clb.withMethod(NAME_LOOKUP_ACCESSOR, MethodTypeDesc.ofDescriptor("(Ljava/lang/invoke/MethodHandles$Lookup;)Ljava/lang/invoke/MethodHandles$Lookup;"),
+                ACC_PRIVATE | ACC_STATIC, mb -> {
                     mb.with(ExceptionsAttribute.of(List.of(mb.constantPool().classEntry(JL_ILLEGAL_ACCESS_EX))));
                     mb.withCode(cob -> {
                         var L_illegalAccess = cob.newLabel();
-
-                        cob.loadInstruction(TypeKind.ReferenceType, 0);
-                        cob.invokeInstruction(Opcode.INVOKEVIRTUAL, JLI_LOOKUP, "lookupClass",
-                                MethodTypeDesc.of(CD_Class), false);
-                        cob.constantInstruction(Opcode.LDC, Proxy.class.describeConstable().get());
-                        cob.branchInstruction(Opcode.IF_ACMPNE, L_illegalAccess);
-                        cob.loadInstruction(TypeKind.ReferenceType, 0);
-                        cob.invokeInstruction(Opcode.INVOKEVIRTUAL, JLI_LOOKUP, "hasFullPrivilegeAccess",
-                                MethodTypeDesc.of(CD_boolean), false);
-                        cob.branchInstruction(Opcode.IFEQ, L_illegalAccess);
-                        cob.invokeInstruction(Opcode.INVOKESTATIC, CD_MethodHandles, "lookup",
-                                MethodTypeDesc.of(ClassDesc.ofDescriptor("Ljava/lang/invoke/MethodHandles$Lookup;")), false);
-                        cob.returnInstruction(TypeKind.ReferenceType);
-
-                        cob.labelBinding(L_illegalAccess);
-                        cob.new_(JL_ILLEGAL_ACCESS_EX);
-                        cob.stackInstruction(Opcode.DUP);
-                        cob.loadInstruction(TypeKind.ReferenceType, 0);
-                        cob.invokeInstruction(Opcode.INVOKEVIRTUAL, JLI_LOOKUP, "toString",
-                                MethodTypeDesc.of(CD_String), false);
-                        cob.invokeInstruction(Opcode.INVOKESPECIAL, JL_ILLEGAL_ACCESS_EX,
-                                "<init>", MethodTypeDesc.of(CD_void, CD_String), false);
-                        cob.throwInstruction();
+                        cob.aload(0)
+                           .invokevirtual(JLI_LOOKUP, "lookupClass", MethodTypeDesc.of(CD_Class))
+                           .constantInstruction(Opcode.LDC, Proxy.class.describeConstable().get())
+                           .if_acmpne(L_illegalAccess)
+                           .aload(0)
+                           .invokevirtual(JLI_LOOKUP, "hasFullPrivilegeAccess", MethodTypeDesc.of(CD_boolean))
+                           .ifeq(L_illegalAccess)
+                           .invokestatic(CD_MethodHandles, "lookup", MethodTypeDesc.of(ClassDesc.ofDescriptor("Ljava/lang/invoke/MethodHandles$Lookup;")))
+                           .areturn()
+                           .labelBinding(L_illegalAccess)
+                           .new_(JL_ILLEGAL_ACCESS_EX)
+                           .dup()
+                           .aload(0)
+                           .invokevirtual(JLI_LOOKUP, "toString", MethodTypeDesc.of(CD_String))
+                           .invokespecial(JL_ILLEGAL_ACCESS_EX, "<init>", MethodTypeDesc.of(CD_void, CD_String))
+                           .athrow();
                     });
                 });
     }
@@ -710,7 +685,6 @@ final class ProxyGenerator {
             MethodTypeDesc desc = MethodTypeDesc.ofDescriptor(mt.toMethodDescriptorString());
             int accessFlags = (method.isVarArgs()) ? ACC_VARARGS | ACC_PUBLIC | ACC_FINAL : ACC_PUBLIC | ACC_FINAL;
             clb.withMethod(method.getName(), desc, accessFlags, mb -> {
-                mb.withFlags(accessFlags);
                 ConstantPoolBuilder cpb = mb.constantPool();
                 List<ClassEntry> exceptionClassEntries = typeNames(Arrays.asList(exceptionTypes))
                         .stream()
@@ -718,59 +692,45 @@ final class ProxyGenerator {
                         .toList();
                 mb.with(ExceptionsAttribute.of(exceptionClassEntries));
                 mb.withCode(cob -> {
-
-                    int[] parameterSlot = new int[parameterTypes.length];
-                    int nextSlot = 1;
-                    for (int i = 0; i < parameterSlot.length; i++) {
-                        parameterSlot[i] = nextSlot;
-                        nextSlot += getWordsPerType(parameterTypes[i]);
-                    }
-
                     var L_startBlock = cob.newLabel();
                     var L_endBlock = cob.newLabel();
                     var L_RuntimeHandler = cob.newLabel();
                     var L_ThrowableHandler = cob.newLabel();
 
                     List<Class<?>> catchList = computeUniqueCatchList(exceptionTypes);
-                    if (catchList.size() > 0) {
+                    if (!catchList.isEmpty()) {
                         for (Class<?> ex : catchList) {
                             cob.exceptionCatch(L_startBlock, L_endBlock, L_RuntimeHandler,
                                     ClassDesc.ofDescriptor(ex.descriptorString()));
                         }
-
-                        cob.exceptionCatch(L_startBlock, L_endBlock, L_ThrowableHandler,
-                                CD_Throwable);
+                        cob.exceptionCatch(L_startBlock, L_endBlock, L_ThrowableHandler, CD_Throwable);
                     }
-                    cob.labelBinding(L_startBlock);
-
-                    cob.loadInstruction(TypeKind.ReferenceType, 0);
-                    cob.fieldInstruction(Opcode.GETFIELD, JLR_PROXY, handlerFieldName,
-                            LJLR_INVOCATION_HANDLER);
-                    cob.loadInstruction(TypeKind.ReferenceType, 0);
-                    cob.fieldInstruction(Opcode.GETSTATIC, ClassDesc.of(className), methodFieldName,
-                            LJLR_METHOD);
+                    cob.labelBinding(L_startBlock)
+                       .aload(0)
+                       .getfield(JLR_PROXY, handlerFieldName, LJLR_INVOCATION_HANDLER)
+                       .aload(0)
+                       .getstatic(ClassDesc.of(className), methodFieldName, LJLR_METHOD);
 
                     if (parameterTypes.length > 0) {
                         // Create an array and fill with the parameters converting primitives to wrappers
-                        cob.constantInstruction(parameterTypes.length);
-                        cob.anewarray(CD_Object);
+                        cob.constantInstruction(parameterTypes.length)
+                           .anewarray(CD_Object);
                         for (int i = 0; i < parameterTypes.length; i++) {
-                            cob.stackInstruction(Opcode.DUP);
-                            cob.constantInstruction(i);
-                            codeWrapArgument(cob, parameterTypes[i], parameterSlot[i]);
-                            cob.arrayStoreInstruction(TypeKind.ReferenceType);
+                            cob.dup()
+                               .constantInstruction(i);
+                            codeWrapArgument(cob, parameterTypes[i], cob.parameterSlot(i));
+                            cob.aastore();
                         }
                     } else {
-                        cob.constantInstruction(Opcode.ACONST_NULL, null);
+                        cob.aconst_null();
                     }
 
-                    cob.invokeInstruction(Opcode.INVOKEINTERFACE, JLR_INVOCATION_HANDLER,
-                            "invoke",
-                            MethodTypeDesc.of(CD_Object, CD_Object, LJLR_METHOD, CD_Object.arrayType()), true);
+                    cob.invokeinterface(JLR_INVOCATION_HANDLER, "invoke",
+                            MethodTypeDesc.of(CD_Object, CD_Object, LJLR_METHOD, CD_Object.arrayType()));
 
                     if (returnType == void.class) {
-                        cob.stackInstruction(Opcode.POP);
-                        cob.returnInstruction(TypeKind.VoidType);
+                        cob.pop()
+                           .return_();
                     } else {
                         codeUnwrapReturnValue(cob, returnType);
                     }
@@ -778,17 +738,16 @@ final class ProxyGenerator {
                     cob.labelBinding(L_endBlock);
 
                     // Generate exception handler
-                    cob.labelBinding(L_RuntimeHandler);
-                    cob.throwInstruction();   // just rethrow the exception
+                    cob.labelBinding(L_RuntimeHandler)
+                       .athrow();   // just rethrow the exception
 
-                    cob.labelBinding(L_ThrowableHandler);
-                    cob.storeInstruction(TypeKind.ReferenceType, 1);
-                    cob.new_(JLR_UNDECLARED_THROWABLE_EX);
-                    cob.stackInstruction(Opcode.DUP);
-                    cob.loadInstruction(TypeKind.ReferenceType, 1);
-                    cob.invokeInstruction(Opcode.INVOKESPECIAL, JLR_UNDECLARED_THROWABLE_EX,
-                            "<init>", MethodTypeDesc.of(CD_void, CD_Throwable), false);
-                    cob.throwInstruction();
+                    cob.labelBinding(L_ThrowableHandler)
+                       .astore(1)
+                       .new_(JLR_UNDECLARED_THROWABLE_EX)
+                       .dup()
+                       .aload(1)
+                       .invokespecial(JLR_UNDECLARED_THROWABLE_EX, "<init>", MethodTypeDesc.of(CD_void, CD_Throwable))
+                       .athrow();
                 });
             });
         }
@@ -801,27 +760,11 @@ final class ProxyGenerator {
          */
         private void codeWrapArgument(CodeBuilder cob, Class<?> type, int slot) {
             if (type.isPrimitive()) {
+                cob.loadInstruction(TypeKind.fromDescriptor(type.descriptorString()).asLoadable(), slot);
                 PrimitiveTypeInfo prim = PrimitiveTypeInfo.get(type);
-
-                if (type == int.class ||
-                        type == boolean.class ||
-                        type == byte.class ||
-                        type == char.class ||
-                        type == short.class) {
-                    cob.loadInstruction(TypeKind.IntType, slot);
-                } else if (type == long.class) {
-                    cob.loadInstruction(TypeKind.LongType, slot);
-                } else if (type == float.class) {
-                    cob.loadInstruction(TypeKind.FloatType, slot);
-                } else if (type == double.class) {
-                    cob.loadInstruction(TypeKind.DoubleType, slot);
-                } else {
-                    throw new AssertionError();
-                }
-                cob.invokeInstruction(Opcode.INVOKESTATIC, ClassDesc.ofInternalName(prim.wrapperClassName), "valueOf",
-                        MethodTypeDesc.ofDescriptor(prim.wrapperValueOfDesc), false);
+                cob.invokestatic(ClassDesc.ofInternalName(prim.wrapperClassName), "valueOf", MethodTypeDesc.ofDescriptor(prim.wrapperValueOfDesc));
             } else {
-                cob.loadInstruction(TypeKind.ReferenceType, slot);
+                cob.aload(slot);
             }
         }
 
@@ -834,28 +777,13 @@ final class ProxyGenerator {
             if (type.isPrimitive()) {
                 PrimitiveTypeInfo prim = PrimitiveTypeInfo.get(type);
 
-                cob.typeCheckInstruction(Opcode.CHECKCAST, ClassDesc.ofInternalName(prim.wrapperClassName));
-                cob.invokeInstruction(Opcode.INVOKEVIRTUAL,
-                        ClassDesc.ofInternalName(prim.wrapperClassName),
-                        prim.unwrapMethodName, MethodTypeDesc.ofDescriptor(prim.unwrapMethodDesc), false);
-                if (type == int.class ||
-                        type == boolean.class ||
-                        type == byte.class ||
-                        type == char.class ||
-                        type == short.class) {
-                    cob.returnInstruction(TypeKind.IntType);
-                } else if (type == long.class) {
-                    cob.returnInstruction(TypeKind.LongType);
-                } else if (type == float.class) {
-                    cob.returnInstruction(TypeKind.FloatType);
-                } else if (type == double.class) {
-                    cob.returnInstruction(TypeKind.DoubleType);
-                } else {
-                    throw new AssertionError();
-                }
+                cob.typeCheckInstruction(Opcode.CHECKCAST, ClassDesc.ofInternalName(prim.wrapperClassName))
+                   .invokevirtual(ClassDesc.ofInternalName(prim.wrapperClassName),
+                        prim.unwrapMethodName, MethodTypeDesc.ofDescriptor(prim.unwrapMethodDesc))
+                   .returnInstruction(TypeKind.fromDescriptor(type.descriptorString()).asLoadable());
             } else {
-                cob.typeCheckInstruction(Opcode.CHECKCAST, ClassDesc.ofDescriptor(type.descriptorString()));
-                cob.returnInstruction(TypeKind.ReferenceType);
+                cob.checkcast(ClassDesc.ofDescriptor(type.descriptorString()))
+                   .areturn();
             }
         }
 
@@ -867,36 +795,25 @@ final class ProxyGenerator {
         private void codeFieldInitialization(CodeBuilder cob, String className) {
             codeClassForName(cob, fromClass);
 
-            cob.constantInstruction(Opcode.LDC, method.getName());
-            cob.constantInstruction(parameterTypes.length);
-
-            cob.anewarray(CD_Class);
+            cob.constantInstruction(Opcode.LDC, method.getName())
+               .constantInstruction(parameterTypes.length)
+               .anewarray(CD_Class);
 
             // Construct an array with the parameter types mapping primitives to Wrapper types
             for (int i = 0; i < parameterTypes.length; i++) {
-                cob.stackInstruction(Opcode.DUP);
-                cob.constantInstruction(i);
-
+                cob.dup()
+                   .constantInstruction(i);
                 if (parameterTypes[i].isPrimitive()) {
-                    PrimitiveTypeInfo prim =
-                            PrimitiveTypeInfo.get(parameterTypes[i]);
-                    cob.fieldInstruction(Opcode.GETSTATIC,
-                            ClassDesc.ofInternalName(prim.wrapperClassName), "TYPE", CD_Class);
+                    PrimitiveTypeInfo prim = PrimitiveTypeInfo.get(parameterTypes[i]);
+                    cob.getstatic(ClassDesc.ofInternalName(prim.wrapperClassName), "TYPE", CD_Class);
                 } else {
                     codeClassForName(cob, parameterTypes[i]);
                 }
                 cob.arrayStoreInstruction(TypeKind.ReferenceType);
             }
             // lookup the method
-            cob.invokeInstruction(Opcode.INVOKEVIRTUAL,
-                    CD_Class,
-                    "getMethod",
-                    MethodTypeDesc.of(LJLR_METHOD, CD_String, CD_Class.arrayType()),
-                    false);
-
-            cob.fieldInstruction(Opcode.PUTSTATIC,
-                    ClassDesc.of(className),
-                    methodFieldName, LJLR_METHOD);
+            cob.invokevirtual(CD_Class, "getMethod", MethodTypeDesc.of(LJLR_METHOD, CD_String, CD_Class.arrayType()))
+               .putstatic(ClassDesc.of(className), methodFieldName, LJLR_METHOD);
         }
 
         /*
@@ -911,14 +828,10 @@ final class ProxyGenerator {
          * loader is anticipated at local variable index 0.
          */
         private void codeClassForName(CodeBuilder cob, Class<?> cl) {
-            cob.constantInstruction(Opcode.LDC, cl.getName());
-            cob.iconst_0(); // false
-            cob.aload(0); // classLoader
-            cob.invokeInstruction(Opcode.INVOKESTATIC,
-                    CD_Class,
-                    "forName",
-                    MethodTypeDesc.of(CD_Class, CD_String, CD_boolean, LJL_CLASSLOADER),
-                    false);
+            cob.constantInstruction(Opcode.LDC, cl.getName())
+               .iconst_0() // false
+               .aload(0)// classLoader
+               .invokestatic(CD_Class, "forName", MethodTypeDesc.of(CD_Class, CD_String, CD_boolean, LJL_CLASSLOADER));
         }
 
         @Override
