@@ -1,0 +1,406 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<title>ProxyGenerator.java</title>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<style type="text/css">
+<!--
+body {color: #000000; background-color: #ffffff; font-family: monospace; font-size: small}
+pre {color: #000000; background-color: #ffffff; font-family: monospace}
+.ST0 {color: #969696; font-family: monospace; font-weight: bold}
+.ST2 {font-family: monospace; font-weight: bold}
+.comment {color: #969696}
+.ST6 {font-family: monospace; font-weight: bold; font-style: italic}
+.ST4 {font-family: monospace; font-style: italic}
+.ST3 {color: #ce54b8; font-family: monospace; font-style: italic}
+.ST1 {color: #9999ff; font-family: monospace; font-weight: bold}
+.ST5 {color: #ce54b8}
+.string {color: #1e9347}
+.literal {color: #336bdd}
+-->
+</style>
+</head>
+<body>
+<table><tr><td valign="top"><pre>
+    <span class="comment">/**</span>
+<span class="comment">     * </span><span class="ST0">Generate</span> <span class="ST0">the</span> <span class="ST0">constructor</span> <span class="ST0">method</span> <span class="ST0">for</span> <span class="ST0">the</span> <span class="ST0">proxy</span> <span class="ST0">class</span><span class="ST0">.</span>
+     <span class="comment">*/</span>
+    <span class="literal">private</span> <span class="literal">void</span> <span class="ST2">generateConstructor</span>() {
+        MethodVisitor ctor = visitMethod(Modifier.<span class="ST3">PUBLIC</span>, <span class="ST3">N</span><span class="ST3">AME_CTOR</span>,
+                <span class="ST3">M</span><span class="ST3">JLR_INVOCATIONHANDLER</span>, <span class="literal">n</span><span class="literal">ull</span>, <span class="literal">n</span><span class="literal">ull</span>);
+        ctor.visitParameter(<span class="literal">n</span><span class="literal">ull</span>, 0);
+        ctor.visitCode();
+        ctor.visitVarInsn(<span class="ST3">A</span><span class="ST3">LOAD</span>, 0);
+        ctor.visitVarInsn(<span class="ST3">A</span><span class="ST3">LOAD</span>, 1);
+        ctor.visitMethodInsn(<span class="ST3">I</span><span class="ST3">NVOKESPECIAL</span>, <span class="ST3">J</span><span class="ST3">LR_PROXY</span>, <span class="ST3">N</span><span class="ST3">AME_CTOR</span>,
+                <span class="ST3">M</span><span class="ST3">JLR_INVOCATIONHANDLER</span>, <span class="literal">f</span><span class="literal">alse</span>);
+        ctor.visitInsn(<span class="ST3">R</span><span class="ST3">ETURN</span>);
+
+        <span class="comment">// Maxs computed by ClassWriter.COMPUTE_FRAMES, these arguments ignored</span>
+        ctor.visitMaxs(-1, -1);
+        ctor.visitEnd();
+    }
+</pre></td>
+
+
+
+
+<td valign="top"><pre>
+    <span class="comment">/**</span>
+<span class="comment">     * </span><span class="ST0">Generate</span> <span class="ST0">the</span> <span class="ST0">constructor</span> <span class="ST0">method</span> <span class="ST0">for</span> <span class="ST0">the</span> <span class="ST0">proxy</span> <span class="ST0">class</span><span class="ST0">.</span>
+     <span class="comment">*/</span>
+    <span class="literal">private</span> <span class="literal">void</span> <span class="ST2">generateConstructor</span>(ClassBuilder clb) {
+        clb.withMethodBody(<span class="ST3">N</span><span class="ST3">AME_CTOR</span>, <span class="ST3">M</span><span class="ST3">JLR_INVOCATIONHANDLER</span>, <span class="ST3">A</span><span class="ST3">CC_PUBLIC</span>, cob -&gt; cob
+               .aload(0)
+               .aload(1)
+               .invokespecial(<span class="ST3">J</span><span class="ST3">LR_PROXY</span>, <span class="ST3">N</span><span class="ST3">AME_CTOR</span>, <span class="ST3">M</span><span class="ST3">JLR_INVOCATIONHANDLER</span>)
+               .return_());
+    }
+</pre></td></tr>
+
+
+
+<tr><td valign="top"><pre>
+    <span class="comment">/**</span>
+<span class="comment">     * </span><span class="ST0">Generate</span> <span class="ST0">the</span> <span class="ST0">static</span> <span class="ST0">initializer</span> <span class="ST0">method</span> <span class="ST0">for</span> <span class="ST0">the</span> <span class="ST0">proxy</span> <span class="ST0">class</span><span class="ST0">.</span>
+     <span class="comment">*/</span>
+    <span class="literal">private</span> <span class="literal">void</span> <span class="ST2">generateStaticInitializer</span>() {
+        MethodVisitor mv = visitMethod(Modifier.<span class="ST3">STATIC</span>, <span class="ST3">N</span><span class="ST3">AME_CLINIT</span>,
+                <span class="string">&quot;</span><span class="string">()V</span><span class="string">&quot;</span>, <span class="literal">n</span><span class="literal">ull</span>, <span class="literal">n</span><span class="literal">ull</span>);
+        mv.visitCode();
+        Label L_startBlock = <span class="literal">new</span> Label();
+        Label L_endBlock = <span class="literal">new</span> Label();
+        Label L_NoMethodHandler = <span class="literal">new</span> Label();
+        Label L_NoClassHandler = <span class="literal">new</span> Label();
+
+        mv.visitTryCatchBlock(L_startBlock, L_endBlock, L_NoMethodHandler,
+                <span class="ST3">J</span><span class="ST3">L_NO_SUCH_METHOD_EX</span>);
+        mv.visitTryCatchBlock(L_startBlock, L_endBlock, L_NoClassHandler,
+                <span class="ST3">J</span><span class="ST3">L_CLASS_NOT_FOUND_EX</span>);
+
+        <span class="comment">// Put ClassLoader at local variable index 0, used by</span>
+        <span class="comment">// Class.forName(String, boolean, ClassLoader) calls</span>
+        mv.visitLdcInsn(Type.<span class="ST4">getObjectType</span>(<span class="ST4">d</span><span class="ST4">otToSlash</span>(<span class="ST5">c</span><span class="ST5">lassName</span>)));
+        mv.visitMethodInsn(<span class="ST3">I</span><span class="ST3">NVOKEVIRTUAL</span>, <span class="ST3">J</span><span class="ST3">L_CLASS</span>,
+                <span class="string">&quot;</span><span class="string">getClassLoader</span><span class="string">&quot;</span>, <span class="string">&quot;</span><span class="string">()</span><span class="string">&quot;</span> + <span class="ST3">LJL_CLASSLOADER</span>, <span class="literal">f</span><span class="literal">alse</span>);
+        mv.visitVarInsn(<span class="ST3">A</span><span class="ST3">STORE</span>, 0);
+
+        mv.visitLabel(L_startBlock);
+        <span class="literal">for</span> (List&lt;<span class="ST4">ProxyMethod</span>&gt; sigmethods : <span class="ST5">proxyMethods</span>.values()) {
+            <span class="literal">for</span> (<span class="ST4">ProxyMethod</span> pm : sigmethods) {
+                pm.codeFieldInitialization(mv, <span class="ST5">className</span>);
+            }
+        }
+        mv.visitInsn(<span class="ST3">R</span><span class="ST3">ETURN</span>);
+        mv.visitLabel(L_endBlock);
+        <span class="comment">// Generate exception handler</span>
+
+        mv.visitLabel(L_NoMethodHandler);
+        mv.visitVarInsn(<span class="ST3">A</span><span class="ST3">STORE</span>, 1);
+        mv.visitTypeInsn(Opcodes.<span class="ST3">NEW</span>, <span class="ST3">J</span><span class="ST3">L_NO_SUCH_METHOD_ERROR</span>);
+        mv.visitInsn(<span class="ST3">D</span><span class="ST3">UP</span>);
+        mv.visitVarInsn(<span class="ST3">A</span><span class="ST3">LOAD</span>, 1);
+        mv.visitMethodInsn(<span class="ST3">I</span><span class="ST3">NVOKEVIRTUAL</span>, <span class="ST3">J</span><span class="ST3">L_THROWABLE</span>,
+                <span class="string">&quot;</span><span class="string">getMessage</span><span class="string">&quot;</span>, <span class="string">&quot;</span><span class="string">()Ljava/lang/String;</span><span class="string">&quot;</span>, <span class="literal">f</span><span class="literal">alse</span>);
+        mv.visitMethodInsn(<span class="ST3">I</span><span class="ST3">NVOKESPECIAL</span>, <span class="ST3">J</span><span class="ST3">L_NO_SUCH_METHOD_ERROR</span>,
+                <span class="string">&quot;</span><span class="string">&lt;init&gt;</span><span class="string">&quot;</span>, <span class="string">&quot;</span><span class="string">(Ljava/lang/String;)V</span><span class="string">&quot;</span>, <span class="literal">f</span><span class="literal">alse</span>);
+        mv.visitInsn(<span class="ST3">A</span><span class="ST3">THROW</span>);
+
+        mv.visitLabel(L_NoClassHandler);
+        mv.visitVarInsn(<span class="ST3">A</span><span class="ST3">STORE</span>, 1);
+        mv.visitTypeInsn(Opcodes.<span class="ST3">NEW</span>, <span class="ST3">J</span><span class="ST3">L_NO_CLASS_DEF_FOUND_ERROR</span>);
+        mv.visitInsn(<span class="ST3">D</span><span class="ST3">UP</span>);
+        mv.visitVarInsn(<span class="ST3">A</span><span class="ST3">LOAD</span>, 1);
+        mv.visitMethodInsn(<span class="ST3">I</span><span class="ST3">NVOKEVIRTUAL</span>, <span class="ST3">J</span><span class="ST3">L_THROWABLE</span>,
+                <span class="string">&quot;</span><span class="string">getMessage</span><span class="string">&quot;</span>, <span class="string">&quot;</span><span class="string">()Ljava/lang/String;</span><span class="string">&quot;</span>, <span class="literal">f</span><span class="literal">alse</span>);
+        mv.visitMethodInsn(<span class="ST3">I</span><span class="ST3">NVOKESPECIAL</span>, <span class="ST3">J</span><span class="ST3">L_NO_CLASS_DEF_FOUND_ERROR</span>,
+                <span class="string">&quot;</span><span class="string">&lt;init&gt;</span><span class="string">&quot;</span>, <span class="string">&quot;</span><span class="string">(Ljava/lang/String;)V</span><span class="string">&quot;</span>, <span class="literal">f</span><span class="literal">alse</span>);
+        mv.visitInsn(<span class="ST3">A</span><span class="ST3">THROW</span>);
+
+        <span class="comment">// Maxs computed by ClassWriter.COMPUTE_FRAMES, these arguments ignored</span>
+        mv.visitMaxs(-1, -1);
+        mv.visitEnd();
+    }
+</pre></td>
+
+
+
+
+<td valign="top"><pre>
+    <span class="comment">/**</span>
+<span class="comment">     * </span><span class="ST0">Generate</span> <span class="ST0">the</span> <span class="ST0">static</span> <span class="ST0">initializer</span> <span class="ST0">method</span> <span class="ST0">for</span> <span class="ST0">the</span> <span class="ST0">proxy</span> <span class="ST0">class</span><span class="ST0">.</span>
+     <span class="comment">*/</span>
+    <span class="literal">private</span> <span class="literal">void</span> <span class="ST2">generateStaticInitializer</span>(ClassBuilder clb) {
+        clb.withMethodBody(<span class="ST3">N</span><span class="ST3">AME_CLINIT</span>, MethodTypeDesc.<span class="ST4">of</span>(<span class="ST3">C</span><span class="ST3">D_void</span>), <span class="ST3">A</span><span class="ST3">CC_STATIC</span>, cob -&gt; cob
+                <span class="comment">// Put ClassLoader at local variable index 0, used by</span>
+                <span class="comment">// Class.forName(String, boolean, ClassLoader) calls</span>
+                .constantInstruction(ClassDesc.<span class="ST4">of</span>(<span class="ST5">c</span><span class="ST5">lassName</span>))
+                .invokevirtual(<span class="ST3">C</span><span class="ST3">D_Class</span>, <span class="string">&quot;</span><span class="string">getClassLoader</span><span class="string">&quot;</span>, MethodTypeDesc.<span class="ST4">of</span>(<span class="ST3">L</span><span class="ST3">JL_CLASSLOADER</span>))
+                .astore(0)
+                .trying(tryb -&gt; {
+                    <span class="literal">for</span> (List&lt;<span class="ST4">ProxyMethod</span>&gt; sigmethods : <span class="ST5">proxyMethods</span>.values()) {
+                        <span class="literal">for</span> (<span class="ST4">ProxyMethod</span> pm : sigmethods) {
+                            pm.codeFieldInitialization(tryb, <span class="ST5">className</span>);
+                        }
+                    }
+                    tryb.return_();
+                }, cb -&gt; cb
+                    .catching(<span class="ST3">J</span><span class="ST3">L_NO_SUCH_METHOD_EX</span>, nsmb -&gt; nsmb
+                            .astore(1)
+                            .new_(<span class="ST3">J</span><span class="ST3">L_NO_SUCH_METHOD_ERROR</span>)
+                            .dup()
+                            .aload(1)
+                            .invokevirtual(<span class="ST3">C</span><span class="ST3">D_Throwable</span>, <span class="string">&quot;</span><span class="string">getMessage</span><span class="string">&quot;</span>, MethodTypeDesc.<span class="ST4">of</span>(<span class="ST3">C</span><span class="ST3">D_String</span>))
+                            .invokespecial(<span class="ST3">J</span><span class="ST3">L_NO_SUCH_METHOD_ERROR</span>, <span class="string">&quot;</span><span class="string">&lt;init&gt;</span><span class="string">&quot;</span>, MethodTypeDesc.<span class="ST4">of</span>(<span class="ST3">C</span><span class="ST3">D_void</span>, <span class="ST3">C</span><span class="ST3">D_String</span>))
+                            .athrow())
+                    .catching(<span class="ST3">J</span><span class="ST3">L_CLASS_NOT_FOUND_EX</span>, cnfb -&gt; cnfb
+                            .astore(1)
+                            .new_(<span class="ST3">J</span><span class="ST3">L_NO_CLASS_DEF_FOUND_ERROR</span>)
+                            .dup()
+                            .aload(1)
+                            .invokevirtual(<span class="ST3">C</span><span class="ST3">D_Throwable</span>, <span class="string">&quot;</span><span class="string">getMessage</span><span class="string">&quot;</span>, MethodTypeDesc.<span class="ST4">of</span>(<span class="ST3">C</span><span class="ST3">D_String</span>))
+                            .invokespecial(<span class="ST3">J</span><span class="ST3">L_NO_CLASS_DEF_FOUND_ERROR</span>, <span class="string">&quot;</span><span class="string">&lt;init&gt;</span><span class="string">&quot;</span>, MethodTypeDesc.<span class="ST4">of</span>(<span class="ST3">C</span><span class="ST3">D_void</span>, <span class="ST3">C</span><span class="ST3">D_String</span>))
+                            .athrow())));
+    }
+</pre></td></tr>
+
+
+
+<tr><td valign="top"><pre>
+    <span class="comment">/**</span>
+<span class="comment">     * </span><span class="comment">Generate</span> <span class="comment">the</span> <span class="comment">static</span> <span class="comment">lookup</span> <span class="comment">accessor</span> <span class="comment">method</span> <span class="comment">that</span> <span class="comment">returns</span> <span class="comment">the</span> <span class="comment">Lookup</span>
+<span class="comment">     * </span><span class="comment">on</span> <span class="comment">this</span> <span class="comment">proxy</span> <span class="comment">class</span> <span class="comment">if</span> <span class="comment">the</span> <span class="comment">caller</span><span class="comment">&#39;</span><span class="comment">s</span> <span class="comment">lookup</span> <span class="comment">class</span> <span class="comment">is</span> <span class="comment">java</span><span class="comment">.</span><span class="comment">lang</span><span class="comment">.</span><span class="comment">reflect</span><span class="comment">.</span><span class="comment">Proxy</span><span class="comment">;</span>
+<span class="comment">     * </span><span class="comment">otherwise</span><span class="comment">, </span><span class="comment">IllegalAccessException</span> <span class="comment">is</span> <span class="comment">thrown</span>
+     <span class="comment">*/</span>
+    <span class="literal">private</span> <span class="literal">void</span> <span class="ST2">generateLookupAccessor</span>() {
+        MethodVisitor mv = visitMethod(<span class="ST3">ACC_PRIVATE</span> | <span class="ST3">ACC_STATIC</span>, <span class="ST3">N</span><span class="ST3">AME_LOOKUP_ACCESSOR</span>,
+                <span class="string">&quot;</span><span class="string">(Ljava/lang/invoke/MethodHandles$Lookup;)Ljava/lang/invoke/MethodHandles$Lookup;</span><span class="string">&quot;</span>, <span class="literal">n</span><span class="literal">ull</span>,
+                <span class="literal">new</span> String[] { <span class="ST3">JL_ILLEGAL_ACCESS_EX</span> });
+        mv.visitCode();
+        Label L_illegalAccess = <span class="literal">new</span> Label();
+
+        mv.visitVarInsn(<span class="ST3">A</span><span class="ST3">LOAD</span>, 0);
+        mv.visitMethodInsn(<span class="ST3">I</span><span class="ST3">NVOKEVIRTUAL</span>, <span class="ST3">J</span><span class="ST3">LI_LOOKUP</span>, <span class="string">&quot;</span><span class="string">lookupClass</span><span class="string">&quot;</span>,
+                <span class="string">&quot;</span><span class="string">()Ljava/lang/Class;</span><span class="string">&quot;</span>, <span class="literal">f</span><span class="literal">alse</span>);
+        mv.visitLdcInsn(Type.<span class="ST4">getType</span>(Proxy.<span class="literal">class</span>));
+        mv.visitJumpInsn(<span class="ST3">I</span><span class="ST3">F_ACMPNE</span>, L_illegalAccess);
+        mv.visitVarInsn(<span class="ST3">A</span><span class="ST3">LOAD</span>, 0);
+        mv.visitMethodInsn(<span class="ST3">I</span><span class="ST3">NVOKEVIRTUAL</span>, <span class="ST3">J</span><span class="ST3">LI_LOOKUP</span>, <span class="string">&quot;</span><span class="string">hasFullPrivilegeAccess</span><span class="string">&quot;</span>,
+                <span class="string">&quot;</span><span class="string">()Z</span><span class="string">&quot;</span>, <span class="literal">f</span><span class="literal">alse</span>);
+        mv.visitJumpInsn(<span class="ST3">I</span><span class="ST3">FEQ</span>, L_illegalAccess);
+        mv.visitMethodInsn(<span class="ST3">I</span><span class="ST3">NVOKESTATIC</span>, <span class="ST3">J</span><span class="ST3">LI_METHODHANDLES</span>, <span class="string">&quot;</span><span class="string">lookup</span><span class="string">&quot;</span>,
+                <span class="string">&quot;</span><span class="string">()Ljava/lang/invoke/MethodHandles$Lookup;</span><span class="string">&quot;</span>, <span class="literal">f</span><span class="literal">alse</span>);
+        mv.visitInsn(<span class="ST3">A</span><span class="ST3">RETURN</span>);
+
+        mv.visitLabel(L_illegalAccess);
+        mv.visitTypeInsn(Opcodes.<span class="ST3">NEW</span>, <span class="ST3">J</span><span class="ST3">L_ILLEGAL_ACCESS_EX</span>);
+        mv.visitInsn(<span class="ST3">D</span><span class="ST3">UP</span>);
+        mv.visitVarInsn(<span class="ST3">A</span><span class="ST3">LOAD</span>, 0);
+        mv.visitMethodInsn(<span class="ST3">I</span><span class="ST3">NVOKEVIRTUAL</span>, <span class="ST3">J</span><span class="ST3">LI_LOOKUP</span>, <span class="string">&quot;</span><span class="string">toString</span><span class="string">&quot;</span>,
+                <span class="string">&quot;</span><span class="string">()Ljava/lang/String;</span><span class="string">&quot;</span>, <span class="literal">f</span><span class="literal">alse</span>);
+        mv.visitMethodInsn(<span class="ST3">I</span><span class="ST3">NVOKESPECIAL</span>, <span class="ST3">J</span><span class="ST3">L_ILLEGAL_ACCESS_EX</span>,
+                <span class="string">&quot;</span><span class="string">&lt;init&gt;</span><span class="string">&quot;</span>, <span class="string">&quot;</span><span class="string">(Ljava/lang/String;)V</span><span class="string">&quot;</span>, <span class="literal">f</span><span class="literal">alse</span>);
+        mv.visitInsn(<span class="ST3">A</span><span class="ST3">THROW</span>);
+
+        <span class="comment">// Maxs computed by ClassWriter.COMPUTE_FRAMES, these arguments ignored</span>
+        mv.visitMaxs(-1, -1);
+        mv.visitEnd();
+    }
+</pre></td>
+
+
+
+<td valign="top"><pre>
+    <span class="comment">/**</span>
+<span class="comment">     * </span><span class="comment">Generate</span> <span class="comment">the</span> <span class="comment">static</span> <span class="comment">lookup</span> <span class="comment">accessor</span> <span class="comment">method</span> <span class="comment">that</span> <span class="comment">returns</span> <span class="comment">the</span> <span class="comment">Lookup</span>
+<span class="comment">     * </span><span class="comment">on</span> <span class="comment">this</span> <span class="comment">proxy</span> <span class="comment">class</span> <span class="comment">if</span> <span class="comment">the</span> <span class="comment">caller</span><span class="comment">&#39;</span><span class="comment">s</span> <span class="comment">lookup</span> <span class="comment">class</span> <span class="comment">is</span> <span class="comment">java</span><span class="comment">.</span><span class="comment">lang</span><span class="comment">.</span><span class="comment">reflect</span><span class="comment">.</span><span class="comment">Proxy</span><span class="comment">;</span>
+<span class="comment">     * </span><span class="comment">otherwise</span><span class="comment">, </span><span class="comment">IllegalAccessException</span> <span class="comment">is</span> <span class="comment">thrown</span>
+     <span class="comment">*/</span>
+    <span class="literal">private</span> <span class="literal">void</span> <span class="ST2">generateLookupAccessor</span>(ClassBuilder clb) {
+        clb.withMethod(<span class="ST3">N</span><span class="ST3">AME_LOOKUP_ACCESSOR</span>,
+                MethodTypeDesc.<span class="ST4">ofDescriptor</span>(<span class="string">&quot;</span><span class="string">(Ljava/lang/invoke/MethodHandles$Lookup;)Ljava/lang/invoke/MethodHandles$Lookup;</span><span class="string">&quot;</span>),
+                <span class="ST3">ACC_PRIVATE</span> | <span class="ST3">ACC_STATIC</span>,
+                mb -&gt; mb.with(ExceptionsAttribute.<span class="ST4">of</span>(List.<span class="ST4">of</span>(mb.constantPool().classEntry(<span class="ST3">J</span><span class="ST3">L_ILLEGAL_ACCESS_EX</span>))))
+                        .withCode(cob -&gt; cob
+                            .block(blockBuilder -&gt; blockBuilder
+                                    .aload(0)
+                                    .invokevirtual(<span class="ST3">J</span><span class="ST3">LI_LOOKUP</span>, <span class="string">&quot;</span><span class="string">lookupClass</span><span class="string">&quot;</span>, MethodTypeDesc.<span class="ST4">of</span>(<span class="ST3">C</span><span class="ST3">D_Class</span>))
+                                    .constantInstruction(Opcode.<span class="ST3">LDC</span>, Proxy.<span class="literal">class</span>.describeConstable().get())
+                                    .if_acmpne(blockBuilder.breakLabel())
+                                    .aload(0)
+                                    .invokevirtual(<span class="ST3">J</span><span class="ST3">LI_LOOKUP</span>, <span class="string">&quot;</span><span class="string">hasFullPrivilegeAccess</span><span class="string">&quot;</span>, MethodTypeDesc.<span class="ST4">of</span>(<span class="ST3">C</span><span class="ST3">D_boolean</span>))
+                                    .ifeq(blockBuilder.breakLabel())
+                                    .invokestatic(<span class="ST3">C</span><span class="ST3">D_MethodHandles</span>, <span class="string">&quot;</span><span class="string">lookup</span><span class="string">&quot;</span>,
+                                            MethodTypeDesc.<span class="ST4">of</span>(ClassDesc.<span class="ST4">ofDescriptor</span>(<span class="string">&quot;</span><span class="string">Ljava/lang/invoke/MethodHandles$Lookup;</span><span class="string">&quot;</span>)))
+                                    .areturn())
+                            .new_(<span class="ST3">J</span><span class="ST3">L_ILLEGAL_ACCESS_EX</span>)
+                            .dup()
+                            .aload(0)
+                            .invokevirtual(<span class="ST3">J</span><span class="ST3">LI_LOOKUP</span>, <span class="string">&quot;</span><span class="string">toString</span><span class="string">&quot;</span>, MethodTypeDesc.<span class="ST4">of</span>(<span class="ST3">C</span><span class="ST3">D_String</span>))
+                            .invokespecial(<span class="ST3">J</span><span class="ST3">L_ILLEGAL_ACCESS_EX</span>, <span class="string">&quot;</span><span class="string">&lt;init&gt;</span><span class="string">&quot;</span>, MethodTypeDesc.<span class="ST4">of</span>(<span class="ST3">C</span><span class="ST3">D_void</span>, <span class="ST3">C</span><span class="ST3">D_String</span>))
+                            .athrow()));
+    }
+</pre></td></tr>
+
+
+
+<tr><td valign="top"><pre>
+        <span class="comment">/**</span>
+<span class="comment">         * </span><span class="ST0">Generate</span> <span class="ST0">this</span> <span class="ST0">method</span><span class="ST0">, </span><span class="ST0">including</span> <span class="ST0">the</span> <span class="ST0">code</span> <span class="ST0">and</span> <span class="ST0">exception</span> <span class="ST0">table</span> <span class="ST0">entry</span><span class="ST0">.</span>
+         <span class="comment">*/</span>
+        <span class="literal">private</span> <span class="literal">void</span> <span class="ST2">generateMethod</span>(ClassWriter cw, String className) {
+            MethodType mt = MethodType.<span class="ST4">methodType</span>(<span class="ST5">r</span><span class="ST5">eturnType</span>, <span class="ST5">p</span><span class="ST5">arameterTypes</span>);
+            String desc = mt.toMethodDescriptorString();
+            <span class="literal">int</span> accessFlags = <span class="ST3">ACC_PUBLIC</span> | <span class="ST3">ACC_FINAL</span>;
+            <span class="literal">if</span> (<span class="ST5">method</span>.isVarArgs()) accessFlags |= <span class="ST3">ACC_VARARGS</span>;
+
+            MethodVisitor mv = cw.visitMethod(accessFlags,
+                    <span class="ST5">m</span><span class="ST5">ethod</span>.getName(), desc, <span class="literal">n</span><span class="literal">ull</span>,
+                    <span class="ST4">t</span><span class="ST4">ypeNames</span>(Arrays.<span class="ST4">asList</span>(<span class="ST5">e</span><span class="ST5">xceptionTypes</span>)));
+
+            <span class="literal">int</span>[] parameterSlot = <span class="literal">new</span> <span class="literal">int</span>[<span class="ST5">parameterTypes</span>.<span class="ST5">length</span>];
+            <span class="literal">int</span> nextSlot = 1;
+            <span class="literal">for</span> (<span class="literal">int</span> i = 0; i &lt; parameterSlot.<span class="ST5">length</span>; i++) {
+                parameterSlot[i] = nextSlot;
+                nextSlot += <span class="ST4">getWordsPerType</span>(<span class="ST5">parameterTypes</span>[i]);
+            }
+
+            mv.visitCode();
+            Label L_startBlock = <span class="literal">new</span> Label();
+            Label L_endBlock = <span class="literal">new</span> Label();
+            Label L_RuntimeHandler = <span class="literal">new</span> Label();
+            Label L_ThrowableHandler = <span class="literal">new</span> Label();
+
+            List&lt;Class&lt;?&gt;&gt; catchList = <span class="ST4">computeUniqueCatchList</span>(<span class="ST5">e</span><span class="ST5">xceptionTypes</span>);
+            <span class="literal">if</span> (catchList.size() &gt; 0) {
+                <span class="literal">for</span> (Class&lt;?&gt; ex : catchList) {
+                    mv.visitTryCatchBlock(L_startBlock, L_endBlock, L_RuntimeHandler,
+                            <span class="ST4">d</span><span class="ST4">otToSlash</span>(ex.getName()));
+                }
+
+                mv.visitTryCatchBlock(L_startBlock, L_endBlock, L_ThrowableHandler,
+                        <span class="ST3">J</span><span class="ST3">L_THROWABLE</span>);
+            }
+            mv.visitLabel(L_startBlock);
+
+            mv.visitVarInsn(<span class="ST3">A</span><span class="ST3">LOAD</span>, 0);
+            mv.visitFieldInsn(<span class="ST3">G</span><span class="ST3">ETFIELD</span>, <span class="ST3">J</span><span class="ST3">LR_PROXY</span>, <span class="ST3">h</span><span class="ST3">andlerFieldName</span>,
+                    <span class="ST3">L</span><span class="ST3">JLR_INVOCATION_HANDLER</span>);
+            mv.visitVarInsn(<span class="ST3">A</span><span class="ST3">LOAD</span>, 0);
+            mv.visitFieldInsn(<span class="ST3">G</span><span class="ST3">ETSTATIC</span>, <span class="ST4">d</span><span class="ST4">otToSlash</span>(className), <span class="ST5">m</span><span class="ST5">ethodFieldName</span>,
+                    <span class="ST3">L</span><span class="ST3">JLR_METHOD</span>);
+
+            <span class="literal">if</span> (<span class="ST5">parameterTypes</span>.<span class="ST5">length</span> &gt; 0) {
+                <span class="comment">// Create an array and fill with the parameters converting primitives to wrappers</span>
+                emitIconstInsn(mv, <span class="ST5">p</span><span class="ST5">arameterTypes</span>.<span class="ST5">length</span>);
+                mv.visitTypeInsn(Opcodes.<span class="ST3">ANEWARRAY</span>, <span class="ST3">J</span><span class="ST3">L_OBJECT</span>);
+                <span class="literal">for</span> (<span class="literal">int</span> i = 0; i &lt; <span class="ST5">parameterTypes</span>.<span class="ST5">length</span>; i++) {
+                    mv.visitInsn(<span class="ST3">D</span><span class="ST3">UP</span>);
+                    emitIconstInsn(mv, i);
+                    codeWrapArgument(mv, <span class="ST5">parameterTypes</span>[i], parameterSlot[i]);
+                    mv.visitInsn(Opcodes.<span class="ST3">AASTORE</span>);
+                }
+            } <span class="literal">else</span> {
+                mv.visitInsn(Opcodes.<span class="ST3">ACONST_NULL</span>);
+            }
+
+            mv.visitMethodInsn(<span class="ST3">I</span><span class="ST3">NVOKEINTERFACE</span>, <span class="ST3">J</span><span class="ST3">LR_INVOCATION_HANDLER</span>,
+                    <span class="string">&quot;</span><span class="string">invoke</span><span class="string">&quot;</span>,
+                    <span class="string">&quot;</span><span class="string">(Ljava/lang/Object;Ljava/lang/reflect/Method;</span><span class="string">&quot;</span> +
+                            <span class="string">&quot;</span><span class="string">[Ljava/lang/Object;)Ljava/lang/Object;</span><span class="string">&quot;</span>, <span class="literal">t</span><span class="literal">rue</span>);
+
+            <span class="literal">if</span> (<span class="ST5">returnType</span> == <span class="literal">void</span>.<span class="literal">class</span>) {
+                mv.visitInsn(<span class="ST3">P</span><span class="ST3">OP</span>);
+                mv.visitInsn(<span class="ST3">R</span><span class="ST3">ETURN</span>);
+            } <span class="literal">else</span> {
+                codeUnwrapReturnValue(mv, <span class="ST5">r</span><span class="ST5">eturnType</span>);
+            }
+
+            mv.visitLabel(L_endBlock);
+
+            <span class="comment">// Generate exception handler</span>
+            mv.visitLabel(L_RuntimeHandler);
+            mv.visitInsn(<span class="ST3">A</span><span class="ST3">THROW</span>);   <span class="comment">// just rethrow the exception</span>
+
+            mv.visitLabel(L_ThrowableHandler);
+            mv.visitVarInsn(<span class="ST3">A</span><span class="ST3">STORE</span>, 1);
+            mv.visitTypeInsn(Opcodes.<span class="ST3">NEW</span>, <span class="ST3">J</span><span class="ST3">LR_UNDECLARED_THROWABLE_EX</span>);
+            mv.visitInsn(<span class="ST3">D</span><span class="ST3">UP</span>);
+            mv.visitVarInsn(<span class="ST3">A</span><span class="ST3">LOAD</span>, 1);
+            mv.visitMethodInsn(<span class="ST3">I</span><span class="ST3">NVOKESPECIAL</span>, <span class="ST3">J</span><span class="ST3">LR_UNDECLARED_THROWABLE_EX</span>,
+                    <span class="string">&quot;</span><span class="string">&lt;init&gt;</span><span class="string">&quot;</span>, <span class="string">&quot;</span><span class="string">(Ljava/lang/Throwable;)V</span><span class="string">&quot;</span>, <span class="literal">f</span><span class="literal">alse</span>);
+            mv.visitInsn(<span class="ST3">A</span><span class="ST3">THROW</span>);
+            <span class="comment">// Maxs computed by ClassWriter.COMPUTE_FRAMES, these arguments ignored</span>
+            mv.visitMaxs(-1, -1);
+            mv.visitEnd();
+        }
+</pre></td>
+
+
+
+
+
+
+<td valign="top"><pre>
+        <span class="comment">/**</span>
+<span class="comment">         * </span><span class="ST0">Generate</span> <span class="ST0">this</span> <span class="ST0">method</span><span class="ST0">, </span><span class="ST0">including</span> <span class="ST0">the</span> <span class="ST0">code</span> <span class="ST0">and</span> <span class="ST0">exception</span> <span class="ST0">table</span> <span class="ST0">entry</span><span class="ST0">.</span>
+         <span class="comment">*/</span>
+        <span class="literal">private</span> <span class="literal">void</span> <span class="ST2">generateMethod</span>(ClassBuilder clb, String className) {
+            MethodType mt = MethodType.<span class="ST4">methodType</span>(<span class="ST5">r</span><span class="ST5">eturnType</span>, <span class="ST5">p</span><span class="ST5">arameterTypes</span>);
+            MethodTypeDesc desc = MethodTypeDesc.<span class="ST4">ofDescriptor</span>(mt.toMethodDescriptorString());
+            <span class="literal">int</span> accessFlags = (<span class="ST5">method</span>.isVarArgs()) ? <span class="ST3">ACC_VARARGS</span> | <span class="ST3">ACC_PUBLIC</span> | <span class="ST3">ACC_FINAL</span> : <span class="ST3">ACC_PUBLIC</span> | <span class="ST3">ACC_FINAL</span>;
+            <span class="literal">var</span> catchList = <span class="ST4">computeUniqueCatchList</span>(<span class="ST5">e</span><span class="ST5">xceptionTypes</span>);
+            clb.withMethod(<span class="ST5">m</span><span class="ST5">ethod</span>.getName(), desc, accessFlags, mb -&gt; {
+                ConstantPoolBuilder cpb = mb.constantPool();
+                List&lt;ClassEntry&gt; exceptionClassEntries = <span class="ST4">typeNames</span>(Arrays.<span class="ST4">asList</span>(<span class="ST5">e</span><span class="ST5">xceptionTypes</span>))
+                        .stream()
+                        .map(cpb::classEntry)
+                        .toList();
+                mb.with(ExceptionsAttribute.<span class="ST4">of</span>(exceptionClassEntries));
+                mb.withCode(cob -&gt;
+                    cob.trying(tryb -&gt; {
+                        tryb.aload(0)
+                            .getfield(<span class="ST3">J</span><span class="ST3">LR_PROXY</span>, <span class="ST3">h</span><span class="ST3">andlerFieldName</span>, <span class="ST3">L</span><span class="ST3">JLR_INVOCATION_HANDLER</span>)
+                            .aload(0)
+                            .getstatic(ClassDesc.<span class="ST4">of</span>(className), <span class="ST5">m</span><span class="ST5">ethodFieldName</span>, <span class="ST3">L</span><span class="ST3">JLR_METHOD</span>);
+
+                        <span class="literal">if</span> (<span class="ST5">parameterTypes</span>.<span class="ST5">length</span> &gt; 0) {
+                            <span class="comment">// Create an array and fill with the parameters converting primitives to wrappers</span>
+                            tryb.constantInstruction(<span class="ST5">p</span><span class="ST5">arameterTypes</span>.<span class="ST5">length</span>)
+                                .anewarray(<span class="ST3">C</span><span class="ST3">D_Object</span>);
+                            <span class="literal">for</span> (<span class="literal">int</span> i = 0; i &lt; <span class="ST5">parameterTypes</span>.<span class="ST5">length</span>; i++) {
+                                tryb.dup()
+                                    .constantInstruction(i);
+                                codeWrapArgument(tryb, <span class="ST5">parameterTypes</span>[i], tryb.parameterSlot(i));
+                                tryb.aastore();
+                            }
+                        } <span class="literal">else</span> {
+                            tryb.aconst_null();
+                        }
+
+                        tryb.invokeinterface(<span class="ST3">J</span><span class="ST3">LR_INVOCATION_HANDLER</span>, <span class="string">&quot;</span><span class="string">invoke</span><span class="string">&quot;</span>,
+                                MethodTypeDesc.<span class="ST4">of</span>(<span class="ST3">C</span><span class="ST3">D_Object</span>, <span class="ST3">C</span><span class="ST3">D_Object</span>, <span class="ST3">L</span><span class="ST3">JLR_METHOD</span>, <span class="ST3">C</span><span class="ST3">D_Object</span>.arrayType()));
+
+                        <span class="literal">if</span> (<span class="ST5">returnType</span> == <span class="literal">void</span>.<span class="literal">class</span>) {
+                            tryb.pop()
+                                .return_();
+                        } <span class="literal">else</span> {
+                            codeUnwrapReturnValue(tryb, <span class="ST5">r</span><span class="ST5">eturnType</span>);
+                        }
+                    }, catchBuilder -&gt; {
+                        <span class="literal">if</span> (!catchList.isEmpty()) catchBuilder
+                                .catchingMulti(catchList.stream().map(ex -&gt; ClassDesc.<span class="ST4">ofDescriptor</span>(ex.descriptorString())).toList(), ehb -&gt; ehb
+                                        .athrow())   <span class="comment">// just rethrow the exception</span>
+
+                                .catching(<span class="ST3">C</span><span class="ST3">D_Throwable</span>, ehb -&gt; ehb
+                                        .astore(1)
+                                        .new_(<span class="ST3">J</span><span class="ST3">LR_UNDECLARED_THROWABLE_EX</span>)
+                                        .dup()
+                                        .aload(1)
+                                        .invokespecial(<span class="ST3">J</span><span class="ST3">LR_UNDECLARED_THROWABLE_EX</span>, <span class="string">&quot;</span><span class="string">&lt;init&gt;</span><span class="string">&quot;</span>, MethodTypeDesc.<span class="ST4">of</span>(<span class="ST3">C</span><span class="ST3">D_void</span>, <span class="ST3">C</span><span class="ST3">D_Throwable</span>))
+                                        .athrow());
+                    }));
+            });
+        }
+</pre></td></tr></table></body>
+</html>
