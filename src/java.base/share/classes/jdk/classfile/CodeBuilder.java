@@ -326,6 +326,7 @@ public sealed interface CodeBuilder
          *                     generate the body of the catch block.
          * @return this builder
          * @throws java.lang.IllegalArgumentException if an existing catch block catches an exception of the given type.
+         * @see #catchingMulti
          * @see #catchingAll
          */
         CatchBuilder catching(ClassDesc exceptionType, Consumer<BlockCodeBuilder> catchHandler);
@@ -341,7 +342,8 @@ public sealed interface CodeBuilder
          * @param catchHandler handler that receives a {@linkplain CodeBuilder} to
          *                     generate the body of the catch block.
          * @return this builder
-         * @throws java.lang.IllegalArgumentException if an existing catch block catches an exception of the given type.
+         * @throws java.lang.IllegalArgumentException if an existing catch block catches one or more exceptions of the given types.
+         * @see #catching
          * @see #catchingAll
          */
         CatchBuilder catchingMulti(List<ClassDesc> exceptionTypes, Consumer<BlockCodeBuilder> catchHandler);
@@ -355,6 +357,7 @@ public sealed interface CodeBuilder
          *                        generate the body of the catch block
          * @throws java.lang.IllegalArgumentException if an existing catch block catches all exceptions.
          * @see #catching
+         * @see #catchingMulti
          */
         void catchingAll(Consumer<BlockCodeBuilder> catchAllHandler);
     }
