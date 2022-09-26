@@ -691,64 +691,52 @@ final class ProxyGenerator {
                         .map(cpb::classEntry)
                         .toList();
                 mb.with(ExceptionsAttribute.of(exceptionClassEntries));
-                mb.withCode(cob -> {
-                    var L_startBlock = cob.newLabel();
-                    var L_endBlock = cob.newLabel();
-                    var L_RuntimeHandler = cob.newLabel();
-                    var L_ThrowableHandler = cob.newLabel();
+                mb.withCode(cob ->
+                    cob.trying(tryb -> {
+                        tryb.aload(0)
+                            .getfield(JLR_PROXY, handlerFieldName, LJLR_INVOCATION_HANDLER)
+                            .aload(0)
+                            .getstatic(ClassDesc.of(className), methodFieldName, LJLR_METHOD);
 
-                    List<Class<?>> catchList = computeUniqueCatchList(exceptionTypes);
-                    if (!catchList.isEmpty()) {
-                        for (Class<?> ex : catchList) {
-                            cob.exceptionCatch(L_startBlock, L_endBlock, L_RuntimeHandler,
-                                    ClassDesc.ofDescriptor(ex.descriptorString()));
+                        if (parameterTypes.length > 0) {
+                            // Create an array and fill with the parameters converting primitives to wrappers
+                            tryb.constantInstruction(parameterTypes.length)
+                                .anewarray(CD_Object);
+                            for (int i = 0; i < parameterTypes.length; i++) {
+                                tryb.dup()
+                                    .constantInstruction(i);
+                                codeWrapArgument(tryb, parameterTypes[i], tryb.parameterSlot(i));
+                                tryb.aastore();
+                            }
+                        } else {
+                            tryb.aconst_null();
                         }
-                        cob.exceptionCatch(L_startBlock, L_endBlock, L_ThrowableHandler, CD_Throwable);
-                    }
-                    cob.labelBinding(L_startBlock)
-                       .aload(0)
-                       .getfield(JLR_PROXY, handlerFieldName, LJLR_INVOCATION_HANDLER)
-                       .aload(0)
-                       .getstatic(ClassDesc.of(className), methodFieldName, LJLR_METHOD);
 
-                    if (parameterTypes.length > 0) {
-                        // Create an array and fill with the parameters converting primitives to wrappers
-                        cob.constantInstruction(parameterTypes.length)
-                           .anewarray(CD_Object);
-                        for (int i = 0; i < parameterTypes.length; i++) {
-                            cob.dup()
-                               .constantInstruction(i);
-                            codeWrapArgument(cob, parameterTypes[i], cob.parameterSlot(i));
-                            cob.aastore();
+                        tryb.invokeinterface(JLR_INVOCATION_HANDLER, "invoke",
+                                MethodTypeDesc.of(CD_Object, CD_Object, LJLR_METHOD, CD_Object.arrayType()));
+
+                        if (returnType == void.class) {
+                            tryb.pop()
+                                .return_();
+                        } else {
+                            codeUnwrapReturnValue(tryb, returnType);
                         }
-                    } else {
-                        cob.aconst_null();
-                    }
 
-                    cob.invokeinterface(JLR_INVOCATION_HANDLER, "invoke",
-                            MethodTypeDesc.of(CD_Object, CD_Object, LJLR_METHOD, CD_Object.arrayType()));
+                    }, catchBuilder -> {
+                        List<Class<?>> catchList = computeUniqueCatchList(exceptionTypes);
+                        if (!catchList.isEmpty()) {
+                            catchBuilder.catchingMulti(catchList.stream().map(ex -> ClassDesc.ofDescriptor(ex.descriptorString())).toList(), ehb -> ehb
+                                    .athrow());   // just rethrow the exception
 
-                    if (returnType == void.class) {
-                        cob.pop()
-                           .return_();
-                    } else {
-                        codeUnwrapReturnValue(cob, returnType);
-                    }
-
-                    cob.labelBinding(L_endBlock);
-
-                    // Generate exception handler
-                    cob.labelBinding(L_RuntimeHandler)
-                       .athrow();   // just rethrow the exception
-
-                    cob.labelBinding(L_ThrowableHandler)
-                       .astore(1)
-                       .new_(JLR_UNDECLARED_THROWABLE_EX)
-                       .dup()
-                       .aload(1)
-                       .invokespecial(JLR_UNDECLARED_THROWABLE_EX, "<init>", MethodTypeDesc.of(CD_void, CD_Throwable))
-                       .athrow();
-                });
+                            catchBuilder.catching(CD_Throwable, ehb -> ehb
+                                    .astore(1)
+                                    .new_(JLR_UNDECLARED_THROWABLE_EX)
+                                    .dup()
+                                    .aload(1)
+                                    .invokespecial(JLR_UNDECLARED_THROWABLE_EX, "<init>", MethodTypeDesc.of(CD_void, CD_Throwable))
+                                    .athrow());
+                        }
+                    }));
             });
         }
 
