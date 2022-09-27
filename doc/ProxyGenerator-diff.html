@@ -50,10 +50,10 @@ pre {color: #000000; background-color: #ffffff; font-family: monospace}
 <span class="comment">     * </span><span class="ST0">Generate</span> <span class="ST0">the</span> <span class="ST0">constructor</span> <span class="ST0">method</span> <span class="ST0">for</span> <span class="ST0">the</span> <span class="ST0">proxy</span> <span class="ST0">class</span><span class="ST0">.</span>
      <span class="comment">*/</span>
     <span class="literal">private</span> <span class="literal">void</span> <span class="ST2">generateConstructor</span>(ClassBuilder clb) {
-        clb.withMethodBody(<span class="ST3">N</span><span class="ST3">AME_CTOR</span>, <span class="ST3">M</span><span class="ST3">JLR_INVOCATIONHANDLER</span>, <span class="ST3">A</span><span class="ST3">CC_PUBLIC</span>, cob -&gt; cob
-               .aload(0)
-               .aload(1)
-               .invokespecial(<span class="ST3">J</span><span class="ST3">LR_PROXY</span>, <span class="ST3">N</span><span class="ST3">AME_CTOR</span>, <span class="ST3">M</span><span class="ST3">JLR_INVOCATIONHANDLER</span>)
+        clb.withMethodBody(<span class="ST3">N</span><span class="ST3">AME_CTOR</span>, <span class="ST3">M</span><span class="ST3">TD_void_InvocationHandler</span>, <span class="ST3">A</span><span class="ST3">CC_PUBLIC</span>, cob -&gt; cob
+               .aload(cob.receiverSlot())
+               .aload(cob.parameterSlot(0))
+               .invokespecial(<span class="ST3">C</span><span class="ST3">D_Proxy</span>, <span class="ST3">N</span><span class="ST3">AME_CTOR</span>, <span class="ST3">M</span><span class="ST3">TD_void_InvocationHandler</span>)
                .return_());
     }
 </pre></td></tr>
@@ -131,35 +131,33 @@ pre {color: #000000; background-color: #ffffff; font-family: monospace}
 <span class="comment">     * </span><span class="ST0">Generate</span> <span class="ST0">the</span> <span class="ST0">static</span> <span class="ST0">initializer</span> <span class="ST0">method</span> <span class="ST0">for</span> <span class="ST0">the</span> <span class="ST0">proxy</span> <span class="ST0">class</span><span class="ST0">.</span>
      <span class="comment">*/</span>
     <span class="literal">private</span> <span class="literal">void</span> <span class="ST2">generateStaticInitializer</span>(ClassBuilder clb) {
-        clb.withMethodBody(<span class="ST3">N</span><span class="ST3">AME_CLINIT</span>, MethodTypeDesc.<span class="ST4">of</span>(<span class="ST3">C</span><span class="ST3">D_void</span>), <span class="ST3">A</span><span class="ST3">CC_STATIC</span>, cob -&gt; cob
+        clb.withMethodBody(<span class="ST3">N</span><span class="ST3">AME_CLINIT</span>, <span class="ST3">M</span><span class="ST3">TD_void</span>, <span class="ST3">A</span><span class="ST3">CC_STATIC</span>, cob -&gt; cob
                 <span class="comment">// Put ClassLoader at local variable index 0, used by</span>
                 <span class="comment">// Class.forName(String, boolean, ClassLoader) calls</span>
-                .constantInstruction(ClassDesc.<span class="ST4">of</span>(<span class="ST5">c</span><span class="ST5">lassName</span>))
-                .invokevirtual(<span class="ST3">C</span><span class="ST3">D_Class</span>, <span class="string">&quot;</span><span class="string">getClassLoader</span><span class="string">&quot;</span>, MethodTypeDesc.<span class="ST4">of</span>(<span class="ST3">L</span><span class="ST3">JL_CLASSLOADER</span>))
+                .constantInstruction(<span class="ST5">c</span><span class="ST5">lassDesc</span>)
+                .invokevirtual(<span class="ST3">C</span><span class="ST3">D_Class</span>, <span class="string">&quot;</span><span class="string">getClassLoader</span><span class="string">&quot;</span>, <span class="ST3">M</span><span class="ST3">TD_ClassLoader</span>)
                 .astore(0)
                 .trying(tryb -&gt; {
                     <span class="literal">for</span> (List&lt;<span class="ST4">ProxyMethod</span>&gt; sigmethods : <span class="ST5">proxyMethods</span>.values()) {
                         <span class="literal">for</span> (<span class="ST4">ProxyMethod</span> pm : sigmethods) {
-                            pm.codeFieldInitialization(tryb, <span class="ST5">className</span>);
+                            pm.codeFieldInitialization(tryb, <span class="ST5">c</span><span class="ST5">lassDesc</span>);
                         }
                     }
                     tryb.return_();
                 }, cb -&gt; cb
-                    .catching(<span class="ST3">J</span><span class="ST3">L_NO_SUCH_METHOD_EX</span>, nsmb -&gt; nsmb
-                            .astore(1)
-                            .new_(<span class="ST3">J</span><span class="ST3">L_NO_SUCH_METHOD_ERROR</span>)
-                            .dup()
-                            .aload(1)
-                            .invokevirtual(<span class="ST3">C</span><span class="ST3">D_Throwable</span>, <span class="string">&quot;</span><span class="string">getMessage</span><span class="string">&quot;</span>, MethodTypeDesc.<span class="ST4">of</span>(<span class="ST3">C</span><span class="ST3">D_String</span>))
-                            .invokespecial(<span class="ST3">J</span><span class="ST3">L_NO_SUCH_METHOD_ERROR</span>, <span class="string">&quot;</span><span class="string">&lt;init&gt;</span><span class="string">&quot;</span>, MethodTypeDesc.<span class="ST4">of</span>(<span class="ST3">C</span><span class="ST3">D_void</span>, <span class="ST3">C</span><span class="ST3">D_String</span>))
+                    .catching(<span class="ST3">C</span><span class="ST3">D_NoSuchMethodException</span>, nsmb -&gt; nsmb
+                            .new_(<span class="ST3">C</span><span class="ST3">D_NoSuchMethodError</span>)
+                            .dup_x1()
+                            .swap()
+                            .invokevirtual(<span class="ST3">C</span><span class="ST3">D_Throwable</span>, <span class="string">&quot;</span><span class="string">getMessage</span><span class="string">&quot;</span>, <span class="ST3">M</span><span class="ST3">TD_String</span>)
+                            .invokespecial(<span class="ST3">C</span><span class="ST3">D_NoSuchMethodError</span>, <span class="string">&quot;</span><span class="string">&lt;init&gt;</span><span class="string">&quot;</span>, <span class="ST3">M</span><span class="ST3">TD_void_String</span>)
                             .athrow())
-                    .catching(<span class="ST3">J</span><span class="ST3">L_CLASS_NOT_FOUND_EX</span>, cnfb -&gt; cnfb
-                            .astore(1)
-                            .new_(<span class="ST3">J</span><span class="ST3">L_NO_CLASS_DEF_FOUND_ERROR</span>)
-                            .dup()
-                            .aload(1)
-                            .invokevirtual(<span class="ST3">C</span><span class="ST3">D_Throwable</span>, <span class="string">&quot;</span><span class="string">getMessage</span><span class="string">&quot;</span>, MethodTypeDesc.<span class="ST4">of</span>(<span class="ST3">C</span><span class="ST3">D_String</span>))
-                            .invokespecial(<span class="ST3">J</span><span class="ST3">L_NO_CLASS_DEF_FOUND_ERROR</span>, <span class="string">&quot;</span><span class="string">&lt;init&gt;</span><span class="string">&quot;</span>, MethodTypeDesc.<span class="ST4">of</span>(<span class="ST3">C</span><span class="ST3">D_void</span>, <span class="ST3">C</span><span class="ST3">D_String</span>))
+                    .catching(<span class="ST3">C</span><span class="ST3">D_ClassNotFoundException</span>, cnfb -&gt; cnfb
+                            .new_(<span class="ST3">C</span><span class="ST3">D_NoClassDefFoundError</span>)
+                            .dup_x1()
+                            .swap()
+                            .invokevirtual(<span class="ST3">C</span><span class="ST3">D_Throwable</span>, <span class="string">&quot;</span><span class="string">getMessage</span><span class="string">&quot;</span>, <span class="ST3">M</span><span class="ST3">TD_String</span>)
+                            .invokespecial(<span class="ST3">C</span><span class="ST3">D_NoClassDefFoundError</span>, <span class="string">&quot;</span><span class="string">&lt;init&gt;</span><span class="string">&quot;</span>, <span class="ST3">M</span><span class="ST3">TD_void_String</span>)
                             .athrow())));
     }
 </pre></td></tr>
@@ -218,26 +216,25 @@ pre {color: #000000; background-color: #ffffff; font-family: monospace}
      <span class="comment">*/</span>
     <span class="literal">private</span> <span class="literal">void</span> <span class="ST2">generateLookupAccessor</span>(ClassBuilder clb) {
         clb.withMethod(<span class="ST3">N</span><span class="ST3">AME_LOOKUP_ACCESSOR</span>,
-                MethodTypeDesc.<span class="ST4">ofDescriptor</span>(<span class="string">&quot;</span><span class="string">(Ljava/lang/invoke/MethodHandles$Lookup;)Ljava/lang/invoke/MethodHandles$Lookup;</span><span class="string">&quot;</span>),
+                <span class="ST3">M</span><span class="ST3">TD_MethodHandles$Lookup_MethodHandles$Lookup</span>,
                 <span class="ST3">ACC_PRIVATE</span> | <span class="ST3">ACC_STATIC</span>,
-                mb -&gt; mb.with(ExceptionsAttribute.<span class="ST4">of</span>(List.<span class="ST4">of</span>(mb.constantPool().classEntry(<span class="ST3">J</span><span class="ST3">L_ILLEGAL_ACCESS_EX</span>))))
+                mb -&gt; mb.with(ExceptionsAttribute.<span class="ST4">of</span>(List.<span class="ST4">of</span>(mb.constantPool().classEntry(<span class="ST3">C</span><span class="ST3">D_IllegalAccessException</span>))))
                         .withCode(cob -&gt; cob
                             .block(blockBuilder -&gt; blockBuilder
-                                    .aload(0)
-                                    .invokevirtual(<span class="ST3">J</span><span class="ST3">LI_LOOKUP</span>, <span class="string">&quot;</span><span class="string">lookupClass</span><span class="string">&quot;</span>, MethodTypeDesc.<span class="ST4">of</span>(<span class="ST3">C</span><span class="ST3">D_Class</span>))
-                                    .constantInstruction(Opcode.<span class="ST3">LDC</span>, Proxy.<span class="literal">class</span>.describeConstable().get())
+                                    .aload(cob.parameterSlot(0))
+                                    .invokevirtual(<span class="ST3">C</span><span class="ST3">D_MethodHandles$Lookup</span>, <span class="string">&quot;</span><span class="string">lookupClass</span><span class="string">&quot;</span>, <span class="ST3">M</span><span class="ST3">TD_Class</span>)
+                                    .constantInstruction(Opcode.<span class="ST3">LDC</span>, <span class="ST3">CD_Proxy</span>)
                                     .if_acmpne(blockBuilder.breakLabel())
-                                    .aload(0)
-                                    .invokevirtual(<span class="ST3">J</span><span class="ST3">LI_LOOKUP</span>, <span class="string">&quot;</span><span class="string">hasFullPrivilegeAccess</span><span class="string">&quot;</span>, MethodTypeDesc.<span class="ST4">of</span>(<span class="ST3">C</span><span class="ST3">D_boolean</span>))
+                                    .aload(cob.parameterSlot(0))
+                                    .invokevirtual(<span class="ST3">C</span><span class="ST3">D_MethodHandles$Lookup</span>, <span class="string">&quot;</span><span class="string">hasFullPrivilegeAccess</span><span class="string">&quot;</span>, <span class="ST3">M</span><span class="ST3">TD_boolean</span>)
                                     .ifeq(blockBuilder.breakLabel())
-                                    .invokestatic(<span class="ST3">C</span><span class="ST3">D_MethodHandles</span>, <span class="string">&quot;</span><span class="string">lookup</span><span class="string">&quot;</span>,
-                                            MethodTypeDesc.<span class="ST4">of</span>(ClassDesc.<span class="ST4">ofDescriptor</span>(<span class="string">&quot;</span><span class="string">Ljava/lang/invoke/MethodHandles$Lookup;</span><span class="string">&quot;</span>)))
+                                    .invokestatic(<span class="ST3">C</span><span class="ST3">D_MethodHandles</span>, <span class="string">&quot;</span><span class="string">lookup</span><span class="string">&quot;</span>, <span class="ST3">M</span><span class="ST3">TD_MethodHandles$Lookup</span>)
                                     .areturn())
-                            .new_(<span class="ST3">J</span><span class="ST3">L_ILLEGAL_ACCESS_EX</span>)
+                            .new_(<span class="ST3">C</span><span class="ST3">D_IllegalAccessException</span>)
                             .dup()
-                            .aload(0)
-                            .invokevirtual(<span class="ST3">J</span><span class="ST3">LI_LOOKUP</span>, <span class="string">&quot;</span><span class="string">toString</span><span class="string">&quot;</span>, MethodTypeDesc.<span class="ST4">of</span>(<span class="ST3">C</span><span class="ST3">D_String</span>))
-                            .invokespecial(<span class="ST3">J</span><span class="ST3">L_ILLEGAL_ACCESS_EX</span>, <span class="string">&quot;</span><span class="string">&lt;init&gt;</span><span class="string">&quot;</span>, MethodTypeDesc.<span class="ST4">of</span>(<span class="ST3">C</span><span class="ST3">D_void</span>, <span class="ST3">C</span><span class="ST3">D_String</span>))
+                            .aload(cob.parameterSlot(0))
+                            .invokevirtual(<span class="ST3">C</span><span class="ST3">D_MethodHandles$Lookup</span>, <span class="string">&quot;</span><span class="string">toString</span><span class="string">&quot;</span>, <span class="ST3">M</span><span class="ST3">TD_String</span>)
+                            .invokespecial(<span class="ST3">C</span><span class="ST3">D_IllegalAccessException</span>, <span class="string">&quot;</span><span class="string">&lt;init&gt;</span><span class="string">&quot;</span>, <span class="ST3">M</span><span class="ST3">TD_void_String</span>)
                             .athrow()));
     }
 </pre></td></tr>
@@ -345,9 +342,8 @@ pre {color: #000000; background-color: #ffffff; font-family: monospace}
         <span class="comment">/**</span>
 <span class="comment">         * </span><span class="ST0">Generate</span> <span class="ST0">this</span> <span class="ST0">method</span><span class="ST0">, </span><span class="ST0">including</span> <span class="ST0">the</span> <span class="ST0">code</span> <span class="ST0">and</span> <span class="ST0">exception</span> <span class="ST0">table</span> <span class="ST0">entry</span><span class="ST0">.</span>
          <span class="comment">*/</span>
-        <span class="literal">private</span> <span class="literal">void</span> <span class="ST2">generateMethod</span>(ClassBuilder clb, String className) {
-            MethodType mt = MethodType.<span class="ST4">methodType</span>(<span class="ST5">r</span><span class="ST5">eturnType</span>, <span class="ST5">p</span><span class="ST5">arameterTypes</span>);
-            MethodTypeDesc desc = MethodTypeDesc.<span class="ST4">ofDescriptor</span>(mt.toMethodDescriptorString());
+        <span class="literal">private</span> <span class="literal">void</span> <span class="ST2">generateMethod</span>(ClassBuilder clb, ClassDesc className) {
+            MethodTypeDesc desc = MethodTypeDesc.<span class="ST4">ofDescriptor</span>(MethodType.<span class="ST4">methodType</span>(<span class="ST5">r</span><span class="ST5">eturnType</span>, <span class="ST5">p</span><span class="ST5">arameterTypes</span>).toMethodDescriptorString());
             <span class="literal">int</span> accessFlags = (<span class="ST5">method</span>.isVarArgs()) ? <span class="ST3">ACC_VARARGS</span> | <span class="ST3">ACC_PUBLIC</span> | <span class="ST3">ACC_FINAL</span> : <span class="ST3">ACC_PUBLIC</span> | <span class="ST3">ACC_FINAL</span>;
             <span class="literal">var</span> catchList = <span class="ST4">computeUniqueCatchList</span>(<span class="ST5">e</span><span class="ST5">xceptionTypes</span>);
             clb.withMethod(<span class="ST5">m</span><span class="ST5">ethod</span>.getName(), desc, accessFlags, mb -&gt; {
@@ -359,10 +355,10 @@ pre {color: #000000; background-color: #ffffff; font-family: monospace}
                 mb.with(ExceptionsAttribute.<span class="ST4">of</span>(exceptionClassEntries));
                 mb.withCode(cob -&gt;
                     cob.trying(tryb -&gt; {
-                        tryb.aload(0)
-                            .getfield(<span class="ST3">J</span><span class="ST3">LR_PROXY</span>, <span class="ST3">h</span><span class="ST3">andlerFieldName</span>, <span class="ST3">L</span><span class="ST3">JLR_INVOCATION_HANDLER</span>)
-                            .aload(0)
-                            .getstatic(ClassDesc.<span class="ST4">of</span>(className), <span class="ST5">m</span><span class="ST5">ethodFieldName</span>, <span class="ST3">L</span><span class="ST3">JLR_METHOD</span>);
+                        tryb.aload(tryb.receiverSlot())
+                            .getfield(<span class="ST3">C</span><span class="ST3">D_Proxy</span>, <span class="ST3">h</span><span class="ST3">andlerFieldName</span>, <span class="ST3">C</span><span class="ST3">D_InvocationHandler</span>)
+                            .aload(tryb.receiverSlot())
+                            .getstatic(className, <span class="ST5">m</span><span class="ST5">ethodFieldName</span>, <span class="ST3">C</span><span class="ST3">D_Method</span>);
 
                         <span class="literal">if</span> (<span class="ST5">parameterTypes</span>.<span class="ST5">length</span> &gt; 0) {
                             <span class="comment">// Create an array and fill with the parameters converting primitives to wrappers</span>
@@ -378,8 +374,7 @@ pre {color: #000000; background-color: #ffffff; font-family: monospace}
                             tryb.aconst_null();
                         }
 
-                        tryb.invokeinterface(<span class="ST3">J</span><span class="ST3">LR_INVOCATION_HANDLER</span>, <span class="string">&quot;</span><span class="string">invoke</span><span class="string">&quot;</span>,
-                                MethodTypeDesc.<span class="ST4">of</span>(<span class="ST3">C</span><span class="ST3">D_Object</span>, <span class="ST3">C</span><span class="ST3">D_Object</span>, <span class="ST3">L</span><span class="ST3">JLR_METHOD</span>, <span class="ST3">C</span><span class="ST3">D_Object</span>.arrayType()));
+                        tryb.invokeinterface(<span class="ST3">C</span><span class="ST3">D_InvocationHandler</span>, <span class="string">&quot;</span><span class="string">invoke</span><span class="string">&quot;</span>, <span class="ST3">M</span><span class="ST3">TD_Object_Object_Method_ObjectArray</span>);
 
                         <span class="literal">if</span> (<span class="ST5">returnType</span> == <span class="literal">void</span>.<span class="literal">class</span>) {
                             tryb.pop()
@@ -388,19 +383,20 @@ pre {color: #000000; background-color: #ffffff; font-family: monospace}
                             codeUnwrapReturnValue(tryb, <span class="ST5">r</span><span class="ST5">eturnType</span>);
                         }
                     }, catchBuilder -&gt; {
-                        <span class="literal">if</span> (!catchList.isEmpty()) catchBuilder
-                                .catchingMulti(catchList.stream().map(ex -&gt; ClassDesc.<span class="ST4">ofDescriptor</span>(ex.descriptorString())).toList(), ehb -&gt; ehb
-                                        .athrow())   <span class="comment">// just rethrow the exception</span>
+                        <span class="literal">if</span> (!catchList.isEmpty()) {
+                            catchBuilder.catchingMulti(catchList, ehb -&gt; ehb
+                                    .athrow());   <span class="comment">// just rethrow the exception</span>
 
-                                .catching(<span class="ST3">C</span><span class="ST3">D_Throwable</span>, ehb -&gt; ehb
-                                        .astore(1)
-                                        .new_(<span class="ST3">J</span><span class="ST3">LR_UNDECLARED_THROWABLE_EX</span>)
-                                        .dup()
-                                        .aload(1)
-                                        .invokespecial(<span class="ST3">J</span><span class="ST3">LR_UNDECLARED_THROWABLE_EX</span>, <span class="string">&quot;</span><span class="string">&lt;init&gt;</span><span class="string">&quot;</span>, MethodTypeDesc.<span class="ST4">of</span>(<span class="ST3">C</span><span class="ST3">D_void</span>, <span class="ST3">C</span><span class="ST3">D_Throwable</span>))
-                                        .athrow());
+                            catchBuilder.catching(<span class="ST3">C</span><span class="ST3">D_Throwable</span>, ehb -&gt; ehb
+                                    .new_(<span class="ST3">C</span><span class="ST3">D_UndeclaredThrowableException</span>)
+                                    .dup_x1()
+                                    .swap()
+                                    .invokespecial(<span class="ST3">C</span><span class="ST3">D_UndeclaredThrowableException</span>, <span class="string">&quot;</span><span class="string">&lt;init&gt;</span><span class="string">&quot;</span>, <span class="ST3">M</span><span class="ST3">TD_void_Throwable</span>)
+                                    .athrow());
+                        }
                     }));
             });
         }
+
 </pre></td></tr></table></body>
 </html>
