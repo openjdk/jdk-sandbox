@@ -192,7 +192,7 @@ final class ProxyGenerator {
                                 int i = name.lastIndexOf('.');
                                 Path path;
                                 if (i > 0) {
-                                    Path dir = Path.of(dotToSlash(name.substring(0, i)));
+                                    Path dir = Path.of(name.substring(0, i).replace('.', '/'));
                                     Files.createDirectories(dir);
                                     path = dir.resolve(name.substring(i + 1) + ".class");
                                 } else {
@@ -391,34 +391,6 @@ final class ProxyGenerator {
     }
 
     /**
-     * Convert a fully qualified class name that uses '.' as the package
-     * separator, the external representation used by the Java language
-     * and APIs, to a fully qualified class name that uses '/' as the
-     * package separator, the representation used in the class file
-     * format (see JVMS section {@jvms 4.2}).
-     */
-    private static String dotToSlash(String name) {
-        return name.replace('.', '/');
-    }
-
-    /**
-     * Return the number of abstract "words", or consecutive local variable
-     * indexes, required to contain a value of the given type.  See JVMS
-     * section {@jvms 3.6.1}.
-     * <p>
-     * Note that the original version of the JVMS contained a definition of
-     * this abstract notion of a "word" in section 3.4, but that definition
-     * was removed for the second edition.
-     */
-    private static int getWordsPerType(Class<?> type) {
-        if (type == long.class || type == double.class) {
-            return 2;
-        } else {
-            return 1;
-        }
-    }
-
-    /**
      * Add to the given list all of the types in the "from" array that
      * are not already contained in the list and are assignable to at
      * least one of the types in the "with" array.
@@ -449,6 +421,10 @@ final class ProxyGenerator {
     private byte[] generateClassFile() {
         var localCache = new HashMap<ClassDesc, ClassHierarchyResolver.ClassHierarchyInfo>();
         return Classfile.build(classDesc, List.of(Classfile.Option.classHierarchyResolver(classDesc ->
+                /*
+                 * Class hierarchy resolution is critical for stack maps generation.
+                 * Provided loader is used to retrieve class hierarchy info and the info is cached.
+                 */
                 localCache.computeIfAbsent(classDesc, cd -> {
                     try {
                         var desc = cd.descriptorString();
@@ -602,14 +578,14 @@ final class ProxyGenerator {
                             .dup_x1()
                             .swap()
                             .invokevirtual(CD_Throwable, "getMessage", MTD_String)
-                            .invokespecial(CD_NoSuchMethodError, "<init>", MTD_void_String)
+                            .invokespecial(CD_NoSuchMethodError, NAME_CTOR, MTD_void_String)
                             .athrow())
                     .catching(CD_ClassNotFoundException, cnfb -> cnfb
                             .new_(CD_NoClassDefFoundError)
                             .dup_x1()
                             .swap()
                             .invokevirtual(CD_Throwable, "getMessage", MTD_String)
-                            .invokespecial(CD_NoClassDefFoundError, "<init>", MTD_void_String)
+                            .invokespecial(CD_NoClassDefFoundError, NAME_CTOR, MTD_void_String)
                             .athrow())));
     }
 
@@ -638,7 +614,7 @@ final class ProxyGenerator {
                             .dup()
                             .aload(cob.parameterSlot(0))
                             .invokevirtual(CD_MethodHandles$Lookup, "toString", MTD_String)
-                            .invokespecial(CD_IllegalAccessException, "<init>", MTD_void_String)
+                            .invokespecial(CD_IllegalAccessException, NAME_CTOR, MTD_void_String)
                             .athrow()));
     }
 
@@ -733,7 +709,7 @@ final class ProxyGenerator {
                                     .new_(CD_UndeclaredThrowableException)
                                     .dup_x1()
                                     .swap()
-                                    .invokespecial(CD_UndeclaredThrowableException, "<init>", MTD_void_Throwable)
+                                    .invokespecial(CD_UndeclaredThrowableException, NAME_CTOR, MTD_void_Throwable)
                                     .athrow());
                         }
                     }));
