@@ -339,7 +339,7 @@ final class ProxyGenerator {
      * given list of declared exceptions, indicating that no exceptions
      * need to be caught.
      */
-    private static List<Class<?>> computeUniqueCatchList(Class<?>[] exceptions) {
+    private static List<ClassDesc> computeUniqueCatchList(Class<?>[] exceptions) {
         List<Class<?>> uniqueList = new ArrayList<>();
         // unique exceptions to catch
 
@@ -387,7 +387,7 @@ final class ProxyGenerator {
             // This exception is unique (so far): add it to the list to catch.
             uniqueList.add(ex);
         }
-        return uniqueList;
+        return uniqueList.stream().map(ex -> ClassDesc.ofDescriptor(ex.descriptorString())).toList();
     }
 
     /**
@@ -572,8 +572,8 @@ final class ProxyGenerator {
      * Generate the constructor method for the proxy class.
      */
     private void generateConstructor(ClassBuilder clb) {
-        clb.withMethodBody(NAME_CTOR, MTD_void_InvocationHandler, ACC_PUBLIC, cob ->
-            cob.aload(cob.receiverSlot())
+        clb.withMethodBody(NAME_CTOR, MTD_void_InvocationHandler, ACC_PUBLIC, cob -> cob
+               .aload(cob.receiverSlot())
                .aload(cob.parameterSlot(0))
                .invokespecial(CD_Proxy, NAME_CTOR, MTD_void_InvocationHandler)
                .return_());
@@ -627,7 +627,7 @@ final class ProxyGenerator {
                             .block(blockBuilder -> blockBuilder
                                     .aload(cob.parameterSlot(0))
                                     .invokevirtual(CD_MethodHandles$Lookup, "lookupClass", MTD_Class)
-                                    .constantInstruction(Opcode.LDC, Proxy.class.describeConstable().get())
+                                    .constantInstruction(Opcode.LDC, CD_Proxy)
                                     .if_acmpne(blockBuilder.breakLabel())
                                     .aload(cob.parameterSlot(0))
                                     .invokevirtual(CD_MethodHandles$Lookup, "hasFullPrivilegeAccess", MTD_boolean)
@@ -726,7 +726,7 @@ final class ProxyGenerator {
                         }
                     }, catchBuilder -> {
                         if (!catchList.isEmpty()) {
-                            catchBuilder.catchingMulti(catchList.stream().map(ex -> ClassDesc.ofDescriptor(ex.descriptorString())).toList(), ehb -> ehb
+                            catchBuilder.catchingMulti(catchList, ehb -> ehb
                                     .athrow());   // just rethrow the exception
 
                             catchBuilder.catching(CD_Throwable, ehb -> ehb
