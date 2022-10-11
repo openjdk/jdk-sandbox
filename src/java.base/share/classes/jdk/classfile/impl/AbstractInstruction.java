@@ -1328,7 +1328,7 @@ public abstract sealed class AbstractInstruction
 
         public ExceptionCatchImpl(Label handler, Label tryStart, Label tryEnd,
                                   ClassEntry catchTypeEntry) {
-            super(Opcode.EXCEPTION_CATCH, 0);
+            super(Opcode.PSEUDO, 0);
             this.catchTypeEntry = catchTypeEntry;
             this.handler = handler;
             this.tryStart = tryStart;
@@ -1337,7 +1337,7 @@ public abstract sealed class AbstractInstruction
 
         public ExceptionCatchImpl(Label handler, Label tryStart, Label tryEnd,
                                   Optional<ClassEntry> catchTypeEntry) {
-            super(Opcode.EXCEPTION_CATCH, 0);
+            super(Opcode.PSEUDO, 0);
             this.catchTypeEntry = catchTypeEntry.orElse(null);
             this.handler = handler;
             this.tryStart = tryStart;
@@ -1391,7 +1391,7 @@ public abstract sealed class AbstractInstruction
 
         public UnboundCharacterRange(Label startScope, Label endScope, int characterRangeStart,
                                      int characterRangeEnd, int flags) {
-            super(Opcode.CHARACTER_RANGE, 0);
+            super(Opcode.PSEUDO, 0);
             this.startScope = startScope;
             this.endScope = endScope;
             this.characterRangeStart = characterRangeStart;
@@ -1438,8 +1438,8 @@ public abstract sealed class AbstractInstruction
         protected final Label startScope;
         protected final Label endScope;
 
-        public AbstractLocalPseudo(Opcode op, int slot, Utf8Entry name, Utf8Entry descriptor, Label startScope, Label endScope) {
-            super(op, 0);
+        public AbstractLocalPseudo(int slot, Utf8Entry name, Utf8Entry descriptor, Label startScope, Label endScope) {
+            super(Opcode.PSEUDO, 0);
             this.slot = slot;
             this.name = name;
             this.descriptor = descriptor;
@@ -1484,7 +1484,7 @@ public abstract sealed class AbstractInstruction
             implements LocalVariable {
 
         public UnboundLocalVariable(int slot, Utf8Entry name, Utf8Entry descriptor, Label startScope, Label endScope) {
-            super(Opcode.LOCAL_VARIABLE, slot, name, descriptor, startScope, endScope);
+            super(slot, name, descriptor, startScope, endScope);
         }
 
         @Override
@@ -1510,7 +1510,7 @@ public abstract sealed class AbstractInstruction
             implements LocalVariableType {
 
         public UnboundLocalVariableType(int slot, Utf8Entry name, Utf8Entry signature, Label startScope, Label endScope) {
-            super(Opcode.LOCAL_VARIABLE_TYPE, slot, name, signature, startScope, endScope);
+            super(slot, name, signature, startScope, endScope);
         }
 
         @Override

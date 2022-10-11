@@ -45,10 +45,6 @@ public class AbstractBoundLocalVariable
         this.offset = offset;
     }
 
-    public int sizeInBytes() {
-        return 0;
-    }
-
     protected int nameIndex() {
         return code.classReader.readU2(offset + 4);
     }

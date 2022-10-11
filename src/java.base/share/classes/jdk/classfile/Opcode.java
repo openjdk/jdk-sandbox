@@ -250,17 +250,7 @@ public enum Opcode {
     RET_W(0xc400 | Classfile.RET, 4, Kind.UNSUPPORTED),
     IINC_W(0xc400 | Classfile.IINC, 6, Kind.INCREMENT, TypeKind.IntType, -1),
     // PSEUDO INSTRUCTIONS
-    LABEL_TARGET(0xFF01, 0, Kind.LABEL_TARGET),
-    EXCEPTION_CATCH(0xFF02, 0, Kind.EXCEPTION_CATCH),
-    CHARACTER_RANGE(0xFF03, 0, Kind.CHARACTER_RANGE),
-    LOCAL_VARIABLE(0xFF04, 0, Kind.LOCAL_VARIABLE),
-    LINE_NUMBER(0xFF05, 0, Kind.LINE_NUMBER),
-    PARAMETER_ANNO(0xFF06, 0, Kind.PARAMETER_ANNOTATION),
-    TYPE_ANNO(0xFF07, 0, Kind.TYPE_ANNOTATION),
-    LOCAL_VARIABLE_TYPE(0xFF08, 0, Kind.LOCAL_VARIABLE_TYPE),
-    STACK_MAP(0xFF09, 0, Kind.STACK_MAP),
-    END(0xFF0A, 0, Kind.END),
-    ;
+    PSEUDO(-1, 0, Kind.PSEUDO);
 
     /**
      * Kinds of opcodes.
@@ -271,8 +261,7 @@ public enum Opcode {
         NEW_OBJECT, NEW_PRIMITIVE_ARRAY, NEW_REF_ARRAY, NEW_MULTI_ARRAY,
         TYPE_CHECK, ARRAY_LOAD, ARRAY_STORE, STACK, CONVERT, OPERATOR, CONSTANT,
         MONITOR, NOP, UNSUPPORTED,
-        LABEL_TARGET, EXCEPTION_CATCH, CHARACTER_RANGE, LOCAL_VARIABLE, LOCAL_VARIABLE_TYPE, LINE_NUMBER,
-        PARAMETER_ANNOTATION, STACK_MAP, TYPE_ANNOTATION, END;
+        PSEUDO;
     }
 
     private final int bytecode;
@@ -321,9 +310,7 @@ public enum Opcode {
 
     public int bytecode() { return bytecode; }
 
-    public boolean isWide() { return bytecode > 255 && !isPseudo(); }
-
-    public boolean isPseudo() { return bytecode >= 0xFF00; }
+    public boolean isWide() { return bytecode > 255; }
 
     public int sizeIfFixed() { return sizeIfFixed; }
 

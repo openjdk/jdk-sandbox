@@ -86,16 +86,15 @@ public final class BlockCodeBuilderImpl
 
     @Override
     public CodeBuilder with(CodeElement element) {
-        Opcode op = element.opcode();
         parent.with(element);
 
-        hasInstructions |= !op.isPseudo();
+        hasInstructions |= element instanceof Instruction;
 
         if (reachable) {
-            if (op.isUnconditionalBranch())
+            if (element.opcode().isUnconditionalBranch())
                 reachable = false;
         }
-        else if (op == Opcode.LABEL_TARGET) {
+        else if (element instanceof LabelTarget) {
             reachable = true;
         }
         return this;

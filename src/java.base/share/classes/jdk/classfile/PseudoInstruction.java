@@ -24,6 +24,7 @@
  */
 package jdk.classfile;
 
+import jdk.classfile.Opcode;
 import jdk.classfile.attribute.CodeAttribute;
 import jdk.classfile.instruction.CharacterRange;
 import jdk.classfile.instruction.ExceptionCatch;
@@ -44,4 +45,13 @@ public sealed interface PseudoInstruction
         extends CodeElement
         permits CharacterRange, ExceptionCatch, LabelTarget, LineNumber, LocalVariable, LocalVariableType {
 
+    @Override
+    default Opcode opcode() {
+        return Opcode.PSEUDO;
+    }
+
+    @Override
+    default int sizeInBytes() {
+        return 0;
+    }
 }
