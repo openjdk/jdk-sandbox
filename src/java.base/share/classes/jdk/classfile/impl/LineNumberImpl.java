@@ -58,11 +58,6 @@ public final class LineNumberImpl
     }
 
     @Override
-    public Kind codeKind() {
-        return Kind.LINE_NUMBER;
-    }
-
-    @Override
     public Opcode opcode() {
         return Opcode.LOCAL_VARIABLE_TYPE;
     }

@@ -36,6 +36,7 @@ import jdk.classfile.Classfile;
 import jdk.classfile.CodeElement;
 import jdk.classfile.CodeModel;
 import jdk.classfile.MethodModel;
+import jdk.classfile.Opcode;
 import jdk.classfile.TypeKind;
 import jdk.classfile.impl.StackMapGenerator;
 import jdk.classfile.components.ClassRemapper;
@@ -330,7 +331,7 @@ public class AdvancedTransformationsTest {
                                                         .andThen(CodeRelabeler.of())
                                                         .andThen((innerBuilder, shiftedTargetCode) -> {
                                                             //returns must be replaced with jump to the end of the inlined method
-                                                            if (shiftedTargetCode.codeKind() == CodeElement.Kind.RETURN)
+                                                            if (shiftedTargetCode.opcode().kind() == Opcode.Kind.RETURN)
                                                                 innerBuilder.goto_(inlinedBlockBuilder.breakLabel());
                                                             else
                                                                 innerBuilder.with(shiftedTargetCode);

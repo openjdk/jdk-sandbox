@@ -32,6 +32,7 @@ import jdk.classfile.TypeKind;
 import jdk.classfile.instruction.LabelTarget;
 
 import java.util.Objects;
+import jdk.classfile.Instruction;
 
 /**
  * BlockCodeBuilder

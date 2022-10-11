@@ -70,11 +70,6 @@ public final class LabelImpl
     }
 
     @Override
-    public Kind codeKind() {
-        return Kind.LABEL_TARGET;
-    }
-
-    @Override
     public Opcode opcode() {
         return Opcode.LABEL_TARGET;
     }

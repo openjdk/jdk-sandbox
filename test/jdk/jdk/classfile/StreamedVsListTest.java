@@ -111,7 +111,7 @@ public class StreamedVsListTest {
         }
 
         void testInstruction() {
-            switch (iim.codeKind()) {
+            switch (iim.opcode().kind()) {
                 case LOAD: {
                     LoadInstruction i = (LoadInstruction) iim;
                     LoadInstruction x = (LoadInstruction) mim;

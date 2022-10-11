@@ -65,7 +65,7 @@ public class BSMTest {
                 cb.transformMethod(mm, (mb, me) -> {
                     if (me instanceof CodeModel xm) {
                         mb.transformCode(xm, (codeB, codeE) -> {
-                            switch (codeE.codeKind()) {
+                            switch (codeE.opcode().kind()) {
                                 case CONSTANT -> {
                                     ConstantPoolBuilder cpb = codeB.constantPool();
 

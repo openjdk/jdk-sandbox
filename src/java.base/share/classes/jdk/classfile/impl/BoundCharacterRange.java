@@ -86,11 +86,6 @@ public final class BoundCharacterRange
     }
 
     @Override
-    public Kind codeKind() {
-        return CodeElement.Kind.CHARACTER_RANGE;
-    }
-
-    @Override
     public int sizeInBytes() {
         return 0;
     }

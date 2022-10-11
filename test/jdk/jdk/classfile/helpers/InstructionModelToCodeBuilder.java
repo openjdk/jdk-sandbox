@@ -58,7 +58,7 @@ import jdk.classfile.instruction.TypeCheckInstruction;
 public class InstructionModelToCodeBuilder {
 
     public static void toBuilder(CodeElement model, CodeBuilder cb) {
-        switch (model.codeKind()) {
+        switch (model.opcode().kind()) {
             case LOAD: {
                 LoadInstruction im = (LoadInstruction) model;
                 cb.loadInstruction(im.typeKind(), im.slot());

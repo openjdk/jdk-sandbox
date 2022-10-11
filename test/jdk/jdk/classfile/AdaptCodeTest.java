@@ -82,7 +82,7 @@ public class AdaptCodeTest {
         ClassModel cm = Classfile.parse(testClassPath);
 
         var transform = ClassTransform.transformingMethodBodies((codeB, codeE) -> {
-            switch (codeE.codeKind()) {
+            switch (codeE.opcode().kind()) {
                 case CONSTANT -> {
                     ConstantInstruction i = (ConstantInstruction) codeE;
                     ConstantDesc val = i.constantValue();

@@ -94,11 +94,6 @@ public abstract sealed class AbstractInstruction
         return size;
     }
 
-    @Override
-    public Kind codeKind() {
-        return op.kind();
-    }
-
     public AbstractInstruction(Opcode op, int size) {
         this.op = op;
         this.size = size;
@@ -232,7 +227,7 @@ public abstract sealed class AbstractInstruction
 
         @Override
         public String toString() {
-            return String.format("Branch[OP=%s, kind=%s]", this.opcode(), codeKind());
+            return String.format("Branch[OP=%s]", this.opcode());
         }
 
     }

@@ -41,10 +41,6 @@ public sealed interface CodeElement extends ClassfileElement
         permits Instruction, PseudoInstruction, AbstractInstruction,
                 CustomAttribute, RuntimeVisibleTypeAnnotationsAttribute, RuntimeInvisibleTypeAnnotationsAttribute,
                 StackMapTableAttribute {
-    /**
-     * {@return the kind of this instruction}
-     */
-    Kind codeKind();
 
     /**
      * {@return the opcode of this instruction}
@@ -55,18 +51,4 @@ public sealed interface CodeElement extends ClassfileElement
      * {@return the size in bytes of this instruction}
      */
     int sizeInBytes();
-
-    /**
-     * Kinds of instructions.
-     */
-    enum Kind {
-        LOAD, STORE, INCREMENT, BRANCH, LOOKUP_SWITCH, TABLE_SWITCH, RETURN, THROW_EXCEPTION,
-        FIELD_ACCESS, INVOKE, INVOKE_DYNAMIC,
-        NEW_OBJECT, NEW_PRIMITIVE_ARRAY, NEW_REF_ARRAY, NEW_MULTI_ARRAY,
-        TYPE_CHECK, ARRAY_LOAD, ARRAY_STORE, STACK, CONVERT, OPERATOR, CONSTANT,
-        MONITOR, NOP, UNSUPPORTED,
-        LABEL_TARGET, EXCEPTION_CATCH, CHARACTER_RANGE, LOCAL_VARIABLE, LOCAL_VARIABLE_TYPE, LINE_NUMBER,
-        PARAMETER_ANNOTATION, STACK_MAP, TYPE_ANNOTATION, END;
-    }
-
 }

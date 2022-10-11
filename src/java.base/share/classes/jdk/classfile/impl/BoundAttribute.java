@@ -252,11 +252,6 @@ public abstract sealed class BoundAttribute<T extends Attribute<T>>
         }
 
         @Override
-        public Kind codeKind() {
-            return Kind.STACK_MAP;
-        }
-
-        @Override
         public Opcode opcode() {
             return Opcode.STACK_MAP;
         }
@@ -893,11 +888,6 @@ public abstract sealed class BoundAttribute<T extends Attribute<T>>
         }
 
         @Override
-        public Kind codeKind() {
-            return Kind.TYPE_ANNOTATION;
-        }
-
-        @Override
         public Opcode opcode() {
             return Opcode.TYPE_ANNO;
         }
@@ -921,11 +911,6 @@ public abstract sealed class BoundAttribute<T extends Attribute<T>>
         @Override
         public List<TypeAnnotation> annotations() {
             return AnnotationReader.readTypeAnnotations(classReader, payloadStart, labelContext);
-        }
-
-        @Override
-        public Kind codeKind() {
-            return Kind.TYPE_ANNOTATION;
         }
 
         @Override

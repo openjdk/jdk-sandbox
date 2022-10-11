@@ -259,11 +259,6 @@ public abstract sealed class UnboundAttribute<T extends Attribute<T>>
         }
 
         @Override
-        public Kind codeKind() {
-            return Kind.STACK_MAP;
-        }
-
-        @Override
         public Opcode opcode() {
             return Opcode.STACK_MAP;
         }
@@ -672,11 +667,6 @@ public abstract sealed class UnboundAttribute<T extends Attribute<T>>
         }
 
         @Override
-        public Kind codeKind() {
-            return Kind.TYPE_ANNOTATION;
-        }
-
-        @Override
         public Opcode opcode() {
             return Opcode.TYPE_ANNO;
         }
@@ -700,11 +690,6 @@ public abstract sealed class UnboundAttribute<T extends Attribute<T>>
         @Override
         public List<TypeAnnotation> annotations() {
             return elements;
-        }
-
-        @Override
-        public Kind codeKind() {
-            return Kind.TYPE_ANNOTATION;
         }
 
         @Override
