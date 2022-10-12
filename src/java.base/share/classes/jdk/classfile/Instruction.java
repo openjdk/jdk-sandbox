@@ -25,7 +25,6 @@
 
 package jdk.classfile;
 
-import jdk.classfile.impl.AbstractInstruction;
 import jdk.classfile.instruction.ArrayLoadInstruction;
 import jdk.classfile.instruction.ArrayStoreInstruction;
 import jdk.classfile.instruction.BranchInstruction;
@@ -65,4 +64,13 @@ public sealed interface Instruction extends CodeElement
                 StackInstruction, TableSwitchInstruction,
                 ThrowInstruction, TypeCheckInstruction {
 
+    /**
+     * {@return the opcode of this instruction}
+     */
+    Opcode opcode();
+
+    /**
+     * {@return the size in bytes of this instruction}
+     */
+    int sizeInBytes();
 }

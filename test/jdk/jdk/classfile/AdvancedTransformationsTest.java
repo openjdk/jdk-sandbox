@@ -60,6 +60,7 @@ import jdk.classfile.attribute.ModuleAttribute;
 import jdk.classfile.impl.AbstractInstruction;
 import jdk.classfile.impl.RawBytecodeHelper;
 import jdk.classfile.instruction.InvokeInstruction;
+import jdk.classfile.instruction.ReturnInstruction;
 import jdk.classfile.instruction.StoreInstruction;
 import java.lang.reflect.AccessFlag;
 import jdk.classfile.components.CodeRelabeler;
@@ -331,7 +332,7 @@ public class AdvancedTransformationsTest {
                                                         .andThen(CodeRelabeler.of())
                                                         .andThen((innerBuilder, shiftedTargetCode) -> {
                                                             //returns must be replaced with jump to the end of the inlined method
-                                                            if (shiftedTargetCode.opcode().kind() == Opcode.Kind.RETURN)
+                                                            if (shiftedTargetCode instanceof ReturnInstruction)
                                                                 innerBuilder.goto_(inlinedBlockBuilder.breakLabel());
                                                             else
                                                                 innerBuilder.with(shiftedTargetCode);

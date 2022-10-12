@@ -26,8 +26,8 @@ package jdk.classfile.impl;
 
 import jdk.classfile.CodeBuilder;
 import jdk.classfile.CodeElement;
+import jdk.classfile.Instruction;
 import jdk.classfile.Label;
-import jdk.classfile.Opcode;
 import jdk.classfile.TypeKind;
 import jdk.classfile.instruction.LabelTarget;
 
@@ -91,7 +91,7 @@ public final class BlockCodeBuilderImpl
         hasInstructions |= element instanceof Instruction;
 
         if (reachable) {
-            if (element.opcode().isUnconditionalBranch())
+            if (element instanceof Instruction i && i.opcode().isUnconditionalBranch())
                 reachable = false;
         }
         else if (element instanceof LabelTarget) {

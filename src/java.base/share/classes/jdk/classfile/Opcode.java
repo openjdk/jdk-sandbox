@@ -248,9 +248,7 @@ public enum Opcode {
     DSTORE_W(0xc400 | Classfile.DSTORE, 4, Kind.STORE, TypeKind.DoubleType, -1),
     ASTORE_W(0xc400 | Classfile.ASTORE, 4, Kind.STORE, TypeKind.ReferenceType, -1),
     RET_W(0xc400 | Classfile.RET, 4, Kind.UNSUPPORTED),
-    IINC_W(0xc400 | Classfile.IINC, 6, Kind.INCREMENT, TypeKind.IntType, -1),
-    // PSEUDO INSTRUCTIONS
-    PSEUDO(-1, 0, Kind.PSEUDO);
+    IINC_W(0xc400 | Classfile.IINC, 6, Kind.INCREMENT, TypeKind.IntType, -1);
 
     /**
      * Kinds of opcodes.
@@ -260,8 +258,7 @@ public enum Opcode {
         FIELD_ACCESS, INVOKE, INVOKE_DYNAMIC,
         NEW_OBJECT, NEW_PRIMITIVE_ARRAY, NEW_REF_ARRAY, NEW_MULTI_ARRAY,
         TYPE_CHECK, ARRAY_LOAD, ARRAY_STORE, STACK, CONVERT, OPERATOR, CONSTANT,
-        MONITOR, NOP, UNSUPPORTED,
-        PSEUDO;
+        MONITOR, NOP, UNSUPPORTED;
     }
 
     private final int bytecode;

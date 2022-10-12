@@ -41,14 +41,4 @@ public sealed interface CodeElement extends ClassfileElement
         permits Instruction, PseudoInstruction, AbstractInstruction,
                 CustomAttribute, RuntimeVisibleTypeAnnotationsAttribute, RuntimeInvisibleTypeAnnotationsAttribute,
                 StackMapTableAttribute {
-
-    /**
-     * {@return the opcode of this instruction}
-     */
-    Opcode opcode();
-
-    /**
-     * {@return the size in bytes of this instruction}
-     */
-    int sizeInBytes();
 }

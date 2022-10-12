@@ -250,16 +250,6 @@ public abstract sealed class BoundAttribute<T extends Attribute<T>>
             }
             return entries;
         }
-
-        @Override
-        public Opcode opcode() {
-            return Opcode.PSEUDO;
-        }
-
-        @Override
-        public int sizeInBytes() {
-            return 0;
-        }
     }
 
     public static final class BoundSyntheticAttribute extends BoundAttribute<SyntheticAttribute>
@@ -886,16 +876,6 @@ public abstract sealed class BoundAttribute<T extends Attribute<T>>
         public List<TypeAnnotation> annotations() {
             return AnnotationReader.readTypeAnnotations(classReader, payloadStart, labelContext);
         }
-
-        @Override
-        public Opcode opcode() {
-            return Opcode.PSEUDO;
-        }
-
-        @Override
-        public int sizeInBytes() {
-            return 0;
-        }
     }
 
     public static final class BoundRuntimeInvisibleTypeAnnotationsAttribute
@@ -911,16 +891,6 @@ public abstract sealed class BoundAttribute<T extends Attribute<T>>
         @Override
         public List<TypeAnnotation> annotations() {
             return AnnotationReader.readTypeAnnotations(classReader, payloadStart, labelContext);
-        }
-
-        @Override
-        public Opcode opcode() {
-            return Opcode.PSEUDO;
-        }
-
-        @Override
-        public int sizeInBytes() {
-            return 0;
         }
     }
 

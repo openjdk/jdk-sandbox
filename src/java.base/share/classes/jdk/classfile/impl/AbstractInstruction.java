@@ -84,12 +84,10 @@ public abstract sealed class AbstractInstruction
     final Opcode op;
     final int size;
 
-    @Override
     public Opcode opcode() {
         return op;
     }
 
-    @Override
     public int sizeInBytes() {
         return size;
     }
@@ -1328,7 +1326,7 @@ public abstract sealed class AbstractInstruction
 
         public ExceptionCatchImpl(Label handler, Label tryStart, Label tryEnd,
                                   ClassEntry catchTypeEntry) {
-            super(Opcode.PSEUDO, 0);
+            super(null, 0);
             this.catchTypeEntry = catchTypeEntry;
             this.handler = handler;
             this.tryStart = tryStart;
@@ -1337,7 +1335,7 @@ public abstract sealed class AbstractInstruction
 
         public ExceptionCatchImpl(Label handler, Label tryStart, Label tryEnd,
                                   Optional<ClassEntry> catchTypeEntry) {
-            super(Opcode.PSEUDO, 0);
+            super(null, 0);
             this.catchTypeEntry = catchTypeEntry.orElse(null);
             this.handler = handler;
             this.tryStart = tryStart;
@@ -1391,7 +1389,7 @@ public abstract sealed class AbstractInstruction
 
         public UnboundCharacterRange(Label startScope, Label endScope, int characterRangeStart,
                                      int characterRangeEnd, int flags) {
-            super(Opcode.PSEUDO, 0);
+            super(null, 0);
             this.startScope = startScope;
             this.endScope = endScope;
             this.characterRangeStart = characterRangeStart;
@@ -1439,7 +1437,7 @@ public abstract sealed class AbstractInstruction
         protected final Label endScope;
 
         public AbstractLocalPseudo(int slot, Utf8Entry name, Utf8Entry descriptor, Label startScope, Label endScope) {
-            super(Opcode.PSEUDO, 0);
+            super(null, 0);
             this.slot = slot;
             this.name = name;
             this.descriptor = descriptor;
