@@ -31,6 +31,7 @@
 import java.util.EnumSet;
 import java.util.Random;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.lang.reflect.AccessFlag;
@@ -74,10 +75,13 @@ class AccessFlagsTest {
     @Test
     void testInvalidFlagsUse() {
         assertAll(
-            "Check factories in AccessFlags accepting variadic AccessFlag values with illegal arguments",
-            () -> assertThrows(IllegalArgumentException.class, () -> AccessFlags.ofClass(AccessFlag.values())),
-            () -> assertThrows(IllegalArgumentException.class, () -> AccessFlags.ofField(AccessFlag.values())),
-            () -> assertThrows(IllegalArgumentException.class, () -> AccessFlags.ofMethod(AccessFlag.values()))
+            () -> assertThrowsForInvalidFlagsUse(AccessFlags::ofClass),
+            () -> assertThrowsForInvalidFlagsUse(AccessFlags::ofField),
+            () -> assertThrowsForInvalidFlagsUse(AccessFlags::ofMethod)
         );
+    }
+
+    void assertThrowsForInvalidFlagsUse(Consumer<AccessFlag[]> factory) {
+        assertThrows(IllegalArgumentException.class, () -> factory.accept(AccessFlag.values()));
     }
 }
