@@ -237,18 +237,18 @@ public enum Opcode {
     IFNONNULL(Classfile.IFNONNULL, 3, Kind.BRANCH, TypeKind.IntType),
     GOTO_W(Classfile.GOTO_W, 5, Kind.BRANCH, TypeKind.VoidType),
     JSR_W(Classfile.JSR_W, 5, Kind.UNSUPPORTED),
-    ILOAD_W(0xc400 | Classfile.ILOAD, 4, Kind.LOAD, TypeKind.IntType, -1),
-    LLOAD_W(0xc400 | Classfile.LLOAD, 4, Kind.LOAD, TypeKind.LongType, -1),
-    FLOAD_W(0xc400 | Classfile.FLOAD, 4, Kind.LOAD, TypeKind.FloatType, -1),
-    DLOAD_W(0xc400 | Classfile.DLOAD, 4, Kind.LOAD, TypeKind.DoubleType, -1),
-    ALOAD_W(0xc400 | Classfile.ALOAD, 4, Kind.LOAD, TypeKind.ReferenceType, -1),
-    ISTORE_W(0xc400 | Classfile.ISTORE, 4, Kind.STORE, TypeKind.IntType, -1),
-    LSTORE_W(0xc400 | Classfile.LSTORE, 4, Kind.STORE, TypeKind.LongType, -1),
-    FSTORE_W(0xc400 | Classfile.FSTORE, 4, Kind.STORE, TypeKind.FloatType, -1),
-    DSTORE_W(0xc400 | Classfile.DSTORE, 4, Kind.STORE, TypeKind.DoubleType, -1),
-    ASTORE_W(0xc400 | Classfile.ASTORE, 4, Kind.STORE, TypeKind.ReferenceType, -1),
-    RET_W(0xc400 | Classfile.RET, 4, Kind.UNSUPPORTED),
-    IINC_W(0xc400 | Classfile.IINC, 6, Kind.INCREMENT, TypeKind.IntType, -1);
+    ILOAD_W((Classfile.WIDE << 8) | Classfile.ILOAD, 4, Kind.LOAD, TypeKind.IntType, -1),
+    LLOAD_W((Classfile.WIDE << 8) | Classfile.LLOAD, 4, Kind.LOAD, TypeKind.LongType, -1),
+    FLOAD_W((Classfile.WIDE << 8) | Classfile.FLOAD, 4, Kind.LOAD, TypeKind.FloatType, -1),
+    DLOAD_W((Classfile.WIDE << 8) | Classfile.DLOAD, 4, Kind.LOAD, TypeKind.DoubleType, -1),
+    ALOAD_W((Classfile.WIDE << 8) | Classfile.ALOAD, 4, Kind.LOAD, TypeKind.ReferenceType, -1),
+    ISTORE_W((Classfile.WIDE << 8) | Classfile.ISTORE, 4, Kind.STORE, TypeKind.IntType, -1),
+    LSTORE_W((Classfile.WIDE << 8) | Classfile.LSTORE, 4, Kind.STORE, TypeKind.LongType, -1),
+    FSTORE_W((Classfile.WIDE << 8) | Classfile.FSTORE, 4, Kind.STORE, TypeKind.FloatType, -1),
+    DSTORE_W((Classfile.WIDE << 8) | Classfile.DSTORE, 4, Kind.STORE, TypeKind.DoubleType, -1),
+    ASTORE_W((Classfile.WIDE << 8) | Classfile.ASTORE, 4, Kind.STORE, TypeKind.ReferenceType, -1),
+    RET_W((Classfile.WIDE << 8) | Classfile.RET, 4, Kind.UNSUPPORTED),
+    IINC_W((Classfile.WIDE << 8) | Classfile.IINC, 6, Kind.INCREMENT, TypeKind.IntType, -1);
 
     /**
      * Kinds of opcodes.
