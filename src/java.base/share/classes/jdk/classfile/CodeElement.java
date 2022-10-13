@@ -27,7 +27,6 @@ package jdk.classfile;
 import jdk.classfile.attribute.RuntimeInvisibleTypeAnnotationsAttribute;
 import jdk.classfile.attribute.RuntimeVisibleTypeAnnotationsAttribute;
 import jdk.classfile.attribute.StackMapTableAttribute;
-import jdk.classfile.impl.AbstractInstruction;
 
 /**
  * A {@link ClassfileElement} that can appear when traversing the elements
@@ -38,7 +37,7 @@ import jdk.classfile.impl.AbstractInstruction;
  * exception metadata, label target metadata, etc.
  */
 public sealed interface CodeElement extends ClassfileElement
-        permits Instruction, PseudoInstruction, AbstractInstruction,
+        permits Instruction, PseudoInstruction,
                 CustomAttribute, RuntimeVisibleTypeAnnotationsAttribute, RuntimeInvisibleTypeAnnotationsAttribute,
                 StackMapTableAttribute {
 }

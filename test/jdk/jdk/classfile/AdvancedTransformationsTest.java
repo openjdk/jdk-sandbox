@@ -70,6 +70,7 @@ import static java.lang.annotation.ElementType.*;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import jdk.classfile.impl.AbstractPseudoInstruction;
 
 public class AdvancedTransformationsTest {
 
@@ -109,7 +110,7 @@ public class AdvancedTransformationsTest {
     public void testRemapClass() throws Exception {
         var map = Map.of(
                 ConstantDescs.CD_List, ClassDesc.of("remapped.List"),
-                ClassDesc.ofDescriptor(AbstractInstruction.ExceptionCatchImpl.class.descriptorString()), ClassDesc.of("remapped.ExceptionCatchImpl"),
+                ClassDesc.ofDescriptor(AbstractPseudoInstruction.ExceptionCatchImpl.class.descriptorString()), ClassDesc.of("remapped.ExceptionCatchImpl"),
                 ClassDesc.ofDescriptor(RawBytecodeHelper.class.descriptorString()), ClassDesc.of("remapped.RemappedBytecode"),
                 ClassDesc.ofDescriptor(StackMapGenerator.class.descriptorString()), ClassDesc.of("remapped.StackMapGenerator")
         );
