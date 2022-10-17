@@ -26,35 +26,30 @@
 /*
  * @test
  * @summary Testing PackageDesc.
- * @run testng PackageDescTest
+ * @run junit PackageDescTest
  */
 import jdk.classfile.jdktypes.PackageDesc;
-import org.testng.annotations.Test;
-import org.testng.annotations.DataProvider;
-import static org.testng.Assert.assertEquals;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-/**
- *
- */
 public class PackageDescTest {
-
-    @DataProvider(name = "invalidPackageNames")
-    public static String[] invalidPackageNames() {
-        return new String[] {"a/b.d", "a[]", "a;"};
-    }
-
-    @Test(dataProvider = "invalidPackageNames", expectedExceptions = IllegalArgumentException.class)
+    @ParameterizedTest
+    @ValueSource(strings = {"a/b.d", "a[]", "a;"})
     public void testInvalidPackageNames(String pkg) {
-        PackageDesc.of(pkg);
+        assertThrows(IllegalArgumentException.class, () -> PackageDesc.of(pkg));
     }
 
-    @Test(dataProvider = "invalidPackageNames", expectedExceptions = IllegalArgumentException.class)
+    @ParameterizedTest
+    @ValueSource(strings = {"a/b.d", "a[]", "a;"})
     public void testInvalidInternalPackageNames(String pkg) {
-        PackageDesc.ofInternalName(pkg);
+        assertThrows(IllegalArgumentException.class, () -> PackageDesc.ofInternalName(pkg));
     }
 
     @Test
-    public void testValidPackageNames() {
+    void testValidPackageNames() {
         assertEquals(PackageDesc.of("a"), PackageDesc.ofInternalName("a"));
         assertEquals(PackageDesc.of("a.b"), PackageDesc.ofInternalName("a/b"));
         assertEquals(PackageDesc.of("a.b.c"), PackageDesc.ofInternalName("a/b/c"));
