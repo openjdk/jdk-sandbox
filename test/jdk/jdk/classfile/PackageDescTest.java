@@ -35,16 +35,16 @@ import org.junit.jupiter.params.provider.ValueSource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-public class PackageDescTest {
+class PackageDescTest {
     @ParameterizedTest
     @ValueSource(strings = {"a/b.d", "a[]", "a;"})
-    public void testInvalidPackageNames(String pkg) {
+    void testInvalidPackageNames(String pkg) {
         assertThrows(IllegalArgumentException.class, () -> PackageDesc.of(pkg));
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"a/b.d", "a[]", "a;"})
-    public void testInvalidInternalPackageNames(String pkg) {
+    void testInvalidInternalPackageNames(String pkg) {
         assertThrows(IllegalArgumentException.class, () -> PackageDesc.ofInternalName(pkg));
     }
 
