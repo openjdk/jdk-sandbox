@@ -105,7 +105,7 @@ extends <a href="../Instruction.html" title="interface in jdk.classfile">Instruc
  Code</code> attribute, including "intrinsic constant" instructions (e.g., <code>
  aload_0</code>), "argument constant" instructions (e.g., <code>bipush</code>), and "load
  constant" instructions (e.g., <code>LDC</code>).  Corresponding opcodes will have
- a <code>kind</code> of <a href="../CodeElement.Kind.html#CONSTANT"><code>CodeElement.Kind.CONSTANT</code></a>.  Delivered as a <a href="../CodeElement.html" title="interface in jdk.classfile"><code>CodeElement</code></a> when traversing the elements of a <a href="../CodeModel.html" title="interface in jdk.classfile"><code>CodeModel</code></a>.</div>
+ a <code>kind</code> of <a href="../Opcode.Kind.html#CONSTANT"><code>Opcode.Kind.CONSTANT</code></a>.  Delivered as a <a href="../CodeElement.html" title="interface in jdk.classfile"><code>CodeElement</code></a> when traversing the elements of a <a href="../CodeModel.html" title="interface in jdk.classfile"><code>CodeModel</code></a>.</div>
 </section>
 <section class="summary">
 <ul class="summary-list">
@@ -137,9 +137,6 @@ extends <a href="../Instruction.html" title="interface in jdk.classfile">Instruc
  ldc</code>).</div>
 </div>
 </div>
-<div class="inherited-list">
-<h2 id="nested-classes-inherited-from-class-jdk.classfile.CodeElement">Nested classes/interfaces inherited from interface&nbsp;jdk.classfile.<a href="../CodeElement.html" title="interface in jdk.classfile">CodeElement</a></h2>
-<code><a href="../CodeElement.Kind.html" title="enum class in jdk.classfile">CodeElement.Kind</a></code></div>
 </section>
 </li>
 <!-- ========== METHOD SUMMARY =========== -->
@@ -184,8 +181,8 @@ extends <a href="../Instruction.html" title="interface in jdk.classfile">Instruc
 </div>
 </div>
 <div class="inherited-list">
-<h3 id="methods-inherited-from-class-jdk.classfile.CodeElement">Methods inherited from interface&nbsp;jdk.classfile.<a href="../CodeElement.html" title="interface in jdk.classfile">CodeElement</a></h3>
-<code><a href="../CodeElement.html#codeKind()">codeKind</a>, <a href="../CodeElement.html#opcode()">opcode</a>, <a href="../CodeElement.html#sizeInBytes()">sizeInBytes</a></code></div>
+<h3 id="methods-inherited-from-class-jdk.classfile.Instruction">Methods inherited from interface&nbsp;jdk.classfile.<a href="../Instruction.html" title="interface in jdk.classfile">Instruction</a></h3>
+<code><a href="../Instruction.html#opcode()">opcode</a>, <a href="../Instruction.html#sizeInBytes()">sizeInBytes</a></code></div>
 </section>
 </li>
 </ul>
@@ -227,7 +224,12 @@ extends <a href="../Instruction.html" title="interface in jdk.classfile">Instruc
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>op</code> - the opcode for the specific type of intrinsic constant instruction,
-           which must be of kind <a href="../CodeElement.Kind.html#CONSTANT"><code>CodeElement.Kind.CONSTANT</code></a></dd>
+           which must be of kind 
+<details class="invalid-tag">
+<summary>invalid @link</summary>
+<pre><code>Kind#CONSTANT</code></pre>
+</details>
+</dd>
 <dt>Returns:</dt>
 <dd>an intrinsic constant instruction</dd>
 </dl>
@@ -242,7 +244,12 @@ extends <a href="../Instruction.html" title="interface in jdk.classfile">Instruc
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>op</code> - the opcode for the specific type of intrinsic constant instruction,
-           which must be of kind <a href="../CodeElement.Kind.html#CONSTANT"><code>CodeElement.Kind.CONSTANT</code></a></dd>
+           which must be of kind 
+<details class="invalid-tag">
+<summary>invalid @link</summary>
+<pre><code>Kind#CONSTANT</code></pre>
+</details>
+</dd>
 <dd><code>value</code> - the constant value</dd>
 <dt>Returns:</dt>
 <dd>an argument constant instruction</dd>
@@ -258,7 +265,12 @@ extends <a href="../Instruction.html" title="interface in jdk.classfile">Instruc
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>op</code> - the opcode for the specific type of load constant instruction,
-           which must be of kind <a href="../CodeElement.Kind.html#CONSTANT"><code>CodeElement.Kind.CONSTANT</code></a></dd>
+           which must be of kind 
+<details class="invalid-tag">
+<summary>invalid @link</summary>
+<pre><code>Kind#CONSTANT</code></pre>
+</details>
+</dd>
 <dd><code>constant</code> - the constant value</dd>
 <dt>Returns:</dt>
 <dd>a load constant instruction</dd>

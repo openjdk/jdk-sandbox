@@ -48,11 +48,11 @@ loadScripts(document, 'script');</script>
 <main role="main">
 <div class="header">
 <h1 class="title">Hierarchy For Package jdk.classfile.impl</h1>
+</div>
 <span class="package-hierarchy-label">Package Hierarchies:</span>
-<ul class="horizontal">
+<ul class="horizontal contents-list">
 <li><a href="../../../overview-tree.html">All Packages</a></li>
 </ul>
-</div>
 <section class="hierarchy">
 <h2 title="Class Hierarchy">Class Hierarchy</h2>
 <ul>
@@ -84,7 +84,7 @@ loadScripts(document, 'script');</script>
 <li class="circle">jdk.classfile.impl.<a href="BoundLocalVariableType.html" class="type-name-link" title="class in jdk.classfile.impl">BoundLocalVariableType</a> (implements jdk.classfile.instruction.<a href="../instruction/LocalVariableType.html" title="interface in jdk.classfile.instruction">LocalVariableType</a>, jdk.classfile.attribute.<a href="../attribute/LocalVariableTypeInfo.html" title="interface in jdk.classfile.attribute">LocalVariableTypeInfo</a>)</li>
 </ul>
 </li>
-<li class="circle">jdk.classfile.impl.<a href="AbstractInstruction.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction</a> (implements jdk.classfile.<a href="../CodeElement.html" title="interface in jdk.classfile">CodeElement</a>)
+<li class="circle">jdk.classfile.impl.<a href="AbstractInstruction.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction</a> (implements jdk.classfile.<a href="../Instruction.html" title="interface in jdk.classfile">Instruction</a>)
 <ul>
 <li class="circle">jdk.classfile.impl.<a href="AbstractInstruction.BoundInstruction.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.BoundInstruction</a>
 <ul>
@@ -107,8 +107,6 @@ loadScripts(document, 'script');</script>
 <li class="circle">jdk.classfile.impl.<a href="AbstractInstruction.BoundTypeCheckInstruction.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.BoundTypeCheckInstruction</a> (implements jdk.classfile.instruction.<a href="../instruction/TypeCheckInstruction.html" title="interface in jdk.classfile.instruction">TypeCheckInstruction</a>)</li>
 </ul>
 </li>
-<li class="circle">jdk.classfile.impl.<a href="AbstractInstruction.ExceptionCatchImpl.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.ExceptionCatchImpl</a> (implements jdk.classfile.instruction.<a href="../instruction/ExceptionCatch.html" title="interface in jdk.classfile.instruction">ExceptionCatch</a>)</li>
-<li class="circle">jdk.classfile.impl.<a href="AbstractInstruction.UnboundCharacterRange.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.UnboundCharacterRange</a> (implements jdk.classfile.instruction.<a href="../instruction/CharacterRange.html" title="interface in jdk.classfile.instruction">CharacterRange</a>)</li>
 <li class="circle">jdk.classfile.impl.<a href="AbstractInstruction.UnboundInstruction.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.UnboundInstruction</a>
 <ul>
 <li class="circle">jdk.classfile.impl.<a href="AbstractInstruction.UnboundArgumentConstantInstruction.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.UnboundArgumentConstantInstruction</a> (implements jdk.classfile.instruction.<a href="../instruction/ConstantInstruction.ArgumentConstantInstruction.html" title="interface in jdk.classfile.instruction">ConstantInstruction.ArgumentConstantInstruction</a>)</li>
@@ -139,8 +137,14 @@ loadScripts(document, 'script');</script>
 <li class="circle">jdk.classfile.impl.<a href="AbstractInstruction.UnboundTypeCheckInstruction.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.UnboundTypeCheckInstruction</a> (implements jdk.classfile.instruction.<a href="../instruction/TypeCheckInstruction.html" title="interface in jdk.classfile.instruction">TypeCheckInstruction</a>)</li>
 </ul>
 </li>
-<li class="circle">jdk.classfile.impl.<a href="AbstractInstruction.UnboundLocalVariable.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.UnboundLocalVariable</a> (implements jdk.classfile.instruction.<a href="../instruction/LocalVariable.html" title="interface in jdk.classfile.instruction">LocalVariable</a>)</li>
-<li class="circle">jdk.classfile.impl.<a href="AbstractInstruction.UnboundLocalVariableType.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.UnboundLocalVariableType</a> (implements jdk.classfile.instruction.<a href="../instruction/LocalVariableType.html" title="interface in jdk.classfile.instruction">LocalVariableType</a>)</li>
+</ul>
+</li>
+<li class="circle">jdk.classfile.impl.<a href="AbstractPseudoInstruction.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractPseudoInstruction</a> (implements jdk.classfile.<a href="../PseudoInstruction.html" title="interface in jdk.classfile">PseudoInstruction</a>)
+<ul>
+<li class="circle">jdk.classfile.impl.<a href="AbstractPseudoInstruction.ExceptionCatchImpl.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractPseudoInstruction.ExceptionCatchImpl</a> (implements jdk.classfile.instruction.<a href="../instruction/ExceptionCatch.html" title="interface in jdk.classfile.instruction">ExceptionCatch</a>)</li>
+<li class="circle">jdk.classfile.impl.<a href="AbstractPseudoInstruction.UnboundCharacterRange.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractPseudoInstruction.UnboundCharacterRange</a> (implements jdk.classfile.instruction.<a href="../instruction/CharacterRange.html" title="interface in jdk.classfile.instruction">CharacterRange</a>)</li>
+<li class="circle">jdk.classfile.impl.<a href="AbstractPseudoInstruction.UnboundLocalVariable.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractPseudoInstruction.UnboundLocalVariable</a> (implements jdk.classfile.instruction.<a href="../instruction/LocalVariable.html" title="interface in jdk.classfile.instruction">LocalVariable</a>)</li>
+<li class="circle">jdk.classfile.impl.<a href="AbstractPseudoInstruction.UnboundLocalVariableType.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractPseudoInstruction.UnboundLocalVariableType</a> (implements jdk.classfile.instruction.<a href="../instruction/LocalVariableType.html" title="interface in jdk.classfile.instruction">LocalVariableType</a>)</li>
 </ul>
 </li>
 <li class="circle">jdk.classfile.impl.<a href="AbstractUnboundModel.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractUnboundModel</a>&lt;E&gt; (implements jdk.classfile.<a href="../AttributedElement.html" title="interface in jdk.classfile">AttributedElement</a>, jdk.classfile.<a href="../CompoundElement.html" title="interface in jdk.classfile">CompoundElement</a>&lt;E&gt;)

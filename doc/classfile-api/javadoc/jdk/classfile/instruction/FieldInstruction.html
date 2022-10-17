@@ -37,7 +37,7 @@ loadScripts(document, 'script');</script>
 <li>
 <p>Summary:</p>
 <ul>
-<li><a href="#nested-class-summary">Nested</a></li>
+<li>Nested</li>
 <li>Field</li>
 <li>Constr</li>
 <li><a href="#method-summary">Method</a></li>
@@ -57,7 +57,7 @@ loadScripts(document, 'script');</script>
 <div id="navbar-sub-list">
 <ul class="sub-nav-list">
 <li>Summary:&nbsp;</li>
-<li><a href="#nested-class-summary">Nested</a>&nbsp;|&nbsp;</li>
+<li>Nested&nbsp;|&nbsp;</li>
 <li>Field&nbsp;|&nbsp;</li>
 <li>Constr&nbsp;|&nbsp;</li>
 <li><a href="#method-summary">Method</a></li>
@@ -98,20 +98,11 @@ loadScripts(document, 'script');</script>
 extends <a href="../Instruction.html" title="interface in jdk.classfile">Instruction</a></span>
 <span class="permits">permits <a href="../impl/AbstractInstruction.BoundFieldInstruction.html" title="class in jdk.classfile.impl">AbstractInstruction.BoundFieldInstruction</a>, <a href="../impl/AbstractInstruction.UnboundFieldInstruction.html" title="class in jdk.classfile.impl">AbstractInstruction.UnboundFieldInstruction</a></span></div>
 <div class="block">Models a field access instruction in the <code>code</code> array of a <code>Code</code>
- attribute.  Corresponding opcodes will have a <code>kind</code> of <a href="../CodeElement.Kind.html#FIELD_ACCESS"><code>CodeElement.Kind.FIELD_ACCESS</code></a>.  Delivered as a <a href="../CodeElement.html" title="interface in jdk.classfile"><code>CodeElement</code></a> when
+ attribute.  Corresponding opcodes will have a <code>kind</code> of <a href="../Opcode.Kind.html#FIELD_ACCESS"><code>Opcode.Kind.FIELD_ACCESS</code></a>.  Delivered as a <a href="../CodeElement.html" title="interface in jdk.classfile"><code>CodeElement</code></a> when
  traversing the elements of a <a href="../CodeModel.html" title="interface in jdk.classfile"><code>CodeModel</code></a>.</div>
 </section>
 <section class="summary">
 <ul class="summary-list">
-<!-- ======== NESTED CLASS SUMMARY ======== -->
-<li>
-<section class="nested-class-summary" id="nested-class-summary">
-<h2>Nested Class Summary</h2>
-<div class="inherited-list">
-<h2 id="nested-classes-inherited-from-class-jdk.classfile.CodeElement">Nested classes/interfaces inherited from interface&nbsp;jdk.classfile.<a href="../CodeElement.html" title="interface in jdk.classfile">CodeElement</a></h2>
-<code><a href="../CodeElement.Kind.html" title="enum class in jdk.classfile">CodeElement.Kind</a></code></div>
-</section>
-</li>
 <!-- ========== METHOD SUMMARY =========== -->
 <li>
 <section class="method-summary" id="method-summary">
@@ -173,8 +164,8 @@ extends <a href="../Instruction.html" title="interface in jdk.classfile">Instruc
 </div>
 </div>
 <div class="inherited-list">
-<h3 id="methods-inherited-from-class-jdk.classfile.CodeElement">Methods inherited from interface&nbsp;jdk.classfile.<a href="../CodeElement.html" title="interface in jdk.classfile">CodeElement</a></h3>
-<code><a href="../CodeElement.html#codeKind()">codeKind</a>, <a href="../CodeElement.html#opcode()">opcode</a>, <a href="../CodeElement.html#sizeInBytes()">sizeInBytes</a></code></div>
+<h3 id="methods-inherited-from-class-jdk.classfile.Instruction">Methods inherited from interface&nbsp;jdk.classfile.<a href="../Instruction.html" title="interface in jdk.classfile">Instruction</a></h3>
+<code><a href="../Instruction.html#opcode()">opcode</a>, <a href="../Instruction.html#sizeInBytes()">sizeInBytes</a></code></div>
 </section>
 </li>
 </ul>
@@ -250,7 +241,12 @@ extends <a href="../Instruction.html" title="interface in jdk.classfile">Instruc
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>op</code> - the opcode for the specific type of field access instruction,
-           which must be of kind <a href="../CodeElement.Kind.html#FIELD_ACCESS"><code>CodeElement.Kind.FIELD_ACCESS</code></a></dd>
+           which must be of kind 
+<details class="invalid-tag">
+<summary>invalid @link</summary>
+<pre><code>Kind#FIELD_ACCESS</code></pre>
+</details>
+</dd>
 <dd><code>field</code> - a constant pool entry describing the field</dd>
 <dt>Returns:</dt>
 <dd>a field access instruction</dd>
@@ -268,7 +264,12 @@ extends <a href="../Instruction.html" title="interface in jdk.classfile">Instruc
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>op</code> - the opcode for the specific type of field access instruction,
-           which must be of kind <a href="../CodeElement.Kind.html#FIELD_ACCESS"><code>CodeElement.Kind.FIELD_ACCESS</code></a></dd>
+           which must be of kind 
+<details class="invalid-tag">
+<summary>invalid @link</summary>
+<pre><code>Kind#FIELD_ACCESS</code></pre>
+</details>
+</dd>
 <dd><code>owner</code> - the class holding the field</dd>
 <dd><code>name</code> - the name of the field</dd>
 <dd><code>type</code> - the field descriptor</dd>
@@ -287,7 +288,12 @@ extends <a href="../Instruction.html" title="interface in jdk.classfile">Instruc
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>op</code> - the opcode for the specific type of field access instruction,
-           which must be of kind <a href="../CodeElement.Kind.html#FIELD_ACCESS"><code>CodeElement.Kind.FIELD_ACCESS</code></a></dd>
+           which must be of kind 
+<details class="invalid-tag">
+<summary>invalid @link</summary>
+<pre><code>Kind#FIELD_ACCESS</code></pre>
+</details>
+</dd>
 <dd><code>owner</code> - the class holding the field</dd>
 <dd><code>nameAndType</code> - the name and field descriptor of the field</dd>
 <dt>Returns:</dt>

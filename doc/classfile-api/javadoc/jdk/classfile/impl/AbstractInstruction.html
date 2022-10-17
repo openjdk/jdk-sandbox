@@ -92,17 +92,17 @@ loadScripts(document, 'script');</script>
 <section class="class-description" id="class-description">
 <dl class="notes">
 <dt>All Implemented Interfaces:</dt>
-<dd><code><a href="../ClassfileElement.html" title="interface in jdk.classfile">ClassfileElement</a></code>, <code><a href="../CodeElement.html" title="interface in jdk.classfile">CodeElement</a></code></dd>
+<dd><code><a href="../ClassfileElement.html" title="interface in jdk.classfile">ClassfileElement</a></code>, <code><a href="../CodeElement.html" title="interface in jdk.classfile">CodeElement</a></code>, <code><a href="../Instruction.html" title="interface in jdk.classfile">Instruction</a></code></dd>
 </dl>
 <dl class="notes">
 <dt>Direct Known Subclasses:</dt>
-<dd><code><a href="AbstractInstruction.BoundInstruction.html" title="class in jdk.classfile.impl">AbstractInstruction.BoundInstruction</a></code>, <code><a href="AbstractInstruction.ExceptionCatchImpl.html" title="class in jdk.classfile.impl">AbstractInstruction.ExceptionCatchImpl</a></code>, <code><a href="AbstractInstruction.UnboundCharacterRange.html" title="class in jdk.classfile.impl">AbstractInstruction.UnboundCharacterRange</a></code>, <code><a href="AbstractInstruction.UnboundInstruction.html" title="class in jdk.classfile.impl">AbstractInstruction.UnboundInstruction</a></code>, <code><a href="AbstractInstruction.UnboundLocalVariable.html" title="class in jdk.classfile.impl">AbstractInstruction.UnboundLocalVariable</a></code>, <code><a href="AbstractInstruction.UnboundLocalVariableType.html" title="class in jdk.classfile.impl">AbstractInstruction.UnboundLocalVariableType</a></code></dd>
+<dd><code><a href="AbstractInstruction.BoundInstruction.html" title="class in jdk.classfile.impl">AbstractInstruction.BoundInstruction</a></code>, <code><a href="AbstractInstruction.UnboundInstruction.html" title="class in jdk.classfile.impl">AbstractInstruction.UnboundInstruction</a></code></dd>
 </dl>
 <hr>
 <div class="type-signature"><span class="modifiers">public abstract sealed class </span><span class="element-name type-name-label">AbstractInstruction</span>
 <span class="extends-implements">extends <a href="AbstractElement.html" title="class in jdk.classfile.impl">AbstractElement</a>
-implements <a href="../CodeElement.html" title="interface in jdk.classfile">CodeElement</a></span>
-<span class="permits">permits <a href="AbstractInstruction.UnboundInstruction.html" title="class in jdk.classfile.impl">AbstractInstruction.UnboundInstruction</a>, <a href="AbstractInstruction.BoundInstruction.html" title="class in jdk.classfile.impl">AbstractInstruction.BoundInstruction</a>, <a href="AbstractInstruction.UnboundCharacterRange.html" title="class in jdk.classfile.impl">AbstractInstruction.UnboundCharacterRange</a>, <a href="AbstractInstruction.ExceptionCatchImpl.html" title="class in jdk.classfile.impl">AbstractInstruction.ExceptionCatchImpl</a> <span class="permits-note">(not exhaustive)</span></span></div>
+implements <a href="../Instruction.html" title="interface in jdk.classfile">Instruction</a></span>
+<span class="permits">permits <a href="AbstractInstruction.UnboundInstruction.html" title="class in jdk.classfile.impl">AbstractInstruction.UnboundInstruction</a>, <a href="AbstractInstruction.BoundInstruction.html" title="class in jdk.classfile.impl">AbstractInstruction.BoundInstruction</a></span></div>
 <div class="block">AbstractInstruction.</div>
 </section>
 <section class="summary">
@@ -170,26 +170,20 @@ implements <a href="../CodeElement.html" title="interface in jdk.classfile">Code
 <div class="col-first odd-row-color"><code>static final class&nbsp;</code></div>
 <div class="col-second odd-row-color"><code><a href="AbstractInstruction.BoundTypeCheckInstruction.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.BoundTypeCheckInstruction</a></code></div>
 <div class="col-last odd-row-color">&nbsp;</div>
-<div class="col-first even-row-color"><code>static final class&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="AbstractInstruction.ExceptionCatchImpl.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.ExceptionCatchImpl</a></code></div>
-<div class="col-last even-row-color">&nbsp;</div>
-<div class="col-first odd-row-color"><code>static final record&nbsp;</code></div>
-<div class="col-second odd-row-color"><code><a href="AbstractInstruction.SwitchCaseImpl.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.SwitchCaseImpl</a></code></div>
-<div class="col-last odd-row-color">&nbsp;</div>
-<div class="col-first even-row-color"><code>static final class&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="AbstractInstruction.UnboundArgumentConstantInstruction.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.UnboundArgumentConstantInstruction</a></code></div>
+<div class="col-first even-row-color"><code>static final record&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="AbstractInstruction.SwitchCaseImpl.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.SwitchCaseImpl</a></code></div>
 <div class="col-last even-row-color">&nbsp;</div>
 <div class="col-first odd-row-color"><code>static final class&nbsp;</code></div>
-<div class="col-second odd-row-color"><code><a href="AbstractInstruction.UnboundArrayLoadInstruction.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.UnboundArrayLoadInstruction</a></code></div>
+<div class="col-second odd-row-color"><code><a href="AbstractInstruction.UnboundArgumentConstantInstruction.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.UnboundArgumentConstantInstruction</a></code></div>
 <div class="col-last odd-row-color">&nbsp;</div>
 <div class="col-first even-row-color"><code>static final class&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="AbstractInstruction.UnboundArrayStoreInstruction.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.UnboundArrayStoreInstruction</a></code></div>
+<div class="col-second even-row-color"><code><a href="AbstractInstruction.UnboundArrayLoadInstruction.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.UnboundArrayLoadInstruction</a></code></div>
 <div class="col-last even-row-color">&nbsp;</div>
 <div class="col-first odd-row-color"><code>static final class&nbsp;</code></div>
-<div class="col-second odd-row-color"><code><a href="AbstractInstruction.UnboundBranchInstruction.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.UnboundBranchInstruction</a></code></div>
+<div class="col-second odd-row-color"><code><a href="AbstractInstruction.UnboundArrayStoreInstruction.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.UnboundArrayStoreInstruction</a></code></div>
 <div class="col-last odd-row-color">&nbsp;</div>
 <div class="col-first even-row-color"><code>static final class&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="AbstractInstruction.UnboundCharacterRange.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.UnboundCharacterRange</a></code></div>
+<div class="col-second even-row-color"><code><a href="AbstractInstruction.UnboundBranchInstruction.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.UnboundBranchInstruction</a></code></div>
 <div class="col-last even-row-color">&nbsp;</div>
 <div class="col-first odd-row-color"><code>static final class&nbsp;</code></div>
 <div class="col-second odd-row-color"><code><a href="AbstractInstruction.UnboundConvertInstruction.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.UnboundConvertInstruction</a></code></div>
@@ -217,12 +211,6 @@ implements <a href="../CodeElement.html" title="interface in jdk.classfile">Code
 <div class="col-last even-row-color">&nbsp;</div>
 <div class="col-first odd-row-color"><code>static final class&nbsp;</code></div>
 <div class="col-second odd-row-color"><code><a href="AbstractInstruction.UnboundLoadInstruction.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.UnboundLoadInstruction</a></code></div>
-<div class="col-last odd-row-color">&nbsp;</div>
-<div class="col-first even-row-color"><code>static final class&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="AbstractInstruction.UnboundLocalVariable.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.UnboundLocalVariable</a></code></div>
-<div class="col-last even-row-color">&nbsp;</div>
-<div class="col-first odd-row-color"><code>static final class&nbsp;</code></div>
-<div class="col-second odd-row-color"><code><a href="AbstractInstruction.UnboundLocalVariableType.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.UnboundLocalVariableType</a></code></div>
 <div class="col-last odd-row-color">&nbsp;</div>
 <div class="col-first even-row-color"><code>static final class&nbsp;</code></div>
 <div class="col-second even-row-color"><code><a href="AbstractInstruction.UnboundLookupSwitchInstruction.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.UnboundLookupSwitchInstruction</a></code></div>
@@ -267,9 +255,6 @@ implements <a href="../CodeElement.html" title="interface in jdk.classfile">Code
 <div class="col-second odd-row-color"><code><a href="AbstractInstruction.UnboundTypeCheckInstruction.html" class="type-name-link" title="class in jdk.classfile.impl">AbstractInstruction.UnboundTypeCheckInstruction</a></code></div>
 <div class="col-last odd-row-color">&nbsp;</div>
 </div>
-<div class="inherited-list">
-<h2 id="nested-classes-inherited-from-class-jdk.classfile.CodeElement">Nested classes/interfaces inherited from interface&nbsp;jdk.classfile.<a href="../CodeElement.html" title="interface in jdk.classfile">CodeElement</a></h2>
-<code><a href="../CodeElement.Kind.html" title="enum class in jdk.classfile">CodeElement.Kind</a></code></div>
 </section>
 </li>
 <!-- ======== CONSTRUCTOR SUMMARY ======== -->
@@ -297,24 +282,19 @@ implements <a href="../CodeElement.html" title="interface in jdk.classfile">Code
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../CodeElement.Kind.html" title="enum class in jdk.classfile">CodeElement.Kind</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#codeKind()" class="member-name-link">codeKind</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../Opcode.html" title="enum class in jdk.classfile">Opcode</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#opcode()" class="member-name-link">opcode</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Returns the kind of this instruction.</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../Opcode.html" title="enum class in jdk.classfile">Opcode</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#opcode()" class="member-name-link">opcode</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the opcode of this instruction.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>int</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#sizeInBytes()" class="member-name-link">sizeInBytes</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>int</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#sizeInBytes()" class="member-name-link">sizeInBytes</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the size in bytes of this instruction.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>abstract void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#writeTo(jdk.classfile.impl.DirectCodeBuilder)" class="member-name-link">writeTo</a><wbr>(<a href="DirectCodeBuilder.html" title="class in jdk.classfile.impl">DirectCodeBuilder</a>&nbsp;writer)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>abstract void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#writeTo(jdk.classfile.impl.DirectCodeBuilder)" class="member-name-link">writeTo</a><wbr>(<a href="DirectCodeBuilder.html" title="class in jdk.classfile.impl">DirectCodeBuilder</a>&nbsp;writer)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -354,11 +334,11 @@ implements <a href="../CodeElement.html" title="interface in jdk.classfile">Code
 <section class="detail" id="opcode()">
 <h3>opcode</h3>
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../Opcode.html" title="enum class in jdk.classfile">Opcode</a></span>&nbsp;<span class="element-name">opcode</span>()</div>
-<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../CodeElement.html#opcode()">CodeElement</a></code></span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../Instruction.html#opcode()">Instruction</a></code></span></div>
 <div class="block">Returns the opcode of this instruction.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
-<dd><code><a href="../CodeElement.html#opcode()">opcode</a></code>&nbsp;in interface&nbsp;<code><a href="../CodeElement.html" title="interface in jdk.classfile">CodeElement</a></code></dd>
+<dd><code><a href="../Instruction.html#opcode()">opcode</a></code>&nbsp;in interface&nbsp;<code><a href="../Instruction.html" title="interface in jdk.classfile">Instruction</a></code></dd>
 <dt>Returns:</dt>
 <dd>the opcode of this instruction</dd>
 </dl>
@@ -368,27 +348,13 @@ implements <a href="../CodeElement.html" title="interface in jdk.classfile">Code
 <section class="detail" id="sizeInBytes()">
 <h3>sizeInBytes</h3>
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">int</span>&nbsp;<span class="element-name">sizeInBytes</span>()</div>
-<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../CodeElement.html#sizeInBytes()">CodeElement</a></code></span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../Instruction.html#sizeInBytes()">Instruction</a></code></span></div>
 <div class="block">Returns the size in bytes of this instruction.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
-<dd><code><a href="../CodeElement.html#sizeInBytes()">sizeInBytes</a></code>&nbsp;in interface&nbsp;<code><a href="../CodeElement.html" title="interface in jdk.classfile">CodeElement</a></code></dd>
+<dd><code><a href="../Instruction.html#sizeInBytes()">sizeInBytes</a></code>&nbsp;in interface&nbsp;<code><a href="../Instruction.html" title="interface in jdk.classfile">Instruction</a></code></dd>
 <dt>Returns:</dt>
 <dd>the size in bytes of this instruction</dd>
-</dl>
-</section>
-</li>
-<li>
-<section class="detail" id="codeKind()">
-<h3>codeKind</h3>
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../CodeElement.Kind.html" title="enum class in jdk.classfile">CodeElement.Kind</a></span>&nbsp;<span class="element-name">codeKind</span>()</div>
-<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../CodeElement.html#codeKind()">CodeElement</a></code></span></div>
-<div class="block">Returns the kind of this instruction.</div>
-<dl class="notes">
-<dt>Specified by:</dt>
-<dd><code><a href="../CodeElement.html#codeKind()">codeKind</a></code>&nbsp;in interface&nbsp;<code><a href="../CodeElement.html" title="interface in jdk.classfile">CodeElement</a></code></dd>
-<dt>Returns:</dt>
-<dd>the kind of this instruction</dd>
 </dl>
 </section>
 </li>
