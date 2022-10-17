@@ -26,7 +26,7 @@
 /*
  * @test
  * @summary Testing Signatures.
- * @run testng SignaturesTest
+ * @run junit SignaturesTest
  */
 import helpers.CorpusTestHelper;
 import java.lang.constant.ClassDesc;
@@ -44,20 +44,17 @@ import jdk.classfile.MethodSignature;
 import jdk.classfile.Signature;
 import jdk.classfile.Signature.*;
 import jdk.classfile.Attributes;
-import org.testng.annotations.Test;
-import static org.testng.Assert.assertEquals;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static helpers.ClassRecord.assertEqualsDeep;
 import static java.lang.constant.ConstantDescs.*;
 
-/**
- *
- */
-public class SignaturesTest {
+class SignaturesTest {
 
     private static final FileSystem JRT = FileSystems.getFileSystem(URI.create("jrt:/"));
 
     @Test
-    public void testBuildingSignatures() {
+    void testBuildingSignatures() {
         assertEqualsDeep(
                 ClassSignature.of(
                         ClassTypeSig.of(
@@ -121,7 +118,7 @@ public class SignaturesTest {
     }
 
     @Test
-    public void testParseAndPrintSignatures() throws Exception {
+    void testParseAndPrintSignatures() throws Exception {
         var csc = new AtomicInteger();
         var msc = new AtomicInteger();
         var fsc = new AtomicInteger();

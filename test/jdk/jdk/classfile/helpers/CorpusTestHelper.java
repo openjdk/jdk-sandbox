@@ -29,7 +29,6 @@ import jdk.classfile.impl.UnboundAttribute;
 import jdk.classfile.instruction.LineNumber;
 import jdk.classfile.instruction.LocalVariable;
 import jdk.classfile.instruction.LocalVariableType;
-import org.testng.annotations.DataProvider;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -88,8 +87,7 @@ public class CorpusTestHelper  {
 //        ClassPrinter.toYaml(ClassModel.of(Files.readAllBytes(root.resolve(targetClassFile))), ClassPrinter.Verbosity.TRACE_ALL, System.out::print);
     }
 
-    @DataProvider(name = "corpus")
-    public static Object[] provide() throws IOException, URISyntaxException {
+    public static Path[] corpus() throws IOException, URISyntaxException {
         splitTableAttributes("testdata/Pattern2.class", "testdata/Pattern2-split.class");
         return Stream.of(
                 Files.walk(JRT.getPath("modules/java.base/java")),
@@ -98,7 +96,7 @@ public class CorpusTestHelper  {
                 .flatMap(p -> p)
                 .filter(p -> Files.isRegularFile(p) && p.toString().endsWith(".class") && !p.endsWith("DeadCodePattern.class"))
                 .filter(p -> testFilter == null || p.toString().equals(testFilter))
-                .toArray();
+                .toArray(Path[]::new);
     }
 
 
