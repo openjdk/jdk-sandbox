@@ -26,10 +26,10 @@
 package jdk.tools.jlink.internal.plugins;
 
 import java.util.Map;
-import jdk.classfile.Classfile;
 import jdk.classfile.CodeBuilder;
 import jdk.classfile.CodeElement;
 import jdk.classfile.CodeModel;
+import jdk.classfile.Instruction;
 import jdk.classfile.instruction.FieldInstruction;
 import jdk.classfile.MethodModel;
 import jdk.classfile.Opcode;
@@ -117,7 +117,7 @@ abstract class VersionPropsPlugin extends AbstractPlugin {
 
                                     @Override
                                     public void accept(CodeBuilder cob, CodeElement coe) {
-                                        switch (coe.opcode()) {
+                                        if (coe instanceof Instruction ins) switch (ins.opcode()) {
                                             case LDC, LDC_W, LDC2_W -> {
                                                 flushPendingLDC(cob);
                                                 pendingLDC = coe;
@@ -127,7 +127,7 @@ abstract class VersionPropsPlugin extends AbstractPlugin {
                                                 cob.accept(coe);
                                             }
                                             case GETSTATIC, PUTSTATIC, GETFIELD, PUTFIELD -> {
-                                                if (coe.opcode() == Opcode.PUTSTATIC
+                                                if (ins.opcode() == Opcode.PUTSTATIC
                                                         && ((FieldInstruction)coe).name().stringValue().equals(field)) {
                                                     // assert that there is a pending ldc
                                                     // for the old value

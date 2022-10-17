@@ -39,9 +39,7 @@ import java.util.stream.Collectors;
 import jdk.classfile.ClassModel;
 import jdk.classfile.ClassTransform;
 import jdk.classfile.Classfile;
-import jdk.classfile.CodeElement;
 import jdk.classfile.CodeModel;
-import jdk.classfile.CodeTransform;
 import jdk.classfile.FieldModel;
 import jdk.classfile.MethodModel;
 import jdk.classfile.TypeKind;
@@ -53,6 +51,7 @@ import jdk.classfile.instruction.TableSwitchInstruction;
 import jdk.classfile.components.ClassRemapper;
 import jdk.classfile.components.CodeLocalsShifter;
 import jdk.classfile.components.CodeRelabeler;
+import jdk.classfile.instruction.ReturnInstruction;
 
 import jdk.jfr.internal.SecuritySupport;
 
@@ -184,7 +183,7 @@ final class JIClassInstrumentation {
                                                         .andThen(CodeRelabeler.of())
                                                         .andThen((innerBuilder, shiftedTargetCode) -> {
                                                             //returns must be replaced with jump to the end of the inlined method
-                                                            if (shiftedTargetCode.codeKind() == CodeElement.Kind.RETURN)
+                                                            if (shiftedTargetCode instanceof ReturnInstruction)
                                                                 innerBuilder.goto_(inlinedBlockBuilder.breakLabel());
                                                             else
                                                                 innerBuilder.with(shiftedTargetCode);

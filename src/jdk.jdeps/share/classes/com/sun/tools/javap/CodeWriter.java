@@ -101,8 +101,8 @@ public class CodeWriter extends BasicWriter {
 //            } catch (ArrayIndexOutOfBoundsException | IllegalStateException e) {
 //                println(report("error at or after byte " + instr.getPC()));
 //                break;
+                pc += instr.sizeInBytes();
             }
-            pc += coe.sizeInBytes();
         }
 
         for (InstructionDetailWriter w: detailWriters)

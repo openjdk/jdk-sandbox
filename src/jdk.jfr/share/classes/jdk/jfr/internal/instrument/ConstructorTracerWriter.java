@@ -25,15 +25,13 @@
 
 package jdk.jfr.internal.instrument;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.ConstantDescs;
 import java.lang.constant.MethodTypeDesc;
 import java.util.function.Predicate;
 
 import jdk.classfile.*;
+import jdk.classfile.instruction.ReturnInstruction;
 
 final class ConstructorTracerWriter {
 
@@ -52,7 +50,7 @@ final class ConstructorTracerWriter {
                     boolean useInputParameter = mm.methodType().stringValue().startsWith("(Ljava/lang/String;");
                     if (me instanceof CodeModel cm) {
                         mb.transformCode(cm, (cob, ins) -> {
-                            if (ins.opcode() == Opcode.RETURN) {
+                            if (ins instanceof ReturnInstruction ret) {
                                 //Load 'this' from local variable 0
                                 cob.loadInstruction(TypeKind.ReferenceType, 0);
                                 if (useInputParameter) {
