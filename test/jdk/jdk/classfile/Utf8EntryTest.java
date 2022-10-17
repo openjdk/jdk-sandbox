@@ -51,7 +51,7 @@ import java.util.function.UnaryOperator;
 import static java.lang.constant.ConstantDescs.CD_void;
 import static jdk.classfile.TypeKind.VoidType;
 
-public class Utf8EntryTest {
+class Utf8EntryTest {
 
     @ParameterizedTest
     @ValueSource(
