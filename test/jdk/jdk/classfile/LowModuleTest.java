@@ -32,8 +32,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
-
-import java.lang.reflect.Method;
 import java.nio.file.Path;
 
 import jdk.classfile.Attribute;
