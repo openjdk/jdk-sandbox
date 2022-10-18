@@ -126,7 +126,7 @@ class SignaturesTest {
         Stream.of(
                 Files.walk(JRT.getPath("modules/java.base")),
                 Files.walk(JRT.getPath("modules"), 2).filter(p -> p.endsWith("module-info.class")),
-                Files.walk(Path.of(CorpusTestHelper.class.getProtectionDomain().getCodeSource().getLocation().toURI())))
+                Files.walk(Path.of(SignaturesTest.class.getProtectionDomain().getCodeSource().getLocation().toURI())))
                 .flatMap(p -> p)
                 .filter(p -> Files.isRegularFile(p) && p.toString().endsWith(".class")).forEach(path -> {
             try {
