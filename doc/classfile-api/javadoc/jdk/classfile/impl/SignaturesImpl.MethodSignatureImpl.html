@@ -99,7 +99,7 @@ loadScripts(document, 'script');</script>
 <dd><code><a href="SignaturesImpl.html" title="class in jdk.classfile.impl">SignaturesImpl</a></code></dd>
 </dl>
 <hr>
-<div class="type-signature"><span class="modifiers">public static record </span><span class="element-name type-name-label">SignaturesImpl.MethodSignatureImpl</span>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../Signature.TypeParam.html" title="interface in jdk.classfile">Signature.TypeParam</a>&gt;&nbsp;typeParameters, <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../Signature.html" title="interface in jdk.classfile">Signature</a>&gt;&nbsp;arguments, <a href="../Signature.html" title="interface in jdk.classfile">Signature</a>&nbsp;result, <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../Signature.ThrowableSig.html" title="interface in jdk.classfile">Signature.ThrowableSig</a>&gt;&nbsp;throwableSignatures)
+<div class="type-signature"><span class="modifiers">public static record </span><span class="element-name type-name-label">SignaturesImpl.MethodSignatureImpl</span>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../Signature.TypeParam.html" title="interface in jdk.classfile">Signature.TypeParam</a>&gt;&nbsp;typeParameters, <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../Signature.ThrowableSig.html" title="interface in jdk.classfile">Signature.ThrowableSig</a>&gt;&nbsp;throwableSignatures, <a href="../Signature.html" title="interface in jdk.classfile">Signature</a>&nbsp;result, <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../Signature.html" title="interface in jdk.classfile">Signature</a>&gt;&nbsp;arguments)
 <span class="extends-implements">extends <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/Record.html" title="class or interface in java.lang" class="external-link">Record</a>
 implements <a href="../MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></span></div>
 </section>
@@ -114,9 +114,9 @@ implements <a href="../MethodSignature.html" title="interface in jdk.classfile">
 <div class="table-header col-first">Constructor</div>
 <div class="table-header col-last">Description</div>
 <div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(java.util.List,java.util.List,jdk.classfile.Signature,java.util.List)" class="member-name-link">MethodSignatureImpl</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../Signature.TypeParam.html" title="interface in jdk.classfile">Signature.TypeParam</a>&gt;&nbsp;typeParameters,
- <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../Signature.html" title="interface in jdk.classfile">Signature</a>&gt;&nbsp;arguments,
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../Signature.ThrowableSig.html" title="interface in jdk.classfile">Signature.ThrowableSig</a>&gt;&nbsp;throwableSignatures,
  <a href="../Signature.html" title="interface in jdk.classfile">Signature</a>&nbsp;result,
- <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../Signature.ThrowableSig.html" title="interface in jdk.classfile">Signature.ThrowableSig</a>&gt;&nbsp;throwableSignatures)</code></div>
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../Signature.html" title="interface in jdk.classfile">Signature</a>&gt;&nbsp;arguments)</code></div>
 <div class="col-last even-row-color">
 <div class="block">Creates an instance of a <code>MethodSignatureImpl</code> record class.</div>
 </div>
@@ -195,16 +195,16 @@ implements <a href="../MethodSignature.html" title="interface in jdk.classfile">
 <section class="detail" id="&lt;init&gt;(java.util.List,java.util.List,jdk.classfile.Signature,java.util.List)">
 <h3>MethodSignatureImpl</h3>
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">MethodSignatureImpl</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../Signature.TypeParam.html" title="interface in jdk.classfile">Signature.TypeParam</a>&gt;&nbsp;typeParameters,
- <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../Signature.html" title="interface in jdk.classfile">Signature</a>&gt;&nbsp;arguments,
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../Signature.ThrowableSig.html" title="interface in jdk.classfile">Signature.ThrowableSig</a>&gt;&nbsp;throwableSignatures,
  <a href="../Signature.html" title="interface in jdk.classfile">Signature</a>&nbsp;result,
- <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../Signature.ThrowableSig.html" title="interface in jdk.classfile">Signature.ThrowableSig</a>&gt;&nbsp;throwableSignatures)</span></div>
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../Signature.html" title="interface in jdk.classfile">Signature</a>&gt;&nbsp;arguments)</span></div>
 <div class="block">Creates an instance of a <code>MethodSignatureImpl</code> record class.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>typeParameters</code> - the value for the <code>typeParameters</code> record component</dd>
-<dd><code>arguments</code> - the value for the <code>arguments</code> record component</dd>
-<dd><code>result</code> - the value for the <code>result</code> record component</dd>
 <dd><code>throwableSignatures</code> - the value for the <code>throwableSignatures</code> record component</dd>
+<dd><code>result</code> - the value for the <code>result</code> record component</dd>
+<dd><code>arguments</code> - the value for the <code>arguments</code> record component</dd>
 </dl>
 </section>
 </li>
@@ -285,15 +285,15 @@ implements <a href="../MethodSignature.html" title="interface in jdk.classfile">
 </section>
 </li>
 <li>
-<section class="detail" id="arguments()">
-<h3>arguments</h3>
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../Signature.html" title="interface in jdk.classfile">Signature</a>&gt;</span>&nbsp;<span class="element-name">arguments</span>()</div>
-<div class="block">Returns the value of the <code>arguments</code> record component.</div>
+<section class="detail" id="throwableSignatures()">
+<h3>throwableSignatures</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../Signature.ThrowableSig.html" title="interface in jdk.classfile">Signature.ThrowableSig</a>&gt;</span>&nbsp;<span class="element-name">throwableSignatures</span>()</div>
+<div class="block">Returns the value of the <code>throwableSignatures</code> record component.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
-<dd><code><a href="../MethodSignature.html#arguments()">arguments</a></code>&nbsp;in interface&nbsp;<code><a href="../MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></code></dd>
+<dd><code><a href="../MethodSignature.html#throwableSignatures()">throwableSignatures</a></code>&nbsp;in interface&nbsp;<code><a href="../MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></code></dd>
 <dt>Returns:</dt>
-<dd>the value of the <code>arguments</code> record component</dd>
+<dd>the value of the <code>throwableSignatures</code> record component</dd>
 </dl>
 </section>
 </li>
@@ -311,15 +311,15 @@ implements <a href="../MethodSignature.html" title="interface in jdk.classfile">
 </section>
 </li>
 <li>
-<section class="detail" id="throwableSignatures()">
-<h3>throwableSignatures</h3>
-<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../Signature.ThrowableSig.html" title="interface in jdk.classfile">Signature.ThrowableSig</a>&gt;</span>&nbsp;<span class="element-name">throwableSignatures</span>()</div>
-<div class="block">Returns the value of the <code>throwableSignatures</code> record component.</div>
+<section class="detail" id="arguments()">
+<h3>arguments</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../Signature.html" title="interface in jdk.classfile">Signature</a>&gt;</span>&nbsp;<span class="element-name">arguments</span>()</div>
+<div class="block">Returns the value of the <code>arguments</code> record component.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
-<dd><code><a href="../MethodSignature.html#throwableSignatures()">throwableSignatures</a></code>&nbsp;in interface&nbsp;<code><a href="../MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></code></dd>
+<dd><code><a href="../MethodSignature.html#arguments()">arguments</a></code>&nbsp;in interface&nbsp;<code><a href="../MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></code></dd>
 <dt>Returns:</dt>
-<dd>the value of the <code>throwableSignatures</code> record component</dd>
+<dd>the value of the <code>arguments</code> record component</dd>
 </dl>
 </section>
 </li>

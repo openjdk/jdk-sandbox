@@ -149,22 +149,14 @@ extends <a href="../PseudoInstruction.html" title="interface in jdk.classfile">P
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1">
 <div class="block">Returns an exception table pseudo-instruction.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1"><code>static <a href="ExceptionCatch.html" title="interface in jdk.classfile.instruction">ExceptionCatch</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(jdk.classfile.Label,jdk.classfile.Label,jdk.classfile.Label,jdk.classfile.constantpool.ClassEntry)" class="member-name-link">of</a><wbr>(<a href="../Label.html" title="interface in jdk.classfile">Label</a>&nbsp;handler,
- <a href="../Label.html" title="interface in jdk.classfile">Label</a>&nbsp;tryStart,
- <a href="../Label.html" title="interface in jdk.classfile">Label</a>&nbsp;tryEnd,
- <a href="../constantpool/ClassEntry.html" title="interface in jdk.classfile.constantpool">ClassEntry</a>&nbsp;catchTypeEntry)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1">
-<div class="block">Returns an exception table pseudo-instruction.</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="../Label.html" title="interface in jdk.classfile">Label</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#tryEnd()" class="member-name-link">tryEnd</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="../Label.html" title="interface in jdk.classfile">Label</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#tryEnd()" class="member-name-link">tryEnd</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns the end of the instruction range for the guarded instructions.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="../Label.html" title="interface in jdk.classfile">Label</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#tryStart()" class="member-name-link">tryStart</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="../Label.html" title="interface in jdk.classfile">Label</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#tryStart()" class="member-name-link">tryStart</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns the beginning of the instruction range for the guarded instructions.</div>
 </div>
 </div>
@@ -224,26 +216,6 @@ extends <a href="../PseudoInstruction.html" title="interface in jdk.classfile">P
 <dt>Returns:</dt>
 <dd>the type of the exception to catch, or empty if this handler is
  unconditional</dd>
-</dl>
-</section>
-</li>
-<li>
-<section class="detail" id="of(jdk.classfile.Label,jdk.classfile.Label,jdk.classfile.Label,jdk.classfile.constantpool.ClassEntry)">
-<h3>of</h3>
-<div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="ExceptionCatch.html" title="interface in jdk.classfile.instruction">ExceptionCatch</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="../Label.html" title="interface in jdk.classfile">Label</a>&nbsp;handler,
- <a href="../Label.html" title="interface in jdk.classfile">Label</a>&nbsp;tryStart,
- <a href="../Label.html" title="interface in jdk.classfile">Label</a>&nbsp;tryEnd,
- <a href="../constantpool/ClassEntry.html" title="interface in jdk.classfile.constantpool">ClassEntry</a>&nbsp;catchTypeEntry)</span></div>
-<div class="block">Returns an exception table pseudo-instruction.</div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>handler</code> - the handler for the exception</dd>
-<dd><code>tryStart</code> - the beginning of the instruction range for the gaurded instructions</dd>
-<dd><code>tryEnd</code> - the end of the instruction range for the gaurded instructions</dd>
-<dd><code>catchTypeEntry</code> - the type of exception to catch, or null if this
-                       handler is unconditional</dd>
-<dt>Returns:</dt>
-<dd>an exception table pseudo-instruction</dd>
 </dl>
 </section>
 </li>

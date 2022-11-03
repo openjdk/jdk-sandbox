@@ -1915,7 +1915,7 @@ loadScripts(document, 'script');</script>
 </dd>
 <dt><a href="jdk/classfile/ClassSignature.html" class="type-name-link" title="interface in jdk.classfile">ClassSignature</a> - Interface in <a href="jdk/classfile/package-summary.html">jdk.classfile</a></dt>
 <dd>
-<div class="block">Models the generic signature of a class, as defined by JVMS 4.7.9.</div>
+<div class="block">Models the generic signature of a class file, as defined by JVMS 4.7.9.</div>
 </dd>
 <dt><a href="jdk/classfile/impl/SignaturesImpl.ClassSignatureImpl.html#%3Cinit%3E(java.util.List,jdk.classfile.Signature.RefTypeSig,java.util.List)" class="member-name-link">ClassSignatureImpl(List&lt;Signature.TypeParam&gt;, Signature.RefTypeSig, List&lt;Signature.RefTypeSig&gt;)</a> - Constructor for record class jdk.classfile.impl.<a href="jdk/classfile/impl/SignaturesImpl.ClassSignatureImpl.html" title="class in jdk.classfile.impl">SignaturesImpl.ClassSignatureImpl</a></dt>
 <dd>
@@ -3750,6 +3750,14 @@ loadScripts(document, 'script');</script>
 <dt><a href="jdk/classfile/impl/TransformImpl.ClassMethodTransform.html#filter()" class="member-name-link">filter()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/TransformImpl.ClassMethodTransform.html" title="class in jdk.classfile.impl">TransformImpl.ClassMethodTransform</a></dt>
 <dd>
 <div class="block">Returns the value of the <code>filter</code> record component.</div>
+</dd>
+<dt><a href="jdk/classfile/Classfile.Option.Key.html#FILTER_DEAD_LABELS" class="member-name-link">FILTER_DEAD_LABELS</a> - Enum constant in enum class jdk.classfile.<a href="jdk/classfile/Classfile.Option.Key.html" title="enum class in jdk.classfile">Classfile.Option.Key</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/impl/Options.html#filterDeadLabels" class="member-name-link">filterDeadLabels</a> - Variable in class jdk.classfile.impl.<a href="jdk/classfile/impl/Options.html" title="class in jdk.classfile.impl">Options</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/Classfile.Option.html#filterDeadLabels(boolean)" class="member-name-link">filterDeadLabels(boolean)</a> - Static method in interface jdk.classfile.<a href="jdk/classfile/Classfile.Option.html" title="interface in jdk.classfile">Classfile.Option</a></dt>
+<dd>
+<div class="block">Returns an option describing whether or not to filter unresolved labels.</div>
 </dd>
 <dt><a href="jdk/classfile/AttributedElement.html#findAttribute(jdk.classfile.AttributeMapper)" class="member-name-link">findAttribute(AttributeMapper&lt;T&gt;)</a> - Method in interface jdk.classfile.<a href="jdk/classfile/AttributedElement.html" title="interface in jdk.classfile">AttributedElement</a></dt>
 <dd>
@@ -5977,9 +5985,9 @@ loadScripts(document, 'script');</script>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/MethodSignature.html" class="type-name-link" title="interface in jdk.classfile">MethodSignature</a> - Interface in <a href="jdk/classfile/package-summary.html">jdk.classfile</a></dt>
 <dd>
-<div class="block">Models the generic signature of a class, as defined by JVMS 4.7.9.</div>
+<div class="block">Models the generic signature of a method, as defined by JVMS 4.7.9.</div>
 </dd>
-<dt><a href="jdk/classfile/impl/SignaturesImpl.MethodSignatureImpl.html#%3Cinit%3E(java.util.List,java.util.List,jdk.classfile.Signature,java.util.List)" class="member-name-link">MethodSignatureImpl(List&lt;Signature.TypeParam&gt;, List&lt;Signature&gt;, Signature, List&lt;Signature.ThrowableSig&gt;)</a> - Constructor for record class jdk.classfile.impl.<a href="jdk/classfile/impl/SignaturesImpl.MethodSignatureImpl.html" title="class in jdk.classfile.impl">SignaturesImpl.MethodSignatureImpl</a></dt>
+<dt><a href="jdk/classfile/impl/SignaturesImpl.MethodSignatureImpl.html#%3Cinit%3E(java.util.List,java.util.List,jdk.classfile.Signature,java.util.List)" class="member-name-link">MethodSignatureImpl(List&lt;Signature.TypeParam&gt;, List&lt;Signature.ThrowableSig&gt;, Signature, List&lt;Signature&gt;)</a> - Constructor for record class jdk.classfile.impl.<a href="jdk/classfile/impl/SignaturesImpl.MethodSignatureImpl.html" title="class in jdk.classfile.impl">SignaturesImpl.MethodSignatureImpl</a></dt>
 <dd>
 <div class="block">Creates an instance of a <code>MethodSignatureImpl</code> record class.</div>
 </dd>
@@ -6643,8 +6651,6 @@ loadScripts(document, 'script');</script>
 <div class="block">Models a <code>nop</code> invocation instruction in the <code>code</code>
  array of a <code>Code</code> attribute.</div>
 </dd>
-<dt><a href="jdk/classfile/impl/SignaturesImpl.html#null2Empty(java.util.List)" class="member-name-link">null2Empty(List&lt;T&gt;)</a> - Static method in class jdk.classfile.impl.<a href="jdk/classfile/impl/SignaturesImpl.html" title="class in jdk.classfile.impl">SignaturesImpl</a></dt>
-<dd>&nbsp;</dd>
 </dl>
 <h2 class="title" id="I:O">O</h2>
 <dl class="index">
@@ -6704,14 +6710,6 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Returns a character range description.</div>
 </dd>
-<dt><a href="jdk/classfile/attribute/LocalVariableInfo.html#of(int,int,jdk.classfile.constantpool.Utf8Entry,jdk.classfile.constantpool.Utf8Entry,int)" class="member-name-link">of(int, int, Utf8Entry, Utf8Entry, int)</a> - Static method in interface jdk.classfile.attribute.<a href="jdk/classfile/attribute/LocalVariableInfo.html" title="interface in jdk.classfile.attribute">LocalVariableInfo</a></dt>
-<dd>
-<div class="block">Returns a local variable description.</div>
-</dd>
-<dt><a href="jdk/classfile/attribute/LocalVariableTypeInfo.html#of(int,int,jdk.classfile.constantpool.Utf8Entry,jdk.classfile.constantpool.Utf8Entry,int)" class="member-name-link">of(int, int, Utf8Entry, Utf8Entry, int)</a> - Static method in interface jdk.classfile.attribute.<a href="jdk/classfile/attribute/LocalVariableTypeInfo.html" title="interface in jdk.classfile.attribute">LocalVariableTypeInfo</a></dt>
-<dd>
-<div class="block">Returns a local variable type description.</div>
-</dd>
 <dt><a href="jdk/classfile/instruction/TableSwitchInstruction.html#of(int,int,jdk.classfile.Label,java.util.List)" class="member-name-link">of(int, int, Label, List&lt;SwitchCase&gt;)</a> - Static method in interface jdk.classfile.instruction.<a href="jdk/classfile/instruction/TableSwitchInstruction.html" title="interface in jdk.classfile.instruction">TableSwitchInstruction</a></dt>
 <dd>
 <div class="block">Returns a table switch instruction.</div>
@@ -6739,9 +6737,7 @@ loadScripts(document, 'script');</script>
 <div class="block">Returns the signature of a primitive type or void.</div>
 </dd>
 <dt><a href="jdk/classfile/Signature.html#of(java.lang.constant.ClassDesc)" class="member-name-link">of(ClassDesc)</a> - Static method in interface jdk.classfile.<a href="jdk/classfile/Signature.html" title="interface in jdk.classfile">Signature</a></dt>
-<dd>
-<div class="block">Returns a signature for an ordinary type, with no generic information.</div>
-</dd>
+<dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/attribute/ModuleProvideInfo.html#of(java.lang.constant.ClassDesc,java.lang.constant.ClassDesc...)" class="member-name-link">of(ClassDesc, ClassDesc...)</a> - Static method in interface jdk.classfile.attribute.<a href="jdk/classfile/attribute/ModuleProvideInfo.html" title="interface in jdk.classfile.attribute">ModuleProvideInfo</a></dt>
 <dd>
 <div class="block">Returns a service provision description.</div>
@@ -6779,9 +6775,7 @@ loadScripts(document, 'script');</script>
 <div class="block">Returns a <code>ConstantValue</code> attribute.</div>
 </dd>
 <dt><a href="jdk/classfile/MethodSignature.html#of(java.lang.constant.MethodTypeDesc)" class="member-name-link">of(MethodTypeDesc)</a> - Static method in interface jdk.classfile.<a href="jdk/classfile/MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></dt>
-<dd>
-<div class="block">Returns a signature for a raw (no generic information) method descriptor.</div>
-</dd>
+<dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/AnnotationValue.html#of(java.lang.Object)" class="member-name-link">of(Object)</a> - Static method in interface jdk.classfile.<a href="jdk/classfile/AnnotationValue.html" title="interface in jdk.classfile">AnnotationValue</a></dt>
 <dd>
 <div class="block">Returns an annotation element.</div>
@@ -6825,6 +6819,10 @@ loadScripts(document, 'script');</script>
 <dt><a href="jdk/classfile/attribute/ModuleHashesAttribute.html#of(java.lang.String,java.util.List)" class="member-name-link">of(String, List&lt;ModuleHashInfo&gt;)</a> - Static method in interface jdk.classfile.attribute.<a href="jdk/classfile/attribute/ModuleHashesAttribute.html" title="interface in jdk.classfile.attribute">ModuleHashesAttribute</a></dt>
 <dd>
 <div class="block">Returns a <code>ModuleHashes</code> attribute.</div>
+</dd>
+<dt><a href="jdk/classfile/Signature.TypeParam.html#of(java.lang.String,java.util.Optional,jdk.classfile.Signature.RefTypeSig...)" class="member-name-link">of(String, Optional&lt;Signature.RefTypeSig&gt;, Signature.RefTypeSig...)</a> - Static method in interface jdk.classfile.<a href="jdk/classfile/Signature.TypeParam.html" title="interface in jdk.classfile">Signature.TypeParam</a></dt>
+<dd>
+<div class="block">Returns a signature for a type parameter.</div>
 </dd>
 <dt><a href="jdk/classfile/AnnotationElement.html#of(java.lang.String,jdk.classfile.AnnotationValue)" class="member-name-link">of(String, AnnotationValue)</a> - Static method in interface jdk.classfile.<a href="jdk/classfile/AnnotationElement.html" title="interface in jdk.classfile">AnnotationElement</a></dt>
 <dd>
@@ -6926,26 +6924,10 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Returns a <code>ModulePackages</code> attribute.</div>
 </dd>
-<dt><a href="jdk/classfile/MethodSignature.html#of(java.util.List,java.util.List,jdk.classfile.Signature)" class="member-name-link">of(List&lt;Signature.TypeParam&gt;, List&lt;Signature&gt;, Signature)</a> - Static method in interface jdk.classfile.<a href="jdk/classfile/MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></dt>
-<dd>
-<div class="block">Returns a signature.</div>
-</dd>
-<dt><a href="jdk/classfile/MethodSignature.html#of(java.util.List,java.util.List,jdk.classfile.Signature,java.util.List)" class="member-name-link">of(List&lt;Signature.TypeParam&gt;, List&lt;Signature&gt;, Signature, List&lt;Signature.ThrowableSig&gt;)</a> - Static method in interface jdk.classfile.<a href="jdk/classfile/MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></dt>
-<dd>
-<div class="block">Returns a signature.</div>
-</dd>
+<dt><a href="jdk/classfile/MethodSignature.html#of(java.util.List,java.util.List,jdk.classfile.Signature,jdk.classfile.Signature...)" class="member-name-link">of(List&lt;Signature.TypeParam&gt;, List&lt;Signature.ThrowableSig&gt;, Signature, Signature...)</a> - Static method in interface jdk.classfile.<a href="jdk/classfile/MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/ClassSignature.html#of(java.util.List,jdk.classfile.Signature.RefTypeSig,jdk.classfile.Signature.RefTypeSig...)" class="member-name-link">of(List&lt;Signature.TypeParam&gt;, Signature.RefTypeSig, Signature.RefTypeSig...)</a> - Static method in interface jdk.classfile.<a href="jdk/classfile/ClassSignature.html" title="interface in jdk.classfile">ClassSignature</a></dt>
-<dd>
-<div class="block">Returns a signature.</div>
-</dd>
-<dt><a href="jdk/classfile/MethodSignature.html#of(java.util.List,jdk.classfile.Signature)" class="member-name-link">of(List&lt;Signature&gt;, Signature)</a> - Static method in interface jdk.classfile.<a href="jdk/classfile/MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></dt>
-<dd>
-<div class="block">Returns a signature.</div>
-</dd>
-<dt><a href="jdk/classfile/MethodSignature.html#of(java.util.List,jdk.classfile.Signature,java.util.List)" class="member-name-link">of(List&lt;Signature&gt;, Signature, List&lt;Signature.ThrowableSig&gt;)</a> - Static method in interface jdk.classfile.<a href="jdk/classfile/MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></dt>
-<dd>
-<div class="block">Returns a signature.</div>
-</dd>
+<dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/attribute/RuntimeInvisibleTypeAnnotationsAttribute.html#of(java.util.List)" class="member-name-link">of(List&lt;TypeAnnotation&gt;)</a> - Static method in interface jdk.classfile.attribute.<a href="jdk/classfile/attribute/RuntimeInvisibleTypeAnnotationsAttribute.html" title="interface in jdk.classfile.attribute">RuntimeInvisibleTypeAnnotationsAttribute</a></dt>
 <dd>
 <div class="block">Returns a <code>RuntimeInvisibleTypeAnnotations</code> attribute.</div>
@@ -7203,10 +7185,6 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Returns an exception table pseudo-instruction.</div>
 </dd>
-<dt><a href="jdk/classfile/instruction/ExceptionCatch.html#of(jdk.classfile.Label,jdk.classfile.Label,jdk.classfile.Label,jdk.classfile.constantpool.ClassEntry)" class="member-name-link">of(Label, Label, Label, ClassEntry)</a> - Static method in interface jdk.classfile.instruction.<a href="jdk/classfile/instruction/ExceptionCatch.html" title="interface in jdk.classfile.instruction">ExceptionCatch</a></dt>
-<dd>
-<div class="block">Returns an exception table pseudo-instruction.</div>
-</dd>
 <dt><a href="jdk/classfile/attribute/SignatureAttribute.html#of(jdk.classfile.MethodSignature)" class="member-name-link">of(MethodSignature)</a> - Static method in interface jdk.classfile.attribute.<a href="jdk/classfile/attribute/SignatureAttribute.html" title="interface in jdk.classfile.attribute">SignatureAttribute</a></dt>
 <dd>
 <div class="block">Returns a <code>Signature</code> attribute for a method.</div>
@@ -7300,9 +7278,9 @@ loadScripts(document, 'script');</script>
 <div class="block">Returns a class type signature for an inner class.</div>
 </dd>
 <dt><a href="jdk/classfile/ClassSignature.html#of(jdk.classfile.Signature.RefTypeSig,jdk.classfile.Signature.RefTypeSig...)" class="member-name-link">of(Signature.RefTypeSig, Signature.RefTypeSig...)</a> - Static method in interface jdk.classfile.<a href="jdk/classfile/ClassSignature.html" title="interface in jdk.classfile">ClassSignature</a></dt>
-<dd>
-<div class="block">Returns a signature.</div>
-</dd>
+<dd>&nbsp;</dd>
+<dt><a href="jdk/classfile/MethodSignature.html#of(jdk.classfile.Signature,jdk.classfile.Signature...)" class="member-name-link">of(Signature, Signature...)</a> - Static method in interface jdk.classfile.<a href="jdk/classfile/MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/attribute/RuntimeInvisibleTypeAnnotationsAttribute.html#of(jdk.classfile.TypeAnnotation...)" class="member-name-link">of(TypeAnnotation...)</a> - Static method in interface jdk.classfile.attribute.<a href="jdk/classfile/attribute/RuntimeInvisibleTypeAnnotationsAttribute.html" title="interface in jdk.classfile.attribute">RuntimeInvisibleTypeAnnotationsAttribute</a></dt>
 <dd>
 <div class="block">Returns a <code>RuntimeInvisibleTypeAnnotations</code> attribute.</div>
@@ -7763,7 +7741,9 @@ loadScripts(document, 'script');</script>
 <dt><a href="jdk/classfile/attribute/ModuleOpenInfo.html#opensFlags()" class="member-name-link">opensFlags()</a> - Method in interface jdk.classfile.attribute.<a href="jdk/classfile/attribute/ModuleOpenInfo.html" title="interface in jdk.classfile.attribute">ModuleOpenInfo</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/attribute/ModuleOpenInfo.html#opensFlagsMask()" class="member-name-link">opensFlagsMask()</a> - Method in interface jdk.classfile.attribute.<a href="jdk/classfile/attribute/ModuleOpenInfo.html" title="interface in jdk.classfile.attribute">ModuleOpenInfo</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block">Returns the flags associated with this open declaration, as a bit mask.</div>
+</dd>
 <dt><a href="jdk/classfile/impl/UnboundAttribute.UnboundModuleOpenInfo.html#opensFlagsMask()" class="member-name-link">opensFlagsMask()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/UnboundAttribute.UnboundModuleOpenInfo.html" title="class in jdk.classfile.impl">UnboundAttribute.UnboundModuleOpenInfo</a></dt>
 <dd>
 <div class="block">Returns the value of the <code>opensFlagsMask</code> record component.</div>
@@ -8032,11 +8012,11 @@ loadScripts(document, 'script');</script>
 </dd>
 <dt><a href="jdk/classfile/MethodSignature.html#parseFrom(java.lang.String)" class="member-name-link">parseFrom(String)</a> - Static method in interface jdk.classfile.<a href="jdk/classfile/MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></dt>
 <dd>
-<div class="block">Parses a raw method signature string into a <a href="jdk/classfile/Signature.html" title="interface in jdk.classfile">Signature</a></div>
+<div class="block">Parses a raw method signature string into a <a href="jdk/classfile/MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></div>
 </dd>
 <dt><a href="jdk/classfile/Signature.html#parseFrom(java.lang.String)" class="member-name-link">parseFrom(String)</a> - Static method in interface jdk.classfile.<a href="jdk/classfile/Signature.html" title="interface in jdk.classfile">Signature</a></dt>
 <dd>
-<div class="block">Represent an ordinary method or field descriptor as a signature</div>
+<div class="block">Parses generic Java type signature from raw string</div>
 </dd>
 <dt><a href="jdk/classfile/impl/SignaturesImpl.html#parseMethodSignature(java.lang.String)" class="member-name-link">parseMethodSignature(String)</a> - Method in class jdk.classfile.impl.<a href="jdk/classfile/impl/SignaturesImpl.html" title="class in jdk.classfile.impl">SignaturesImpl</a></dt>
 <dd>&nbsp;</dd>
@@ -8444,7 +8424,9 @@ loadScripts(document, 'script');</script>
 <dt><a href="jdk/classfile/attribute/ModuleRequireInfo.html#requiresFlags()" class="member-name-link">requiresFlags()</a> - Method in interface jdk.classfile.attribute.<a href="jdk/classfile/attribute/ModuleRequireInfo.html" title="interface in jdk.classfile.attribute">ModuleRequireInfo</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="jdk/classfile/attribute/ModuleRequireInfo.html#requiresFlagsMask()" class="member-name-link">requiresFlagsMask()</a> - Method in interface jdk.classfile.attribute.<a href="jdk/classfile/attribute/ModuleRequireInfo.html" title="interface in jdk.classfile.attribute">ModuleRequireInfo</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block">Returns the flags associated with this require declaration, as a bit mask.</div>
+</dd>
 <dt><a href="jdk/classfile/impl/UnboundAttribute.UnboundModuleRequiresInfo.html#requiresFlagsMask()" class="member-name-link">requiresFlagsMask()</a> - Method in record class jdk.classfile.impl.<a href="jdk/classfile/impl/UnboundAttribute.UnboundModuleRequiresInfo.html" title="class in jdk.classfile.impl">UnboundAttribute.UnboundModuleRequiresInfo</a></dt>
 <dd>
 <div class="block">Returns the value of the <code>requiresFlagsMask</code> record component.</div>
@@ -8682,8 +8664,7 @@ loadScripts(document, 'script');</script>
 </dd>
 <dt><a href="jdk/classfile/Signature.html" class="type-name-link" title="interface in jdk.classfile">Signature</a> - Interface in <a href="jdk/classfile/package-summary.html">jdk.classfile</a></dt>
 <dd>
-<div class="block">Models generic signatures on class, method, and field declarations, as defined
- in JVMS 4.7.9.1.</div>
+<div class="block">Models generic Java type signatures, as defined in JVMS 4.7.9.1.</div>
 </dd>
 <dt><a href="jdk/classfile/Attributes.html#SIGNATURE" class="member-name-link">SIGNATURE</a> - Static variable in class jdk.classfile.<a href="jdk/classfile/Attributes.html" title="class in jdk.classfile">Attributes</a></dt>
 <dd>

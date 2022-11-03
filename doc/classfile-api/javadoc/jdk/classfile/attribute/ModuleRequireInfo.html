@@ -150,7 +150,9 @@ loadScripts(document, 'script');</script>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#requiresFlagsMask()" class="member-name-link">requiresFlagsMask</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Returns the flags associated with this require declaration, as a bit mask.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="../constantpool/Utf8Entry.html" title="interface in jdk.classfile.constantpool">Utf8Entry</a>&gt;</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#requiresVersion()" class="member-name-link">requiresVersion</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
@@ -185,6 +187,15 @@ loadScripts(document, 'script');</script>
 <section class="detail" id="requiresFlagsMask()">
 <h3>requiresFlagsMask</h3>
 <div class="member-signature"><span class="return-type">int</span>&nbsp;<span class="element-name">requiresFlagsMask</span>()</div>
+<div class="block">Returns the flags associated with this require declaration, as a bit mask.
+ Valid flags include <a href="../Classfile.html#ACC_TRANSITIVE"><code>Classfile.ACC_TRANSITIVE</code></a>,
+ <a href="../Classfile.html#ACC_STATIC_PHASE"><code>Classfile.ACC_STATIC_PHASE</code></a>,
+ <a href="../Classfile.html#ACC_SYNTHETIC"><code>Classfile.ACC_SYNTHETIC</code></a> and
+ <a href="../Classfile.html#ACC_MANDATED"><code>Classfile.ACC_MANDATED</code></a></div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the flags associated with this require declaration, as a bit mask</dd>
+</dl>
 </section>
 </li>
 <li>

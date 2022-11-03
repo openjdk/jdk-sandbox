@@ -92,7 +92,7 @@ loadScripts(document, 'script');</script>
 <hr>
 <div class="type-signature"><span class="modifiers">public sealed interface </span><span class="element-name type-name-label">MethodSignature</span>
 <span class="permits">permits <a href="impl/SignaturesImpl.MethodSignatureImpl.html" title="class in jdk.classfile.impl">SignaturesImpl.MethodSignatureImpl</a></span></div>
-<div class="block">Models the generic signature of a class, as defined by JVMS 4.7.9.</div>
+<div class="block">Models the generic signature of a method, as defined by JVMS 4.7.9.</div>
 </section>
 <section class="summary">
 <ul class="summary-list">
@@ -113,42 +113,22 @@ loadScripts(document, 'script');</script>
 <div class="block">Returns the signatures of the parameters of this method.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1"><code>static <a href="MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(java.lang.constant.MethodTypeDesc)" class="member-name-link">of</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/MethodTypeDesc.html" title="class or interface in java.lang.constant" class="external-link">MethodTypeDesc</a>&nbsp;descriptor)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1">
-<div class="block">Returns a signature for a raw (no generic information) method descriptor.</div>
-</div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(java.lang.constant.MethodTypeDesc)" class="member-name-link">of</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/MethodTypeDesc.html" title="class or interface in java.lang.constant" class="external-link">MethodTypeDesc</a>&nbsp;methodDescriptor)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1"><code>static <a href="MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(java.util.List,java.util.List,jdk.classfile.Signature)" class="member-name-link">of</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Signature.TypeParam.html" title="interface in jdk.classfile">Signature.TypeParam</a>&gt;&nbsp;typeParameters,
- <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Signature.html" title="interface in jdk.classfile">Signature</a>&gt;&nbsp;arguments,
- <a href="Signature.html" title="interface in jdk.classfile">Signature</a>&nbsp;result)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1">
-<div class="block">Returns a signature.</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1"><code>static <a href="MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(java.util.List,java.util.List,jdk.classfile.Signature,java.util.List)" class="member-name-link">of</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Signature.TypeParam.html" title="interface in jdk.classfile">Signature.TypeParam</a>&gt;&nbsp;typeParameters,
- <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Signature.html" title="interface in jdk.classfile">Signature</a>&gt;&nbsp;arguments,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(java.util.List,java.util.List,jdk.classfile.Signature,jdk.classfile.Signature...)" class="member-name-link">of</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Signature.TypeParam.html" title="interface in jdk.classfile">Signature.TypeParam</a>&gt;&nbsp;typeParameters,
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Signature.ThrowableSig.html" title="interface in jdk.classfile">Signature.ThrowableSig</a>&gt;&nbsp;exceptions,
  <a href="Signature.html" title="interface in jdk.classfile">Signature</a>&nbsp;result,
- <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Signature.ThrowableSig.html" title="interface in jdk.classfile">Signature.ThrowableSig</a>&gt;&nbsp;exceptions)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1">
-<div class="block">Returns a signature.</div>
-</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1"><code>static <a href="MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(java.util.List,jdk.classfile.Signature)" class="member-name-link">of</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Signature.html" title="interface in jdk.classfile">Signature</a>&gt;&nbsp;arguments,
- <a href="Signature.html" title="interface in jdk.classfile">Signature</a>&nbsp;result)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1">
-<div class="block">Returns a signature.</div>
-</div>
+ <a href="Signature.html" title="interface in jdk.classfile">Signature</a>...&nbsp;arguments)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1"><code>static <a href="MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(java.util.List,jdk.classfile.Signature,java.util.List)" class="member-name-link">of</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Signature.html" title="interface in jdk.classfile">Signature</a>&gt;&nbsp;arguments,
- <a href="Signature.html" title="interface in jdk.classfile">Signature</a>&nbsp;result,
- <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Signature.ThrowableSig.html" title="interface in jdk.classfile">Signature.ThrowableSig</a>&gt;&nbsp;exceptions)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1">
-<div class="block">Returns a signature.</div>
-</div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(jdk.classfile.Signature,jdk.classfile.Signature...)" class="member-name-link">of</a><wbr>(<a href="Signature.html" title="interface in jdk.classfile">Signature</a>&nbsp;result,
+ <a href="Signature.html" title="interface in jdk.classfile">Signature</a>...&nbsp;arguments)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1"><code>static <a href="MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#parseFrom(java.lang.String)" class="member-name-link">parseFrom</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;signature)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#parseFrom(java.lang.String)" class="member-name-link">parseFrom</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;methodSignature)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1">
-<div class="block">Parses a raw method signature string into a <a href="Signature.html" title="interface in jdk.classfile">Signature</a></div>
+<div class="block">Parses a raw method signature string into a <a href="MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="Signature.html" title="interface in jdk.classfile">Signature</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#result()" class="member-name-link">result</a>()</code></div>
@@ -242,94 +222,57 @@ loadScripts(document, 'script');</script>
 <li>
 <section class="detail" id="of(java.lang.constant.MethodTypeDesc)">
 <h3>of</h3>
-<div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/MethodTypeDesc.html" title="class or interface in java.lang.constant" class="external-link">MethodTypeDesc</a>&nbsp;descriptor)</span></div>
-<div class="block">Returns a signature for a raw (no generic information) method descriptor.</div>
+<div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/constant/MethodTypeDesc.html" title="class or interface in java.lang.constant" class="external-link">MethodTypeDesc</a>&nbsp;methodDescriptor)</span></div>
 <dl class="notes">
 <dt>Parameters:</dt>
-<dd><code>descriptor</code> - the method descriptor</dd>
+<dd><code>methodDescriptor</code> - the method descriptor</dd>
 <dt>Returns:</dt>
-<dd>a signature for a raw (no generic information) method descriptor</dd>
+<dd>method signature for a raw (no generic information) method descriptor</dd>
 </dl>
 </section>
 </li>
 <li>
-<section class="detail" id="of(java.util.List,jdk.classfile.Signature)">
+<section class="detail" id="of(jdk.classfile.Signature,jdk.classfile.Signature...)">
 <h3>of</h3>
-<div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Signature.html" title="interface in jdk.classfile">Signature</a>&gt;&nbsp;arguments,
- <a href="Signature.html" title="interface in jdk.classfile">Signature</a>&nbsp;result)</span></div>
-<div class="block">Returns a signature.</div>
+<div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="Signature.html" title="interface in jdk.classfile">Signature</a>&nbsp;result,
+ <a href="Signature.html" title="interface in jdk.classfile">Signature</a>...&nbsp;arguments)</span></div>
 <dl class="notes">
 <dt>Parameters:</dt>
-<dd><code>arguments</code> - signatures for the method arguments</dd>
 <dd><code>result</code> - signature for the return type</dd>
+<dd><code>arguments</code> - signatures for the method arguments</dd>
 <dt>Returns:</dt>
-<dd>a signature</dd>
+<dd>method signature</dd>
 </dl>
 </section>
 </li>
 <li>
-<section class="detail" id="of(java.util.List,jdk.classfile.Signature,java.util.List)">
-<h3>of</h3>
-<div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Signature.html" title="interface in jdk.classfile">Signature</a>&gt;&nbsp;arguments,
- <a href="Signature.html" title="interface in jdk.classfile">Signature</a>&nbsp;result,
- <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Signature.ThrowableSig.html" title="interface in jdk.classfile">Signature.ThrowableSig</a>&gt;&nbsp;exceptions)</span></div>
-<div class="block">Returns a signature.</div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>arguments</code> - signatures for the method arguments</dd>
-<dd><code>result</code> - signature for the return type</dd>
-<dd><code>exceptions</code> - sigantures for the exceptions</dd>
-<dt>Returns:</dt>
-<dd>a signature</dd>
-</dl>
-</section>
-</li>
-<li>
-<section class="detail" id="of(java.util.List,java.util.List,jdk.classfile.Signature)">
+<section class="detail" id="of(java.util.List,java.util.List,jdk.classfile.Signature,jdk.classfile.Signature...)">
 <h3>of</h3>
 <div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Signature.TypeParam.html" title="interface in jdk.classfile">Signature.TypeParam</a>&gt;&nbsp;typeParameters,
- <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Signature.html" title="interface in jdk.classfile">Signature</a>&gt;&nbsp;arguments,
- <a href="Signature.html" title="interface in jdk.classfile">Signature</a>&nbsp;result)</span></div>
-<div class="block">Returns a signature.</div>
+ <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Signature.ThrowableSig.html" title="interface in jdk.classfile">Signature.ThrowableSig</a>&gt;&nbsp;exceptions,
+ <a href="Signature.html" title="interface in jdk.classfile">Signature</a>&nbsp;result,
+ <a href="Signature.html" title="interface in jdk.classfile">Signature</a>...&nbsp;arguments)</span></div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>typeParameters</code> - signatures for the type parameters</dd>
-<dd><code>arguments</code> - signatures for the method arguments</dd>
-<dd><code>result</code> - signature for the return type</dd>
-<dt>Returns:</dt>
-<dd>a signature</dd>
-</dl>
-</section>
-</li>
-<li>
-<section class="detail" id="of(java.util.List,java.util.List,jdk.classfile.Signature,java.util.List)">
-<h3>of</h3>
-<div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Signature.TypeParam.html" title="interface in jdk.classfile">Signature.TypeParam</a>&gt;&nbsp;typeParameters,
- <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Signature.html" title="interface in jdk.classfile">Signature</a>&gt;&nbsp;arguments,
- <a href="Signature.html" title="interface in jdk.classfile">Signature</a>&nbsp;result,
- <a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Signature.ThrowableSig.html" title="interface in jdk.classfile">Signature.ThrowableSig</a>&gt;&nbsp;exceptions)</span></div>
-<div class="block">Returns a signature.</div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>typeParameters</code> - signatures for the type parameters</dd>
-<dd><code>arguments</code> - signatures for the method arguments</dd>
-<dd><code>result</code> - signature for the return type</dd>
 <dd><code>exceptions</code> - sigantures for the exceptions</dd>
+<dd><code>result</code> - signature for the return type</dd>
+<dd><code>arguments</code> - signatures for the method arguments</dd>
 <dt>Returns:</dt>
-<dd>a signature</dd>
+<dd>method signature</dd>
 </dl>
 </section>
 </li>
 <li>
 <section class="detail" id="parseFrom(java.lang.String)">
 <h3>parseFrom</h3>
-<div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></span>&nbsp;<span class="element-name">parseFrom</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;signature)</span></div>
-<div class="block">Parses a raw method signature string into a <a href="Signature.html" title="interface in jdk.classfile">Signature</a></div>
+<div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></span>&nbsp;<span class="element-name">parseFrom</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;methodSignature)</span></div>
+<div class="block">Parses a raw method signature string into a <a href="MethodSignature.html" title="interface in jdk.classfile">MethodSignature</a></div>
 <dl class="notes">
 <dt>Parameters:</dt>
-<dd><code>signature</code> - the raw signature string</dd>
+<dd><code>methodSignature</code> - the raw method signature string</dd>
 <dt>Returns:</dt>
-<dd>the signature</dd>
+<dd>method signature</dd>
 </dl>
 </section>
 </li>

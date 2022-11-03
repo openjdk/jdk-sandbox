@@ -150,45 +150,50 @@ loadScripts(document, 'script');</script>
  pool when transforming a classfile.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1"><code>static <a href="Classfile.Option.html" title="interface in jdk.classfile">Classfile.Option</a>&lt;<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&gt;</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#fixShortJumps(boolean)" class="member-name-link">fixShortJumps</a><wbr>(boolean&nbsp;b)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#filterDeadLabels(boolean)" class="member-name-link">filterDeadLabels</a><wbr>(boolean&nbsp;b)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1">
+<div class="block">Returns an option describing whether or not to filter unresolved labels.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1"><code>static <a href="Classfile.Option.html" title="interface in jdk.classfile">Classfile.Option</a>&lt;<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#fixShortJumps(boolean)" class="member-name-link">fixShortJumps</a><wbr>(boolean&nbsp;b)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1">
 <div class="block">Returns an option describing whether or not to automatically rewrite
  short jumps to long when necessary.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1"><code>static <a href="Classfile.Option.html" title="interface in jdk.classfile">Classfile.Option</a>&lt;<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&gt;</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#generateStackmap(boolean)" class="member-name-link">generateStackmap</a><wbr>(boolean&nbsp;b)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1"><code>static <a href="Classfile.Option.html" title="interface in jdk.classfile">Classfile.Option</a>&lt;<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#generateStackmap(boolean)" class="member-name-link">generateStackmap</a><wbr>(boolean&nbsp;b)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1">
 <div class="block">Returns an option describing whether or not to generate stackmaps.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="Classfile.Option.Key.html" title="enum class in jdk.classfile">Classfile.Option.Key</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#key()" class="member-name-link">key</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="Classfile.Option.Key.html" title="enum class in jdk.classfile">Classfile.Option.Key</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#key()" class="member-name-link">key</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns the option key.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1"><code>static <a href="Classfile.Option.html" title="interface in jdk.classfile">Classfile.Option</a>&lt;<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&gt;</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#patchDeadCode(boolean)" class="member-name-link">patchDeadCode</a><wbr>(boolean&nbsp;b)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1"><code>static <a href="Classfile.Option.html" title="interface in jdk.classfile">Classfile.Option</a>&lt;<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#patchDeadCode(boolean)" class="member-name-link">patchDeadCode</a><wbr>(boolean&nbsp;b)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1">
 <div class="block">Returns an option describing whether or not to patch out unreachable code.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1"><code>static <a href="Classfile.Option.html" title="interface in jdk.classfile">Classfile.Option</a>&lt;<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&gt;</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#processDebug(boolean)" class="member-name-link">processDebug</a><wbr>(boolean&nbsp;b)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1"><code>static <a href="Classfile.Option.html" title="interface in jdk.classfile">Classfile.Option</a>&lt;<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#processDebug(boolean)" class="member-name-link">processDebug</a><wbr>(boolean&nbsp;b)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1">
 <div class="block">Returns an option describing whether to process or discard debug elements.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1"><code>static <a href="Classfile.Option.html" title="interface in jdk.classfile">Classfile.Option</a>&lt;<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&gt;</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#processLineNumbers(boolean)" class="member-name-link">processLineNumbers</a><wbr>(boolean&nbsp;b)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1"><code>static <a href="Classfile.Option.html" title="interface in jdk.classfile">Classfile.Option</a>&lt;<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#processLineNumbers(boolean)" class="member-name-link">processLineNumbers</a><wbr>(boolean&nbsp;b)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1">
 <div class="block">Returns an option describing whether to process or discard line numbers.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1"><code>static <a href="Classfile.Option.html" title="interface in jdk.classfile">Classfile.Option</a>&lt;<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&gt;</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#processUnknownAttributes(boolean)" class="member-name-link">processUnknownAttributes</a><wbr>(boolean&nbsp;b)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1"><code>static <a href="Classfile.Option.html" title="interface in jdk.classfile">Classfile.Option</a>&lt;<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#processUnknownAttributes(boolean)" class="member-name-link">processUnknownAttributes</a><wbr>(boolean&nbsp;b)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1">
 <div class="block">Returns an option describing whether to process or discard unrecognized
  attributes.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="Classfile.Option.html" title="type parameter in Classfile.Option">V</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#value()" class="member-name-link">value</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="Classfile.Option.html" title="type parameter in Classfile.Option">V</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#value()" class="member-name-link">value</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns the option value.</div>
 </div>
 </div>
@@ -366,6 +371,23 @@ loadScripts(document, 'script');</script>
 <dd><code>r</code> - a function mapping attribute names to attribute mappers</dd>
 <dt>Returns:</dt>
 <dd>an option describing attribute mappers for custom attributes</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="filterDeadLabels(boolean)">
+<h3>filterDeadLabels</h3>
+<div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="Classfile.Option.html" title="interface in jdk.classfile">Classfile.Option</a>&lt;<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/Boolean.html" title="class or interface in java.lang" class="external-link">Boolean</a>&gt;</span>&nbsp;<span class="element-name">filterDeadLabels</span><wbr><span class="parameters">(boolean&nbsp;b)</span></div>
+<div class="block">Returns an option describing whether or not to filter unresolved labels.
+ Default is to throw IllegalStateException when any <a href="instruction/ExceptionCatch.html" title="interface in jdk.classfile.instruction"><code>ExceptionCatch</code></a>,
+ <a href="attribute/LocalVariableInfo.html" title="interface in jdk.classfile.attribute"><code>LocalVariableInfo</code></a>, <a href="attribute/LocalVariableTypeInfo.html" title="interface in jdk.classfile.attribute"><code>LocalVariableTypeInfo</code></a>, or <a href="attribute/CharacterRangeInfo.html" title="interface in jdk.classfile.attribute"><code>CharacterRangeInfo</code></a>
+ reference to unresolved <a href="Label.html" title="interface in jdk.classfile"><code>Label</code></a> during bytecode serialization.
+ Setting this option to true filters the above elements instead.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>b</code> - whether or not to automatically patch out unreachable code</dd>
+<dt>Returns:</dt>
+<dd>an option describing whether or not to filter unresolved labels</dd>
 </dl>
 </section>
 </li>

@@ -92,7 +92,7 @@ loadScripts(document, 'script');</script>
 <hr>
 <div class="type-signature"><span class="modifiers">public sealed interface </span><span class="element-name type-name-label">ClassSignature</span>
 <span class="permits">permits <a href="impl/SignaturesImpl.ClassSignatureImpl.html" title="class in jdk.classfile.impl">SignaturesImpl.ClassSignatureImpl</a></span></div>
-<div class="block">Models the generic signature of a class, as defined by JVMS 4.7.9.</div>
+<div class="block">Models the generic signature of a class file, as defined by JVMS 4.7.9.</div>
 </section>
 <section class="summary">
 <ul class="summary-list">
@@ -111,17 +111,13 @@ loadScripts(document, 'script');</script>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(java.util.List,jdk.classfile.Signature.RefTypeSig,jdk.classfile.Signature.RefTypeSig...)" class="member-name-link">of</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Signature.TypeParam.html" title="interface in jdk.classfile">Signature.TypeParam</a>&gt;&nbsp;typeParameters,
  <a href="Signature.RefTypeSig.html" title="interface in jdk.classfile">Signature.RefTypeSig</a>&nbsp;superclassSignature,
  <a href="Signature.RefTypeSig.html" title="interface in jdk.classfile">Signature.RefTypeSig</a>...&nbsp;superinterfaceSignatures)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1">
-<div class="block">Returns a signature.</div>
-</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1"><code>static <a href="ClassSignature.html" title="interface in jdk.classfile">ClassSignature</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(jdk.classfile.Signature.RefTypeSig,jdk.classfile.Signature.RefTypeSig...)" class="member-name-link">of</a><wbr>(<a href="Signature.RefTypeSig.html" title="interface in jdk.classfile">Signature.RefTypeSig</a>&nbsp;superclassSignature,
  <a href="Signature.RefTypeSig.html" title="interface in jdk.classfile">Signature.RefTypeSig</a>...&nbsp;superinterfaceSignatures)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1">
-<div class="block">Returns a signature.</div>
-</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1">&nbsp;</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1"><code>static <a href="ClassSignature.html" title="interface in jdk.classfile">ClassSignature</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#parseFrom(java.lang.String)" class="member-name-link">parseFrom</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;signature)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#parseFrom(java.lang.String)" class="member-name-link">parseFrom</a><wbr>(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;classSignature)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1">
 <div class="block">Parses a raw class signature string into a <a href="Signature.html" title="interface in jdk.classfile">Signature</a></div>
 </div>
@@ -208,13 +204,12 @@ loadScripts(document, 'script');</script>
 <h3>of</h3>
 <div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="ClassSignature.html" title="interface in jdk.classfile">ClassSignature</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="Signature.RefTypeSig.html" title="interface in jdk.classfile">Signature.RefTypeSig</a>&nbsp;superclassSignature,
  <a href="Signature.RefTypeSig.html" title="interface in jdk.classfile">Signature.RefTypeSig</a>...&nbsp;superinterfaceSignatures)</span></div>
-<div class="block">Returns a signature.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>superclassSignature</code> - the superclass</dd>
 <dd><code>superinterfaceSignatures</code> - the interfaces</dd>
 <dt>Returns:</dt>
-<dd>a signature</dd>
+<dd>class signature</dd>
 </dl>
 </section>
 </li>
@@ -224,27 +219,26 @@ loadScripts(document, 'script');</script>
 <div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="ClassSignature.html" title="interface in jdk.classfile">ClassSignature</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Signature.TypeParam.html" title="interface in jdk.classfile">Signature.TypeParam</a>&gt;&nbsp;typeParameters,
  <a href="Signature.RefTypeSig.html" title="interface in jdk.classfile">Signature.RefTypeSig</a>&nbsp;superclassSignature,
  <a href="Signature.RefTypeSig.html" title="interface in jdk.classfile">Signature.RefTypeSig</a>...&nbsp;superinterfaceSignatures)</span></div>
-<div class="block">Returns a signature.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>typeParameters</code> - the type parameters</dd>
 <dd><code>superclassSignature</code> - the superclass</dd>
 <dd><code>superinterfaceSignatures</code> - the interfaces</dd>
 <dt>Returns:</dt>
-<dd>a signature</dd>
+<dd>class signature</dd>
 </dl>
 </section>
 </li>
 <li>
 <section class="detail" id="parseFrom(java.lang.String)">
 <h3>parseFrom</h3>
-<div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="ClassSignature.html" title="interface in jdk.classfile">ClassSignature</a></span>&nbsp;<span class="element-name">parseFrom</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;signature)</span></div>
+<div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="ClassSignature.html" title="interface in jdk.classfile">ClassSignature</a></span>&nbsp;<span class="element-name">parseFrom</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk20/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;classSignature)</span></div>
 <div class="block">Parses a raw class signature string into a <a href="Signature.html" title="interface in jdk.classfile">Signature</a></div>
 <dl class="notes">
 <dt>Parameters:</dt>
-<dd><code>signature</code> - the raw signature string</dd>
+<dd><code>classSignature</code> - the raw class signature string</dd>
 <dt>Returns:</dt>
-<dd>the signature</dd>
+<dd>class signature</dd>
 </dl>
 </section>
 </li>
