@@ -55,18 +55,10 @@ import jdk.jfr.internal.event.EventWriter;
  */
 public final class EventInstrumentation {
 
-    record SettingInfo(String fieldName, int index, ClassDesc paramType, String methodName, SettingControl settingControl) {
-        /**
-         * A malicious user must never be able to run a callback in the wrong
-         * context. Methods on SettingControl must therefore never be invoked directly
-         * by JFR, instead use jdk.jfr.internal.Control.
-         */
-        public SettingControl settingControl() {
-            return this.settingControl;
-        }
+    record SettingInfo(ClassDesc paramType, String methodName) {
     }
 
-    record FieldInfo(String fieldName, String fieldDescriptor, String internalClassName) {
+    record FieldInfo(String name, String descriptor) {
     }
 
     public static final String FIELD_EVENT_THREAD = "eventThread";
@@ -146,8 +138,8 @@ public final class EventInstrumentation {
     public static MethodTypeDesc findStaticCommitMethodDesc(ClassModel classNode, List<FieldInfo> fields) {
         StringBuilder sb = new StringBuilder();
         sb.append("(");
-        for (FieldInfo v : fields) {
-            sb.append(v.fieldDescriptor);
+        for (FieldInfo field : fields) {
+            sb.append(field.descriptor);
         }
         sb.append(")V");
         String desc = sb.toString();
@@ -247,10 +239,8 @@ public final class EventInstrumentation {
                             if (mDesc.returnType().descriptorString().equals("Z")) {
                                 if (mDesc.parameterCount() == 1) {
                                     var paramType = mDesc.parameterType(0);
-                                    String fieldName = EventControl.FIELD_SETTING_PREFIX + settingInfos.size();
-                                    int index = settingInfos.size();
                                     methodSet.add(m.methodName().stringValue());
-                                    settingInfos.add(new SettingInfo(fieldName, index, paramType, m.methodName().stringValue(), null));
+                                    settingInfos.add(new SettingInfo(paramType, m.methodName().stringValue()));
                                 }
                             }
                         }
@@ -267,10 +257,8 @@ public final class EventInstrumentation {
                             if (method.getParameterCount() == 1) {
                                 Parameter param = method.getParameters()[0];
                                 ClassDesc paramType = ClassDesc.ofDescriptor(param.getType().descriptorString());
-                                String fieldName = EventControl.FIELD_SETTING_PREFIX + settingInfos.size();
-                                int index = settingInfos.size();
                                 methodSet.add(method.getName());
-                                settingInfos.add(new SettingInfo(fieldName, index, paramType, method.getName(), null));
+                                settingInfos.add(new SettingInfo(paramType, method.getName()));
                             }
                         }
                     }
@@ -289,11 +277,11 @@ public final class EventInstrumentation {
         // control in which order they occur and we can add @Name, @Description
         // in Java, instead of in native. It also means code for adding implicit
         // fields for native can be reused by Java.
-        fieldInfos.add(new FieldInfo("startTime", CD_long.descriptorString(), classNode.thisClass().name().stringValue()));
-        fieldInfos.add(new FieldInfo("duration", CD_long.descriptorString(), classNode.thisClass().name().stringValue()));
+        fieldInfos.add(new FieldInfo("startTime", CD_long.descriptorString()));
+        fieldInfos.add(new FieldInfo("duration", CD_long.descriptorString()));
         for (var field : classNode.fields()) {
             if (!fieldSet.contains(field.fieldName().stringValue()) && isValidField(field.flags().flagsMask(), className(field.fieldType().stringValue()))) {
-                FieldInfo fi = new FieldInfo(field.fieldName().stringValue(), field.fieldType().stringValue(), classNode.thisClass().name().stringValue());
+                FieldInfo fi = new FieldInfo(field.fieldName().stringValue(), field.fieldType().stringValue());
                 fieldInfos.add(fi);
                 fieldSet.add(field.fieldName().stringValue());
             }
@@ -306,8 +294,7 @@ public final class EventInstrumentation {
                         String fieldName = field.getName();
                         if (!fieldSet.contains(fieldName)) {
                             String fieldType = field.getType().descriptorString();
-                            String internalClassName = ASMToolkit.getInternalName(c.getName());
-                            fieldInfos.add(new FieldInfo(fieldName, fieldType, internalClassName));
+                            fieldInfos.add(new FieldInfo(fieldName, fieldType));
                             fieldSet.add(fieldName);
                         }
                     }
@@ -601,7 +588,7 @@ public final class EventInstrumentation {
                             // stack: [EW] [EW]
                             cob.aload(0);
                             // stack: [EW] [EW] [this]
-                            cob.getfield(className, field.fieldName, ClassDesc.ofDescriptor(field.fieldDescriptor));
+                            cob.getfield(className, field.name, ClassDesc.ofDescriptor(field.descriptor));
                             // stack: [EW] [EW] <T>
                             EventWriterMethod eventMethod = EventWriterMethod.lookupMethod(field);
                             cob.invokevirtual(TYPE_EVENT_WRITER, eventMethod.methodName, eventMethod.methodDesc);
@@ -656,8 +643,8 @@ public final class EventInstrumentation {
                     cob.getfield(className, FIELD_DURATION, CD_long);
                     cob.invokevirtual(TYPE_EVENT_CONFIGURATION, METHOD_EVENT_CONFIGURATION_SHOULD_COMMIT, METHOD_EVENT_CONFIGURATION_SHOULD_COMMIT_DESC);
                     cob.ifeq(fail);
-                    int index = 0;
-                    for (SettingInfo si : settingInfos) {
+                    for (int index = 0; index < settingInfos.size(); index++) {
+                        SettingInfo si = settingInfos.get(index);
                         // if (!settingsMethod(eventHandler.settingX)) goto fail;
                         cob.aload(0);
                         if (untypedEventConfiguration) {
@@ -671,7 +658,6 @@ public final class EventInstrumentation {
                         cob.checkcast(si.paramType());
                         cob.invokevirtual(className, si.methodName, MethodTypeDesc.of(CD_boolean, si.paramType()));
                         cob.ifeq(fail);
-                        index++;
                     }
                     // return true
                     cob.iconst_1();

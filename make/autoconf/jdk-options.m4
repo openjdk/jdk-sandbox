@@ -102,6 +102,14 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_OPTIONS],
       CHECKING_MSG: [if we should build headless-only (no GUI)])
   AC_SUBST(ENABLE_HEADLESS_ONLY)
 
+  # Should the compiler only accept code that strictly conforms to the standard used by
+  # the build?
+  UTIL_ARG_ENABLE(NAME: conforming-compilation, DEFAULT: false,
+      RESULT: ENABLE_CONFORMING_COMPILATION,
+      DESC: [enforce conforming code during compilation],
+      CHECKING_MSG: [if compiler should enforce conforming code (conforming-compilation)])
+  AC_SUBST(ENABLE_CONFORMING_COMPILATION)
+
   # should we linktime gc unused code sections in the JDK build ?
   if test "x$OPENJDK_TARGET_OS" = "xlinux" && test "x$OPENJDK_TARGET_CPU" = xs390x; then
     LINKTIME_GC_DEFAULT=true
@@ -470,6 +478,31 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_STATIC_BUILD],
         CXXFLAGS_JDKLIB_EXTRA="$CXXFLAGS_JDKLIB_EXTRA $STATIC_BUILD_CFLAGS"
       ])
   AC_SUBST(STATIC_BUILD)
+])
+
+################################################################################
+#
+# jmod options.
+#
+AC_DEFUN_ONCE([JDKOPT_SETUP_JMOD_OPTIONS],
+[
+  # Final JMODs are recompiled often during development, and java.base JMOD
+  # includes the JVM libraries. In release mode, prefer to compress JMODs fully.
+  # In debug mode, pay with a little extra space, but win a lot of CPU time back
+  # with the lightest (but still some) compression.
+  if test "x$DEBUG_LEVEL" = xrelease; then
+    DEFAULT_JMOD_COMPRESS="zip-6"
+  else
+    DEFAULT_JMOD_COMPRESS="zip-1"
+  fi
+
+  UTIL_ARG_WITH(NAME: jmod-compress, TYPE: literal,
+    VALID_VALUES: [zip-0 zip-1 zip-2 zip-3 zip-4 zip-5 zip-6 zip-7 zip-8 zip-9],
+    DEFAULT: $DEFAULT_JMOD_COMPRESS,
+    CHECKING_MSG: [for JMOD compression type],
+    DESC: [specify JMOD compression type (zip-[0-9])]
+  )
+  AC_SUBST(JMOD_COMPRESS)
 ])
 
 ################################################################################

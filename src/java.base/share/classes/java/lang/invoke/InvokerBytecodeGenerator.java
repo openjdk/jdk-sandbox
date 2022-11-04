@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -281,24 +281,6 @@ class InvokerBytecodeGenerator {
         return name;
     }
 
-    List<Object> classDataValues() {
-        final List<ClassData> cd = classData;
-        return switch(cd.size()) {
-            case 0 -> List.of();
-            case 1 -> List.of(cd.get(0).value);
-            case 2 -> List.of(cd.get(0).value, cd.get(1).value);
-            case 3 -> List.of(cd.get(0).value, cd.get(1).value, cd.get(2).value);
-            case 4 -> List.of(cd.get(0).value, cd.get(1).value, cd.get(2).value, cd.get(3).value);
-            default -> {
-                Object[] data = new Object[classData.size()];
-                for (int i = 0; i < classData.size(); i++) {
-                    data[i] = classData.get(i).value;
-                }
-                yield List.of(data);
-            }
-        };
-    }
-
     private static String debugString(Object arg) {
         if (arg instanceof MethodHandle mh) {
             MemberName member = mh.internalMemberName();
@@ -356,6 +338,32 @@ class InvokerBytecodeGenerator {
         clb.withMethod(invokerName, invokerDesc, ACC_STATIC, config);
     }
 
+    /**
+     * Returns the class data object that will be passed to `Lookup.defineHiddenClassWithClassData`.
+     * The classData is loaded in the <clinit> method of the generated class.
+     * If the class data contains only one single object, this method returns  that single object.
+     * If the class data contains more than one objects, this method returns a List.
+     *
+     * This method returns null if no class data.
+     */
+    private Object classDataValues() {
+        final List<ClassData> cd = classData;
+        return switch (cd.size()) {
+            case 0 -> null;             // special case (classData is not used by <clinit>)
+            case 1 -> cd.get(0).value;  // special case (single object)
+            case 2 -> List.of(cd.get(0).value, cd.get(1).value);
+            case 3 -> List.of(cd.get(0).value, cd.get(1).value, cd.get(2).value);
+            case 4 -> List.of(cd.get(0).value, cd.get(1).value, cd.get(2).value, cd.get(3).value);
+            default -> {
+                Object[] data = new Object[classData.size()];
+                for (int i = 0; i < classData.size(); i++) {
+                    data[i] = classData.get(i).value;
+                }
+                yield List.of(data);
+            }
+        };
+    }
+
     /*
      * <clinit> to initialize the static final fields with the live class data
      * LambdaForms can't use condy due to bootstrapping issue.
@@ -385,18 +393,23 @@ class InvokerBytecodeGenerator {
                         cob.constantInstruction(classDesc);
                         cob.invokeInstruction(Opcode.INVOKESTATIC, CD_MethodHandles,
                                 "classData", MethodTypeDesc.of(CD_Object, CD_Class), false);
-                        // we should optimize one single element case that does not need to create a List
-                        cob.typeCheckInstruction(Opcode.CHECKCAST, CD_List);
-                        cob.storeInstruction(TypeKind.ReferenceType, 0);
-                        int index = 0;
-                        for (ClassData p : classData) {
-                            // initialize the static field
-                            cob.loadInstruction(TypeKind.ReferenceType, 0);
-                            cob.constantInstruction(index++);
-                            cob.invokeInstruction(Opcode.INVOKEINTERFACE, CD_List,
-                                    "get", MethodTypeDesc.of(CD_Object, CD_int), true);
+                        if (classData.size() == 1) {
+                            ClassData p = classData.get(0);
                             cob.typeCheckInstruction(Opcode.CHECKCAST, p.desc);
                             cob.fieldInstruction(Opcode.PUTSTATIC, classDesc, p.name, p.desc);
+                        } else {
+                            cob.typeCheckInstruction(Opcode.CHECKCAST, CD_List);
+                            cob.storeInstruction(TypeKind.ReferenceType, 0);
+                            int index = 0;
+                            for (ClassData p : classData) {
+                                // initialize the static field
+                                cob.loadInstruction(TypeKind.ReferenceType, 0);
+                                cob.constantInstruction(index++);
+                                cob.invokeInstruction(Opcode.INVOKEINTERFACE, CD_List,
+                                        "get", MethodTypeDesc.of(CD_Object, CD_int), true);
+                                cob.typeCheckInstruction(Opcode.CHECKCAST, p.desc);
+                                cob.fieldInstruction(Opcode.PUTSTATIC, classDesc, p.name, p.desc);
+                            }
                         }
                         cob.returnInstruction(TypeKind.VoidType);
                     }
