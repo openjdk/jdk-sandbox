@@ -65,7 +65,7 @@ class AdaptCodeTest {
                     new ByteArrayClassLoader(AdaptCodeTest.class.getClassLoader(), testClassName, newBytes)
                             .getMethod(testClassName, "many")
                             .invoke(null, "Blah");
-            assertEquals(result, THIRTEEN);
+            assertEquals(THIRTEEN, result);
         }
     }
 
@@ -106,7 +106,7 @@ class AdaptCodeTest {
                 new ByteArrayClassLoader(AdaptCodeTest.class.getClassLoader(), testClassName, newBytes)
                         .getMethod(testClassName, "many")
                         .invoke(null, "Blah");
-        assertEquals(result, SEVEN);
+        assertEquals(SEVEN, result);
     }
 
     @Test
@@ -118,7 +118,7 @@ class AdaptCodeTest {
                 new ByteArrayClassLoader(AdaptCodeTest.class.getClassLoader(), testClassName, newBytes)
                         .getMethod(testClassName, "many")
                         .invoke(null, "Blah");
-        assertEquals(result, THIRTEEN);
+        assertEquals(THIRTEEN, result);
     }
 
     public static class TestClass {
