@@ -108,7 +108,7 @@ class LowJCovAttributeTest {
                             }
                             ));
         }
-        assertEquals(mask[0], 7, "Not all JCov attributes seen");
+        assertEquals(7, mask[0], "Not all JCov attributes seen");
     }
 
     private void printf(String format, Object... args) {

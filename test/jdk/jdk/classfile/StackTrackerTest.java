@@ -75,7 +75,7 @@ class StackTrackerTest {
                     }));
                 });
                 assertTrue(stackTracker.maxStackSize().isPresent());
-                assertEquals((int)stackTracker.maxStackSize().get(), 7);
+                assertEquals(7, (int)stackTracker.maxStackSize().get());
             }));
     }
 

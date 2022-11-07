@@ -84,11 +84,11 @@ class LDCTest {
                           .map(e -> (Instruction)e)
                           .toList();
 
-        assertEquals(opcodes.size(), 4);
-        assertEquals(opcodes.get(0).opcode(), LDC);
-        assertEquals(opcodes.get(1).opcode(), LDC_W);
-        assertEquals(opcodes.get(2).opcode(), LDC);
-        assertEquals(opcodes.get(3).opcode(), RETURN);
+        assertEquals(4, opcodes.size());
+        assertEquals(LDC, opcodes.get(0).opcode());
+        assertEquals(LDC_W, opcodes.get(1).opcode());
+        assertEquals(LDC, opcodes.get(2).opcode());
+        assertEquals(RETURN, opcodes.get(3).opcode());
     }
 
     // TODO test for explicit LDC_W?

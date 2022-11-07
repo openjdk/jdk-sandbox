@@ -67,37 +67,35 @@ class ArrayTest {
                         switch (arrayCreateCount++) {
                             case 1: {
                                 NewMultiArrayInstruction nai = (NewMultiArrayInstruction) im;
-                                assertEquals(nai.opcode(), Opcode.MULTIANEWARRAY);
-                                assertEquals(nai.arrayType().asInternalName(), "[[[I");
-                                assertEquals(nai.dimensions(), 3);
+                                assertEquals(Opcode.MULTIANEWARRAY, nai.opcode());
+                                assertEquals("[[[I", nai.arrayType().asInternalName());
+                                assertEquals(3, nai.dimensions());
                                 break;
                             }
                             case 2: {
                                 NewMultiArrayInstruction nai = (NewMultiArrayInstruction) im;
-                                assertEquals(nai.opcode(), Opcode.MULTIANEWARRAY);
-                                assertEquals(nai.arrayType().asInternalName(),
-                                             "[[[Ljava/lang/String;");
-                                assertEquals(nai.dimensions(), 2);
+                                assertEquals(Opcode.MULTIANEWARRAY, nai.opcode());
+                                assertEquals("[[[Ljava/lang/String;", nai.arrayType().asInternalName());
+                                assertEquals(2, nai.dimensions());
                                 break;
                             }
                             case 3: {
                                 NewReferenceArrayInstruction nai = (NewReferenceArrayInstruction) im;
-                                assertEquals(nai.opcode(), Opcode.ANEWARRAY);
-                                assertEquals(nai.componentType().asInternalName(),
-                                             "java/lang/String");
+                                assertEquals(Opcode.ANEWARRAY, nai.opcode());
+                                assertEquals("java/lang/String", nai.componentType().asInternalName());
                                 break;
                             }
                             case 4: {
                                 NewPrimitiveArrayInstruction nai = (NewPrimitiveArrayInstruction) im;
-                                assertEquals(nai.opcode(), Opcode.NEWARRAY);
-                                assertEquals(nai.typeKind(), TypeKind.DoubleType);
+                                assertEquals(Opcode.NEWARRAY, nai.opcode());
+                                assertEquals(TypeKind.DoubleType, nai.typeKind());
                                 break;
                             }
                         }
                     }
                 }
                 if (arrayCreateCount > 1) {
-                    assertEquals(arrayCreateCount, 5);
+                    assertEquals(5, arrayCreateCount);
                 }
             });
         }

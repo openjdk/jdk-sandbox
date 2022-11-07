@@ -59,6 +59,6 @@ class SwapTest {
 
         MethodHandles.Lookup lookup = MethodHandles.lookup().defineHiddenClass(bytes, true);
         MethodHandle m = lookup.findStatic(lookup.lookupClass(), "m", mt);
-        assertEquals(m.invoke("A", "B"), "B");
+        assertEquals("B", m.invoke("A", "B"));
     }
 }
