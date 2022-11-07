@@ -109,7 +109,7 @@ class OneToOneTest {
 
         ClassModel cm = Classfile.parse(bytes);
         List<MethodModel> ms = cm.methods();
-        assertEquals(ms.size(), 2);
+        assertEquals(2, ms.size());
         boolean found = false;
         for (MethodModel mm : ms) {
             if (mm.methodName().stringValue().equals("main") && mm.code().isPresent()) {
@@ -119,40 +119,40 @@ class OneToOneTest {
                                        .filter(e -> e instanceof Instruction)
                                        .map(e -> (Instruction)e)
                                        .toList();
-                assertEquals(instructions.size(), 17);
+                assertEquals(17, instructions.size());
 
-                assertEquals(instructions.get(0).opcode(), ICONST_1);
+                assertEquals(ICONST_1, instructions.get(0).opcode());
 
                 var i1 = (StoreInstruction) instructions.get(1);
-                assertEquals(i1.opcode(), ISTORE_1);
+                assertEquals(ISTORE_1, i1.opcode());
                 int lv1 = i1.slot();
-                assertEquals(lv1, 1);
+                assertEquals(1, lv1);
 
                 ConstantInstruction i5 = (ConstantInstruction) instructions.get(5);
-                assertEquals(i5.opcode(), BIPUSH);
-                assertEquals(i5.constantValue(), 10);
+                assertEquals(BIPUSH, i5.opcode());
+                assertEquals(10, i5.constantValue());
 
                 BranchInstruction i6 = (BranchInstruction) instructions.get(6);
-                assertEquals(i6.opcode(), IF_ICMPGE);
-                // assertEquals(code.instructionOffset(i6.target()), 14);  //FIXME: CodeModel gives BCI, should give instruction offset
+                assertEquals(IF_ICMPGE, i6.opcode());
+                // assertEquals(14, code.instructionOffset(i6.target()));  //FIXME: CodeModel gives BCI, should give instruction offset
 
                 LoadInstruction i7 = (LoadInstruction) instructions.get(7);
-                assertEquals(i7.opcode(), ILOAD_1);
+                assertEquals(ILOAD_1, i7.opcode());
 
                 OperatorInstruction i9 = (OperatorInstruction) instructions.get(9);
-                assertEquals(i9.opcode(), IMUL);
+                assertEquals(IMUL, i9.opcode());
 
                 FieldInstruction i13 = (FieldInstruction) instructions.get(13);
-                assertEquals(i13.opcode(), GETSTATIC);
-                assertEquals(i13.owner().asInternalName(), "java/lang/System");
-                assertEquals(i13.name().stringValue(), "out");
-                assertEquals(i13.type().stringValue(), "Ljava/io/PrintStream;");
+                assertEquals(GETSTATIC, i13.opcode());
+                assertEquals("java/lang/System", i13.owner().asInternalName());
+                assertEquals("out", i13.name().stringValue());
+                assertEquals("Ljava/io/PrintStream;", i13.type().stringValue());
 
                 InvokeInstruction i15 = (InvokeInstruction) instructions.get(15);
-                assertEquals(i15.opcode(), INVOKEVIRTUAL);
-                assertEquals(i15.owner().asInternalName(), "java/io/PrintStream");
-                assertEquals(i15.name().stringValue(), "println");
-                assertEquals(i15.type().stringValue(), "(I)V");
+                assertEquals(INVOKEVIRTUAL, i15.opcode());
+                assertEquals("java/io/PrintStream", i15.owner().asInternalName());
+                assertEquals("println", i15.name().stringValue());
+                assertEquals("(I)V", i15.type().stringValue());
             }
         }
         assertTrue(found);

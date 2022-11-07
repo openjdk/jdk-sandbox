@@ -104,91 +104,93 @@ class ModuleBuilderTest {
         var cm = Classfile.parse(modBytes);
 
         var attr =cm.findAttribute(Attributes.MODULE).get();
-        assertEquals(attr.moduleName().name().stringValue(), modName.moduleName());
-        assertEquals(attr.moduleFlagsMask(), 0);
-        assertEquals(attr.moduleVersion().get().stringValue(), modVsn);
+        assertEquals(modName.moduleName(), attr.moduleName().name().stringValue());
+        assertEquals(0, attr.moduleFlagsMask());
+        assertEquals(modVsn, attr.moduleVersion().get().stringValue());
     }
 
     @Test
     void testAllAttributes() {
-        assertEquals(moduleModel.attributes().size(), 3);
+        assertEquals(3, moduleModel.attributes().size());
     }
 
     @Test
     void testVerifyRequires() {
-        assertEquals(attr.requires().size(), 2);
+        assertEquals(2, attr.requires().size());
         ModuleRequireInfo r = attr.requires().get(0);
-        assertEquals(r.requires().name().stringValue(), require1.moduleName());
-        assertEquals(r.requiresVersion().get().stringValue(), vsn1);
-        assertEquals(r.requiresFlagsMask(), 77);
+        assertEquals(require1.moduleName(), r.requires().name().stringValue());
+        assertEquals(vsn1, r.requiresVersion().get().stringValue());
+        assertEquals(77, r.requiresFlagsMask());
 
         r = attr.requires().get(1);
-        assertEquals(r.requires().name().stringValue(), require2.moduleName());
-        assertEquals(r.requiresVersion().get().stringValue(), vsn2);
-        assertEquals(r.requiresFlagsMask(), 99);
+        assertEquals(require2.moduleName(), r.requires().name().stringValue());
+        assertEquals(vsn2, r.requiresVersion().get().stringValue());
+        assertEquals(99, r.requiresFlagsMask());
     }
 
     @Test
     void testVerifyExports() {
         List<ModuleExportInfo> exports = attr.exports();
-        assertEquals(exports.size(),5);
+        assertEquals(5, exports.size());
         for (int i = 0; i < 5; i++) {
-            assertEquals(exports.get(i).exportsFlagsMask(), i);
-            assertEquals(exports.get(i).exportedPackage().name().stringValue(), String.valueOf(i));
+            assertEquals(i, exports.get(i).exportsFlagsMask());
+            assertEquals(String.valueOf(i), exports.get(i).exportedPackage().name().stringValue());
         }
-        assertEquals(exports.get(0).exportsTo().size(), 2);
-        for (int i = 0; i < 2; i++)
+        assertEquals(2, exports.get(0).exportsTo().size());
+        for (int i = 0; i < 2; i++) {
             assertEquals(exports.get(0).exportsTo().get(i).name().stringValue(), et1[i].moduleName());
+        }
 
-        assertEquals(exports.get(1).exportsTo().size(), 1);
-        assertEquals(exports.get(1).exportsTo().get(0).name().stringValue(), et2[0].moduleName());
+        assertEquals(1, exports.get(1).exportsTo().size());
+        assertEquals(et2[0].moduleName(), exports.get(1).exportsTo().get(0).name().stringValue());
 
-        assertEquals(exports.get(2).exportsTo().size(), 3);
-        for (int i = 0; i < 3; i++)
+        assertEquals(3, exports.get(2).exportsTo().size());
+        for (int i = 0; i < 3; i++) {
             assertEquals(exports.get(2).exportsTo().get(i).name().stringValue(), et3[i].moduleName());
+        }
 
-        assertEquals(exports.get(3).exportsTo().size(), 0);
-        assertEquals(exports.get(4).exportsTo().size(), 0);
+        assertEquals(0, exports.get(3).exportsTo().size());
+        assertEquals(0, exports.get(4).exportsTo().size());
     }
 
     @Test
     void testVerifyOpens() {
         List<ModuleOpenInfo> opens = attr.opens();
-        assertEquals(opens.size(), 3);
-        assertEquals(opens.get(0).opensTo().size(), 0);
-        assertEquals(opens.get(1).opensTo().size(), 0);
-        assertEquals(opens.get(2).opensTo().size(), 2);
-        assertEquals(opens.get(2).opensFlagsMask(), 2);
-        assertEquals(opens.get(2).opensTo().get(1).name().stringValue(), ot3[1].moduleName());
+        assertEquals(3, opens.size());
+        assertEquals(0, opens.get(0).opensTo().size());
+        assertEquals(0, opens.get(1).opensTo().size());
+        assertEquals(2, opens.get(2).opensTo().size());
+        assertEquals(2, opens.get(2).opensFlagsMask());
+        assertEquals(ot3[1].moduleName(), opens.get(2).opensTo().get(1).name().stringValue());
     }
 
     @Test
     void testVerifyUses() {
         var uses = attr.uses();
-        assertEquals(uses.size(), 2);
-        assertEquals(uses.get(1).asInternalName(), "another/Service");
+        assertEquals(2, uses.size());
+        assertEquals("another/Service", uses.get(1).asInternalName());
     }
 
     @Test
     void testVerifyProvides() {
         var provides = attr.provides();
-        assertEquals(provides.size(), 1);
+        assertEquals(1, provides.size());
         ModuleProvideInfo p = provides.get(0);
-        assertEquals(p.provides().asInternalName(), "some/nice/Feature");
-        assertEquals(p.providesWith().size(), 2);
-        assertEquals(p.providesWith().get(1).asInternalName(), "another/impl");
+        assertEquals("some/nice/Feature", p.provides().asInternalName());
+        assertEquals(2, p.providesWith().size());
+        assertEquals("another/impl", p.providesWith().get(1).asInternalName());
     }
 
     @Test
     void verifyPackages() {
         ModulePackagesAttribute a = moduleModel.findAttribute(Attributes.MODULE_PACKAGES).orElseThrow();
-        assertEquals(a.packages().stream().map(pe -> pe.asSymbol().packageName()).toList(), List.of("0", "1", "2", "3", "4", "o0", "o1", "o2", "foo.bar.baz", "quux"));
+        assertEquals(List.of("0", "1", "2", "3", "4", "o0", "o1", "o2", "foo.bar.baz", "quux"), a.packages().stream().map(pe -> pe.asSymbol().packageName()).toList());
     }
 
     @Test
     void verifyMainclass() {
         ModuleMainClassAttribute a = moduleModel.findAttribute(Attributes.MODULE_MAIN_CLASS).orElseThrow();
-        assertEquals(a.mainClass().asInternalName(), "overwritten/main/Class");
+        assertEquals("overwritten/main/Class", a.mainClass().asInternalName());
     }
 
     @Test

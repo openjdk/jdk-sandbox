@@ -97,9 +97,9 @@ class TransformTests {
         byte[] bytes = Files.readAllBytes(testClassPath);
         ClassModel cm = Classfile.parse(bytes);
 
-        assertEquals(invoke(bytes), "foo");
-        assertEquals(invoke(cm.transform(transformCode(foo2foo))), "foo");
-        assertEquals(invoke(cm.transform(transformCode(foo2bar))), "bar");
+        assertEquals("foo", invoke(bytes));
+        assertEquals("foo", invoke(cm.transform(transformCode(foo2foo))));
+        assertEquals("bar", invoke(cm.transform(transformCode(foo2bar))));
     }
 
     @Test
@@ -108,9 +108,9 @@ class TransformTests {
         byte[] bytes = Files.readAllBytes(testClassPath);
         ClassModel cm = Classfile.parse(bytes);
 
-        assertEquals(invoke(bytes), "foo");
+        assertEquals("foo", invoke(bytes));
         ClassTransform transform = transformCode(foo2bar.andThen(bar2baz));
-        assertEquals(invoke(cm.transform(transform)), "baz");
+        assertEquals("baz", invoke(cm.transform(transform)));
     }
 
     @Test
@@ -119,10 +119,10 @@ class TransformTests {
         byte[] bytes = Files.readAllBytes(testClassPath);
         ClassModel cm = Classfile.parse(bytes);
 
-        assertEquals(invoke(bytes), "foo");
-        assertEquals(invoke(cm.transform(transformCode(foo2bar.andThen(bar2baz).andThen(baz2foo)))), "foo");
-        assertEquals(invoke(cm.transform(transformCode(foo2bar.andThen(bar2baz).andThen(baz2quux)))), "quux");
-        assertEquals(invoke(cm.transform(transformCode(foo2foo.andThen(foo2bar).andThen(bar2baz)))), "baz");
+        assertEquals("foo", invoke(bytes));
+        assertEquals("foo", invoke(cm.transform(transformCode(foo2bar.andThen(bar2baz).andThen(baz2foo)))));
+        assertEquals("quux", invoke(cm.transform(transformCode(foo2bar.andThen(bar2baz).andThen(baz2quux)))));
+        assertEquals("baz", invoke(cm.transform(transformCode(foo2foo.andThen(foo2bar).andThen(bar2baz)))));
     }
 
     public static class TestClass {

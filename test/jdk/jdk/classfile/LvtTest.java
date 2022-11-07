@@ -177,7 +177,7 @@ class LvtTest {
         var lvt = main.code().get().findAttribute(Attributes.LOCAL_VARIABLE_TABLE).get();
         var lvs = lvt.localVariables();
 
-        assertEquals(lvs.size(), 3);
+        assertEquals(3, lvs.size());
         List<ExpectedLvRecord> expected = List.of(
                 ExpectedLvRecord.of(1, "res", "I", 2, 25),
                 ExpectedLvRecord.of(2, "i", "I", 4, 23),

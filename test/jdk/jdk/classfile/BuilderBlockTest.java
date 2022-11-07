@@ -67,13 +67,13 @@ class BuilderBlockTest {
                               startEnd[0] = xb.startLabel();
                               startEnd[1] = xb.endLabel();
                               xb.returnInstruction(TypeKind.VoidType);
-                              assertEquals(((LabelImpl) startEnd[0]).getContextInfo(), 0);
-                              assertEquals(((LabelImpl) startEnd[1]).getContextInfo(), -1);
+                              assertEquals(0, ((LabelImpl) startEnd[0]).getContextInfo());
+                              assertEquals(-1, ((LabelImpl) startEnd[1]).getContextInfo());
                           }));
         });
 
-        assertEquals(((LabelImpl) startEnd[0]).getContextInfo(), 0);
-        assertEquals(((LabelImpl) startEnd[1]).getContextInfo(), 1);
+        assertEquals(0, ((LabelImpl) startEnd[0]).getContextInfo());
+        assertEquals(1, ((LabelImpl) startEnd[1]).getContextInfo());
     }
 
     @Test
@@ -95,10 +95,10 @@ class BuilderBlockTest {
                           }));
         });
 
-        assertEquals(((LabelImpl) startEnd[0]).getContextInfo(), 0);
-        assertEquals(((LabelImpl) startEnd[1]).getContextInfo(), 3);
-        assertEquals(((LabelImpl) startEnd[2]).getContextInfo(), 1);
-        assertEquals(((LabelImpl) startEnd[3]).getContextInfo(), 2);
+        assertEquals(0, ((LabelImpl) startEnd[0]).getContextInfo());
+        assertEquals(3, ((LabelImpl) startEnd[1]).getContextInfo());
+        assertEquals(1, ((LabelImpl) startEnd[2]).getContextInfo());
+        assertEquals(2, ((LabelImpl) startEnd[3]).getContextInfo());
     }
 
     @Test
@@ -115,8 +115,8 @@ class BuilderBlockTest {
 
         Method fooMethod = new ByteArrayClassLoader(BuilderBlockTest.class.getClassLoader(), "Foo", bytes)
                 .getMethod("Foo", "foo");
-        assertEquals(fooMethod.invoke(null, 3), 1);
-        assertEquals(fooMethod.invoke(null, 0), 2);
+        assertEquals(1, fooMethod.invoke(null, 3));
+        assertEquals(2, fooMethod.invoke(null, 0));
 
     }
 
@@ -133,8 +133,8 @@ class BuilderBlockTest {
 
         Method fooMethod = new ByteArrayClassLoader(BuilderBlockTest.class.getClassLoader(), "Foo", bytes)
                 .getMethod("Foo", "foo");
-        assertEquals(fooMethod.invoke(null, 3), 1);
-        assertEquals(fooMethod.invoke(null, 0), 2);
+        assertEquals(1, fooMethod.invoke(null, 3));
+        assertEquals(2, fooMethod.invoke(null, 0));
 
     }
 
@@ -173,8 +173,8 @@ class BuilderBlockTest {
 
         Method fooMethod = new ByteArrayClassLoader(BuilderBlockTest.class.getClassLoader(), "Foo", bytes)
                 .getMethod("Foo", "foo");
-        assertEquals(fooMethod.invoke(null, 3), 1);
-        assertEquals(fooMethod.invoke(null, 0), 2);
+        assertEquals(1, fooMethod.invoke(null, 3));
+        assertEquals(2, fooMethod.invoke(null, 0));
 
     }
 
@@ -193,8 +193,8 @@ class BuilderBlockTest {
 
         Method fooMethod = new ByteArrayClassLoader(BuilderBlockTest.class.getClassLoader(), "Foo", bytes)
                 .getMethod("Foo", "foo");
-        assertEquals(fooMethod.invoke(null, 3), 1);
-        assertEquals(fooMethod.invoke(null, 0), 2);
+        assertEquals(1, fooMethod.invoke(null, 3));
+        assertEquals(2, fooMethod.invoke(null, 0));
     }
 
     @Test
@@ -216,10 +216,10 @@ class BuilderBlockTest {
 
         Method fooMethod = new ByteArrayClassLoader(BuilderBlockTest.class.getClassLoader(), "Foo", bytes)
                 .getMethod("Foo", "foo");
-        assertEquals(fooMethod.invoke(null, 1, 10), 1);
-        assertEquals(fooMethod.invoke(null, 9, 10), 1);
-        assertEquals(fooMethod.invoke(null, 10, 10), 2);
-        assertEquals(fooMethod.invoke(null, 11, 10), 2);
+        assertEquals(1, fooMethod.invoke(null, 1, 10));
+        assertEquals(1, fooMethod.invoke(null, 9, 10));
+        assertEquals(2, fooMethod.invoke(null, 10, 10));
+        assertEquals(2, fooMethod.invoke(null, 11, 10));
     }
 
     @Test
@@ -252,9 +252,9 @@ class BuilderBlockTest {
                               int slot2 = xb.allocateLocal(TypeKind.LongType);
                               int slot3 = xb.allocateLocal(TypeKind.IntType);
 
-                              assertEquals(slot1, 4);
-                              assertEquals(slot2, 5);
-                              assertEquals(slot3, 7);
+                              assertEquals(4, slot1);
+                              assertEquals(5, slot2);
+                              assertEquals(7, slot3);
                           }));
         });
     }
@@ -269,12 +269,12 @@ class BuilderBlockTest {
                                   int slot2 = bb.allocateLocal(TypeKind.LongType);
                                   int slot3 = bb.allocateLocal(TypeKind.IntType);
 
-                                  assertEquals(slot1, 4);
-                                  assertEquals(slot2, 5);
-                                  assertEquals(slot3, 7);
+                                  assertEquals(4, slot1);
+                                  assertEquals(5, slot2);
+                                  assertEquals(7, slot3);
                               });
                               int slot4 = xb.allocateLocal(TypeKind.IntType);
-                              assertEquals(slot4, 4);
+                              assertEquals(4, slot4);
                           }));
         });
     }
@@ -290,17 +290,17 @@ class BuilderBlockTest {
                                                 int slot2 = bb.allocateLocal(TypeKind.LongType);
                                                 int slot3 = bb.allocateLocal(TypeKind.IntType);
 
-                                                assertEquals(slot1, 4);
-                                                assertEquals(slot2, 5);
-                                                assertEquals(slot3, 7);
+                                                assertEquals(4, slot1);
+                                                assertEquals(5, slot2);
+                                                assertEquals(7, slot3);
                                             },
                                             bb -> {
                                                 int slot1 = bb.allocateLocal(TypeKind.IntType);
 
-                                                assertEquals(slot1, 4);
+                                                assertEquals(4, slot1);
                                             });
                               int slot4 = xb.allocateLocal(TypeKind.IntType);
-                              assertEquals(slot4, 4);
+                              assertEquals(4, slot4);
                               xb.return_();
                           }));
         });

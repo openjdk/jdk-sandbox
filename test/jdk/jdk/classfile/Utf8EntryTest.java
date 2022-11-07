@@ -90,7 +90,7 @@ class Utf8EntryTest {
         assertTrue(utf8Entry.equalsString(s));
 
         // Create string
-        assertEquals(utf8Entry.stringValue(), s);
+        assertEquals(s, utf8Entry.stringValue());
     }
 
     static Stream<UnaryOperator<byte[]>> malformedStringsProvider() {
