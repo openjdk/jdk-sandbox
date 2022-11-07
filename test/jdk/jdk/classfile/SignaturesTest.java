@@ -131,16 +131,16 @@ class SignaturesTest {
                 var cm = Classfile.parse(path);
                 cm.findAttribute(Attributes.SIGNATURE).ifPresent(csig -> {
                     assertEquals(
-                            ClassSignature.parseFrom(csig.signature().stringValue()).signatureString(),
                             csig.signature().stringValue(),
+                            ClassSignature.parseFrom(csig.signature().stringValue()).signatureString(),
                             cm.thisClass().asInternalName());
                     csc.incrementAndGet();
                 });
                 for (var m : cm.methods()) {
                     m.findAttribute(Attributes.SIGNATURE).ifPresent(msig -> {
                         assertEquals(
-                                MethodSignature.parseFrom(msig.signature().stringValue()).signatureString(),
                                 msig.signature().stringValue(),
+                                MethodSignature.parseFrom(msig.signature().stringValue()).signatureString(),
                                 cm.thisClass().asInternalName() + "::" + m.methodName().stringValue() + m.methodType().stringValue());
                         msc.incrementAndGet();
                     });
@@ -148,8 +148,8 @@ class SignaturesTest {
                 for (var f : cm.fields()) {
                     f.findAttribute(Attributes.SIGNATURE).ifPresent(fsig -> {
                         assertEquals(
-                                Signature.parseFrom(fsig.signature().stringValue()).signatureString(),
                                 fsig.signature().stringValue(),
+                                Signature.parseFrom(fsig.signature().stringValue()).signatureString(),
                                 cm.thisClass().asInternalName() + "." + f.fieldName().stringValue());
                         fsc.incrementAndGet();
                     });
@@ -157,8 +157,8 @@ class SignaturesTest {
                 cm.findAttribute(Attributes.RECORD).ifPresent(reca
                         -> reca.components().forEach(rc -> rc.findAttribute(Attributes.SIGNATURE).ifPresent(rsig -> {
                     assertEquals(
-                            Signature.parseFrom(rsig.signature().stringValue()).signatureString(),
                             rsig.signature().stringValue(),
+                            Signature.parseFrom(rsig.signature().stringValue()).signatureString(),
                             cm.thisClass().asInternalName() + "." + rc.name().stringValue());
                     rsc.incrementAndGet();
                 })));
