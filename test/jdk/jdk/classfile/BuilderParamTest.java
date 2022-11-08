@@ -51,7 +51,7 @@ class BuilderParamTest {
                 assertEquals(0, xb.receiverSlot());
                 assertEquals(1, xb.parameterSlot(0));
                 assertEquals(2, xb.parameterSlot(1));
-                assertEquals(4. xb.parameterSlot(2));
+                assertEquals(4, xb.parameterSlot(2));
             }));
         });
 
