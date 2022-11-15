@@ -24,17 +24,20 @@
 
 package MyPackage;
 
+import stress.RenessainceRunner;
+
 /**
  * @test
- * @summary Verifies that AsyncGetStackTrace is call-able and provides sane information.
- * @compile ASGSTBaseTest.java
+ * @summary Verifies that AsyncGetStackTrace is stable in a high-frequency signal sampler
+ * @library /testlibrary
+ * @compile ASGSTStabilityTest.java
  * @requires os.family == "linux"
  * @requires os.arch=="x86" | os.arch=="i386" | os.arch=="amd64" | os.arch=="x86_64" | os.arch=="arm" | os.arch=="aarch64" | os.arch=="ppc64" | os.arch=="s390" | os.arch=="riscv64"
  * @requires vm.jvmti
- * @run main/othervm/native -agentlib:AsyncGetStackTraceTest MyPackage.ASGSTBaseTest
+ * @run main/othervm/native -agentlib:AsyncGetStackTraceTest -XX:CompileThreshold=200 MyPackage.ASGSTStabilityTest
  */
 
-public class ASGSTBaseTest {
+public class ASGSTStabilityTest {
   static {
     try {
       System.loadLibrary("AsyncGetStackTraceTest");
@@ -46,10 +49,14 @@ public class ASGSTBaseTest {
   }
 
   private static native boolean checkAsyncGetStackTraceCall();
+  private static native boolean startITimerSampler(long interval);
 
   public static void main(String[] args) throws Exception {
-    if (!checkAsyncGetStackTraceCall()) {
-      throw new RuntimeException("AsyncGetStackTrace call failed.");
+    startITimerSampler(1000);
+
+    System.out.println("Going to run 'finagle-chirper' benchmark for 30 seconds");
+    if (!RenessainceRunner.runBenchmark("finagle-chirper", "-t", "30")) {
+      System.out.println("Renessaince benchmark not available. Skipping ...");
     }
   }
 }
