@@ -174,13 +174,6 @@ typedef void (*ASGSTType)(ASGST_CallTrace *, jint, void *, int32_t);
 
 JNIEXPORT jboolean JNICALL
 Java_MyPackage_ASGSTBaseTest_checkAsyncGetStackTraceCall(JNIEnv* env, jclass cls) {
-  ASGSTType agst = reinterpret_cast<ASGSTType>(dlsym(RTLD_DEFAULT, "AsyncGetStackTrace"));
-
-  if (agst == NULL) {
-    fprintf(stderr, "AsyncGetStackTrace not found.\n");
-    return false;
-  }
-
   const int MAX_DEPTH = 16;
   ASGST_CallTrace trace;
   ASGST_CallFrame frames[MAX_DEPTH];
@@ -188,7 +181,7 @@ Java_MyPackage_ASGSTBaseTest_checkAsyncGetStackTraceCall(JNIEnv* env, jclass cls
   trace.frame_info = NULL;
   trace.num_frames = 0;
 
-  agst(&trace, MAX_DEPTH, NULL, ASGST_INCLUDE_C_FRAMES);  
+  AsyncGetStackTrace(&trace, MAX_DEPTH, NULL, ASGST_INCLUDE_C_FRAMES);  
 
   // For now, just check that the first frame is (-3, checkAsyncGetStackTraceCall).
   if (trace.num_frames <= 0) {
