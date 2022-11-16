@@ -22,7 +22,7 @@
  * questions.
  */
 
-package MyPackage;
+package profiling.sanity;
 
 /**
  * @test
@@ -31,7 +31,7 @@ package MyPackage;
  * @requires os.family == "linux"
  * @requires os.arch=="x86" | os.arch=="i386" | os.arch=="amd64" | os.arch=="x86_64" | os.arch=="arm" | os.arch=="aarch64" | os.arch=="ppc64" | os.arch=="s390" | os.arch=="riscv64"
  * @requires vm.jvmti
- * @run main/othervm/native -agentlib:AsyncGetStackTraceTest MyPackage.ASGSTBaseTest
+ * @run main/othervm/native -agentlib:AsyncGetStackTraceTest profiling.sanity.ASGSTBaseTest
  */
 
 public class ASGSTBaseTest {

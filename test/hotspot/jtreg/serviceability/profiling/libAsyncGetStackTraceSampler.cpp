@@ -85,6 +85,48 @@ static void JNICALL OnClassPrepare(jvmtiEnv *jvmti, JNIEnv *jni_env,
   GetJMethodIDs(klass);
 }
 
+static SigAction installSignalHandler(int signo, SigAction action, SigHandler handler = NULL) {
+    struct sigaction sa;
+    struct sigaction oldsa;
+    sigemptyset(&sa.sa_mask);
+
+    if (handler != NULL) {
+        sa.sa_handler = handler;
+        sa.sa_flags = 0;
+    } else {
+        sa.sa_sigaction = action;
+        sa.sa_flags = SA_SIGINFO | SA_RESTART;
+    }
+
+    sigaction(signo, &sa, &oldsa);
+    return oldsa.sa_sigaction;
+}
+
+static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
+  const int MAX_DEPTH = 512;
+  static ASGST_CallFrame frames[MAX_DEPTH];
+  ASGST_CallTrace trace;
+  trace.frames = frames;
+  trace.frame_info = NULL;
+  trace.num_frames = 0;
+
+  AsyncGetStackTrace(&trace, MAX_DEPTH, NULL, ASGST_INCLUDE_C_FRAMES);
+}
+
+static bool startITimerSampler(long interval_ns) {
+  time_t sec = interval_ns / 1000000000;
+  suseconds_t usec = (interval_ns % 1000000000) / 1000;
+  struct itimerval tv = {{sec, usec}, {sec, usec}};
+  
+  installSignalHandler(SIGPROF, signalHandler);
+
+  if (setitimer(ITIMER_PROF, &tv, NULL) != 0) {
+    return false;
+  }
+  fprintf(stderr, "=== asgst sampler initialized ===\n");
+  return true;
+}
+
 static void JNICALL OnVMInit(jvmtiEnv *jvmti, JNIEnv *jni_env, jthread thread) {
   jint class_count = 0;
 
@@ -102,6 +144,8 @@ static void JNICALL OnVMInit(jvmtiEnv *jvmti, JNIEnv *jni_env, jthread thread) {
   for (int i = 0; i < class_count; ++i) {
     GetJMethodIDs(classList[i]);
   }
+  
+  startITimerSampler(1000); // 1us
 }
 
 extern "C" {
@@ -176,122 +220,6 @@ jint JNICALL Agent_OnAttach(JavaVM *jvm, char *options, void *reserved) {
 JNIEXPORT
 jint JNICALL JNI_OnLoad(JavaVM *jvm, void *reserved) {
   return JNI_VERSION_1_8;
-}
-
-JNIEXPORT jboolean JNICALL
-Java_MyPackage_ASGSTBaseTest_checkAsyncGetStackTraceCall(JNIEnv* env, jclass cls) {
-  const int MAX_DEPTH = 16;
-  ASGST_CallTrace trace;
-  ASGST_CallFrame frames[MAX_DEPTH];
-  trace.frames = frames;
-  trace.frame_info = NULL;
-  trace.num_frames = 0;
-
-  AsyncGetStackTrace(&trace, MAX_DEPTH, NULL, ASGST_INCLUDE_C_FRAMES);  
-
-  // For now, just check that the first frame is (-3, checkAsyncGetStackTraceCall).
-  if (trace.num_frames <= 0) {
-    fprintf(stderr, "The num_frames must be positive: %d\n", trace.num_frames);
-    return false;
-  } 
-  // for (int i = 0; i < trace.num_frames; i++) {
-  //   fprintf(stderr, "frame %d: type=%u, bci=%d\n", i, trace.frames[i].type, trace.frames[i].java_frame.bci);
-  //   if (trace.frames[i].type == ASGST_FRAME_JAVA) {
-  //     fprintf(stderr, "java type: %u\n", trace.frames[i].java_frame.type);
-  //     JvmtiDeallocator<char*> name;
-  //     jvmtiError err = jvmti->GetMethodName(trace.frames[i].java_frame.method_id, name.get_addr(), NULL, NULL);
-  //     if (err != JVMTI_ERROR_NONE) {
-  //       fprintf(stderr, "checkAsyncGetStackTrace: Error in GetMethodName: %d\n", err);
-  //       return false;
-  //     }
-
-  //     if (name.get() == NULL) {
-  //       fprintf(stderr, "Name is NULL\n");
-  //       return false;
-  //     }
-  //     fprintf(stderr, "name: %s\n", name.get());
-  //   }
-  // }
-
-  ASGST_CallFrame frame = trace.frames[0];
-  if (frame.type != ASGST_FRAME_NATIVE) {
-    fprintf(stderr, "Native frame is expected to have type %u but instead it is %u\n", ASGST_FRAME_NATIVE, frame.type);
-    return false;
-  }
-  // if (frame.pc == NULL) {
-  //   fprintf(stderr, "Non-java frame PC is expected to exist\n");
-  //   return false;
-  // }
-  // if (trace.frames[0].type != -3) {
-  //   fprintf(stderr, "lineno is not -3 as expected: %d\n", trace.frames[0].lineno);
-  //   return false;
-  // }
-
-  // JvmtiDeallocator<char*> name;
-  // if (trace.frames[0].method_id == NULL) {
-  //   fprintf(stderr, "First frame method_id is NULL\n");
-  //   return false;
-  // }
-
-  // jvmtiError err = jvmti->GetMethodName(trace.frames[0].method_id, name.get_addr(), NULL, NULL);
-  // if (err != JVMTI_ERROR_NONE) {
-  //   fprintf(stderr, "checkAsyncGetStackTrace: Error in GetMethodName: %d\n", err);
-  //   return false;
-  // }
-
-  // if (name.get() == NULL) {
-  //   fprintf(stderr, "Name is NULL\n");
-  //   return false;
-  // }
-
-  // return strcmp(name.get(), "checkAsyncGetStackTraceCall") == 0;
-  return true;
-}
-
-SigAction installSignalHandler(int signo, SigAction action, SigHandler handler = NULL) {
-    struct sigaction sa;
-    struct sigaction oldsa;
-    sigemptyset(&sa.sa_mask);
-
-    if (handler != NULL) {
-        sa.sa_handler = handler;
-        sa.sa_flags = 0;
-    } else {
-        sa.sa_sigaction = action;
-        sa.sa_flags = SA_SIGINFO | SA_RESTART;
-    }
-
-    sigaction(signo, &sa, &oldsa);
-    return oldsa.sa_sigaction;
-}
-
-void signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
-  const int MAX_DEPTH = 256;
-  static ASGST_CallFrame frames[MAX_DEPTH];
-  ASGST_CallTrace trace;
-  trace.frames = frames;
-  trace.frame_info = NULL;
-  trace.num_frames = 0;
-
-  AsyncGetStackTrace(&trace, MAX_DEPTH, NULL, ASGST_INCLUDE_C_FRAMES);
-  // fprintf(stderr, "===> depth: %d\n", trace.num_frames);
-}
-
-JNIEXPORT jboolean JNICALL
-Java_MyPackage_ASGSTStabilityTest_startITimerSampler(JNIEnv* env, jclass cls, jlong interval_ns) {
-  time_t sec = interval_ns / 1000000000;
-  suseconds_t usec = (interval_ns % 1000000000) / 1000;
-  struct itimerval tv = {{sec, usec}, {sec, usec}};
-  
-  fprintf(stdout, "===> Adding signal handler: %llusec %lluused\n", sec, usec);
-  installSignalHandler(SIGPROF, signalHandler);
-
-  if (setitimer(ITIMER_PROF, &tv, NULL) != 0) {
-    fprintf(stdout, "===> Can not set itimer\n");
-    return false;
-  }
-  fprintf(stdout, "===> All set up\n");
-  return true;
 }
 
 }
