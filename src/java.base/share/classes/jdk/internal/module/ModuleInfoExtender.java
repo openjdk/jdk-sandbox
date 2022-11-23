@@ -33,9 +33,17 @@ import java.lang.module.ModuleDescriptor.Version;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-import jdk.classfile.*;
-import jdk.classfile.jdktypes.*;
-import jdk.classfile.attribute.*;
+import jdk.classfile.Classfile;
+import jdk.classfile.ClassTransform;
+import jdk.classfile.attribute.ModuleAttribute;
+import jdk.classfile.attribute.ModuleHashInfo;
+import jdk.classfile.attribute.ModuleHashesAttribute;
+import jdk.classfile.attribute.ModuleMainClassAttribute;
+import jdk.classfile.attribute.ModulePackagesAttribute;
+import jdk.classfile.attribute.ModuleResolutionAttribute;
+import jdk.classfile.attribute.ModuleTargetAttribute;
+import jdk.classfile.jdktypes.ModuleDesc;
+import jdk.classfile.jdktypes.PackageDesc;
 
 
 /**
@@ -143,46 +151,39 @@ public final class ModuleInfoExtender {
      */
     public byte[] toByteArray() throws IOException {
         var cm = Classfile.parse(in.readAllBytes());
-        // Since ModuleBuilder is last-write-wins, this will drop existing attributes
-        // if there are replacements.
         Version v = ModuleInfoExtender.this.version;
-        return cm.transform(new ClassTransform() {
-            @Override
-            public void accept(ClassBuilder clb, ClassElement cle) {
-                if (v != null && cle instanceof ModuleAttribute ma) {
-                    clb.with(ModuleAttribute.of(ma.moduleName(), ma.moduleFlagsMask(), clb.constantPool().utf8Entry(v.toString()), ma.requires(), ma.exports(), ma.opens(), ma.uses(), ma.provides()));
-                } else {
-                    clb.accept(cle);
-                }
+        return cm.transform(ClassTransform.endHandler(clb -> {
+            // ModuleMainClass attribute
+            if (mainClass != null) {
+                clb.with(ModuleMainClassAttribute.of(ClassDesc.of(mainClass)));
             }
-            @Override
-            public void atEnd(ClassBuilder clb) {
-                // ModuleMainClass attribute
-                if (mainClass != null) {
-                    clb.with(ModuleMainClassAttribute.of(ClassDesc.of(mainClass)));
-                }
 
-                // ModulePackages attribute
-                if (packages != null) {
-                    List<PackageDesc> packageNames = packages.stream()
-                            .sorted()
-                            .map(s -> PackageDesc.of(s))
-                            .toList();
-                    clb.with(ModulePackagesAttribute.ofNames(packageNames));
-                }
-
-                // add ModuleTarget, ModuleResolution and ModuleHashes attributes
-                if (targetPlatform != null) {
-                    clb.with(ModuleTargetAttribute.of(targetPlatform));
-                }
-                if (moduleResolution != null) {
-                    clb.with(ModuleResolutionAttribute.of(moduleResolution.value()));
-                }
-                if (hashes != null) {
-                    clb.with(ModuleHashesAttribute.of(hashes.algorithm(), hashes.hashes().entrySet().stream().map(he -> ModuleHashInfo.of(ModuleDesc.of(he.getKey()), he.getValue())).toList()));
-                }
+            // ModulePackages attribute
+            if (packages != null) {
+                List<PackageDesc> packageNames = packages.stream()
+                        .sorted()
+                        .map(s -> PackageDesc.of(s))
+                        .toList();
+                clb.with(ModulePackagesAttribute.ofNames(packageNames));
             }
-        });
+
+            // add ModuleTarget, ModuleResolution and ModuleHashes attributes
+            if (targetPlatform != null) {
+                clb.with(ModuleTargetAttribute.of(targetPlatform));
+            }
+            if (moduleResolution != null) {
+                clb.with(ModuleResolutionAttribute.of(moduleResolution.value()));
+            }
+            if (hashes != null) {
+                clb.with(ModuleHashesAttribute.of(hashes.algorithm(), hashes.hashes().entrySet().stream().map(he -> ModuleHashInfo.of(ModuleDesc.of(he.getKey()), he.getValue())).toList()));
+            }
+        }).andThen((clb, cle) -> {
+            if (v != null && cle instanceof ModuleAttribute ma) {
+                clb.with(ModuleAttribute.of(ma.moduleName(), ma.moduleFlagsMask(), clb.constantPool().utf8Entry(v.toString()), ma.requires(), ma.exports(), ma.opens(), ma.uses(), ma.provides()));
+            } else {
+                clb.accept(cle);
+            }
+        }));
     }
 
     /**

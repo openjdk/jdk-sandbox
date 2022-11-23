@@ -33,9 +33,6 @@ import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Set;
 import jdk.classfile.Classfile;
-
-import static jdk.classfile.Classfile.*;
-import jdk.classfile.constantpool.*;
 import jdk.classfile.jdktypes.ModuleDesc;
 import jdk.classfile.jdktypes.PackageDesc;
 import jdk.classfile.attribute.ModuleAttribute;
@@ -51,29 +48,29 @@ public final class ModuleInfoWriter {
 
     private static final Map<ModuleDescriptor.Modifier, Integer>
         MODULE_MODS_TO_FLAGS = Map.of(
-            ModuleDescriptor.Modifier.OPEN, 0x0020, //ACC_OPEN,
-            ModuleDescriptor.Modifier.SYNTHETIC, ACC_SYNTHETIC,
-            ModuleDescriptor.Modifier.MANDATED, 0x8000 //ACC_MANDATED
+            ModuleDescriptor.Modifier.OPEN, Classfile.ACC_OPEN,
+            ModuleDescriptor.Modifier.SYNTHETIC, Classfile.ACC_SYNTHETIC,
+            ModuleDescriptor.Modifier.MANDATED, Classfile.ACC_MANDATED
         );
 
     private static final Map<ModuleDescriptor.Requires.Modifier, Integer>
         REQUIRES_MODS_TO_FLAGS = Map.of(
-            ModuleDescriptor.Requires.Modifier.TRANSITIVE, 0x0020, //ACC_TRANSITIVE,
-            ModuleDescriptor.Requires.Modifier.STATIC, 0x0040, //ACC_STATIC_PHASE,
-            ModuleDescriptor.Requires.Modifier.SYNTHETIC, ACC_SYNTHETIC,
-            ModuleDescriptor.Requires.Modifier.MANDATED, 0x8000 //ACC_MANDATED
+            ModuleDescriptor.Requires.Modifier.TRANSITIVE, Classfile.ACC_TRANSITIVE,
+            ModuleDescriptor.Requires.Modifier.STATIC, Classfile.ACC_STATIC_PHASE,
+            ModuleDescriptor.Requires.Modifier.SYNTHETIC, Classfile.ACC_SYNTHETIC,
+            ModuleDescriptor.Requires.Modifier.MANDATED, Classfile.ACC_MANDATED
         );
 
     private static final Map<ModuleDescriptor.Exports.Modifier, Integer>
         EXPORTS_MODS_TO_FLAGS = Map.of(
-            ModuleDescriptor.Exports.Modifier.SYNTHETIC, ACC_SYNTHETIC,
-            ModuleDescriptor.Exports.Modifier.MANDATED, 0x8000 //ACC_MANDATED
+            ModuleDescriptor.Exports.Modifier.SYNTHETIC, Classfile.ACC_SYNTHETIC,
+            ModuleDescriptor.Exports.Modifier.MANDATED, Classfile.ACC_MANDATED
         );
 
     private static final Map<ModuleDescriptor.Opens.Modifier, Integer>
         OPENS_MODS_TO_FLAGS = Map.of(
-            ModuleDescriptor.Opens.Modifier.SYNTHETIC, ACC_SYNTHETIC,
-            ModuleDescriptor.Opens.Modifier.MANDATED, 0x8000 //ACC_MANDATED
+            ModuleDescriptor.Opens.Modifier.SYNTHETIC, Classfile.ACC_SYNTHETIC,
+            ModuleDescriptor.Opens.Modifier.MANDATED, Classfile.ACC_MANDATED
         );
 
     private static final String[] EMPTY_STRING_ARRAY = new String[0];
@@ -82,9 +79,9 @@ public final class ModuleInfoWriter {
 
     private static int modifiersToFlags(Set<ModuleDescriptor.Modifier> mods) {
         int flags = 0;
-        if (mods.contains(ModuleDescriptor.Modifier.OPEN)) flags |= ClassFileConstants.ACC_OPEN;
-        if (mods.contains(ModuleDescriptor.Modifier.SYNTHETIC)) flags |= ClassFileConstants.ACC_SYNTHETIC;
-        if (mods.contains(ModuleDescriptor.Modifier.MANDATED)) flags |= ClassFileConstants.ACC_MANDATED;
+        if (mods.contains(ModuleDescriptor.Modifier.OPEN)) flags |= Classfile.ACC_OPEN;
+        if (mods.contains(ModuleDescriptor.Modifier.SYNTHETIC)) flags |= Classfile.ACC_SYNTHETIC;
+        if (mods.contains(ModuleDescriptor.Modifier.MANDATED)) flags |= Classfile.ACC_MANDATED;
         return flags;
     }
 
@@ -96,68 +93,74 @@ public final class ModuleInfoWriter {
                                        ModuleResolution mres,
                                        ModuleTarget target) {
         try {
-        return Classfile.buildModule(ModuleAttribute.of(ModuleDesc.of(md.name()), mb -> {
-            mb.moduleFlags(modifiersToFlags(md.modifiers()));
+            return Classfile.buildModule(
+                ModuleAttribute.of(ModuleDesc.of(md.name()), mb -> {
+                    mb.moduleFlags(modifiersToFlags(md.modifiers()));
 
-            String vs = md.rawVersion().orElse(null);
-            if (vs != null) mb.moduleVersion(vs);
+                    String vs = md.rawVersion().orElse(null);
+                    if (vs != null) mb.moduleVersion(vs);
 
-            // requires
-            for (ModuleDescriptor.Requires r : md.requires()) {
-                int flags = r.modifiers().stream()
-                        .map(REQUIRES_MODS_TO_FLAGS::get)
-                        .reduce(0, (x, y) -> (x | y));
-                vs = r.rawCompiledVersion().orElse(null);
-                mb.requires(ModuleDesc.of(r.name()), flags, vs);
-            }
+                    // requires
+                    for (ModuleDescriptor.Requires r : md.requires()) {
+                        int flags = r.modifiers().stream()
+                                .map(REQUIRES_MODS_TO_FLAGS::get)
+                                .reduce(0, (x, y) -> (x | y));
+                        vs = r.rawCompiledVersion().orElse(null);
+                        mb.requires(ModuleDesc.of(r.name()), flags, vs);
+                    }
 
-            // exports
-            for (ModuleDescriptor.Exports e : md.exports()) {
-                int flags = e.modifiers().stream()
-                        .map(EXPORTS_MODS_TO_FLAGS::get)
-                        .reduce(0, (x, y) -> (x | y));
-                var targets = e.targets().stream().map(ModuleDesc::of).toArray(ModuleDesc[]::new);
-                mb.exports(PackageDesc.of(e.source()), flags, targets);
-            }
+                    // exports
+                    for (ModuleDescriptor.Exports e : md.exports()) {
+                        int flags = e.modifiers().stream()
+                                .map(EXPORTS_MODS_TO_FLAGS::get)
+                                .reduce(0, (x, y) -> (x | y));
+                        var targets = e.targets().stream().map(ModuleDesc::of)
+                                .toArray(ModuleDesc[]::new);
+                        mb.exports(PackageDesc.of(e.source()), flags, targets);
+                    }
 
-            // opens
-            for (ModuleDescriptor.Opens opens : md.opens()) {
-                int flags = opens.modifiers().stream()
-                        .map(OPENS_MODS_TO_FLAGS::get)
-                        .reduce(0, (x, y) -> (x | y));
-                var targets = opens.targets().stream().map(ModuleDesc::of).toArray(ModuleDesc[]::new);
-                mb.opens(PackageDesc.of(opens.source()), flags, targets);
-            }
+                    // opens
+                    for (ModuleDescriptor.Opens opens : md.opens()) {
+                        int flags = opens.modifiers().stream()
+                                .map(OPENS_MODS_TO_FLAGS::get)
+                                .reduce(0, (x, y) -> (x | y));
+                        var targets = opens.targets().stream().map(ModuleDesc::of)
+                                .toArray(ModuleDesc[]::new);
+                        mb.opens(PackageDesc.of(opens.source()), flags, targets);
+                    }
 
-            // uses
-            md.uses().stream().map(sn -> ClassDesc.of(sn)).forEach(mb::uses);
+                    // uses
+                    md.uses().stream().map(sn -> ClassDesc.of(sn)).forEach(mb::uses);
 
-            // provides
-            for (ModuleDescriptor.Provides p : md.provides()) {
-                mb.provides(ClassDesc.of(p.service()),
-                                p.providers()
-                                    .stream()
-                                    .map(pn -> ClassDesc.of(pn))
-                                    .toArray(ClassDesc[]::new));
-            }
-        }),
-        md.packages().stream().map(PackageDesc::of).toList(),
-        clb -> {
+                    // provides
+                    for (ModuleDescriptor.Provides p : md.provides()) {
+                        mb.provides(ClassDesc.of(p.service()),
+                                        p.providers()
+                                            .stream()
+                                            .map(pn -> ClassDesc.of(pn))
+                                            .toArray(ClassDesc[]::new));
+                    }
+                }),
 
-            // ModuleMainClass attribute
-            md.mainClass().ifPresent(mc -> clb.with(ModuleMainClassAttribute.of(ClassDesc.of(mc))));
+                // packages
+                md.packages().stream().map(PackageDesc::of).toList(),
 
+                // extra attributes
+                clb -> {
+                    // ModuleMainClass attribute
+                    md.mainClass().ifPresent(mc ->
+                            clb.with(ModuleMainClassAttribute.of(ClassDesc.of(mc))));
 
-            // write ModuleResolution attribute if specified
-            if (mres != null) {
-                clb.with(ModuleResolutionAttribute.of(mres.value()));
-            }
+                    // write ModuleResolution attribute if specified
+                    if (mres != null) {
+                        clb.with(ModuleResolutionAttribute.of(mres.value()));
+                    }
 
-            // write ModuleTarget attribute if there is a target platform
-            if (target != null && target.targetPlatform().length() > 0) {
-                clb.with(ModuleTargetAttribute.of(target.targetPlatform()));
-            }
-        });
+                    // write ModuleTarget attribute if there is a target platform
+                    if (target != null && target.targetPlatform().length() > 0) {
+                        clb.with(ModuleTargetAttribute.of(target.targetPlatform()));
+                    }
+                });
         } catch (IllegalArgumentException iae) {
             var t = new InvalidModuleDescriptorException(iae.getMessage());
             t.initCause(iae);
