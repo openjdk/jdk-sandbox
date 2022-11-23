@@ -28,7 +28,6 @@ package java.lang;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.annotation.Annotation;
-import java.lang.constant.ClassDesc;
 import java.lang.module.Configuration;
 import java.lang.module.ModuleReference;
 import java.lang.module.ModuleDescriptor;
@@ -36,6 +35,7 @@ import java.lang.module.ModuleDescriptor.Exports;
 import java.lang.module.ModuleDescriptor.Opens;
 import java.lang.module.ModuleDescriptor.Version;
 import java.lang.module.ResolvedModule;
+import java.lang.reflect.AccessFlag;
 import java.lang.reflect.AnnotatedElement;
 import java.net.URI;
 import java.net.URL;
@@ -52,12 +52,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.lang.reflect.AccessFlag;
 import jdk.classfile.AccessFlags;
-
+import jdk.classfile.Attribute;
 import jdk.classfile.ClassModel;
+import jdk.classfile.ClassTransform;
 import jdk.classfile.Classfile;
 import jdk.classfile.attribute.ModuleAttribute;
+import jdk.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
 import jdk.internal.loader.BuiltinClassLoader;
 import jdk.internal.loader.BootLoader;
 import jdk.internal.loader.ClassLoaders;
@@ -1510,18 +1511,16 @@ public final class Module implements AnnotatedElement {
      */
     private Class<?> loadModuleInfoClass(InputStream in) throws IOException {
         final String MODULE_INFO = "module-info";
-        ClassModel cm = Classfile.parse(in.readAllBytes(),
-                Classfile.Option.processUnknownAttributes(false));
-        byte[] bytes = Classfile.build(
-                ClassDesc.of(MODULE_INFO),
-                cb -> {
-                    cb.withFlags(AccessFlag.INTERFACE, AccessFlag.ABSTRACT, AccessFlag.SYNTHETIC);
-                    cb.withVersion(cm.majorVersion(), cm.minorVersion());
-                    cm.forEachElement(e -> {
-                        if (!(e instanceof ModuleAttribute) && !(e instanceof AccessFlags)) cb.accept(e);
-                    });
-                });
-
+        byte[] bytes = Classfile.parse(in.readAllBytes()).transform((clb, cle) -> {
+            switch (cle) {
+                case AccessFlags af -> clb.withFlags(AccessFlag.INTERFACE,
+                        AccessFlag.ABSTRACT, AccessFlag.SYNTHETIC);
+                // keep annotations
+                case RuntimeVisibleAnnotationsAttribute a -> clb.with(a);
+                // drop non-annotation attributes
+                case Attribute<?> a -> {}
+                default -> clb.with(cle);
+            }});
         ClassLoader cl = new ClassLoader(loader) {
             @Override
             protected Class<?> findClass(String cn)throws ClassNotFoundException {
