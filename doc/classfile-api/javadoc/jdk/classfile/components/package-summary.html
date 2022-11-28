@@ -236,18 +236,18 @@ for (var classModel : allMyClasses) {
  
 <div class="snippet-container"><button class="copy snippet-copy" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../copy.svg" alt="Copy"></button>
 <pre class="snippet"><code class="language-java">byte[] classInstrumentation(ClassModel target, ClassModel instrumentor, Predicate&lt;MethodModel&gt; instrumentedMethodsFilter) {
-    Map&lt;String, CodeModel&gt; instrumentorCodeMap = instrumentor.methods().stream()
-                    .filter(instrumentedMethodsFilter)
-                    .collect(Collectors.toMap(mm -&gt; mm.methodName().stringValue() + mm.methodType().stringValue(), mm -&gt; mm.code().orElse(null)));
-    Set&lt;String&gt; targetFieldNames = target.fields().stream().map(f -&gt; f.fieldName().stringValue()).collect(Collectors.toSet());
-    Set&lt;String&gt; targetMethods = target.methods().stream().map(m -&gt; m.methodName().stringValue() + m.methodType().stringValue()).collect(Collectors.toSet());
-    ClassRemapper instrumentorClassRemapper = ClassRemapper.of(Map.of(instrumentor.thisClass().asSymbol(), target.thisClass().asSymbol()));
+    var instrumentorCodeMap = instrumentor.methods().stream()
+                                          .filter(instrumentedMethodsFilter)
+                                          .collect(Collectors.toMap(mm -&gt; mm.methodName().stringValue() + mm.methodType().stringValue(), mm -&gt; mm.code().orElse(null)));
+    var targetFieldNames = target.fields().stream().map(f -&gt; f.fieldName().stringValue()).collect(Collectors.toSet());
+    var targetMethods = target.methods().stream().map(m -&gt; m.methodName().stringValue() + m.methodType().stringValue()).collect(Collectors.toSet());
+    var instrumentorClassRemapper = ClassRemapper.of(Map.of(instrumentor.thisClass().asSymbol(), target.thisClass().asSymbol()));
     return target.transform(
             ClassTransform.transformingMethods(
                     instrumentedMethodsFilter,
                     (mb, me) -&gt; {
                         if (me instanceof CodeModel targetCodeModel) {
-                            MethodModel mm = targetCodeModel.parent().get();
+                            var mm = targetCodeModel.parent().get();
                             //instrumented methods code is taken from instrumentor
                             mb.transformCode(instrumentorCodeMap.get(mm.methodName().stringValue() + mm.methodType().stringValue()),
                                     //all references to the instrumentor class are remapped to target class
@@ -264,8 +264,8 @@ for (var classModel : allMyClasses) {
                                             int slot = 0;
                                             if (!mm.flags().has(AccessFlag.STATIC))
                                                 storeStack.add(StoreInstruction.of(TypeKind.ReferenceType, slot++));
-                                            for (ClassDesc pt : mm.methodTypeSymbol().parameterList()) {
-                                                TypeKind tk = TypeKind.fromDescriptor(pt.descriptorString());
+                                            for (var pt : mm.methodTypeSymbol().parameterList()) {
+                                                var tk = TypeKind.fromDescriptor(pt.descriptorString());
                                                 storeStack.addFirst(StoreInstruction.of(tk, slot));
                                                 slot += tk.slotSize();
                                             }
@@ -277,7 +277,7 @@ for (var classModel : allMyClasses) {
                                                     .andThen(CodeRelabeler.of())
                                                     .andThen((innerBuilder, shiftedTargetCode) -&gt; {
                                                         //returns must be replaced with jump to the end of the inlined method
-                                                        if (shiftedTargetCode.opcode() == Opcode.Kind.RETURN)
+                                                        if (shiftedTargetCode instanceof ReturnInstruction)
                                                             innerBuilder.goto_(inlinedBlockBuilder.breakLabel());
                                                         else
                                                             innerBuilder.with(shiftedTargetCode);
