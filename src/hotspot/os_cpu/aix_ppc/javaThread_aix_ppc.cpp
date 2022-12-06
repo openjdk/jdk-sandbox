@@ -38,11 +38,14 @@ frame JavaThread::pd_last_frame() {
   return frame(sp, pc);
 }
 
-bool JavaThread::pd_get_top_frame_for_profiling(frame* fr_addr, void* ucontext, bool isInJava) {
+bool JavaThread::pd_get_top_frame_for_profiling(frame* fr_addr, void* ucontext, bool isInJava,
+                                                bool forceUContextUsage) {
 
   // If we have a last_Java_frame, then we should use it even if
   // isInJava == true.  It should be more reliable than ucontext info.
-  if (has_last_Java_frame() && frame_anchor()->walkable()) {
+  // But forceUContextUsage == true overrides this.
+  if (ucontext == NULL ||
+      (!forceUContextUsage && has_last_Java_frame() && frame_anchor()->walkable())) {
     frame last_frame = pd_last_frame();
     if (last_frame.pc() == nullptr) return false;
     *fr_addr = last_frame;
@@ -104,8 +107,9 @@ bool JavaThread::pd_get_top_frame_for_profiling(frame* fr_addr, void* ucontext, 
 }
 
 // Forte Analyzer AsyncGetCallTrace profiling support.
-bool JavaThread::pd_get_top_frame_for_signal_handler(frame* fr_addr, void* ucontext, bool isInJava) {
-  return pd_get_top_frame_for_profiling(fr_addr, ucontext, isInJava);
+bool JavaThread::pd_get_top_frame_for_signal_handler(frame* fr_addr, void* ucontext, bool isInJava,
+                                                     bool forceUContextUsage) {
+  return pd_get_top_frame_for_profiling(fr_addr, ucontext, isInJava, forceUContextUsage);
 }
 
 void JavaThread::cache_global_variables() { }
