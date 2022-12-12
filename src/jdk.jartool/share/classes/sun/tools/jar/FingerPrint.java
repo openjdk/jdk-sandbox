@@ -110,7 +110,7 @@ final class FingerPrint {
     }
 
     public boolean isCompatibleVersion(FingerPrint that) {
-        return attrs.version >= that.attrs.version;
+        return attrs.majorVersion >= that.attrs.majorVersion;
     }
 
     public boolean isSameAPI(FingerPrint that) {
@@ -166,7 +166,11 @@ final class FingerPrint {
 
     private static ClassAttributes getClassAttributes(byte[] bytes) {
         var cm = Classfile.parse(bytes);
-        ClassAttributes attrs = new ClassAttributes(cm.flags().flagsMask(), cm.thisClass().name().stringValue(), cm.superclass().map(ClassEntry::asInternalName).orElse(null), cm.majorVersion(), cm.minorVersion());
+        ClassAttributes attrs = new ClassAttributes(
+                cm.flags().flagsMask(),
+                cm.thisClass().name().stringValue(),
+                cm.superclass().map(ClassEntry::asInternalName).orElse(null),
+                cm.majorVersion());
         cm.forEachElement(attrs);
         return attrs;
     }
@@ -241,15 +245,15 @@ final class FingerPrint {
         private final String name;
         private String outerClassName;
         private final String superName;
-        private final int version;
+        private final int majorVersion;
         private final int access;
         private final boolean publicClass;
         private boolean nestedClass;
         private final Set<Field> fields = new HashSet<>();
         private final Set<Method> methods = new HashSet<>();
 
-        public ClassAttributes(int access, String name, String superName, int major, int minor) {
-            this.version = minor << 16 | major;
+        public ClassAttributes(int access, String name, String superName, int majorVersion) {
+            this.majorVersion = majorVersion; // JDK-8296329: extract major version only
             this.access = access;
             this.name = name;
             this.nestedClass = name.contains("$");

@@ -121,9 +121,7 @@ VM_G1CollectForAllocation::VM_G1CollectForAllocation(size_t         word_size,
                                                      uint           gc_count_before,
                                                      GCCause::Cause gc_cause) :
   VM_CollectForAllocation(word_size, gc_count_before, gc_cause),
-  _gc_succeeded(false) {
-  _gc_cause = gc_cause;
-}
+  _gc_succeeded(false) {}
 
 bool VM_G1CollectForAllocation::should_try_allocation_before_gc() {
   // Don't allocate before a preventive GC.
@@ -174,7 +172,7 @@ void VM_G1PauseConcurrent::doit() {
   GCTraceTimePauseTimer       timer(_message, g1h->concurrent_mark()->gc_timer_cm());
   GCTraceTimeDriver           t(&logger, &timer);
 
-  TraceCollectorStats tcs(g1h->monitoring_support()->conc_collection_counters());
+  G1ConcGCMonitoringScope monitoring_scope(g1h->monitoring_support());
   SvcGCMarker sgcm(SvcGCMarker::CONCURRENT);
   IsGCActiveMark x;
 

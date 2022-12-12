@@ -507,18 +507,20 @@ public final class EventInstrumentation {
                         cob.ifne(l0);
                         cob.return_();
                         cob.labelBinding(l0);
+                        // long startTime = this.startTime
+                        cob.aload(0);
+                        cob.getfield(className, FIELD_START_TIME, CD_long);
+                        cob.lstore(1);
                         // if (startTime == 0) {
                         // startTime = EventWriter.timestamp();
                         // } else {
-                        cob.aload(0);
-                        cob.getfield(className, FIELD_START_TIME, CD_long);
+                        cob.lload(1);
                         cob.lconst_0();
                         cob.lcmp();
                         Label durationalEvent = cob.newLabel();
                         cob.ifne(durationalEvent);
-                        cob.aload(0);
                         cob.invokestatic(TYPE_EVENT_CONFIGURATION, METHOD_TIME_STAMP, METHOD_TIME_STAMP_DESC);
-                        cob.putfield(className, FIELD_START_TIME, CD_long);
+                        cob.lstore(1);
                         Label commit = cob.newLabel();
                         cob.goto_(commit);
                         // if (duration == 0) {
@@ -533,8 +535,7 @@ public final class EventInstrumentation {
                         cob.ifne(commit);
                         cob.aload(0);
                         cob.invokestatic(TYPE_EVENT_CONFIGURATION, METHOD_TIME_STAMP, METHOD_TIME_STAMP_DESC);
-                        cob.aload(0);
-                        cob.getfield(className, FIELD_START_TIME, CD_long);
+                        cob.lload(1);
                         cob.lsub();
                         cob.putfield(className, FIELD_DURATION, CD_long);
                         cob.labelBinding(commit);
@@ -558,9 +559,7 @@ public final class EventInstrumentation {
                         int fieldIndex = 0;
                         cob.dup();
                         // stack: [EW] [EW]
-                        cob.aload(0);
-                        // stack: [EW] [EW] [this]
-                        cob.getfield(className, FIELD_START_TIME, CD_long);
+                        cob.lload(1);
                         // stack: [EW] [EW] [long]
                         cob.invokevirtual(TYPE_EVENT_WRITER, EventWriterMethod.PUT_LONG.methodName, EventWriterMethod.PUT_LONG.methodDesc);
                         // stack: [EW]
