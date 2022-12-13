@@ -1,8 +1,7 @@
+module:java.base
 jdk.classfile
 jdk.classfile.attribute
 jdk.classfile.components
 jdk.classfile.constantpool
-jdk.classfile.impl
-jdk.classfile.impl.verifier
 jdk.classfile.instruction
 jdk.classfile.jdktypes
