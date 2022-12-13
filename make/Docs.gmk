@@ -556,6 +556,7 @@ $(eval $(call SetupApiDocsGeneration, REFERENCE_API, \
 
 CLASSFILE_SRC := $(TOPDIR)/src/java.base/share/classes
 CLASSFILE_TARGET := $(DOCS_OUTPUTDIR)/classfile-api/javadoc
+SOURCEPATH := $(call PathList, $(call FindModuleSrcDirs, java.base))
 
 $(eval $(call SetupExecute, CLASSFILE_API_TARGET, \
     DEPS := $(BUILD_TOOLS_JDK), \
@@ -566,8 +567,13 @@ $(eval $(call SetupExecute, CLASSFILE_API_TARGET, \
       -XDignorePreview=true -notimestamp -public \
       --add-exports java.base/jdk.internal.access=ALL-UNNAMED \
       -encoding ISO-8859-1 -docencoding UTF-8 -Xdoclint:none \
-      --snippet-path $(CLASSFILE_SRC) -locale en_US \
-      $(call FindFiles, $(CLASSFILE_SRC)/jdk/classfile/), \
+      -locale en_US --source-path $(SOURCEPATH) \
+      jdk.classfile \
+      jdk.classfile.attribute \
+      jdk.classfile.components \
+      jdk.classfile.constantpool \
+      jdk.classfile.instruction \
+      jdk.classfile.jdktypes \
 ))
 
 ################################################################################
