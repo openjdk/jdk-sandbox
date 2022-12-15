@@ -25,20 +25,23 @@
 
 package sun.tools.jar;
 
-import jdk.classfile.attribute.EnclosingMethodAttribute;
 import java.io.IOException;
+import java.lang.reflect.AccessFlag;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Consumer;
+import jdk.classfile.AccessFlags;
 import jdk.classfile.Attributes;
 import jdk.classfile.ClassElement;
 import jdk.classfile.Classfile;
 import jdk.classfile.constantpool.*;
 import jdk.classfile.FieldModel;
 import jdk.classfile.MethodModel;
+import jdk.classfile.attribute.EnclosingMethodAttribute;
 import jdk.classfile.attribute.ExceptionsAttribute;
+import jdk.classfile.attribute.InnerClassesAttribute;
 
 /**
  * A FingerPrint is an abstract representation of a JarFile entry that contains
@@ -54,7 +57,6 @@ import jdk.classfile.attribute.ExceptionsAttribute;
  * {@code n} precedes classes with versions {@code > n} for all versions
  * {@code n}.
  */
-import jdk.classfile.attribute.InnerClassesAttribute;
 final class FingerPrint {
     private static final MessageDigest MD;
 
@@ -167,8 +169,8 @@ final class FingerPrint {
     private static ClassAttributes getClassAttributes(byte[] bytes) {
         var cm = Classfile.parse(bytes);
         ClassAttributes attrs = new ClassAttributes(
-                cm.flags().flagsMask(),
-                cm.thisClass().name().stringValue(),
+                cm.flags(),
+                cm.thisClass().asInternalName(),
                 cm.superclass().map(ClassEntry::asInternalName).orElse(null),
                 cm.majorVersion());
         cm.forEachElement(attrs);
@@ -252,9 +254,9 @@ final class FingerPrint {
         private final Set<Field> fields = new HashSet<>();
         private final Set<Method> methods = new HashSet<>();
 
-        public ClassAttributes(int access, String name, String superName, int majorVersion) {
+        public ClassAttributes(AccessFlags access, String name, String superName, int majorVersion) {
             this.majorVersion = majorVersion; // JDK-8296329: extract major version only
-            this.access = access;
+            this.access = access.flagsMask();
             this.name = name;
             this.nestedClass = name.contains("$");
             this.superName = superName;
@@ -262,40 +264,45 @@ final class FingerPrint {
         }
 
         @Override
-        public void accept(ClassElement t) {
-            if (t instanceof InnerClassesAttribute ica) {
-                for (var icm : ica.classes()) {
-                    if (this.nestedClass && icm.outerClass().isPresent() && this.name.equals(icm.innerClass().name().stringValue()) && this.outerClassName == null) {
-                        this.outerClassName = icm.outerClass().get().name().stringValue();
+        public void accept(ClassElement cle) {
+            switch (cle) {
+                case InnerClassesAttribute ica -> {
+                    for (var icm : ica.classes()) {
+                        if (this.nestedClass && icm.outerClass().isPresent() && this.name.equals(icm.innerClass().asInternalName()) && this.outerClassName == null) {
+                            this.outerClassName = icm.outerClass().get().asInternalName();
+                        }
                     }
                 }
-            } else if (t instanceof FieldModel fm) {
-                if (isPublic(fm.flags().flagsMask())) {
-                    fields.add(new Field(fm.flags().flagsMask(), fm.fieldName().stringValue(), fm.fieldType().stringValue()));
-                }
-            } else if (t instanceof MethodModel mm) {
-                if (isPublic(mm.flags().flagsMask())) {
-                    Set<String> exceptionSet = new HashSet<>();
-                    mm.findAttribute(Attributes.EXCEPTIONS).ifPresent(ea -> ea.exceptions().forEach(e -> exceptionSet.add(e.asInternalName())));
-                    // treat type descriptor as a proxy for signature because signature
-                    // is usually null, need to strip off the return type though
-                    int n;
-                    var desc = mm.methodType().stringValue();
-                    if (desc != null && (n = desc.lastIndexOf(')')) != -1) {
-                        desc = desc.substring(0, n + 1);
-                        methods.add(new Method(mm.flags().flagsMask(), mm.methodName().stringValue(), desc, exceptionSet));
+                case FieldModel fm -> {
+                    if (isPublic(fm.flags())) {
+                        fields.add(new Field(fm.flags().flagsMask(), fm.fieldName().stringValue(), fm.fieldType().stringValue()));
                     }
                 }
-            } else if (t instanceof EnclosingMethodAttribute ema) {
-                if (this.nestedClass) {
-                    this.outerClassName = ema.enclosingClass().asInternalName();
+                case MethodModel mm -> {
+                    if (isPublic(mm.flags())) {
+                        Set<String> exceptionSet = new HashSet<>();
+                        mm.findAttribute(Attributes.EXCEPTIONS).ifPresent(ea -> ea.exceptions().forEach(e -> exceptionSet.add(e.asInternalName())));
+                        // treat type descriptor as a proxy for signature because signature
+                        // is usually null, need to strip off the return type though
+                        int n;
+                        var desc = mm.methodType().stringValue();
+                        if (desc != null && (n = desc.lastIndexOf(')')) != -1) {
+                            desc = desc.substring(0, n + 1);
+                            methods.add(new Method(mm.flags().flagsMask(), mm.methodName().stringValue(), desc, exceptionSet));
+                        }
+                    }
                 }
+                case EnclosingMethodAttribute ema -> {
+                    if (this.nestedClass) {
+                        this.outerClassName = ema.enclosingClass().asInternalName();
+                    }
+                }
+                default -> {}
             }
         }
 
-        private static boolean isPublic(int access) {
-            return ((access & Classfile.ACC_PUBLIC) == Classfile.ACC_PUBLIC)
-                    || ((access & Classfile.ACC_PROTECTED) == Classfile.ACC_PROTECTED);
+        private static boolean isPublic(AccessFlags access) {
+            return access.has(AccessFlag.PUBLIC) || access.has(AccessFlag.PROTECTED);
         }
 
         @Override
