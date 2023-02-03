@@ -14,7 +14,7 @@ tracking.
 
 Classfile Processing API source are a part of java.base JDK module sources:
 
-- [src/java.base/share/classes/jdk/classfile/](src/java.base/share/classes/jdk/classfile/)
+- [src/java.base/share/classes/jdk/internal/classfile/](src/java.base/share/classes/jdk/internal/classfile/)
 
 ### Building
 
