@@ -52,10 +52,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import jdk.classfile.AccessFlags;
-import jdk.classfile.Attribute;
-import jdk.classfile.Classfile;
-import jdk.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
+import jdk.internal.classfile.AccessFlags;
+import jdk.internal.classfile.Attribute;
+import jdk.internal.classfile.Classfile;
+import jdk.internal.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
 
 import jdk.internal.javac.PreviewFeature;
 import jdk.internal.loader.BuiltinClassLoader;
