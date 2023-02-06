@@ -25,10 +25,10 @@
 
 package java.lang.invoke;
 
-import jdk.classfile.*;
-import jdk.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
-import jdk.classfile.attribute.SourceFileAttribute;
-import jdk.classfile.instruction.SwitchCase;
+import jdk.internal.classfile.*;
+import jdk.internal.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
+import jdk.internal.classfile.attribute.SourceFileAttribute;
+import jdk.internal.classfile.instruction.SwitchCase;
 import sun.invoke.util.VerifyAccess;
 import sun.invoke.util.VerifyType;
 import sun.invoke.util.Wrapper;
@@ -55,7 +55,7 @@ import static java.lang.invoke.LambdaForm.BasicType.*;
 import static java.lang.invoke.MethodHandleNatives.Constants.*;
 import static java.lang.invoke.MethodHandleStatics.*;
 import static java.lang.invoke.MethodHandles.Lookup.IMPL_LOOKUP;
-import static jdk.classfile.Classfile.*;
+import static jdk.internal.classfile.Classfile.*;
 
 /**
  * Code generation backend for LambdaForm.

@@ -61,7 +61,7 @@ import java.util.TreeSet;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import jdk.classfile.AccessFlags;
+import jdk.internal.classfile.AccessFlags;
 
 import jdk.internal.module.Checks;
 import jdk.internal.module.DefaultRoots;
@@ -73,13 +73,13 @@ import jdk.internal.module.ModuleReferenceImpl;
 import jdk.internal.module.ModuleResolution;
 import jdk.internal.module.ModuleTarget;
 
-import jdk.classfile.attribute.ModulePackagesAttribute;
-import jdk.classfile.ClassBuilder;
-import jdk.classfile.Classfile;
-import jdk.classfile.Opcode;
-import jdk.classfile.TypeKind;
-import static jdk.classfile.Classfile.*;
-import jdk.classfile.CodeBuilder;
+import jdk.internal.classfile.attribute.ModulePackagesAttribute;
+import jdk.internal.classfile.ClassBuilder;
+import jdk.internal.classfile.Classfile;
+import jdk.internal.classfile.Opcode;
+import jdk.internal.classfile.TypeKind;
+import static jdk.internal.classfile.Classfile.*;
+import jdk.internal.classfile.CodeBuilder;
 
 import jdk.tools.jlink.internal.ModuleSorter;
 import jdk.tools.jlink.plugin.PluginException;

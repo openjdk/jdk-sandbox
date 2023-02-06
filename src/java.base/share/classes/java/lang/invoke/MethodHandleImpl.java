@@ -63,10 +63,10 @@ import static java.lang.invoke.MethodHandleStatics.*;
 import static java.lang.invoke.MethodHandles.Lookup.IMPL_LOOKUP;
 import static java.lang.invoke.MethodHandles.Lookup.ClassOption.NESTMATE;
 import java.lang.reflect.AccessFlag;
-import jdk.classfile.AccessFlags;
-import jdk.classfile.Classfile;
-import jdk.classfile.Opcode;
-import jdk.classfile.TypeKind;
+import jdk.internal.classfile.AccessFlags;
+import jdk.internal.classfile.Classfile;
+import jdk.internal.classfile.Opcode;
+import jdk.internal.classfile.TypeKind;
 
 /**
  * Trusted implementation code for MethodHandle.

@@ -36,22 +36,22 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import jdk.classfile.ClassModel;
-import jdk.classfile.ClassTransform;
-import jdk.classfile.Classfile;
-import jdk.classfile.CodeModel;
-import jdk.classfile.FieldModel;
-import jdk.classfile.MethodModel;
-import jdk.classfile.TypeKind;
-import jdk.classfile.instruction.BranchInstruction;
-import jdk.classfile.instruction.InvokeInstruction;
-import jdk.classfile.instruction.LookupSwitchInstruction;
-import jdk.classfile.instruction.StoreInstruction;
-import jdk.classfile.instruction.TableSwitchInstruction;
-import jdk.classfile.components.ClassRemapper;
-import jdk.classfile.components.CodeLocalsShifter;
-import jdk.classfile.components.CodeRelabeler;
-import jdk.classfile.instruction.ReturnInstruction;
+import jdk.internal.classfile.ClassModel;
+import jdk.internal.classfile.ClassTransform;
+import jdk.internal.classfile.Classfile;
+import jdk.internal.classfile.CodeModel;
+import jdk.internal.classfile.FieldModel;
+import jdk.internal.classfile.MethodModel;
+import jdk.internal.classfile.TypeKind;
+import jdk.internal.classfile.instruction.BranchInstruction;
+import jdk.internal.classfile.instruction.InvokeInstruction;
+import jdk.internal.classfile.instruction.LookupSwitchInstruction;
+import jdk.internal.classfile.instruction.StoreInstruction;
+import jdk.internal.classfile.instruction.TableSwitchInstruction;
+import jdk.internal.classfile.components.ClassRemapper;
+import jdk.internal.classfile.components.CodeLocalsShifter;
+import jdk.internal.classfile.components.CodeRelabeler;
+import jdk.internal.classfile.instruction.ReturnInstruction;
 
 import jdk.jfr.internal.SecuritySupport;
 

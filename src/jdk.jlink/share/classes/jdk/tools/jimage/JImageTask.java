@@ -40,10 +40,10 @@ import java.util.MissingResourceException;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import jdk.classfile.ClassModel;
-import jdk.classfile.Classfile;
-import jdk.classfile.CodeModel;
-import jdk.classfile.MethodModel;
+import jdk.internal.classfile.ClassModel;
+import jdk.internal.classfile.Classfile;
+import jdk.internal.classfile.CodeModel;
+import jdk.internal.classfile.MethodModel;
 
 import jdk.internal.jimage.BasicImageReader;
 import jdk.internal.jimage.ImageHeader;

@@ -25,8 +25,8 @@
 
 package java.lang.invoke;
 
-import jdk.classfile.ClassModel;
-import jdk.classfile.Classfile;
+import jdk.internal.classfile.ClassModel;
+import jdk.internal.classfile.Classfile;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.foreign.Utils;
 import jdk.internal.javac.PreviewFeature;

@@ -37,8 +37,8 @@ import static java.lang.constant.ConstantDescs.*;
 import java.lang.constant.MethodTypeDesc;
 import java.util.function.Predicate;
 
-import jdk.classfile.*;
-import jdk.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
+import jdk.internal.classfile.*;
+import jdk.internal.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
 
 import jdk.jfr.Enabled;
 import jdk.jfr.Event;

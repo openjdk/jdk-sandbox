@@ -28,11 +28,11 @@ package java.lang.invoke;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.ConstantDescs;
 import java.lang.constant.MethodTypeDesc;
-import jdk.classfile.*;
+import jdk.internal.classfile.*;
 import java.lang.reflect.AccessFlag;
-import jdk.classfile.attribute.ExceptionsAttribute;
-import jdk.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
-import jdk.classfile.attribute.SourceFileAttribute;
+import jdk.internal.classfile.attribute.ExceptionsAttribute;
+import jdk.internal.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
+import jdk.internal.classfile.attribute.SourceFileAttribute;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.loader.BootLoader;
 import jdk.internal.vm.annotation.Stable;
@@ -56,7 +56,7 @@ import static java.lang.invoke.MethodHandleNatives.Constants.REF_getStatic;
 import static java.lang.invoke.MethodHandleNatives.Constants.REF_putStatic;
 import static java.lang.invoke.MethodHandleStatics.*;
 import static java.lang.invoke.MethodHandles.Lookup.IMPL_LOOKUP;
-import static jdk.classfile.Classfile.*;
+import static jdk.internal.classfile.Classfile.*;
 
 /**
  * Class specialization code.

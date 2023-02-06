@@ -25,7 +25,7 @@
 
 package java.lang.invoke;
 
-import jdk.classfile.attribute.ExceptionsAttribute;
+import jdk.internal.classfile.attribute.ExceptionsAttribute;
 import jdk.internal.misc.CDS;
 import jdk.internal.misc.VM;
 import sun.invoke.util.BytecodeDescriptor;
@@ -57,15 +57,15 @@ import static java.lang.invoke.MethodType.methodType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
-import jdk.classfile.AccessFlags;
-import jdk.classfile.ClassBuilder;
-import jdk.classfile.Classfile;
-import jdk.classfile.Opcode;
-import jdk.classfile.TypeKind;
-import static jdk.classfile.Classfile.*;
-import jdk.classfile.CodeBuilder;
-import jdk.classfile.FieldBuilder;
-import jdk.classfile.MethodBuilder;
+import jdk.internal.classfile.AccessFlags;
+import jdk.internal.classfile.ClassBuilder;
+import jdk.internal.classfile.Classfile;
+import jdk.internal.classfile.Opcode;
+import jdk.internal.classfile.TypeKind;
+import static jdk.internal.classfile.Classfile.*;
+import jdk.internal.classfile.CodeBuilder;
+import jdk.internal.classfile.FieldBuilder;
+import jdk.internal.classfile.MethodBuilder;
 
 /**
  * Lambda metafactory implementation which dynamically creates an

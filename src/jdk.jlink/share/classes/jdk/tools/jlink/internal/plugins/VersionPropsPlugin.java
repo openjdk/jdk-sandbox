@@ -26,14 +26,14 @@
 package jdk.tools.jlink.internal.plugins;
 
 import java.util.Map;
-import jdk.classfile.CodeBuilder;
-import jdk.classfile.CodeElement;
-import jdk.classfile.CodeModel;
-import jdk.classfile.Instruction;
-import jdk.classfile.instruction.FieldInstruction;
-import jdk.classfile.MethodModel;
-import jdk.classfile.Opcode;
-import jdk.classfile.CodeTransform;
+import jdk.internal.classfile.CodeBuilder;
+import jdk.internal.classfile.CodeElement;
+import jdk.internal.classfile.CodeModel;
+import jdk.internal.classfile.Instruction;
+import jdk.internal.classfile.instruction.FieldInstruction;
+import jdk.internal.classfile.MethodModel;
+import jdk.internal.classfile.Opcode;
+import jdk.internal.classfile.CodeTransform;
 
 import jdk.tools.jlink.plugin.ResourcePool;
 import jdk.tools.jlink.plugin.ResourcePoolBuilder;

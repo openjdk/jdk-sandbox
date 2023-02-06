@@ -25,8 +25,8 @@
 package jdk.tools.jlink.internal.plugins;
 
 import java.util.function.Predicate;
-import jdk.classfile.ClassTransform;
-import jdk.classfile.Classfile;
+import jdk.internal.classfile.ClassTransform;
+import jdk.internal.classfile.Classfile;
 
 import jdk.tools.jlink.plugin.ResourcePool;
 import jdk.tools.jlink.plugin.ResourcePoolBuilder;

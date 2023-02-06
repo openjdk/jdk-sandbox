@@ -33,10 +33,10 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
-import jdk.classfile.*;
-import jdk.classfile.constantpool.*;
-import jdk.classfile.jdktypes.*;
-import jdk.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
+import jdk.internal.classfile.*;
+import jdk.internal.classfile.constantpool.*;
+import jdk.internal.classfile.jdktypes.*;
+import jdk.internal.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
 import jdk.jfr.AnnotationElement;
 import jdk.jfr.Event;
 import jdk.jfr.ValueDescriptor;
@@ -120,7 +120,7 @@ public final class EventClassBuilder {
             for (AnnotationElement a : annotationElements) {
                 result.add(Annotation.of(
                         ASMToolkit.getDescriptor(a.getTypeName()),
-                        a.getValueDescriptors().stream().map(v -> jdk.classfile.AnnotationElement.of(
+                        a.getValueDescriptors().stream().map(v -> jdk.internal.classfile.AnnotationElement.of(
                                 v.getName(),
                                 AnnotationValue.of(a.getValue(v.getName())))).toList()));
             }

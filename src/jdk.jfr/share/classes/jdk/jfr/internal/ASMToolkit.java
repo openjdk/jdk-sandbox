@@ -29,9 +29,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintWriter;
 import java.lang.constant.ClassDesc;
 import static java.lang.constant.ConstantDescs.*;
-import jdk.classfile.ClassModel;
-import jdk.classfile.Classfile;
-import jdk.classfile.components.ClassPrinter;
+import jdk.internal.classfile.ClassModel;
+import jdk.internal.classfile.Classfile;
+import jdk.internal.classfile.components.ClassPrinter;
 import jdk.jfr.ValueDescriptor;
 
 final class ASMToolkit {

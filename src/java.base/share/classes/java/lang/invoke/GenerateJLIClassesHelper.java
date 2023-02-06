@@ -26,7 +26,7 @@
 package java.lang.invoke;
 
 import java.lang.constant.ClassDesc;
-import jdk.classfile.attribute.SourceFileAttribute;
+import jdk.internal.classfile.attribute.SourceFileAttribute;
 import jdk.internal.misc.CDS;
 import sun.invoke.util.Wrapper;
 
@@ -47,9 +47,9 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.lang.reflect.AccessFlag;
-import jdk.classfile.AccessFlags;
-import jdk.classfile.ClassBuilder;
-import jdk.classfile.Classfile;
+import jdk.internal.classfile.AccessFlags;
+import jdk.internal.classfile.ClassBuilder;
+import jdk.internal.classfile.Classfile;
 
 /**
  * Helper class to assist the GenerateJLIClassesPlugin to get access to

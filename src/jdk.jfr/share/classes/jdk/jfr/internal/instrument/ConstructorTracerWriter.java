@@ -30,8 +30,8 @@ import java.lang.constant.ConstantDescs;
 import java.lang.constant.MethodTypeDesc;
 import java.util.function.Predicate;
 
-import jdk.classfile.*;
-import jdk.classfile.instruction.ReturnInstruction;
+import jdk.internal.classfile.*;
+import jdk.internal.classfile.instruction.ReturnInstruction;
 
 final class ConstructorTracerWriter {
 
