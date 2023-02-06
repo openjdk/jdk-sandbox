@@ -1,7 +1,7 @@
 module:java.base
-jdk.classfile
-jdk.classfile.attribute
-jdk.classfile.components
-jdk.classfile.constantpool
-jdk.classfile.instruction
-jdk.classfile.jdktypes
+jdk.internal.classfile
+jdk.internal.classfile.attribute
+jdk.internal.classfile.components
+jdk.internal.classfile.constantpool
+jdk.internal.classfile.instruction
+jdk.internal.classfile.jdktypes
