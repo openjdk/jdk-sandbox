@@ -564,16 +564,17 @@ $(eval $(call SetupExecute, CLASSFILE_API_TARGET, \
     SUPPORT_DIR := $(SUPPORT_OUTPUTDIR)/docs, \
     COMMAND := $(BUILD_JAVA) -Djava.awt.headless=true \
       $(NEW_JAVADOC) -d $(CLASSFILE_TARGET) \
-      -XDignorePreview=true -notimestamp -public \
+      --enable-preview -source $(JDK_SOURCE_TARGET_VERSION) -use \
+      -notimestamp -public \
       --add-exports java.base/jdk.internal.access=ALL-UNNAMED \
       -encoding ISO-8859-1 -docencoding UTF-8 -Xdoclint:none \
       -locale en_US --source-path $(SOURCEPATH) \
-      jdk.classfile \
-      jdk.classfile.attribute \
-      jdk.classfile.components \
-      jdk.classfile.constantpool \
-      jdk.classfile.instruction \
-      jdk.classfile.jdktypes \
+      jdk.internal.classfile \
+      jdk.internal.classfile.attribute \
+      jdk.internal.classfile.components \
+      jdk.internal.classfile.constantpool \
+      jdk.internal.classfile.instruction \
+      jdk.internal.classfile.jdktypes \
 ))
 
 ################################################################################
