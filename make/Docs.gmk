@@ -565,8 +565,13 @@ $(eval $(call SetupExecute, CLASSFILE_API_TARGET, \
     OUTPUT_DIR := $(CLASSFILE_TARGET), \
     SUPPORT_DIR := $(SUPPORT_OUTPUTDIR)/docs, \
     COMMAND := $(BUILD_JAVA) -Djava.awt.headless=true \
+      -Dextlink.spec.version=19 \
+      -Djspec.version=19 \
       $(NEW_JAVADOC) -d $(CLASSFILE_TARGET) \
       --enable-preview -source $(JDK_SOURCE_TARGET_VERSION) -use \
+      -taglet build.tools.taglet.JSpec\$$JLS \
+      -taglet build.tools.taglet.JSpec\$$JVMS \
+      -tagletpath $(BUILDTOOLS_OUTPUTDIR)/jdk_tools_classes \
       -notimestamp -public \
       --add-exports java.base/jdk.internal.access=ALL-UNNAMED \
       -encoding ISO-8859-1 -docencoding UTF-8 -Xdoclint:none \
