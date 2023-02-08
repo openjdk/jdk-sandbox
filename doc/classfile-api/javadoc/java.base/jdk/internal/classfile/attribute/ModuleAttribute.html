@@ -94,7 +94,7 @@ loadScripts(document, 'script');</script>
 <hr>
 <div class="type-signature"><span class="modifiers">public sealed interface </span><span class="element-name type-name-label">ModuleAttribute</span><span class="extends-implements">
 extends <a href="../Attribute.html" title="interface in jdk.internal.classfile">Attribute</a>&lt;<a href="ModuleAttribute.html" title="interface in jdk.internal.classfile.attribute">ModuleAttribute</a>&gt;, <a href="../ClassElement.html" title="interface in jdk.internal.classfile">ClassElement</a></span></div>
-<div class="block">Models the <code>Module</code> attribute (JVMS 4.7.25), which can
+<div class="block">Models the <code>Module</code> attribute <a href="https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.25">4.7.25</a>, which can
  appear on classes that represent module descriptors.
  Delivered as a <a href="../ClassElement.html" title="interface in jdk.internal.classfile"><code>ClassElement</code></a> when
  traversing the elements of a <a href="../ClassModel.html" title="interface in jdk.internal.classfile"><code>ClassModel</code></a>.</div>
@@ -170,7 +170,9 @@ extends <a href="../Attribute.html" title="interface in jdk.internal.classfile">
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1"><code>static <a href="ModuleAttribute.html" title="interface in jdk.internal.classfile.attribute">ModuleAttribute</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(jdk.internal.classfile.jdktypes.ModuleDesc,java.util.function.Consumer)" class="member-name-link">of</a><wbr>(<a href="../jdktypes/ModuleDesc.html" title="interface in jdk.internal.classfile.jdktypes">ModuleDesc</a>&nbsp;moduleName,
  <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="ModuleAttribute.ModuleAttributeBuilder.html" title="interface in jdk.internal.classfile.attribute">ModuleAttribute.ModuleAttributeBuilder</a>&gt;&nbsp;attrHandler)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1">
+<div class="block">Returns a <code>Module</code> attribute.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="ModuleOpenInfo.html" title="interface in jdk.internal.classfile.attribute">ModuleOpenInfo</a>&gt;</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#opens()" class="member-name-link">opens</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
@@ -349,6 +351,14 @@ extends <a href="../Attribute.html" title="interface in jdk.internal.classfile">
 <h3>of</h3>
 <div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="ModuleAttribute.html" title="interface in jdk.internal.classfile.attribute">ModuleAttribute</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="../jdktypes/ModuleDesc.html" title="interface in jdk.internal.classfile.jdktypes">ModuleDesc</a>&nbsp;moduleName,
  <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="ModuleAttribute.ModuleAttributeBuilder.html" title="interface in jdk.internal.classfile.attribute">ModuleAttribute.ModuleAttributeBuilder</a>&gt;&nbsp;attrHandler)</span></div>
+<div class="block">Returns a <code>Module</code> attribute.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>moduleName</code> - the module name</dd>
+<dd><code>attrHandler</code> - a handler that receives a <a href="ModuleAttribute.ModuleAttributeBuilder.html" title="interface in jdk.internal.classfile.attribute"><code>ModuleAttribute.ModuleAttributeBuilder</code></a></dd>
+<dt>Returns:</dt>
+<dd>a <code>Module</code> attribute</dd>
+</dl>
 </section>
 </li>
 </ul>

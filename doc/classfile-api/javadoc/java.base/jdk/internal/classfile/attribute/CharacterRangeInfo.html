@@ -214,9 +214,9 @@ loadScripts(document, 'script');</script>
  may be set within flags.
  <ul>
  <li><a href="../Classfile.html#CRT_STATEMENT"><code>Classfile.CRT_STATEMENT</code></a> Range is a Statement
- (except ExpressionStatement), StatementExpression (14.8), as well as each
+ (except ExpressionStatement), StatementExpression <a href="https://docs.oracle.com/javase/specs/jls/se19/html/jls-14.html#jls-14.8">14.8</a>, as well as each
  VariableDeclaratorId = VariableInitializer of
- LocalVariableDeclarationStatement (14.4) or FieldDeclaration (8.3) in the
+ LocalVariableDeclarationStatement <a href="https://docs.oracle.com/javase/specs/jls/se19/html/jls-14.html#jls-14.4">14.4</a> or FieldDeclaration <a href="https://docs.oracle.com/javase/specs/jls/se19/html/jls-8.html#jls-8.3">8.3</a> in the
  grammar.
  <li><a href="../Classfile.html#CRT_BLOCK"><code>Classfile.CRT_BLOCK</code></a> Range is a Block in the
  grammar.
@@ -224,7 +224,7 @@ loadScripts(document, 'script');</script>
  expression - Expression1 AssignmentOperator Expression1 in the grammar as
  well as increment and decrement expressions (both prefix and postfix).
  <li><a href="../Classfile.html#CRT_FLOW_CONTROLLER"><code>Classfile.CRT_FLOW_CONTROLLER</code></a> An expression
- whose value will effect control flow. Flowcon in the following:
+ whose value will effect control flow. <code>Flowcon</code> in the following:
  <pre>
  if ( Flowcon ) Statement [else Statement]
  for ( ForInitOpt ; [Flowcon] ; ForUpdateOpt ) Statement
@@ -236,7 +236,7 @@ loadScripts(document, 'script');</script>
  Flowcon ? Expression : Expression1
  </pre>
  <li><a href="../Classfile.html#CRT_FLOW_TARGET"><code>Classfile.CRT_FLOW_TARGET</code></a> Statement or
- expression effected by a CRT_FLOW_CONTROLLER. Flowtarg in the following:
+ expression effected by a CRT_FLOW_CONTROLLER. <code>Flowtarg</code> in the following:
  <pre>
  if ( Flowcon ) Flowtarg [else Flowtarg]
  for ( ForInitOpt ; [Flowcon] ; ForUpdateOpt ) Flowtarg

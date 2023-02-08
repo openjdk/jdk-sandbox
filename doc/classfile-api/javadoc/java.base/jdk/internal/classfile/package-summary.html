@@ -82,7 +82,7 @@ loadScripts(document, 'script');</script>
  <p>
  
 <div class="snippet-container"><button class="copy snippet-copy" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../copy.svg" alt="Copy"></button>
-<pre class="snippet"><code class="language-java">ClassModel cm = ClassModel.of(bytes);
+<pre class="snippet"><code class="language-java">ClassModel cm = Classfile.parse(bytes);
 </code></pre>
 </div>
 
@@ -248,7 +248,7 @@ Set&lt;ClassDesc&gt; dependencies = cm.elementStream()
  same kind are allowed on a single entity.
  <p>
  There are built-in attribute mappers (in <a href="Attributes.html" title="class in jdk.internal.classfile"><code>Attributes</code></a>) for
- each of the attribute types defined in section  of <cite>The Java Virtual
+ each of the attribute types defined in section <a href="https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7">4.7</a> of <cite>The Java Virtual
  Machine Specification</cite>, as well as several common nonstandard attributes used by the
  JDK such as <code>CharacterRangeTable</code>.
  <p>
@@ -446,7 +446,7 @@ byte[] newBytes = Classfile.parse(bytes).transform(ct);
  and then transform the classfile:
  
 <div class="snippet-container"><button class="copy snippet-copy" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../copy.svg" alt="Copy"></button>
-<pre class="snippet"><code class="language-java">byte[] newBytes = ClassModel.of(bytes).transform(ct);
+<pre class="snippet"><code class="language-java">byte[] newBytes = Classfile.parse(bytes).transform(ct);
 </code></pre>
 </div>
 
@@ -510,7 +510,7 @@ byte[] newBytes = Classfile.parse(bytes).transform(ct);
  <p>
  
 <div class="snippet-container"><button class="copy snippet-copy" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../copy.svg" alt="Copy"></button>
-<pre class="snippet"><code class="language-java">byte[] newBytes = ClassModel.of(bytes)
+<pre class="snippet"><code class="language-java">byte[] newBytes = Classfile.parse(bytes)
                             .transform(ClassTransform.transformingMethods(
                                 MethodTransform.transformingCode(
                                     fooToBar.andThen(instrumentCalls))));
@@ -772,7 +772,7 @@ PseudoInstruction =
 </div>
 <div class="col-first even-row-color class-summary class-summary-tab1"><a href="Attribute.html" title="interface in jdk.internal.classfile">Attribute</a>&lt;A extends <a href="Attribute.html" title="interface in jdk.internal.classfile">Attribute</a>&lt;A&gt;&gt;</div>
 <div class="col-last even-row-color class-summary class-summary-tab1">
-<div class="block">Models a classfile attribute (JVMS 4.7).</div>
+<div class="block">Models a classfile attribute <a href="https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7">4.7</a>.</div>
 </div>
 <div class="col-first odd-row-color class-summary class-summary-tab1"><a href="AttributedElement.html" title="interface in jdk.internal.classfile">AttributedElement</a></div>
 <div class="col-last odd-row-color class-summary class-summary-tab1">
@@ -861,7 +861,7 @@ PseudoInstruction =
 </div>
 <div class="col-first odd-row-color class-summary class-summary-tab1"><a href="ClassSignature.html" title="interface in jdk.internal.classfile">ClassSignature</a></div>
 <div class="col-last odd-row-color class-summary class-summary-tab1">
-<div class="block">Models the generic signature of a class file, as defined by JVMS 4.7.9.</div>
+<div class="block">Models the generic signature of a class file, as defined by <a href="https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.9">4.7.9</a>.</div>
 </div>
 <div class="col-first even-row-color class-summary class-summary-tab1"><a href="ClassTransform.html" title="interface in jdk.internal.classfile">ClassTransform</a></div>
 <div class="col-last even-row-color class-summary class-summary-tab1">
@@ -946,7 +946,7 @@ PseudoInstruction =
 </div>
 <div class="col-first odd-row-color class-summary class-summary-tab1"><a href="MethodSignature.html" title="interface in jdk.internal.classfile">MethodSignature</a></div>
 <div class="col-last odd-row-color class-summary class-summary-tab1">
-<div class="block">Models the generic signature of a method, as defined by JVMS 4.7.9.</div>
+<div class="block">Models the generic signature of a method, as defined by <a href="https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.9">4.7.9</a>.</div>
 </div>
 <div class="col-first even-row-color class-summary class-summary-tab1"><a href="MethodTransform.html" title="interface in jdk.internal.classfile">MethodTransform</a></div>
 <div class="col-last even-row-color class-summary class-summary-tab1">
@@ -970,7 +970,7 @@ PseudoInstruction =
 </div>
 <div class="col-first even-row-color class-summary class-summary-tab1"><a href="Signature.html" title="interface in jdk.internal.classfile">Signature</a></div>
 <div class="col-last even-row-color class-summary class-summary-tab1">
-<div class="block">Models generic Java type signatures, as defined in JVMS 4.7.9.1.</div>
+<div class="block">Models generic Java type signatures, as defined in <a href="https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.9.1">4.7.9.1</a>.</div>
 </div>
 <div class="col-first odd-row-color class-summary class-summary-tab1"><a href="Signature.ArrayTypeSig.html" title="interface in jdk.internal.classfile">Signature.ArrayTypeSig</a></div>
 <div class="col-last odd-row-color class-summary class-summary-tab1">
@@ -1088,7 +1088,8 @@ PseudoInstruction =
 </div>
 <div class="col-first odd-row-color class-summary class-summary-tab1"><a href="TypeAnnotation.TypePathComponent.html" title="interface in jdk.internal.classfile">TypeAnnotation.TypePathComponent</a></div>
 <div class="col-last odd-row-color class-summary class-summary-tab1">
-<div class="block">type_path.path.</div>
+<div class="block">JVMS: Wherever a type is used in a declaration or expression, the type_path structure identifies which part of
+ the type is annotated.</div>
 </div>
 <div class="col-first even-row-color class-summary class-summary-tab3"><a href="TypeAnnotation.TypePathComponent.Kind.html" title="enum class in jdk.internal.classfile">TypeAnnotation.TypePathComponent.Kind</a></div>
 <div class="col-last even-row-color class-summary class-summary-tab3">&nbsp;</div>

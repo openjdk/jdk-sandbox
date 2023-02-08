@@ -94,7 +94,7 @@ loadScripts(document, 'script');</script>
 <hr>
 <div class="type-signature"><span class="modifiers">public sealed interface </span><span class="element-name type-name-label">CodeAttribute</span><span class="extends-implements">
 extends <a href="../Attribute.html" title="interface in jdk.internal.classfile">Attribute</a>&lt;<a href="CodeAttribute.html" title="interface in jdk.internal.classfile.attribute">CodeAttribute</a>&gt;, <a href="../CodeModel.html" title="interface in jdk.internal.classfile">CodeModel</a></span></div>
-<div class="block">Models the <code>Code</code> attribute (JVMS 4.7.3), appears on non-native,
+<div class="block">Models the <code>Code</code> attribute <a href="https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7.3">4.7.3</a>, appears on non-native,
  non-abstract methods and contains the bytecode of the method body.  Delivered
  as a <a href="../MethodElement.html" title="interface in jdk.internal.classfile"><code>MethodElement</code></a> when traversing the elements of a
  <a href="../MethodModel.html" title="interface in jdk.internal.classfile"><code>MethodModel</code></a>.</div>
@@ -192,6 +192,12 @@ extends <a href="../Attribute.html" title="interface in jdk.internal.classfile">
 <section class="detail" id="labelToBci(jdk.internal.classfile.Label)">
 <h3>labelToBci</h3>
 <div class="member-signature"><span class="return-type">int</span>&nbsp;<span class="element-name">labelToBci</span><wbr><span class="parameters">(<a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;label)</span></div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>label</code> - a marker for a position within this <code>CodeAttribute</code></dd>
+<dt>Returns:</dt>
+<dd>position of the <code>Label</code> in the <code>codeArray</code></dd>
+</dl>
 </section>
 </li>
 </ul>
