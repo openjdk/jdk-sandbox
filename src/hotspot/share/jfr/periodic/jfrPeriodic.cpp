@@ -73,6 +73,9 @@
 #if INCLUDE_SHENANDOAHGC
 #include "gc/shenandoah/shenandoahJfrSupport.hpp"
 #endif
+#ifdef LINUX
+#include "os_linux.hpp"
+#endif
 
 /**
  *  JfrPeriodic class
@@ -91,6 +94,12 @@ Ticks JfrPeriodicEventSet::timestamp(void) {
 
 PeriodicType JfrPeriodicEventSet::type(void) {
   return _type;
+}
+
+TRACE_REQUEST_FUNC(ResidentSetSize) {
+#ifdef LINUX
+  os::Linux::jfr_process_memory_info();
+#endif
 }
 
 TRACE_REQUEST_FUNC(JVMInformation) {
