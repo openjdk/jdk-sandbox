@@ -85,7 +85,7 @@ public abstract class AbstractPlugin implements Plugin {
         }
     }
 
-    ClassModel newClassReader(String path, ResourcePoolEntry resource, Classfile.Option<?>... options) {
+    ClassModel newClassReader(String path, ResourcePoolEntry resource, Classfile.Option... options) {
         byte[] content = resource.contentBytes();
         try {
             return Classfile.parse(content, options);
@@ -100,7 +100,7 @@ public abstract class AbstractPlugin implements Plugin {
         }
     }
 
-    protected ClassModel newClassReader(String path, byte[] buf, Classfile.Option<?>... options) {
+    protected ClassModel newClassReader(String path, byte[] buf, Classfile.Option... options) {
         try {
             return Classfile.parse(buf, options);
         } catch (Exception e) {
