@@ -114,30 +114,24 @@ extends <a href="../WritableElement.html" title="interface in jdk.internal.class
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="PoolEntry.html" title="interface in jdk.internal.classfile.constantpool">PoolEntry</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#clone(jdk.internal.classfile.constantpool.ConstantPoolBuilder)" class="member-name-link">clone</a><wbr>(<a href="ConstantPoolBuilder.html" title="interface in jdk.internal.classfile.constantpool">ConstantPoolBuilder</a>&nbsp;cp)</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="ConstantPool.html" title="interface in jdk.internal.classfile.constantpool">ConstantPool</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#constantPool()" class="member-name-link">constantPool</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Returns a constant pool entry, with the same contents as this entry,
- compatible with the specified constant pool.</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="ConstantPool.html" title="interface in jdk.internal.classfile.constantpool">ConstantPool</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#constantPool()" class="member-name-link">constantPool</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns the constant pool this entry is from.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#index()" class="member-name-link">index</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#index()" class="member-name-link">index</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns the index within the constant pool corresponding to this entry.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#poolEntries()" class="member-name-link">poolEntries</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#poolEntries()" class="member-name-link">poolEntries</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns the number of constant pool slots this entry consumes.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>byte</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#tag()" class="member-name-link">tag</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>byte</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#tag()" class="member-name-link">tag</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns the constant pool tag that describes the type of this entry.</div>
 </div>
 </div>
@@ -198,24 +192,6 @@ extends <a href="../WritableElement.html" title="interface in jdk.internal.class
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>the number of constant pool slots this entry consumes</dd>
-</dl>
-</section>
-</li>
-<li>
-<section class="detail" id="clone(jdk.internal.classfile.constantpool.ConstantPoolBuilder)">
-<h3>clone</h3>
-<div class="member-signature"><span class="return-type"><a href="PoolEntry.html" title="interface in jdk.internal.classfile.constantpool">PoolEntry</a></span>&nbsp;<span class="element-name">clone</span><wbr><span class="parameters">(<a href="ConstantPoolBuilder.html" title="interface in jdk.internal.classfile.constantpool">ConstantPoolBuilder</a>&nbsp;cp)</span></div>
-<div class="block">Returns a constant pool entry, with the same contents as this entry,
- compatible with the specified constant pool.  If <code>cp</code> describes
- the pool this entry is from, or a pool this constant pool has been
- copied from, then <code>this</code> is returned, otherwise the entry is
- cloned to the specified pool.</div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>cp</code> - the constant pool with which a compatible entry is desired</dd>
-<dt>Returns:</dt>
-<dd>a constant pool entry, with the same contents as this entry,
- compatible with the specified constant pool</dd>
 </dl>
 </section>
 </li>

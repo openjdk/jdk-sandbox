@@ -233,128 +233,122 @@ extends <a href="ConstantPool.html" title="interface in jdk.internal.classfile.c
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns A <a href="LongEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>LongEntry</code></a> describing the provided value.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>&lt;T extends <a href="PoolEntry.html" title="interface in jdk.internal.classfile.constantpool">PoolEntry</a>&gt;<br>T</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#maybeClone(T)" class="member-name-link">maybeClone</a><wbr>(T&nbsp;entry)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Returns a constant pool entry describing the same constant as the provided
- entry.</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="MethodHandleEntry.html" title="interface in jdk.internal.classfile.constantpool">MethodHandleEntry</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#methodHandleEntry(int,jdk.internal.classfile.constantpool.MemberRefEntry)" class="member-name-link">methodHandleEntry</a><wbr>(int&nbsp;refKind,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="MethodHandleEntry.html" title="interface in jdk.internal.classfile.constantpool">MethodHandleEntry</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#methodHandleEntry(int,jdk.internal.classfile.constantpool.MemberRefEntry)" class="member-name-link">methodHandleEntry</a><wbr>(int&nbsp;refKind,
  <a href="MemberRefEntry.html" title="interface in jdk.internal.classfile.constantpool">MemberRefEntry</a>&nbsp;reference)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns A <a href="MethodHandleEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>MethodHandleEntry</code></a> describing a field accessor or method.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="MethodHandleEntry.html" title="interface in jdk.internal.classfile.constantpool">MethodHandleEntry</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#methodHandleEntry(java.lang.constant.DirectMethodHandleDesc)" class="member-name-link">methodHandleEntry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/DirectMethodHandleDesc.html" title="class or interface in java.lang.constant" class="external-link">DirectMethodHandleDesc</a>&nbsp;descriptor)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="MethodHandleEntry.html" title="interface in jdk.internal.classfile.constantpool">MethodHandleEntry</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#methodHandleEntry(java.lang.constant.DirectMethodHandleDesc)" class="member-name-link">methodHandleEntry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/DirectMethodHandleDesc.html" title="class or interface in java.lang.constant" class="external-link">DirectMethodHandleDesc</a>&nbsp;descriptor)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Returns A <a href="MethodHandleEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>MethodHandleEntry</code></a> describing a direct method handle.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="MethodRefEntry.html" title="interface in jdk.internal.classfile.constantpool">MethodRefEntry</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#methodRefEntry(java.lang.constant.ClassDesc,java.lang.String,java.lang.constant.MethodTypeDesc)" class="member-name-link">methodRefEntry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;owner,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="MethodRefEntry.html" title="interface in jdk.internal.classfile.constantpool">MethodRefEntry</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#methodRefEntry(java.lang.constant.ClassDesc,java.lang.String,java.lang.constant.MethodTypeDesc)" class="member-name-link">methodRefEntry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;owner,
  <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name,
  <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/MethodTypeDesc.html" title="class or interface in java.lang.constant" class="external-link">MethodTypeDesc</a>&nbsp;type)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Returns A <a href="MethodRefEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>MethodRefEntry</code></a> describing a method of a class.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="MethodRefEntry.html" title="interface in jdk.internal.classfile.constantpool">MethodRefEntry</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#methodRefEntry(jdk.internal.classfile.constantpool.ClassEntry,jdk.internal.classfile.constantpool.NameAndTypeEntry)" class="member-name-link">methodRefEntry</a><wbr>(<a href="ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&nbsp;owner,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="MethodRefEntry.html" title="interface in jdk.internal.classfile.constantpool">MethodRefEntry</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#methodRefEntry(jdk.internal.classfile.constantpool.ClassEntry,jdk.internal.classfile.constantpool.NameAndTypeEntry)" class="member-name-link">methodRefEntry</a><wbr>(<a href="ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&nbsp;owner,
  <a href="NameAndTypeEntry.html" title="interface in jdk.internal.classfile.constantpool">NameAndTypeEntry</a>&nbsp;nameAndType)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Returns A <a href="MethodRefEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>MethodRefEntry</code></a> describing a method of a class.</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="MethodTypeEntry.html" title="interface in jdk.internal.classfile.constantpool">MethodTypeEntry</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#methodTypeEntry(java.lang.constant.MethodTypeDesc)" class="member-name-link">methodTypeEntry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/MethodTypeDesc.html" title="class or interface in java.lang.constant" class="external-link">MethodTypeDesc</a>&nbsp;descriptor)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Returns A <a href="MethodTypeEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>MethodTypeEntry</code></a> describing a method type.</div>
+<div class="block">Returns A <a href="MethodRefEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>MethodRefEntry</code></a> describing a method of a class.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="MethodTypeEntry.html" title="interface in jdk.internal.classfile.constantpool">MethodTypeEntry</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#methodTypeEntry(jdk.internal.classfile.constantpool.Utf8Entry)" class="member-name-link">methodTypeEntry</a><wbr>(<a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>&nbsp;descriptor)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#methodTypeEntry(java.lang.constant.MethodTypeDesc)" class="member-name-link">methodTypeEntry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/MethodTypeDesc.html" title="class or interface in java.lang.constant" class="external-link">MethodTypeDesc</a>&nbsp;descriptor)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns A <a href="MethodTypeEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>MethodTypeEntry</code></a> describing a method type.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool">ModuleEntry</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#moduleEntry(jdk.internal.classfile.constantpool.Utf8Entry)" class="member-name-link">moduleEntry</a><wbr>(<a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>&nbsp;moduleName)</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="MethodTypeEntry.html" title="interface in jdk.internal.classfile.constantpool">MethodTypeEntry</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#methodTypeEntry(jdk.internal.classfile.constantpool.Utf8Entry)" class="member-name-link">methodTypeEntry</a><wbr>(<a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>&nbsp;descriptor)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Returns A <a href="MethodTypeEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>MethodTypeEntry</code></a> describing a method type.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool">ModuleEntry</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#moduleEntry(jdk.internal.classfile.constantpool.Utf8Entry)" class="member-name-link">moduleEntry</a><wbr>(<a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>&nbsp;moduleName)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns A <a href="ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>ModuleEntry</code></a> describing the module whose name
  is encoded in the provided <a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool">ModuleEntry</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#moduleEntry(jdk.internal.classfile.jdktypes.ModuleDesc)" class="member-name-link">moduleEntry</a><wbr>(<a href="../jdktypes/ModuleDesc.html" title="interface in jdk.internal.classfile.jdktypes">ModuleDesc</a>&nbsp;moduleDesc)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool">ModuleEntry</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#moduleEntry(jdk.internal.classfile.jdktypes.ModuleDesc)" class="member-name-link">moduleEntry</a><wbr>(<a href="../jdktypes/ModuleDesc.html" title="interface in jdk.internal.classfile.jdktypes">ModuleDesc</a>&nbsp;moduleDesc)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Returns A <a href="ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>ModuleEntry</code></a> describing the module described by
  provided <a href="../jdktypes/ModuleDesc.html" title="interface in jdk.internal.classfile.jdktypes">ModuleDesc</a>.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="NameAndTypeEntry.html" title="interface in jdk.internal.classfile.constantpool">NameAndTypeEntry</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#natEntry(java.lang.String,java.lang.constant.ClassDesc)" class="member-name-link">natEntry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name,
- <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;type)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
-<div class="block">Returns A <a href="NameAndTypeEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>NameAndTypeEntry</code></a> describing the provided name and type.</div>
-</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="NameAndTypeEntry.html" title="interface in jdk.internal.classfile.constantpool">NameAndTypeEntry</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#natEntry(java.lang.String,java.lang.constant.MethodTypeDesc)" class="member-name-link">natEntry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name,
- <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/MethodTypeDesc.html" title="class or interface in java.lang.constant" class="external-link">MethodTypeDesc</a>&nbsp;type)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#natEntry(java.lang.String,java.lang.constant.ClassDesc)" class="member-name-link">natEntry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name,
+ <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;type)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Returns A <a href="NameAndTypeEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>NameAndTypeEntry</code></a> describing the provided name and type.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="NameAndTypeEntry.html" title="interface in jdk.internal.classfile.constantpool">NameAndTypeEntry</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#natEntry(jdk.internal.classfile.constantpool.Utf8Entry,jdk.internal.classfile.constantpool.Utf8Entry)" class="member-name-link">natEntry</a><wbr>(<a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>&nbsp;nameEntry,
- <a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>&nbsp;typeEntry)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="NameAndTypeEntry.html" title="interface in jdk.internal.classfile.constantpool">NameAndTypeEntry</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#natEntry(java.lang.String,java.lang.constant.MethodTypeDesc)" class="member-name-link">natEntry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name,
+ <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/MethodTypeDesc.html" title="class or interface in java.lang.constant" class="external-link">MethodTypeDesc</a>&nbsp;type)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Returns A <a href="NameAndTypeEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>NameAndTypeEntry</code></a> describing the provided name and type.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1"><code>static <a href="ConstantPoolBuilder.html" title="interface in jdk.internal.classfile.constantpool">ConstantPoolBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(java.util.Collection)" class="member-name-link">of</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Collection.html" title="class or interface in java.util" class="external-link">Collection</a>&lt;<a href="../Classfile.Option.html" title="interface in jdk.internal.classfile">Classfile.Option</a>&gt;&nbsp;options)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1">
-<div class="block">Returns a new constant pool builder.</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="NameAndTypeEntry.html" title="interface in jdk.internal.classfile.constantpool">NameAndTypeEntry</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#natEntry(jdk.internal.classfile.constantpool.Utf8Entry,jdk.internal.classfile.constantpool.Utf8Entry)" class="member-name-link">natEntry</a><wbr>(<a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>&nbsp;nameEntry,
+ <a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>&nbsp;typeEntry)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Returns A <a href="NameAndTypeEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>NameAndTypeEntry</code></a> describing the provided name and type.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1"><code>static <a href="ConstantPoolBuilder.html" title="interface in jdk.internal.classfile.constantpool">ConstantPoolBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(jdk.internal.classfile.ClassModel)" class="member-name-link">of</a><wbr>(<a href="../ClassModel.html" title="interface in jdk.internal.classfile">ClassModel</a>&nbsp;classModel)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(java.util.Collection)" class="member-name-link">of</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Collection.html" title="class or interface in java.util" class="external-link">Collection</a>&lt;<a href="../Classfile.Option.html" title="interface in jdk.internal.classfile">Classfile.Option</a>&gt;&nbsp;options)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1">
 <div class="block">Returns a new constant pool builder.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="PackageEntry.html" title="interface in jdk.internal.classfile.constantpool">PackageEntry</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#packageEntry(jdk.internal.classfile.constantpool.Utf8Entry)" class="member-name-link">packageEntry</a><wbr>(<a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>&nbsp;nameEntry)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1"><code>static <a href="ConstantPoolBuilder.html" title="interface in jdk.internal.classfile.constantpool">ConstantPoolBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(jdk.internal.classfile.ClassModel)" class="member-name-link">of</a><wbr>(<a href="../ClassModel.html" title="interface in jdk.internal.classfile">ClassModel</a>&nbsp;classModel)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1">
+<div class="block">Returns a new constant pool builder.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="PackageEntry.html" title="interface in jdk.internal.classfile.constantpool">PackageEntry</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#packageEntry(jdk.internal.classfile.constantpool.Utf8Entry)" class="member-name-link">packageEntry</a><wbr>(<a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>&nbsp;nameEntry)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns A <a href="PackageEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>PackageEntry</code></a> describing the class whose internal name
  is encoded in the provided <a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="PackageEntry.html" title="interface in jdk.internal.classfile.constantpool">PackageEntry</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#packageEntry(jdk.internal.classfile.jdktypes.PackageDesc)" class="member-name-link">packageEntry</a><wbr>(<a href="../jdktypes/PackageDesc.html" title="interface in jdk.internal.classfile.jdktypes">PackageDesc</a>&nbsp;packageDesc)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="PackageEntry.html" title="interface in jdk.internal.classfile.constantpool">PackageEntry</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#packageEntry(jdk.internal.classfile.jdktypes.PackageDesc)" class="member-name-link">packageEntry</a><wbr>(<a href="../jdktypes/PackageDesc.html" title="interface in jdk.internal.classfile.jdktypes">PackageDesc</a>&nbsp;packageDesc)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Returns A <a href="PackageEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>PackageEntry</code></a> describing the class described by
  provided <a href="../jdktypes/PackageDesc.html" title="interface in jdk.internal.classfile.jdktypes">PackageDesc</a>.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="StringEntry.html" title="interface in jdk.internal.classfile.constantpool">StringEntry</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#stringEntry(java.lang.String)" class="member-name-link">stringEntry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="StringEntry.html" title="interface in jdk.internal.classfile.constantpool">StringEntry</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#stringEntry(java.lang.String)" class="member-name-link">stringEntry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Returns A <a href="StringEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>StringEntry</code></a> describing the provided value.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="StringEntry.html" title="interface in jdk.internal.classfile.constantpool">StringEntry</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#stringEntry(jdk.internal.classfile.constantpool.Utf8Entry)" class="member-name-link">stringEntry</a><wbr>(<a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>&nbsp;utf8)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="StringEntry.html" title="interface in jdk.internal.classfile.constantpool">StringEntry</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#stringEntry(jdk.internal.classfile.constantpool.Utf8Entry)" class="member-name-link">stringEntry</a><wbr>(<a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>&nbsp;utf8)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns A <a href="StringEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>StringEntry</code></a> referencing the provided UTF8 entry.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#utf8Entry(java.lang.constant.ClassDesc)" class="member-name-link">utf8Entry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;desc)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#utf8Entry(java.lang.constant.ClassDesc)" class="member-name-link">utf8Entry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;desc)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Returns A <a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool"><code>Utf8Entry</code></a> describing the field descriptor of the provided
  <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#utf8Entry(java.lang.constant.MethodTypeDesc)" class="member-name-link">utf8Entry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/MethodTypeDesc.html" title="class or interface in java.lang.constant" class="external-link">MethodTypeDesc</a>&nbsp;desc)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#utf8Entry(java.lang.constant.MethodTypeDesc)" class="member-name-link">utf8Entry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/MethodTypeDesc.html" title="class or interface in java.lang.constant" class="external-link">MethodTypeDesc</a>&nbsp;desc)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Returns A <a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool"><code>Utf8Entry</code></a> describing the method descriptor of the provided
  <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/MethodTypeDesc.html" title="class or interface in java.lang.constant" class="external-link">MethodTypeDesc</a>.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#utf8Entry(java.lang.String)" class="member-name-link">utf8Entry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;s)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#utf8Entry(java.lang.String)" class="member-name-link">utf8Entry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;s)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns A <a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool"><code>Utf8Entry</code></a> describing the provided <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#writeBootstrapMethods(jdk.internal.classfile.BufWriter)" class="member-name-link">writeBootstrapMethods</a><wbr>(<a href="../BufWriter.html" title="interface in jdk.internal.classfile">BufWriter</a>&nbsp;buf)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#writeBootstrapMethods(jdk.internal.classfile.BufWriter)" class="member-name-link">writeBootstrapMethods</a><wbr>(<a href="../BufWriter.html" title="interface in jdk.internal.classfile">BufWriter</a>&nbsp;buf)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Writes associated bootstrap method entries to the specified writer</div>
 </div>
 </div>
@@ -1034,25 +1028,6 @@ extends <a href="ConstantPool.html" title="interface in jdk.internal.classfile.c
 <dt>Returns:</dt>
 <dd>An <a href="AnnotationConstantValueEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>AnnotationConstantValueEntry</code></a> describing the provided
  constant</dd>
-</dl>
-</section>
-</li>
-<li>
-<section class="detail" id="maybeClone(T)">
-<h3 id="maybeClone(jdk.internal.classfile.constantpool.PoolEntry)">maybeClone</h3>
-<div class="member-signature"><span class="type-parameters">&lt;T extends <a href="PoolEntry.html" title="interface in jdk.internal.classfile.constantpool">PoolEntry</a>&gt;</span>&nbsp;<span class="return-type">T</span>&nbsp;<span class="element-name">maybeClone</span><wbr><span class="parameters">(T&nbsp;entry)</span></div>
-<div class="block">Returns a constant pool entry describing the same constant as the provided
- entry.  If the entry already corresponds to a constant in this constant
- pool, it is returned, otherwise the contents are copied to this
- constant pool.</div>
-<dl class="notes">
-<dt>Type Parameters:</dt>
-<dd><code>T</code> - the type of the entry</dd>
-<dt>Parameters:</dt>
-<dd><code>entry</code> - the entry</dd>
-<dt>Returns:</dt>
-<dd>a constant pool entry describing the same constant as the provided
- entry</dd>
 </dl>
 </section>
 </li>
