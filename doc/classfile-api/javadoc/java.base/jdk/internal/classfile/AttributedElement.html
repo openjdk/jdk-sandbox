@@ -38,7 +38,7 @@ loadScripts(document, 'script');</script>
 <li>
 <p>Summary:</p>
 <ul>
-<li><a href="#nested-class-summary">Nested</a></li>
+<li>Nested</li>
 <li>Field</li>
 <li>Constr</li>
 <li><a href="#method-summary">Method</a></li>
@@ -58,7 +58,7 @@ loadScripts(document, 'script');</script>
 <div id="navbar-sub-list">
 <ul class="sub-nav-list">
 <li>Summary:&nbsp;</li>
-<li><a href="#nested-class-summary">Nested</a>&nbsp;|&nbsp;</li>
+<li>Nested&nbsp;|&nbsp;</li>
 <li>Field&nbsp;|&nbsp;</li>
 <li>Constr&nbsp;|&nbsp;</li>
 <li><a href="#method-summary">Method</a></li>
@@ -104,24 +104,6 @@ extends <a href="ClassfileElement.html" title="interface in jdk.internal.classfi
 </section>
 <section class="summary">
 <ul class="summary-list">
-<!-- ======== NESTED CLASS SUMMARY ======== -->
-<li>
-<section class="nested-class-summary" id="nested-class-summary">
-<h2>Nested Class Summary</h2>
-<div class="caption"><span>Nested Classes</span></div>
-<div class="summary-table three-column-summary">
-<div class="table-header col-first">Modifier and Type</div>
-<div class="table-header col-second">Interface</div>
-<div class="table-header col-last">Description</div>
-<div class="col-first even-row-color"><code>static enum&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="AttributedElement.Kind.html" class="type-name-link" title="enum class in jdk.internal.classfile">AttributedElement.Kind</a></code></div>
-<div class="col-last even-row-color">
-<div class="block">Enum constants describing locations in the classfile where attributes
- are permitted.</div>
-</div>
-</div>
-</section>
-</li>
 <!-- ========== METHOD SUMMARY =========== -->
 <li>
 <section class="method-summary" id="method-summary">
@@ -133,24 +115,19 @@ extends <a href="ClassfileElement.html" title="interface in jdk.internal.classfi
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="AttributedElement.Kind.html" title="enum class in jdk.internal.classfile">AttributedElement.Kind</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#attributedElementKind()" class="member-name-link">attributedElementKind</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Attribute.html" title="interface in jdk.internal.classfile">Attribute</a>&lt;?&gt;&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#attributes()" class="member-name-link">attributes</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Returns the kind of the attributed element.</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="Attribute.html" title="interface in jdk.internal.classfile">Attribute</a>&lt;?&gt;&gt;</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#attributes()" class="member-name-link">attributes</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns the attributes of this element.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default &lt;T extends <a href="Attribute.html" title="interface in jdk.internal.classfile">Attribute</a>&lt;T&gt;&gt;<br><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;T&gt;</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#findAttribute(jdk.internal.classfile.AttributeMapper)" class="member-name-link">findAttribute</a><wbr>(<a href="AttributeMapper.html" title="interface in jdk.internal.classfile">AttributeMapper</a>&lt;T&gt;&nbsp;attr)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default &lt;T extends <a href="Attribute.html" title="interface in jdk.internal.classfile">Attribute</a>&lt;T&gt;&gt;<br><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;T&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#findAttribute(jdk.internal.classfile.AttributeMapper)" class="member-name-link">findAttribute</a><wbr>(<a href="AttributeMapper.html" title="interface in jdk.internal.classfile">AttributeMapper</a>&lt;T&gt;&nbsp;attr)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Finds an attribute by name.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default &lt;T extends <a href="Attribute.html" title="interface in jdk.internal.classfile">Attribute</a>&lt;T&gt;&gt;<br><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;T&gt;</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#findAttributes(jdk.internal.classfile.AttributeMapper)" class="member-name-link">findAttributes</a><wbr>(<a href="AttributeMapper.html" title="interface in jdk.internal.classfile">AttributeMapper</a>&lt;T&gt;&nbsp;attr)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default &lt;T extends <a href="Attribute.html" title="interface in jdk.internal.classfile">Attribute</a>&lt;T&gt;&gt;<br><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;T&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#findAttributes(jdk.internal.classfile.AttributeMapper)" class="member-name-link">findAttributes</a><wbr>(<a href="AttributeMapper.html" title="interface in jdk.internal.classfile">AttributeMapper</a>&lt;T&gt;&nbsp;attr)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Finds one or more attributes by name.</div>
 </div>
 </div>
@@ -167,17 +144,6 @@ extends <a href="ClassfileElement.html" title="interface in jdk.internal.classfi
 <section class="method-details" id="method-detail">
 <h2>Method Details</h2>
 <ul class="member-list">
-<li>
-<section class="detail" id="attributedElementKind()">
-<h3>attributedElementKind</h3>
-<div class="member-signature"><span class="return-type"><a href="AttributedElement.Kind.html" title="enum class in jdk.internal.classfile">AttributedElement.Kind</a></span>&nbsp;<span class="element-name">attributedElementKind</span>()</div>
-<div class="block">Returns the kind of the attributed element.</div>
-<dl class="notes">
-<dt>Returns:</dt>
-<dd>the kind of the attributed element</dd>
-</dl>
-</section>
-</li>
 <li>
 <section class="detail" id="attributes()">
 <h3>attributes</h3>

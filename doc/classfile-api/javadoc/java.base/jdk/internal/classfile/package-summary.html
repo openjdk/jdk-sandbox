@@ -257,8 +257,7 @@ Set&lt;ClassDesc&gt; dependencies = cm.elementStream()
  <p>
  For nonstandard attributes, user-provided attribute mappers can be specified
  through the use of the <a href="Classfile.Option.html#attributeMapper(java.util.function.Function)"><code>Classfile.Option.attributeMapper(java.util.function.Function)</code></a>}
- classfile option.  Implementations of custom attributes should extend <a href="CustomAttribute.html" title="class in jdk.internal.classfile"><code>CustomAttribute</code></a>. Custom attributes will be delivered as
- elements in all of the contexts specified by <a href="AttributeMapper.html#whereApplicable()"><code>AttributeMapper.whereApplicable()</code></a>.
+ classfile option.  Implementations of custom attributes should extend <a href="CustomAttribute.html" title="class in jdk.internal.classfile"><code>CustomAttribute</code></a>.
 
  <h3 id="options-heading">Options</h3>
  <p>
@@ -779,48 +778,39 @@ PseudoInstruction =
 <div class="block">A <a href="ClassfileElement.html" title="interface in jdk.internal.classfile"><code>ClassfileElement</code></a> describing an entity that has attributes, such
  as a class, field, method, code attribute, or record component.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab3"><a href="AttributedElement.Kind.html" title="enum class in jdk.internal.classfile">AttributedElement.Kind</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab3">
-<div class="block">Enum constants describing locations in the classfile where attributes
- are permitted.</div>
-</div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="AttributeMapper.html" title="interface in jdk.internal.classfile">AttributeMapper</a>&lt;A&gt;</div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="AttributeMapper.html" title="interface in jdk.internal.classfile">AttributeMapper</a>&lt;A&gt;</div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">Bidirectional mapper between the classfile representation of an attribute and
  how that attribute is modeled in the API.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab2"><a href="Attributes.html" title="class in jdk.internal.classfile">Attributes</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab2">
+<div class="col-first odd-row-color class-summary class-summary-tab2"><a href="Attributes.html" title="class in jdk.internal.classfile">Attributes</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab2">
 <div class="block">Attribute mappers for standard classfile attributes.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="BootstrapMethodEntry.html" title="interface in jdk.internal.classfile">BootstrapMethodEntry</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="BootstrapMethodEntry.html" title="interface in jdk.internal.classfile">BootstrapMethodEntry</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">Models an entry in the bootstrap method table.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="BufWriter.html" title="interface in jdk.internal.classfile">BufWriter</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="BufWriter.html" title="interface in jdk.internal.classfile">BufWriter</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">Supports writing portions of a classfile to a growable buffer.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="ClassBuilder.html" title="interface in jdk.internal.classfile">ClassBuilder</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab1">
+<div class="col-first even-row-color class-summary class-summary-tab1"><a href="ClassBuilder.html" title="interface in jdk.internal.classfile">ClassBuilder</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab1">
 <div class="block">A builder for classfiles.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="ClassElement.html" title="interface in jdk.internal.classfile">ClassElement</a></div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="ClassElement.html" title="interface in jdk.internal.classfile">ClassElement</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">A <a href="ClassfileElement.html" title="interface in jdk.internal.classfile"><code>ClassfileElement</code></a> that can appear when traversing the elements
  of a <a href="ClassModel.html" title="interface in jdk.internal.classfile"><code>ClassModel</code></a> or be presented to a <a href="ClassBuilder.html" title="interface in jdk.internal.classfile"><code>ClassBuilder</code></a>.</div>
 </div>
-<div class="col-first odd-row-color class-summary class-summary-tab2"><a href="Classfile.html" title="class in jdk.internal.classfile">Classfile</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab2">
+<div class="col-first even-row-color class-summary class-summary-tab2"><a href="Classfile.html" title="class in jdk.internal.classfile">Classfile</a></div>
+<div class="col-last even-row-color class-summary class-summary-tab2">
 <div class="block">Main entry points for parsing, transforming, and generating classfiles.</div>
 </div>
-<div class="col-first even-row-color class-summary class-summary-tab1"><a href="Classfile.Option.html" title="interface in jdk.internal.classfile">Classfile.Option</a>&lt;V&gt;</div>
-<div class="col-last even-row-color class-summary class-summary-tab1">
+<div class="col-first odd-row-color class-summary class-summary-tab1"><a href="Classfile.Option.html" title="interface in jdk.internal.classfile">Classfile.Option</a></div>
+<div class="col-last odd-row-color class-summary class-summary-tab1">
 <div class="block">An option that affects the writing of classfiles.</div>
-</div>
-<div class="col-first odd-row-color class-summary class-summary-tab3"><a href="Classfile.Option.Key.html" title="enum class in jdk.internal.classfile">Classfile.Option.Key</a></div>
-<div class="col-last odd-row-color class-summary class-summary-tab3">
-<div class="block">Key values for defined options.</div>
 </div>
 <div class="col-first even-row-color class-summary class-summary-tab1"><a href="ClassfileBuilder.html" title="interface in jdk.internal.classfile">ClassfileBuilder</a>&lt;E extends <a href="ClassfileElement.html" title="interface in jdk.internal.classfile">ClassfileElement</a>,<wbr>B extends <a href="ClassfileBuilder.html" title="interface in jdk.internal.classfile">ClassfileBuilder</a>&lt;E,<wbr>B&gt;&gt;</div>
 <div class="col-last even-row-color class-summary class-summary-tab1">

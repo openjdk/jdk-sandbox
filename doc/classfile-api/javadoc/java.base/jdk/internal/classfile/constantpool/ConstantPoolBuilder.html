@@ -137,7 +137,10 @@ extends <a href="ConstantPool.html" title="interface in jdk.internal.classfile.c
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#canWriteDirect(jdk.internal.classfile.constantpool.ConstantPool)" class="member-name-link">canWriteDirect</a><wbr>(<a href="ConstantPool.html" title="interface in jdk.internal.classfile.constantpool">ConstantPool</a>&nbsp;constantPool)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Returns whether the provided constant pool is index-compatible with this
+ one.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#classEntry(java.lang.constant.ClassDesc)" class="member-name-link">classEntry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;classDesc)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
@@ -301,7 +304,7 @@ extends <a href="ConstantPool.html" title="interface in jdk.internal.classfile.c
 <div class="block">Returns A <a href="NameAndTypeEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>NameAndTypeEntry</code></a> describing the provided name and type.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1"><code>static <a href="ConstantPoolBuilder.html" title="interface in jdk.internal.classfile.constantpool">ConstantPoolBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(java.util.Collection)" class="member-name-link">of</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Collection.html" title="class or interface in java.util" class="external-link">Collection</a>&lt;<a href="../Classfile.Option.html" title="interface in jdk.internal.classfile">Classfile.Option</a>&lt;?&gt;&gt;&nbsp;options)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(java.util.Collection)" class="member-name-link">of</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Collection.html" title="class or interface in java.util" class="external-link">Collection</a>&lt;<a href="../Classfile.Option.html" title="interface in jdk.internal.classfile">Classfile.Option</a>&gt;&nbsp;options)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1">
 <div class="block">Returns a new constant pool builder.</div>
 </div>
@@ -310,53 +313,50 @@ extends <a href="ConstantPool.html" title="interface in jdk.internal.classfile.c
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1">
 <div class="block">Returns a new constant pool builder.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>&lt;T&gt;&nbsp;T</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#optionValue(jdk.internal.classfile.Classfile.Option.Key)" class="member-name-link">optionValue</a><wbr>(<a href="../Classfile.Option.Key.html" title="enum class in jdk.internal.classfile">Classfile.Option.Key</a>&nbsp;option)</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="PackageEntry.html" title="interface in jdk.internal.classfile.constantpool">PackageEntry</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#packageEntry(jdk.internal.classfile.constantpool.Utf8Entry)" class="member-name-link">packageEntry</a><wbr>(<a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>&nbsp;nameEntry)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Returns the value of the specified option.</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="PackageEntry.html" title="interface in jdk.internal.classfile.constantpool">PackageEntry</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#packageEntry(jdk.internal.classfile.constantpool.Utf8Entry)" class="member-name-link">packageEntry</a><wbr>(<a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>&nbsp;nameEntry)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns A <a href="PackageEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>PackageEntry</code></a> describing the class whose internal name
  is encoded in the provided <a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="PackageEntry.html" title="interface in jdk.internal.classfile.constantpool">PackageEntry</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#packageEntry(jdk.internal.classfile.jdktypes.PackageDesc)" class="member-name-link">packageEntry</a><wbr>(<a href="../jdktypes/PackageDesc.html" title="interface in jdk.internal.classfile.jdktypes">PackageDesc</a>&nbsp;packageDesc)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="PackageEntry.html" title="interface in jdk.internal.classfile.constantpool">PackageEntry</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#packageEntry(jdk.internal.classfile.jdktypes.PackageDesc)" class="member-name-link">packageEntry</a><wbr>(<a href="../jdktypes/PackageDesc.html" title="interface in jdk.internal.classfile.jdktypes">PackageDesc</a>&nbsp;packageDesc)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Returns A <a href="PackageEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>PackageEntry</code></a> describing the class described by
  provided <a href="../jdktypes/PackageDesc.html" title="interface in jdk.internal.classfile.jdktypes">PackageDesc</a>.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="StringEntry.html" title="interface in jdk.internal.classfile.constantpool">StringEntry</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#stringEntry(java.lang.String)" class="member-name-link">stringEntry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="StringEntry.html" title="interface in jdk.internal.classfile.constantpool">StringEntry</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#stringEntry(java.lang.String)" class="member-name-link">stringEntry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Returns A <a href="StringEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>StringEntry</code></a> describing the provided value.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="StringEntry.html" title="interface in jdk.internal.classfile.constantpool">StringEntry</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#stringEntry(jdk.internal.classfile.constantpool.Utf8Entry)" class="member-name-link">stringEntry</a><wbr>(<a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>&nbsp;utf8)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="StringEntry.html" title="interface in jdk.internal.classfile.constantpool">StringEntry</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#stringEntry(jdk.internal.classfile.constantpool.Utf8Entry)" class="member-name-link">stringEntry</a><wbr>(<a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>&nbsp;utf8)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns A <a href="StringEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>StringEntry</code></a> referencing the provided UTF8 entry.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#utf8Entry(java.lang.constant.ClassDesc)" class="member-name-link">utf8Entry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;desc)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#utf8Entry(java.lang.constant.ClassDesc)" class="member-name-link">utf8Entry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;desc)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Returns A <a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool"><code>Utf8Entry</code></a> describing the field descriptor of the provided
  <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#utf8Entry(java.lang.constant.MethodTypeDesc)" class="member-name-link">utf8Entry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/MethodTypeDesc.html" title="class or interface in java.lang.constant" class="external-link">MethodTypeDesc</a>&nbsp;desc)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#utf8Entry(java.lang.constant.MethodTypeDesc)" class="member-name-link">utf8Entry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/MethodTypeDesc.html" title="class or interface in java.lang.constant" class="external-link">MethodTypeDesc</a>&nbsp;desc)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Returns A <a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool"><code>Utf8Entry</code></a> describing the method descriptor of the provided
  <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/MethodTypeDesc.html" title="class or interface in java.lang.constant" class="external-link">MethodTypeDesc</a>.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#utf8Entry(java.lang.String)" class="member-name-link">utf8Entry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;s)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#utf8Entry(java.lang.String)" class="member-name-link">utf8Entry</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;s)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns A <a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool"><code>Utf8Entry</code></a> describing the provided <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#writeBootstrapMethods(jdk.internal.classfile.BufWriter)" class="member-name-link">writeBootstrapMethods</a><wbr>(<a href="../BufWriter.html" title="interface in jdk.internal.classfile">BufWriter</a>&nbsp;buf)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#writeBootstrapMethods(jdk.internal.classfile.BufWriter)" class="member-name-link">writeBootstrapMethods</a><wbr>(<a href="../BufWriter.html" title="interface in jdk.internal.classfile">BufWriter</a>&nbsp;buf)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Writes associated bootstrap method entries to the specified writer</div>
+</div>
 </div>
 </div>
 </div>
@@ -383,7 +383,7 @@ extends <a href="ConstantPool.html" title="interface in jdk.internal.classfile.c
 <div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="ConstantPoolBuilder.html" title="interface in jdk.internal.classfile.constantpool">ConstantPoolBuilder</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="../ClassModel.html" title="interface in jdk.internal.classfile">ClassModel</a>&nbsp;classModel)</span></div>
 <div class="block">Returns a new constant pool builder.  The new constant pool builder
  will inherit the classfile processing options of the specified class.
- If the processing options include <a href="../Classfile.Option.Key.html#CP_SHARING"><code>Classfile.Option.Key.CP_SHARING</code></a>,
+ If the processing options include <a href="../Classfile.Option.html#constantPoolSharing(boolean)"><code>Classfile.Option.constantPoolSharing(boolean)</code></a>,
  (the default) the new constant pool builder will be also be pre-populated with the
  contents of the constant pool associated with the class reader.</div>
 <dl class="notes">
@@ -397,7 +397,7 @@ extends <a href="ConstantPool.html" title="interface in jdk.internal.classfile.c
 <li>
 <section class="detail" id="of(java.util.Collection)">
 <h3>of</h3>
-<div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="ConstantPoolBuilder.html" title="interface in jdk.internal.classfile.constantpool">ConstantPoolBuilder</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Collection.html" title="class or interface in java.util" class="external-link">Collection</a>&lt;<a href="../Classfile.Option.html" title="interface in jdk.internal.classfile">Classfile.Option</a>&lt;?&gt;&gt;&nbsp;options)</span></div>
+<div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="ConstantPoolBuilder.html" title="interface in jdk.internal.classfile.constantpool">ConstantPoolBuilder</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Collection.html" title="class or interface in java.util" class="external-link">Collection</a>&lt;<a href="../Classfile.Option.html" title="interface in jdk.internal.classfile">Classfile.Option</a>&gt;&nbsp;options)</span></div>
 <div class="block">Returns a new constant pool builder.  The new constant pool builder
  will be empty and have the specified classfile processing options.</div>
 <dl class="notes">
@@ -409,30 +409,32 @@ extends <a href="ConstantPool.html" title="interface in jdk.internal.classfile.c
 </section>
 </li>
 <li>
-<section class="detail" id="optionValue(jdk.internal.classfile.Classfile.Option.Key)">
-<h3>optionValue</h3>
-<div class="member-signature"><span class="type-parameters">&lt;T&gt;</span>&nbsp;<span class="return-type">T</span>&nbsp;<span class="element-name">optionValue</span><wbr><span class="parameters">(<a href="../Classfile.Option.Key.html" title="enum class in jdk.internal.classfile">Classfile.Option.Key</a>&nbsp;option)</span></div>
-<div class="block">Returns the value of the specified option.</div>
-<dl class="notes">
-<dt>Type Parameters:</dt>
-<dd><code>T</code> - the type of the option value</dd>
-<dt>Parameters:</dt>
-<dd><code>option</code> - the key of the option value</dd>
-<dt>Returns:</dt>
-<dd>the value of the specified option</dd>
-</dl>
-</section>
-</li>
-<li>
 <section class="detail" id="canWriteDirect(jdk.internal.classfile.constantpool.ConstantPool)">
 <h3>canWriteDirect</h3>
 <div class="member-signature"><span class="return-type">boolean</span>&nbsp;<span class="element-name">canWriteDirect</span><wbr><span class="parameters">(<a href="ConstantPool.html" title="interface in jdk.internal.classfile.constantpool">ConstantPool</a>&nbsp;constantPool)</span></div>
+<div class="block">Returns whether the provided constant pool is index-compatible with this
+ one.  This may be because they are the same constant pool, or because this
+ constant pool was copied from the other.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>constantPool</code> - the other constant pool</dd>
+<dt>Returns:</dt>
+<dd>whether the provided constant pool is index-compatible with this
+ one</dd>
+</dl>
 </section>
 </li>
 <li>
 <section class="detail" id="writeBootstrapMethods(jdk.internal.classfile.BufWriter)">
 <h3>writeBootstrapMethods</h3>
 <div class="member-signature"><span class="return-type">boolean</span>&nbsp;<span class="element-name">writeBootstrapMethods</span><wbr><span class="parameters">(<a href="../BufWriter.html" title="interface in jdk.internal.classfile">BufWriter</a>&nbsp;buf)</span></div>
+<div class="block">Writes associated bootstrap method entries to the specified writer</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>buf</code> - the writer</dd>
+<dt>Returns:</dt>
+<dd>false when no bootstrap method entry has been written</dd>
+</dl>
 </section>
 </li>
 <li>
@@ -563,7 +565,7 @@ extends <a href="ConstantPool.html" title="interface in jdk.internal.classfile.c
 <div class="member-signature"><span class="return-type"><a href="ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool">ModuleEntry</a></span>&nbsp;<span class="element-name">moduleEntry</span><wbr><span class="parameters">(<a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>&nbsp;moduleName)</span></div>
 <div class="block">Returns A <a href="ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>ModuleEntry</code></a> describing the module whose name
  is encoded in the provided <a href="Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>.
- If a Module entry in the pool already describes this class,
+ If a module entry in the pool already describes this class,
  it is returned; otherwise, a new entry is added and the new entry is
  returned.</div>
 <dl class="notes">
@@ -581,7 +583,7 @@ extends <a href="ConstantPool.html" title="interface in jdk.internal.classfile.c
 <div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool">ModuleEntry</a></span>&nbsp;<span class="element-name">moduleEntry</span><wbr><span class="parameters">(<a href="../jdktypes/ModuleDesc.html" title="interface in jdk.internal.classfile.jdktypes">ModuleDesc</a>&nbsp;moduleDesc)</span></div>
 <div class="block">Returns A <a href="ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>ModuleEntry</code></a> describing the module described by
  provided <a href="../jdktypes/ModuleDesc.html" title="interface in jdk.internal.classfile.jdktypes">ModuleDesc</a>.
- If a Module entry in the pool already describes this class,
+ If a module entry in the pool already describes this class,
  it is returned; otherwise, a new entry is added and the new entry is
  returned.</div>
 <dl class="notes">
