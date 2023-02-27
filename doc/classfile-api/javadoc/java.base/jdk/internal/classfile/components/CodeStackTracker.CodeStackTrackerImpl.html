@@ -186,7 +186,7 @@ implements <a href="CodeStackTracker.html" title="interface in jdk.internal.clas
  (right after <code>xRETURN, ATHROW, GOTO, GOTO_W, LOOKUPSWITCH, TABLESWITCH</code> instructions).
 
  Temporary unknown stack content can be recovered by binding of a <a href="../Label.html" title="interface in jdk.internal.classfile">Label</a> used as
- target of a branch instruction from existing code with known Stack (forward branch target),
+ target of a branch instruction from existing code with known stack (forward branch target),
  or by binding of a <a href="../Label.html" title="interface in jdk.internal.classfile">Label</a> defining an exception handler (exception handler code start).</div>
 <dl class="notes">
 <dt>Specified by:</dt>
@@ -202,7 +202,7 @@ implements <a href="CodeStackTracker.html" title="interface in jdk.internal.clas
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&gt;</span>&nbsp;<span class="element-name">maxStackSize</span>()</div>
 <div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="CodeStackTracker.html#maxStackSize()">CodeStackTracker</a></code></span></div>
 <div class="block">Returns tracked max stack size.
- Returns an empty <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a> when Max stack size tracking has been lost.
+ Returns an empty <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a> when max stack size tracking has been lost.
 
  Max stack size tracking is permanently lost when a stack instruction appears
  and the actual stack content is unknown.</div>

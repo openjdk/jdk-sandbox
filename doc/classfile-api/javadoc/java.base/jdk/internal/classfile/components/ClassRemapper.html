@@ -99,17 +99,20 @@ loadScripts(document, 'script');</script>
 <div class="type-signature"><span class="modifiers">public sealed interface </span><span class="element-name type-name-label">ClassRemapper</span><span class="extends-implements">
 extends <a href="../ClassTransform.html" title="interface in jdk.internal.classfile">ClassTransform</a></span>
 <span class="permits">permits <a href="ClassRemapper.ClassRemapperImpl.html" title="class in jdk.internal.classfile.components">ClassRemapper.ClassRemapperImpl</a></span></div>
-<div class="block">ClassRemapper is a <a href="../ClassTransform.html" title="interface in jdk.internal.classfile"><code>ClassTransform</code></a>, <a href="../FieldTransform.html" title="interface in jdk.internal.classfile"><code>FieldTransform</code></a>,
+<div class="block"><code>ClassRemapper</code> is a <a href="../ClassTransform.html" title="interface in jdk.internal.classfile"><code>ClassTransform</code></a>, <a href="../FieldTransform.html" title="interface in jdk.internal.classfile"><code>FieldTransform</code></a>,
  <a href="../MethodTransform.html" title="interface in jdk.internal.classfile"><code>MethodTransform</code></a> and <a href="../CodeTransform.html" title="interface in jdk.internal.classfile"><code>CodeTransform</code></a>
- deeply re-mapping all class references in any form, according to given map or map function.
+ deeply re-mapping all class references in any form, according to given map or
+ map function.
  <p>
- The re-mapping is applied to superclass, interfaces, all kinds of descriptors and signatures,
- all attributes referencing classes in any form (including all types of annotations),
- and to all instructions referencing to classes.
+ The re-mapping is applied to superclass, interfaces, all kinds of descriptors
+ and signatures, all attributes referencing classes in any form (including all
+ types of annotations), and to all instructions referencing to classes.
  <p>
- Primitive types and arrays are never subjects of mapping and are not allowed targets of mapping.
+ Primitive types and arrays are never subjects of mapping and are not allowed
+ targets of mapping.
  <p>
- Arrays of reference types are always decomposed, mapped as the base reference types and composed back to arrays.</div>
+ Arrays of reference types are always decomposed, mapped as the base reference
+ types and composed back to arrays.</div>
 </section>
 <section class="summary">
 <ul class="summary-list">
@@ -154,17 +157,17 @@ extends <a href="../ClassTransform.html" title="interface in jdk.internal.classf
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="../CodeTransform.html" title="interface in jdk.internal.classfile">CodeTransform</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#asCodeTransform()" class="member-name-link">asCodeTransform</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Returns this ClassRemapper as <a href="../CodeTransform.html" title="interface in jdk.internal.classfile"><code>CodeTransform</code></a> instance</div>
+<div class="block">Returns this <code>ClassRemapper</code> as <a href="../CodeTransform.html" title="interface in jdk.internal.classfile"><code>CodeTransform</code></a> instance</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="../FieldTransform.html" title="interface in jdk.internal.classfile">FieldTransform</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#asFieldTransform()" class="member-name-link">asFieldTransform</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Returns this ClassRemapper as <a href="../FieldTransform.html" title="interface in jdk.internal.classfile"><code>FieldTransform</code></a> instance</div>
+<div class="block">Returns this <code>ClassRemapper</code> as <a href="../FieldTransform.html" title="interface in jdk.internal.classfile"><code>FieldTransform</code></a> instance</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="../MethodTransform.html" title="interface in jdk.internal.classfile">MethodTransform</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#asMethodTransform()" class="member-name-link">asMethodTransform</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Returns this ClassRemapper as <a href="../MethodTransform.html" title="interface in jdk.internal.classfile"><code>MethodTransform</code></a> instance</div>
+<div class="block">Returns this <code>ClassRemapper</code> as <a href="../MethodTransform.html" title="interface in jdk.internal.classfile"><code>MethodTransform</code></a> instance</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#map(java.lang.constant.ClassDesc)" class="member-name-link">map</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;desc)</code></div>
@@ -174,12 +177,12 @@ extends <a href="../ClassTransform.html" title="interface in jdk.internal.classf
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1"><code>static <a href="ClassRemapper.html" title="interface in jdk.internal.classfile.components">ClassRemapper</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(java.util.function.Function)" class="member-name-link">of</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/function/Function.html" title="class or interface in java.util.function" class="external-link">Function</a>&lt;<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>,<wbr><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&gt;&nbsp;mapFunction)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1">
-<div class="block">Creates new instance of ClassRemapper instructed with a map function.</div>
+<div class="block">Creates new instance of <code>ClassRemapper</code> instructed with a map function.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1"><code>static <a href="ClassRemapper.html" title="interface in jdk.internal.classfile.components">ClassRemapper</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(java.util.Map)" class="member-name-link">of</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>,<wbr><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&gt;&nbsp;classMap)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1">
-<div class="block">Creates new instance of ClassRemapper instructed with a class map.</div>
+<div class="block">Creates new instance of <code>ClassRemapper</code> instructed with a class map.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default byte[]</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#remapClass(jdk.internal.classfile.ClassModel)" class="member-name-link">remapClass</a><wbr>(<a href="../ClassModel.html" title="interface in jdk.internal.classfile">ClassModel</a>&nbsp;clm)</code></div>
@@ -210,13 +213,13 @@ extends <a href="../ClassTransform.html" title="interface in jdk.internal.classf
 <section class="detail" id="of(java.util.Map)">
 <h3>of</h3>
 <div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="ClassRemapper.html" title="interface in jdk.internal.classfile.components">ClassRemapper</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>,<wbr><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&gt;&nbsp;classMap)</span></div>
-<div class="block">Creates new instance of ClassRemapper instructed with a class map.
+<div class="block">Creates new instance of <code>ClassRemapper</code> instructed with a class map.
  Map may contain only re-mapping entries, identity mapping is applied by default.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>classMap</code> - class map</dd>
 <dt>Returns:</dt>
-<dd>new instance of ClassRemapper</dd>
+<dd>new instance of <code>ClassRemapper</code></dd>
 </dl>
 </section>
 </li>
@@ -224,14 +227,14 @@ extends <a href="../ClassTransform.html" title="interface in jdk.internal.classf
 <section class="detail" id="of(java.util.function.Function)">
 <h3>of</h3>
 <div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="ClassRemapper.html" title="interface in jdk.internal.classfile.components">ClassRemapper</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/function/Function.html" title="class or interface in java.util.function" class="external-link">Function</a>&lt;<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>,<wbr><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&gt;&nbsp;mapFunction)</span></div>
-<div class="block">Creates new instance of ClassRemapper instructed with a map function.
+<div class="block">Creates new instance of <code>ClassRemapper</code> instructed with a map function.
  Map function must return valid <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link"><code>ClassDesc</code></a> of an interface
  or a class, even for identity mappings.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>mapFunction</code> - class map function</dd>
 <dt>Returns:</dt>
-<dd>new instance of ClassRemapper</dd>
+<dd>new instance of <code>ClassRemapper</code></dd>
 </dl>
 </section>
 </li>
@@ -252,10 +255,10 @@ extends <a href="../ClassTransform.html" title="interface in jdk.internal.classf
 <section class="detail" id="asFieldTransform()">
 <h3>asFieldTransform</h3>
 <div class="member-signature"><span class="return-type"><a href="../FieldTransform.html" title="interface in jdk.internal.classfile">FieldTransform</a></span>&nbsp;<span class="element-name">asFieldTransform</span>()</div>
-<div class="block">Returns this ClassRemapper as <a href="../FieldTransform.html" title="interface in jdk.internal.classfile"><code>FieldTransform</code></a> instance</div>
+<div class="block">Returns this <code>ClassRemapper</code> as <a href="../FieldTransform.html" title="interface in jdk.internal.classfile"><code>FieldTransform</code></a> instance</div>
 <dl class="notes">
 <dt>Returns:</dt>
-<dd>this ClassRemapper as <a href="../FieldTransform.html" title="interface in jdk.internal.classfile"><code>FieldTransform</code></a> instance</dd>
+<dd>this <code>ClassRemapper</code> as <a href="../FieldTransform.html" title="interface in jdk.internal.classfile"><code>FieldTransform</code></a> instance</dd>
 </dl>
 </section>
 </li>
@@ -263,10 +266,10 @@ extends <a href="../ClassTransform.html" title="interface in jdk.internal.classf
 <section class="detail" id="asMethodTransform()">
 <h3>asMethodTransform</h3>
 <div class="member-signature"><span class="return-type"><a href="../MethodTransform.html" title="interface in jdk.internal.classfile">MethodTransform</a></span>&nbsp;<span class="element-name">asMethodTransform</span>()</div>
-<div class="block">Returns this ClassRemapper as <a href="../MethodTransform.html" title="interface in jdk.internal.classfile"><code>MethodTransform</code></a> instance</div>
+<div class="block">Returns this <code>ClassRemapper</code> as <a href="../MethodTransform.html" title="interface in jdk.internal.classfile"><code>MethodTransform</code></a> instance</div>
 <dl class="notes">
 <dt>Returns:</dt>
-<dd>this ClassRemapper as <a href="../MethodTransform.html" title="interface in jdk.internal.classfile"><code>MethodTransform</code></a> instance</dd>
+<dd>this <code>ClassRemapper</code> as <a href="../MethodTransform.html" title="interface in jdk.internal.classfile"><code>MethodTransform</code></a> instance</dd>
 </dl>
 </section>
 </li>
@@ -274,10 +277,10 @@ extends <a href="../ClassTransform.html" title="interface in jdk.internal.classf
 <section class="detail" id="asCodeTransform()">
 <h3>asCodeTransform</h3>
 <div class="member-signature"><span class="return-type"><a href="../CodeTransform.html" title="interface in jdk.internal.classfile">CodeTransform</a></span>&nbsp;<span class="element-name">asCodeTransform</span>()</div>
-<div class="block">Returns this ClassRemapper as <a href="../CodeTransform.html" title="interface in jdk.internal.classfile"><code>CodeTransform</code></a> instance</div>
+<div class="block">Returns this <code>ClassRemapper</code> as <a href="../CodeTransform.html" title="interface in jdk.internal.classfile"><code>CodeTransform</code></a> instance</div>
 <dl class="notes">
 <dt>Returns:</dt>
-<dd>this ClassRemapper as <a href="../CodeTransform.html" title="interface in jdk.internal.classfile"><code>CodeTransform</code></a> instance</dd>
+<dd>this <code>ClassRemapper</code> as <a href="../CodeTransform.html" title="interface in jdk.internal.classfile"><code>CodeTransform</code></a> instance</dd>
 </dl>
 </section>
 </li>

@@ -99,8 +99,8 @@ loadScripts(document, 'script');</script>
 <div class="type-signature"><span class="modifiers">public sealed interface </span><span class="element-name type-name-label">CodeStackTracker</span><span class="extends-implements">
 extends <a href="../CodeTransform.html" title="interface in jdk.internal.classfile">CodeTransform</a></span>
 <span class="permits">permits <a href="CodeStackTracker.CodeStackTrackerImpl.html" title="class in jdk.internal.classfile.components">CodeStackTracker.CodeStackTrackerImpl</a></span></div>
-<div class="block">CodeStackTracker is a <a href="../CodeTransform.html" title="interface in jdk.internal.classfile"><code>CodeTransform</code></a> synchronously tracking
- stack content and calculating max stack size.
+<div class="block"><a href="CodeStackTracker.html" title="interface in jdk.internal.classfile.components"><code>CodeStackTracker</code></a> is a <a href="../CodeTransform.html" title="interface in jdk.internal.classfile"><code>CodeTransform</code></a> tracking stack content
+ and calculating max stack size.
  <p>
  Sample use:
  <p>
@@ -110,7 +110,7 @@ extends <a href="../CodeTransform.html" title="interface in jdk.internal.classfi
     codeBuilder.transforming(stackTracker, trackedBuilder -&gt; {
         trackedBuilder.aload(0);
         trackedBuilder.lconst_0();
-        trackedBuilder.ifThen(...
+        trackedBuilder.ifThen(...);
         ...
         var stack = stackTracker.stack().get();
         int maxStack = stackTracker.maxStackSize().get();
@@ -167,7 +167,7 @@ extends <a href="../CodeTransform.html" title="interface in jdk.internal.classfi
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1"><code>static <a href="CodeStackTracker.html" title="interface in jdk.internal.classfile.components">CodeStackTracker</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(jdk.internal.classfile.TypeKind...)" class="member-name-link">of</a><wbr>(<a href="../TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a>...&nbsp;initialStack)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1">
-<div class="block">Creates new instance of CodeStackTracker initialized with provided stack items</div>
+<div class="block">Creates new instance of <a href="CodeStackTracker.html" title="interface in jdk.internal.classfile.components"><code>CodeStackTracker</code></a> initialized with provided stack items</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Collection.html" title="class or interface in java.util" class="external-link">Collection</a>&lt;<a href="../TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a>&gt;&gt;</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#stack()" class="member-name-link">stack</a>()</code></div>
@@ -198,12 +198,12 @@ extends <a href="../CodeTransform.html" title="interface in jdk.internal.classfi
 <section class="detail" id="of(jdk.internal.classfile.TypeKind...)">
 <h3>of</h3>
 <div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="CodeStackTracker.html" title="interface in jdk.internal.classfile.components">CodeStackTracker</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="../TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a>...&nbsp;initialStack)</span></div>
-<div class="block">Creates new instance of CodeStackTracker initialized with provided stack items</div>
+<div class="block">Creates new instance of <a href="CodeStackTracker.html" title="interface in jdk.internal.classfile.components"><code>CodeStackTracker</code></a> initialized with provided stack items</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>initialStack</code> - initial stack content</dd>
 <dt>Returns:</dt>
-<dd>new instance of CodeStackTracker</dd>
+<dd>new instance of <a href="CodeStackTracker.html" title="interface in jdk.internal.classfile.components"><code>CodeStackTracker</code></a></dd>
 </dl>
 </section>
 </li>
@@ -216,7 +216,7 @@ extends <a href="../CodeTransform.html" title="interface in jdk.internal.classfi
  (right after <code>xRETURN, ATHROW, GOTO, GOTO_W, LOOKUPSWITCH, TABLESWITCH</code> instructions).
 
  Temporary unknown stack content can be recovered by binding of a <a href="../Label.html" title="interface in jdk.internal.classfile">Label</a> used as
- target of a branch instruction from existing code with known Stack (forward branch target),
+ target of a branch instruction from existing code with known stack (forward branch target),
  or by binding of a <a href="../Label.html" title="interface in jdk.internal.classfile">Label</a> defining an exception handler (exception handler code start).</div>
 <dl class="notes">
 <dt>Returns:</dt>
@@ -229,7 +229,7 @@ extends <a href="../CodeTransform.html" title="interface in jdk.internal.classfi
 <h3>maxStackSize</h3>
 <div class="member-signature"><span class="return-type"><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a>&gt;</span>&nbsp;<span class="element-name">maxStackSize</span>()</div>
 <div class="block">Returns tracked max stack size.
- Returns an empty <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a> when Max stack size tracking has been lost.
+ Returns an empty <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a> when max stack size tracking has been lost.
 
  Max stack size tracking is permanently lost when a stack instruction appears
  and the actual stack content is unknown.</div>

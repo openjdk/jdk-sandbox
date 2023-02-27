@@ -118,7 +118,7 @@ extends <a href="LoadableConstantEntry.html" title="interface in jdk.internal.cl
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#kind()" class="member-name-link">kind</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Returns the reference kind of this method handle.</div>
+<div class="block">Returns the reference kind of this method handle <a href="https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4.8">4.4.8</a>.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="MemberRefEntry.html" title="interface in jdk.internal.classfile.constantpool">MemberRefEntry</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#reference()" class="member-name-link">reference</a>()</code></div>
@@ -133,7 +133,7 @@ extends <a href="LoadableConstantEntry.html" title="interface in jdk.internal.cl
 <code><a href="LoadableConstantEntry.html#constantValue()">constantValue</a>, <a href="LoadableConstantEntry.html#typeKind()">typeKind</a></code></div>
 <div class="inherited-list">
 <h3 id="methods-inherited-from-class-jdk.internal.classfile.constantpool.PoolEntry">Methods inherited from interface&nbsp;jdk.internal.classfile.constantpool.<a href="PoolEntry.html" title="interface in jdk.internal.classfile.constantpool">PoolEntry</a></h3>
-<code><a href="PoolEntry.html#constantPool()">constantPool</a>, <a href="PoolEntry.html#index()">index</a>, <a href="PoolEntry.html#poolEntries()">poolEntries</a>, <a href="PoolEntry.html#tag()">tag</a></code></div>
+<code><a href="PoolEntry.html#constantPool()">constantPool</a>, <a href="PoolEntry.html#index()">index</a>, <a href="PoolEntry.html#tag()">tag</a>, <a href="PoolEntry.html#width()">width</a></code></div>
 <div class="inherited-list">
 <h3 id="methods-inherited-from-class-jdk.internal.classfile.WritableElement">Methods inherited from interface&nbsp;jdk.internal.classfile.<a href="../WritableElement.html" title="interface in jdk.internal.classfile">WritableElement</a></h3>
 <code><a href="../WritableElement.html#writeTo(jdk.internal.classfile.BufWriter)">writeTo</a></code></div>
@@ -152,10 +152,16 @@ extends <a href="LoadableConstantEntry.html" title="interface in jdk.internal.cl
 <section class="detail" id="kind()">
 <h3>kind</h3>
 <div class="member-signature"><span class="return-type">int</span>&nbsp;<span class="element-name">kind</span>()</div>
-<div class="block">Returns the reference kind of this method handle.</div>
+<div class="block">Returns the reference kind of this method handle <a href="https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4.8">4.4.8</a>.</div>
 <dl class="notes">
 <dt>Returns:</dt>
-<dd>the reference kind of this method handle</dd>
+<dd>the reference kind of this method handle <a href="https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4.8">4.4.8</a></dd>
+<dt>See Also:</dt>
+<dd>
+<ul class="tag-list">
+<li><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/invoke/MethodHandleInfo.html" title="class or interface in java.lang.invoke" class="external-link"><code>MethodHandleInfo</code></a></li>
+</ul>
+</dd>
 </dl>
 </section>
 </li>

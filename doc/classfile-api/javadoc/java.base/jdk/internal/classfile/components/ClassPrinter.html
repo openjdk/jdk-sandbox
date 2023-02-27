@@ -100,7 +100,64 @@ loadScripts(document, 'script');</script>
  Or it can be exported into a tree of traversable and printable nodes,
  more exactly into a tree of <a href="ClassPrinter.MapNode.html" title="interface in jdk.internal.classfile.components"><code>ClassPrinter.MapNode</code></a>, <a href="ClassPrinter.ListNode.html" title="interface in jdk.internal.classfile.components"><code>ClassPrinter.ListNode</code></a>, and <a href="ClassPrinter.LeafNode.html" title="interface in jdk.internal.classfile.components"><code>ClassPrinter.LeafNode</code></a> instances.
  <p>
- Level of details to print or to export is driven by <a href="ClassPrinter.Verbosity.html" title="enum class in jdk.internal.classfile.components"><code>ClassPrinter.Verbosity</code></a> option.</div>
+ Level of details to print or to export is driven by <a href="ClassPrinter.Verbosity.html" title="enum class in jdk.internal.classfile.components"><code>ClassPrinter.Verbosity</code></a> option.
+ <p>
+ The most frequent use case is to simply print a class:
+ 
+<div class="snippet-container"><button class="copy snippet-copy" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy"></button>
+<pre class="snippet"><code class="language-java">ClassPrinter.toJson(classModel, ClassPrinter.Verbosity.TRACE_ALL, System.out::print);
+</code></pre>
+</div>
+
+ <p>
+ <a href="ClassPrinter.html" title="class in jdk.internal.classfile.components"><code>ClassPrinter</code></a> allows to traverse tree of simple printable nodes to hook custom printer:
+ 
+<div class="snippet-container"><button class="copy snippet-copy" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy"></button>
+<pre class="snippet"><code class="language-java">void customPrint(ClassModel classModel) {
+    print(ClassPrinter.toTree(classModel, ClassPrinter.Verbosity.TRACE_ALL));
+}
+
+void print(ClassPrinter.Node node) {
+    switch (node) {
+        case ClassPrinter.MapNode mn -&gt; {
+            // print map header
+            mn.values().forEach(this::print);
+        }
+        case ClassPrinter.ListNode ln -&gt; {
+            // print list header
+            ln.forEach(this::print);
+        }
+        case ClassPrinter.LeafNode n -&gt; {
+            // print leaf node
+        }
+    }
+}
+</code></pre>
+</div>
+
+ <p>
+ Another use case for <a href="ClassPrinter.html" title="class in jdk.internal.classfile.components"><code>ClassPrinter</code></a> is to simplify writing of automated tests:
+ 
+<div class="snippet-container"><button class="copy snippet-copy" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy"></button>
+<pre class="snippet"><code class="language-java">@Test
+void printNodesInTest(ClassModel classModel) {
+    var classNode = ClassPrinter.toTree(classModel, ClassPrinter.Verbosity.TRACE_ALL);
+    assertContains(classNode, "method name", "myFooMethod");
+    assertContains(classNode, "field name", "myBarField");
+    assertContains(classNode, "inner class", "MyInnerFooClass");
+}
+
+void assertContains(ClassPrinter.Node node, ConstantDesc key, ConstantDesc value) {
+    if (!node.walk().anyMatch(n -&gt; n instanceof ClassPrinter.LeafNode ln
+                           &amp;&amp; ln.name().equals(key)
+                           &amp;&amp; ln.value().equals(value))) {
+        node.toYaml(System.out::print);
+        throw new AssertionError("expected %s: %s".formatted(key, value));
+    }
+}
+</code></pre>
+</div>
+</div>
 </section>
 <section class="summary">
 <ul class="summary-list">
