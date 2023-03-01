@@ -67,13 +67,13 @@ class BuilderBlockTest {
                               startEnd[0] = xb.startLabel();
                               startEnd[1] = xb.endLabel();
                               xb.returnInstruction(TypeKind.VoidType);
-                              assertEquals(0, ((LabelImpl) startEnd[0]).getContextInfo());
-                              assertEquals(-1, ((LabelImpl) startEnd[1]).getContextInfo());
+                              assertEquals(((LabelImpl) startEnd[0]).getBCI(), 0);
+                              assertEquals(((LabelImpl) startEnd[1]).getBCI(), -1);
                           }));
         });
 
-        assertEquals(0, ((LabelImpl) startEnd[0]).getContextInfo());
-        assertEquals(1, ((LabelImpl) startEnd[1]).getContextInfo());
+        assertEquals(((LabelImpl) startEnd[0]).getBCI(), 0);
+        assertEquals(((LabelImpl) startEnd[1]).getBCI(), 1);
     }
 
     @Test
@@ -95,10 +95,10 @@ class BuilderBlockTest {
                           }));
         });
 
-        assertEquals(0, ((LabelImpl) startEnd[0]).getContextInfo());
-        assertEquals(3, ((LabelImpl) startEnd[1]).getContextInfo());
-        assertEquals(1, ((LabelImpl) startEnd[2]).getContextInfo());
-        assertEquals(2, ((LabelImpl) startEnd[3]).getContextInfo());
+        assertEquals(((LabelImpl) startEnd[0]).getBCI(), 0);
+        assertEquals(((LabelImpl) startEnd[1]).getBCI(), 3);
+        assertEquals(((LabelImpl) startEnd[2]).getBCI(), 1);
+        assertEquals(((LabelImpl) startEnd[3]).getBCI(), 2);
     }
 
     @Test
