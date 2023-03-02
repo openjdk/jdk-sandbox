@@ -35,7 +35,7 @@ import jdk.internal.classfile.jdktypes.*;
 import jdk.internal.classfile.constantpool.*;
 import jdk.internal.classfile.attribute.*;
 import static jdk.internal.classfile.Classfile.*;
-import static jdk.internal.classfile.attribute.StackMapTableAttribute.*;
+import static jdk.internal.classfile.attribute.StackMapFrameInfo.*;
 
 /*
  *  A writer for writing Attributes as text.
