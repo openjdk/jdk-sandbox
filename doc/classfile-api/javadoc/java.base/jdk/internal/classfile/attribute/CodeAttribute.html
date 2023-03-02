@@ -124,7 +124,10 @@ extends <a href="../Attribute.html" title="interface in jdk.internal.classfile">
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#labelToBci(jdk.internal.classfile.Label)" class="member-name-link">labelToBci</a><wbr>(<a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;label)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Returns the position of the <code>Label</code> in the <code>codeArray</code>
+ or -1 if the <code>Label</code> does not point to the <code>codeArray</code>.</div>
+</div>
 </div>
 </div>
 </div>
@@ -183,11 +186,14 @@ extends <a href="../Attribute.html" title="interface in jdk.internal.classfile">
 <section class="detail" id="labelToBci(jdk.internal.classfile.Label)">
 <h3>labelToBci</h3>
 <div class="member-signature"><span class="return-type">int</span>&nbsp;<span class="element-name">labelToBci</span><wbr><span class="parameters">(<a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;label)</span></div>
+<div class="block">Returns the position of the <code>Label</code> in the <code>codeArray</code>
+ or -1 if the <code>Label</code> does not point to the <code>codeArray</code>.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>label</code> - a marker for a position within this <code>CodeAttribute</code></dd>
 <dt>Returns:</dt>
-<dd>position of the <code>Label</code> in the <code>codeArray</code></dd>
+<dd>the position of the <code>Label</code> in the <code>codeArray</code>
+ or -1 if the <code>Label</code> does not point to the <code>codeArray</code></dd>
 </dl>
 </section>
 </li>

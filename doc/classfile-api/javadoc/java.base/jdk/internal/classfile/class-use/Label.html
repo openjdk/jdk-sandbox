@@ -62,7 +62,8 @@ loadScripts(document, 'script');</script>
 <div class="col-last odd-row-color">&nbsp;</div>
 <div class="col-first even-row-color"><a href="#jdk.internal.classfile.components">jdk.internal.classfile.components</a></div>
 <div class="col-last even-row-color">
-<div class="block">Specific components, transformations, and tools built on top of the Classfile API</div>
+<div class="block">Specific components, transformations, and tools built on top of the
+ Classfile API</div>
 </div>
 <div class="col-first odd-row-color"><a href="#jdk.internal.classfile.instruction">jdk.internal.classfile.instruction</a></div>
 <div class="col-last odd-row-color">&nbsp;</div>
@@ -335,10 +336,10 @@ loadScripts(document, 'script');</script>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color"><code><a href="../Label.html" title="interface in jdk.internal.classfile">Label</a></code></div>
-<div class="col-second even-row-color"><span class="type-name-label">StackMapTableAttribute.UninitializedVerificationTypeInfo.</span><code><a href="../attribute/StackMapTableAttribute.UninitializedVerificationTypeInfo.html#newTarget()" class="member-name-link">newTarget</a>()</code></div>
+<div class="col-second even-row-color"><span class="type-name-label">StackMapFrameInfo.UninitializedVerificationTypeInfo.</span><code><a href="../attribute/StackMapFrameInfo.UninitializedVerificationTypeInfo.html#newTarget()" class="member-name-link">newTarget</a>()</code></div>
 <div class="col-last even-row-color">&nbsp;</div>
 <div class="col-first odd-row-color"><code><a href="../Label.html" title="interface in jdk.internal.classfile">Label</a></code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">StackMapTableAttribute.StackMapFrameInfo.</span><code><a href="../attribute/StackMapTableAttribute.StackMapFrameInfo.html#target()" class="member-name-link">target</a>()</code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">StackMapFrameInfo.</span><code><a href="../attribute/StackMapFrameInfo.html#target()" class="member-name-link">target</a>()</code></div>
 <div class="col-last odd-row-color">&nbsp;</div>
 </div>
 <div class="caption"><span>Methods in <a href="../attribute/package-summary.html">jdk.internal.classfile.attribute</a> with parameters of type <a href="../Label.html" title="interface in jdk.internal.classfile">Label</a></span></div>
@@ -348,14 +349,17 @@ loadScripts(document, 'script');</script>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color"><code>int</code></div>
 <div class="col-second even-row-color"><span class="type-name-label">CodeAttribute.</span><code><a href="../attribute/CodeAttribute.html#labelToBci(jdk.internal.classfile.Label)" class="member-name-link">labelToBci</a><wbr>(<a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;label)</code></div>
-<div class="col-last even-row-color">&nbsp;</div>
-<div class="col-first odd-row-color"><code>static <a href="../attribute/StackMapTableAttribute.StackMapFrameInfo.html" title="interface in jdk.internal.classfile.attribute">StackMapTableAttribute.StackMapFrameInfo</a></code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">StackMapTableAttribute.StackMapFrameInfo.</span><code><a href="../attribute/StackMapTableAttribute.StackMapFrameInfo.html#of(jdk.internal.classfile.Label,java.util.List,java.util.List)" class="member-name-link">of</a><wbr>(<a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;target,
- <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../attribute/StackMapTableAttribute.VerificationTypeInfo.html" title="interface in jdk.internal.classfile.attribute">StackMapTableAttribute.VerificationTypeInfo</a>&gt;&nbsp;locals,
- <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../attribute/StackMapTableAttribute.VerificationTypeInfo.html" title="interface in jdk.internal.classfile.attribute">StackMapTableAttribute.VerificationTypeInfo</a>&gt;&nbsp;stack)</code></div>
+<div class="col-last even-row-color">
+<div class="block">Returns the position of the <code>Label</code> in the <code>codeArray</code>
+ or -1 if the <code>Label</code> does not point to the <code>codeArray</code>.</div>
+</div>
+<div class="col-first odd-row-color"><code>static <a href="../attribute/StackMapFrameInfo.html" title="interface in jdk.internal.classfile.attribute">StackMapFrameInfo</a></code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">StackMapFrameInfo.</span><code><a href="../attribute/StackMapFrameInfo.html#of(jdk.internal.classfile.Label,java.util.List,java.util.List)" class="member-name-link">of</a><wbr>(<a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;target,
+ <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../attribute/StackMapFrameInfo.VerificationTypeInfo.html" title="interface in jdk.internal.classfile.attribute">StackMapFrameInfo.VerificationTypeInfo</a>&gt;&nbsp;locals,
+ <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../attribute/StackMapFrameInfo.VerificationTypeInfo.html" title="interface in jdk.internal.classfile.attribute">StackMapFrameInfo.VerificationTypeInfo</a>&gt;&nbsp;stack)</code></div>
 <div class="col-last odd-row-color">&nbsp;</div>
-<div class="col-first even-row-color"><code>static <a href="../attribute/StackMapTableAttribute.UninitializedVerificationTypeInfo.html" title="interface in jdk.internal.classfile.attribute">StackMapTableAttribute.UninitializedVerificationTypeInfo</a></code></div>
-<div class="col-second even-row-color"><span class="type-name-label">StackMapTableAttribute.UninitializedVerificationTypeInfo.</span><code><a href="../attribute/StackMapTableAttribute.UninitializedVerificationTypeInfo.html#of(jdk.internal.classfile.Label)" class="member-name-link">of</a><wbr>(<a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;newTarget)</code></div>
+<div class="col-first even-row-color"><code>static <a href="../attribute/StackMapFrameInfo.UninitializedVerificationTypeInfo.html" title="interface in jdk.internal.classfile.attribute">StackMapFrameInfo.UninitializedVerificationTypeInfo</a></code></div>
+<div class="col-second even-row-color"><span class="type-name-label">StackMapFrameInfo.UninitializedVerificationTypeInfo.</span><code><a href="../attribute/StackMapFrameInfo.UninitializedVerificationTypeInfo.html#of(jdk.internal.classfile.Label)" class="member-name-link">of</a><wbr>(<a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;newTarget)</code></div>
 <div class="col-last even-row-color">&nbsp;</div>
 </div>
 </section>

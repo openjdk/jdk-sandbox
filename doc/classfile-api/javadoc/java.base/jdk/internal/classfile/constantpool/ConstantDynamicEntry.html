@@ -115,9 +115,14 @@ extends <a href="DynamicConstantPoolEntry.html" title="interface in jdk.internal
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Returns the symbolic descriptor for the <code>invokedynamic</code> constant.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#typeKind()" class="member-name-link">typeKind</a>()</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ConstantDesc.html" title="class or interface in java.lang.constant" class="external-link">ConstantDesc</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#constantValue()" class="member-name-link">constantValue</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Returns the constant described by this entry.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#typeKind()" class="member-name-link">typeKind</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Returns the type of the constant.</div>
 </div>
 </div>
@@ -126,9 +131,6 @@ extends <a href="DynamicConstantPoolEntry.html" title="interface in jdk.internal
 <div class="inherited-list">
 <h3 id="methods-inherited-from-class-jdk.internal.classfile.constantpool.DynamicConstantPoolEntry">Methods inherited from interface&nbsp;jdk.internal.classfile.constantpool.<a href="DynamicConstantPoolEntry.html" title="interface in jdk.internal.classfile.constantpool">DynamicConstantPoolEntry</a></h3>
 <code><a href="DynamicConstantPoolEntry.html#bootstrap()">bootstrap</a>, <a href="DynamicConstantPoolEntry.html#name()">name</a>, <a href="DynamicConstantPoolEntry.html#nameAndType()">nameAndType</a>, <a href="DynamicConstantPoolEntry.html#type()">type</a></code></div>
-<div class="inherited-list">
-<h3 id="methods-inherited-from-class-jdk.internal.classfile.constantpool.LoadableConstantEntry">Methods inherited from interface&nbsp;jdk.internal.classfile.constantpool.<a href="LoadableConstantEntry.html" title="interface in jdk.internal.classfile.constantpool">LoadableConstantEntry</a></h3>
-<code><a href="LoadableConstantEntry.html#constantValue()">constantValue</a></code></div>
 <div class="inherited-list">
 <h3 id="methods-inherited-from-class-jdk.internal.classfile.constantpool.PoolEntry">Methods inherited from interface&nbsp;jdk.internal.classfile.constantpool.<a href="PoolEntry.html" title="interface in jdk.internal.classfile.constantpool">PoolEntry</a></h3>
 <code><a href="PoolEntry.html#constantPool()">constantPool</a>, <a href="PoolEntry.html#index()">index</a>, <a href="PoolEntry.html#tag()">tag</a>, <a href="PoolEntry.html#width()">width</a></code></div>
@@ -146,6 +148,20 @@ extends <a href="DynamicConstantPoolEntry.html" title="interface in jdk.internal
 <section class="method-details" id="method-detail">
 <h2>Method Details</h2>
 <ul class="member-list">
+<li>
+<section class="detail" id="constantValue()">
+<h3>constantValue</h3>
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ConstantDesc.html" title="class or interface in java.lang.constant" class="external-link">ConstantDesc</a></span>&nbsp;<span class="element-name">constantValue</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="LoadableConstantEntry.html#constantValue()">LoadableConstantEntry</a></code></span></div>
+<div class="block">Returns the constant described by this entry.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="LoadableConstantEntry.html#constantValue()">constantValue</a></code>&nbsp;in interface&nbsp;<code><a href="LoadableConstantEntry.html" title="interface in jdk.internal.classfile.constantpool">LoadableConstantEntry</a></code></dd>
+<dt>Returns:</dt>
+<dd>the constant described by this entry</dd>
+</dl>
+</section>
+</li>
 <li>
 <section class="detail" id="asSymbol()">
 <h3>asSymbol</h3>

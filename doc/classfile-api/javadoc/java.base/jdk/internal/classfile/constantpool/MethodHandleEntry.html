@@ -104,7 +104,7 @@ extends <a href="LoadableConstantEntry.html" title="interface in jdk.internal.cl
 <section class="method-summary" id="method-summary">
 <h2>Method Summary</h2>
 <div id="method-summary-table">
-<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-controls="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table', 3)" class="active-table-tab">All Methods</button><button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="table-tab">Instance Methods</button><button id="method-summary-table-tab3" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab3', 3)" class="table-tab">Abstract Methods</button></div>
+<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-controls="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table', 3)" class="active-table-tab">All Methods</button><button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="table-tab">Instance Methods</button><button id="method-summary-table-tab3" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab3', 3)" class="table-tab">Abstract Methods</button><button id="method-summary-table-tab5" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab5', 3)" class="table-tab">Default Methods</button></div>
 <div id="method-summary-table.tabpanel" role="tabpanel">
 <div class="summary-table three-column-summary" aria-labelledby="method-summary-table-tab0">
 <div class="table-header col-first">Modifier and Type</div>
@@ -115,14 +115,19 @@ extends <a href="LoadableConstantEntry.html" title="interface in jdk.internal.cl
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns a symbolic descriptor for this method handle.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#kind()" class="member-name-link">kind</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ConstantDesc.html" title="class or interface in java.lang.constant" class="external-link">ConstantDesc</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#constantValue()" class="member-name-link">constantValue</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Returns the constant described by this entry.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#kind()" class="member-name-link">kind</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns the reference kind of this method handle <a href="https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.4.8">4.4.8</a>.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="MemberRefEntry.html" title="interface in jdk.internal.classfile.constantpool">MemberRefEntry</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#reference()" class="member-name-link">reference</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="MemberRefEntry.html" title="interface in jdk.internal.classfile.constantpool">MemberRefEntry</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#reference()" class="member-name-link">reference</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns the constant pool entry describing the method.</div>
 </div>
 </div>
@@ -130,7 +135,7 @@ extends <a href="LoadableConstantEntry.html" title="interface in jdk.internal.cl
 </div>
 <div class="inherited-list">
 <h3 id="methods-inherited-from-class-jdk.internal.classfile.constantpool.LoadableConstantEntry">Methods inherited from interface&nbsp;jdk.internal.classfile.constantpool.<a href="LoadableConstantEntry.html" title="interface in jdk.internal.classfile.constantpool">LoadableConstantEntry</a></h3>
-<code><a href="LoadableConstantEntry.html#constantValue()">constantValue</a>, <a href="LoadableConstantEntry.html#typeKind()">typeKind</a></code></div>
+<code><a href="LoadableConstantEntry.html#typeKind()">typeKind</a></code></div>
 <div class="inherited-list">
 <h3 id="methods-inherited-from-class-jdk.internal.classfile.constantpool.PoolEntry">Methods inherited from interface&nbsp;jdk.internal.classfile.constantpool.<a href="PoolEntry.html" title="interface in jdk.internal.classfile.constantpool">PoolEntry</a></h3>
 <code><a href="PoolEntry.html#constantPool()">constantPool</a>, <a href="PoolEntry.html#index()">index</a>, <a href="PoolEntry.html#tag()">tag</a>, <a href="PoolEntry.html#width()">width</a></code></div>
@@ -148,6 +153,20 @@ extends <a href="LoadableConstantEntry.html" title="interface in jdk.internal.cl
 <section class="method-details" id="method-detail">
 <h2>Method Details</h2>
 <ul class="member-list">
+<li>
+<section class="detail" id="constantValue()">
+<h3>constantValue</h3>
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ConstantDesc.html" title="class or interface in java.lang.constant" class="external-link">ConstantDesc</a></span>&nbsp;<span class="element-name">constantValue</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="LoadableConstantEntry.html#constantValue()">LoadableConstantEntry</a></code></span></div>
+<div class="block">Returns the constant described by this entry.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="LoadableConstantEntry.html#constantValue()">constantValue</a></code>&nbsp;in interface&nbsp;<code><a href="LoadableConstantEntry.html" title="interface in jdk.internal.classfile.constantpool">LoadableConstantEntry</a></code></dd>
+<dt>Returns:</dt>
+<dd>the constant described by this entry</dd>
+</dl>
+</section>
+</li>
 <li>
 <section class="detail" id="kind()">
 <h3>kind</h3>

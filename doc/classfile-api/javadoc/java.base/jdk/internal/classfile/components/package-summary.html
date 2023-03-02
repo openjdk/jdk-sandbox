@@ -71,20 +71,23 @@ loadScripts(document, 'script');</script>
 <hr>
 <div class="package-signature">package <span class="element-name">jdk.internal.classfile.components</span></div>
 <section class="package-description" id="package-description">
-<div class="block"><h2 id="specific-components-transformations-and-tools-built-on-top-of-the-classfile-api-heading">Specific components, transformations, and tools built on top of the Classfile API</h2>
+<div class="block"><h2 id="specific-components-transformations-and-tools-built-on-top-of-the-classfile-api-heading">Specific components, transformations, and tools built on top of the
+ Classfile API</h2>
 
- The <code>jdk.internal.classfile.components</code> package contains specific transformation components
- and utility classes helping to compose very complex tasks with minimal effort.
+ The <code>jdk.internal.classfile.components</code> package contains specific
+ transformation components and utility classes helping to compose very complex
+ tasks with minimal effort.
 
  <h3 id="classprinter-heading"><a href="ClassPrinter.html" title="class in jdk.internal.classfile.components"><code>ClassPrinter</code></a></h3>
  <p>
- <a href="ClassPrinter.html" title="class in jdk.internal.classfile.components"><code>ClassPrinter</code></a> is a helper class providing seamless export of a <a href="../ClassModel.html" title="interface in jdk.internal.classfile"><code>ClassModel</code></a>,
- <a href="../FieldModel.html" title="interface in jdk.internal.classfile"><code>FieldModel</code></a>, <a href="../MethodModel.html" title="interface in jdk.internal.classfile"><code>MethodModel</code></a>, or <a href="../CodeModel.html" title="interface in jdk.internal.classfile"><code>CodeModel</code></a>
- into human-readable structured text in JSON, XML, or YAML format, or into a tree of traversable and printable nodes.
+ <a href="ClassPrinter.html" title="class in jdk.internal.classfile.components"><code>ClassPrinter</code></a> is a helper class providing seamless export of a <a href="../ClassModel.html" title="interface in jdk.internal.classfile"><code>ClassModel</code></a>, <a href="../FieldModel.html" title="interface in jdk.internal.classfile"><code>FieldModel</code></a>,
+ <a href="../MethodModel.html" title="interface in jdk.internal.classfile"><code>MethodModel</code></a>, or <a href="../CodeModel.html" title="interface in jdk.internal.classfile"><code>CodeModel</code></a> into human-readable structured text in
+ JSON, XML, or YAML format, or into a tree of traversable and printable nodes.
  <p>
- Primary purpose of <a href="ClassPrinter.html" title="class in jdk.internal.classfile.components"><code>ClassPrinter</code></a> is to provide human-readable class info for debugging,
- exception handling and logging purposes. The printed class also conforms to a standard format
- to support automated offline processing.
+ Primary purpose of <a href="ClassPrinter.html" title="class in jdk.internal.classfile.components"><code>ClassPrinter</code></a> is to provide human-readable class
+ info for debugging, exception handling and logging purposes. The printed
+ class also conforms to a standard format to support automated offline
+ processing.
  <p>
  The most frequent use case is to simply print a class:
  
@@ -94,7 +97,8 @@ loadScripts(document, 'script');</script>
 </div>
 
  <p>
- <a href="ClassPrinter.html" title="class in jdk.internal.classfile.components"><code>ClassPrinter</code></a> allows to traverse tree of simple printable nodes to hook custom printer:
+ <a href="ClassPrinter.html" title="class in jdk.internal.classfile.components"><code>ClassPrinter</code></a> allows to traverse tree of simple printable nodes to
+ hook custom printer:
  
 <div class="snippet-container"><button class="copy snippet-copy" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy"></button>
 <pre class="snippet"><code class="language-java">void customPrint(ClassModel classModel) {
@@ -120,7 +124,8 @@ void print(ClassPrinter.Node node) {
 </div>
 
  <p>
- Another use case for <a href="ClassPrinter.html" title="class in jdk.internal.classfile.components"><code>ClassPrinter</code></a> is to simplify writing of automated tests:
+ Another use case for <a href="ClassPrinter.html" title="class in jdk.internal.classfile.components"><code>ClassPrinter</code></a> is to simplify writing of automated
+ tests:
  
 <div class="snippet-container"><button class="copy snippet-copy" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy"></button>
 <pre class="snippet"><code class="language-java">@Test
@@ -144,17 +149,18 @@ void assertContains(ClassPrinter.Node node, ConstantDesc key, ConstantDesc value
 
 
  <h3 id="classremapper-heading"><a href="ClassRemapper.html" title="interface in jdk.internal.classfile.components"><code>ClassRemapper</code></a></h3>
- ClassRemapper is a <a href="../ClassTransform.html" title="interface in jdk.internal.classfile"><code>ClassTransform</code></a>, <a href="../FieldTransform.html" title="interface in jdk.internal.classfile"><code>FieldTransform</code></a>,
- <a href="../MethodTransform.html" title="interface in jdk.internal.classfile"><code>MethodTransform</code></a> and <a href="../CodeTransform.html" title="interface in jdk.internal.classfile"><code>CodeTransform</code></a>
- deeply re-mapping all class references in any form, according to given map or map function.
+ ClassRemapper is a <a href="../ClassTransform.html" title="interface in jdk.internal.classfile"><code>ClassTransform</code></a>, <a href="../FieldTransform.html" title="interface in jdk.internal.classfile"><code>FieldTransform</code></a>, <a href="../MethodTransform.html" title="interface in jdk.internal.classfile"><code>MethodTransform</code></a> and <a href="../CodeTransform.html" title="interface in jdk.internal.classfile"><code>CodeTransform</code></a> deeply re-mapping all class references
+ in any form, according to given map or map function.
  <p>
- The re-mapping is applied to superclass, interfaces, all kinds of descriptors and signatures,
- all attributes referencing classes in any form (including all types of annotations),
- and to all instructions referencing to classes.
+ The re-mapping is applied to superclass, interfaces, all kinds of descriptors
+ and signatures, all attributes referencing classes in any form (including all
+ types of annotations), and to all instructions referencing to classes.
  <p>
- Primitive types and arrays are never subjects of mapping and are not allowed targets of mapping.
+ Primitive types and arrays are never subjects of mapping and are not allowed
+ targets of mapping.
  <p>
- Arrays of reference types are always decomposed, mapped as the base reference types and composed back to arrays.
+ Arrays of reference types are always decomposed, mapped as the base reference
+ types and composed back to arrays.
  <p>
  Single class remappigng example:
  
@@ -185,10 +191,11 @@ for (var classModel : allMyClasses) {
 
 
  <h3 id="codelocalsshifter-heading"><a href="CodeLocalsShifter.html" title="interface in jdk.internal.classfile.components"><code>CodeLocalsShifter</code></a></h3>
- <a href="CodeLocalsShifter.html" title="interface in jdk.internal.classfile.components"><code>CodeLocalsShifter</code></a> is a <a href="../CodeTransform.html" title="interface in jdk.internal.classfile"><code>CodeTransform</code></a> shifting locals to
- newly allocated positions to avoid conflicts during code injection.
- Locals pointing to the receiver or to method arguments slots are never shifted.
- All locals pointing beyond the method arguments are re-indexed in order of appearance.
+ <a href="CodeLocalsShifter.html" title="interface in jdk.internal.classfile.components"><code>CodeLocalsShifter</code></a> is a <a href="../CodeTransform.html" title="interface in jdk.internal.classfile"><code>CodeTransform</code></a>
+ shifting locals to newly allocated positions to avoid conflicts during code
+ injection. Locals pointing to the receiver or to method arguments slots are
+ never shifted. All locals pointing beyond the method arguments are re-indexed
+ in order of appearance.
  <p>
  Sample of code transformation shifting all locals in all methods:
  
@@ -206,14 +213,18 @@ for (var classModel : allMyClasses) {
 
 
  <h3 id="coderelabeler-heading"><a href="CodeRelabeler.html" title="interface in jdk.internal.classfile.components"><code>CodeRelabeler</code></a></h3>
- <a href="CodeRelabeler.html" title="interface in jdk.internal.classfile.components"><code>CodeRelabeler</code></a> is a <a href="../CodeTransform.html" title="interface in jdk.internal.classfile"><code>CodeTransform</code></a> replacing all occurences
- of <a href="../Label.html" title="interface in jdk.internal.classfile"><code>Label</code></a> in the transformed code with new instances.
- All <a href="../instruction/LabelTarget.html" title="interface in jdk.internal.classfile.instruction"><code>LabelTarget</code></a> instructions are adjusted accordingly.
+ <a href="CodeRelabeler.html" title="interface in jdk.internal.classfile.components"><code>CodeRelabeler</code></a> is a <a href="../CodeTransform.html" title="interface in jdk.internal.classfile"><code>CodeTransform</code></a>
+ replacing all occurences of <a href="../Label.html" title="interface in jdk.internal.classfile"><code>Label</code></a> in the
+ transformed code with new instances.
+ All <a href="../instruction/LabelTarget.html" title="interface in jdk.internal.classfile.instruction"><code>LabelTarget</code></a> instructions are
+ adjusted accordingly.
  Relabeled code graph is identical to the original.
  <p>
- Primary purpose of <a href="CodeRelabeler.html" title="interface in jdk.internal.classfile.components"><code>CodeRelabeler</code></a> is for repeated injections of the same code blocks.
- Repeated injection of the same code block must be relabeled, so each instance of
- <a href="../Label.html" title="interface in jdk.internal.classfile"><code>Label</code></a> is bound in the target bytecode exactly once.
+ Primary purpose of <a href="CodeRelabeler.html" title="interface in jdk.internal.classfile.components"><code>CodeRelabeler</code></a> is for repeated injections of the
+ same code blocks.
+ Repeated injection of the same code block must be relabeled, so each instance
+ of <a href="../Label.html" title="interface in jdk.internal.classfile"><code>Label</code></a> is bound in the target bytecode
+ exactly once.
  <p>
  Sample transformation relabeling all methods:
  
@@ -226,8 +237,8 @@ for (var classModel : allMyClasses) {
 
 
  <h3 id="class-instrumentation-sample-heading">Class Instrumentation Sample</h3>
- Following snippet is sample composition of <a href="ClassRemapper.html" title="interface in jdk.internal.classfile.components"><code>ClassRemapper</code></a>, <a href="CodeLocalsShifter.html" title="interface in jdk.internal.classfile.components"><code>CodeLocalsShifter</code></a>
- and <a href="CodeRelabeler.html" title="interface in jdk.internal.classfile.components"><code>CodeRelabeler</code></a> into fully functional class instrumenting transformation:
+ Following snippet is sample composition of <a href="ClassRemapper.html" title="interface in jdk.internal.classfile.components"><code>ClassRemapper</code></a>, <a href="CodeLocalsShifter.html" title="interface in jdk.internal.classfile.components"><code>CodeLocalsShifter</code></a> and <a href="CodeRelabeler.html" title="interface in jdk.internal.classfile.components"><code>CodeRelabeler</code></a> into fully functional class
+ instrumenting transformation:
  
 <div class="snippet-container"><button class="copy snippet-copy" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy"></button>
 <pre class="snippet"><code class="language-java">byte[] classInstrumentation(ClassModel target, ClassModel instrumentor, Predicate&lt;MethodModel&gt; instrumentedMethodsFilter) {

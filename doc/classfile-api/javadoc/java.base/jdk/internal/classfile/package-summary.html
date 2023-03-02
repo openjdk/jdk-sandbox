@@ -172,19 +172,18 @@ for (ClassElement ce : cm) {
  
 <div class="snippet-container"><button class="copy snippet-copy" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../copy.svg" alt="Copy"></button>
 <pre class="snippet"><code class="language-java">ClassModel cm = Classfile.parse(bytes);
-Set&lt;ClassDesc&gt; dependencies = cm.elementStream()
-                                .filter(ce -&gt; ce instanceof MethodModel)
-                                .flatMap(ce -&gt; ((MethodModel) ce).elementStream())
-                                .filter(me -&gt; me instanceof CodeModel)
-                                .flatMap(me -&gt; ((CodeModel) me).elementStream())
-                                .&lt;ClassDesc&gt;mapMulti((xe, c) -&gt; {
-                                    switch (xe) {
-                                        case InvokeInstruction i -&gt; c.accept(i.owner().asSymbol());
-                                        case FieldInstruction i -&gt; c.accept(i.owner().asSymbol());
-                                        default -&gt; { }
-                                    }
-                                })
-                                .collect(toSet());
+Set&lt;ClassDesc&gt; dependencies =
+      cm.elementStream()
+        .flatMap(ce -&gt; ce instanceof MethodMethod mm ? mm.elementStream() : Stream.empty())
+        .flatMap(me -&gt; me instanceof CodeModel com ? com.elementStream() : Stream.empty())
+        .&lt;ClassDesc&gt;mapMulti((xe, c) -&gt; {
+            switch (xe) {
+                case InvokeInstruction i -&gt; c.accept(i.owner().asSymbol());
+                case FieldInstruction i -&gt; c.accept(i.owner().asSymbol());
+                default -&gt; { }
+            }
+        })
+        .collect(toSet());
 </code></pre>
 </div>
 
@@ -241,8 +240,10 @@ Set&lt;ClassDesc&gt; dependencies = cm.elementStream()
  <h3 id="custom-attributes-heading">Custom attributes</h3>
  Attributes are converted between their classfile form and their corresponding
  object form via an <a href="AttributeMapper.html" title="interface in jdk.internal.classfile"><code>AttributeMapper</code></a>.  An <code>
- AttributeMapper</code> provides the <a href="AttributeMapper.html#readAttribute(jdk.internal.classfile.AttributedElement,jdk.internal.classfile.ClassReader,int)"><code>AttributeMapper.readAttribute(AttributedElement, ClassReader, int)</code></a> method for mapping from the classfile format
- to an attribute instance, and the <a href="AttributeMapper.html#writeAttribute(jdk.internal.classfile.BufWriter,A)"><code>AttributeMapper.writeAttribute(jdk.internal.classfile.BufWriter, java.lang.Object)</code></a> method for mapping back to the classfile format.  It also
+ AttributeMapper</code> provides the
+ <a href="AttributeMapper.html#readAttribute(jdk.internal.classfile.AttributedElement,jdk.internal.classfile.ClassReader,int)"><code>AttributeMapper.readAttribute(AttributedElement, ClassReader, int)</code></a> method for mapping from the classfile format
+ to an attribute instance, and the
+ <a href="AttributeMapper.html#writeAttribute(jdk.internal.classfile.BufWriter,A)"><code>AttributeMapper.writeAttribute(jdk.internal.classfile.BufWriter, java.lang.Object)</code></a> method for mapping back to the classfile format.  It also
  contains metadata including the attribute name, the set of classfile entities
  where the attribute is applicable, and whether multiple attributes of the
  same kind are allowed on a single entity.
@@ -266,14 +267,21 @@ Set&lt;ClassDesc&gt; dependencies = cm.elementStream()
  static boolean options, as well as factories for more complex options,
  including:
  <ul>
-   <li><a href="Classfile.Option.html#generateStackmap(boolean)"><code>Classfile.Option.generateStackmap(boolean)</code></a> -- generate stackmaps (default is true)</li>
-   <li><a href="Classfile.Option.html#processDebug(boolean)"><code>Classfile.Option.processDebug(boolean)</code></a> -- processing of debug information, such as local variable metadata (default is true) </li>
-   <li><a href="Classfile.Option.html#processLineNumbers(boolean)"><code>Classfile.Option.processLineNumbers(boolean)</code></a> -- processing of line numbers (default is true) </li>
-   <li><a href="Classfile.Option.html#processUnknownAttributes(boolean)"><code>Classfile.Option.processUnknownAttributes(boolean)</code></a> -- processing of unrecognized attributes (default is true)</li>
-   <li><a href="Classfile.Option.html#constantPoolSharing(boolean)"><code>Classfile.Option.constantPoolSharing(boolean)</code></a>} -- share constant pool when transforming (default is true)</li>
-   <li><a href="Classfile.Option.html#classHierarchyResolver(jdk.internal.classfile.ClassHierarchyResolver)"><code>Classfile.Option.classHierarchyResolver(jdk.internal.classfile.ClassHierarchyResolver)</code></a> -- specify a custom class hierarchy
+   <li><a href="Classfile.Option.html#generateStackmap(boolean)"><code>Classfile.Option.generateStackmap(boolean)</code></a>
+ -- generate stackmaps (default is true)</li>
+   <li><a href="Classfile.Option.html#processDebug(boolean)"><code>Classfile.Option.processDebug(boolean)</code></a>
+ -- processing of debug information, such as local variable metadata (default is true) </li>
+   <li><a href="Classfile.Option.html#processLineNumbers(boolean)"><code>Classfile.Option.processLineNumbers(boolean)</code></a>
+ -- processing of line numbers (default is true) </li>
+   <li><a href="Classfile.Option.html#processUnknownAttributes(boolean)"><code>Classfile.Option.processUnknownAttributes(boolean)</code></a>
+ -- processing of unrecognized attributes (default is true)</li>
+   <li><a href="Classfile.Option.html#constantPoolSharing(boolean)"><code>Classfile.Option.constantPoolSharing(boolean)</code></a>}
+ -- share constant pool when transforming (default is true)</li>
+   <li><a href="Classfile.Option.html#classHierarchyResolver(jdk.internal.classfile.ClassHierarchyResolver)"><code>Classfile.Option.classHierarchyResolver(jdk.internal.classfile.ClassHierarchyResolver)</code></a>
+ -- specify a custom class hierarchy
  resolver used by stack map generation</li>
-   <li><a href="Classfile.Option.html#attributeMapper(java.util.function.Function)"><code>Classfile.Option.attributeMapper(java.util.function.Function)</code></a> -- specify format of custom attributes</li>
+   <li><a href="Classfile.Option.html#attributeMapper(java.util.function.Function)"><code>Classfile.Option.attributeMapper(java.util.function.Function)</code></a>
+ -- specify format of custom attributes</li>
  </ul>
  <p>
  Most options allow you to request that certain parts of the classfile be
@@ -325,8 +333,7 @@ Set&lt;ClassDesc&gt; dependencies = cm.elementStream()
  <p>
  Builders often support multiple ways of expressing the same entity at
  different levels of abstraction.  For example, the <code>invokevirtual</code>
- instruction invoking <code>println</code> could have been generated with <a href="CodeBuilder.html#invokevirtual(java.lang.constant.ClassDesc,java.lang.String,java.lang.constant.MethodTypeDesc)"><code>CodeBuilder.invokevirtual</code></a>, <a href="CodeBuilder.html#invokeInstruction(jdk.internal.classfile.Opcode,java.lang.constant.ClassDesc,java.lang.String,java.lang.constant.MethodTypeDesc,boolean)"><code>CodeBuilder.invokeInstruction</code></a>, or
- <a href="ClassfileBuilder.html#with(E)"><code>CodeBuilder.with</code></a>.
+ instruction invoking <code>println</code> could have been generated with <a href="CodeBuilder.html#invokevirtual(java.lang.constant.ClassDesc,java.lang.String,java.lang.constant.MethodTypeDesc)"><code>CodeBuilder.invokevirtual</code></a>, <a href="CodeBuilder.html#invokeInstruction(jdk.internal.classfile.Opcode,java.lang.constant.ClassDesc,java.lang.String,java.lang.constant.MethodTypeDesc,boolean)"><code>CodeBuilder.invokeInstruction</code></a>, or <a href="ClassfileBuilder.html#with(E)"><code>CodeBuilder.with</code></a>.
  <p>
  The convenience method <code>CodeBuilder.invokevirtual</code> behaves as if it calls
  the convenience method <code>CodeBuilder.invokeInstruction</code>, which in turn behaves
@@ -544,8 +551,8 @@ byte[] newBytes = Classfile.parse(bytes).transform(ct);
  corresponding builder (e.g., <a href="CodeBuilder.html#invokevirtual(java.lang.constant.ClassDesc,java.lang.String,java.lang.constant.MethodTypeDesc)"><code>CodeBuilder.invokevirtual(java.lang.constant.ClassDesc, java.lang.String, java.lang.constant.MethodTypeDesc)</code></a>).
  <p>
  Most symbolic information in elements is represented by constant pool entries
- (for example, the owner of a field is represented by a <a href="constantpool/ClassEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>ClassEntry</code></a>.) Factories and builders also accept nominal
- descriptors from <code>java.lang.constant</code> (e.g., <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link"><code>ClassDesc</code></a>.)
+ (for example, the owner of a field is represented by a <a href="constantpool/ClassEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>ClassEntry</code></a>.) Factories and builders also
+ accept nominal descriptors from <code>java.lang.constant</code> (e.g., <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link"><code>ClassDesc</code></a>.)
 
  <h2><a id="data_model"></a>Data model</h2>
  We define each kind of element by its name, an optional arity indicator (zero
@@ -679,7 +686,8 @@ PseudoInstruction =
 <div class="col-last even-row-color">&nbsp;</div>
 <div class="col-first odd-row-color"><a href="components/package-summary.html">jdk.internal.classfile.components</a></div>
 <div class="col-last odd-row-color">
-<div class="block">Specific components, transformations, and tools built on top of the Classfile API</div>
+<div class="block">Specific components, transformations, and tools built on top of the
+ Classfile API</div>
 </div>
 <div class="col-first even-row-color"><a href="constantpool/package-summary.html">jdk.internal.classfile.constantpool</a></div>
 <div class="col-last even-row-color">&nbsp;</div>

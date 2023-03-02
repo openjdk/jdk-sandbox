@@ -226,7 +226,7 @@ loadScripts(document, 'script');</script>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color"><code><a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a></code></div>
-<div class="col-second even-row-color"><span class="type-name-label">StackMapTableAttribute.ObjectVerificationTypeInfo.</span><code><a href="../../attribute/StackMapTableAttribute.ObjectVerificationTypeInfo.html#className()" class="member-name-link">className</a>()</code></div>
+<div class="col-second even-row-color"><span class="type-name-label">StackMapFrameInfo.ObjectVerificationTypeInfo.</span><code><a href="../../attribute/StackMapFrameInfo.ObjectVerificationTypeInfo.html#className()" class="member-name-link">className</a>()</code></div>
 <div class="col-last even-row-color">
 <div class="block">Returns the class of the value.</div>
 </div>
@@ -350,8 +350,8 @@ loadScripts(document, 'script');</script>
 <div class="col-last even-row-color">
 <div class="block">Returns a <code>PermittedSubclasses</code> attribute.</div>
 </div>
-<div class="col-first odd-row-color"><code>static <a href="../../attribute/StackMapTableAttribute.ObjectVerificationTypeInfo.html" title="interface in jdk.internal.classfile.attribute">StackMapTableAttribute.ObjectVerificationTypeInfo</a></code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">StackMapTableAttribute.ObjectVerificationTypeInfo.</span><code><a href="../../attribute/StackMapTableAttribute.ObjectVerificationTypeInfo.html#of(jdk.internal.classfile.constantpool.ClassEntry)" class="member-name-link">of</a><wbr>(<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&nbsp;className)</code></div>
+<div class="col-first odd-row-color"><code>static <a href="../../attribute/StackMapFrameInfo.ObjectVerificationTypeInfo.html" title="interface in jdk.internal.classfile.attribute">StackMapFrameInfo.ObjectVerificationTypeInfo</a></code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">StackMapFrameInfo.ObjectVerificationTypeInfo.</span><code><a href="../../attribute/StackMapFrameInfo.ObjectVerificationTypeInfo.html#of(jdk.internal.classfile.constantpool.ClassEntry)" class="member-name-link">of</a><wbr>(<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&nbsp;className)</code></div>
 <div class="col-last odd-row-color">&nbsp;</div>
 <div class="col-first even-row-color"><code><a href="../../attribute/ModuleAttribute.ModuleAttributeBuilder.html" title="interface in jdk.internal.classfile.attribute">ModuleAttribute.ModuleAttributeBuilder</a></code></div>
 <div class="col-second even-row-color"><span class="type-name-label">ModuleAttribute.ModuleAttributeBuilder.</span><code><a href="../../attribute/ModuleAttribute.ModuleAttributeBuilder.html#uses(jdk.internal.classfile.constantpool.ClassEntry)" class="member-name-link">uses</a><wbr>(<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&nbsp;uses)</code></div>
@@ -420,104 +420,28 @@ loadScripts(document, 'script');</script>
 <div class="block">Returns the class in which this member ref lives.</div>
 </div>
 </div>
-<div class="caption"><span>Methods in <a href="../package-summary.html">jdk.internal.classfile.constantpool</a> that return types with arguments of type <a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a></span></div>
-<div class="summary-table three-column-summary">
-<div class="table-header col-first">Modifier and Type</div>
-<div class="table-header col-second">Method</div>
-<div class="table-header col-last">Description</div>
-<div class="col-first even-row-color"><code>static <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;</code></div>
-<div class="col-second even-row-color"><span class="type-name-label">ClassEntry.</span><code><a href="../ClassEntry.html#adding(java.util.List,java.util.List)" class="member-name-link">adding</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;&nbsp;base,
- <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;&nbsp;additions)</code></div>
-<div class="col-last even-row-color">
-<div class="block">Return a <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link"><code>List</code></a> composed by appending the additions to the base list.</div>
-</div>
-<div class="col-first odd-row-color"><code>static <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;</code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">ClassEntry.</span><code><a href="../ClassEntry.html#adding(java.util.List,jdk.internal.classfile.constantpool.ClassEntry...)" class="member-name-link">adding</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;&nbsp;base,
- <a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>...&nbsp;additions)</code></div>
-<div class="col-last odd-row-color">
-<div class="block">Return a <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link"><code>List</code></a> composed by appending the additions to the base list.</div>
-</div>
-<div class="col-first even-row-color"><code>static <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;</code></div>
-<div class="col-second even-row-color"><span class="type-name-label">ClassEntry.</span><code><a href="../ClassEntry.html#addingSymbols(java.util.List,java.lang.constant.ClassDesc...)" class="member-name-link">addingSymbols</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;&nbsp;base,
- <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>...&nbsp;additions)</code></div>
-<div class="col-last even-row-color">
-<div class="block">Return a <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link"><code>List</code></a> composed by appending the additions to the base list.</div>
-</div>
-<div class="col-first odd-row-color"><code>static <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;</code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">ClassEntry.</span><code><a href="../ClassEntry.html#addingSymbols(java.util.List,java.util.List)" class="member-name-link">addingSymbols</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;&nbsp;base,
- <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&gt;&nbsp;additions)</code></div>
-<div class="col-last odd-row-color">
-<div class="block">Return a <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link"><code>List</code></a> composed by appending the additions to the base list.</div>
-</div>
-<div class="col-first even-row-color"><code>static <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;</code></div>
-<div class="col-second even-row-color"><span class="type-name-label">ClassEntry.</span><code><a href="../ClassEntry.html#deduplicate(java.util.List)" class="member-name-link">deduplicate</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;&nbsp;original)</code></div>
-<div class="col-last even-row-color">
-<div class="block">Remove duplicate <a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>ClassEntry</code></a> elements from the <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link"><code>List</code></a>.</div>
-</div>
-</div>
 <div class="caption"><span>Methods in <a href="../package-summary.html">jdk.internal.classfile.constantpool</a> with parameters of type <a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a></span></div>
 <div class="summary-table three-column-summary">
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color"><code>static <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;</code></div>
-<div class="col-second even-row-color"><span class="type-name-label">ClassEntry.</span><code><a href="../ClassEntry.html#adding(java.util.List,jdk.internal.classfile.constantpool.ClassEntry...)" class="member-name-link">adding</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;&nbsp;base,
- <a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>...&nbsp;additions)</code></div>
-<div class="col-last even-row-color">
-<div class="block">Return a <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link"><code>List</code></a> composed by appending the additions to the base list.</div>
-</div>
-<div class="col-first odd-row-color"><code><a href="../FieldRefEntry.html" title="interface in jdk.internal.classfile.constantpool">FieldRefEntry</a></code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">ConstantPoolBuilder.</span><code><a href="../ConstantPoolBuilder.html#fieldRefEntry(jdk.internal.classfile.constantpool.ClassEntry,jdk.internal.classfile.constantpool.NameAndTypeEntry)" class="member-name-link">fieldRefEntry</a><wbr>(<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&nbsp;owner,
+<div class="col-first even-row-color"><code><a href="../FieldRefEntry.html" title="interface in jdk.internal.classfile.constantpool">FieldRefEntry</a></code></div>
+<div class="col-second even-row-color"><span class="type-name-label">ConstantPoolBuilder.</span><code><a href="../ConstantPoolBuilder.html#fieldRefEntry(jdk.internal.classfile.constantpool.ClassEntry,jdk.internal.classfile.constantpool.NameAndTypeEntry)" class="member-name-link">fieldRefEntry</a><wbr>(<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&nbsp;owner,
  <a href="../NameAndTypeEntry.html" title="interface in jdk.internal.classfile.constantpool">NameAndTypeEntry</a>&nbsp;nameAndType)</code></div>
-<div class="col-last odd-row-color">
+<div class="col-last even-row-color">
 <div class="block">Returns A <a href="../FieldRefEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>FieldRefEntry</code></a> describing a field of a class.</div>
 </div>
-<div class="col-first even-row-color"><code><a href="../InterfaceMethodRefEntry.html" title="interface in jdk.internal.classfile.constantpool">InterfaceMethodRefEntry</a></code></div>
-<div class="col-second even-row-color"><span class="type-name-label">ConstantPoolBuilder.</span><code><a href="../ConstantPoolBuilder.html#interfaceMethodRefEntry(jdk.internal.classfile.constantpool.ClassEntry,jdk.internal.classfile.constantpool.NameAndTypeEntry)" class="member-name-link">interfaceMethodRefEntry</a><wbr>(<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&nbsp;owner,
+<div class="col-first odd-row-color"><code><a href="../InterfaceMethodRefEntry.html" title="interface in jdk.internal.classfile.constantpool">InterfaceMethodRefEntry</a></code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">ConstantPoolBuilder.</span><code><a href="../ConstantPoolBuilder.html#interfaceMethodRefEntry(jdk.internal.classfile.constantpool.ClassEntry,jdk.internal.classfile.constantpool.NameAndTypeEntry)" class="member-name-link">interfaceMethodRefEntry</a><wbr>(<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&nbsp;owner,
  <a href="../NameAndTypeEntry.html" title="interface in jdk.internal.classfile.constantpool">NameAndTypeEntry</a>&nbsp;nameAndType)</code></div>
-<div class="col-last even-row-color">
+<div class="col-last odd-row-color">
 <div class="block">Returns A <a href="../InterfaceMethodRefEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>InterfaceMethodRefEntry</code></a> describing a method of a class.</div>
 </div>
-<div class="col-first odd-row-color"><code><a href="../MethodRefEntry.html" title="interface in jdk.internal.classfile.constantpool">MethodRefEntry</a></code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">ConstantPoolBuilder.</span><code><a href="../ConstantPoolBuilder.html#methodRefEntry(jdk.internal.classfile.constantpool.ClassEntry,jdk.internal.classfile.constantpool.NameAndTypeEntry)" class="member-name-link">methodRefEntry</a><wbr>(<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&nbsp;owner,
+<div class="col-first even-row-color"><code><a href="../MethodRefEntry.html" title="interface in jdk.internal.classfile.constantpool">MethodRefEntry</a></code></div>
+<div class="col-second even-row-color"><span class="type-name-label">ConstantPoolBuilder.</span><code><a href="../ConstantPoolBuilder.html#methodRefEntry(jdk.internal.classfile.constantpool.ClassEntry,jdk.internal.classfile.constantpool.NameAndTypeEntry)" class="member-name-link">methodRefEntry</a><wbr>(<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&nbsp;owner,
  <a href="../NameAndTypeEntry.html" title="interface in jdk.internal.classfile.constantpool">NameAndTypeEntry</a>&nbsp;nameAndType)</code></div>
-<div class="col-last odd-row-color">
+<div class="col-last even-row-color">
 <div class="block">Returns A <a href="../MethodRefEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>MethodRefEntry</code></a> describing a method of a class.</div>
-</div>
-</div>
-<div class="caption"><span>Method parameters in <a href="../package-summary.html">jdk.internal.classfile.constantpool</a> with type arguments of type <a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a></span></div>
-<div class="summary-table three-column-summary">
-<div class="table-header col-first">Modifier and Type</div>
-<div class="table-header col-second">Method</div>
-<div class="table-header col-last">Description</div>
-<div class="col-first even-row-color"><code>static <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;</code></div>
-<div class="col-second even-row-color"><span class="type-name-label">ClassEntry.</span><code><a href="../ClassEntry.html#adding(java.util.List,java.util.List)" class="member-name-link">adding</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;&nbsp;base,
- <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;&nbsp;additions)</code></div>
-<div class="col-last even-row-color">
-<div class="block">Return a <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link"><code>List</code></a> composed by appending the additions to the base list.</div>
-</div>
-<div class="col-first odd-row-color"><code>static <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;</code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">ClassEntry.</span><code><a href="../ClassEntry.html#adding(java.util.List,jdk.internal.classfile.constantpool.ClassEntry...)" class="member-name-link">adding</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;&nbsp;base,
- <a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>...&nbsp;additions)</code></div>
-<div class="col-last odd-row-color">
-<div class="block">Return a <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link"><code>List</code></a> composed by appending the additions to the base list.</div>
-</div>
-<div class="col-first even-row-color"><code>static <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;</code></div>
-<div class="col-second even-row-color"><span class="type-name-label">ClassEntry.</span><code><a href="../ClassEntry.html#addingSymbols(java.util.List,java.lang.constant.ClassDesc...)" class="member-name-link">addingSymbols</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;&nbsp;base,
- <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>...&nbsp;additions)</code></div>
-<div class="col-last even-row-color">
-<div class="block">Return a <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link"><code>List</code></a> composed by appending the additions to the base list.</div>
-</div>
-<div class="col-first odd-row-color"><code>static <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;</code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">ClassEntry.</span><code><a href="../ClassEntry.html#addingSymbols(java.util.List,java.util.List)" class="member-name-link">addingSymbols</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;&nbsp;base,
- <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&gt;&nbsp;additions)</code></div>
-<div class="col-last odd-row-color">
-<div class="block">Return a <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link"><code>List</code></a> composed by appending the additions to the base list.</div>
-</div>
-<div class="col-first even-row-color"><code>static <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;</code></div>
-<div class="col-second even-row-color"><span class="type-name-label">ClassEntry.</span><code><a href="../ClassEntry.html#deduplicate(java.util.List)" class="member-name-link">deduplicate</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;&nbsp;original)</code></div>
-<div class="col-last even-row-color">
-<div class="block">Remove duplicate <a href="../ClassEntry.html" title="interface in jdk.internal.classfile.constantpool"><code>ClassEntry</code></a> elements from the <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link"><code>List</code></a>.</div>
 </div>
 </div>
 </section>
