@@ -375,7 +375,7 @@ byte[] newBytes = Classfile.build(classModel.thisClass().asSymbol(),
                                       for (ClassElement ce : classModel) {
                                           if (!(ce instanceof MethodModel mm
                                                 &amp;&amp; mm.methodName().stringValue().startsWith("debug")))
-                                          classBuilder.with(ce);
+                                              classBuilder.with(ce);
                                       }
                                   });
 </code></pre>
@@ -993,11 +993,12 @@ PseudoInstruction =
 </div>
 <div class="col-first even-row-color class-summary class-summary-tab1"><a href="Signature.TypeArg.html" title="interface in jdk.internal.classfile">Signature.TypeArg</a></div>
 <div class="col-last even-row-color class-summary class-summary-tab1">
-<div class="block">Models the signature of a type argument.</div>
+<div class="block">Models the type argument.</div>
 </div>
 <div class="col-first odd-row-color class-summary class-summary-tab3"><a href="Signature.TypeArg.WildcardIndicator.html" title="enum class in jdk.internal.classfile">Signature.TypeArg.WildcardIndicator</a></div>
 <div class="col-last odd-row-color class-summary class-summary-tab3">
-<div class="block">Indicator for whether a wildcard has no bound, an upper bound, or a lower bound</div>
+<div class="block">Indicator for whether a wildcard has default bound, no bound,
+ an upper bound, or a lower bound</div>
 </div>
 <div class="col-first even-row-color class-summary class-summary-tab1"><a href="Signature.TypeParam.html" title="interface in jdk.internal.classfile">Signature.TypeParam</a></div>
 <div class="col-last even-row-color class-summary class-summary-tab1">

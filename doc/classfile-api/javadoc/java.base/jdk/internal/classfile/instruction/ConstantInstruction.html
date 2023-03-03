@@ -101,7 +101,7 @@ extends <a href="../Instruction.html" title="interface in jdk.internal.classfile
 <span class="permits">permits <a href="ConstantInstruction.IntrinsicConstantInstruction.html" title="interface in jdk.internal.classfile.instruction">ConstantInstruction.IntrinsicConstantInstruction</a>, <a href="ConstantInstruction.ArgumentConstantInstruction.html" title="interface in jdk.internal.classfile.instruction">ConstantInstruction.ArgumentConstantInstruction</a>, <a href="ConstantInstruction.LoadConstantInstruction.html" title="interface in jdk.internal.classfile.instruction">ConstantInstruction.LoadConstantInstruction</a></span></div>
 <div class="block">Models a constant-load instruction in the <code>code</code> array of a <code>
  Code</code> attribute, including "intrinsic constant" instructions (e.g., <code>
- aload_0</code>), "argument constant" instructions (e.g., <code>bipush</code>), and "load
+ iconst_0</code>), "argument constant" instructions (e.g., <code>bipush</code>), and "load
  constant" instructions (e.g., <code>LDC</code>).  Corresponding opcodes will have
  a <code>kind</code> of <a href="../Opcode.Kind.html#CONSTANT"><code>Opcode.Kind.CONSTANT</code></a>.  Delivered as a <a href="../CodeElement.html" title="interface in jdk.internal.classfile"><code>CodeElement</code></a> when traversing the elements of a <a href="../CodeModel.html" title="interface in jdk.internal.classfile"><code>CodeModel</code></a>.</div>
 </section>
@@ -126,7 +126,7 @@ extends <a href="../Instruction.html" title="interface in jdk.internal.classfile
 <div class="col-second odd-row-color"><code><a href="ConstantInstruction.IntrinsicConstantInstruction.html" class="type-name-link" title="interface in jdk.internal.classfile.instruction">ConstantInstruction.IntrinsicConstantInstruction</a></code></div>
 <div class="col-last odd-row-color">
 <div class="block">Models an "intrinsic constant" instruction (e.g., <code>
- aload_0</code>).</div>
+ iconst_0</code>).</div>
 </div>
 <div class="col-first even-row-color"><code>static interface&nbsp;</code></div>
 <div class="col-second even-row-color"><code><a href="ConstantInstruction.LoadConstantInstruction.html" class="type-name-link" title="interface in jdk.internal.classfile.instruction">ConstantInstruction.LoadConstantInstruction</a></code></div>

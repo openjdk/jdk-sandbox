@@ -88,17 +88,12 @@ loadScripts(document, 'script');</script>
 </div>
 <section class="class-description" id="class-description">
 <dl class="notes">
-<dt>All Superinterfaces:</dt>
-<dd><code><a href="Signature.html" title="interface in jdk.internal.classfile">Signature</a></code>, <code><a href="Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a></code></dd>
-</dl>
-<dl class="notes">
 <dt>Enclosing interface:</dt>
 <dd><code><a href="Signature.html" title="interface in jdk.internal.classfile">Signature</a></code></dd>
 </dl>
 <hr>
-<div class="type-signature"><span class="modifiers">public static sealed interface </span><span class="element-name type-name-label">Signature.TypeArg</span><span class="extends-implements">
-extends <a href="Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a></span></div>
-<div class="block">Models the signature of a type argument.</div>
+<div class="type-signature"><span class="modifiers">public static sealed interface </span><span class="element-name type-name-label">Signature.TypeArg</span></div>
+<div class="block">Models the type argument.</div>
 </section>
 <section class="summary">
 <ul class="summary-list">
@@ -114,12 +109,10 @@ extends <a href="Signature.RefTypeSig.html" title="interface in jdk.internal.cla
 <div class="col-first even-row-color"><code>static enum&nbsp;</code></div>
 <div class="col-second even-row-color"><code><a href="Signature.TypeArg.WildcardIndicator.html" class="type-name-link" title="enum class in jdk.internal.classfile">Signature.TypeArg.WildcardIndicator</a></code></div>
 <div class="col-last even-row-color">
-<div class="block">Indicator for whether a wildcard has no bound, an upper bound, or a lower bound</div>
+<div class="block">Indicator for whether a wildcard has default bound, no bound,
+ an upper bound, or a lower bound</div>
 </div>
 </div>
-<div class="inherited-list">
-<h2 id="nested-classes-inherited-from-class-jdk.internal.classfile.Signature">Nested classes/interfaces inherited from interface&nbsp;jdk.internal.classfile.<a href="Signature.html" title="interface in jdk.internal.classfile">Signature</a></h2>
-<code><a href="Signature.ArrayTypeSig.html" title="interface in jdk.internal.classfile">Signature.ArrayTypeSig</a>, <a href="Signature.BaseTypeSig.html" title="interface in jdk.internal.classfile">Signature.BaseTypeSig</a>, <a href="Signature.ClassTypeSig.html" title="interface in jdk.internal.classfile">Signature.ClassTypeSig</a>, <a href="Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a>, <a href="Signature.ThrowableSig.html" title="interface in jdk.internal.classfile">Signature.ThrowableSig</a>, <a href="Signature.TypeArg.html" title="interface in jdk.internal.classfile">Signature.TypeArg</a>, <a href="Signature.TypeParam.html" title="interface in jdk.internal.classfile">Signature.TypeParam</a>, <a href="Signature.TypeVarSig.html" title="interface in jdk.internal.classfile">Signature.TypeVarSig</a></code></div>
 </section>
 </li>
 <!-- ========== METHOD SUMMARY =========== -->
@@ -141,17 +134,28 @@ extends <a href="Signature.RefTypeSig.html" title="interface in jdk.internal.cla
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1"><code>static <a href="Signature.TypeArg.html" title="interface in jdk.internal.classfile">Signature.TypeArg</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#extendsOf(jdk.internal.classfile.Signature.RefTypeSig)" class="member-name-link">extendsOf</a><wbr>(<a href="Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a>&nbsp;boundType)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1">
-<div class="block">Returns a signature for an upper-bounded wildcard.</div>
+<div class="block">Returns an upper-bounded type arg.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1"><code>static <a href="Signature.TypeArg.html" title="interface in jdk.internal.classfile">Signature.TypeArg</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(jdk.internal.classfile.Signature.RefTypeSig)" class="member-name-link">of</a><wbr>(<a href="Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a>&nbsp;boundType)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1">
+<div class="block">Returns a bounded type arg.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1"><code>static <a href="Signature.TypeArg.html" title="interface in jdk.internal.classfile">Signature.TypeArg</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(jdk.internal.classfile.Signature.TypeArg.WildcardIndicator,java.util.Optional)" class="member-name-link">of</a><wbr>(<a href="Signature.TypeArg.WildcardIndicator.html" title="enum class in jdk.internal.classfile">Signature.TypeArg.WildcardIndicator</a>&nbsp;wildcard,
+ <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a>&gt;&nbsp;boundType)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1">
+<div class="block">Returns a bounded type arg.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1"><code>static <a href="Signature.TypeArg.html" title="interface in jdk.internal.classfile">Signature.TypeArg</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#superOf(jdk.internal.classfile.Signature.RefTypeSig)" class="member-name-link">superOf</a><wbr>(<a href="Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a>&nbsp;boundType)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1">
-<div class="block">Returns a signature for a lower-bounded wildcard.</div>
+<div class="block">Returns a lower-bounded type arg.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1"><code>static <a href="Signature.TypeArg.html" title="interface in jdk.internal.classfile">Signature.TypeArg</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#unbounded()" class="member-name-link">unbounded</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1">
-<div class="block">Returns a signature for an unbounded wildcard.</div>
+<div class="block">Returns an unbounded type arg.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="Signature.TypeArg.WildcardIndicator.html" title="enum class in jdk.internal.classfile">Signature.TypeArg.WildcardIndicator</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#wildcardIndicator()" class="member-name-link">wildcardIndicator</a>()</code></div>
@@ -161,9 +165,6 @@ extends <a href="Signature.RefTypeSig.html" title="interface in jdk.internal.cla
 </div>
 </div>
 </div>
-<div class="inherited-list">
-<h3 id="methods-inherited-from-class-jdk.internal.classfile.Signature">Methods inherited from interface&nbsp;jdk.internal.classfile.<a href="Signature.html" title="interface in jdk.internal.classfile">Signature</a></h3>
-<code><a href="Signature.html#signatureString()">signatureString</a></code></div>
 </section>
 </li>
 </ul>
@@ -198,13 +199,26 @@ extends <a href="Signature.RefTypeSig.html" title="interface in jdk.internal.cla
 </section>
 </li>
 <li>
+<section class="detail" id="of(jdk.internal.classfile.Signature.RefTypeSig)">
+<h3>of</h3>
+<div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="Signature.TypeArg.html" title="interface in jdk.internal.classfile">Signature.TypeArg</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a>&nbsp;boundType)</span></div>
+<div class="block">Returns a bounded type arg.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>boundType</code> - the bound</dd>
+<dt>Returns:</dt>
+<dd>a bounded type arg</dd>
+</dl>
+</section>
+</li>
+<li>
 <section class="detail" id="unbounded()">
 <h3>unbounded</h3>
 <div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="Signature.TypeArg.html" title="interface in jdk.internal.classfile">Signature.TypeArg</a></span>&nbsp;<span class="element-name">unbounded</span>()</div>
-<div class="block">Returns a signature for an unbounded wildcard.</div>
+<div class="block">Returns an unbounded type arg.</div>
 <dl class="notes">
 <dt>Returns:</dt>
-<dd>a signature for an unbounded wildcard</dd>
+<dd>an unbounded type arg</dd>
 </dl>
 </section>
 </li>
@@ -212,12 +226,12 @@ extends <a href="Signature.RefTypeSig.html" title="interface in jdk.internal.cla
 <section class="detail" id="extendsOf(jdk.internal.classfile.Signature.RefTypeSig)">
 <h3>extendsOf</h3>
 <div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="Signature.TypeArg.html" title="interface in jdk.internal.classfile">Signature.TypeArg</a></span>&nbsp;<span class="element-name">extendsOf</span><wbr><span class="parameters">(<a href="Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a>&nbsp;boundType)</span></div>
-<div class="block">Returns a signature for an upper-bounded wildcard.</div>
+<div class="block">Returns an upper-bounded type arg.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>boundType</code> - the upper bound</dd>
 <dt>Returns:</dt>
-<dd>a signature for an upper-bounded wildcard</dd>
+<dd>an upper-bounded type arg</dd>
 </dl>
 </section>
 </li>
@@ -225,12 +239,27 @@ extends <a href="Signature.RefTypeSig.html" title="interface in jdk.internal.cla
 <section class="detail" id="superOf(jdk.internal.classfile.Signature.RefTypeSig)">
 <h3>superOf</h3>
 <div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="Signature.TypeArg.html" title="interface in jdk.internal.classfile">Signature.TypeArg</a></span>&nbsp;<span class="element-name">superOf</span><wbr><span class="parameters">(<a href="Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a>&nbsp;boundType)</span></div>
-<div class="block">Returns a signature for a lower-bounded wildcard.</div>
+<div class="block">Returns a lower-bounded type arg.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>boundType</code> - the lower bound</dd>
 <dt>Returns:</dt>
-<dd>a signature for a lower-bounded wildcard</dd>
+<dd>a lower-bounded type arg</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="of(jdk.internal.classfile.Signature.TypeArg.WildcardIndicator,java.util.Optional)">
+<h3>of</h3>
+<div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="Signature.TypeArg.html" title="interface in jdk.internal.classfile">Signature.TypeArg</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="Signature.TypeArg.WildcardIndicator.html" title="enum class in jdk.internal.classfile">Signature.TypeArg.WildcardIndicator</a>&nbsp;wildcard,
+ <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a>&gt;&nbsp;boundType)</span></div>
+<div class="block">Returns a bounded type arg.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>wildcard</code> - the wild card</dd>
+<dd><code>boundType</code> - optional bound type</dd>
+<dt>Returns:</dt>
+<dd>a bounded type arg</dd>
 </dl>
 </section>
 </li>

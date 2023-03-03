@@ -1145,7 +1145,7 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Models a constant-load instruction in the <code>code</code> array of a <code>
  Code</code> attribute, including "intrinsic constant" instructions (e.g., <code>
- aload_0</code>), "argument constant" instructions (e.g., <code>bipush</code>), and "load
+ iconst_0</code>), "argument constant" instructions (e.g., <code>bipush</code>), and "load
  constant" instructions (e.g., <code>LDC</code>).</div>
 </dd>
 <dt><a href="java.base/jdk/internal/classfile/instruction/ConstantInstruction.ArgumentConstantInstruction.html" class="type-name-link" title="interface in jdk.internal.classfile.instruction">ConstantInstruction.ArgumentConstantInstruction</a> - Interface in <a href="java.base/jdk/internal/classfile/instruction/package-summary.html">jdk.internal.classfile.instruction</a></dt>
@@ -1156,7 +1156,7 @@ loadScripts(document, 'script');</script>
 <dt><a href="java.base/jdk/internal/classfile/instruction/ConstantInstruction.IntrinsicConstantInstruction.html" class="type-name-link" title="interface in jdk.internal.classfile.instruction">ConstantInstruction.IntrinsicConstantInstruction</a> - Interface in <a href="java.base/jdk/internal/classfile/instruction/package-summary.html">jdk.internal.classfile.instruction</a></dt>
 <dd>
 <div class="block">Models an "intrinsic constant" instruction (e.g., <code>
- aload_0</code>).</div>
+ iconst_0</code>).</div>
 </dd>
 <dt><a href="java.base/jdk/internal/classfile/instruction/ConstantInstruction.LoadConstantInstruction.html" class="type-name-link" title="interface in jdk.internal.classfile.instruction">ConstantInstruction.LoadConstantInstruction</a> - Interface in <a href="java.base/jdk/internal/classfile/instruction/package-summary.html">jdk.internal.classfile.instruction</a></dt>
 <dd>
@@ -1390,6 +1390,8 @@ loadScripts(document, 'script');</script>
 <dt><a href="java.base/jdk/internal/classfile/Opcode.html#DDIV" class="member-name-link">DDIV</a> - Enum constant in enum class jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Opcode.html" title="enum class in jdk.internal.classfile">Opcode</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="java.base/jdk/internal/classfile/Classfile.html#DDIV" class="member-name-link">DDIV</a> - Static variable in class jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Classfile.html" title="class in jdk.internal.classfile">Classfile</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="java.base/jdk/internal/classfile/Signature.TypeArg.WildcardIndicator.html#DEFAULT" class="member-name-link">DEFAULT</a> - Enum constant in enum class jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Signature.TypeArg.WildcardIndicator.html" title="enum class in jdk.internal.classfile">Signature.TypeArg.WildcardIndicator</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="java.base/jdk/internal/classfile/Classfile.html#DEFAULT_CLASS_FLAGS" class="member-name-link">DEFAULT_CLASS_FLAGS</a> - Static variable in class jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Classfile.html" title="class in jdk.internal.classfile">Classfile</a></dt>
 <dd>&nbsp;</dd>
@@ -1808,7 +1810,7 @@ loadScripts(document, 'script');</script>
 <dd>&nbsp;</dd>
 <dt><a href="java.base/jdk/internal/classfile/Signature.TypeArg.html#extendsOf(jdk.internal.classfile.Signature.RefTypeSig)" class="member-name-link">extendsOf(Signature.RefTypeSig)</a> - Static method in interface jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Signature.TypeArg.html" title="interface in jdk.internal.classfile">Signature.TypeArg</a></dt>
 <dd>
-<div class="block">Returns a signature for an upper-bounded wildcard.</div>
+<div class="block">Returns an upper-bounded type arg.</div>
 </dd>
 </dl>
 <h2 class="title" id="I:F">F</h2>
@@ -2527,8 +2529,6 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">The given local variable must be at index in the local variable array of the current frame.</div>
 </dd>
-<dt><a href="java.base/jdk/internal/classfile/Signature.TypeArg.WildcardIndicator.html#indicator" class="member-name-link">indicator</a> - Variable in enum class jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Signature.TypeArg.WildcardIndicator.html" title="enum class in jdk.internal.classfile">Signature.TypeArg.WildcardIndicator</a></dt>
-<dd>&nbsp;</dd>
 <dt><a href="java.base/jdk/internal/classfile/CodeBuilder.html#ineg()" class="member-name-link">ineg()</a> - Method in interface jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/CodeBuilder.html" title="interface in jdk.internal.classfile">CodeBuilder</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="java.base/jdk/internal/classfile/Opcode.html#INEG" class="member-name-link">INEG</a> - Enum constant in enum class jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Opcode.html" title="enum class in jdk.internal.classfile">Opcode</a></dt>
@@ -3022,7 +3022,9 @@ loadScripts(document, 'script');</script>
  variable is in scope..</div>
 </dd>
 <dt><a href="java.base/jdk/internal/classfile/instruction/LineNumber.html#line()" class="member-name-link">line()</a> - Method in interface jdk.internal.classfile.instruction.<a href="java.base/jdk/internal/classfile/instruction/LineNumber.html" title="interface in jdk.internal.classfile.instruction">LineNumber</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block">Returns the line number.</div>
+</dd>
 <dt><a href="java.base/jdk/internal/classfile/Attributes.html#LINE_NUMBER_TABLE" class="member-name-link">LINE_NUMBER_TABLE</a> - Static variable in class jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Attributes.html" title="class in jdk.internal.classfile">Attributes</a></dt>
 <dd>
 <div class="block">Attribute mapper for the <code>LineNumberTable</code> attribute</div>
@@ -3948,6 +3950,10 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Returns a <code>ModuleResolution</code> attribute.</div>
 </dd>
+<dt><a href="java.base/jdk/internal/classfile/instruction/LineNumber.html#of(int)" class="member-name-link">of(int)</a> - Static method in interface jdk.internal.classfile.instruction.<a href="java.base/jdk/internal/classfile/instruction/LineNumber.html" title="interface in jdk.internal.classfile.instruction">LineNumber</a></dt>
+<dd>
+<div class="block">Returns a line number pseudo-instruction.</div>
+</dd>
 <dt><a href="java.base/jdk/internal/classfile/attribute/LineNumberInfo.html#of(int,int)" class="member-name-link">of(int, int)</a> - Static method in interface jdk.internal.classfile.attribute.<a href="java.base/jdk/internal/classfile/attribute/LineNumberInfo.html" title="interface in jdk.internal.classfile.attribute">LineNumberInfo</a></dt>
 <dd>
 <div class="block">Returns a line number description.</div>
@@ -3967,6 +3973,22 @@ loadScripts(document, 'script');</script>
 <dt><a href="java.base/jdk/internal/classfile/instruction/TableSwitchInstruction.html#of(int,int,jdk.internal.classfile.Label,java.util.List)" class="member-name-link">of(int, int, Label, List&lt;SwitchCase&gt;)</a> - Static method in interface jdk.internal.classfile.instruction.<a href="java.base/jdk/internal/classfile/instruction/TableSwitchInstruction.html" title="interface in jdk.internal.classfile.instruction">TableSwitchInstruction</a></dt>
 <dd>
 <div class="block">Returns a table switch instruction.</div>
+</dd>
+<dt><a href="java.base/jdk/internal/classfile/instruction/LocalVariable.html#of(int,java.lang.String,java.lang.constant.ClassDesc,jdk.internal.classfile.Label,jdk.internal.classfile.Label)" class="member-name-link">of(int, String, ClassDesc, Label, Label)</a> - Static method in interface jdk.internal.classfile.instruction.<a href="java.base/jdk/internal/classfile/instruction/LocalVariable.html" title="interface in jdk.internal.classfile.instruction">LocalVariable</a></dt>
+<dd>
+<div class="block">Returns a local variable pseudo-instruction.</div>
+</dd>
+<dt><a href="java.base/jdk/internal/classfile/instruction/LocalVariableType.html#of(int,java.lang.String,jdk.internal.classfile.Signature,jdk.internal.classfile.Label,jdk.internal.classfile.Label)" class="member-name-link">of(int, String, Signature, Label, Label)</a> - Static method in interface jdk.internal.classfile.instruction.<a href="java.base/jdk/internal/classfile/instruction/LocalVariableType.html" title="interface in jdk.internal.classfile.instruction">LocalVariableType</a></dt>
+<dd>
+<div class="block">Returns a local variable type pseudo-instruction.</div>
+</dd>
+<dt><a href="java.base/jdk/internal/classfile/instruction/LocalVariable.html#of(int,jdk.internal.classfile.constantpool.Utf8Entry,jdk.internal.classfile.constantpool.Utf8Entry,jdk.internal.classfile.Label,jdk.internal.classfile.Label)" class="member-name-link">of(int, Utf8Entry, Utf8Entry, Label, Label)</a> - Static method in interface jdk.internal.classfile.instruction.<a href="java.base/jdk/internal/classfile/instruction/LocalVariable.html" title="interface in jdk.internal.classfile.instruction">LocalVariable</a></dt>
+<dd>
+<div class="block">Returns a local variable pseudo-instruction.</div>
+</dd>
+<dt><a href="java.base/jdk/internal/classfile/instruction/LocalVariableType.html#of(int,jdk.internal.classfile.constantpool.Utf8Entry,jdk.internal.classfile.constantpool.Utf8Entry,jdk.internal.classfile.Label,jdk.internal.classfile.Label)" class="member-name-link">of(int, Utf8Entry, Utf8Entry, Label, Label)</a> - Static method in interface jdk.internal.classfile.instruction.<a href="java.base/jdk/internal/classfile/instruction/LocalVariableType.html" title="interface in jdk.internal.classfile.instruction">LocalVariableType</a></dt>
+<dd>
+<div class="block">Returns a local variable type pseudo-instruction.</div>
 </dd>
 <dt><a href="java.base/jdk/internal/classfile/instruction/SwitchCase.html#of(int,jdk.internal.classfile.Label)" class="member-name-link">of(int, Label)</a> - Static method in interface jdk.internal.classfile.instruction.<a href="java.base/jdk/internal/classfile/instruction/SwitchCase.html" title="interface in jdk.internal.classfile.instruction">SwitchCase</a></dt>
 <dd>
@@ -4020,7 +4042,7 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Returns an annotation.</div>
 </dd>
-<dt><a href="java.base/jdk/internal/classfile/Signature.ClassTypeSig.html#of(java.lang.constant.ClassDesc,jdk.internal.classfile.Signature...)" class="member-name-link">of(ClassDesc, Signature...)</a> - Static method in interface jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Signature.ClassTypeSig.html" title="interface in jdk.internal.classfile">Signature.ClassTypeSig</a></dt>
+<dt><a href="java.base/jdk/internal/classfile/Signature.ClassTypeSig.html#of(java.lang.constant.ClassDesc,jdk.internal.classfile.Signature.TypeArg...)" class="member-name-link">of(ClassDesc, Signature.TypeArg...)</a> - Static method in interface jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Signature.ClassTypeSig.html" title="interface in jdk.internal.classfile">Signature.ClassTypeSig</a></dt>
 <dd>
 <div class="block">Returns a class type signature.</div>
 </dd>
@@ -4086,13 +4108,13 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Returns a <code>ModuleHashes</code> attribute.</div>
 </dd>
-<dt><a href="java.base/jdk/internal/classfile/Signature.ClassTypeSig.html#of(java.lang.String,jdk.internal.classfile.Signature...)" class="member-name-link">of(String, Signature...)</a> - Static method in interface jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Signature.ClassTypeSig.html" title="interface in jdk.internal.classfile">Signature.ClassTypeSig</a></dt>
-<dd>
-<div class="block">Returns a class type signature.</div>
-</dd>
 <dt><a href="java.base/jdk/internal/classfile/Signature.TypeParam.html#of(java.lang.String,jdk.internal.classfile.Signature.RefTypeSig,jdk.internal.classfile.Signature.RefTypeSig...)" class="member-name-link">of(String, Signature.RefTypeSig, Signature.RefTypeSig...)</a> - Static method in interface jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Signature.TypeParam.html" title="interface in jdk.internal.classfile">Signature.TypeParam</a></dt>
 <dd>
 <div class="block">Returns a signature for a type parameter.</div>
+</dd>
+<dt><a href="java.base/jdk/internal/classfile/Signature.ClassTypeSig.html#of(java.lang.String,jdk.internal.classfile.Signature.TypeArg...)" class="member-name-link">of(String, Signature.TypeArg...)</a> - Static method in interface jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Signature.ClassTypeSig.html" title="interface in jdk.internal.classfile">Signature.ClassTypeSig</a></dt>
+<dd>
+<div class="block">Returns a class type signature.</div>
 </dd>
 <dt><a href="java.base/jdk/internal/classfile/ClassHierarchyResolver.html#of(java.util.Collection,java.util.Map)" class="member-name-link">of(Collection&lt;ClassDesc&gt;, Map&lt;ClassDesc, ClassDesc&gt;)</a> - Static method in interface jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/ClassHierarchyResolver.html" title="interface in jdk.internal.classfile">ClassHierarchyResolver</a></dt>
 <dd>
@@ -4465,6 +4487,10 @@ loadScripts(document, 'script');</script>
 </dd>
 <dt><a href="java.base/jdk/internal/classfile/TypeAnnotation.LocalVarTargetInfo.html#of(jdk.internal.classfile.Label,jdk.internal.classfile.Label,int)" class="member-name-link">of(Label, Label, int)</a> - Static method in interface jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/TypeAnnotation.LocalVarTargetInfo.html" title="interface in jdk.internal.classfile">TypeAnnotation.LocalVarTargetInfo</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="java.base/jdk/internal/classfile/instruction/CharacterRange.html#of(jdk.internal.classfile.Label,jdk.internal.classfile.Label,int,int,int)" class="member-name-link">of(Label, Label, int, int, int)</a> - Static method in interface jdk.internal.classfile.instruction.<a href="java.base/jdk/internal/classfile/instruction/CharacterRange.html" title="interface in jdk.internal.classfile.instruction">CharacterRange</a></dt>
+<dd>
+<div class="block">Returns a character range pseudo-instruction.</div>
+</dd>
 <dt><a href="java.base/jdk/internal/classfile/instruction/ExceptionCatch.html#of(jdk.internal.classfile.Label,jdk.internal.classfile.Label,jdk.internal.classfile.Label)" class="member-name-link">of(Label, Label, Label)</a> - Static method in interface jdk.internal.classfile.instruction.<a href="java.base/jdk/internal/classfile/instruction/ExceptionCatch.html" title="interface in jdk.internal.classfile.instruction">ExceptionCatch</a></dt>
 <dd>
 <div class="block">Returns an exception table pseudo-instruction for an unconditional handler.</div>
@@ -4557,16 +4583,24 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Returns a signature for an array type.</div>
 </dd>
-<dt><a href="java.base/jdk/internal/classfile/Signature.ClassTypeSig.html#of(jdk.internal.classfile.Signature.ClassTypeSig,java.lang.constant.ClassDesc,jdk.internal.classfile.Signature...)" class="member-name-link">of(Signature.ClassTypeSig, ClassDesc, Signature...)</a> - Static method in interface jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Signature.ClassTypeSig.html" title="interface in jdk.internal.classfile">Signature.ClassTypeSig</a></dt>
+<dt><a href="java.base/jdk/internal/classfile/Signature.ClassTypeSig.html#of(jdk.internal.classfile.Signature.ClassTypeSig,java.lang.constant.ClassDesc,jdk.internal.classfile.Signature.TypeArg...)" class="member-name-link">of(Signature.ClassTypeSig, ClassDesc, Signature.TypeArg...)</a> - Static method in interface jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Signature.ClassTypeSig.html" title="interface in jdk.internal.classfile">Signature.ClassTypeSig</a></dt>
 <dd>
 <div class="block">Returns a class type signature for an inner class.</div>
 </dd>
-<dt><a href="java.base/jdk/internal/classfile/Signature.ClassTypeSig.html#of(jdk.internal.classfile.Signature.ClassTypeSig,java.lang.String,jdk.internal.classfile.Signature...)" class="member-name-link">of(Signature.ClassTypeSig, String, Signature...)</a> - Static method in interface jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Signature.ClassTypeSig.html" title="interface in jdk.internal.classfile">Signature.ClassTypeSig</a></dt>
+<dt><a href="java.base/jdk/internal/classfile/Signature.ClassTypeSig.html#of(jdk.internal.classfile.Signature.ClassTypeSig,java.lang.String,jdk.internal.classfile.Signature.TypeArg...)" class="member-name-link">of(Signature.ClassTypeSig, String, Signature.TypeArg...)</a> - Static method in interface jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Signature.ClassTypeSig.html" title="interface in jdk.internal.classfile">Signature.ClassTypeSig</a></dt>
 <dd>
 <div class="block">Returns a class type signature for an inner class.</div>
+</dd>
+<dt><a href="java.base/jdk/internal/classfile/Signature.TypeArg.html#of(jdk.internal.classfile.Signature.RefTypeSig)" class="member-name-link">of(Signature.RefTypeSig)</a> - Static method in interface jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Signature.TypeArg.html" title="interface in jdk.internal.classfile">Signature.TypeArg</a></dt>
+<dd>
+<div class="block">Returns a bounded type arg.</div>
 </dd>
 <dt><a href="java.base/jdk/internal/classfile/ClassSignature.html#of(jdk.internal.classfile.Signature.RefTypeSig,jdk.internal.classfile.Signature.RefTypeSig...)" class="member-name-link">of(Signature.RefTypeSig, Signature.RefTypeSig...)</a> - Static method in interface jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/ClassSignature.html" title="interface in jdk.internal.classfile">ClassSignature</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="java.base/jdk/internal/classfile/Signature.TypeArg.html#of(jdk.internal.classfile.Signature.TypeArg.WildcardIndicator,java.util.Optional)" class="member-name-link">of(Signature.TypeArg.WildcardIndicator, Optional&lt;Signature.RefTypeSig&gt;)</a> - Static method in interface jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Signature.TypeArg.html" title="interface in jdk.internal.classfile">Signature.TypeArg</a></dt>
+<dd>
+<div class="block">Returns a bounded type arg.</div>
+</dd>
 <dt><a href="java.base/jdk/internal/classfile/MethodSignature.html#of(jdk.internal.classfile.Signature,jdk.internal.classfile.Signature...)" class="member-name-link">of(Signature, Signature...)</a> - Static method in interface jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/MethodSignature.html" title="interface in jdk.internal.classfile">MethodSignature</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="java.base/jdk/internal/classfile/attribute/RuntimeInvisibleTypeAnnotationsAttribute.html#of(jdk.internal.classfile.TypeAnnotation...)" class="member-name-link">of(TypeAnnotation...)</a> - Static method in interface jdk.internal.classfile.attribute.<a href="java.base/jdk/internal/classfile/attribute/RuntimeInvisibleTypeAnnotationsAttribute.html" title="interface in jdk.internal.classfile.attribute">RuntimeInvisibleTypeAnnotationsAttribute</a></dt>
@@ -5525,11 +5559,12 @@ loadScripts(document, 'script');</script>
 </dd>
 <dt><a href="java.base/jdk/internal/classfile/Signature.TypeArg.html" class="type-name-link" title="interface in jdk.internal.classfile">Signature.TypeArg</a> - Interface in <a href="java.base/jdk/internal/classfile/package-summary.html">jdk.internal.classfile</a></dt>
 <dd>
-<div class="block">Models the signature of a type argument.</div>
+<div class="block">Models the type argument.</div>
 </dd>
 <dt><a href="java.base/jdk/internal/classfile/Signature.TypeArg.WildcardIndicator.html" class="type-name-link" title="enum class in jdk.internal.classfile">Signature.TypeArg.WildcardIndicator</a> - Enum Class in <a href="java.base/jdk/internal/classfile/package-summary.html">jdk.internal.classfile</a></dt>
 <dd>
-<div class="block">Indicator for whether a wildcard has no bound, an upper bound, or a lower bound</div>
+<div class="block">Indicator for whether a wildcard has default bound, no bound,
+ an upper bound, or a lower bound</div>
 </dd>
 <dt><a href="java.base/jdk/internal/classfile/Signature.TypeParam.html" class="type-name-link" title="interface in jdk.internal.classfile">Signature.TypeParam</a> - Interface in <a href="java.base/jdk/internal/classfile/package-summary.html">jdk.internal.classfile</a></dt>
 <dd>
@@ -5811,7 +5846,7 @@ loadScripts(document, 'script');</script>
 </dd>
 <dt><a href="java.base/jdk/internal/classfile/Signature.TypeArg.html#superOf(jdk.internal.classfile.Signature.RefTypeSig)" class="member-name-link">superOf(Signature.RefTypeSig)</a> - Static method in interface jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Signature.TypeArg.html" title="interface in jdk.internal.classfile">Signature.TypeArg</a></dt>
 <dd>
-<div class="block">Returns a signature for a lower-bounded wildcard.</div>
+<div class="block">Returns a lower-bounded type arg.</div>
 </dd>
 <dt><a href="java.base/jdk/internal/classfile/TypeAnnotation.SupertypeTarget.html#supertypeIndex()" class="member-name-link">supertypeIndex()</a> - Method in interface jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/TypeAnnotation.SupertypeTarget.html" title="interface in jdk.internal.classfile">TypeAnnotation.SupertypeTarget</a></dt>
 <dd>
@@ -6100,7 +6135,7 @@ loadScripts(document, 'script');</script>
 </dd>
 <dt><a href="java.base/jdk/internal/classfile/CodeBuilder.html#transforming(jdk.internal.classfile.CodeTransform,java.util.function.Consumer)" class="member-name-link">transforming(CodeTransform, Consumer&lt;CodeBuilder&gt;)</a> - Method in interface jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/CodeBuilder.html" title="interface in jdk.internal.classfile">CodeBuilder</a></dt>
 <dd>
-<div class="block">Builds code fragment generated by the handler and synchronously transformed.</div>
+<div class="block">Apply a transform to the code built by a handler, directing results to this builder.</div>
 </dd>
 <dt><a href="java.base/jdk/internal/classfile/MethodTransform.html#transformingCode(jdk.internal.classfile.CodeTransform)" class="member-name-link">transformingCode(CodeTransform)</a> - Static method in interface jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/MethodTransform.html" title="interface in jdk.internal.classfile">MethodTransform</a></dt>
 <dd>
@@ -6404,7 +6439,7 @@ loadScripts(document, 'script');</script>
 <dl class="index">
 <dt><a href="java.base/jdk/internal/classfile/Signature.TypeArg.html#unbounded()" class="member-name-link">unbounded()</a> - Static method in interface jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Signature.TypeArg.html" title="interface in jdk.internal.classfile">Signature.TypeArg</a></dt>
 <dd>
-<div class="block">Returns a signature for an unbounded wildcard.</div>
+<div class="block">Returns an unbounded type arg.</div>
 </dd>
 <dt><a href="java.base/jdk/internal/classfile/Signature.TypeArg.WildcardIndicator.html#UNBOUNDED" class="member-name-link">UNBOUNDED</a> - Enum constant in enum class jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Signature.TypeArg.WildcardIndicator.html" title="enum class in jdk.internal.classfile">Signature.TypeArg.WildcardIndicator</a></dt>
 <dd>&nbsp;</dd>

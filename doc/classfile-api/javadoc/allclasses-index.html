@@ -370,7 +370,7 @@ loadScripts(document, 'script');</script>
 <div class="col-last odd-row-color all-classes-table all-classes-table-tab1">
 <div class="block">Models a constant-load instruction in the <code>code</code> array of a <code>
  Code</code> attribute, including "intrinsic constant" instructions (e.g., <code>
- aload_0</code>), "argument constant" instructions (e.g., <code>bipush</code>), and "load
+ iconst_0</code>), "argument constant" instructions (e.g., <code>bipush</code>), and "load
  constant" instructions (e.g., <code>LDC</code>).</div>
 </div>
 <div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="java.base/jdk/internal/classfile/instruction/ConstantInstruction.ArgumentConstantInstruction.html" title="interface in jdk.internal.classfile.instruction">ConstantInstruction.ArgumentConstantInstruction</a></div>
@@ -381,7 +381,7 @@ loadScripts(document, 'script');</script>
 <div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="java.base/jdk/internal/classfile/instruction/ConstantInstruction.IntrinsicConstantInstruction.html" title="interface in jdk.internal.classfile.instruction">ConstantInstruction.IntrinsicConstantInstruction</a></div>
 <div class="col-last odd-row-color all-classes-table all-classes-table-tab1">
 <div class="block">Models an "intrinsic constant" instruction (e.g., <code>
- aload_0</code>).</div>
+ iconst_0</code>).</div>
 </div>
 <div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="java.base/jdk/internal/classfile/instruction/ConstantInstruction.LoadConstantInstruction.html" title="interface in jdk.internal.classfile.instruction">ConstantInstruction.LoadConstantInstruction</a></div>
 <div class="col-last even-row-color all-classes-table all-classes-table-tab1">
@@ -866,11 +866,12 @@ loadScripts(document, 'script');</script>
 </div>
 <div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="java.base/jdk/internal/classfile/Signature.TypeArg.html" title="interface in jdk.internal.classfile">Signature.TypeArg</a></div>
 <div class="col-last even-row-color all-classes-table all-classes-table-tab1">
-<div class="block">Models the signature of a type argument.</div>
+<div class="block">Models the type argument.</div>
 </div>
 <div class="col-first odd-row-color all-classes-table all-classes-table-tab3"><a href="java.base/jdk/internal/classfile/Signature.TypeArg.WildcardIndicator.html" title="enum class in jdk.internal.classfile">Signature.TypeArg.WildcardIndicator</a></div>
 <div class="col-last odd-row-color all-classes-table all-classes-table-tab3">
-<div class="block">Indicator for whether a wildcard has no bound, an upper bound, or a lower bound</div>
+<div class="block">Indicator for whether a wildcard has default bound, no bound,
+ an upper bound, or a lower bound</div>
 </div>
 <div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="java.base/jdk/internal/classfile/Signature.TypeParam.html" title="interface in jdk.internal.classfile">Signature.TypeParam</a></div>
 <div class="col-last even-row-color all-classes-table all-classes-table-tab1">

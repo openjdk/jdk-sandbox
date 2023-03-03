@@ -549,39 +549,84 @@ loadScripts(document, 'script');</script>
 <div class="col-last even-row-color">
 <div class="block">Returns a branch instruction.</div>
 </div>
-<div class="col-first odd-row-color"><code>static <a href="../instruction/ExceptionCatch.html" title="interface in jdk.internal.classfile.instruction">ExceptionCatch</a></code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">ExceptionCatch.</span><code><a href="../instruction/ExceptionCatch.html#of(jdk.internal.classfile.Label,jdk.internal.classfile.Label,jdk.internal.classfile.Label)" class="member-name-link">of</a><wbr>(<a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;handler,
- <a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;tryStart,
- <a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;tryEnd)</code></div>
+<div class="col-first odd-row-color"><code>static <a href="../instruction/CharacterRange.html" title="interface in jdk.internal.classfile.instruction">CharacterRange</a></code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">CharacterRange.</span><code><a href="../instruction/CharacterRange.html#of(jdk.internal.classfile.Label,jdk.internal.classfile.Label,int,int,int)" class="member-name-link">of</a><wbr>(<a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;startScope,
+ <a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;endScope,
+ int&nbsp;characterRangeStart,
+ int&nbsp;characterRangeEnd,
+ int&nbsp;flags)</code></div>
 <div class="col-last odd-row-color">
-<div class="block">Returns an exception table pseudo-instruction for an unconditional handler.</div>
+<div class="block">Returns a character range pseudo-instruction.</div>
 </div>
 <div class="col-first even-row-color"><code>static <a href="../instruction/ExceptionCatch.html" title="interface in jdk.internal.classfile.instruction">ExceptionCatch</a></code></div>
-<div class="col-second even-row-color"><span class="type-name-label">ExceptionCatch.</span><code><a href="../instruction/ExceptionCatch.html#of(jdk.internal.classfile.Label,jdk.internal.classfile.Label,jdk.internal.classfile.Label,java.util.Optional)" class="member-name-link">of</a><wbr>(<a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;handler,
+<div class="col-second even-row-color"><span class="type-name-label">ExceptionCatch.</span><code><a href="../instruction/ExceptionCatch.html#of(jdk.internal.classfile.Label,jdk.internal.classfile.Label,jdk.internal.classfile.Label)" class="member-name-link">of</a><wbr>(<a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;handler,
+ <a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;tryStart,
+ <a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;tryEnd)</code></div>
+<div class="col-last even-row-color">
+<div class="block">Returns an exception table pseudo-instruction for an unconditional handler.</div>
+</div>
+<div class="col-first odd-row-color"><code>static <a href="../instruction/ExceptionCatch.html" title="interface in jdk.internal.classfile.instruction">ExceptionCatch</a></code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">ExceptionCatch.</span><code><a href="../instruction/ExceptionCatch.html#of(jdk.internal.classfile.Label,jdk.internal.classfile.Label,jdk.internal.classfile.Label,java.util.Optional)" class="member-name-link">of</a><wbr>(<a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;handler,
  <a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;tryStart,
  <a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;tryEnd,
  <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="../constantpool/ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;&nbsp;catchTypeEntry)</code></div>
-<div class="col-last even-row-color">
+<div class="col-last odd-row-color">
 <div class="block">Returns an exception table pseudo-instruction.</div>
 </div>
-<div class="col-first odd-row-color"><code>static <a href="../instruction/LookupSwitchInstruction.html" title="interface in jdk.internal.classfile.instruction">LookupSwitchInstruction</a></code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">LookupSwitchInstruction.</span><code><a href="../instruction/LookupSwitchInstruction.html#of(jdk.internal.classfile.Label,java.util.List)" class="member-name-link">of</a><wbr>(<a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;defaultTarget,
- <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../instruction/SwitchCase.html" title="interface in jdk.internal.classfile.instruction">SwitchCase</a>&gt;&nbsp;cases)</code></div>
+<div class="col-first even-row-color"><code>static <a href="../instruction/LocalVariable.html" title="interface in jdk.internal.classfile.instruction">LocalVariable</a></code></div>
+<div class="col-second even-row-color"><span class="type-name-label">LocalVariable.</span><code><a href="../instruction/LocalVariable.html#of(int,java.lang.String,java.lang.constant.ClassDesc,jdk.internal.classfile.Label,jdk.internal.classfile.Label)" class="member-name-link">of</a><wbr>(int&nbsp;slot,
+ <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name,
+ <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/constant/ClassDesc.html" title="class or interface in java.lang.constant" class="external-link">ClassDesc</a>&nbsp;descriptor,
+ <a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;startScope,
+ <a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;endScope)</code></div>
+<div class="col-last even-row-color">
+<div class="block">Returns a local variable pseudo-instruction.</div>
+</div>
+<div class="col-first odd-row-color"><code>static <a href="../instruction/LocalVariable.html" title="interface in jdk.internal.classfile.instruction">LocalVariable</a></code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">LocalVariable.</span><code><a href="../instruction/LocalVariable.html#of(int,jdk.internal.classfile.constantpool.Utf8Entry,jdk.internal.classfile.constantpool.Utf8Entry,jdk.internal.classfile.Label,jdk.internal.classfile.Label)" class="member-name-link">of</a><wbr>(int&nbsp;slot,
+ <a href="../constantpool/Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>&nbsp;nameEntry,
+ <a href="../constantpool/Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>&nbsp;descriptorEntry,
+ <a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;startScope,
+ <a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;endScope)</code></div>
 <div class="col-last odd-row-color">
+<div class="block">Returns a local variable pseudo-instruction.</div>
+</div>
+<div class="col-first even-row-color"><code>static <a href="../instruction/LocalVariableType.html" title="interface in jdk.internal.classfile.instruction">LocalVariableType</a></code></div>
+<div class="col-second even-row-color"><span class="type-name-label">LocalVariableType.</span><code><a href="../instruction/LocalVariableType.html#of(int,java.lang.String,jdk.internal.classfile.Signature,jdk.internal.classfile.Label,jdk.internal.classfile.Label)" class="member-name-link">of</a><wbr>(int&nbsp;slot,
+ <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name,
+ <a href="../Signature.html" title="interface in jdk.internal.classfile">Signature</a>&nbsp;signature,
+ <a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;startScope,
+ <a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;endScope)</code></div>
+<div class="col-last even-row-color">
+<div class="block">Returns a local variable type pseudo-instruction.</div>
+</div>
+<div class="col-first odd-row-color"><code>static <a href="../instruction/LocalVariableType.html" title="interface in jdk.internal.classfile.instruction">LocalVariableType</a></code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">LocalVariableType.</span><code><a href="../instruction/LocalVariableType.html#of(int,jdk.internal.classfile.constantpool.Utf8Entry,jdk.internal.classfile.constantpool.Utf8Entry,jdk.internal.classfile.Label,jdk.internal.classfile.Label)" class="member-name-link">of</a><wbr>(int&nbsp;slot,
+ <a href="../constantpool/Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>&nbsp;nameEntry,
+ <a href="../constantpool/Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>&nbsp;signatureEntry,
+ <a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;startScope,
+ <a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;endScope)</code></div>
+<div class="col-last odd-row-color">
+<div class="block">Returns a local variable type pseudo-instruction.</div>
+</div>
+<div class="col-first even-row-color"><code>static <a href="../instruction/LookupSwitchInstruction.html" title="interface in jdk.internal.classfile.instruction">LookupSwitchInstruction</a></code></div>
+<div class="col-second even-row-color"><span class="type-name-label">LookupSwitchInstruction.</span><code><a href="../instruction/LookupSwitchInstruction.html#of(jdk.internal.classfile.Label,java.util.List)" class="member-name-link">of</a><wbr>(<a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;defaultTarget,
+ <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../instruction/SwitchCase.html" title="interface in jdk.internal.classfile.instruction">SwitchCase</a>&gt;&nbsp;cases)</code></div>
+<div class="col-last even-row-color">
 <div class="block">Returns a lookup switch instruction.</div>
 </div>
-<div class="col-first even-row-color"><code>static <a href="../instruction/SwitchCase.html" title="interface in jdk.internal.classfile.instruction">SwitchCase</a></code></div>
-<div class="col-second even-row-color"><span class="type-name-label">SwitchCase.</span><code><a href="../instruction/SwitchCase.html#of(int,jdk.internal.classfile.Label)" class="member-name-link">of</a><wbr>(int&nbsp;caseValue,
+<div class="col-first odd-row-color"><code>static <a href="../instruction/SwitchCase.html" title="interface in jdk.internal.classfile.instruction">SwitchCase</a></code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">SwitchCase.</span><code><a href="../instruction/SwitchCase.html#of(int,jdk.internal.classfile.Label)" class="member-name-link">of</a><wbr>(int&nbsp;caseValue,
  <a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;target)</code></div>
-<div class="col-last even-row-color">
+<div class="col-last odd-row-color">
 <div class="block">Create a <a href="../instruction/SwitchCase.html" title="interface in jdk.internal.classfile.instruction">SwitchCase</a></div>
 </div>
-<div class="col-first odd-row-color"><code>static <a href="../instruction/TableSwitchInstruction.html" title="interface in jdk.internal.classfile.instruction">TableSwitchInstruction</a></code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">TableSwitchInstruction.</span><code><a href="../instruction/TableSwitchInstruction.html#of(int,int,jdk.internal.classfile.Label,java.util.List)" class="member-name-link">of</a><wbr>(int&nbsp;lowValue,
+<div class="col-first even-row-color"><code>static <a href="../instruction/TableSwitchInstruction.html" title="interface in jdk.internal.classfile.instruction">TableSwitchInstruction</a></code></div>
+<div class="col-second even-row-color"><span class="type-name-label">TableSwitchInstruction.</span><code><a href="../instruction/TableSwitchInstruction.html#of(int,int,jdk.internal.classfile.Label,java.util.List)" class="member-name-link">of</a><wbr>(int&nbsp;lowValue,
  int&nbsp;highValue,
  <a href="../Label.html" title="interface in jdk.internal.classfile">Label</a>&nbsp;defaultTarget,
  <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../instruction/SwitchCase.html" title="interface in jdk.internal.classfile.instruction">SwitchCase</a>&gt;&nbsp;cases)</code></div>
-<div class="col-last odd-row-color">
+<div class="col-last even-row-color">
 <div class="block">Returns a table switch instruction.</div>
 </div>
 </div>

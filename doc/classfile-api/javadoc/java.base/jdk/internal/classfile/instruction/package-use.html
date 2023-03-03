@@ -103,62 +103,81 @@ loadScripts(document, 'script');</script>
 <div class="block">Models a branching instruction (conditional or unconditional) in the <code>
  code</code> array of a <code>Code</code> attribute.</div>
 </div>
-<div class="col-first odd-row-color"><a href="class-use/ConstantInstruction.html#jdk.internal.classfile.instruction">ConstantInstruction</a></div>
+<div class="col-first odd-row-color"><a href="class-use/CharacterRange.html#jdk.internal.classfile.instruction">CharacterRange</a></div>
 <div class="col-last odd-row-color">
+<div class="block">A pseudo-instruction which models a single entry in the
+ <a href="../attribute/CharacterRangeTableAttribute.html" title="interface in jdk.internal.classfile.attribute"><code>CharacterRangeTableAttribute</code></a>.</div>
+</div>
+<div class="col-first even-row-color"><a href="class-use/ConstantInstruction.html#jdk.internal.classfile.instruction">ConstantInstruction</a></div>
+<div class="col-last even-row-color">
 <div class="block">Models a constant-load instruction in the <code>code</code> array of a <code>
  Code</code> attribute, including "intrinsic constant" instructions (e.g., <code>
- aload_0</code>), "argument constant" instructions (e.g., <code>bipush</code>), and "load
+ iconst_0</code>), "argument constant" instructions (e.g., <code>bipush</code>), and "load
  constant" instructions (e.g., <code>LDC</code>).</div>
 </div>
-<div class="col-first even-row-color"><a href="class-use/ConstantInstruction.ArgumentConstantInstruction.html#jdk.internal.classfile.instruction">ConstantInstruction.ArgumentConstantInstruction</a></div>
-<div class="col-last even-row-color">
+<div class="col-first odd-row-color"><a href="class-use/ConstantInstruction.ArgumentConstantInstruction.html#jdk.internal.classfile.instruction">ConstantInstruction.ArgumentConstantInstruction</a></div>
+<div class="col-last odd-row-color">
 <div class="block">Models an "argument constant" instruction (e.g., <code>
  bipush</code>).</div>
 </div>
-<div class="col-first odd-row-color"><a href="class-use/ConstantInstruction.IntrinsicConstantInstruction.html#jdk.internal.classfile.instruction">ConstantInstruction.IntrinsicConstantInstruction</a></div>
-<div class="col-last odd-row-color">
-<div class="block">Models an "intrinsic constant" instruction (e.g., <code>
- aload_0</code>).</div>
-</div>
-<div class="col-first even-row-color"><a href="class-use/ConstantInstruction.LoadConstantInstruction.html#jdk.internal.classfile.instruction">ConstantInstruction.LoadConstantInstruction</a></div>
+<div class="col-first even-row-color"><a href="class-use/ConstantInstruction.IntrinsicConstantInstruction.html#jdk.internal.classfile.instruction">ConstantInstruction.IntrinsicConstantInstruction</a></div>
 <div class="col-last even-row-color">
+<div class="block">Models an "intrinsic constant" instruction (e.g., <code>
+ iconst_0</code>).</div>
+</div>
+<div class="col-first odd-row-color"><a href="class-use/ConstantInstruction.LoadConstantInstruction.html#jdk.internal.classfile.instruction">ConstantInstruction.LoadConstantInstruction</a></div>
+<div class="col-last odd-row-color">
 <div class="block">Models a "load constant" instruction (e.g., <code>
  ldc</code>).</div>
 </div>
-<div class="col-first odd-row-color"><a href="class-use/ConvertInstruction.html#jdk.internal.classfile.instruction">ConvertInstruction</a></div>
-<div class="col-last odd-row-color">
+<div class="col-first even-row-color"><a href="class-use/ConvertInstruction.html#jdk.internal.classfile.instruction">ConvertInstruction</a></div>
+<div class="col-last even-row-color">
 <div class="block">Models a primitive conversion instruction in the <code>code</code> array of a
  <code>Code</code> attribute, such as <code>i2l</code>.</div>
 </div>
-<div class="col-first even-row-color"><a href="class-use/ExceptionCatch.html#jdk.internal.classfile.instruction">ExceptionCatch</a></div>
-<div class="col-last even-row-color">
+<div class="col-first odd-row-color"><a href="class-use/ExceptionCatch.html#jdk.internal.classfile.instruction">ExceptionCatch</a></div>
+<div class="col-last odd-row-color">
 <div class="block">A pseudo-instruction modeling an entry in the exception table of a code
  attribute.</div>
 </div>
-<div class="col-first odd-row-color"><a href="class-use/FieldInstruction.html#jdk.internal.classfile.instruction">FieldInstruction</a></div>
-<div class="col-last odd-row-color">
+<div class="col-first even-row-color"><a href="class-use/FieldInstruction.html#jdk.internal.classfile.instruction">FieldInstruction</a></div>
+<div class="col-last even-row-color">
 <div class="block">Models a field access instruction in the <code>code</code> array of a <code>Code</code>
  attribute.</div>
 </div>
-<div class="col-first even-row-color"><a href="class-use/IncrementInstruction.html#jdk.internal.classfile.instruction">IncrementInstruction</a></div>
-<div class="col-last even-row-color">
+<div class="col-first odd-row-color"><a href="class-use/IncrementInstruction.html#jdk.internal.classfile.instruction">IncrementInstruction</a></div>
+<div class="col-last odd-row-color">
 <div class="block">Models a local variable increment instruction in the <code>code</code> array of a
  <code>Code</code> attribute.</div>
 </div>
-<div class="col-first odd-row-color"><a href="class-use/InvokeDynamicInstruction.html#jdk.internal.classfile.instruction">InvokeDynamicInstruction</a></div>
-<div class="col-last odd-row-color">
+<div class="col-first even-row-color"><a href="class-use/InvokeDynamicInstruction.html#jdk.internal.classfile.instruction">InvokeDynamicInstruction</a></div>
+<div class="col-last even-row-color">
 <div class="block">Models an <code>invokedynamic</code> instruction in the <code>code</code> array of a
  <code>Code</code> attribute.</div>
 </div>
-<div class="col-first even-row-color"><a href="class-use/InvokeInstruction.html#jdk.internal.classfile.instruction">InvokeInstruction</a></div>
-<div class="col-last even-row-color">
+<div class="col-first odd-row-color"><a href="class-use/InvokeInstruction.html#jdk.internal.classfile.instruction">InvokeInstruction</a></div>
+<div class="col-last odd-row-color">
 <div class="block">Models a method invocation instruction in the <code>code</code> array of a <code>
  Code</code> attribute, other than <code>invokedynamic</code>.</div>
+</div>
+<div class="col-first even-row-color"><a href="class-use/LineNumber.html#jdk.internal.classfile.instruction">LineNumber</a></div>
+<div class="col-last even-row-color">
+<div class="block">A pseudo-instruction which models a single entry in the
+ <a href="../attribute/LineNumberTableAttribute.html" title="interface in jdk.internal.classfile.attribute"><code>LineNumberTableAttribute</code></a>.</div>
 </div>
 <div class="col-first odd-row-color"><a href="class-use/LoadInstruction.html#jdk.internal.classfile.instruction">LoadInstruction</a></div>
 <div class="col-last odd-row-color">
 <div class="block">Models a local variable load instruction in the <code>code</code> array of a
  <code>Code</code> attribute.</div>
+</div>
+<div class="col-first even-row-color"><a href="class-use/LocalVariable.html#jdk.internal.classfile.instruction">LocalVariable</a></div>
+<div class="col-last even-row-color">
+<div class="block">A pseudo-instruction which models a single entry in the
+ <a href="../attribute/LocalVariableTableAttribute.html" title="interface in jdk.internal.classfile.attribute"><code>LocalVariableTableAttribute</code></a>.</div>
+</div>
+<div class="col-first odd-row-color"><a href="class-use/LocalVariableType.html#jdk.internal.classfile.instruction">LocalVariableType</a></div>
+<div class="col-last odd-row-color">
+<div class="block">A pseudo-instruction which models a single entry in the <a href="../attribute/LocalVariableTypeTableAttribute.html" title="interface in jdk.internal.classfile.attribute"><code>LocalVariableTypeTableAttribute</code></a>.</div>
 </div>
 <div class="col-first even-row-color"><a href="class-use/LookupSwitchInstruction.html#jdk.internal.classfile.instruction">LookupSwitchInstruction</a></div>
 <div class="col-last even-row-color">

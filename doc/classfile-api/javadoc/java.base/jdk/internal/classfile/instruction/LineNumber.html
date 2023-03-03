@@ -114,7 +114,7 @@ extends <a href="../PseudoInstruction.html" title="interface in jdk.internal.cla
 <section class="method-summary" id="method-summary">
 <h2>Method Summary</h2>
 <div id="method-summary-table">
-<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-controls="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table', 3)" class="active-table-tab">All Methods</button><button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="table-tab">Instance Methods</button><button id="method-summary-table-tab3" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab3', 3)" class="table-tab">Abstract Methods</button></div>
+<div class="table-tabs" role="tablist" aria-orientation="horizontal"><button id="method-summary-table-tab0" role="tab" aria-selected="true" aria-controls="method-summary-table.tabpanel" tabindex="0" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table', 3)" class="active-table-tab">All Methods</button><button id="method-summary-table-tab1" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab1', 3)" class="table-tab">Static Methods</button><button id="method-summary-table-tab2" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab2', 3)" class="table-tab">Instance Methods</button><button id="method-summary-table-tab3" role="tab" aria-selected="false" aria-controls="method-summary-table.tabpanel" tabindex="-1" onkeydown="switchTab(event)" onclick="show('method-summary-table', 'method-summary-table-tab3', 3)" class="table-tab">Abstract Methods</button></div>
 <div id="method-summary-table.tabpanel" role="tabpanel">
 <div class="summary-table three-column-summary" aria-labelledby="method-summary-table-tab0">
 <div class="table-header col-first">Modifier and Type</div>
@@ -122,7 +122,14 @@ extends <a href="../PseudoInstruction.html" title="interface in jdk.internal.cla
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#line()" class="member-name-link">line</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Returns the line number.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1"><code>static <a href="LineNumber.html" title="interface in jdk.internal.classfile.instruction">LineNumber</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(int)" class="member-name-link">of</a><wbr>(int&nbsp;line)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1">
+<div class="block">Returns a line number pseudo-instruction.</div>
+</div>
 </div>
 </div>
 </div>
@@ -141,6 +148,24 @@ extends <a href="../PseudoInstruction.html" title="interface in jdk.internal.cla
 <section class="detail" id="line()">
 <h3>line</h3>
 <div class="member-signature"><span class="return-type">int</span>&nbsp;<span class="element-name">line</span>()</div>
+<div class="block">Returns the line number.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the line number</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="of(int)">
+<h3>of</h3>
+<div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="LineNumber.html" title="interface in jdk.internal.classfile.instruction">LineNumber</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(int&nbsp;line)</span></div>
+<div class="block">Returns a line number pseudo-instruction.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>line</code> - the line number</dd>
+<dt>Returns:</dt>
+<dd>a line number pseudo-instruction</dd>
+</dl>
 </section>
 </li>
 </ul>

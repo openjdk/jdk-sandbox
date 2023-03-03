@@ -80,13 +80,8 @@ loadScripts(document, 'script');</script>
 <div class="block">Models the signature of a possibly-parameterized class or interface type.</div>
 </div>
 <div class="col-first even-row-color"><code>static interface&nbsp;</code></div>
-<div class="col-second even-row-color"><code><a href="../Signature.TypeArg.html" class="type-name-link" title="interface in jdk.internal.classfile">Signature.TypeArg</a></code></div>
+<div class="col-second even-row-color"><code><a href="../Signature.TypeVarSig.html" class="type-name-link" title="interface in jdk.internal.classfile">Signature.TypeVarSig</a></code></div>
 <div class="col-last even-row-color">
-<div class="block">Models the signature of a type argument.</div>
-</div>
-<div class="col-first odd-row-color"><code>static interface&nbsp;</code></div>
-<div class="col-second odd-row-color"><code><a href="../Signature.TypeVarSig.html" class="type-name-link" title="interface in jdk.internal.classfile">Signature.TypeVarSig</a></code></div>
-<div class="col-last odd-row-color">
 <div class="block">Models the signature of a type variable.</div>
 </div>
 </div>
@@ -135,7 +130,7 @@ loadScripts(document, 'script');</script>
 <div class="col-first even-row-color"><code>static <a href="../Signature.TypeArg.html" title="interface in jdk.internal.classfile">Signature.TypeArg</a></code></div>
 <div class="col-second even-row-color"><span class="type-name-label">Signature.TypeArg.</span><code><a href="../Signature.TypeArg.html#extendsOf(jdk.internal.classfile.Signature.RefTypeSig)" class="member-name-link">extendsOf</a><wbr>(<a href="../Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a>&nbsp;boundType)</code></div>
 <div class="col-last even-row-color">
-<div class="block">Returns a signature for an upper-bounded wildcard.</div>
+<div class="block">Returns an upper-bounded type arg.</div>
 </div>
 <div class="col-first odd-row-color"><code>static <a href="../ClassSignature.html" title="interface in jdk.internal.classfile">ClassSignature</a></code></div>
 <div class="col-second odd-row-color"><span class="type-name-label">ClassSignature.</span><code><a href="../ClassSignature.html#of(java.util.List,jdk.internal.classfile.Signature.RefTypeSig,jdk.internal.classfile.Signature.RefTypeSig...)" class="member-name-link">of</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../Signature.TypeParam.html" title="interface in jdk.internal.classfile">Signature.TypeParam</a>&gt;&nbsp;typeParameters,
@@ -146,24 +141,29 @@ loadScripts(document, 'script');</script>
 <div class="col-second even-row-color"><span class="type-name-label">ClassSignature.</span><code><a href="../ClassSignature.html#of(jdk.internal.classfile.Signature.RefTypeSig,jdk.internal.classfile.Signature.RefTypeSig...)" class="member-name-link">of</a><wbr>(<a href="../Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a>&nbsp;superclassSignature,
  <a href="../Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a>...&nbsp;superinterfaceSignatures)</code></div>
 <div class="col-last even-row-color">&nbsp;</div>
-<div class="col-first odd-row-color"><code>static <a href="../Signature.TypeParam.html" title="interface in jdk.internal.classfile">Signature.TypeParam</a></code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">Signature.TypeParam.</span><code><a href="../Signature.TypeParam.html#of(java.lang.String,java.util.Optional,jdk.internal.classfile.Signature.RefTypeSig...)" class="member-name-link">of</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;identifier,
- <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="../Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a>&gt;&nbsp;classBound,
- <a href="../Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a>...&nbsp;interfaceBounds)</code></div>
+<div class="col-first odd-row-color"><code>static <a href="../Signature.TypeArg.html" title="interface in jdk.internal.classfile">Signature.TypeArg</a></code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">Signature.TypeArg.</span><code><a href="../Signature.TypeArg.html#of(jdk.internal.classfile.Signature.RefTypeSig)" class="member-name-link">of</a><wbr>(<a href="../Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a>&nbsp;boundType)</code></div>
 <div class="col-last odd-row-color">
-<div class="block">Returns a signature for a type parameter.</div>
+<div class="block">Returns a bounded type arg.</div>
 </div>
 <div class="col-first even-row-color"><code>static <a href="../Signature.TypeParam.html" title="interface in jdk.internal.classfile">Signature.TypeParam</a></code></div>
-<div class="col-second even-row-color"><span class="type-name-label">Signature.TypeParam.</span><code><a href="../Signature.TypeParam.html#of(java.lang.String,jdk.internal.classfile.Signature.RefTypeSig,jdk.internal.classfile.Signature.RefTypeSig...)" class="member-name-link">of</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;identifier,
- <a href="../Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a>&nbsp;classBound,
+<div class="col-second even-row-color"><span class="type-name-label">Signature.TypeParam.</span><code><a href="../Signature.TypeParam.html#of(java.lang.String,java.util.Optional,jdk.internal.classfile.Signature.RefTypeSig...)" class="member-name-link">of</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;identifier,
+ <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="../Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a>&gt;&nbsp;classBound,
  <a href="../Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a>...&nbsp;interfaceBounds)</code></div>
 <div class="col-last even-row-color">
 <div class="block">Returns a signature for a type parameter.</div>
 </div>
-<div class="col-first odd-row-color"><code>static <a href="../Signature.TypeArg.html" title="interface in jdk.internal.classfile">Signature.TypeArg</a></code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">Signature.TypeArg.</span><code><a href="../Signature.TypeArg.html#superOf(jdk.internal.classfile.Signature.RefTypeSig)" class="member-name-link">superOf</a><wbr>(<a href="../Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a>&nbsp;boundType)</code></div>
+<div class="col-first odd-row-color"><code>static <a href="../Signature.TypeParam.html" title="interface in jdk.internal.classfile">Signature.TypeParam</a></code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">Signature.TypeParam.</span><code><a href="../Signature.TypeParam.html#of(java.lang.String,jdk.internal.classfile.Signature.RefTypeSig,jdk.internal.classfile.Signature.RefTypeSig...)" class="member-name-link">of</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;identifier,
+ <a href="../Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a>&nbsp;classBound,
+ <a href="../Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a>...&nbsp;interfaceBounds)</code></div>
 <div class="col-last odd-row-color">
-<div class="block">Returns a signature for a lower-bounded wildcard.</div>
+<div class="block">Returns a signature for a type parameter.</div>
+</div>
+<div class="col-first even-row-color"><code>static <a href="../Signature.TypeArg.html" title="interface in jdk.internal.classfile">Signature.TypeArg</a></code></div>
+<div class="col-second even-row-color"><span class="type-name-label">Signature.TypeArg.</span><code><a href="../Signature.TypeArg.html#superOf(jdk.internal.classfile.Signature.RefTypeSig)" class="member-name-link">superOf</a><wbr>(<a href="../Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a>&nbsp;boundType)</code></div>
+<div class="col-last even-row-color">
+<div class="block">Returns a lower-bounded type arg.</div>
 </div>
 </div>
 <div class="caption"><span>Method parameters in <a href="../package-summary.html">jdk.internal.classfile</a> with type arguments of type <a href="../Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a></span></div>
@@ -171,11 +171,17 @@ loadScripts(document, 'script');</script>
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color"><code>static <a href="../Signature.TypeParam.html" title="interface in jdk.internal.classfile">Signature.TypeParam</a></code></div>
-<div class="col-second even-row-color"><span class="type-name-label">Signature.TypeParam.</span><code><a href="../Signature.TypeParam.html#of(java.lang.String,java.util.Optional,jdk.internal.classfile.Signature.RefTypeSig...)" class="member-name-link">of</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;identifier,
+<div class="col-first even-row-color"><code>static <a href="../Signature.TypeArg.html" title="interface in jdk.internal.classfile">Signature.TypeArg</a></code></div>
+<div class="col-second even-row-color"><span class="type-name-label">Signature.TypeArg.</span><code><a href="../Signature.TypeArg.html#of(jdk.internal.classfile.Signature.TypeArg.WildcardIndicator,java.util.Optional)" class="member-name-link">of</a><wbr>(<a href="../Signature.TypeArg.WildcardIndicator.html" title="enum class in jdk.internal.classfile">Signature.TypeArg.WildcardIndicator</a>&nbsp;wildcard,
+ <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="../Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a>&gt;&nbsp;boundType)</code></div>
+<div class="col-last even-row-color">
+<div class="block">Returns a bounded type arg.</div>
+</div>
+<div class="col-first odd-row-color"><code>static <a href="../Signature.TypeParam.html" title="interface in jdk.internal.classfile">Signature.TypeParam</a></code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">Signature.TypeParam.</span><code><a href="../Signature.TypeParam.html#of(java.lang.String,java.util.Optional,jdk.internal.classfile.Signature.RefTypeSig...)" class="member-name-link">of</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;identifier,
  <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="../Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a>&gt;&nbsp;classBound,
  <a href="../Signature.RefTypeSig.html" title="interface in jdk.internal.classfile">Signature.RefTypeSig</a>...&nbsp;interfaceBounds)</code></div>
-<div class="col-last even-row-color">
+<div class="col-last odd-row-color">
 <div class="block">Returns a signature for a type parameter.</div>
 </div>
 </div>
