@@ -29,8 +29,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.lang.reflect.AccessFlag;
+import java.util.ArrayDeque;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -144,7 +144,7 @@ final class JIClassInstrumentation {
     private static byte[] instrument(ClassModel target, ClassModel instrumentor, Predicate<MethodModel> instrumentedMethodsFilter) {
         var instrumentorCodeMap = instrumentor.methods().stream()
                                               .filter(instrumentedMethodsFilter)
-                                              .collect(Collectors.toMap(mm -> mm.methodName().stringValue() + mm.methodType().stringValue(), mm -> mm.code().orElse(null)));
+                                              .collect(Collectors.toMap(mm -> mm.methodName().stringValue() + mm.methodType().stringValue(), mm -> mm.code().orElseThrow()));
         var targetFieldNames = target.fields().stream().map(f -> f.fieldName().stringValue()).collect(Collectors.toSet());
         var targetMethods = target.methods().stream().map(m -> m.methodName().stringValue() + m.methodType().stringValue()).collect(Collectors.toSet());
         var instrumentorClassRemapper = ClassRemapper.of(Map.of(instrumentor.thisClass().asSymbol(), target.thisClass().asSymbol()));
@@ -166,13 +166,13 @@ final class JIClassInstrumentation {
                                                 && mm.methodType().stringValue().equals(inv.type().stringValue())) {
 
                                                 //store stacked method parameters into locals
-                                                var storeStack = new LinkedList<StoreInstruction>();
+                                                var storeStack = new ArrayDeque<StoreInstruction>();
                                                 int slot = 0;
                                                 if (!mm.flags().has(AccessFlag.STATIC))
-                                                    storeStack.add(StoreInstruction.of(TypeKind.ReferenceType, slot++));
+                                                    storeStack.push(StoreInstruction.of(TypeKind.ReferenceType, slot++));
                                                 for (var pt : mm.methodTypeSymbol().parameterList()) {
                                                     var tk = TypeKind.fromDescriptor(pt.descriptorString());
-                                                    storeStack.addFirst(StoreInstruction.of(tk, slot));
+                                                    storeStack.push(StoreInstruction.of(tk, slot));
                                                     slot += tk.slotSize();
                                                 }
                                                 storeStack.forEach(codeBuilder::with);
