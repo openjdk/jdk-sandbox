@@ -31,7 +31,7 @@ import java.util.List;
 import java.util.Locale;
 import jdk.internal.classfile.*;
 import java.lang.reflect.AccessFlag;
-import jdk.internal.classfile.jdktypes.*;
+import jdk.internal.classfile.java.lang.constant.*;
 import jdk.internal.classfile.constantpool.*;
 import jdk.internal.classfile.attribute.*;
 import static jdk.internal.classfile.Classfile.*;

@@ -35,7 +35,7 @@ import java.util.function.Consumer;
 
 import jdk.internal.classfile.*;
 import jdk.internal.classfile.constantpool.*;
-import jdk.internal.classfile.jdktypes.*;
+import jdk.internal.classfile.java.lang.constant.*;
 import jdk.internal.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
 import jdk.jfr.AnnotationElement;
 import jdk.jfr.Event;

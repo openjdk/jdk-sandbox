@@ -388,7 +388,7 @@ module java.base {
         jdk.jdeps,
         jdk.jlink,
         jdk.jfr;
-    exports jdk.internal.classfile.jdktypes to
+    exports jdk.internal.classfile.java.lang.constant to
         jdk.jdeps,
         jdk.jfr;
     exports jdk.internal.classfile.components to
