@@ -132,14 +132,14 @@ public class CallArranger {
         return handle;
     }
 
-    public static MemorySegment arrangeUpcall(MethodHandle target, MethodType mt, FunctionDescriptor cDesc, SegmentScope session) {
+    public static MemorySegment arrangeUpcall(MethodHandle target, MethodType mt, FunctionDescriptor cDesc, SegmentScope scope) {
         Bindings bindings = getBindings(mt, cDesc, true);
 
         if (bindings.isInMemoryReturn) {
             target = SharedUtils.adaptUpcallForIMR(target, true /* drop return, since we don't have bindings for it */);
         }
 
-        return UpcallLinker.make(CSysV, target, bindings.callingSequence, session);
+        return UpcallLinker.make(CSysV, target, bindings.callingSequence, scope);
     }
 
     private static boolean isInMemoryReturn(Optional<MemoryLayout> returnLayout) {
@@ -263,7 +263,7 @@ public class CallArranger {
                         }
                         boolean useFloat = storage.type() == StorageType.VECTOR;
                         Class<?> type = SharedUtils.primitiveCarrierForSize(copy, useFloat);
-                        bindings.bufferLoad(offset, type)
+                        bindings.bufferLoad(offset, type, (int) copy)
                                 .vmStore(storage, type);
                         offset += copy;
                     }
@@ -311,7 +311,7 @@ public class CallArranger {
                         boolean useFloat = storage.type() == StorageType.VECTOR;
                         Class<?> type = SharedUtils.primitiveCarrierForSize(copy, useFloat);
                         bindings.vmLoad(storage, type)
-                                .bufferStore(offset, type);
+                                .bufferStore(offset, type, (int) copy);
                         offset += copy;
                     }
                 }
