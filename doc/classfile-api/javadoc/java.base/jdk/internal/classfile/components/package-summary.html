@@ -244,7 +244,7 @@ for (var classModel : allMyClasses) {
 <pre class="snippet"><code class="language-java">byte[] classInstrumentation(ClassModel target, ClassModel instrumentor, Predicate&lt;MethodModel&gt; instrumentedMethodsFilter) {
     var instrumentorCodeMap = instrumentor.methods().stream()
                                           .filter(instrumentedMethodsFilter)
-                                          .collect(Collectors.toMap(mm -&gt; mm.methodName().stringValue() + mm.methodType().stringValue(), mm -&gt; mm.code().orElse(null)));
+                                          .collect(Collectors.toMap(mm -&gt; mm.methodName().stringValue() + mm.methodType().stringValue(), mm -&gt; mm.code().orElseThrow()));
     var targetFieldNames = target.fields().stream().map(f -&gt; f.fieldName().stringValue()).collect(Collectors.toSet());
     var targetMethods = target.methods().stream().map(m -&gt; m.methodName().stringValue() + m.methodType().stringValue()).collect(Collectors.toSet());
     var instrumentorClassRemapper = ClassRemapper.of(Map.of(instrumentor.thisClass().asSymbol(), target.thisClass().asSymbol()));
@@ -266,13 +266,13 @@ for (var classModel : allMyClasses) {
                                             &amp;&amp; mm.methodType().stringValue().equals(inv.type().stringValue())) {
 
                                             //store stacked method parameters into locals
-                                            var storeStack = new LinkedList&lt;StoreInstruction&gt;();
+                                            var storeStack = new ArrayDeque&lt;StoreInstruction&gt;();
                                             int slot = 0;
                                             if (!mm.flags().has(AccessFlag.STATIC))
-                                                storeStack.add(StoreInstruction.of(TypeKind.ReferenceType, slot++));
+                                                storeStack.push(StoreInstruction.of(TypeKind.ReferenceType, slot++));
                                             for (var pt : mm.methodTypeSymbol().parameterList()) {
                                                 var tk = TypeKind.fromDescriptor(pt.descriptorString());
-                                                storeStack.addFirst(StoreInstruction.of(tk, slot));
+                                                storeStack.push(StoreInstruction.of(tk, slot));
                                                 slot += tk.slotSize();
                                             }
                                             storeStack.forEach(codeBuilder::with);
@@ -328,8 +328,6 @@ for (var classModel : allMyClasses) {
 <div class="col-last even-row-color">&nbsp;</div>
 <div class="col-first odd-row-color"><a href="../instruction/package-summary.html">jdk.internal.classfile.instruction</a></div>
 <div class="col-last odd-row-color">&nbsp;</div>
-<div class="col-first even-row-color"><a href="../jdktypes/package-summary.html">jdk.internal.classfile.jdktypes</a></div>
-<div class="col-last even-row-color">&nbsp;</div>
 </div>
 </div>
 </li>
@@ -382,7 +380,7 @@ for (var classModel : allMyClasses) {
 <div class="col-last odd-row-color class-summary class-summary-tab2">&nbsp;</div>
 <div class="col-first even-row-color class-summary class-summary-tab1"><a href="CodeRelabeler.html" title="interface in jdk.internal.classfile.components">CodeRelabeler</a></div>
 <div class="col-last even-row-color class-summary class-summary-tab1">
-<div class="block">CodeRelabeler is a <a href="../CodeTransform.html" title="interface in jdk.internal.classfile"><code>CodeTransform</code></a> replacing all occurrences
+<div class="block">A code relabeler is a <a href="../CodeTransform.html" title="interface in jdk.internal.classfile"><code>CodeTransform</code></a> replacing all occurrences
  of <a href="../Label.html" title="interface in jdk.internal.classfile"><code>Label</code></a> in the transformed code with new instances.</div>
 </div>
 <div class="col-first odd-row-color class-summary class-summary-tab4"><a href="CodeRelabeler.CodeRelabelerImpl.html" title="class in jdk.internal.classfile.components">CodeRelabeler.CodeRelabelerImpl</a></div>

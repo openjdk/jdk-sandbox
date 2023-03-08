@@ -4,4 +4,4 @@ jdk.internal.classfile.attribute
 jdk.internal.classfile.components
 jdk.internal.classfile.constantpool
 jdk.internal.classfile.instruction
-jdk.internal.classfile.jdktypes
+jdk.internal.classfile.java.lang.constant
