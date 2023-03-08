@@ -35,9 +35,14 @@ import java.lang.foreign.SegmentAllocator;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
+
+import static java.lang.foreign.ValueLayout.JAVA_BYTE;
+import static java.lang.foreign.ValueLayout.JAVA_INT_UNALIGNED;
+import static java.lang.foreign.ValueLayout.JAVA_SHORT_UNALIGNED;
 
 /**
  * The binding operators defined in the Binding class can be combined into argument and return value processing 'recipes'.
@@ -202,19 +207,19 @@ public interface Binding {
      */
     class Context implements AutoCloseable {
         private final SegmentAllocator allocator;
-        private final SegmentScope session;
+        private final SegmentScope scope;
 
-        private Context(SegmentAllocator allocator, SegmentScope session) {
+        private Context(SegmentAllocator allocator, SegmentScope scope) {
             this.allocator = allocator;
-            this.session = session;
+            this.scope = scope;
         }
 
         public SegmentAllocator allocator() {
             return allocator;
         }
 
-        public SegmentScope session() {
-            return session;
+        public SegmentScope scope() {
+            return scope;
         }
 
         @Override
@@ -242,7 +247,7 @@ public interface Binding {
         public static Context ofAllocator(SegmentAllocator allocator) {
             return new Context(allocator, null) {
                 @Override
-                public SegmentScope session() {
+                public SegmentScope scope() {
                     throw new UnsupportedOperationException();
                 }
             };
@@ -252,7 +257,7 @@ public interface Binding {
          * Create a binding context from given scope. The resulting context will throw when
          * the context's allocator is accessed.
          */
-        public static Context ofSession() {
+        public static Context ofScope() {
             Arena arena = Arena.openConfined();
             return new Context(null, arena.scope()) {
                 @Override
@@ -276,7 +281,7 @@ public interface Binding {
             }
 
             @Override
-            public SegmentScope session() {
+            public SegmentScope scope() {
                 throw new UnsupportedOperationException();
             }
 
@@ -317,6 +322,11 @@ public interface Binding {
             throw new IllegalArgumentException("Negative offset: " + offset);
     }
 
+    private static void checkByteWidth(int byteWidth, Class<?> type) {
+        if (byteWidth < 0 || byteWidth > Utils.byteWidthOfPrimitive(type))
+            throw new IllegalArgumentException("Illegal byteWidth: " + byteWidth);
+    }
+
     static VMStore vmStore(VMStorage storage, Class<?> type) {
         checkType(type);
         return new VMStore(storage, type);
@@ -328,15 +338,25 @@ public interface Binding {
     }
 
     static BufferStore bufferStore(long offset, Class<?> type) {
+        return bufferStore(offset, type, Utils.byteWidthOfPrimitive(type));
+    }
+
+    static BufferStore bufferStore(long offset, Class<?> type, int byteWidth) {
         checkType(type);
         checkOffset(offset);
-        return new BufferStore(offset, type);
+        checkByteWidth(byteWidth, type);
+        return new BufferStore(offset, type, byteWidth);
     }
 
     static BufferLoad bufferLoad(long offset, Class<?> type) {
+        return Binding.bufferLoad(offset, type, Utils.byteWidthOfPrimitive(type));
+    }
+
+    static BufferLoad bufferLoad(long offset, Class<?> type, int byteWidth) {
         checkType(type);
         checkOffset(offset);
-        return new BufferLoad(offset, type);
+        checkByteWidth(byteWidth, type);
+        return new BufferLoad(offset, type, byteWidth);
     }
 
     static Copy copy(MemoryLayout layout) {
@@ -433,8 +453,18 @@ public interface Binding {
             return this;
         }
 
+        public Binding.Builder bufferStore(long offset, Class<?> type, int byteWidth) {
+            bindings.add(Binding.bufferStore(offset, type, byteWidth));
+            return this;
+        }
+
         public Binding.Builder bufferLoad(long offset, Class<?> type) {
             bindings.add(Binding.bufferLoad(offset, type));
+            return this;
+        }
+
+        public Binding.Builder bufferLoad(long offset, Class<?> type, int byteWidth) {
+            bindings.add(Binding.bufferLoad(offset, type, byteWidth));
             return this;
         }
 
@@ -532,12 +562,12 @@ public interface Binding {
     }
 
     /**
-     * BUFFER_STORE([offset into memory region], [type])
+     * BUFFER_STORE([offset into memory region], [type], [width])
      * Pops a [type] from the operand stack, then pops a MemorySegment from the operand stack.
-     * Stores the [type] to [offset into memory region].
+     * Stores [width] bytes of the value contained in the [type] to [offset into memory region].
      * The [type] must be one of byte, short, char, int, long, float, or double
      */
-    record BufferStore(long offset, Class<?> type) implements Dereference {
+    record BufferStore(long offset, Class<?> type, int byteWidth) implements Dereference {
         @Override
         public Tag tag() {
             return Tag.BUFFER_STORE;
@@ -555,19 +585,50 @@ public interface Binding {
         public void interpret(Deque<Object> stack, BindingInterpreter.StoreFunc storeFunc,
                               BindingInterpreter.LoadFunc loadFunc, Context context) {
             Object value = stack.pop();
-            MemorySegment operand = (MemorySegment) stack.pop();
-            MemorySegment writeAddress = operand.asSlice(offset());
-            SharedUtils.write(writeAddress, type(), value);
+            MemorySegment writeAddress = (MemorySegment) stack.pop();
+            if (SharedUtils.isPowerOfTwo(byteWidth())) {
+                // exact size match
+                SharedUtils.write(writeAddress, offset(), type(), value);
+            } else {
+                // non-exact match, need to do chunked load
+                long longValue = ((Number) value).longValue();
+                // byteWidth is smaller than the width of 'type', so it will always be < 8 here
+                int remaining = byteWidth();
+                int chunkOffset = 0;
+                do {
+                    int chunkSize = Integer.highestOneBit(remaining); // next power of 2, in bytes
+                    long writeOffset = offset() + SharedUtils.pickChunkOffset(chunkOffset, byteWidth(), chunkSize);
+                    int shiftAmount = chunkOffset * Byte.SIZE;
+                    switch (chunkSize) {
+                        case 4 -> {
+                            int writeChunk = (int) (((0xFFFF_FFFFL << shiftAmount) & longValue) >>> shiftAmount);
+                            writeAddress.set(JAVA_INT_UNALIGNED, writeOffset, writeChunk);
+                        }
+                        case 2 -> {
+                            short writeChunk = (short) (((0xFFFFL << shiftAmount) & longValue) >>> shiftAmount);
+                            writeAddress.set(JAVA_SHORT_UNALIGNED, writeOffset, writeChunk);
+                        }
+                        case 1 -> {
+                            byte writeChunk = (byte) (((0xFFL << shiftAmount) & longValue) >>> shiftAmount);
+                            writeAddress.set(JAVA_BYTE, writeOffset, writeChunk);
+                        }
+                        default ->
+                           throw new IllegalStateException("Unexpected chunk size for chunked write: " + chunkSize);
+                    }
+                    remaining -= chunkSize;
+                    chunkOffset += chunkSize;
+                } while (remaining != 0);
+            }
         }
     }
 
     /**
-     * BUFFER_LOAD([offset into memory region], [type])
-     * Pops a [type], and then a MemorySegment from the operand stack,
-     * and then stores [type] to [offset into memory region] of the MemorySegment.
+     * BUFFER_LOAD([offset into memory region], [type], [width])
+     * Pops a MemorySegment from the operand stack,
+     * and then loads [width] bytes from it at [offset into memory region], into a [type].
      * The [type] must be one of byte, short, char, int, long, float, or double
      */
-    record BufferLoad(long offset, Class<?> type) implements Dereference {
+    record BufferLoad(long offset, Class<?> type, int byteWidth) implements Dereference {
         @Override
         public Tag tag() {
             return Tag.BUFFER_LOAD;
@@ -584,9 +645,39 @@ public interface Binding {
         @Override
         public void interpret(Deque<Object> stack, BindingInterpreter.StoreFunc storeFunc,
                               BindingInterpreter.LoadFunc loadFunc, Context context) {
-            MemorySegment operand = (MemorySegment) stack.pop();
-            MemorySegment readAddress = operand.asSlice(offset());
-            stack.push(SharedUtils.read(readAddress, type()));
+            MemorySegment readAddress = (MemorySegment) stack.pop();
+            if (SharedUtils.isPowerOfTwo(byteWidth())) {
+                // exact size match
+                stack.push(SharedUtils.read(readAddress, offset(), type()));
+            } else {
+                // non-exact match, need to do chunked load
+                long result = 0;
+                // byteWidth is smaller than the width of 'type', so it will always be < 8 here
+                int remaining = byteWidth();
+                int chunkOffset = 0;
+                do {
+                    int chunkSize = Integer.highestOneBit(remaining); // next power of 2
+                    long readOffset = offset() + SharedUtils.pickChunkOffset(chunkOffset, byteWidth(), chunkSize);
+                    long readChunk = switch (chunkSize) {
+                        case 4 -> Integer.toUnsignedLong(readAddress.get(JAVA_INT_UNALIGNED, readOffset));
+                        case 2 -> Short.toUnsignedLong(readAddress.get(JAVA_SHORT_UNALIGNED, readOffset));
+                        case 1 -> Byte.toUnsignedLong(readAddress.get(JAVA_BYTE, readOffset));
+                        default ->
+                            throw new IllegalStateException("Unexpected chunk size for chunked write: " + chunkSize);
+                    };
+                    result |= readChunk << (chunkOffset * Byte.SIZE);
+                    remaining -= chunkSize;
+                    chunkOffset += chunkSize;
+                } while (remaining != 0);
+
+                if (type() == int.class) { // 3 byte write
+                    stack.push((int) result);
+                } else if (type() == long.class) { // 5, 6, 7 byte write
+                    stack.push(result);
+                } else {
+                    throw new IllegalStateException("Unexpected type for chunked load: " + type());
+                }
+            }
         }
     }
 
@@ -678,10 +769,10 @@ public interface Binding {
 
     /**
      * BOX_ADDRESS()
-     * Pops a 'long' from the operand stack, converts it to a 'MemorySegment', with the given size and memory session
-     * (either the context session, or the global session), and pushes that onto the operand stack.
+     * Pops a 'long' from the operand stack, converts it to a 'MemorySegment', with the given size and memory scope
+     * (either the context scope, or the global scope), and pushes that onto the operand stack.
      */
-    record BoxAddress(long size, boolean needsSession) implements Binding {
+    record BoxAddress(long size, boolean needsScope) implements Binding {
 
         @Override
         public Tag tag() {
@@ -698,9 +789,9 @@ public interface Binding {
         @Override
         public void interpret(Deque<Object> stack, BindingInterpreter.StoreFunc storeFunc,
                               BindingInterpreter.LoadFunc loadFunc, Context context) {
-            SegmentScope session = needsSession ?
-                    context.session() : SegmentScope.global();
-            stack.push(NativeMemorySegmentImpl.makeNativeSegmentUnchecked((long) stack.pop(), size, session));
+            SegmentScope scope = needsScope ?
+                    context.scope() : SegmentScope.global();
+            stack.push(NativeMemorySegmentImpl.makeNativeSegmentUnchecked((long) stack.pop(), size, scope));
         }
     }
 
