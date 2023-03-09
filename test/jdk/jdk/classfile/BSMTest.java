@@ -96,7 +96,7 @@ public class BSMTest {
                 new ByteArrayClassLoader(BSMTest.class.getClassLoader(), testClassName, newBytes)
                         .getMethod(testClassName, "many")
                         .invoke(null, new Object[0]);
-        assertEquals(TWENTY, result);
+        assertEquals(result, TWENTY);
     }
 
     public static String bootstrap(MethodHandles.Lookup lookup, String name, Class<?> clz, Object arg1, Object arg2) {

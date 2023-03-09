@@ -250,6 +250,6 @@ class ShortJumpsFixTest {
         for (var e : Classfile.parse(classFile).methods().get(0).code().get())
             if (e instanceof Instruction i && found.peekLast() != i.opcode()) //dedup subsequent (NOPs)
                 found.add(i.opcode());
-        assertEquals(List.of(sample.expected), found);
+        assertEquals(found, List.of(sample.expected));
     }
 }

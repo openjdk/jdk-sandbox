@@ -48,19 +48,19 @@ class BuilderParamTest {
         Classfile.build(ClassDesc.of("Foo"), cb -> {
             cb.withMethod("foo", MethodTypeDesc.ofDescriptor("(IJI)V"), 0,
                           mb -> mb.withCode(xb -> {
-                assertEquals(0, xb.receiverSlot());
-                assertEquals(1, xb.parameterSlot(0));
-                assertEquals(2, xb.parameterSlot(1));
-                assertEquals(4, xb.parameterSlot(2));
+                assertEquals(xb.receiverSlot(), 0);
+                assertEquals(xb.parameterSlot(0), 1);
+                assertEquals(xb.parameterSlot(1), 2);
+                assertEquals(xb.parameterSlot(2), 4);
             }));
         });
 
         Classfile.build(ClassDesc.of("Foo"), cb -> {
             cb.withMethod("foo", MethodTypeDesc.ofDescriptor("(IJI)V"), ACC_STATIC,
                           mb -> mb.withCode(xb -> {
-                              assertEquals(0, xb.parameterSlot(0));
-                              assertEquals(1, xb.parameterSlot(1));
-                              assertEquals(3, xb.parameterSlot(2));
+                              assertEquals(xb.parameterSlot(0), 0);
+                              assertEquals(xb.parameterSlot(1), 1);
+                              assertEquals(xb.parameterSlot(2), 3);
                           }));
         });
     }

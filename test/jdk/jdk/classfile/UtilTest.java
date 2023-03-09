@@ -39,34 +39,34 @@ import static org.junit.jupiter.api.Assertions.*;
 class UtilTest {
     @Test
     void testFindParams() {
-        assertEquals(4, Util.findParams("(IIII)V").cardinality());
-        assertEquals(4, Util.findParams("([I[I[I[I)V").cardinality());
-        assertEquals(5, Util.findParams("(IJLFoo;IJ)V").cardinality());
-        assertEquals(1, Util.findParams("([[[[I)V").cardinality());
-        assertEquals(1, Util.findParams("([[[[LFoo;)V").cardinality());
-        assertEquals(2, Util.findParams("([I[LFoo;)V").cardinality());
-        assertEquals(0, Util.findParams("()V").cardinality());
+        assertEquals(Util.findParams("(IIII)V").cardinality(), 4);
+        assertEquals(Util.findParams("([I[I[I[I)V").cardinality(), 4);
+        assertEquals(Util.findParams("(IJLFoo;IJ)V").cardinality(), 5);
+        assertEquals(Util.findParams("([[[[I)V").cardinality(), 1);
+        assertEquals(Util.findParams("([[[[LFoo;)V").cardinality(), 1);
+        assertEquals(Util.findParams("([I[LFoo;)V").cardinality(), 2);
+        assertEquals(Util.findParams("()V").cardinality(), 0);
     }
 
     @Test
     void testParameterSlots() {
-        assertEquals(4, Util.parameterSlots("(IIII)V"));
-        assertEquals(4, Util.parameterSlots("([I[I[I[I)V"));
-        assertEquals(7, Util.parameterSlots("(IJLFoo;IJ)V"));
-        assertEquals(1, Util.parameterSlots("([[[[I)V"));
-        assertEquals(1, Util.parameterSlots("([[[[LFoo;)V"));
-        assertEquals(2, Util.parameterSlots("([I[LFoo;)V"));
-        assertEquals(0, Util.parameterSlots("()V"));
-        assertEquals(1, Util.parameterSlots("(I)V"));
-        assertEquals(1, Util.parameterSlots("(S)V"));
-        assertEquals(1, Util.parameterSlots("(C)V"));
-        assertEquals(1, Util.parameterSlots("(B)V"));
-        assertEquals(1, Util.parameterSlots("(Z)V"));
-        assertEquals(1, Util.parameterSlots("(F)V"));
-        assertEquals(1, Util.parameterSlots("(LFoo;)V"));
-        assertEquals(2, Util.parameterSlots("(J)V"));
-        assertEquals(2, Util.parameterSlots("(D)V"));
-        assertEquals(1, Util.parameterSlots("([J)V"));
-        assertEquals(1, Util.parameterSlots("([D)V"));
+        assertEquals(Util.parameterSlots("(IIII)V"), 4);
+        assertEquals(Util.parameterSlots("([I[I[I[I)V"), 4);
+        assertEquals(Util.parameterSlots("(IJLFoo;IJ)V"), 7);
+        assertEquals(Util.parameterSlots("([[[[I)V"), 1);
+        assertEquals(Util.parameterSlots("([[[[LFoo;)V"), 1);
+        assertEquals(Util.parameterSlots("([I[LFoo;)V"), 2);
+        assertEquals(Util.parameterSlots("()V"), 0);
+        assertEquals(Util.parameterSlots("(I)V"), 1);
+        assertEquals(Util.parameterSlots("(S)V"), 1);
+        assertEquals(Util.parameterSlots("(C)V"), 1);
+        assertEquals(Util.parameterSlots("(B)V"), 1);
+        assertEquals(Util.parameterSlots("(Z)V"), 1);
+        assertEquals(Util.parameterSlots("(F)V"), 1);
+        assertEquals(Util.parameterSlots("(LFoo;)V"), 1);
+        assertEquals(Util.parameterSlots("(J)V"), 2);
+        assertEquals(Util.parameterSlots("(D)V"), 2);
+        assertEquals(Util.parameterSlots("([J)V"), 1);
+        assertEquals(Util.parameterSlots("([D)V"), 1);
     }
 }

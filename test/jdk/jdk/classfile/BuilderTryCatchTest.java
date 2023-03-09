@@ -80,9 +80,9 @@ class BuilderTryCatchTest {
         MethodHandle main = lookup.findStatic(lookup.lookupClass(), "main",
                 MethodType.methodType(String.class, String[].class));
 
-        assertEquals("BODY", main.invoke(new String[]{"BODY"}));
-        assertEquals("IndexOutOfBoundsException", main.invoke(new String[]{}));
-        assertEquals("any", main.invoke(null));
+        assertEquals(main.invoke(new String[]{"BODY"}), "BODY");
+        assertEquals(main.invoke(new String[]{}), "IndexOutOfBoundsException");
+        assertEquals(main.invoke(null), "any");
     }
 
     @Test
@@ -105,9 +105,9 @@ class BuilderTryCatchTest {
         MethodHandle main = lookup.findStatic(lookup.lookupClass(), "main",
                 MethodType.methodType(String.class, String[].class));
 
-        assertEquals("BODY", main.invoke(new String[]{"BODY"}));
-        assertEquals("IndexOutOfBoundsException", main.invoke(new String[]{}));
-        assertEquals("any", main.invoke(null));
+        assertEquals(main.invoke(new String[]{"BODY"}), "BODY");
+        assertEquals(main.invoke(new String[]{}), "IndexOutOfBoundsException");
+        assertEquals(main.invoke(null), "any");
     }
 
     @Test
@@ -141,8 +141,8 @@ class BuilderTryCatchTest {
         MethodHandle main = lookup.findStatic(lookup.lookupClass(), "main",
                 MethodType.methodType(String.class, String[].class));
 
-        assertEquals("BODY", main.invoke(new String[]{"BODY"}));
-        assertEquals("IndexOutOfBoundsException", main.invoke(new String[]{}));
+        assertEquals(main.invoke(new String[]{"BODY"}), "BODY");
+        assertEquals(main.invoke(new String[]{}), "IndexOutOfBoundsException");
         assertThrows(NullPointerException.class,
                 () -> main.invoke(null));
     }
@@ -162,9 +162,9 @@ class BuilderTryCatchTest {
         MethodHandle main = lookup.findStatic(lookup.lookupClass(), "main",
                 MethodType.methodType(String.class, String[].class));
 
-        assertEquals("BODY", main.invoke(new String[]{"BODY"}));
-        assertEquals("any", main.invoke(new String[]{}));
-        assertEquals("any", main.invoke(null));
+        assertEquals(main.invoke(new String[]{"BODY"}), "BODY");
+        assertEquals(main.invoke(new String[]{}), "any");
+        assertEquals(main.invoke(null), "any");
     }
 
     @Test
@@ -270,9 +270,9 @@ class BuilderTryCatchTest {
         MethodHandle main = lookup.findStatic(lookup.lookupClass(), "main",
                 MethodType.methodType(String.class, String[].class));
 
-        assertEquals(Integer.toString(4), main.invoke(new String[]{"BODY"}));
-        assertEquals(Double.toString(Math.PI), main.invoke(new String[]{}));
-        assertEquals("REF", main.invoke(null));
+        assertEquals(main.invoke(new String[]{"BODY"}), Integer.toString(4));
+        assertEquals(main.invoke(new String[]{}), Double.toString(Math.PI));
+        assertEquals(main.invoke(null), "REF");
     }
 
     static byte[] generateTryCatchMethod(Consumer<CodeBuilder.CatchBuilder> c) {

@@ -58,6 +58,6 @@ class AnnotationModelTest {
         var model = Classfile.parse(fileBytes);
         var annotations = model.findAttribute(Attributes.RUNTIME_VISIBLE_ANNOTATIONS).get().annotations();
 
-        assertEquals(3, annotations.size());
+        assertEquals(annotations.size(), 3);
     }
 }

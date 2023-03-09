@@ -98,7 +98,7 @@ class LowAdaptTest {
                 new ByteArrayClassLoader(LowAdaptTest.class.getClassLoader(), test, clazz)
                         .getMethod(test,"doit")
                         .invoke(null, 10);
-        assertEquals(55, result);
+        assertEquals(result, 55);
     }
 
     public static class TestClass {

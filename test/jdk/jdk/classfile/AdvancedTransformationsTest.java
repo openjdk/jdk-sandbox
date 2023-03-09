@@ -174,10 +174,10 @@ class AdvancedTransformationsTest {
                                 Classfile.buildModule(
                                         ModuleAttribute.of(ModuleDesc.of("MyModule"), mab ->
                                                 mab.uses(foo).provides(foo, foo)))))).findAttribute(Attributes.MODULE).get();
-        assertEquals(bar, ma.uses().get(0).asSymbol());
+        assertEquals(ma.uses().get(0).asSymbol(), bar);
         var provides = ma.provides().get(0);
-        assertEquals(bar, provides.provides().asSymbol());
-        assertEquals(bar, provides.providesWith().get(0).asSymbol());
+        assertEquals(provides.provides().asSymbol(), bar);
+        assertEquals(provides.providesWith().get(0).asSymbol(), bar);
     }
 
     @Test
@@ -237,7 +237,7 @@ class AdvancedTransformationsTest {
         var instrumentedBytes = instrument(target, instrumentor, mm -> mm.methodName().stringValue().equals("instrumentedMethod"));
         assertEmpty(Classfile.parse(instrumentedBytes).verify(null)); //System.out::print));
         var targetClass = new ByteArrayClassLoader(AdvancedTransformationsTest.class.getClassLoader(), "AdvancedTransformationsTest$TargetClass", instrumentedBytes).loadClass("AdvancedTransformationsTest$TargetClass");
-        assertEquals(34, targetClass.getDeclaredMethod("instrumentedMethod", Boolean.class).invoke(targetClass.getDeclaredConstructor().newInstance(), false));
+        assertEquals(targetClass.getDeclaredMethod("instrumentedMethod", Boolean.class).invoke(targetClass.getDeclaredConstructor().newInstance(), false), 34);
     }
 
     public static class InstrumentorClass {
@@ -250,16 +250,16 @@ class AdvancedTransformationsTest {
         //matching methods are instrumenting frames
         public int instrumentedMethod(Boolean instrumented) {
 //            System.out.println("instrumentor start");
-            assertEquals("hi", privateField);
+            assertEquals(privateField, "hi");
             int local = 42;
             instrumented = true;
             //matching method call is inlined
             instrumentedMethod(instrumented);
             instrumentedMethod(instrumented);
-            assertEquals(42, local);
-            assertEquals("hello", privateField);
-            assertEquals(0, instrumentorField);
-            assertEquals(77, insHelper());
+            assertEquals(local, 42);
+            assertEquals(privateField, "hello");
+            assertEquals(instrumentorField, 0);
+            assertEquals(insHelper(), 77);
 //            System.out.println("instrumentor end");
             return 34;
         }

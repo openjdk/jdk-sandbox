@@ -67,7 +67,7 @@ class TestRecordComponent {
                 cb.with(ce);
         };
         ClassModel newModel = Classfile.parse(cm.transform(xform));
-        ClassRecord.assertEquals(cm, newModel);
+        ClassRecord.assertEquals(newModel, cm);
     }
 
     @Test
@@ -75,7 +75,7 @@ class TestRecordComponent {
         ClassModel cm = Classfile.parse(Files.readAllBytes(testClassPath));
         ClassTransform xform = (cb, ce) -> cb.with(ce);
         ClassModel newModel = Classfile.parse(cm.transform(xform));
-        ClassRecord.assertEquals(cm, newModel);
+        ClassRecord.assertEquals(newModel, cm);
     }
 
     @Test
@@ -93,11 +93,11 @@ class TestRecordComponent {
         };
         ClassModel newModel = Classfile.parse(cm.transform(xform));
         RecordAttribute ra = newModel.findAttribute(Attributes.RECORD).orElseThrow();
-        assertEquals(2, ra.components().size(), "Should have two components");
-        assertEquals("fooXYZ", ra.components().get(0).name().stringValue());
-        assertEquals("barXYZ", ra.components().get(1).name().stringValue());
+        assertEquals(ra.components().size(), 2, "Should have two components");
+        assertEquals(ra.components().get(0).name().stringValue(), "fooXYZ");
+        assertEquals(ra.components().get(1).name().stringValue(), "barXYZ");
         assertTrue(ra.components().get(0).attributes().isEmpty());
-        assertEquals(cm.attributes().size(), newModel.attributes().size());
+        assertEquals(newModel.attributes().size(), cm.attributes().size());
     }
 
     @Test
@@ -108,8 +108,8 @@ class TestRecordComponent {
             if (ce instanceof RecordAttribute rm) {
                 count.addAndGet(rm.components().size());
             }});
-        assertEquals(2, count.get());
-        assertEquals(2, cm.findAttribute(Attributes.RECORD).orElseThrow().components().size());
+        assertEquals(count.get(), 2);
+        assertEquals(cm.findAttribute(Attributes.RECORD).orElseThrow().components().size(), 2);
 
         count.set(0);
     }

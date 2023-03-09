@@ -83,16 +83,16 @@ class AnnotationTest {
     }
 
     private static boolean assertAnno(Annotation a, String annoClassDescriptor, boolean deep) {
-        assertEquals(annoClassDescriptor, a.className().stringValue());
-        assertEquals(deep ? 13 : 12, a.elements().size());
+        assertEquals(a.className().stringValue(), annoClassDescriptor);
+        assertEquals(a.elements().size(), deep ? 13 : 12);
         Set<String> names = new HashSet<>();
         for (AnnotationElement evp : a.elements()) {
             names.add(evp.name().stringValue());
             switch (evp.name().stringValue()) {
                 case "i", "j", "s", "b", "f", "d", "z", "c", "st":
                     assertTrue (evp.value() instanceof AnnotationValue.OfConstant c);
-                    assertEquals(constants.get(evp.name().stringValue()),
-                                 ((AnnotationValue.OfConstant) evp.value()).constantValue());
+                    assertEquals(((AnnotationValue.OfConstant) evp.value()).constantValue(),
+                                 constants.get(evp.name().stringValue()));
                     break;
                 case "cl":
                     assertTrue (evp.value() instanceof AnnotationValue.OfClass c
@@ -109,15 +109,15 @@ class AnnotationTest {
                 case "arr":
                     assertTrue (evp.value() instanceof AnnotationValue.OfArray);
                     List<AnnotationValue> values = ((AnnotationValue.OfArray) evp.value()).values();
-                    assertEquals(Set.of(1, 1.0f, "1"),
-                                 values.stream().map(v -> ((AnnotationValue.OfConstant) v).constant().constantValue()).collect(toSet()));
+                    assertEquals(values.stream().map(v -> ((AnnotationValue.OfConstant) v).constant().constantValue()).collect(toSet()),
+                                 Set.of(1, 1.0f, "1"));
                     break;
                 default:
                     fail("Unexpected annotation element: " + evp.name().stringValue());
 
             }
         }
-        assertEquals(a.elements().size(), names.size());
+        assertEquals(names.size(), a.elements().size());
         return true;
     }
 
@@ -155,9 +155,9 @@ class AnnotationTest {
                                      .map(ce -> (RuntimeVisibleAnnotationsAttribute) ce)
                                      .flatMap(am -> am.annotations().stream())
                                      .collect(toList());
-        assertEquals(1, annos.size());
-        assertEquals(1, mannos.size());
-        assertEquals(1, fannos.size());
+        assertEquals(annos.size(), 1);
+        assertEquals(mannos.size(), 1);
+        assertEquals(fannos.size(), 1);
         assertAnno(annos.get(0), "LAnno;", true);
         assertAnno(mannos.get(0), "LAnno;", true);
         assertAnno(fannos.get(0), "LAnno;", true);
@@ -200,9 +200,9 @@ class AnnotationTest {
                 .map(ce -> (RuntimeVisibleAnnotationsAttribute) ce)
                 .flatMap(am -> am.annotations().stream())
                 .toList();
-        assertEquals(1, annos.size());
-        assertEquals(1, mannos.size());
-        assertEquals(1, fannos.size());
+        assertEquals(annos.size(), 1);
+        assertEquals(mannos.size(), 1);
+        assertEquals(fannos.size(), 1);
         assertAnno(annos.get(0), "LAnno;", true);
         assertAnno(mannos.get(0), "LAnno;", true);
         assertAnno(fannos.get(0), "LAnno;", true);

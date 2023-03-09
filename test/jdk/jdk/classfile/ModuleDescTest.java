@@ -45,6 +45,6 @@ class ModuleDescTest {
     @ValueSource(strings = {"a\\\\b", "a.b/c", "a\\@b\\: c"})
     public void testValidModuleNames(String mdl) {
         assertEquals(ModuleDesc.of(mdl), ModuleDesc.of(mdl));
-        assertEquals(mdl, ModuleDesc.of(mdl).moduleName());
+        assertEquals(ModuleDesc.of(mdl).moduleName(), mdl);
     }
 }

@@ -823,19 +823,19 @@ class ClassPrinterTest {
     @Test
     void testWalkTraceAll() throws IOException {
         var node = ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.TRACE_ALL);
-        assertEquals(509, node.walk().count());
+        assertEquals(node.walk().count(), 509);
     }
 
     @Test
     void testWalkCriticalAttributes() throws IOException {
         var node = ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.CRITICAL_ATTRIBUTES);
-        assertEquals(128, node.walk().count());
+        assertEquals(node.walk().count(), 128);
     }
 
     @Test
     void testWalkMembersOnly() throws IOException {
         var node = ClassPrinter.toTree(getClassModel(), ClassPrinter.Verbosity.MEMBERS_ONLY);
-        assertEquals(41, node.walk().count());
+        assertEquals(node.walk().count(), 41);
     }
 
     private static void assertOut(StringBuilder out, String expected) {
