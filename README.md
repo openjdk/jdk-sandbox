@@ -1,5 +1,7 @@
 # Classfile Processing API for JDK
 
+##Important Note: This branch has been split into [JDK-8294957](https://bugs.openjdk.org/browse/JDK-8294957) subtasks and does not serve for development anymore.
+
 Provide an API for parsing, generating, and transforming Java class files. This will initially serve as an internal replacement for ASM in the JDK, to be later opened as a public API.
 
 See [JEP](https://bugs.openjdk.java.net/browse/JDK-8280389)
