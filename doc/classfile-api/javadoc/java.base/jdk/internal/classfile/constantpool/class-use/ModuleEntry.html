@@ -111,13 +111,13 @@ loadScripts(document, 'script');</script>
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool">ModuleEntry</a>&gt;</code></div>
+<div class="col-first even-row-color"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="../ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool">ModuleEntry</a>&gt;</code></div>
 <div class="col-second even-row-color"><span class="type-name-label">ModuleExportInfo.</span><code><a href="../../attribute/ModuleExportInfo.html#exportsTo()" class="member-name-link">exportsTo</a>()</code></div>
 <div class="col-last even-row-color">
 <div class="block">Returns the list of modules to which this package is exported, if it is a
  qualified export.</div>
 </div>
-<div class="col-first odd-row-color"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool">ModuleEntry</a>&gt;</code></div>
+<div class="col-first odd-row-color"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="../ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool">ModuleEntry</a>&gt;</code></div>
 <div class="col-second odd-row-color"><span class="type-name-label">ModuleOpenInfo.</span><code><a href="../../attribute/ModuleOpenInfo.html#opensTo()" class="member-name-link">opensTo</a>()</code></div>
 <div class="col-last odd-row-color">
 <div class="block">The list of modules to which this package is opened, if it is a
@@ -141,52 +141,58 @@ loadScripts(document, 'script');</script>
 <div class="col-last even-row-color">
 <div class="block">Returns a <code>Module</code> attribute.</div>
 </div>
-<div class="col-first odd-row-color"><code>static <a href="../../attribute/ModuleExportInfo.html" title="interface in jdk.internal.classfile.attribute">ModuleExportInfo</a></code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">ModuleExportInfo.</span><code><a href="../../attribute/ModuleExportInfo.html#of(jdk.internal.classfile.constantpool.PackageEntry,int,jdk.internal.classfile.constantpool.ModuleEntry...)" class="member-name-link">of</a><wbr>(<a href="../PackageEntry.html" title="interface in jdk.internal.classfile.constantpool">PackageEntry</a>&nbsp;exports,
- int&nbsp;exportFlags,
- <a href="../ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool">ModuleEntry</a>...&nbsp;exportsTo)</code></div>
+<div class="col-first odd-row-color"><code>static <a href="../../attribute/ModuleAttribute.html" title="interface in jdk.internal.classfile.attribute">ModuleAttribute</a></code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">ModuleAttribute.</span><code><a href="../../attribute/ModuleAttribute.html#of(jdk.internal.classfile.constantpool.ModuleEntry,java.util.function.Consumer)" class="member-name-link">of</a><wbr>(<a href="../ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool">ModuleEntry</a>&nbsp;moduleName,
+ <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="../../attribute/ModuleAttribute.ModuleAttributeBuilder.html" title="interface in jdk.internal.classfile.attribute">ModuleAttribute.ModuleAttributeBuilder</a>&gt;&nbsp;attrHandler)</code></div>
 <div class="col-last odd-row-color">
-<div class="block">Returns a module export description.</div>
+<div class="block">Returns a <code>Module</code> attribute.</div>
 </div>
 <div class="col-first even-row-color"><code>static <a href="../../attribute/ModuleExportInfo.html" title="interface in jdk.internal.classfile.attribute">ModuleExportInfo</a></code></div>
-<div class="col-second even-row-color"><span class="type-name-label">ModuleExportInfo.</span><code><a href="../../attribute/ModuleExportInfo.html#of(jdk.internal.classfile.constantpool.PackageEntry,java.util.Collection,jdk.internal.classfile.constantpool.ModuleEntry...)" class="member-name-link">of</a><wbr>(<a href="../PackageEntry.html" title="interface in jdk.internal.classfile.constantpool">PackageEntry</a>&nbsp;exports,
- <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Collection.html" title="class or interface in java.util" class="external-link">Collection</a>&lt;<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/reflect/AccessFlag.html" title="class or interface in java.lang.reflect" class="external-link">AccessFlag</a>&gt;&nbsp;exportFlags,
+<div class="col-second even-row-color"><span class="type-name-label">ModuleExportInfo.</span><code><a href="../../attribute/ModuleExportInfo.html#of(jdk.internal.classfile.constantpool.PackageEntry,int,jdk.internal.classfile.constantpool.ModuleEntry...)" class="member-name-link">of</a><wbr>(<a href="../PackageEntry.html" title="interface in jdk.internal.classfile.constantpool">PackageEntry</a>&nbsp;exports,
+ int&nbsp;exportFlags,
  <a href="../ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool">ModuleEntry</a>...&nbsp;exportsTo)</code></div>
 <div class="col-last even-row-color">
 <div class="block">Returns a module export description.</div>
 </div>
-<div class="col-first odd-row-color"><code>static <a href="../../attribute/ModuleHashInfo.html" title="interface in jdk.internal.classfile.attribute">ModuleHashInfo</a></code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">ModuleHashInfo.</span><code><a href="../../attribute/ModuleHashInfo.html#of(jdk.internal.classfile.constantpool.ModuleEntry,byte%5B%5D)" class="member-name-link">of</a><wbr>(<a href="../ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool">ModuleEntry</a>&nbsp;moduleName,
- byte[]&nbsp;hash)</code></div>
+<div class="col-first odd-row-color"><code>static <a href="../../attribute/ModuleExportInfo.html" title="interface in jdk.internal.classfile.attribute">ModuleExportInfo</a></code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">ModuleExportInfo.</span><code><a href="../../attribute/ModuleExportInfo.html#of(jdk.internal.classfile.constantpool.PackageEntry,java.util.Collection,jdk.internal.classfile.constantpool.ModuleEntry...)" class="member-name-link">of</a><wbr>(<a href="../PackageEntry.html" title="interface in jdk.internal.classfile.constantpool">PackageEntry</a>&nbsp;exports,
+ <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Collection.html" title="class or interface in java.util" class="external-link">Collection</a>&lt;<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/reflect/AccessFlag.html" title="class or interface in java.lang.reflect" class="external-link">AccessFlag</a>&gt;&nbsp;exportFlags,
+ <a href="../ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool">ModuleEntry</a>...&nbsp;exportsTo)</code></div>
 <div class="col-last odd-row-color">
+<div class="block">Returns a module export description.</div>
+</div>
+<div class="col-first even-row-color"><code>static <a href="../../attribute/ModuleHashInfo.html" title="interface in jdk.internal.classfile.attribute">ModuleHashInfo</a></code></div>
+<div class="col-second even-row-color"><span class="type-name-label">ModuleHashInfo.</span><code><a href="../../attribute/ModuleHashInfo.html#of(jdk.internal.classfile.constantpool.ModuleEntry,byte%5B%5D)" class="member-name-link">of</a><wbr>(<a href="../ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool">ModuleEntry</a>&nbsp;moduleName,
+ byte[]&nbsp;hash)</code></div>
+<div class="col-last even-row-color">
 <div class="block">Returns a module hash description.</div>
 </div>
-<div class="col-first even-row-color"><code>static <a href="../../attribute/ModuleOpenInfo.html" title="interface in jdk.internal.classfile.attribute">ModuleOpenInfo</a></code></div>
-<div class="col-second even-row-color"><span class="type-name-label">ModuleOpenInfo.</span><code><a href="../../attribute/ModuleOpenInfo.html#of(jdk.internal.classfile.constantpool.PackageEntry,int,jdk.internal.classfile.constantpool.ModuleEntry...)" class="member-name-link">of</a><wbr>(<a href="../PackageEntry.html" title="interface in jdk.internal.classfile.constantpool">PackageEntry</a>&nbsp;opens,
+<div class="col-first odd-row-color"><code>static <a href="../../attribute/ModuleOpenInfo.html" title="interface in jdk.internal.classfile.attribute">ModuleOpenInfo</a></code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">ModuleOpenInfo.</span><code><a href="../../attribute/ModuleOpenInfo.html#of(jdk.internal.classfile.constantpool.PackageEntry,int,jdk.internal.classfile.constantpool.ModuleEntry...)" class="member-name-link">of</a><wbr>(<a href="../PackageEntry.html" title="interface in jdk.internal.classfile.constantpool">PackageEntry</a>&nbsp;opens,
  int&nbsp;opensFlags,
  <a href="../ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool">ModuleEntry</a>...&nbsp;opensTo)</code></div>
-<div class="col-last even-row-color">
+<div class="col-last odd-row-color">
 <div class="block">Returns a module open description.</div>
 </div>
-<div class="col-first odd-row-color"><code>static <a href="../../attribute/ModuleOpenInfo.html" title="interface in jdk.internal.classfile.attribute">ModuleOpenInfo</a></code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">ModuleOpenInfo.</span><code><a href="../../attribute/ModuleOpenInfo.html#of(jdk.internal.classfile.constantpool.PackageEntry,java.util.Collection,jdk.internal.classfile.constantpool.ModuleEntry...)" class="member-name-link">of</a><wbr>(<a href="../PackageEntry.html" title="interface in jdk.internal.classfile.constantpool">PackageEntry</a>&nbsp;opens,
+<div class="col-first even-row-color"><code>static <a href="../../attribute/ModuleOpenInfo.html" title="interface in jdk.internal.classfile.attribute">ModuleOpenInfo</a></code></div>
+<div class="col-second even-row-color"><span class="type-name-label">ModuleOpenInfo.</span><code><a href="../../attribute/ModuleOpenInfo.html#of(jdk.internal.classfile.constantpool.PackageEntry,java.util.Collection,jdk.internal.classfile.constantpool.ModuleEntry...)" class="member-name-link">of</a><wbr>(<a href="../PackageEntry.html" title="interface in jdk.internal.classfile.constantpool">PackageEntry</a>&nbsp;opens,
  <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Collection.html" title="class or interface in java.util" class="external-link">Collection</a>&lt;<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/reflect/AccessFlag.html" title="class or interface in java.lang.reflect" class="external-link">AccessFlag</a>&gt;&nbsp;opensFlags,
  <a href="../ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool">ModuleEntry</a>...&nbsp;opensTo)</code></div>
-<div class="col-last odd-row-color">
+<div class="col-last even-row-color">
 <div class="block">Returns a module open description.</div>
 </div>
-<div class="col-first even-row-color"><code>static <a href="../../attribute/ModuleRequireInfo.html" title="interface in jdk.internal.classfile.attribute">ModuleRequireInfo</a></code></div>
-<div class="col-second even-row-color"><span class="type-name-label">ModuleRequireInfo.</span><code><a href="../../attribute/ModuleRequireInfo.html#of(jdk.internal.classfile.constantpool.ModuleEntry,int,jdk.internal.classfile.constantpool.Utf8Entry)" class="member-name-link">of</a><wbr>(<a href="../ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool">ModuleEntry</a>&nbsp;requires,
+<div class="col-first odd-row-color"><code>static <a href="../../attribute/ModuleRequireInfo.html" title="interface in jdk.internal.classfile.attribute">ModuleRequireInfo</a></code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">ModuleRequireInfo.</span><code><a href="../../attribute/ModuleRequireInfo.html#of(jdk.internal.classfile.constantpool.ModuleEntry,int,jdk.internal.classfile.constantpool.Utf8Entry)" class="member-name-link">of</a><wbr>(<a href="../ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool">ModuleEntry</a>&nbsp;requires,
  int&nbsp;requiresFlags,
  <a href="../Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>&nbsp;requiresVersion)</code></div>
-<div class="col-last even-row-color">
+<div class="col-last odd-row-color">
 <div class="block">Returns a module requirement description.</div>
 </div>
-<div class="col-first odd-row-color"><code>static <a href="../../attribute/ModuleRequireInfo.html" title="interface in jdk.internal.classfile.attribute">ModuleRequireInfo</a></code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">ModuleRequireInfo.</span><code><a href="../../attribute/ModuleRequireInfo.html#of(jdk.internal.classfile.constantpool.ModuleEntry,java.util.Collection,jdk.internal.classfile.constantpool.Utf8Entry)" class="member-name-link">of</a><wbr>(<a href="../ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool">ModuleEntry</a>&nbsp;requires,
+<div class="col-first even-row-color"><code>static <a href="../../attribute/ModuleRequireInfo.html" title="interface in jdk.internal.classfile.attribute">ModuleRequireInfo</a></code></div>
+<div class="col-second even-row-color"><span class="type-name-label">ModuleRequireInfo.</span><code><a href="../../attribute/ModuleRequireInfo.html#of(jdk.internal.classfile.constantpool.ModuleEntry,java.util.Collection,jdk.internal.classfile.constantpool.Utf8Entry)" class="member-name-link">of</a><wbr>(<a href="../ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool">ModuleEntry</a>&nbsp;requires,
  <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Collection.html" title="class or interface in java.util" class="external-link">Collection</a>&lt;<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/reflect/AccessFlag.html" title="class or interface in java.lang.reflect" class="external-link">AccessFlag</a>&gt;&nbsp;requiresFlags,
  <a href="../Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>&nbsp;requiresVersion)</code></div>
-<div class="col-last odd-row-color">
+<div class="col-last even-row-color">
 <div class="block">Returns a module requirement description.</div>
 </div>
 </div>

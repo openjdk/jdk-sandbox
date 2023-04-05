@@ -473,7 +473,7 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Take any preliminary action during transformation of a classfile entity.</div>
 </dd>
-<dt><a href="java.base/jdk/internal/classfile/Attribute.html" class="type-name-link" title="interface in jdk.internal.classfile">Attribute</a>&lt;<a href="java.base/jdk/internal/classfile/Attribute.html" title="type parameter in Attribute">A</a> extends <a href="java.base/jdk/internal/classfile/Attribute.html" title="interface in jdk.internal.classfile">Attribute</a>&lt;<a href="java.base/jdk/internal/classfile/Attribute.html" title="type parameter in Attribute">A</a>&gt;&gt; - Interface in <a href="java.base/jdk/internal/classfile/package-summary.html">jdk.internal.classfile</a></dt>
+<dt><a href="java.base/jdk/internal/classfile/Attribute.html" class="type-name-link" title="interface in jdk.internal.classfile">Attribute&lt;A&gt;</a> - Interface in <a href="java.base/jdk/internal/classfile/package-summary.html">jdk.internal.classfile</a></dt>
 <dd>
 <div class="block">Models a classfile attribute <a href="https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7">4.7</a>.</div>
 </dd>
@@ -490,7 +490,7 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Returns an option describing attribute mappers for custom attributes.</div>
 </dd>
-<dt><a href="java.base/jdk/internal/classfile/AttributeMapper.html" class="type-name-link" title="interface in jdk.internal.classfile">AttributeMapper</a>&lt;<a href="java.base/jdk/internal/classfile/AttributeMapper.html" title="type parameter in AttributeMapper">A</a>&gt; - Interface in <a href="java.base/jdk/internal/classfile/package-summary.html">jdk.internal.classfile</a></dt>
+<dt><a href="java.base/jdk/internal/classfile/AttributeMapper.html" class="type-name-link" title="interface in jdk.internal.classfile">AttributeMapper&lt;A&gt;</a> - Interface in <a href="java.base/jdk/internal/classfile/package-summary.html">jdk.internal.classfile</a></dt>
 <dd>
 <div class="block">Bidirectional mapper between the classfile representation of an attribute and
  how that attribute is modeled in the API.</div>
@@ -648,11 +648,7 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Build a module descriptor into a byte array.</div>
 </dd>
-<dt><a href="java.base/jdk/internal/classfile/Classfile.html#buildModule(jdk.internal.classfile.attribute.ModuleAttribute,java.util.List)" class="member-name-link">buildModule(ModuleAttribute, List&lt;PackageDesc&gt;)</a> - Static method in class jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Classfile.html" title="class in jdk.internal.classfile">Classfile</a></dt>
-<dd>
-<div class="block">Build a module descriptor into a byte array.</div>
-</dd>
-<dt><a href="java.base/jdk/internal/classfile/Classfile.html#buildModule(jdk.internal.classfile.attribute.ModuleAttribute,java.util.List,java.util.function.Consumer)" class="member-name-link">buildModule(ModuleAttribute, List&lt;PackageDesc&gt;, Consumer&lt;? super ClassBuilder&gt;)</a> - Static method in class jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Classfile.html" title="class in jdk.internal.classfile">Classfile</a></dt>
+<dt><a href="java.base/jdk/internal/classfile/Classfile.html#buildModule(jdk.internal.classfile.attribute.ModuleAttribute,java.util.function.Consumer)" class="member-name-link">buildModule(ModuleAttribute, Consumer&lt;? super ClassBuilder&gt;)</a> - Static method in class jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Classfile.html" title="class in jdk.internal.classfile">Classfile</a></dt>
 <dd>
 <div class="block">Build a module descriptor into a byte array.</div>
 </dd>
@@ -660,11 +656,7 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Build a module descriptor into a file.</div>
 </dd>
-<dt><a href="java.base/jdk/internal/classfile/Classfile.html#buildModuleTo(java.nio.file.Path,jdk.internal.classfile.attribute.ModuleAttribute,java.util.List)" class="member-name-link">buildModuleTo(Path, ModuleAttribute, List&lt;PackageDesc&gt;)</a> - Static method in class jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Classfile.html" title="class in jdk.internal.classfile">Classfile</a></dt>
-<dd>
-<div class="block">Build a module descriptor into a file.</div>
-</dd>
-<dt><a href="java.base/jdk/internal/classfile/Classfile.html#buildModuleTo(java.nio.file.Path,jdk.internal.classfile.attribute.ModuleAttribute,java.util.List,java.util.function.Consumer)" class="member-name-link">buildModuleTo(Path, ModuleAttribute, List&lt;PackageDesc&gt;, Consumer&lt;? super ClassBuilder&gt;)</a> - Static method in class jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Classfile.html" title="class in jdk.internal.classfile">Classfile</a></dt>
+<dt><a href="java.base/jdk/internal/classfile/Classfile.html#buildModuleTo(java.nio.file.Path,jdk.internal.classfile.attribute.ModuleAttribute,java.util.function.Consumer)" class="member-name-link">buildModuleTo(Path, ModuleAttribute, Consumer&lt;? super ClassBuilder&gt;)</a> - Static method in class jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Classfile.html" title="class in jdk.internal.classfile">Classfile</a></dt>
 <dd>
 <div class="block">Build a module descriptor into a file.</div>
 </dd>
@@ -860,7 +852,7 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">An option that affects the writing of classfiles.</div>
 </dd>
-<dt><a href="java.base/jdk/internal/classfile/ClassfileBuilder.html" class="type-name-link" title="interface in jdk.internal.classfile">ClassfileBuilder</a>&lt;<a href="java.base/jdk/internal/classfile/ClassfileBuilder.html" title="type parameter in ClassfileBuilder">E</a> extends <a href="java.base/jdk/internal/classfile/ClassfileElement.html" title="interface in jdk.internal.classfile">ClassfileElement</a>,<wbr><a href="java.base/jdk/internal/classfile/ClassfileBuilder.html" title="type parameter in ClassfileBuilder">B</a> extends <a href="java.base/jdk/internal/classfile/ClassfileBuilder.html" title="interface in jdk.internal.classfile">ClassfileBuilder</a>&lt;<a href="java.base/jdk/internal/classfile/ClassfileBuilder.html" title="type parameter in ClassfileBuilder">E</a>,<wbr><a href="java.base/jdk/internal/classfile/ClassfileBuilder.html" title="type parameter in ClassfileBuilder">B</a>&gt;&gt; - Interface in <a href="java.base/jdk/internal/classfile/package-summary.html">jdk.internal.classfile</a></dt>
+<dt><a href="java.base/jdk/internal/classfile/ClassfileBuilder.html" class="type-name-link" title="interface in jdk.internal.classfile">ClassfileBuilder&lt;E,<wbr>B&gt;</a> - Interface in <a href="java.base/jdk/internal/classfile/package-summary.html">jdk.internal.classfile</a></dt>
 <dd>
 <div class="block">A builder for a classfile or portion of a classfile.</div>
 </dd>
@@ -872,11 +864,11 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Returns the length of the classfile, in bytes.</div>
 </dd>
-<dt><a href="java.base/jdk/internal/classfile/ClassfileTransform.html" class="type-name-link" title="interface in jdk.internal.classfile">ClassfileTransform</a>&lt;<a href="java.base/jdk/internal/classfile/ClassfileTransform.html" title="type parameter in ClassfileTransform">C</a> extends <a href="java.base/jdk/internal/classfile/ClassfileTransform.html" title="interface in jdk.internal.classfile">ClassfileTransform</a>&lt;<a href="java.base/jdk/internal/classfile/ClassfileTransform.html" title="type parameter in ClassfileTransform">C</a>,<wbr><a href="java.base/jdk/internal/classfile/ClassfileTransform.html" title="type parameter in ClassfileTransform">E</a>,<wbr><a href="java.base/jdk/internal/classfile/ClassfileTransform.html" title="type parameter in ClassfileTransform">B</a>&gt;,<wbr><a href="java.base/jdk/internal/classfile/ClassfileTransform.html" title="type parameter in ClassfileTransform">E</a> extends <a href="java.base/jdk/internal/classfile/ClassfileElement.html" title="interface in jdk.internal.classfile">ClassfileElement</a>,<wbr><a href="java.base/jdk/internal/classfile/ClassfileTransform.html" title="type parameter in ClassfileTransform">B</a> extends <a href="java.base/jdk/internal/classfile/ClassfileBuilder.html" title="interface in jdk.internal.classfile">ClassfileBuilder</a>&lt;<a href="java.base/jdk/internal/classfile/ClassfileTransform.html" title="type parameter in ClassfileTransform">E</a>,<wbr><a href="java.base/jdk/internal/classfile/ClassfileTransform.html" title="type parameter in ClassfileTransform">B</a>&gt;&gt; - Interface in <a href="java.base/jdk/internal/classfile/package-summary.html">jdk.internal.classfile</a></dt>
+<dt><a href="java.base/jdk/internal/classfile/ClassfileTransform.html" class="type-name-link" title="interface in jdk.internal.classfile">ClassfileTransform&lt;C,<wbr>E,<wbr>B&gt;</a> - Interface in <a href="java.base/jdk/internal/classfile/package-summary.html">jdk.internal.classfile</a></dt>
 <dd>
 <div class="block">A transformation on streams of elements.</div>
 </dd>
-<dt><a href="java.base/jdk/internal/classfile/ClassfileTransform.ResolvedTransform.html" class="type-name-link" title="interface in jdk.internal.classfile">ClassfileTransform.ResolvedTransform</a>&lt;<a href="java.base/jdk/internal/classfile/ClassfileTransform.ResolvedTransform.html" title="type parameter in ClassfileTransform.ResolvedTransform">E</a> extends <a href="java.base/jdk/internal/classfile/ClassfileElement.html" title="interface in jdk.internal.classfile">ClassfileElement</a>&gt; - Interface in <a href="java.base/jdk/internal/classfile/package-summary.html">jdk.internal.classfile</a></dt>
+<dt><a href="java.base/jdk/internal/classfile/ClassfileTransform.ResolvedTransform.html" class="type-name-link" title="interface in jdk.internal.classfile">ClassfileTransform.ResolvedTransform&lt;E&gt;</a> - Interface in <a href="java.base/jdk/internal/classfile/package-summary.html">jdk.internal.classfile</a></dt>
 <dd>
 <div class="block">The result of binding a transform to a builder.</div>
 </dd>
@@ -1096,7 +1088,7 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Returns the component type of the array.</div>
 </dd>
-<dt><a href="java.base/jdk/internal/classfile/CompoundElement.html" class="type-name-link" title="interface in jdk.internal.classfile">CompoundElement</a>&lt;<a href="java.base/jdk/internal/classfile/CompoundElement.html" title="type parameter in CompoundElement">E</a> extends <a href="java.base/jdk/internal/classfile/ClassfileElement.html" title="interface in jdk.internal.classfile">ClassfileElement</a>&gt; - Interface in <a href="java.base/jdk/internal/classfile/package-summary.html">jdk.internal.classfile</a></dt>
+<dt><a href="java.base/jdk/internal/classfile/CompoundElement.html" class="type-name-link" title="interface in jdk.internal.classfile">CompoundElement&lt;E&gt;</a> - Interface in <a href="java.base/jdk/internal/classfile/package-summary.html">jdk.internal.classfile</a></dt>
 <dd>
 <div class="block">A <a href="java.base/jdk/internal/classfile/ClassfileElement.html" title="interface in jdk.internal.classfile"><code>ClassfileElement</code></a> that has complex structure defined in terms of
  other classfile elements, such as a method, field, method body, or entire
@@ -1314,7 +1306,7 @@ loadScripts(document, 'script');</script>
 <dd>&nbsp;</dd>
 <dt><a href="java.base/jdk/internal/classfile/Classfile.html#CRT_STATEMENT" class="member-name-link">CRT_STATEMENT</a> - Static variable in class jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Classfile.html" title="class in jdk.internal.classfile">Classfile</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="java.base/jdk/internal/classfile/CustomAttribute.html" class="type-name-link" title="class in jdk.internal.classfile">CustomAttribute</a>&lt;<a href="java.base/jdk/internal/classfile/CustomAttribute.html" title="type parameter in CustomAttribute">T</a> extends <a href="java.base/jdk/internal/classfile/CustomAttribute.html" title="class in jdk.internal.classfile">CustomAttribute</a>&lt;<a href="java.base/jdk/internal/classfile/CustomAttribute.html" title="type parameter in CustomAttribute">T</a>&gt;&gt; - Class in <a href="java.base/jdk/internal/classfile/package-summary.html">jdk.internal.classfile</a></dt>
+<dt><a href="java.base/jdk/internal/classfile/CustomAttribute.html" class="type-name-link" title="class in jdk.internal.classfile">CustomAttribute&lt;T&gt;</a> - Class in <a href="java.base/jdk/internal/classfile/package-summary.html">jdk.internal.classfile</a></dt>
 <dd>
 <div class="block">Models a non-standard attribute of a classfile.</div>
 </dd>
@@ -2099,6 +2091,10 @@ loadScripts(document, 'script');</script>
 <dd>&nbsp;</dd>
 <dt><a href="java.base/jdk/internal/classfile/Classfile.html#FRETURN" class="member-name-link">FRETURN</a> - Static variable in class jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/Classfile.html" title="class in jdk.internal.classfile">Classfile</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="java.base/jdk/internal/classfile/TypeKind.html#from(java.lang.invoke.TypeDescriptor.OfField)" class="member-name-link">from(TypeDescriptor.OfField&lt;?&gt;)</a> - Static method in enum class jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a></dt>
+<dd>
+<div class="block">Returns the type kind associated with the specified field descriptor.</div>
+</dd>
 <dt><a href="java.base/jdk/internal/classfile/TypeKind.html#fromDescriptor(java.lang.CharSequence)" class="member-name-link">fromDescriptor(CharSequence)</a> - Static method in enum class jdk.internal.classfile.<a href="java.base/jdk/internal/classfile/TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a></dt>
 <dd>
 <div class="block">Returns the type kind associated with the specified field descriptor.</div>
@@ -4346,6 +4342,10 @@ loadScripts(document, 'script');</script>
 <dt><a href="java.base/jdk/internal/classfile/attribute/ModuleRequireInfo.html#of(jdk.internal.classfile.constantpool.ModuleEntry,java.util.Collection,jdk.internal.classfile.constantpool.Utf8Entry)" class="member-name-link">of(ModuleEntry, Collection&lt;AccessFlag&gt;, Utf8Entry)</a> - Static method in interface jdk.internal.classfile.attribute.<a href="java.base/jdk/internal/classfile/attribute/ModuleRequireInfo.html" title="interface in jdk.internal.classfile.attribute">ModuleRequireInfo</a></dt>
 <dd>
 <div class="block">Returns a module requirement description.</div>
+</dd>
+<dt><a href="java.base/jdk/internal/classfile/attribute/ModuleAttribute.html#of(jdk.internal.classfile.constantpool.ModuleEntry,java.util.function.Consumer)" class="member-name-link">of(ModuleEntry, Consumer&lt;ModuleAttribute.ModuleAttributeBuilder&gt;)</a> - Static method in interface jdk.internal.classfile.attribute.<a href="java.base/jdk/internal/classfile/attribute/ModuleAttribute.html" title="interface in jdk.internal.classfile.attribute">ModuleAttribute</a></dt>
+<dd>
+<div class="block">Returns a <code>Module</code> attribute.</div>
 </dd>
 <dt><a href="java.base/jdk/internal/classfile/attribute/ModulePackagesAttribute.html#of(jdk.internal.classfile.constantpool.PackageEntry...)" class="member-name-link">of(PackageEntry...)</a> - Static method in interface jdk.internal.classfile.attribute.<a href="java.base/jdk/internal/classfile/attribute/ModulePackagesAttribute.html" title="interface in jdk.internal.classfile.attribute">ModulePackagesAttribute</a></dt>
 <dd>
@@ -6720,7 +6720,7 @@ the order they are declared.</div>
 <dd>
 <div class="block">Sets the classfile version.</div>
 </dd>
-<dt><a href="java.base/jdk/internal/classfile/WritableElement.html" class="type-name-link" title="interface in jdk.internal.classfile">WritableElement</a>&lt;<a href="java.base/jdk/internal/classfile/WritableElement.html" title="type parameter in WritableElement">T</a>&gt; - Interface in <a href="java.base/jdk/internal/classfile/package-summary.html">jdk.internal.classfile</a></dt>
+<dt><a href="java.base/jdk/internal/classfile/WritableElement.html" class="type-name-link" title="interface in jdk.internal.classfile">WritableElement&lt;T&gt;</a> - Interface in <a href="java.base/jdk/internal/classfile/package-summary.html">jdk.internal.classfile</a></dt>
 <dd>
 <div class="block">A classfile element that can encode itself as a stream of bytes in the
  encoding expected by the classfile format.</div>

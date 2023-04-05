@@ -127,7 +127,7 @@ extends <a href="../Attribute.html" title="interface in jdk.internal.classfile">
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="ModuleExportInfo.html" title="interface in jdk.internal.classfile.attribute">ModuleExportInfo</a>&gt;</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="ModuleExportInfo.html" title="interface in jdk.internal.classfile.attribute">ModuleExportInfo</a>&gt;</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#exports()" class="member-name-link">exports</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns the packages exported by this module.</div>
@@ -135,7 +135,7 @@ extends <a href="../Attribute.html" title="interface in jdk.internal.classfile">
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default boolean</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#has(java.lang.reflect.AccessFlag)" class="member-name-link">has</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/reflect/AccessFlag.html" title="class or interface in java.lang.reflect" class="external-link">AccessFlag</a>&nbsp;flag)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">&nbsp;</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Set.html" title="class or interface in java.util" class="external-link">Set</a>&lt;<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/reflect/AccessFlag.html" title="class or interface in java.lang.reflect" class="external-link">AccessFlag</a>&gt;</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Set.html" title="class or interface in java.util" class="external-link">Set</a><wbr>&lt;<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/reflect/AccessFlag.html" title="class or interface in java.lang.reflect" class="external-link">AccessFlag</a>&gt;</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#moduleFlags()" class="member-name-link">moduleFlags</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Returns the the module flags of the module, as a set of enum constants.</div>
@@ -150,7 +150,7 @@ extends <a href="../Attribute.html" title="interface in jdk.internal.classfile">
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns the name of the module.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="../constantpool/Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>&gt;</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a><wbr>&lt;<a href="../constantpool/Utf8Entry.html" title="interface in jdk.internal.classfile.constantpool">Utf8Entry</a>&gt;</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#moduleVersion()" class="member-name-link">moduleVersion</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns version of the module, if present.</div>
@@ -168,29 +168,35 @@ extends <a href="../Attribute.html" title="interface in jdk.internal.classfile">
 <div class="block">Returns a <code>Module</code> attribute.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1"><code>static <a href="ModuleAttribute.html" title="interface in jdk.internal.classfile.attribute">ModuleAttribute</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(jdk.internal.classfile.java.lang.constant.ModuleDesc,java.util.function.Consumer)" class="member-name-link">of</a><wbr>(<a href="../java/lang/constant/ModuleDesc.html" title="interface in jdk.internal.classfile.java.lang.constant">ModuleDesc</a>&nbsp;moduleName,
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(jdk.internal.classfile.constantpool.ModuleEntry,java.util.function.Consumer)" class="member-name-link">of</a><wbr>(<a href="../constantpool/ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool">ModuleEntry</a>&nbsp;moduleName,
  <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="ModuleAttribute.ModuleAttributeBuilder.html" title="interface in jdk.internal.classfile.attribute">ModuleAttribute.ModuleAttributeBuilder</a>&gt;&nbsp;attrHandler)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1">
 <div class="block">Returns a <code>Module</code> attribute.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="ModuleOpenInfo.html" title="interface in jdk.internal.classfile.attribute">ModuleOpenInfo</a>&gt;</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#opens()" class="member-name-link">opens</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1"><code>static <a href="ModuleAttribute.html" title="interface in jdk.internal.classfile.attribute">ModuleAttribute</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1"><code><a href="#of(jdk.internal.classfile.java.lang.constant.ModuleDesc,java.util.function.Consumer)" class="member-name-link">of</a><wbr>(<a href="../java/lang/constant/ModuleDesc.html" title="interface in jdk.internal.classfile.java.lang.constant">ModuleDesc</a>&nbsp;moduleName,
+ <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="ModuleAttribute.ModuleAttributeBuilder.html" title="interface in jdk.internal.classfile.attribute">ModuleAttribute.ModuleAttributeBuilder</a>&gt;&nbsp;attrHandler)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1">
+<div class="block">Returns a <code>Module</code> attribute.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="ModuleOpenInfo.html" title="interface in jdk.internal.classfile.attribute">ModuleOpenInfo</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#opens()" class="member-name-link">opens</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns the packages opened by this module.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="ModuleProvideInfo.html" title="interface in jdk.internal.classfile.attribute">ModuleProvideInfo</a>&gt;</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#provides()" class="member-name-link">provides</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="ModuleProvideInfo.html" title="interface in jdk.internal.classfile.attribute">ModuleProvideInfo</a>&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#provides()" class="member-name-link">provides</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns the service implementations provided by this module.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="ModuleRequireInfo.html" title="interface in jdk.internal.classfile.attribute">ModuleRequireInfo</a>&gt;</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#requires()" class="member-name-link">requires</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="ModuleRequireInfo.html" title="interface in jdk.internal.classfile.attribute">ModuleRequireInfo</a>&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#requires()" class="member-name-link">requires</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns the modules required by this module.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../constantpool/ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#uses()" class="member-name-link">uses</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="../constantpool/ClassEntry.html" title="interface in jdk.internal.classfile.constantpool">ClassEntry</a>&gt;</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#uses()" class="member-name-link">uses</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Returns the services used by this module.</div>
 </div>
 </div>
@@ -350,6 +356,21 @@ extends <a href="../Attribute.html" title="interface in jdk.internal.classfile">
 <section class="detail" id="of(jdk.internal.classfile.java.lang.constant.ModuleDesc,java.util.function.Consumer)">
 <h3>of</h3>
 <div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="ModuleAttribute.html" title="interface in jdk.internal.classfile.attribute">ModuleAttribute</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="../java/lang/constant/ModuleDesc.html" title="interface in jdk.internal.classfile.java.lang.constant">ModuleDesc</a>&nbsp;moduleName,
+ <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="ModuleAttribute.ModuleAttributeBuilder.html" title="interface in jdk.internal.classfile.attribute">ModuleAttribute.ModuleAttributeBuilder</a>&gt;&nbsp;attrHandler)</span></div>
+<div class="block">Returns a <code>Module</code> attribute.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>moduleName</code> - the module name</dd>
+<dd><code>attrHandler</code> - a handler that receives a <a href="ModuleAttribute.ModuleAttributeBuilder.html" title="interface in jdk.internal.classfile.attribute"><code>ModuleAttribute.ModuleAttributeBuilder</code></a></dd>
+<dt>Returns:</dt>
+<dd>a <code>Module</code> attribute</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="of(jdk.internal.classfile.constantpool.ModuleEntry,java.util.function.Consumer)">
+<h3>of</h3>
+<div class="member-signature"><span class="modifiers">static</span>&nbsp;<span class="return-type"><a href="ModuleAttribute.html" title="interface in jdk.internal.classfile.attribute">ModuleAttribute</a></span>&nbsp;<span class="element-name">of</span><wbr><span class="parameters">(<a href="../constantpool/ModuleEntry.html" title="interface in jdk.internal.classfile.constantpool">ModuleEntry</a>&nbsp;moduleName,
  <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="ModuleAttribute.ModuleAttributeBuilder.html" title="interface in jdk.internal.classfile.attribute">ModuleAttribute.ModuleAttributeBuilder</a>&gt;&nbsp;attrHandler)</span></div>
 <div class="block">Returns a <code>Module</code> attribute.</div>
 <dl class="notes">

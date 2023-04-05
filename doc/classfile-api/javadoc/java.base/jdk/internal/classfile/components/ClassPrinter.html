@@ -104,7 +104,7 @@ loadScripts(document, 'script');</script>
  <p>
  The most frequent use case is to simply print a class:
  
-<div class="snippet-container"><button class="copy snippet-copy" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy"></button>
+<div class="snippet-container"><button class="copy snippet-copy" aria-label="Copy snippet" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy snippet"></button>
 <pre class="snippet"><code class="language-java">ClassPrinter.toJson(classModel, ClassPrinter.Verbosity.TRACE_ALL, System.out::print);
 </code></pre>
 </div>
@@ -112,7 +112,7 @@ loadScripts(document, 'script');</script>
  <p>
  <a href="ClassPrinter.html" title="class in jdk.internal.classfile.components"><code>ClassPrinter</code></a> allows to traverse tree of simple printable nodes to hook custom printer:
  
-<div class="snippet-container"><button class="copy snippet-copy" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy"></button>
+<div class="snippet-container"><button class="copy snippet-copy" aria-label="Copy snippet" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy snippet"></button>
 <pre class="snippet"><code class="language-java">void customPrint(ClassModel classModel) {
     print(ClassPrinter.toTree(classModel, ClassPrinter.Verbosity.TRACE_ALL));
 }
@@ -138,7 +138,7 @@ void print(ClassPrinter.Node node) {
  <p>
  Another use case for <a href="ClassPrinter.html" title="class in jdk.internal.classfile.components"><code>ClassPrinter</code></a> is to simplify writing of automated tests:
  
-<div class="snippet-container"><button class="copy snippet-copy" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy"></button>
+<div class="snippet-container"><button class="copy snippet-copy" aria-label="Copy snippet" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy snippet"></button>
 <pre class="snippet"><code class="language-java">@Test
 void printNodesInTest(ClassModel classModel) {
     var classNode = ClassPrinter.toTree(classModel, ClassPrinter.Verbosity.TRACE_ALL);

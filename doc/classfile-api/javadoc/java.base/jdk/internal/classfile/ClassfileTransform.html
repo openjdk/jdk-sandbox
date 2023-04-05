@@ -131,7 +131,7 @@ loadScripts(document, 'script');</script>
  <p>
  Class transformation sample where code transformation is stateful:
  
-<div class="snippet-container"><button class="copy snippet-copy" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../copy.svg" alt="Copy"></button>
+<div class="snippet-container"><button class="copy snippet-copy" aria-label="Copy snippet" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../copy.svg" alt="Copy snippet"></button>
 <pre class="snippet"><code class="language-java">byte[] newBytes = classModel.transform(
         ClassTransform.transformingMethodBodies(
                 CodeTransform.ofStateful(CodeRelabeler::of)));
@@ -141,7 +141,7 @@ loadScripts(document, 'script');</script>
  <p>
  Complex class instrumentation sample chaining multiple transformations:
  
-<div class="snippet-container"><button class="copy snippet-copy" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../copy.svg" alt="Copy"></button>
+<div class="snippet-container"><button class="copy snippet-copy" aria-label="Copy snippet" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../copy.svg" alt="Copy snippet"></button>
 <pre class="snippet"><code class="language-java">byte[] classInstrumentation(ClassModel target, ClassModel instrumentor, Predicate&lt;MethodModel&gt; instrumentedMethodsFilter) {
     var instrumentorCodeMap = instrumentor.methods().stream()
                                           .filter(instrumentedMethodsFilter)
@@ -172,7 +172,7 @@ loadScripts(document, 'script');</script>
                                             if (!mm.flags().has(AccessFlag.STATIC))
                                                 storeStack.add(StoreInstruction.of(TypeKind.ReferenceType, slot++));
                                             for (var pt : mm.methodTypeSymbol().parameterList()) {
-                                                var tk = TypeKind.fromDescriptor(pt.descriptorString());
+                                                var tk = TypeKind.from(pt);
                                                 storeStack.addFirst(StoreInstruction.of(tk, slot));
                                                 slot += tk.slotSize();
                                             }
@@ -263,7 +263,7 @@ loadScripts(document, 'script');</script>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Take any preliminary action during transformation of a classfile entity.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="ClassfileTransform.ResolvedTransform.html" title="interface in jdk.internal.classfile">ClassfileTransform.ResolvedTransform</a>&lt;<a href="ClassfileTransform.html" title="type parameter in ClassfileTransform">E</a>&gt;</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="ClassfileTransform.ResolvedTransform.html" title="interface in jdk.internal.classfile">ClassfileTransform.ResolvedTransform</a><wbr>&lt;<a href="ClassfileTransform.html" title="type parameter in ClassfileTransform">E</a>&gt;</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#resolve(B)" class="member-name-link">resolve</a><wbr>(<a href="ClassfileTransform.html" title="type parameter in ClassfileTransform">B</a>&nbsp;builder)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Bind a transform to a builder.</div>

@@ -85,30 +85,35 @@ loadScripts(document, 'script');</script>
  and xRETURN bytecodes</div>
 </div>
 <div class="col-first odd-row-color"><code>static <a href="../TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a></code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">TypeKind.</span><code><a href="../TypeKind.html#fromDescriptor(java.lang.CharSequence)" class="member-name-link">fromDescriptor</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>&nbsp;s)</code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">TypeKind.</span><code><a href="../TypeKind.html#from(java.lang.invoke.TypeDescriptor.OfField)" class="member-name-link">from</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/invoke/TypeDescriptor.OfField.html" title="class or interface in java.lang.invoke" class="external-link">TypeDescriptor.OfField</a>&lt;?&gt;&nbsp;descriptor)</code></div>
 <div class="col-last odd-row-color">
 <div class="block">Returns the type kind associated with the specified field descriptor.</div>
 </div>
 <div class="col-first even-row-color"><code>static <a href="../TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a></code></div>
-<div class="col-second even-row-color"><span class="type-name-label">TypeKind.</span><code><a href="../TypeKind.html#fromNewArrayCode(int)" class="member-name-link">fromNewArrayCode</a><wbr>(int&nbsp;newarraycode)</code></div>
+<div class="col-second even-row-color"><span class="type-name-label">TypeKind.</span><code><a href="../TypeKind.html#fromDescriptor(java.lang.CharSequence)" class="member-name-link">fromDescriptor</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>&nbsp;s)</code></div>
 <div class="col-last even-row-color">
+<div class="block">Returns the type kind associated with the specified field descriptor.</div>
+</div>
+<div class="col-first odd-row-color"><code>static <a href="../TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a></code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">TypeKind.</span><code><a href="../TypeKind.html#fromNewArrayCode(int)" class="member-name-link">fromNewArrayCode</a><wbr>(int&nbsp;newarraycode)</code></div>
+<div class="col-last odd-row-color">
 <div class="block">Returns the type kind associated with the array type described by the
  array code used as an operand to <code>newarray</code>.</div>
 </div>
-<div class="col-first odd-row-color"><code><a href="../TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a></code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">Opcode.</span><code><a href="../Opcode.html#primaryTypeKind()" class="member-name-link">primaryTypeKind</a>()</code></div>
-<div class="col-last odd-row-color">&nbsp;</div>
 <div class="col-first even-row-color"><code><a href="../TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a></code></div>
-<div class="col-second even-row-color"><span class="type-name-label">Opcode.</span><code><a href="../Opcode.html#secondaryTypeKind()" class="member-name-link">secondaryTypeKind</a>()</code></div>
+<div class="col-second even-row-color"><span class="type-name-label">Opcode.</span><code><a href="../Opcode.html#primaryTypeKind()" class="member-name-link">primaryTypeKind</a>()</code></div>
 <div class="col-last even-row-color">&nbsp;</div>
-<div class="col-first odd-row-color"><code>static <a href="../TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a></code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">TypeKind.</span><code><a href="../TypeKind.html#valueOf(java.lang.String)" class="member-name-link">valueOf</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</code></div>
-<div class="col-last odd-row-color">
+<div class="col-first odd-row-color"><code><a href="../TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a></code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">Opcode.</span><code><a href="../Opcode.html#secondaryTypeKind()" class="member-name-link">secondaryTypeKind</a>()</code></div>
+<div class="col-last odd-row-color">&nbsp;</div>
+<div class="col-first even-row-color"><code>static <a href="../TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a></code></div>
+<div class="col-second even-row-color"><span class="type-name-label">TypeKind.</span><code><a href="../TypeKind.html#valueOf(java.lang.String)" class="member-name-link">valueOf</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</code></div>
+<div class="col-last even-row-color">
 <div class="block">Returns the enum constant of this class with the specified name.</div>
 </div>
-<div class="col-first even-row-color"><code>static <a href="../TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a>[]</code></div>
-<div class="col-second even-row-color"><span class="type-name-label">TypeKind.</span><code><a href="../TypeKind.html#values()" class="member-name-link">values</a>()</code></div>
-<div class="col-last even-row-color">
+<div class="col-first odd-row-color"><code>static <a href="../TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a>[]</code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">TypeKind.</span><code><a href="../TypeKind.html#values()" class="member-name-link">values</a>()</code></div>
+<div class="col-last odd-row-color">
 <div class="block">Returns an array containing the constants of this enum class, in
 the order they are declared.</div>
 </div>
@@ -161,10 +166,10 @@ the order they are declared.</div>
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Collection.html" title="class or interface in java.util" class="external-link">Collection</a>&lt;<a href="../TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a>&gt;&gt;</code></div>
+<div class="col-first even-row-color"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a><wbr>&lt;<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Collection.html" title="class or interface in java.util" class="external-link">Collection</a>&lt;<a href="../TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a>&gt;&gt;</code></div>
 <div class="col-second even-row-color"><span class="type-name-label">CodeStackTracker.CodeStackTrackerImpl.</span><code><a href="../components/CodeStackTracker.CodeStackTrackerImpl.html#stack()" class="member-name-link">stack</a>()</code></div>
 <div class="col-last even-row-color">&nbsp;</div>
-<div class="col-first odd-row-color"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Collection.html" title="class or interface in java.util" class="external-link">Collection</a>&lt;<a href="../TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a>&gt;&gt;</code></div>
+<div class="col-first odd-row-color"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a><wbr>&lt;<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Collection.html" title="class or interface in java.util" class="external-link">Collection</a>&lt;<a href="../TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a>&gt;&gt;</code></div>
 <div class="col-second odd-row-color"><span class="type-name-label">CodeStackTracker.</span><code><a href="../components/CodeStackTracker.html#stack()" class="member-name-link">stack</a>()</code></div>
 <div class="col-last odd-row-color">
 <div class="block">Returns <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/Collection.html" title="class or interface in java.util" class="external-link">Collection</a> of <a href="../TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a> representing current stack.</div>

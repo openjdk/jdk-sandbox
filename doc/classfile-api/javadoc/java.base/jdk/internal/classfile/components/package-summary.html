@@ -91,7 +91,7 @@ loadScripts(document, 'script');</script>
  <p>
  The most frequent use case is to simply print a class:
  
-<div class="snippet-container"><button class="copy snippet-copy" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy"></button>
+<div class="snippet-container"><button class="copy snippet-copy" aria-label="Copy snippet" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy snippet"></button>
 <pre class="snippet"><code class="language-java">ClassPrinter.toJson(classModel, ClassPrinter.Verbosity.TRACE_ALL, System.out::print);
 </code></pre>
 </div>
@@ -100,7 +100,7 @@ loadScripts(document, 'script');</script>
  <a href="ClassPrinter.html" title="class in jdk.internal.classfile.components"><code>ClassPrinter</code></a> allows to traverse tree of simple printable nodes to
  hook custom printer:
  
-<div class="snippet-container"><button class="copy snippet-copy" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy"></button>
+<div class="snippet-container"><button class="copy snippet-copy" aria-label="Copy snippet" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy snippet"></button>
 <pre class="snippet"><code class="language-java">void customPrint(ClassModel classModel) {
     print(ClassPrinter.toTree(classModel, ClassPrinter.Verbosity.TRACE_ALL));
 }
@@ -127,7 +127,7 @@ void print(ClassPrinter.Node node) {
  Another use case for <a href="ClassPrinter.html" title="class in jdk.internal.classfile.components"><code>ClassPrinter</code></a> is to simplify writing of automated
  tests:
  
-<div class="snippet-container"><button class="copy snippet-copy" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy"></button>
+<div class="snippet-container"><button class="copy snippet-copy" aria-label="Copy snippet" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy snippet"></button>
 <pre class="snippet"><code class="language-java">@Test
 void printNodesInTest(ClassModel classModel) {
     var classNode = ClassPrinter.toTree(classModel, ClassPrinter.Verbosity.TRACE_ALL);
@@ -164,7 +164,7 @@ void assertContains(ClassPrinter.Node node, ConstantDesc key, ConstantDesc value
  <p>
  Single class remappigng example:
  
-<div class="snippet-container"><button class="copy snippet-copy" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy"></button>
+<div class="snippet-container"><button class="copy snippet-copy" aria-label="Copy snippet" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy snippet"></button>
 <pre class="snippet"><code class="language-java">var classRemapper = ClassRemapper.of(
         Map.of(ClassDesc.of("Foo"), ClassDesc.of("Bar")));
 
@@ -178,7 +178,7 @@ for (var classModel : allMyClasses) {
  <p>
  Remapping of all classes under specific package:
  
-<div class="snippet-container"><button class="copy snippet-copy" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy"></button>
+<div class="snippet-container"><button class="copy snippet-copy" aria-label="Copy snippet" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy snippet"></button>
 <pre class="snippet"><code class="language-java">var classRemapper = ClassRemapper.of(cd -&gt;
         ClassDesc.ofDescriptor(cd.descriptorString().replace("Lcom/oldpackage/", "Lcom/newpackage/")));
 
@@ -199,7 +199,7 @@ for (var classModel : allMyClasses) {
  <p>
  Sample of code transformation shifting all locals in all methods:
  
-<div class="snippet-container"><button class="copy snippet-copy" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy"></button>
+<div class="snippet-container"><button class="copy snippet-copy" aria-label="Copy snippet" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy snippet"></button>
 <pre class="snippet"><code class="language-java">byte[] newBytes = classModel.transform((classBuilder, classElement) -&gt; {
         if (classElement instanceof MethodModel method)
             classBuilder.transformMethod(method,
@@ -228,7 +228,7 @@ for (var classModel : allMyClasses) {
  <p>
  Sample transformation relabeling all methods:
  
-<div class="snippet-container"><button class="copy snippet-copy" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy"></button>
+<div class="snippet-container"><button class="copy snippet-copy" aria-label="Copy snippet" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy snippet"></button>
 <pre class="snippet"><code class="language-java">byte[] newBytes = classModel.transform(
         ClassTransform.transformingMethodBodies(
                 CodeTransform.ofStateful(CodeRelabeler::of)));
@@ -240,7 +240,7 @@ for (var classModel : allMyClasses) {
  Following snippet is sample composition of <a href="ClassRemapper.html" title="interface in jdk.internal.classfile.components"><code>ClassRemapper</code></a>, <a href="CodeLocalsShifter.html" title="interface in jdk.internal.classfile.components"><code>CodeLocalsShifter</code></a> and <a href="CodeRelabeler.html" title="interface in jdk.internal.classfile.components"><code>CodeRelabeler</code></a> into fully functional class
  instrumenting transformation:
  
-<div class="snippet-container"><button class="copy snippet-copy" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy"></button>
+<div class="snippet-container"><button class="copy snippet-copy" aria-label="Copy snippet" onclick="copySnippet(this)"><span data-copied="Copied!">Copy</span><img src="../../../../../copy.svg" alt="Copy snippet"></button>
 <pre class="snippet"><code class="language-java">byte[] classInstrumentation(ClassModel target, ClassModel instrumentor, Predicate&lt;MethodModel&gt; instrumentedMethodsFilter) {
     var instrumentorCodeMap = instrumentor.methods().stream()
                                           .filter(instrumentedMethodsFilter)
@@ -271,7 +271,7 @@ for (var classModel : allMyClasses) {
                                             if (!mm.flags().has(AccessFlag.STATIC))
                                                 storeStack.push(StoreInstruction.of(TypeKind.ReferenceType, slot++));
                                             for (var pt : mm.methodTypeSymbol().parameterList()) {
-                                                var tk = TypeKind.fromDescriptor(pt.descriptorString());
+                                                var tk = TypeKind.from(pt);
                                                 storeStack.push(StoreInstruction.of(tk, slot));
                                                 slot += tk.slotSize();
                                             }

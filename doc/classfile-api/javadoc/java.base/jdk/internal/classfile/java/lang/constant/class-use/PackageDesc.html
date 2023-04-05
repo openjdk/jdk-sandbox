@@ -54,58 +54,15 @@ loadScripts(document, 'script');</script>
 <div class="summary-table two-column-summary">
 <div class="table-header col-first">Package</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color"><a href="#jdk.internal.classfile">jdk.internal.classfile</a></div>
-<div class="col-last even-row-color">
-<div class="block">Classfile parsing, generation, and transformation</div>
-</div>
-<div class="col-first odd-row-color"><a href="#jdk.internal.classfile.attribute">jdk.internal.classfile.attribute</a></div>
-<div class="col-last odd-row-color">&nbsp;</div>
-<div class="col-first even-row-color"><a href="#jdk.internal.classfile.constantpool">jdk.internal.classfile.constantpool</a></div>
+<div class="col-first even-row-color"><a href="#jdk.internal.classfile.attribute">jdk.internal.classfile.attribute</a></div>
 <div class="col-last even-row-color">&nbsp;</div>
-<div class="col-first odd-row-color"><a href="#jdk.internal.classfile.java.lang.constant">jdk.internal.classfile.java.lang.constant</a></div>
+<div class="col-first odd-row-color"><a href="#jdk.internal.classfile.constantpool">jdk.internal.classfile.constantpool</a></div>
 <div class="col-last odd-row-color">&nbsp;</div>
+<div class="col-first even-row-color"><a href="#jdk.internal.classfile.java.lang.constant">jdk.internal.classfile.java.lang.constant</a></div>
+<div class="col-last even-row-color">&nbsp;</div>
 </div>
 <section class="class-uses">
 <ul class="block-list">
-<li>
-<section class="detail" id="jdk.internal.classfile">
-<h2>Uses of <a href="../PackageDesc.html" title="interface in jdk.internal.classfile.java.lang.constant">PackageDesc</a> in <a href="../../../../package-summary.html">jdk.internal.classfile</a></h2>
-<div class="caption"><span>Method parameters in <a href="../../../../package-summary.html">jdk.internal.classfile</a> with type arguments of type <a href="../PackageDesc.html" title="interface in jdk.internal.classfile.java.lang.constant">PackageDesc</a></span></div>
-<div class="summary-table three-column-summary">
-<div class="table-header col-first">Modifier and Type</div>
-<div class="table-header col-second">Method</div>
-<div class="table-header col-last">Description</div>
-<div class="col-first even-row-color"><code>static byte[]</code></div>
-<div class="col-second even-row-color"><span class="type-name-label">Classfile.</span><code><a href="../../../../Classfile.html#buildModule(jdk.internal.classfile.attribute.ModuleAttribute,java.util.List)" class="member-name-link">buildModule</a><wbr>(<a href="../../../../attribute/ModuleAttribute.html" title="interface in jdk.internal.classfile.attribute">ModuleAttribute</a>&nbsp;moduleAttribute,
- <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../PackageDesc.html" title="interface in jdk.internal.classfile.java.lang.constant">PackageDesc</a>&gt;&nbsp;packages)</code></div>
-<div class="col-last even-row-color">
-<div class="block">Build a module descriptor into a byte array.</div>
-</div>
-<div class="col-first odd-row-color"><code>static byte[]</code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">Classfile.</span><code><a href="../../../../Classfile.html#buildModule(jdk.internal.classfile.attribute.ModuleAttribute,java.util.List,java.util.function.Consumer)" class="member-name-link">buildModule</a><wbr>(<a href="../../../../attribute/ModuleAttribute.html" title="interface in jdk.internal.classfile.attribute">ModuleAttribute</a>&nbsp;moduleAttribute,
- <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../PackageDesc.html" title="interface in jdk.internal.classfile.java.lang.constant">PackageDesc</a>&gt;&nbsp;packages,
- <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;? super <a href="../../../../ClassBuilder.html" title="interface in jdk.internal.classfile">ClassBuilder</a>&gt;&nbsp;handler)</code></div>
-<div class="col-last odd-row-color">
-<div class="block">Build a module descriptor into a byte array.</div>
-</div>
-<div class="col-first even-row-color"><code>static void</code></div>
-<div class="col-second even-row-color"><span class="type-name-label">Classfile.</span><code><a href="../../../../Classfile.html#buildModuleTo(java.nio.file.Path,jdk.internal.classfile.attribute.ModuleAttribute,java.util.List)" class="member-name-link">buildModuleTo</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;path,
- <a href="../../../../attribute/ModuleAttribute.html" title="interface in jdk.internal.classfile.attribute">ModuleAttribute</a>&nbsp;moduleAttribute,
- <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../PackageDesc.html" title="interface in jdk.internal.classfile.java.lang.constant">PackageDesc</a>&gt;&nbsp;packages)</code></div>
-<div class="col-last even-row-color">
-<div class="block">Build a module descriptor into a file.</div>
-</div>
-<div class="col-first odd-row-color"><code>static void</code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">Classfile.</span><code><a href="../../../../Classfile.html#buildModuleTo(java.nio.file.Path,jdk.internal.classfile.attribute.ModuleAttribute,java.util.List,java.util.function.Consumer)" class="member-name-link">buildModuleTo</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;path,
- <a href="../../../../attribute/ModuleAttribute.html" title="interface in jdk.internal.classfile.attribute">ModuleAttribute</a>&nbsp;moduleAttribute,
- <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="../PackageDesc.html" title="interface in jdk.internal.classfile.java.lang.constant">PackageDesc</a>&gt;&nbsp;packages,
- <a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;? super <a href="../../../../ClassBuilder.html" title="interface in jdk.internal.classfile">ClassBuilder</a>&gt;&nbsp;handler)</code></div>
-<div class="col-last odd-row-color">
-<div class="block">Build a module descriptor into a file.</div>
-</div>
-</div>
-</section>
-</li>
 <li>
 <section class="detail" id="jdk.internal.classfile.attribute">
 <h2>Uses of <a href="../PackageDesc.html" title="interface in jdk.internal.classfile.java.lang.constant">PackageDesc</a> in <a href="../../../../attribute/package-summary.html">jdk.internal.classfile.attribute</a></h2>

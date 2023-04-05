@@ -149,7 +149,7 @@ loadScripts(document, 'script');</script>
 <div class="block">Models an array store instruction in the <code>code</code> array of a <code>Code</code>
  attribute.</div>
 </div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="java.base/jdk/internal/classfile/Attribute.html" title="interface in jdk.internal.classfile">Attribute</a>&lt;<a href="java.base/jdk/internal/classfile/Attribute.html" title="type parameter in Attribute">A</a> extends <a href="java.base/jdk/internal/classfile/Attribute.html" title="interface in jdk.internal.classfile">Attribute</a>&lt;<a href="java.base/jdk/internal/classfile/Attribute.html" title="type parameter in Attribute">A</a>&gt;&gt;</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="java.base/jdk/internal/classfile/Attribute.html" title="interface in jdk.internal.classfile">Attribute&lt;A&gt;</a></div>
 <div class="col-last even-row-color all-classes-table all-classes-table-tab1">
 <div class="block">Models a classfile attribute <a href="https://docs.oracle.com/javase/specs/jvms/se19/html/jvms-4.html#jvms-4.7">4.7</a>.</div>
 </div>
@@ -158,7 +158,7 @@ loadScripts(document, 'script');</script>
 <div class="block">A <a href="java.base/jdk/internal/classfile/ClassfileElement.html" title="interface in jdk.internal.classfile"><code>ClassfileElement</code></a> describing an entity that has attributes, such
  as a class, field, method, code attribute, or record component.</div>
 </div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="java.base/jdk/internal/classfile/AttributeMapper.html" title="interface in jdk.internal.classfile">AttributeMapper</a>&lt;<a href="java.base/jdk/internal/classfile/AttributeMapper.html" title="type parameter in AttributeMapper">A</a>&gt;</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="java.base/jdk/internal/classfile/AttributeMapper.html" title="interface in jdk.internal.classfile">AttributeMapper&lt;A&gt;</a></div>
 <div class="col-last even-row-color all-classes-table all-classes-table-tab1">
 <div class="block">Bidirectional mapper between the classfile representation of an attribute and
  how that attribute is modeled in the API.</div>
@@ -221,7 +221,7 @@ loadScripts(document, 'script');</script>
 <div class="col-last odd-row-color all-classes-table all-classes-table-tab1">
 <div class="block">An option that affects the writing of classfiles.</div>
 </div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="java.base/jdk/internal/classfile/ClassfileBuilder.html" title="interface in jdk.internal.classfile">ClassfileBuilder</a>&lt;<a href="java.base/jdk/internal/classfile/ClassfileBuilder.html" title="type parameter in ClassfileBuilder">E</a> extends <a href="java.base/jdk/internal/classfile/ClassfileElement.html" title="interface in jdk.internal.classfile">ClassfileElement</a>,<wbr><a href="java.base/jdk/internal/classfile/ClassfileBuilder.html" title="type parameter in ClassfileBuilder">B</a> extends <a href="java.base/jdk/internal/classfile/ClassfileBuilder.html" title="interface in jdk.internal.classfile">ClassfileBuilder</a>&lt;<a href="java.base/jdk/internal/classfile/ClassfileBuilder.html" title="type parameter in ClassfileBuilder">E</a>,<wbr><a href="java.base/jdk/internal/classfile/ClassfileBuilder.html" title="type parameter in ClassfileBuilder">B</a>&gt;&gt;</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="java.base/jdk/internal/classfile/ClassfileBuilder.html" title="interface in jdk.internal.classfile">ClassfileBuilder&lt;E,<wbr>B&gt;</a></div>
 <div class="col-last even-row-color all-classes-table all-classes-table-tab1">
 <div class="block">A builder for a classfile or portion of a classfile.</div>
 </div>
@@ -229,11 +229,11 @@ loadScripts(document, 'script');</script>
 <div class="col-last odd-row-color all-classes-table all-classes-table-tab1">
 <div class="block">Immutable model for a portion of (or the entirety of) a classfile.</div>
 </div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="java.base/jdk/internal/classfile/ClassfileTransform.html" title="interface in jdk.internal.classfile">ClassfileTransform</a>&lt;<a href="java.base/jdk/internal/classfile/ClassfileTransform.html" title="type parameter in ClassfileTransform">C</a> extends <a href="java.base/jdk/internal/classfile/ClassfileTransform.html" title="interface in jdk.internal.classfile">ClassfileTransform</a>&lt;<a href="java.base/jdk/internal/classfile/ClassfileTransform.html" title="type parameter in ClassfileTransform">C</a>,<wbr><a href="java.base/jdk/internal/classfile/ClassfileTransform.html" title="type parameter in ClassfileTransform">E</a>,<wbr><a href="java.base/jdk/internal/classfile/ClassfileTransform.html" title="type parameter in ClassfileTransform">B</a>&gt;,<wbr><a href="java.base/jdk/internal/classfile/ClassfileTransform.html" title="type parameter in ClassfileTransform">E</a> extends <a href="java.base/jdk/internal/classfile/ClassfileElement.html" title="interface in jdk.internal.classfile">ClassfileElement</a>,<wbr><a href="java.base/jdk/internal/classfile/ClassfileTransform.html" title="type parameter in ClassfileTransform">B</a> extends <a href="java.base/jdk/internal/classfile/ClassfileBuilder.html" title="interface in jdk.internal.classfile">ClassfileBuilder</a>&lt;<a href="java.base/jdk/internal/classfile/ClassfileTransform.html" title="type parameter in ClassfileTransform">E</a>,<wbr><a href="java.base/jdk/internal/classfile/ClassfileTransform.html" title="type parameter in ClassfileTransform">B</a>&gt;&gt;</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="java.base/jdk/internal/classfile/ClassfileTransform.html" title="interface in jdk.internal.classfile">ClassfileTransform&lt;C,<wbr>E,<wbr>B&gt;</a></div>
 <div class="col-last even-row-color all-classes-table all-classes-table-tab1">
 <div class="block">A transformation on streams of elements.</div>
 </div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="java.base/jdk/internal/classfile/ClassfileTransform.ResolvedTransform.html" title="interface in jdk.internal.classfile">ClassfileTransform.ResolvedTransform</a>&lt;<a href="java.base/jdk/internal/classfile/ClassfileTransform.ResolvedTransform.html" title="type parameter in ClassfileTransform.ResolvedTransform">E</a> extends <a href="java.base/jdk/internal/classfile/ClassfileElement.html" title="interface in jdk.internal.classfile">ClassfileElement</a>&gt;</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="java.base/jdk/internal/classfile/ClassfileTransform.ResolvedTransform.html" title="interface in jdk.internal.classfile">ClassfileTransform.ResolvedTransform&lt;E&gt;</a></div>
 <div class="col-last odd-row-color all-classes-table all-classes-table-tab1">
 <div class="block">The result of binding a transform to a builder.</div>
 </div>
@@ -355,7 +355,7 @@ loadScripts(document, 'script');</script>
 <div class="block">Models the <code>CompilationID</code> attribute (@@@ need reference), which can
  appear on classes and records the compilation time of the class.</div>
 </div>
-<div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="java.base/jdk/internal/classfile/CompoundElement.html" title="interface in jdk.internal.classfile">CompoundElement</a>&lt;<a href="java.base/jdk/internal/classfile/CompoundElement.html" title="type parameter in CompoundElement">E</a> extends <a href="java.base/jdk/internal/classfile/ClassfileElement.html" title="interface in jdk.internal.classfile">ClassfileElement</a>&gt;</div>
+<div class="col-first odd-row-color all-classes-table all-classes-table-tab1"><a href="java.base/jdk/internal/classfile/CompoundElement.html" title="interface in jdk.internal.classfile">CompoundElement&lt;E&gt;</a></div>
 <div class="col-last odd-row-color all-classes-table all-classes-table-tab1">
 <div class="block">A <a href="java.base/jdk/internal/classfile/ClassfileElement.html" title="interface in jdk.internal.classfile"><code>ClassfileElement</code></a> that has complex structure defined in terms of
  other classfile elements, such as a method, field, method body, or entire
@@ -413,7 +413,7 @@ loadScripts(document, 'script');</script>
 <div class="block">Models a primitive conversion instruction in the <code>code</code> array of a
  <code>Code</code> attribute, such as <code>i2l</code>.</div>
 </div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="java.base/jdk/internal/classfile/CustomAttribute.html" title="class in jdk.internal.classfile">CustomAttribute</a>&lt;<a href="java.base/jdk/internal/classfile/CustomAttribute.html" title="type parameter in CustomAttribute">T</a> extends <a href="java.base/jdk/internal/classfile/CustomAttribute.html" title="class in jdk.internal.classfile">CustomAttribute</a>&lt;<a href="java.base/jdk/internal/classfile/CustomAttribute.html" title="type parameter in CustomAttribute">T</a>&gt;&gt;</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab2"><a href="java.base/jdk/internal/classfile/CustomAttribute.html" title="class in jdk.internal.classfile">CustomAttribute&lt;T&gt;</a></div>
 <div class="col-last even-row-color all-classes-table all-classes-table-tab2">
 <div class="block">Models a non-standard attribute of a classfile.</div>
 </div>
@@ -1062,7 +1062,7 @@ loadScripts(document, 'script');</script>
 <div class="block">Models a <code>CONSTANT_UTF8_info</code> constant in the constant pool of a
  classfile.</div>
 </div>
-<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="java.base/jdk/internal/classfile/WritableElement.html" title="interface in jdk.internal.classfile">WritableElement</a>&lt;<a href="java.base/jdk/internal/classfile/WritableElement.html" title="type parameter in WritableElement">T</a>&gt;</div>
+<div class="col-first even-row-color all-classes-table all-classes-table-tab1"><a href="java.base/jdk/internal/classfile/WritableElement.html" title="interface in jdk.internal.classfile">WritableElement&lt;T&gt;</a></div>
 <div class="col-last even-row-color all-classes-table all-classes-table-tab1">
 <div class="block">A classfile element that can encode itself as a stream of bytes in the
  encoding expected by the classfile format.</div>

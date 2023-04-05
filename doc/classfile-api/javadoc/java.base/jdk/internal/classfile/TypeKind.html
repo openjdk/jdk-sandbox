@@ -186,39 +186,44 @@ loadScripts(document, 'script');</script>
 <div class="block">Returns the field descriptor character corresponding to this type.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#fromDescriptor(java.lang.CharSequence)" class="member-name-link">fromDescriptor</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>&nbsp;s)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#from(java.lang.invoke.TypeDescriptor.OfField)" class="member-name-link">from</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/invoke/TypeDescriptor.OfField.html" title="class or interface in java.lang.invoke" class="external-link">TypeDescriptor.OfField</a>&lt;?&gt;&nbsp;descriptor)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Returns the type kind associated with the specified field descriptor.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#fromNewArrayCode(int)" class="member-name-link">fromNewArrayCode</a><wbr>(int&nbsp;newarraycode)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#fromDescriptor(java.lang.CharSequence)" class="member-name-link">fromDescriptor</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>&nbsp;s)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Returns the type kind associated with the specified field descriptor.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#fromNewArrayCode(int)" class="member-name-link">fromNewArrayCode</a><wbr>(int&nbsp;newarraycode)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Returns the type kind associated with the array type described by the
  array code used as an operand to <code>newarray</code>.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>int</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#newarraycode()" class="member-name-link">newarraycode</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>int</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#newarraycode()" class="member-name-link">newarraycode</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the code used by the <code>newarray</code> opcode corresponding to this type.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>int</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#slotSize()" class="member-name-link">slotSize</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>int</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#slotSize()" class="member-name-link">slotSize</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the number of local variable slots consumed by this type.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#typeName()" class="member-name-link">typeName</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#typeName()" class="member-name-link">typeName</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Returns the human-readable name corresponding to this type.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#valueOf(java.lang.String)" class="member-name-link">valueOf</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#valueOf(java.lang.String)" class="member-name-link">valueOf</a><wbr>(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Returns the enum constant of this class with the specified name.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a>[]</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#values()" class="member-name-link">values</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a>[]</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#values()" class="member-name-link">values</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Returns an array containing the constants of this enum class, in
 the order they are declared.</div>
 </div>
@@ -430,6 +435,19 @@ not permitted.)</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>s</code> - the field descriptor</dd>
+<dt>Returns:</dt>
+<dd>the type kind associated with the specified field descriptor</dd>
+</dl>
+</section>
+</li>
+<li>
+<section class="detail" id="from(java.lang.invoke.TypeDescriptor.OfField)">
+<h3>from</h3>
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="TypeKind.html" title="enum class in jdk.internal.classfile">TypeKind</a></span>&nbsp;<span class="element-name">from</span><wbr><span class="parameters">(<a href="https://download.java.net/java/early_access/jdk21/docs/api/java.base/java/lang/invoke/TypeDescriptor.OfField.html" title="class or interface in java.lang.invoke" class="external-link">TypeDescriptor.OfField</a>&lt;?&gt;&nbsp;descriptor)</span></div>
+<div class="block">Returns the type kind associated with the specified field descriptor.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>descriptor</code> - the field descriptor</dd>
 <dt>Returns:</dt>
 <dd>the type kind associated with the specified field descriptor</dd>
 </dl>

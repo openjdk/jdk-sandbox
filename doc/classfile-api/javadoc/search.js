@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,8 +31,9 @@ const messages = {
     loading: "Loading search index...",
     searching: "Searching...",
     redirecting: "Redirecting to first result...",
-    copyUrl: "Copy URL",
-    urlCopied: "Copied!"
+    copyToClipboard: "Copy",
+    copyUrlToClipboard: "Copy URL",
+    copiedToClipboard: "Copied!"
 }
 const categories = {
     modules: "Modules",
@@ -407,16 +408,17 @@ $(function() {
     $("ul.sub-nav-list-small li a").click(collapse);
     $("input#search-input").focus(collapse);
     $("main").click(collapse);
-    $("section[id] > :header, :header[id], :header:has(a[id])").hover(
-        function () {
-            $(this).append($("<button class='copy copy-header' onclick='copyUrl(this)'> " +
-                "<img src='" + pathtoroot + "copy.svg' alt='" + messages.copyUrl + "'> " +
-                "<span data-copied='" + messages.urlCopied + "'></span></button>"));
-        },
-        function () {
-            $(this).find("button:last").remove();
+    $("section[id] > :header, :header[id], :header:has(a[id])").each(function(idx, el) {
+        // Create copy-to-clipboard buttons for headers with an associated id attribute
+        var hdr = $(el);
+        var id = hdr.attr("id") || hdr.parent("section").attr("id") || hdr.children("a").attr("id");
+        if (id) {
+            hdr.append($("<button class='copy copy-header' onclick='copyUrl(this)' aria-label='"
+                + messages.copyUrlToClipboard +"'> " + "<img src='" + pathtoroot + "copy.svg' alt='" +
+                messages.copyUrlToClipboard + "'> " + "<span data-copied='" + messages.copiedToClipboard +
+                "'>" + messages.copyToClipboard + "</span></button>"));
         }
-    );
+    });
     $(window).on("orientationchange", collapse).on("resize", function(e) {
         if (expanded && windowWidth !== window.innerWidth) collapse();
     });
