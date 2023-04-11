@@ -1,11 +1,11 @@
 # Classfile Processing API for JDK
 
-##Important Note: This branch has been split into [JDK-8294957](https://bugs.openjdk.org/browse/JDK-8294957) subtasks and does not serve for development anymore.
+## Important Note: This branch has been split into [JDK-8294957](https://bugs.openjdk.org/browse/JDK-8294957) subtasks and does not serve for development anymore.
 
 Provide an API for parsing, generating, and transforming Java class files. This will initially serve as an internal replacement for ASM in the JDK, to be later opened as a public API.
 
 See [JEP](https://bugs.openjdk.java.net/browse/JDK-8280389)
-or [online API documentation](https://htmlpreview.github.io/?https://raw.githubusercontent.com/openjdk/jdk-sandbox/classfile-api-javadoc-branch/doc/classfile-api/javadoc/java.base/jdk/internal/classfile/package-summary.html)
+or [online API documentation](https://cr.openjdk.org/~asotona/classfile-api/javadoc/java.base/jdk/internal/classfile/package-summary.html)
 for more information about Classfile Processing API.
 
 See <https://openjdk.org/> for more information about the OpenJDK
@@ -37,8 +37,7 @@ Test can be selectivelly executed as:
 
     make test TEST=jdk/classfile
 
-See [online JCov report](https://htmlpreview.github.io/?https://raw.githubusercontent.com/openjdk/jdk-sandbox/classfile-api-javadoc-branch/jcov-report/jdk/classfile/package-summary.html) for more information about Classfile API tests coverage
-and [doc/testing.md](doc/testing.md) for more information about JDK testing.
+See [doc/testing.md](doc/testing.md) for more information about JDK testing.
 
 ### Benchmarking
 
