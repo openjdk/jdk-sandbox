@@ -817,6 +817,11 @@ public class Runtime {
      * <p>
      * The method {@link System#load(String)} is the conventional and
      * convenient means of invoking this method.
+     * <p>
+     * This method is <a href="package-summary.html#restricted"><em>restricted</em></a>.
+     * Restricted methods are unsafe, and, if used incorrectly, their use might crash
+     * the JVM or, worse, silently result in memory corruption. Thus, clients should refrain from depending on
+     * restricted methods, and use safe and supported functionalities, where possible.
      *
      * @param      filename   the file to load.
      * @throws     SecurityException  if a security manager exists and its
@@ -828,6 +833,8 @@ public class Runtime {
      *             a native library image by the host system.
      * @throws     NullPointerException if {@code filename} is
      *             {@code null}
+     * @throws     IllegalCallerException If the caller is in a module that
+     *             does not have native access enabled.
      * @spec jni/index.html Java Native Interface Specification
      * @see        java.lang.Runtime#getRuntime()
      * @see        java.lang.SecurityException
@@ -835,7 +842,9 @@ public class Runtime {
      */
     @CallerSensitive
     public void load(String filename) {
-        load0(Reflection.getCallerClass(), filename);
+        Class<?> caller = Reflection.getCallerClass();
+        Reflection.ensureNativeAccess(caller, Runtime.class, "load");
+        load0(caller, filename);
     }
 
     void load0(Class<?> fromClass, String filename) {
@@ -883,6 +892,11 @@ public class Runtime {
      * <p>
      * If this method is called more than once with the same library
      * name, the second and subsequent calls are ignored.
+     * <p>
+     * This method is <a href="package-summary.html#restricted"><em>restricted</em></a>.
+     * Restricted methods are unsafe, and, if used incorrectly, their use might crash
+     * the JVM or, worse, silently result in memory corruption. Thus, clients should refrain from depending on
+     * restricted methods, and use safe and supported functionalities, where possible.
      *
      * @param      libname   the name of the library.
      * @throws     SecurityException  if a security manager exists and its
@@ -894,13 +908,17 @@ public class Runtime {
      *             native library image by the host system.
      * @throws     NullPointerException if {@code libname} is
      *             {@code null}
+     * @throws     IllegalCallerException If the caller is in a module that
+     *             does not have native access enabled.
      * @spec jni/index.html Java Native Interface Specification
      * @see        java.lang.SecurityException
      * @see        java.lang.SecurityManager#checkLink(java.lang.String)
      */
     @CallerSensitive
     public void loadLibrary(String libname) {
-        loadLibrary0(Reflection.getCallerClass(), libname);
+        Class<?> caller = Reflection.getCallerClass();
+        Reflection.ensureNativeAccess(caller, Runtime.class, "loadLibrary");
+        loadLibrary0(caller, libname);
     }
 
     void loadLibrary0(Class<?> fromClass, String libname) {

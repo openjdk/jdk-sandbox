@@ -115,6 +115,7 @@ public class Reflection {
         Module module = currentClass != null ?
                 currentClass.getModule() :
                 ClassLoader.getSystemClassLoader().getUnnamedModule();
+        if (module == null) return; // bootstrap
         SharedSecrets.getJavaLangAccess().ensureNativeAccess(module, owner, methodName);
     }
 

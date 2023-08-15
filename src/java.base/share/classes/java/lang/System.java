@@ -2001,6 +2001,11 @@ public final class System {
      * <blockquote><pre>
      * Runtime.getRuntime().load(name)
      * </pre></blockquote>
+     * <p>
+     * This method is <a href="package-summary.html#restricted"><em>restricted</em></a>.
+     * Restricted methods are unsafe, and, if used incorrectly, their use might crash
+     * the JVM or, worse, silently result in memory corruption. Thus, clients should refrain from depending on
+     * restricted methods, and use safe and supported functionalities, where possible.
      *
      * @param      filename   the file to load.
      * @throws     SecurityException  if a security manager exists and its
@@ -2011,6 +2016,8 @@ public final class System {
      *             linked with the VM, or the library cannot be mapped to
      *             a native library image by the host system.
      * @throws     NullPointerException if {@code filename} is {@code null}
+     * @throws     IllegalCallerException If the caller is in a module that
+     *             does not have native access enabled.
      *
      * @spec jni/index.html Java Native Interface Specification
      * @see        java.lang.Runtime#load(java.lang.String)
@@ -2018,7 +2025,9 @@ public final class System {
      */
     @CallerSensitive
     public static void load(String filename) {
-        Runtime.getRuntime().load0(Reflection.getCallerClass(), filename);
+        Class<?> caller = Reflection.getCallerClass();
+        Reflection.ensureNativeAccess(caller, System.class, "loadLibrary");
+        Runtime.getRuntime().load0(caller, filename);
     }
 
     /**
@@ -2039,6 +2048,11 @@ public final class System {
      * <blockquote><pre>
      * Runtime.getRuntime().loadLibrary(name)
      * </pre></blockquote>
+     * <p>
+     * This method is <a href="package-summary.html#restricted"><em>restricted</em></a>.
+     * Restricted methods are unsafe, and, if used incorrectly, their use might crash
+     * the JVM or, worse, silently result in memory corruption. Thus, clients should refrain from depending on
+     * restricted methods, and use safe and supported functionalities, where possible.
      *
      * @param      libname   the name of the library.
      * @throws     SecurityException  if a security manager exists and its
@@ -2049,6 +2063,8 @@ public final class System {
      *             linked with the VM,  or the library cannot be mapped to a
      *             native library image by the host system.
      * @throws     NullPointerException if {@code libname} is {@code null}
+     * @throws     IllegalCallerException If the caller is in a module that
+     *             does not have native access enabled.
      *
      * @spec jni/index.html Java Native Interface Specification
      * @see        java.lang.Runtime#loadLibrary(java.lang.String)
@@ -2056,7 +2072,9 @@ public final class System {
      */
     @CallerSensitive
     public static void loadLibrary(String libname) {
-        Runtime.getRuntime().loadLibrary0(Reflection.getCallerClass(), libname);
+        Class<?> caller = Reflection.getCallerClass();
+        Reflection.ensureNativeAccess(caller, System.class, "loadLibrary");
+        Runtime.getRuntime().loadLibrary0(caller, libname);
     }
 
     /**
@@ -2550,7 +2568,7 @@ public final class System {
 
             @Override
             public long findNative(ClassLoader loader, String entry) {
-                return ClassLoader.findNative(loader, entry);
+                return ClassLoader.findNativeInternal(loader, entry);
             }
 
             @Override

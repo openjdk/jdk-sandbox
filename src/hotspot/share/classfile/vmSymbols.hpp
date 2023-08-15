@@ -622,7 +622,7 @@ class SerializeClosure;
   template(object_object_object_signature,            "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;") \
   template(string_string_string_signature,            "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;") \
   template(string_string_signature,                   "(Ljava/lang/String;)Ljava/lang/String;")                   \
-  template(classloader_string_long_signature,         "(Ljava/lang/ClassLoader;Ljava/lang/String;)J")             \
+  template(classloader_class_string_string_long_signature,         "(Ljava/lang/ClassLoader;Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;)J")             \
   template(byte_array_void_signature,                 "([B)V")                                                    \
   template(char_array_void_signature,                 "([C)V")                                                    \
   template(int_int_void_signature,                    "(II)V")                                                    \
