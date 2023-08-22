@@ -1,0 +1,1 @@
+option compiler/codecache/hotcodeheap/TestHotCodeHeap$Launcher.test(I)I HotCodeHeap
