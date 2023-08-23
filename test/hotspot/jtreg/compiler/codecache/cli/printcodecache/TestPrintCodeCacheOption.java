@@ -69,7 +69,7 @@ public class TestPrintCodeCacheOption extends CodeCacheCLITestBase {
                         .CommonDescriptions.TIERED_LEVEL_1.description,
                         DEFAULT_RUNNER),
                 new CodeCacheCLITestCase(CodeCacheCLITestCase
-                        .CommonDescriptions.TIERED_LEVEL_4.description,
+                        .CommonDescriptions.TIERED_LEVEL_4_WO_HOT.description,
                         DEFAULT_RUNNER),
                 DISABLED_PRINT_CODE_CACHE);
     }

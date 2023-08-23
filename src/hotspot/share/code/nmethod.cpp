@@ -554,15 +554,15 @@ static bool hot_code_heap_candidate(const methodHandle& method, int comp_level) 
 }
 
 static CodeBlobType get_code_blob_type(const methodHandle& method, int comp_level) {
-  if (hot_code_heap_candidate(method, comp_level)) {
+  if (CodeCache::heap_available(CodeBlobType::MethodHot) &&
+      hot_code_heap_candidate(method, comp_level)) {
     if (PrintCompilation && !CompilerOracle::be_quiet()) {
       ResourceMark rm;
       tty->print("### HotCodeHeap %s ", (method->is_static() ? " static" : ""));
       method->print_short_name(tty);
       tty->cr();
     }
-    // TODO: Not implemented yet. It will return a proper type when HotCodeHeap is added.
-    return CodeBlobType::MethodNonProfiled;
+    return CodeBlobType::MethodHot;
   }
 
   return CodeCache::get_code_blob_type(comp_level);
@@ -1684,7 +1684,7 @@ bool nmethod::is_cold() {
     return false;
   }
 
-  if (!UseCodeCacheFlushing) {
+  if (!UseCodeCacheFlushing || !CodeCache::is_code_flushable(this)) {
     // Bail out if we don't heuristically remove nmethods
     return false;
   }

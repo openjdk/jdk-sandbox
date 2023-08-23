@@ -332,6 +332,12 @@ void CompilerConfig::set_compilation_policy_flags() {
         FLAG_SET_CMDLINE(Tier4InvocationThreshold, 0);
       }
     }
+  } else if (HotCodeHeapSize != 0 && FLAG_IS_DEFAULT(SegmentedCodeCache)) {
+    FLAG_SET_ERGO(SegmentedCodeCache, true);
+  }
+
+  if (HotCodeHeapSize != 0 && !SegmentedCodeCache) {
+    vm_exit_during_initialization("HotCodeHeap requires SegmentedCodeCache enabled", NULL);
   }
 
   if (CompileThresholdScaling < 0) {

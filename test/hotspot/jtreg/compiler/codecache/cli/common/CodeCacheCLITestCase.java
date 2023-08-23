@@ -107,10 +107,11 @@ public class CodeCacheCLITestCase {
                 CommandLineOptionTest.prepareNumericFlag(TIERED_STOP_AT, 1)),
         /**
          * Verifies that with TieredStopAtLevel=4 PrintCodeCache output will
-         * contain information about all three code heaps.
+         * contain information about non-nmethods, non-profiled nmethods
+         * and profiled nmethods heaps only.
          */
-        TIERED_LEVEL_4(SEGMENTED_SERVER,
-                EnumSet.complementOf(EnumSet.of(BlobType.All)),
+        TIERED_LEVEL_4_WO_HOT(SEGMENTED_SERVER,
+                EnumSet.complementOf(EnumSet.of(BlobType.MethodHot, BlobType.All)),
                 CommandLineOptionTest.prepareBooleanFlag(TIERED_COMPILATION,
                         true),
                 CommandLineOptionTest.prepareNumericFlag(TIERED_STOP_AT, 4));

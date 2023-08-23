@@ -37,8 +37,10 @@ public class CodeCacheOptions {
             = EnumSet.of(BlobType.All);
     private static final EnumSet<BlobType> ALL_SEGMENTED_HEAPS
             = EnumSet.complementOf(NON_SEGMENTED_HEAPS);
-    private static final EnumSet<BlobType> SEGMENTED_HEAPS_WO_PROFILED
+    private static final EnumSet<BlobType> NON_NMETHOD_AND_NON_PROFILED_HEAPS
             = EnumSet.of(BlobType.NonNMethod, BlobType.MethodNonProfiled);
+    private static final EnumSet<BlobType> SEGMENTED_HEAPS_WO_HOT
+            = EnumSet.of(BlobType.NonNMethod, BlobType.MethodProfiled, BlobType.MethodNonProfiled);
     private static final EnumSet<BlobType> ONLY_NON_METHODS_HEAP
             = EnumSet.of(BlobType.NonNMethod);
 
@@ -113,9 +115,9 @@ public class CodeCacheOptions {
     public CodeCacheOptions mapOptions(EnumSet<BlobType> involvedCodeHeaps) {
         if (involvedCodeHeaps.isEmpty()
                 || involvedCodeHeaps.equals(NON_SEGMENTED_HEAPS)
-                || involvedCodeHeaps.equals(ALL_SEGMENTED_HEAPS)) {
+                || involvedCodeHeaps.equals(SEGMENTED_HEAPS_WO_HOT)) {
             return this;
-        } else if (involvedCodeHeaps.equals(SEGMENTED_HEAPS_WO_PROFILED)) {
+        } else if (involvedCodeHeaps.equals(NON_NMETHOD_AND_NON_PROFILED_HEAPS)) {
             return new CodeCacheOptions(reserved, nonNmethods,
                     profiled + nonProfiled, 0L);
         } else if (involvedCodeHeaps.equals(ONLY_NON_METHODS_HEAP)) {

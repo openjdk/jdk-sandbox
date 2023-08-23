@@ -70,7 +70,7 @@ public class TestCodeHeapSizeOptions extends CodeCacheCLITestBase {
                         .CommonDescriptions.TIERED_LEVEL_1.description,
                         GENERIC_RUNNER),
                 new CodeCacheCLITestCase(CodeCacheCLITestCase
-                        .CommonDescriptions.TIERED_LEVEL_4.description,
+                        .CommonDescriptions.TIERED_LEVEL_4_WO_HOT.description,
                         GENERIC_RUNNER),
                 JVM_STARTUP,
                 CODE_CACHE_FREE_SPACE);
