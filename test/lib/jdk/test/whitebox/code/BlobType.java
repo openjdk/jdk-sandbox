@@ -46,7 +46,14 @@ public enum BlobType {
                     || type == BlobType.MethodNonProfiled;
         }
     },
-    MethodHot(2, "CodeHeap 'hot nmethods'", "HotCodeHeapSize"),
+    MethodHot(2, "CodeHeap 'hot nmethods'", "HotCodeHeapSize") {
+        @Override
+        public boolean allowTypeWhenOverflow(BlobType type) {
+            return super.allowTypeWhenOverflow(type)
+                    || type == BlobType.MethodNonProfiled
+                    || type == BlobType.MethodProfiled;
+        }
+    },
     // Non-nmethods like Buffers, Adapters and Runtime Stubs
     NonNMethod(3, "CodeHeap 'non-nmethods'", "NonNMethodCodeHeapSize") {
         @Override
