@@ -1684,7 +1684,7 @@ bool nmethod::is_cold() {
     return false;
   }
 
-  if (!UseCodeCacheFlushing || !CodeCache::is_code_flushable(this)) {
+  if (!CodeCache::is_code_flushable(this)) {
     // Bail out if we don't heuristically remove nmethods
     return false;
   }

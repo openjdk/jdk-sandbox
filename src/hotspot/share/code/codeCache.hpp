@@ -304,6 +304,9 @@ class CodeCache : AllStatic {
   }
 
   static bool is_code_flushable(nmethod* nm) {
+    if (!UseCodeCacheFlushing) {
+      return false;
+    }
     return is_heap_flushable(get_code_heap(nm));
   }
 
