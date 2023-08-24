@@ -41,6 +41,7 @@ import java.util.List;
 import org.testng.annotations.Test;
 
 public class TestHotCodeHeap {
+    private static final int M = 1024 * 1024;
 
     private static class CodeCacheConfig {
         private boolean tieredCompilation;
@@ -121,29 +122,32 @@ public class TestHotCodeHeap {
 
     private static OutputAnalyzer runVM(CodeCacheConfig codeCacheConfig, String... vmOption) throws Exception {
         ArrayList<String> command = new ArrayList<String>();
-        command.add("-Xbatch");
-        command.add("-Xcomp");
-        command.add("-XX:-Inline");
-        command.addAll(Arrays.asList(vmOption));
         command.addAll(codeCacheConfig.toJVMOptions());
-        command.add(Launcher.class.getName());
+        command.addAll(Arrays.asList(vmOption));
 
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(command);
         OutputAnalyzer analyzer = new OutputAnalyzer(pb.start());
-        analyzer.shouldHaveExitValue(0);
         return analyzer;
     }
 
     private static void testMethodMarkedForHotCodeHeap(CodeCacheConfig codeCacheConfig, String vmCompileCommandOption) throws Exception {
-        OutputAnalyzer analyzer = runVM(codeCacheConfig, "-XX:+PrintCompilation", vmCompileCommandOption);
+        OutputAnalyzer analyzer = runVM(
+            codeCacheConfig,
+            "-Xbatch",
+            "-Xcomp",
+            "-XX:-Inline",
+            "-XX:+PrintCompilation",
+            vmCompileCommandOption,
+            Launcher.class.getName());
+        analyzer.shouldHaveExitValue(0);
         analyzer.shouldContain(LAUNCHER_TEST_MARKED_FOR_HOT_CODE_HEAP);
     }
 
     @Test
-    public void testCompileCommandTieredCompilationOff() throws Exception{
+    public void testCompileCommandTieredCompilationOff() throws Exception {
         CodeCacheConfig codeCacheConfig = new CodeCacheConfig();
         codeCacheConfig.turnTieredCompilationOff();
-        codeCacheConfig.setHotCodeHeapSize(8 * 1024 * 1024);
+        codeCacheConfig.setHotCodeHeapSize(8 * M);
         testMethodMarkedForHotCodeHeap(codeCacheConfig, COMPILE_COMMAND);
     }
 
@@ -151,16 +155,16 @@ public class TestHotCodeHeap {
     public void testCompileCommandFileTieredCompilationOff() throws Exception {
         CodeCacheConfig codeCacheConfig = new CodeCacheConfig();
         codeCacheConfig.turnTieredCompilationOff();
-        codeCacheConfig.setHotCodeHeapSize(8 * 1024 * 1024);
+        codeCacheConfig.setHotCodeHeapSize(8 * M);
         testMethodMarkedForHotCodeHeap(codeCacheConfig, COMPILE_COMMAND_FILE);
     }
 
 
     @Test
-    public void testCompileCommandTieredCompilationOn() throws Exception{
+    public void testCompileCommandTieredCompilationOn() throws Exception {
         CodeCacheConfig codeCacheConfig = new CodeCacheConfig();
         codeCacheConfig.turnTieredCompilationOn();
-        codeCacheConfig.setHotCodeHeapSize(8 * 1024 * 1024);
+        codeCacheConfig.setHotCodeHeapSize(8 * M);
         testMethodMarkedForHotCodeHeap(codeCacheConfig, COMPILE_COMMAND);
     }
 
@@ -168,19 +172,82 @@ public class TestHotCodeHeap {
     public void testCompileCommandFileTieredCompilationOn() throws Exception {
         CodeCacheConfig codeCacheConfig = new CodeCacheConfig();
         codeCacheConfig.turnTieredCompilationOn();
-        codeCacheConfig.setHotCodeHeapSize(8 * 1024 * 1024);
+        codeCacheConfig.setHotCodeHeapSize(8 * M);
         testMethodMarkedForHotCodeHeap(codeCacheConfig, COMPILE_COMMAND_FILE);
+    }
+
+    private static OutputAnalyzer printCodeCache(CodeCacheConfig codeCacheConfig, String... vmOptions) throws Exception {
+        vmOptions = Arrays.copyOf(vmOptions, vmOptions.length + 2);
+        vmOptions[vmOptions.length - 2] = "-XX:+PrintCodeCache";
+        vmOptions[vmOptions.length - 1] = "-version";
+        OutputAnalyzer analyzer = runVM(codeCacheConfig, vmOptions);
+        analyzer.shouldHaveExitValue(0);
+        return analyzer;
+    }
+
+    private static void vmFailsWith(CodeCacheConfig codeCacheConfig, String vmOption, String message) throws Exception {
+        OutputAnalyzer analyzer = runVM(codeCacheConfig, vmOption, "-version");
+        analyzer.shouldHaveExitValue(1);
+        analyzer.shouldContain(message);
     }
 
     @Test
     public void testHotCodeHeap8MTieredCompilationOff() throws Exception {
         CodeCacheConfig codeCacheConfig = new CodeCacheConfig();
         codeCacheConfig.turnTieredCompilationOff();
-        codeCacheConfig.setHotCodeHeapSize(8 * 1024 * 1024);
-        OutputAnalyzer analyzer = runVM(codeCacheConfig,
-            COMPILE_COMMAND,
-            "-XX:+PrintCodeCache");
-         analyzer.shouldContain("CodeHeap 'hot nmethods': size=");
+        codeCacheConfig.setHotCodeHeapSize(8 * M);
+        OutputAnalyzer analyzer = printCodeCache(codeCacheConfig);
+        analyzer.shouldContain("CodeHeap 'hot nmethods': size=");
+    }
+
+    @Test
+    public void testSegmentedCodeCacheOff() throws Exception {
+        CodeCacheConfig codeCacheConfig = new CodeCacheConfig();
+        codeCacheConfig.turnTieredCompilationOff();
+        codeCacheConfig.setHotCodeHeapSize(8 * M);
+        vmFailsWith(codeCacheConfig, "-XX:-SegmentedCodeCache", "HotCodeHeap requires SegmentedCodeCache enabled");
+    }
+
+    @Test
+    public void testInvalidHeapSizes() throws Exception {
+        CodeCacheConfig codeCacheConfig = new CodeCacheConfig();
+        codeCacheConfig.setHotCodeHeapSize(8 * M);
+        codeCacheConfig.turnTieredCompilationOff();
+        vmFailsWith(codeCacheConfig, "-XX:NonNMethodCodeHeapSize=0",  "Improperly specified VM option 'NonNMethodCodeHeapSize=0'");
+        vmFailsWith(codeCacheConfig, "-XX:NonProfiledCodeHeapSize=0", "Zero NonProfiledCodeHeapSize specified, but the CodeCache configuration requires it to be non-zero");
+        codeCacheConfig.turnTieredCompilationOn();
+        vmFailsWith(codeCacheConfig, "-XX:NonNMethodCodeHeapSize=0",  "Improperly specified VM option 'NonNMethodCodeHeapSize=0'");
+        vmFailsWith(codeCacheConfig, "-XX:NonProfiledCodeHeapSize=0", "Zero NonProfiledCodeHeapSize specified, but the CodeCache configuration requires it to be non-zero");
+        vmFailsWith(codeCacheConfig, "-XX:ProfiledCodeHeapSize=0",    "Zero ProfiledCodeHeapSize specified, but the CodeCache configuration requires it to be non-zero");
+        codeCacheConfig.setHotCodeHeapSize(0);
+        vmFailsWith(codeCacheConfig, "-XX:HotCodeHeapSize=0", "Improperly specified VM option 'HotCodeHeapSize=0'");
+    }
+
+    @Test
+    public void testInvalidReservedCodeCacheSize() throws Exception {
+        CodeCacheConfig codeCacheConfig = new CodeCacheConfig();
+        codeCacheConfig.turnTieredCompilationOn();
+        codeCacheConfig.setCodeCacheSize(24 * M);
+        codeCacheConfig.setHotCodeHeapSize(8 * M);
+        codeCacheConfig.setNonNMethodCodeHeapSize(8 * M);
+        codeCacheConfig.setNonProfiledCodeHeapSize(8 * M);
+        codeCacheConfig.setProfiledCodeHeapSize(8 * M);
+        vmFailsWith(codeCacheConfig, "-XX:+SegmentedCodeCache", "Invalid code heap sizes");
+    }
+
+    @Test
+    public void testTieredStopAtLevel() throws Exception {
+        CodeCacheConfig codeCacheConfig = new CodeCacheConfig();
+        codeCacheConfig.turnTieredCompilationOff();
+        codeCacheConfig.setHotCodeHeapSize(8 * M);
+
+        vmFailsWith(codeCacheConfig, "-Xint", "The hot code requires JIT compilation to be enabled");
+
+        vmFailsWith(codeCacheConfig, "-XX:TieredStopAtLevel=0", "The hot code requires JIT compilation to be enabled");
+
+        OutputAnalyzer analyzer = printCodeCache(codeCacheConfig, "-XX:TieredStopAtLevel=1");
+        analyzer.shouldHaveExitValue(0);
+        analyzer.shouldNotContain("CodeHeap 'profiled nmethods': size=");
     }
 
     static class Launcher {
