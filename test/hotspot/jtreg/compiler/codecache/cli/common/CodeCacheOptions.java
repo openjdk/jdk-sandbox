@@ -32,6 +32,8 @@ import java.util.List;
 
 public class CodeCacheOptions {
     public static final String SEGMENTED_CODE_CACHE = "SegmentedCodeCache";
+    private static final String TIERED_COMPILATION = "TieredCompilation";
+    private static final String TIERED_STOP_AT = "TieredStopAtLevel";
 
     private static final EnumSet<BlobType> NON_SEGMENTED_HEAPS
             = EnumSet.of(BlobType.All);
@@ -43,11 +45,14 @@ public class CodeCacheOptions {
             = EnumSet.of(BlobType.NonNMethod, BlobType.MethodProfiled, BlobType.MethodNonProfiled);
     private static final EnumSet<BlobType> ONLY_NON_METHODS_HEAP
             = EnumSet.of(BlobType.NonNMethod);
+    private static final EnumSet<BlobType> NON_NMETHOD_AND_NON_PROFILED_AND_HOT_HEAPS
+            = EnumSet.of(BlobType.NonNMethod, BlobType.MethodNonProfiled, BlobType.MethodHot);
 
     public final long reserved;
     public final long nonNmethods;
     public final long nonProfiled;
     public final long profiled;
+    public final long hot;
     public final boolean segmented;
 
     public static long mB(long val) {
@@ -63,6 +68,7 @@ public class CodeCacheOptions {
         this.nonNmethods = 0;
         this.nonProfiled = 0;
         this.profiled = 0;
+        this.hot = 0;
         this.segmented = false;
     }
 
@@ -72,6 +78,17 @@ public class CodeCacheOptions {
         this.nonNmethods = nonNmethods;
         this.nonProfiled = nonProfiled;
         this.profiled = profiled;
+        this.hot = 0;
+        this.segmented = true;
+    }
+
+    public CodeCacheOptions(long reserved, long nonNmethods, long nonProfiled,
+            long profiled, long hot) {
+        this.reserved = reserved;
+        this.nonNmethods = nonNmethods;
+        this.nonProfiled = nonProfiled;
+        this.profiled = profiled;
+        this.hot = hot;
         this.segmented = true;
     }
 
@@ -85,6 +102,8 @@ public class CodeCacheOptions {
                 return this.nonProfiled;
             case MethodProfiled:
                 return this.profiled;
+            case MethodHot:
+                return this.hot;
             default:
                 throw new Error("Unknown heap: " + heap.name());
         }
@@ -108,6 +127,11 @@ public class CodeCacheOptions {
                             nonProfiled),
                     CommandLineOptionTest.prepareNumericFlag(
                             BlobType.MethodProfiled.sizeOptionName, profiled));
+            if (hot > 0) {
+                Collections.addAll(options,
+                        CommandLineOptionTest.prepareNumericFlag(
+                                BlobType.MethodHot.sizeOptionName, hot));
+            }
         }
         return options.toArray(new String[options.size()]);
     }
@@ -115,7 +139,9 @@ public class CodeCacheOptions {
     public CodeCacheOptions mapOptions(EnumSet<BlobType> involvedCodeHeaps) {
         if (involvedCodeHeaps.isEmpty()
                 || involvedCodeHeaps.equals(NON_SEGMENTED_HEAPS)
-                || involvedCodeHeaps.equals(SEGMENTED_HEAPS_WO_HOT)) {
+                || involvedCodeHeaps.equals(SEGMENTED_HEAPS_WO_HOT)
+                || involvedCodeHeaps.equals(ALL_SEGMENTED_HEAPS)
+                || involvedCodeHeaps.equals(NON_NMETHOD_AND_NON_PROFILED_AND_HOT_HEAPS)) {
             return this;
         } else if (involvedCodeHeaps.equals(NON_NMETHOD_AND_NON_PROFILED_HEAPS)) {
             return new CodeCacheOptions(reserved, nonNmethods,
