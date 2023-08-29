@@ -772,7 +772,7 @@ public final class ModuleBootstrap {
     }
 
     private static final boolean HAS_ENABLE_NATIVE_ACCESS_FLAG;
-    private static final Set<String> NATIVE_ACCESS_MODULES;
+    private static final Set<String> NATIVE_ACCESS_MODULES, JDK_MODULES;
 
     public static boolean hasEnableNativeAccessFlag() {
         return HAS_ENABLE_NATIVE_ACCESS_FLAG;
@@ -780,21 +780,32 @@ public final class ModuleBootstrap {
 
     static {
         NATIVE_ACCESS_MODULES = decodeEnableNativeAccess();
+        // add JDK modules
+        JDK_MODULES = new HashSet<>();
+        JDK_MODULES.addAll(ModuleLoaderMap.bootModules());
+        JDK_MODULES.addAll(ModuleLoaderMap.platformModules());
+        JDK_MODULES.addAll(ModuleLoaderMap.nativeModules());
         HAS_ENABLE_NATIVE_ACCESS_FLAG = !NATIVE_ACCESS_MODULES.isEmpty();
     }
 
     /**
      * Process the --enable-native-access option to grant access to restricted methods to selected modules.
+     * Also add Enable native access from JDK modules.
      */
     private static void addEnableNativeAccess(ModuleLayer layer) {
-        for (String name : NATIVE_ACCESS_MODULES) {
+        addEnableNativeAccess(layer, NATIVE_ACCESS_MODULES, true);
+        addEnableNativeAccess(layer, JDK_MODULES, false);
+    }
+
+    private static void addEnableNativeAccess(ModuleLayer layer, Set<String> moduleNames, boolean shoudlWarn) {
+        for (String name : moduleNames) {
             if (name.equals("ALL-UNNAMED")) {
                 JLA.addEnableNativeAccessToAllUnnamed();
             } else {
                 Optional<Module> module = layer.findModule(name);
                 if (module.isPresent()) {
                     JLA.addEnableNativeAccess(module.get());
-                } else {
+                } else if (shoudlWarn) {
                     warnUnknownModule(ENABLE_NATIVE_ACCESS, name);
                 }
             }
