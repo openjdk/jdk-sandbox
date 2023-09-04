@@ -92,13 +92,20 @@ class ObjectMonitorWorld : public CHeapObj<mtThread> {
       assert(hash != 0, "should have a hash");
       return hash;
     }
-    bool equals(ObjectMonitor** value, bool* is_dead) {
-      // Never set is_dead, monitor deflation will remove deflated entries.
+    bool equals(ObjectMonitor** value) {
+      // The entry is going to be removed soon.
       oop woop = (*value)->object_peek();
       if (woop == nullptr) {
         return false;
       }
       return woop == _obj;
+    }
+    bool is_dead(ObjectMonitor** value) {
+      oop woop = (*value)->object_peek();
+      if (woop == nullptr) {
+        return true;
+      }
+      return false;
     }
   };
 
@@ -109,7 +116,7 @@ class ObjectMonitorWorld : public CHeapObj<mtThread> {
     uintx get_hash() const {
       return _monitor->header().hash();
     }
-    bool equals(ObjectMonitor** value, bool* is_dead) {
+    bool equals(ObjectMonitor** value) {
       return (*value) == _monitor;
     }
   };
@@ -1106,16 +1113,15 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
       // Make sure to observe them in the same order when having several observers.
       OrderAccess::loadload_for_IRIW();
 
-        if (monitor->is_being_async_deflated()) {
-          // But we can't safely use the hash if we detect that async
-          // deflation has occurred. So we attempt to restore the
-          // header/dmw to the object's header so that we only retry
-          // once if the deflater thread happens to be slow.
-          monitor->install_displaced_markword_in_object(obj);
-          continue;
-        }
-        return hash;
+      if (monitor->is_being_async_deflated()) {
+        // But we can't safely use the hash if we detect that async
+        // deflation has occurred. So we attempt to restore the
+        // header/dmw to the object's header so that we only retry
+        // once if the deflater thread happens to be slow.
+        monitor->install_displaced_markword_in_object(obj);
+        continue;
       }
+      return hash;
       // Fall thru so we only have one place that installs the hash in
       // the ObjectMonitor.
     } else if (LockingMode == LM_LIGHTWEIGHT && mark.is_fast_locked()) {
