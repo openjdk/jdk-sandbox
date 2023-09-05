@@ -60,6 +60,7 @@ class JvmtiSampledObjectAllocEventCollector;
 class JvmtiThreadState;
 
 class Metadata;
+class ObjectMonitor;
 class OopHandleList;
 class OopStorage;
 class OSThread;
@@ -1148,6 +1149,9 @@ private:
   LockStack _lock_stack;
 
 public:
+  oop _om_cache_oop;
+  ObjectMonitor* _om_cache_monitor;
+
   LockStack& lock_stack() { return _lock_stack; }
 
   static ByteSize lock_stack_offset()      { return byte_offset_of(JavaThread, _lock_stack); }
@@ -1156,6 +1160,9 @@ public:
   // is typically in a dedicated register.
   static ByteSize lock_stack_top_offset()  { return lock_stack_offset() + LockStack::top_offset(); }
   static ByteSize lock_stack_base_offset() { return lock_stack_offset() + LockStack::base_offset(); }
+
+  static ByteSize om_cache_oop_offset()    { return byte_offset_of(JavaThread, _om_cache_oop); }
+  static ByteSize om_cache_monitor_offset(){ return byte_offset_of(JavaThread, _om_cache_monitor); }
 
   static OopStorage* thread_oop_storage();
 

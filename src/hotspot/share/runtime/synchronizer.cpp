@@ -170,6 +170,11 @@ ObjectMonitor* ObjectSynchronizer::read_monitor(Thread* current, oop obj) {
   while (count < spin_limit) {
     ObjectMonitor* monitor = _omworld->monitor_for(current, obj);
     if (monitor != nullptr) {
+      if (current->is_Java_thread()) {
+        JavaThread* jt = JavaThread::cast(current);
+        jt->_om_cache_monitor = monitor;
+        jt->_om_cache_oop = obj;
+      }
       return monitor;
     }
     count++;
@@ -1776,6 +1781,12 @@ class HandshakeForDeflation : public HandshakeClosure {
   void do_thread(Thread* thread) {
     log_trace(monitorinflation)("HandshakeForDeflation::do_thread: thread="
                                 INTPTR_FORMAT, p2i(thread));
+    if (thread->is_Java_thread()) {
+      // Clear OM cache
+      JavaThread* jt = JavaThread::cast(thread);
+      jt->_om_cache_monitor = nullptr;
+      jt->_om_cache_oop = nullptr;
+    }
   }
 };
 

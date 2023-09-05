@@ -494,7 +494,9 @@ JavaThread::JavaThread() :
 
   _SleepEvent(ParkEvent::Allocate(this)),
 
-  _lock_stack(this) {
+  _lock_stack(this),
+  _om_cache_oop(nullptr),
+  _om_cache_monitor(nullptr) {
   set_jni_functions(jni_functions());
 
 #if INCLUDE_JVMCI
@@ -1396,6 +1398,7 @@ void JavaThread::oops_do_no_frames(OopClosure* f, CodeBlobClosure* cf) {
 
   if (LockingMode == LM_LIGHTWEIGHT) {
     lock_stack().oops_do(f);
+    f->do_oop(&_om_cache_oop);
   }
 }
 
