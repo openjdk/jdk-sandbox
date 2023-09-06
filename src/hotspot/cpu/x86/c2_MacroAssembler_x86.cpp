@@ -797,30 +797,42 @@ void C2_MacroAssembler::fast_unlock(Register objReg, Register boxReg, Register t
   // It's inflated
   Label CheckSucc, LNotRecursive, LSuccess, LGoSlowPath;
 
-  // It's inflated, check the cache
-  if (LockingMode == LM_LIGHTWEIGHT) {
-    cmpptr(objReg, Address(r15_thread, JavaThread::om_cache_oop_offset()));
-    jcc(Assembler::notEqual, LGoSlowPath);
-    movptr(tmpReg, Address(r15_thread, JavaThread::om_cache_monitor_offset()));
-  }
-
   // It's inflated.
   if (LockingMode == LM_LIGHTWEIGHT) {
+    Label good_owner;
+    // It's inflated, check the cache
+    if (LockingMode == LM_LIGHTWEIGHT) {
+      cmpptr(objReg, Address(r15_thread, JavaThread::om_cache_oop_offset()));
+      jcc(Assembler::notEqual, LGoSlowPath);
+      movptr(tmpReg, Address(r15_thread, JavaThread::om_cache_monitor_offset()));
+    }
+
     // If the owner is ANONYMOUS, we need to fix it -  in an outline stub.
-    testb(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)), (int32_t) ObjectMonitor::ANONYMOUS_OWNER);
+    testb(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)), 3);
 #ifdef _LP64
     if (!Compile::current()->output()->in_scratch_emit_size()) {
       C2HandleAnonOMOwnerStub* stub = new (Compile::current()->comp_arena()) C2HandleAnonOMOwnerStub(tmpReg, boxReg);
       Compile::current()->output()->add_stub(stub);
-      jcc(Assembler::notEqual, stub->entry());
+      jcc(Assembler::zero, good_owner);
+      testb(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)), 1);
+      jcc(Assembler::notZero, LGoSlowPath);
+      jmp(stub->entry());
       bind(stub->continuation());
-    } else
-#endif
+    } else {
+      jcc(Assembler::zero, good_owner);
+      testb(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)), 1);
+      jcc(Assembler::notZero, LGoSlowPath);
+      jmp(LGoSlowPath);
+    }
+#else
     {
       // We can't easily implement this optimization on 32 bit because we don't have a thread register.
       // Call the slow-path instead.
       jcc(Assembler::notEqual, NO_COUNT);
     }
+#endif
+
+    bind(good_owner);
   }
 
 #if INCLUDE_RTM_OPT
