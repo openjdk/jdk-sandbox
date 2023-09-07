@@ -1106,17 +1106,19 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
       // Make sure to observe them in the same order when having several observers.
       OrderAccess::loadload_for_IRIW();
 
-      if (monitor->is_being_async_deflated()) {
-        // But we can't safely use the hash if we detect that async
-        // deflation has occurred. So we attempt to restore the
-        // header/dmw to the object's header so that we only retry
-        // once if the deflater thread happens to be slow.
-        monitor->install_displaced_markword_in_object(obj);
-        continue;
+        if (monitor->is_being_async_deflated()) {
+          // But we can't safely use the hash if we detect that async
+          // deflation has occurred. So we attempt to restore the
+          // header/dmw to the object's header so that we only retry
+          // once if the deflater thread happens to be slow.
+          monitor->install_displaced_markword_in_object(obj);
+          continue;
+        }
+        return hash;
       }
-      return hash;
-
-    } else if (LockingMode == LM_LIGHTWEIGHT && mark.is_fast_locked() && is_lock_owned(current, obj)) {
+      // Fall thru so we only have one place that installs the hash in
+      // the ObjectMonitor.
+    } else if (LockingMode == LM_LIGHTWEIGHT && mark.is_fast_locked()) {
       // This is a fast-lock owned by the calling thread so use the
       // markWord from the object.
       hash = mark.hash();
@@ -1124,15 +1126,12 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
         return hash;
       }
 
-      // Try to install a hashCode in the object, to avoid inflating.
-      hash = get_next_hash(current, obj);  // get a new hash
-      temp = mark.copy_set_hash(hash);     // merge the hash into header
-                                           // try to install the hash
-      test = obj->cas_set_mark(temp, mark);
-      if (test == mark) {                  // if the hash was installed, return it
+      hash = get_next_hash(current, obj);
+      if (obj->cas_set_mark(mark.copy_set_hash(hash), mark, memory_order_relaxed) == mark) {
         return hash;
+      } else {
+        continue;
       }
-      // CAS failed, another thread is inflating, fall through ...
     } else if (LockingMode == LM_LEGACY && mark.has_locker() && current->is_lock_owned((address)mark.locker())) {
       // This is a stack-lock owned by the calling thread so fetch the
       // displaced markWord from the BasicLock on the stack.
@@ -1444,6 +1443,9 @@ static void post_monitor_inflate_event(EventJavaMonitorInflate* event,
 
 // Fast path code shared by multiple functions
 void ObjectSynchronizer::inflate_helper(oop obj) {
+  if (LockingMode == LM_LIGHTWEIGHT) {
+    return;
+  }
   Thread* current = Thread::current();
   markWord mark = obj->mark_acquire();
   if (mark.has_monitor()) {

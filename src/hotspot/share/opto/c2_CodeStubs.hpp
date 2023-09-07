@@ -97,21 +97,6 @@ public:
   void emit(C2_MacroAssembler& masm);
 };
 
-#ifdef _LP64
-class C2HandleAnonOMOwnerStub : public C2CodeStub {
-private:
-  Register _monitor;
-  Register _tmp;
-public:
-  C2HandleAnonOMOwnerStub(Register monitor, Register tmp = noreg) : C2CodeStub(),
-    _monitor(monitor), _tmp(tmp) {}
-  Register monitor() { return _monitor; }
-  Register tmp() { return _tmp; }
-  int max_size() const;
-  void emit(C2_MacroAssembler& masm);
-};
-#endif
-
 //-----------------------------C2GeneralStub-----------------------------------
 // A generalized stub that can be used to implement an arbitrary stub in a
 // type-safe manner. An example:
