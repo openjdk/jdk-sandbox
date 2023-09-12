@@ -889,6 +889,7 @@ void ThreadSafepointState::account_safe_thread() {
   DEBUG_ONLY(_thread->set_visited_for_critical_count(SafepointSynchronize::safepoint_counter());)
   assert(!_safepoint_safe, "Must be unsafe before safe");
   _safepoint_safe = true;
+  _thread->om_clear_monitor_cache();
 }
 
 void ThreadSafepointState::restart() {

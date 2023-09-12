@@ -239,4 +239,16 @@ inline InstanceKlass* JavaThread::class_to_be_initialized() const {
   return _class_to_be_initialized;
 }
 
+inline void JavaThread::om_set_monitor_cache(oop obj, ObjectMonitor* monitor) {
+  assert(obj != nullptr, "use om_clear_monitor_cache to clear");
+  assert(monitor != nullptr, "use om_clear_monitor_cache to clear");
+  _om_cache_oop = obj;
+  _om_cache_monitor = monitor;
+}
+
+inline void JavaThread::om_clear_monitor_cache() {
+  _om_cache_oop = nullptr;
+  _om_cache_monitor = nullptr;
+}
+
 #endif // SHARE_RUNTIME_JAVATHREAD_INLINE_HPP

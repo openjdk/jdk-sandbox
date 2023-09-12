@@ -29,9 +29,12 @@
 
 #include "logging/log.hpp"
 #include "oops/access.inline.hpp"
+#include "oops/markWord.hpp"
 #include "runtime/atomic.hpp"
+#include "runtime/globals.hpp"
 #include "runtime/lockStack.inline.hpp"
 #include "runtime/synchronizer.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 inline bool ObjectMonitor::is_entered(JavaThread* current) const {
   if (LockingMode == LM_LIGHTWEIGHT) {
@@ -50,7 +53,22 @@ inline bool ObjectMonitor::is_entered(JavaThread* current) const {
 }
 
 inline markWord ObjectMonitor::header() const {
+  assert(LockingMode != LM_LIGHTWEIGHT, "Lightweight locking does not use header");
   return Atomic::load(&_header);
+}
+
+inline uintptr_t ObjectMonitor::header_value() const {
+  return Atomic::load(&_header).value();
+}
+
+inline intptr_t ObjectMonitor::hash_lightweight() const {
+  assert(LockingMode == LM_LIGHTWEIGHT, "Only used by lightweight locking");
+  return Atomic::load(&_header).hash();
+}
+
+inline void ObjectMonitor::set_hash_lightweight(intptr_t hash) {
+  assert(LockingMode == LM_LIGHTWEIGHT, "Only used by lightweight locking");
+  Atomic::store(&_header, markWord::zero().copy_set_hash(hash));
 }
 
 inline volatile markWord* ObjectMonitor::header_addr() {
@@ -58,6 +76,7 @@ inline volatile markWord* ObjectMonitor::header_addr() {
 }
 
 inline void ObjectMonitor::set_header(markWord hdr) {
+  assert(LockingMode != LM_LIGHTWEIGHT, "Lightweight locking does not use header");
   Atomic::store(&_header, hdr);
 }
 

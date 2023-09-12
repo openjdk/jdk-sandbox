@@ -28,6 +28,7 @@
 #include "metaprogramming/primitiveConversions.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/globals.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 #include <type_traits>
 
@@ -194,7 +195,7 @@ class markWord {
   }
   ObjectMonitor* monitor() const {
     assert(has_monitor(), "check");
-    ShouldNotReachHere();
+    assert(LockingMode != LM_LIGHTWEIGHT, "Lightweight locking does not use markWord for monitors");
     // Use xor instead of &~ to provide one extra tag-bit check.
     return (ObjectMonitor*) (value() ^ monitor_value);
   }
@@ -221,7 +222,6 @@ class markWord {
     return from_pointer(lock);
   }
   static markWord encode(ObjectMonitor* monitor) {
-    ShouldNotReachHere(); // either
     uintptr_t tmp = (uintptr_t) monitor;
     return markWord(tmp | monitor_value);
   }
@@ -259,7 +259,7 @@ class markWord {
   }
 
   // Debugging
-  void print_on(outputStream* st, oop obj, bool print_monitor_info = true) const;
+  void print_on(outputStream* st, bool print_monitor_info = true, oop obj = nullptr) const;
 
   // Prepare address of oop for placement into mark
   inline static markWord encode_pointer_as_mark(void* p) { return from_pointer(p).set_marked(); }

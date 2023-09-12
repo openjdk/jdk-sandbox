@@ -157,6 +157,7 @@ class ObjectMonitor : public CHeapObj<mtObjectMonitor> {
 public:
   // NOTE: Typed as uintptr_t so that we can pick it up in SA, via vmStructs.
   static const uintptr_t ANONYMOUS_OWNER = 1;
+  static const uintptr_t ANONYMOUS_OWNER_OR_DEFLATION_MARKER = ANONYMOUS_OWNER | (uintptr_t)2; // TODO: Fix DEFLATER_MARKER
 
 private:
   static void* anon_owner_ptr() { return reinterpret_cast<void*>(ANONYMOUS_OWNER); }
@@ -241,6 +242,10 @@ private:
   markWord           header() const;
   volatile markWord* header_addr();
   void               set_header(markWord hdr);
+
+  uintptr_t          header_value() const;
+  intptr_t           hash_lightweight() const;
+  void               set_hash_lightweight(intptr_t hash);
 
   bool is_busy() const {
     // TODO-FIXME: assert _owner == null implies _recursions = 0

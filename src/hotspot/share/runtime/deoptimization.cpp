@@ -1637,7 +1637,7 @@ bool Deoptimization::relock_objects(JavaThread* thread, GrowableArray<MonitorInf
           }
         }
         BasicLock* lock = mon_info->lock();
-        ObjectSynchronizer::enter(obj, lock, deoptee_thread);
+        ObjectSynchronizer::enter(obj, lock, deoptee_thread, thread);
         assert(mon_info->owner()->is_locked(), "object must be locked now");
       }
     }

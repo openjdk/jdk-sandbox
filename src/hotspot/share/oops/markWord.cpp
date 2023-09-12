@@ -26,18 +26,17 @@
 #include "oops/markWord.hpp"
 #include "runtime/javaThread.hpp"
 #include "runtime/objectMonitor.inline.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include "utilities/ostream.hpp"
 
 markWord markWord::displaced_mark_helper() const {
   assert(has_displaced_mark_helper(), "check");
   if (has_monitor()) {
     // Has an inflated monitor. Must be checked before has_locker().
-    //ObjectMonitor* monitor = this->monitor();
-    //return monitor->header();
-    return markWord(value());
+    ObjectMonitor* monitor = this->monitor();
+    return monitor->header();
   }
   if (has_locker()) {  // has a stack lock
-    assert(LockingMode != LM_LIGHTWEIGHT, "should not call this");
     BasicLock* locker = this->locker();
     return locker->displaced_header();
   }
@@ -50,12 +49,11 @@ void markWord::set_displaced_mark_helper(markWord m) const {
   assert(has_displaced_mark_helper(), "check");
   if (has_monitor()) {
     // Has an inflated monitor. Must be checked before has_locker().
-    //ObjectMonitor* monitor = this->monitor();
-    //monitor->set_header(m);
+    ObjectMonitor* monitor = this->monitor();
+    monitor->set_header(m);
     return;
   }
   if (has_locker()) {  // has a stack lock
-    assert(LockingMode != LM_LIGHTWEIGHT, "should not call this");
     BasicLock* locker = this->locker();
     locker->set_displaced_header(m);
     return;
@@ -64,25 +62,28 @@ void markWord::set_displaced_mark_helper(markWord m) const {
   fatal("bad header=" INTPTR_FORMAT, value());
 }
 
-void markWord::print_on(outputStream* st, oop obj, bool print_monitor_info) const {
+void markWord::print_on(outputStream* st, bool print_monitor_info, oop obj) const {
   if (is_marked()) {  // last bits = 11
     st->print(" marked(" INTPTR_FORMAT ")", value());
   } else if (has_monitor()) {  // last bits = 10
     // have to check has_monitor() before is_locked()
     st->print(" monitor(");
     if (print_monitor_info) {
-      ObjectMonitor* mon = ObjectSynchronizer::read_monitor(Thread::current(), obj);
+      assert(obj != nullptr, "supply a obj if print_monitor_info");
+      ObjectMonitor* mon = ObjectSynchronizer::read_monitor(Thread::current(), obj, *this);
       if (mon == nullptr) {
-        st->print("null (this should never be seen!)");
+        st->print("null (racing with inflation/deflation)");
       } else {
         st->print(PTR_FORMAT, p2i(mon));
         mon->print_on(st);
       }
     }
-    if (has_no_hash()) {
-      st->print(" no_hash");
-    } else {
-      st->print(" hash=" INTPTR_FORMAT, hash());
+    if (LockingMode == LM_LIGHTWEIGHT) {
+      if (has_no_hash()) {
+        st->print(" no_hash");
+      } else {
+        st->print(" hash=" INTPTR_FORMAT, hash());
+      }
     }
     st->print(" age=%d)", age());
   } else if (is_locked()) {  // last bits != 01 => 00

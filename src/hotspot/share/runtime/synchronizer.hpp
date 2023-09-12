@@ -138,7 +138,10 @@ class ObjectSynchronizer : AllStatic {
   // deoptimization at monitor exit. Hence, it does not take a Handle argument.
 
   // This is the "slow path" version of monitor enter and exit.
-  static void enter(Handle obj, BasicLock* lock, JavaThread* current);
+  static void enter_lightweight(Handle obj, JavaThread* locking_thread, JavaThread* current);
+  static void enter(Handle obj, BasicLock* lock, JavaThread* locking_thread, JavaThread* current);
+  static void enter(Handle obj, BasicLock* lock, JavaThread* current) { enter(obj, lock, current, current); }
+  static void exit_lightweight(oop object, JavaThread* current);
   static void exit(oop obj, BasicLock* lock, JavaThread* current);
 
   // Used only to handle jni locks or other unmatched monitor enter/exit
@@ -147,26 +150,33 @@ class ObjectSynchronizer : AllStatic {
   static void jni_exit(oop obj, TRAPS);
 
   // Handle all interpreter, compiler and jni cases
+  static ObjectMonitor* get_monitor_lightweight(oop obj, const InflateCause cause, TRAPS);
   static int  wait(Handle obj, jlong millis, TRAPS);
   static void notify(Handle obj, TRAPS);
   static void notifyall(Handle obj, TRAPS);
 
   static bool quick_notify(oopDesc* obj, JavaThread* current, bool All);
-  static bool quick_enter(oop obj, JavaThread* current, BasicLock* Lock);
 
   // Inflate light weight monitor to heavy weight monitor
-  static ObjectMonitor* inflate_lightweight(Thread* current, oop obj, const InflateCause cause);
+  static ObjectMonitor* inflate_lightweight(Thread* current, Thread* locking_thread, oop obj, const InflateCause cause);
+  static ObjectMonitor* inflate_lightweight(Thread* current, oop obj, const InflateCause cause) {
+    return inflate_lightweight(current, current, obj, cause);
+  }
   static ObjectMonitor* inflate(Thread* current, oop obj, const InflateCause cause);
   // This version is only for internal use
   static void inflate_helper(oop obj);
   static const char* inflate_cause_name(const InflateCause cause);
 
+  static ObjectMonitor* read_monitor(markWord mark);
   static ObjectMonitor* read_monitor(Thread* current, oop obj);
+  static ObjectMonitor* read_monitor(Thread* current, oop obj, markWord mark);
   static void remove_monitor(Thread* current, oop obj, ObjectMonitor* monitor);
 
   // Returns the identity hash value for an oop
   // NOTE: It may cause monitor inflation
   static intptr_t FastHashCode(Thread* current, oop obj);
+  // NOTE: May not cause monitor inflation
+  static intptr_t FastHashCode_lightweight(Thread* current, oop obj);
 
   // java.lang.Thread support
   static bool current_thread_holds_lock(JavaThread* current, Handle h_obj);

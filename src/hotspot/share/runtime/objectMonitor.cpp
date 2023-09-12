@@ -360,10 +360,10 @@ bool ObjectMonitor::enter(JavaThread* current) {
   if (TrySpin(current) > 0) {
     assert(owner_raw() == current, "must be current: owner=" INTPTR_FORMAT, p2i(owner_raw()));
     assert(_recursions == 0, "must be 0: recursions=" INTX_FORMAT, _recursions);
-    //assert(object()->mark() == markWord::encode(this),
-    //       "object mark must match encoded this: mark=" INTPTR_FORMAT
-    //       ", encoded this=" INTPTR_FORMAT, object()->mark().value(),
-    //       markWord::encode(this).value());
+    assert(LockingMode == LM_LIGHTWEIGHT || object()->mark() == markWord::encode(this),
+           "object mark must match encoded this: mark=" INTPTR_FORMAT
+           ", encoded this=" INTPTR_FORMAT, object()->mark().value(),
+           markWord::encode(this).value());
     current->_Stalled = 0;
     return true;
   }
@@ -380,7 +380,7 @@ bool ObjectMonitor::enter(JavaThread* current) {
     // above lost the race to async deflation. Undo the work and
     // force the caller to retry.
     const oop l_object = object();
-    if (l_object != nullptr) {
+    if (LockingMode != LM_LIGHTWEIGHT && l_object != nullptr) {
       // Attempt to restore the header/dmw to the object's header so that
       // we only retry once if the deflater thread happens to be slow.
       install_displaced_markword_in_object(l_object);
@@ -454,7 +454,7 @@ bool ObjectMonitor::enter(JavaThread* current) {
   assert(_recursions == 0, "invariant");
   assert(owner_raw() == current, "invariant");
   assert(_succ != current, "invariant");
-  // assert(object()->mark() == markWord::encode(this), "invariant");
+  assert(LockingMode == LM_LIGHTWEIGHT || object()->mark() == markWord::encode(this), "invariant");
 
   // The thread -- now the owner -- is back in vm mode.
   // Report the glorious news via TI,DTrace and jvmstat.
@@ -630,6 +630,7 @@ void ObjectMonitor::transition_from_monitor(const oop obj) const {
 // monitor and by other threads that have detected a race with the
 // deflation process.
 void ObjectMonitor::install_displaced_markword_in_object(const oop obj) {
+  assert(LockingMode != LM_LIGHTWEIGHT, "Lightweight has no dmw");
   // This function must only be called when (owner == DEFLATER_MARKER
   // && contentions <= 0), but we can't guarantee that here because
   // those values could change when the ObjectMonitor gets moved from
@@ -660,13 +661,13 @@ void ObjectMonitor::install_displaced_markword_in_object(const oop obj) {
   // Install displaced mark word if the object's header still points
   // to this ObjectMonitor. More than one racing caller to this function
   // can rarely reach this point, but only one can win.
-  markWord res = obj->cas_set_mark(dmw, obj->mark().set_has_monitor());
-  if (res != obj->mark().set_has_monitor()) {
+  markWord res = obj->cas_set_mark(dmw, markWord::encode(this));
+  if (res != markWord::encode(this)) {
     // This should be rare so log at the Info level when it happens.
     log_info(monitorinflation)("install_displaced_markword_in_object: "
                                "failed cas_set_mark: new_mark=" INTPTR_FORMAT
                                ", old_mark=" INTPTR_FORMAT ", res=" INTPTR_FORMAT,
-                               dmw.value(), obj->mark().set_has_monitor().value(),
+                               dmw.value(), markWord::encode(this).value(),
                                res.value());
   }
 
@@ -966,7 +967,7 @@ void ObjectMonitor::ReenterI(JavaThread* current, ObjectWaiter* currentNode) {
   assert(currentNode != nullptr, "invariant");
   assert(currentNode->_thread == current, "invariant");
   assert(_waiters > 0, "invariant");
-  // assert(object()->mark() == markWord::encode(this), "invariant");
+  assert(LockingMode == LM_LIGHTWEIGHT || object()->mark() == markWord::encode(this), "invariant");
 
   assert(current->thread_state() != _thread_blocked, "invariant");
 
@@ -1025,7 +1026,7 @@ void ObjectMonitor::ReenterI(JavaThread* current, ObjectWaiter* currentNode) {
   // In addition, current.TState is stable.
 
   assert(owner_raw() == current, "invariant");
-  // assert(object()->mark() == markWord::encode(this), "invariant");
+  assert(LockingMode == LM_LIGHTWEIGHT || object()->mark() == markWord::encode(this), "invariant");
   UnlinkAfterAcquire(current, currentNode);
   if (_succ == current) _succ = nullptr;
   assert(_succ != current, "invariant");
@@ -1656,7 +1657,7 @@ void ObjectMonitor::wait(jlong millis, bool interruptible, TRAPS) {
   // Verify a few postconditions
   assert(owner_raw() == current, "invariant");
   assert(_succ != current, "invariant");
-  // assert(object()->mark() == markWord::encode(this), "invariant");
+  assert(LockingMode == LM_LIGHTWEIGHT || object()->mark() == markWord::encode(this), "invariant");
 
   // check if the notification happened
   if (!WasNotified) {
@@ -2243,7 +2244,7 @@ void ObjectMonitor::print() const { print_on(tty); }
 //
 void ObjectMonitor::print_debug_style_on(outputStream* st) const {
   st->print_cr("(ObjectMonitor*) " INTPTR_FORMAT " = {", p2i(this));
-  st->print_cr("  _header = " INTPTR_FORMAT, header().value());
+  st->print_cr("  _header = " INTPTR_FORMAT, header_value());
   st->print_cr("  _object = " INTPTR_FORMAT, p2i(object_peek()));
   st->print_cr("  _pad_buf0 = {");
   st->print_cr("    [0] = '\\0'");

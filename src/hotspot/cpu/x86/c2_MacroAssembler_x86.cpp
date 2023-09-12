@@ -35,6 +35,7 @@
 #include "opto/subnode.hpp"
 #include "runtime/objectMonitor.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "runtime/synchronizer.hpp"
 #include "utilities/checkedCast.hpp"
 
 #ifdef PRODUCT
@@ -794,20 +795,17 @@ void C2_MacroAssembler::fast_unlock(Register objReg, Register boxReg, Register t
     jcc(Assembler::zero, Stacked);
   }
 
-  // It's inflated
   Label CheckSucc, LNotRecursive, LSuccess, LGoSlowPath;
 
   // It's inflated.
   if (LockingMode == LM_LIGHTWEIGHT) {
     // It's inflated, check the cache
-    if (LockingMode == LM_LIGHTWEIGHT) {
-      cmpptr(objReg, Address(r15_thread, JavaThread::om_cache_oop_offset()));
-      jcc(Assembler::notEqual, LGoSlowPath);
-      movptr(tmpReg, Address(r15_thread, JavaThread::om_cache_monitor_offset()));
-    }
+    cmpptr(objReg, Address(r15_thread, JavaThread::om_cache_oop_offset()));
+    jcc(Assembler::notEqual, LGoSlowPath);
+    movptr(tmpReg, Address(r15_thread, JavaThread::om_cache_monitor_offset()));
 
-    // If the owner is ANONYMOUS, we need to fix it -  in an outline stub.
-    testb(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)), 3);
+    // Check if the cached monitor can be used, take slowpath otherwise.
+    testb(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)), ObjectMonitor::ANONYMOUS_OWNER_OR_DEFLATION_MARKER);
     jcc(Assembler::notZero, NO_COUNT);
   }
 

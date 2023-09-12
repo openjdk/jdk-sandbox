@@ -1483,9 +1483,18 @@ JvmtiEnvBase::get_object_monitor_usage(JavaThread* calling_thread, jobject objec
 
   jint nWant = 0, nWait = 0;
   markWord mark = hobj->mark();
-  if (mark.has_monitor()) {
-    mon = ObjectSynchronizer::read_monitor(current_thread, hobj());
+  while (LockingMode == LM_LIGHTWEIGHT && mark.has_monitor() && mon == nullptr) {
+    mon = ObjectSynchronizer::read_monitor(Thread::current(), hobj());
+    // Racing with inflation/deflation, retry
+    mark = hobj->mark_acquire();
+  }
+
+  if (LockingMode != LM_LIGHTWEIGHT && mark.has_monitor()) {
+    mon = ObjectSynchronizer::read_monitor(mark);
     assert(mon != nullptr, "must have monitor");
+  }
+
+  if (mon != nullptr) {
     // this object has a heavyweight monitor
     nWant = mon->contentions(); // # of threads contending for monitor
     nWait = mon->waiters();     // # of threads in Object.wait()
