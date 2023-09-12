@@ -155,12 +155,14 @@ class ObjectSynchronizer : AllStatic {
   static bool quick_enter(oop obj, JavaThread* current, BasicLock* Lock);
 
   // Inflate light weight monitor to heavy weight monitor
+  static ObjectMonitor* inflate_lightweight(Thread* current, oop obj, const InflateCause cause);
   static ObjectMonitor* inflate(Thread* current, oop obj, const InflateCause cause);
   // This version is only for internal use
   static void inflate_helper(oop obj);
   static const char* inflate_cause_name(const InflateCause cause);
 
   static ObjectMonitor* read_monitor(Thread* current, oop obj);
+  static void remove_monitor(Thread* current, oop obj, ObjectMonitor* monitor);
 
   // Returns the identity hash value for an oop
   // NOTE: It may cause monitor inflation

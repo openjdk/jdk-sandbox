@@ -2221,13 +2221,6 @@ JRT_LEAF(void, SharedRuntime::reguard_yellow_pages())
 JRT_END
 
 void SharedRuntime::monitor_enter_helper(oopDesc* obj, BasicLock* lock, JavaThread* current) {
-  if (!SafepointSynchronize::is_synchronizing()) {
-    // Only try quick_enter() if we're not trying to reach a safepoint
-    // so that the calling thread reaches the safepoint more quickly.
-    if (ObjectSynchronizer::quick_enter(obj, current, lock)) {
-      return;
-    }
-  }
   // NO_ASYNC required because an async exception on the state transition destructor
   // would leave you with the lock held and it would never be released.
   // The normal monitorenter NullPointerException is thrown without acquiring a lock
