@@ -495,8 +495,8 @@ JavaThread::JavaThread() :
   _SleepEvent(ParkEvent::Allocate(this)),
 
   _lock_stack(this),
-  _om_cache_oop(nullptr),
-  _om_cache_monitor(nullptr) {
+  _om_cache_oop(),
+  _om_cache_monitor() {
   set_jni_functions(jni_functions());
 
 #if INCLUDE_JVMCI

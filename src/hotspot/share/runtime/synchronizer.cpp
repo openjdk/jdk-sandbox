@@ -594,34 +594,27 @@ void ObjectSynchronizer::enter_lightweight(Handle obj, JavaThread* locking_threa
   assert(current == Thread::current(), "must be");
   assert(locking_thread == current || true /* TODO: What to assert here */, "");
 
-  // Fast-locking does not use the 'lock' argument.
-  LockStack& lock_stack = locking_thread->lock_stack();
-  if (lock_stack.can_push()) {
-    markWord mark = obj()->mark_acquire();
-    assert(!mark.is_neutral() || !lock_stack.contains(obj()), "thread must not already hold the lock");
-    while (mark.is_neutral()) {
-      // Try to swing into 'fast-locked' state.
-      markWord locked_mark = mark.set_fast_locked();
-      markWord old_mark = obj()->cas_set_mark(locked_mark, mark);
-      if (old_mark == mark) {
-        // Successfully fast-locked, push object to lock-stack and return.
-        lock_stack.push(obj());
-        return;
-      }
-
-      mark = old_mark;
-    }
-  }
-  // All other paths fall-through to inflate-enter.
-
   while (true) {
-    ObjectMonitor* monitor = inflate_lightweight(current, locking_thread, obj(), inflate_cause_monitor_enter);
-    // TODO: Cleanup interface, monitor == nullptr means the lock is held
-    if (monitor == nullptr) {
-      return;
+    // Fast-locking does not use the 'lock' argument.
+    LockStack& lock_stack = locking_thread->lock_stack();
+    if (lock_stack.can_push()) {
+      markWord mark = obj()->mark_acquire();
+      while (mark.is_unlocked()) {
+        assert(!lock_stack.contains(obj()), "thread must not already hold the lock");
+        // Try to swing into 'fast-locked' state.
+        markWord locked_mark = mark.set_fast_locked();
+        markWord old_mark = obj()->cas_set_mark(locked_mark, mark);
+        if (old_mark == mark) {
+          // Successfully fast-locked, push object to lock-stack and return.
+          lock_stack.push(obj());
+          return;
+        }
+
+        mark = old_mark;
+      }
     }
-    if (monitor->enter(locking_thread)) {
-      locking_thread->om_set_monitor_cache(obj(), monitor);
+
+    if (inflate_and_try_enter_lightweight(current, locking_thread, obj(), inflate_cause_monitor_enter)) {
       return;
     }
   }
@@ -679,11 +672,20 @@ void ObjectSynchronizer::enter(Handle obj, BasicLock* lock, JavaThread* locking_
   }
 }
 
+// Can be called from non JavaThreads (e.g., VMThread) for FastHashCode
+// calculations as part of JVM/TI tagging.
+static bool is_lock_owned(Thread* thread, oop obj) {
+  assert(LockingMode == LM_LIGHTWEIGHT, "only call this with new lightweight locking enabled");
+  return thread->is_Java_thread() ? JavaThread::cast(thread)->lock_stack().contains(obj) : false;
+}
+
 void ObjectSynchronizer::exit_lightweight(oop object, JavaThread* current) {
   assert(LockingMode == LM_LIGHTWEIGHT, "must be");
   assert(current == Thread::current(), "must be");
 
   markWord mark = object->mark();
+  assert(!mark.is_unlocked(), "must be unlocked");
+
   // Fast-locking does not use the 'lock' argument.
   while (mark.is_fast_locked()) {
     markWord unlocked_mark = mark.set_unlocked();
@@ -699,8 +701,13 @@ void ObjectSynchronizer::exit_lightweight(oop object, JavaThread* current) {
   }
 
   assert(mark.has_monitor(), "must be");
-  ObjectMonitor* monitor = inflate_lightweight(current, object, inflate_cause_vm_internal);
-  assert(!monitor->is_owner_anonymous(), "Should be handled by inflate_lightweight");
+  // The monitor is
+  ObjectMonitor* monitor = read_monitor(current, object);
+  if (monitor->is_owner_anonymous()) {
+    assert(is_lock_owned(current, object), "current must have object on its lock stack");
+    monitor->set_owner_from_anonymous(current);
+    current->lock_stack().remove(object);
+  }
   monitor->exit(current);
 }
 
@@ -778,8 +785,16 @@ void ObjectSynchronizer::jni_enter(Handle obj, JavaThread* current) {
   // enter() can make the ObjectMonitor busy. enter() returns false if
   // we have lost the race to async deflation and we simply try again.
   while (true) {
-    ObjectMonitor* monitor = inflate(current, obj(), inflate_cause_jni_enter);
-    if (monitor == nullptr || monitor->enter(current)) {
+    ObjectMonitor* monitor;
+    bool entered;
+    if (LockingMode == LM_LIGHTWEIGHT) {
+      entered = inflate_and_try_enter_lightweight(current, current, obj(), inflate_cause_jni_enter);
+    } else {
+      monitor = inflate(current, obj(), inflate_cause_jni_enter);
+      entered = monitor->enter(current);
+    }
+
+    if (entered) {
       current->inc_held_monitor_count(1, true);
       break;
     }
@@ -851,7 +866,7 @@ ObjectMonitor* ObjectSynchronizer::get_monitor_lightweight(oop obj, const Inflat
                   "current thread is not owner", nullptr);
       } else {
         // Current thread owns the lock, must inflate
-        return inflate_lightweight(current, obj, cause);
+        return inflate_fast_locked_lightweight(current, obj, cause);
       }
     }
 
@@ -1091,13 +1106,6 @@ static inline intptr_t get_next_hash(Thread* current, oop obj) {
   if (value == 0) value = 0xBAD;
   assert(value != markWord::no_hash, "invariant");
   return value;
-}
-
-// Can be called from non JavaThreads (e.g., VMThread) for FastHashCode
-// calculations as part of JVM/TI tagging.
-static bool is_lock_owned(Thread* thread, oop obj) {
-  assert(LockingMode == LM_LIGHTWEIGHT, "only call this with new lightweight locking enabled");
-  return thread->is_Java_thread() ? JavaThread::cast(thread)->lock_stack().contains(obj) : false;
 }
 
 intptr_t ObjectSynchronizer::FastHashCode_lightweight(Thread* current, oop obj) {
@@ -1555,10 +1563,79 @@ static void log_inflate(Thread* current, oop object, const ObjectSynchronizer::I
   }
 }
 
-ObjectMonitor* ObjectSynchronizer::inflate_lightweight(Thread* current, Thread* locking_thread, oop object, const InflateCause cause) {
+ObjectMonitor* ObjectSynchronizer::inflate_fast_locked_lightweight(Thread* locking_thread, oop object, const InflateCause cause) {
+  assert(LockingMode == LM_LIGHTWEIGHT, "only used for lightweight");
+  assert(locking_thread == Thread::current(), "must be");
+  assert(is_lock_owned(locking_thread, object), "locking_thread must have object on its lock stack");
+
+  EventJavaMonitorInflate event;
+  // Inflating requires a hash code
+  FastHashCode_lightweight(locking_thread, object);
+
+  markWord mark = object->mark_acquire();
+  assert(!mark.is_unlocked(), "Cannot be unlocked");
+
+  ObjectMonitor* monitor = inflate_get_or_insert_lightweight(locking_thread, locking_thread, object, cause, false);
+
+  while(mark.is_fast_locked()) {
+    const markWord old_mark = mark;
+    mark = object->cas_set_mark(mark.set_has_monitor(), old_mark);
+    if (old_mark == mark) {
+      // Hopefully the performance counters are allocated on distinct
+      // cache lines to avoid false sharing on MP systems ...
+      OM_PERFDATA_OP(Inflations, inc());
+      log_inflate(locking_thread, object, cause);
+      if (event.should_commit()) {
+        post_monitor_inflate_event(&event, object, cause);
+      }
+    }
+  }
+
+  assert(monitor == read_monitor(locking_thread, object), "this monitor must be in the table");
+  monitor->set_owner_from_anonymous(locking_thread);
+  JavaThread::cast(locking_thread)->lock_stack().remove(object);
+  return monitor;
+}
+
+
+ObjectMonitor* ObjectSynchronizer::inflate_get_or_insert_lightweight(Thread* current, Thread* locking_thread, oop object, const InflateCause cause, bool try_read) {
+  EventJavaMonitorInflate event;
+  ObjectMonitor* monitor = try_read ? read_monitor(locking_thread, object) : nullptr;
+  if (monitor == nullptr) {
+    ObjectMonitor* alloced_monitor = new ObjectMonitor(object);
+    alloced_monitor->set_owner_anonymous();
+
+    // Try insert monitor
+    monitor = add_monitor(alloced_monitor, object);
+    if (alloced_monitor != monitor) {
+      delete alloced_monitor;
+    } else {
+      // Hopefully the performance counters are allocated on distinct
+      // cache lines to avoid false sharing on MP systems ...
+      OM_PERFDATA_OP(Inflations, inc());
+      log_inflate(current, object, cause);
+      if (event.should_commit()) {
+        post_monitor_inflate_event(&event, object, cause);
+      }
+
+      // The monitor has an anonymous owner so it is safe from async deflation.
+      _in_use_list.add(monitor);
+    }
+  }
+
+  return monitor;
+}
+
+bool ObjectSynchronizer::inflate_and_try_enter_lightweight(Thread* current, JavaThread* locking_thread, oop object, const InflateCause cause) {
   assert(LockingMode == LM_LIGHTWEIGHT, "only used for lightweight");
   assert(current == Thread::current(), "must be");
-  EventJavaMonitorInflate event;
+
+  // Lightweight monitors require that hash codes are installed first
+  FastHashCode_lightweight(locking_thread, object);
+
+  // Get or create monitor
+  ObjectMonitor* monitor = inflate_get_or_insert_lightweight(current, locking_thread, object, cause, true);
+
   for (;;) {
     const markWord mark = object->mark_acquire();
     // The mark can be in one of the following states:
@@ -1570,82 +1647,31 @@ ObjectMonitor* ObjectSynchronizer::inflate_lightweight(Thread* current, Thread* 
     // *  fast-locked  - Coerce it to inflated from fast-locked.
     // *  neutral      - Inflate the object. Successful CAS is locked
 
-    assert(!mark.is_marked(), "must not happen");
-
-    // Lightweight monitors require that hash codes are installed first
-    if (mark.has_no_hash()) {
-      assert(!mark.has_monitor(), "Should already have a hash");
-      object->cas_set_mark(mark.copy_set_hash(get_next_hash(locking_thread, object)), mark);
-      // Retry
-      continue;
-    }
-
-
-    // Get monitor
-    ObjectMonitor* monitor = read_monitor(current, object);
-
     // CASE: inflated
     if (mark.has_monitor()) {
-      if (monitor == nullptr) {
-        // TODO: Comment about race.
-        continue;
-      }
-      assert(!mark.has_no_hash(), "obj with inflated monitor must have had a hash");
       if (monitor->is_being_async_deflated()) {
-        LockStack& lock_stack = JavaThread::cast(locking_thread)->lock_stack();
-        assert(!lock_stack.contains(object), "thread must not already hold the lock");
-        const bool can_push = JavaThread::cast(locking_thread)->lock_stack().can_push();
-        const markWord new_mark = can_push ? mark.set_fast_locked() : mark.set_fast_locked().set_unlocked();
+        const markWord new_mark = mark.set_fast_locked().set_unlocked();
         markWord old_mark = object->cas_set_mark(new_mark, mark);
-        if (can_push && old_mark == mark) {
-          // The locking_thread thread managed to fast lock the object
-          lock_stack.push(object);
-          return nullptr;
-        } else {
-          // Someone beat us to it, either another enter or the deflation thread
-          // or our lock stack is full.
-          continue;
-        }
+        // Retry
+        return false;
       }
 
       if (monitor->is_owner_anonymous() && is_lock_owned(locking_thread, object)) {
         monitor->set_owner_from_anonymous(locking_thread);
-        JavaThread::cast(locking_thread)->lock_stack().remove(object);
+        locking_thread->lock_stack().remove(object);
       }
-      return monitor;
-    }
 
-    // Create monitor
-    if (monitor == nullptr) {
-      ObjectMonitor* alloced_monitor = new ObjectMonitor(object);
-      alloced_monitor->set_owner_anonymous();
-
-      // Try insert monitor
-      monitor = add_monitor(alloced_monitor, object);
-      if (alloced_monitor != monitor) {
-        delete alloced_monitor;
-      } else {
-        // The monitor has an anonymous owner so it is safe from async deflation.
-        _in_use_list.add(monitor);
-      }
+      break; // Success
     }
 
     if (monitor->is_being_async_deflated()) {
-      // TODO: What to do here? Spin.
-      //       Return will handle the spin for us, but will still just spin
-      //       until deflation has unlinked the monitor and some new monitor
-      //       can be found.
-      //       Can not happen when calling from notify[all]/wait as it only
-      //       calls inflate_lightweight if the locking_thread observer that
-      //       it has fast_locked the object. Monitor will be owned, cannot be
-      //       deflated
-      return monitor;
+      // Retry
+      return false;
     }
 
     // CASE: fast-locked
     // Could be fast-locked either by locking_thread or by some other thread.
     //
-    LogStreamHandle(Trace, monitorinflation) lsh;
     if (mark.is_fast_locked()) {
       markWord old_mark = object->cas_set_mark(mark.set_has_monitor(), mark);
       if (old_mark != mark) {
@@ -1653,21 +1679,13 @@ ObjectMonitor* ObjectSynchronizer::inflate_lightweight(Thread* current, Thread* 
         continue;
       }
 
-      bool own = is_lock_owned(locking_thread, object);
       // Success! Return inflated monitor.
-      if (own) {
+      if (is_lock_owned(locking_thread, object)) {
         monitor->set_owner_from_anonymous(locking_thread);
-        JavaThread::cast(locking_thread)->lock_stack().remove(object);
+        locking_thread->lock_stack().remove(object);
       }
 
-      // Hopefully the performance counters are allocated on distinct
-      // cache lines to avoid false sharing on MP systems ...
-      OM_PERFDATA_OP(Inflations, inc());
-      log_inflate(current, object, cause);
-      if (event.should_commit()) {
-        post_monitor_inflate_event(&event, object, cause);
-      }
-      return monitor;
+      break; // Success
     }
 
     // CASE: neutral
@@ -1683,30 +1701,21 @@ ObjectMonitor* ObjectSynchronizer::inflate_lightweight(Thread* current, Thread* 
 
     // Transitioned from unlocked to monitor means locking_thread owns the lock.
     monitor->set_owner_from_anonymous(locking_thread);
-
-    // Update cache here until the interface to signal that a monitor is locked by
-    // locking_thread thread does not loose the ObjectMonitor* information
-    assert(locking_thread->is_Java_thread(), "Must be");
-    JavaThread::cast(locking_thread)->om_set_monitor_cache(object, monitor);
-
-    // Hopefully the performance counters are allocated on distinct
-    // cache lines to avoid false sharing on MP systems ...
-    OM_PERFDATA_OP(Inflations, inc());
-    log_inflate(current, object, cause);
-    if (event.should_commit()) {
-      post_monitor_inflate_event(&event, object, cause);
-    }
-
-    // Return nullptr to signal that we own the monitor
-    return nullptr;
+    locking_thread->om_set_monitor_cache(object, monitor);
+    return true;
   }
+
+  if (monitor->enter(locking_thread)) {
+    locking_thread->om_set_monitor_cache(object, monitor);
+    return true;
+  }
+
+  return false;
 }
 
 ObjectMonitor* ObjectSynchronizer::inflate(Thread* current, oop object,
                                            const InflateCause cause) {
-  if (LockingMode == LM_LIGHTWEIGHT) {
-    return inflate_lightweight(current, object, cause);
-  }
+  assert(LockingMode != LM_LIGHTWEIGHT, "lightweight does not use inflate");
 
   EventJavaMonitorInflate event;
   for (;;) {
@@ -1724,10 +1733,6 @@ ObjectMonitor* ObjectSynchronizer::inflate(Thread* current, oop object,
       ObjectMonitor* inf = mark.monitor();
       markWord dmw = inf->header();
       assert(dmw.is_neutral(), "invariant: header=" INTPTR_FORMAT, dmw.value());
-      if (LockingMode == LM_LIGHTWEIGHT && inf->is_owner_anonymous() && is_lock_owned(current, object)) {
-        inf->set_owner_from_anonymous(current);
-        JavaThread::cast(current)->lock_stack().remove(object);
-      }
       return inf;
     }
 

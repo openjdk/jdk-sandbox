@@ -37,8 +37,10 @@
 #include "runtime/continuation.hpp"
 #include "runtime/continuationEntry.inline.hpp"
 #include "runtime/nonJavaThread.hpp"
+#include "runtime/objectMonitor.hpp"
 #include "runtime/orderAccess.hpp"
 #include "runtime/safepoint.hpp"
+#include "runtime/synchronizer.hpp"
 
 inline void JavaThread::set_suspend_flag(SuspendFlags f) {
   uint32_t flags;
@@ -242,13 +244,48 @@ inline InstanceKlass* JavaThread::class_to_be_initialized() const {
 inline void JavaThread::om_set_monitor_cache(oop obj, ObjectMonitor* monitor) {
   assert(obj != nullptr, "use om_clear_monitor_cache to clear");
   assert(monitor != nullptr, "use om_clear_monitor_cache to clear");
-  _om_cache_oop = obj;
-  _om_cache_monitor = monitor;
+  assert(monitor->object_peek() == obj, "must be associated");
+  assert(monitor == ObjectSynchronizer::read_monitor(this, obj), "must be");
+  oop cmp_obj = obj;
+  for (size_t i = 0; i < OM_CACHE_SIZE-1; ++i) {
+    if (_om_cache_oop[i] == cmp_obj) {
+      _om_cache_oop[i] = obj;
+      _om_cache_monitor[i] = monitor;
+      return;
+    }
+    // Remember Most Recent Values
+    oop tmp_oop = obj;
+    ObjectMonitor* tmp_mon = monitor;
+    // Set next pair to the next most recent
+    obj = _om_cache_oop[i];
+    monitor = _om_cache_monitor[i];
+    // Store most recent values
+    _om_cache_oop[i] = tmp_oop;
+    _om_cache_monitor[i] = tmp_mon;
+  }
+  _om_cache_oop[OM_CACHE_SIZE-1] = obj;
+  _om_cache_monitor[OM_CACHE_SIZE-1] = monitor;
 }
 
 inline void JavaThread::om_clear_monitor_cache() {
-  _om_cache_oop = nullptr;
-  _om_cache_monitor = nullptr;
+  for (size_t i = 0; i < OM_CACHE_SIZE; ++i) {
+    _om_cache_oop[i] = nullptr;
+    _om_cache_monitor[i] = nullptr;
+  }
+}
+
+inline ObjectMonitor* JavaThread::om_get_from_monitor_cache(oop obj) {
+  assert(obj != nullptr, "do not look for null objects");
+  for (size_t i = 0; i < OM_CACHE_SIZE; ++i) {
+    if (_om_cache_oop[i] == obj) {
+      assert(_om_cache_monitor[i] != nullptr, "monitor must exist");
+      if (_om_cache_monitor[i]->is_being_async_deflated()) {
+        return nullptr;
+      }
+      return _om_cache_monitor[i];
+    }
+  }
+  return nullptr;
 }
 
 #endif // SHARE_RUNTIME_JAVATHREAD_INLINE_HPP
