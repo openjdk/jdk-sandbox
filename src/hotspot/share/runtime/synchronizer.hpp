@@ -159,7 +159,7 @@ class ObjectSynchronizer : AllStatic {
 
   // Inflate light weight monitor to heavy weight monitor
   static ObjectMonitor* inflate_fast_locked_lightweight(Thread* locking_thread, oop obj, const InflateCause cause);
-  static ObjectMonitor* inflate_get_or_insert_lightweight(Thread* current, Thread* locking_thread, oop obj, const InflateCause cause, bool try_read);
+  static ObjectMonitor* inflate_get_or_insert_lightweight(Thread* current, oop obj, const InflateCause cause, bool try_read);
   static bool inflate_and_try_enter_lightweight(Thread* current, JavaThread* locking_thread, oop obj, const InflateCause cause);
   static ObjectMonitor* inflate(Thread* current, oop obj, const InflateCause cause);
   // This version is only for internal use

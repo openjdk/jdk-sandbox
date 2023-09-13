@@ -142,7 +142,7 @@ public:
     return result;
   }
 
-  ObjectMonitor* monitor_put_get(ObjectMonitor* monitor, oop obj) {
+  ObjectMonitor* monitor_put_get(Thread* current, ObjectMonitor* monitor, oop obj) {
     // Enter the monitor into the concurrent hashtable.
     Lookup l(obj);
     ObjectMonitor* result = monitor;
@@ -150,7 +150,7 @@ public:
       assert((*found)->object_peek() == obj, "must be");
       result = *found;
     };
-    _table->insert_get(Thread::current(), l, monitor, found);
+    _table->insert_get(current, l, monitor, found);
     return result;
   }
 
@@ -205,14 +205,14 @@ void ObjectSynchronizer::remove_monitor(Thread* current, oop obj, ObjectMonitor*
 }
 
 // Add the hashcode to the monitor to match the object and put it in the hashtable.
-static ObjectMonitor* add_monitor(ObjectMonitor* monitor, oop obj) {
+static ObjectMonitor* add_monitor(Thread* current, ObjectMonitor* monitor, oop obj) {
   assert(obj == monitor->object(), "must be");
 
   intptr_t hash = obj->mark().hash();
   assert(hash != 0, "must be set when claiming the object monitor");
   monitor->set_hash_lightweight(hash);
 
-  return _omworld->monitor_put_get(monitor, obj);
+  return _omworld->monitor_put_get(current, monitor, obj);
 }
 
 class ObjectMonitorsHashtable::PtrList :
@@ -1575,7 +1575,7 @@ ObjectMonitor* ObjectSynchronizer::inflate_fast_locked_lightweight(Thread* locki
   markWord mark = object->mark_acquire();
   assert(!mark.is_unlocked(), "Cannot be unlocked");
 
-  ObjectMonitor* monitor = inflate_get_or_insert_lightweight(locking_thread, locking_thread, object, cause, false);
+  ObjectMonitor* monitor = inflate_get_or_insert_lightweight(locking_thread, object, cause, false);
 
   while(mark.is_fast_locked()) {
     const markWord old_mark = mark;
@@ -1598,15 +1598,15 @@ ObjectMonitor* ObjectSynchronizer::inflate_fast_locked_lightweight(Thread* locki
 }
 
 
-ObjectMonitor* ObjectSynchronizer::inflate_get_or_insert_lightweight(Thread* current, Thread* locking_thread, oop object, const InflateCause cause, bool try_read) {
+ObjectMonitor* ObjectSynchronizer::inflate_get_or_insert_lightweight(Thread* current, oop object, const InflateCause cause, bool try_read) {
   EventJavaMonitorInflate event;
-  ObjectMonitor* monitor = try_read ? read_monitor(locking_thread, object) : nullptr;
+  ObjectMonitor* monitor = try_read ? read_monitor(current, object) : nullptr;
   if (monitor == nullptr) {
     ObjectMonitor* alloced_monitor = new ObjectMonitor(object);
     alloced_monitor->set_owner_anonymous();
 
     // Try insert monitor
-    monitor = add_monitor(alloced_monitor, object);
+    monitor = add_monitor(current, alloced_monitor, object);
     if (alloced_monitor != monitor) {
       delete alloced_monitor;
     } else {
@@ -1634,7 +1634,7 @@ bool ObjectSynchronizer::inflate_and_try_enter_lightweight(Thread* current, Java
   FastHashCode_lightweight(locking_thread, object);
 
   // Get or create monitor
-  ObjectMonitor* monitor = inflate_get_or_insert_lightweight(current, locking_thread, object, cause, true);
+  ObjectMonitor* monitor = inflate_get_or_insert_lightweight(current, object, cause, true);
 
   for (;;) {
     const markWord mark = object->mark_acquire();
