@@ -1985,6 +1985,17 @@ const int ObjectAlignmentInBytes = 8;
           "2: monitors & new lightweight locking (LM_LIGHTWEIGHT, default)") \
           range(0, 2)                                                       \
                                                                             \
+  product(int, C2OMLockCacheSize, 1, "")                                    \
+          range(0, JavaThread::OM_CACHE_SIZE)                               \
+                                                                            \
+  product(int, C2OMUnlockCacheSize, 1, "")                                  \
+          range(0, JavaThread::OM_CACHE_SIZE)                               \
+                                                                            \
+  product(int, CPPOMCacheSize, 5, "")                                       \
+          range(0, JavaThread::OM_CACHE_SIZE)                               \
+                                                                            \
+  product(bool, OMRegenerateCache, false, "")                               \
+                                                                            \
   product(uint, TrimNativeHeapInterval, 0, EXPERIMENTAL,                    \
           "Interval, in ms, at which the JVM will trim the native heap if " \
           "the platform supports that. Lower values will reclaim memory "   \

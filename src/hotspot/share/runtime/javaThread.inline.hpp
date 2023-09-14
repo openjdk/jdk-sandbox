@@ -37,10 +37,11 @@
 #include "runtime/continuation.hpp"
 #include "runtime/continuationEntry.inline.hpp"
 #include "runtime/nonJavaThread.hpp"
-#include "runtime/objectMonitor.hpp"
+#include "runtime/objectMonitor.inline.hpp"
 #include "runtime/orderAccess.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/synchronizer.hpp"
+#include "utilities/sizes.hpp"
 
 inline void JavaThread::set_suspend_flag(SuspendFlags f) {
   uint32_t flags;
@@ -246,13 +247,33 @@ inline void JavaThread::om_set_monitor_cache(oop obj, ObjectMonitor* monitor) {
   assert(monitor != nullptr, "use om_clear_monitor_cache to clear");
   assert(monitor->object_peek() == obj, "must be associated");
   assert(monitor == ObjectSynchronizer::read_monitor(this, obj), "must be");
+  const int end = MAX3(CPPOMCacheSize, C2OMLockCacheSize, C2OMUnlockCacheSize) - 1;
+  if (end < 0) {
+    return;
+  }
   oop cmp_obj = obj;
-  for (size_t i = 0; i < OM_CACHE_SIZE-1; ++i) {
-    if (_om_cache_oop[i] == cmp_obj) {
+  for (int i = 0; i < end; ++i) {
+    if (_om_cache_oop[i] == cmp_obj ||
+        _om_cache_monitor[i] == nullptr ||
+        _om_cache_monitor[i]->is_being_async_deflated()) {
       _om_cache_oop[i] = obj;
       _om_cache_monitor[i] = monitor;
       return;
     }
+#if 1
+    if (OMRegenerateCache &&
+        _om_cache_monitor[i] != nullptr &&
+        _om_cache_oop[i] == nullptr) {
+      oop woop = _om_cache_monitor[i]->object_peek();
+      if (woop == nullptr) {
+        _om_cache_oop[i] = obj;
+        _om_cache_monitor[i] = monitor;
+        return;
+      } else {
+        _om_cache_oop[i] = woop;
+      }
+    }
+#endif
     // Remember Most Recent Values
     oop tmp_oop = obj;
     ObjectMonitor* tmp_mon = monitor;
@@ -263,29 +284,52 @@ inline void JavaThread::om_set_monitor_cache(oop obj, ObjectMonitor* monitor) {
     _om_cache_oop[i] = tmp_oop;
     _om_cache_monitor[i] = tmp_mon;
   }
-  _om_cache_oop[OM_CACHE_SIZE-1] = obj;
-  _om_cache_monitor[OM_CACHE_SIZE-1] = monitor;
+  _om_cache_oop[end] = obj;
+  _om_cache_monitor[end] = monitor;
 }
 
 inline void JavaThread::om_clear_monitor_cache() {
-  for (size_t i = 0; i < OM_CACHE_SIZE; ++i) {
+  for (size_t i = 0 , r = 0; i < OM_CACHE_SIZE; ++i) {
     _om_cache_oop[i] = nullptr;
+#if 1
+    if (!OMRegenerateCache ||
+        (_om_cache_monitor[i] != nullptr &&
+         !_om_cache_monitor[i]->is_being_async_deflated())) {
+      _om_cache_monitor[i] = nullptr;
+    } else {
+      _om_cache_monitor[r++] = _om_cache_monitor[i];
+    }
+#else
     _om_cache_monitor[i] = nullptr;
+#endif
   }
 }
 
 inline ObjectMonitor* JavaThread::om_get_from_monitor_cache(oop obj) {
   assert(obj != nullptr, "do not look for null objects");
-  for (size_t i = 0; i < OM_CACHE_SIZE; ++i) {
+  for (int i = 0; i < CPPOMCacheSize; ++i) {
     if (_om_cache_oop[i] == obj) {
       assert(_om_cache_monitor[i] != nullptr, "monitor must exist");
       if (_om_cache_monitor[i]->is_being_async_deflated()) {
+        // Bad monitor
+        _om_cache_oop[i] = nullptr;
+        _om_cache_monitor[i] = nullptr;
         return nullptr;
       }
       return _om_cache_monitor[i];
     }
   }
   return nullptr;
+}
+
+inline ByteSize JavaThread::om_nth_cache_oop_offset(size_t n) {
+  assert(n < OM_CACHE_SIZE, "out of bounds");
+  return om_cache_oop_offset() + in_ByteSize(sizeof(_om_cache_oop[n]) * n);
+}
+
+inline ByteSize JavaThread::om_nth_cache_monitor_offset(size_t n){
+  assert(n < OM_CACHE_SIZE, "out of bounds");
+  return om_cache_monitor_offset() + in_ByteSize(sizeof(_om_cache_monitor[n]) * n);
 }
 
 #endif // SHARE_RUNTIME_JAVATHREAD_INLINE_HPP

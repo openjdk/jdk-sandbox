@@ -1145,9 +1145,9 @@ public:
   void interrupt();
   bool is_interrupted(bool clear_interrupted);
 
+  static constexpr size_t OM_CACHE_SIZE = 5;
 private:
   LockStack _lock_stack;
-  static constexpr size_t OM_CACHE_SIZE = 1;
   oop _om_cache_oop[OM_CACHE_SIZE];
   ObjectMonitor* _om_cache_monitor[OM_CACHE_SIZE];
 
@@ -1163,6 +1163,8 @@ public:
 
   static ByteSize om_cache_oop_offset()    { return byte_offset_of(JavaThread, _om_cache_oop); }
   static ByteSize om_cache_monitor_offset(){ return byte_offset_of(JavaThread, _om_cache_monitor); }
+  static ByteSize om_nth_cache_oop_offset(size_t n);
+  static ByteSize om_nth_cache_monitor_offset(size_t n);
 
   void om_set_monitor_cache(oop obj, ObjectMonitor* monitor);
   void om_clear_monitor_cache();
