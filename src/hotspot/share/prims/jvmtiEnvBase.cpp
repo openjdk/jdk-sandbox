@@ -1484,7 +1484,7 @@ JvmtiEnvBase::get_object_monitor_usage(JavaThread* calling_thread, jobject objec
   jint nWant = 0, nWait = 0;
   markWord mark = hobj->mark();
   while (LockingMode == LM_LIGHTWEIGHT && mark.has_monitor() && mon == nullptr) {
-    mon = ObjectSynchronizer::read_monitor(Thread::current(), hobj());
+    mon = LightweightSynchronizer::read_monitor(Thread::current(), hobj());
     // Racing with inflation/deflation, retry
     mark = hobj->mark_acquire();
   }

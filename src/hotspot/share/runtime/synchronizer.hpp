@@ -138,10 +138,8 @@ class ObjectSynchronizer : AllStatic {
   // deoptimization at monitor exit. Hence, it does not take a Handle argument.
 
   // This is the "slow path" version of monitor enter and exit.
-  static void enter_lightweight(Handle obj, JavaThread* locking_thread, JavaThread* current);
   static void enter(Handle obj, BasicLock* lock, JavaThread* locking_thread, JavaThread* current);
   static void enter(Handle obj, BasicLock* lock, JavaThread* current) { enter(obj, lock, current, current); }
-  static void exit_lightweight(oop object, JavaThread* current);
   static void exit(oop obj, BasicLock* lock, JavaThread* current);
 
   // Used only to handle jni locks or other unmatched monitor enter/exit
@@ -150,7 +148,6 @@ class ObjectSynchronizer : AllStatic {
   static void jni_exit(oop obj, TRAPS);
 
   // Handle all interpreter, compiler and jni cases
-  static ObjectMonitor* get_monitor_lightweight(oop obj, const InflateCause cause, TRAPS);
   static int  wait(Handle obj, jlong millis, TRAPS);
   static void notify(Handle obj, TRAPS);
   static void notifyall(Handle obj, TRAPS);
@@ -158,24 +155,17 @@ class ObjectSynchronizer : AllStatic {
   static bool quick_notify(oopDesc* obj, JavaThread* current, bool All);
 
   // Inflate light weight monitor to heavy weight monitor
-  static ObjectMonitor* inflate_fast_locked_lightweight(Thread* locking_thread, oop obj, const InflateCause cause);
-  static ObjectMonitor* inflate_get_or_insert_lightweight(Thread* current, JavaThread* locking_thread, oop obj, const InflateCause cause, bool try_read);
-  static bool inflate_and_try_enter_lightweight(Thread* current, JavaThread* locking_thread, oop obj, const InflateCause cause);
   static ObjectMonitor* inflate(Thread* current, oop obj, const InflateCause cause);
   // This version is only for internal use
   static void inflate_helper(oop obj);
   static const char* inflate_cause_name(const InflateCause cause);
 
   static ObjectMonitor* read_monitor(markWord mark);
-  static ObjectMonitor* read_monitor(Thread* current, oop obj);
   static ObjectMonitor* read_monitor(Thread* current, oop obj, markWord mark);
-  static void remove_monitor(Thread* current, oop obj, ObjectMonitor* monitor);
 
   // Returns the identity hash value for an oop
   // NOTE: It may cause monitor inflation
   static intptr_t FastHashCode(Thread* current, oop obj);
-  // NOTE: May not cause monitor inflation
-  static intptr_t FastHashCode_lightweight(Thread* current, oop obj);
 
   // java.lang.Thread support
   static bool current_thread_holds_lock(JavaThread* current, Handle h_obj);
@@ -231,6 +221,7 @@ class ObjectSynchronizer : AllStatic {
 
  private:
   friend class SynchronizerTest;
+  friend class LightweightSynchronizer;
 
   static MonitorList _in_use_list;
   static volatile bool _is_async_deflation_requested;
@@ -244,6 +235,25 @@ class ObjectSynchronizer : AllStatic {
   static u_char* get_gvars_stw_random_addr();
 
   static void handle_sync_on_value_based_class(Handle obj, JavaThread* current);
+};
+
+class LightweightSynchronizer : AllStatic {
+private:
+  static ObjectMonitor* get_or_insert_monitor(oop object, JavaThread* locking_thread, Thread* current, const ObjectSynchronizer::InflateCause cause, bool try_read);
+
+ public:
+  static void enter(Handle obj, JavaThread* locking_thread, JavaThread* current);
+  static void exit(oop object, JavaThread* current);
+
+  static ObjectMonitor* inflate_locked_or_imse(oop object, const ObjectSynchronizer::InflateCause cause, TRAPS);
+  static ObjectMonitor* inflate_fast_locked_object(Thread* locking_thread, oop obj, const ObjectSynchronizer::InflateCause cause);
+  static bool inflate_and_enter(oop object, JavaThread* locking_thread, Thread* current, const ObjectSynchronizer::InflateCause cause);
+
+  static ObjectMonitor* read_monitor(Thread* current, oop obj);
+  static void remove_monitor(Thread* current, oop obj, ObjectMonitor* monitor);
+
+  // NOTE: May not cause monitor inflation
+  static intptr_t FastHashCode(Thread* current, oop obj);
 };
 
 // ObjectLocker enforces balanced locking and can never throw an

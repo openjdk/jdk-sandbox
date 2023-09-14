@@ -602,7 +602,7 @@ bool ObjectMonitor::deflate_monitor(Thread* current) {
       install_displaced_markword_in_object(obj);
     } else {
       transition_from_monitor(obj);
-      ObjectSynchronizer::remove_monitor(current, obj, this);
+      LightweightSynchronizer::remove_monitor(current, obj, this);
     }
   }
 
