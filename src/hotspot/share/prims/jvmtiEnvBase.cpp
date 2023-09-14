@@ -1461,7 +1461,6 @@ JvmtiEnvBase::get_object_monitor_usage(JavaThread* calling_thread, jobject objec
 
   ThreadsListHandle tlh(current_thread);
   JavaThread *owning_thread = nullptr;
-  ObjectMonitor *mon = nullptr;
   jvmtiMonitorUsage ret = {
       nullptr, 0, 0, nullptr, 0, nullptr
   };
@@ -1483,16 +1482,10 @@ JvmtiEnvBase::get_object_monitor_usage(JavaThread* calling_thread, jobject objec
 
   jint nWant = 0, nWait = 0;
   markWord mark = hobj->mark();
-  while (LockingMode == LM_LIGHTWEIGHT && mark.has_monitor() && mon == nullptr) {
-    mon = LightweightSynchronizer::read_monitor(Thread::current(), hobj());
-    // Racing with inflation/deflation, retry
-    mark = hobj->mark_acquire();
-  }
 
-  if (LockingMode != LM_LIGHTWEIGHT && mark.has_monitor()) {
-    mon = ObjectSynchronizer::read_monitor(mark);
-    assert(mon != nullptr, "must have monitor");
-  }
+  ObjectMonitor* mon = mark.has_monitor()
+      ? ObjectSynchronizer::read_monitor(current_thread, hobj(), mark)
+      : nullptr;
 
   if (mon != nullptr) {
     // this object has a heavyweight monitor
