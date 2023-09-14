@@ -186,15 +186,13 @@ ObjectMonitor* ObjectSynchronizer::read_monitor(markWord mark) {
 }
 
 ObjectMonitor* LightweightSynchronizer::read_monitor(Thread* current, oop obj) {
-  if (LockingMode != LM_LIGHTWEIGHT) {
-    return ObjectSynchronizer::read_monitor(obj->mark());
-  }
+  assert(LockingMode == LM_LIGHTWEIGHT, "must be");
   return _omworld->monitor_for(current, obj);
 }
 
 ObjectMonitor* ObjectSynchronizer::read_monitor(Thread* current, oop obj, markWord mark) {
   if (LockingMode != LM_LIGHTWEIGHT) {
-    return ObjectSynchronizer::read_monitor(mark);
+    return read_monitor(mark);
   }
   return LightweightSynchronizer::read_monitor(current, obj);
 }

@@ -246,7 +246,7 @@ inline void JavaThread::om_set_monitor_cache(oop obj, ObjectMonitor* monitor) {
   assert(obj != nullptr, "use om_clear_monitor_cache to clear");
   assert(monitor != nullptr, "use om_clear_monitor_cache to clear");
   assert(monitor->object_peek() == obj, "must be associated");
-  assert(monitor == ObjectSynchronizer::read_monitor(this, obj), "must be");
+  assert(monitor == LightweightSynchronizer::read_monitor(this, obj), "must be");
   const int end = MAX3(CPPOMCacheSize, C2OMLockCacheSize, C2OMUnlockCacheSize) - 1;
   if (end < 0) {
     return;
