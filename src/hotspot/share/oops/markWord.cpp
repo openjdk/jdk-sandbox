@@ -69,7 +69,7 @@ void markWord::print_on(outputStream* st, bool print_monitor_info, oop obj) cons
     // have to check has_monitor() before is_locked()
     st->print(" monitor(");
     if (print_monitor_info) {
-      assert(obj != nullptr, "supply a obj if print_monitor_info");
+      assert(obj != nullptr, "supply an obj if print_monitor_info");
       ObjectMonitor* mon = ObjectSynchronizer::read_monitor(Thread::current(), obj, *this);
       if (mon == nullptr) {
         st->print("null (racing with inflation/deflation)");
