@@ -1655,6 +1655,7 @@ ObjectMonitor* LightweightSynchronizer::get_or_insert_monitor(oop object, JavaTh
 bool LightweightSynchronizer::inflate_and_enter(oop object, JavaThread* locking_thread, Thread* current, const ObjectSynchronizer::InflateCause cause) {
   assert(LockingMode == LM_LIGHTWEIGHT, "only used for lightweight");
   assert(current == Thread::current(), "must be");
+  NoSafepointVerifier nsv;
 
   // Lightweight monitors require that hash codes are installed first
   FastHashCode(locking_thread, object);
@@ -1730,12 +1731,16 @@ bool LightweightSynchronizer::inflate_and_enter(oop object, JavaThread* locking_
 
     // Transitioned from unlocked to monitor means locking_thread owns the lock.
     monitor->set_owner_from_anonymous(locking_thread);
-    locking_thread->om_set_monitor_cache(object, monitor);
+    locking_thread->om_set_monitor_cache(monitor);
     return true;
   }
 
+  // enter can block for safepoints; clear the unhandled object oop
+  PauseNoSafepointVerifier pnsv(&nsv);
+  object = nullptr;
+
   if (monitor->enter(locking_thread)) {
-    locking_thread->om_set_monitor_cache(object, monitor);
+    locking_thread->om_set_monitor_cache(monitor);
     return true;
   }
 

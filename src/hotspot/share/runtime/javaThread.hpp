@@ -1166,7 +1166,7 @@ public:
   static ByteSize om_nth_cache_oop_offset(size_t n);
   static ByteSize om_nth_cache_monitor_offset(size_t n);
 
-  void om_set_monitor_cache(oop obj, ObjectMonitor* monitor);
+  void om_set_monitor_cache(ObjectMonitor* monitor);
   void om_clear_monitor_cache();
   ObjectMonitor* om_get_from_monitor_cache(oop obj);
 

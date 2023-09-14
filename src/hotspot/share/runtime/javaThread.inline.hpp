@@ -242,15 +242,19 @@ inline InstanceKlass* JavaThread::class_to_be_initialized() const {
   return _class_to_be_initialized;
 }
 
-inline void JavaThread::om_set_monitor_cache(oop obj, ObjectMonitor* monitor) {
-  assert(obj != nullptr, "use om_clear_monitor_cache to clear");
+inline void JavaThread::om_set_monitor_cache(ObjectMonitor* monitor) {
+  assert(LockingMode == LM_LIGHTWEIGHT, "must be");
   assert(monitor != nullptr, "use om_clear_monitor_cache to clear");
-  assert(monitor->object_peek() == obj, "must be associated");
-  assert(monitor == LightweightSynchronizer::read_monitor(this, obj), "must be");
+
   const int end = MAX3(CPPOMCacheSize, C2OMLockCacheSize, C2OMUnlockCacheSize) - 1;
   if (end < 0) {
     return;
   }
+
+  oop obj = monitor->object_peek();
+  assert(obj != nullptr, "must be alive");
+  assert(monitor == LightweightSynchronizer::read_monitor(this, obj), "must be exist in table");
+
   oop cmp_obj = obj;
   for (int i = 0; i < end; ++i) {
     if (_om_cache_oop[i] == cmp_obj ||
