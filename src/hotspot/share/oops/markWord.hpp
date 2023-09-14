@@ -222,6 +222,7 @@ class markWord {
     return from_pointer(lock);
   }
   static markWord encode(ObjectMonitor* monitor) {
+    assert(LockingMode != LM_LIGHTWEIGHT, "Lightweight locking does not use markWord for monitors");
     uintptr_t tmp = (uintptr_t) monitor;
     return markWord(tmp | monitor_value);
   }

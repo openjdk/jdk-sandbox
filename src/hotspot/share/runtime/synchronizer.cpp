@@ -133,25 +133,39 @@ class ObjectMonitorWorld : public CHeapObj<mtThread> {
 public:
   ObjectMonitorWorld() : _table(new ConcurrentTable()) {}
 
-  ObjectMonitor* monitor_for(Thread* current, oop obj) {
+  void verify_monitor_get_result(oop obj, ObjectMonitor* monitor) {
+#ifdef ASSERT
+    if (SafepointSynchronize::is_at_safepoint()) {
+      bool has_monitor = obj->mark().has_monitor();
+      assert(has_monitor == (monitor != nullptr),
+          "Inconsistency between markWord and OMW table has_monitor: %s monitor: " PTR_FORMAT,
+          BOOL_TO_STR(has_monitor), p2i(monitor));
+    }
+#endif
+  }
+
+  ObjectMonitor* monitor_get(Thread* current, oop obj) {
     ObjectMonitor* result = nullptr;
-    Lookup l(obj);
-    auto found = [&](ObjectMonitor** found) {
+    Lookup lookup_f(obj);
+    auto found_f = [&](ObjectMonitor** found) {
+      assert((*found)->object_peek() == obj, "must be");
       result = *found;
     };
-    _table->get(current, l, found);
+    _table->get(current, lookup_f, found_f);
+    verify_monitor_get_result(obj, result);
     return result;
   }
 
   ObjectMonitor* monitor_put_get(Thread* current, ObjectMonitor* monitor, oop obj) {
     // Enter the monitor into the concurrent hashtable.
-    Lookup l(obj);
     ObjectMonitor* result = monitor;
-    auto found = [&](ObjectMonitor** found) {
+    Lookup lookup_f(obj);
+    auto found_f = [&](ObjectMonitor** found) {
       assert((*found)->object_peek() == obj, "must be");
       result = *found;
     };
-    _table->insert_get(current, l, monitor, found);
+    _table->insert_get(current, lookup_f, monitor, found_f);
+    verify_monitor_get_result(obj, result);
     return result;
   }
 
@@ -187,7 +201,7 @@ ObjectMonitor* ObjectSynchronizer::read_monitor(markWord mark) {
 
 ObjectMonitor* LightweightSynchronizer::read_monitor(Thread* current, oop obj) {
   assert(LockingMode == LM_LIGHTWEIGHT, "must be");
-  return _omworld->monitor_for(current, obj);
+  return _omworld->monitor_get(current, obj);
 }
 
 ObjectMonitor* ObjectSynchronizer::read_monitor(Thread* current, oop obj, markWord mark) {
@@ -2348,30 +2362,35 @@ void ObjectSynchronizer::chk_in_use_entry(ObjectMonitor* n, outputStream* out,
                   "deflated.", p2i(n));
     return;
   }
+
   if (n->header_value() == 0) {
     out->print_cr("ERROR: monitor=" INTPTR_FORMAT ": in-use monitor must "
                   "have non-null _header field.", p2i(n));
     *error_cnt_p = *error_cnt_p + 1;
   }
+
   const oop obj = n->object_peek();
-  if (obj != nullptr) {
-    // TODO: ?? Is this ok?
-    const markWord mark = obj->mark();
-    if (!mark.has_monitor()) {
-      out->print_cr("ERROR: monitor=" INTPTR_FORMAT ": in-use monitor's "
-                    "object does not think it has a monitor: obj="
-                    INTPTR_FORMAT ", mark=" INTPTR_FORMAT, p2i(n),
-                    p2i(obj), mark.value());
-      *error_cnt_p = *error_cnt_p + 1;
-    }
-    ObjectMonitor* const obj_mon = read_monitor(Thread::current(), obj, mark);
-    if (n != obj_mon) {
-      out->print_cr("ERROR: monitor=" INTPTR_FORMAT ": in-use monitor's "
-                    "object does not refer to the same monitor: obj="
-                    INTPTR_FORMAT ", mark=" INTPTR_FORMAT ", obj_mon="
-                    INTPTR_FORMAT, p2i(n), p2i(obj), mark.value(), p2i(obj_mon));
-      *error_cnt_p = *error_cnt_p + 1;
-    }
+  if (obj == nullptr) {
+    return;
+  }
+
+  const markWord mark = obj->mark();
+  if (!mark.has_monitor()) {
+    out->print_cr("ERROR: monitor=" INTPTR_FORMAT ": in-use monitor's "
+                  "object does not think it has a monitor: obj="
+                  INTPTR_FORMAT ", mark=" INTPTR_FORMAT, p2i(n),
+                  p2i(obj), mark.value());
+    *error_cnt_p = *error_cnt_p + 1;
+    return;
+  }
+
+  ObjectMonitor* const obj_mon = read_monitor(Thread::current(), obj, mark);
+  if (n != obj_mon) {
+    out->print_cr("ERROR: monitor=" INTPTR_FORMAT ": in-use monitor's "
+                  "object does not refer to the same monitor: obj="
+                  INTPTR_FORMAT ", mark=" INTPTR_FORMAT ", obj_mon="
+                  INTPTR_FORMAT, p2i(n), p2i(obj), mark.value(), p2i(obj_mon));
+    *error_cnt_p = *error_cnt_p + 1;
   }
 }
 
