@@ -26,9 +26,10 @@
 #ifndef SHARE_RUNTIME_LOCKSTACK_INLINE_HPP
 #define SHARE_RUNTIME_LOCKSTACK_INLINE_HPP
 
+#include "runtime/lockStack.hpp"
+
 #include "memory/iterator.hpp"
 #include "runtime/javaThread.hpp"
-#include "runtime/lockStack.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/stackWatermark.hpp"
 #include "runtime/stackWatermarkSet.inline.hpp"
