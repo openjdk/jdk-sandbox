@@ -603,9 +603,10 @@ void C2_MacroAssembler::fast_lock(Register objReg, Register boxReg, Register tmp
 #endif // INCLUDE_RTM_OPT
 
   movptr(tmpReg, Address(objReg, oopDesc::mark_offset_in_bytes()));          // [FETCH]
-  testptr(tmpReg, markWord::monitor_value); // inflated vs stack-locked|neutral  if (LockingMode == LM_LIGHTWEIGHT) {
+  testptr(tmpReg, markWord::monitor_value); // inflated vs stack-locked|neutral
+  // Slow path if monitor ZFlag = 0
   if (LockingMode == LM_LIGHTWEIGHT && C2OMLockCacheSize == 0) {
-    jcc(Assembler::notZero, NO_COUNT); // Slow path if monitor ZFlag = 0
+    jcc(Assembler::notZero, NO_COUNT);
   } else {
     jcc(Assembler::notZero, IsInflated);
   }
@@ -636,7 +637,6 @@ void C2_MacroAssembler::fast_lock(Register objReg, Register boxReg, Register tmp
   jmp(DONE_LABEL);
 
   bind(IsInflated);
-  // The object is inflated. tmpReg contains pointer to ObjectMonitor* + markWord::monitor_value
 
 #if INCLUDE_RTM_OPT
   // Use the same RTM locking code in 32- and 64-bit VM.
@@ -646,12 +646,16 @@ void C2_MacroAssembler::fast_lock(Register objReg, Register boxReg, Register tmp
   } else {
 #endif // INCLUDE_RTM_OPT
 
-#ifndef _LP64
-  // The object is inflated.
+  // The lock is inflated.
 
+#ifndef _LP64
   if (LockingMode == LM_LIGHTWEIGHT) {
-    testptr(objReg, objReg);
-    jmp(NO_COUNT);
+    // ObjectMonitor* is *not* in the header and no cache has been implemented.
+    // Take the slow-path into the runtime.
+    // ObjectMonitor* is *not* in the header in lightweight mode and and no
+    // cache has been implemented. Take the slow-path into the runtime.
+    // ZFlag = 0 after the earlier markWord::monitor_value test.
+    jmpb(NO_COUNT);
   }
 
   // boxReg refers to the on-stack BasicLock in the current frame.
@@ -694,12 +698,16 @@ void C2_MacroAssembler::fast_lock(Register objReg, Register boxReg, Register tmp
   //   Self has acquired the lock
   //   Invariant: m->_recursions should already be 0, so we don't need to explicitly set it.
   // Intentional fall-through into DONE_LABEL ...
+
 #else // _LP64
-  // It's inflated and we use scrReg for ObjectMonitor* in this section.
-  if (LockingMode != LM_LIGHTWEIGHT || C2OMLockCacheSize != 0) {
-    if (LockingMode == LM_LIGHTWEIGHT) {
+  // We use scrReg for ObjectMonitor* in this section.
+
+  // Fetch monitor
+  if (LockingMode == LM_LIGHTWEIGHT) {
+    // Fetch (untagged) ObjectMonitor* from the cache or take the slow-path
+    if (C2OMLockCacheSize > 0) {
       Label monitor_found;
-      Label monitor_load[JavaThread::OM_CACHE_SIZE-1];
+      Label monitor_load[JavaThread::OM_CACHE_SIZE - 1];
       const int end = C2OMLockCacheSize - 1;
       for (int i = 0; i < end; ++i) {
         cmpptr(objReg, Address(r15_thread, JavaThread::om_nth_cache_oop_offset(i)));
@@ -707,6 +715,7 @@ void C2_MacroAssembler::fast_lock(Register objReg, Register boxReg, Register tmp
       }
       cmpptr(objReg, Address(r15_thread, JavaThread::om_nth_cache_oop_offset(end)));
       jccb(Assembler::notEqual, NO_COUNT); // Slow path ZFlag = 0 if different
+
       movptr(scrReg, Address(r15_thread, JavaThread::om_nth_cache_monitor_offset(end)));
       for (int i = 0; i < end; ++i) {
         jmpb(monitor_found);
@@ -714,9 +723,16 @@ void C2_MacroAssembler::fast_lock(Register objReg, Register boxReg, Register tmp
         movptr(scrReg, Address(r15_thread, JavaThread::om_nth_cache_monitor_offset(end - i - 1)));
       }
       bind(monitor_found);
-    } else {
-      movq(scrReg, tmpReg);
     }
+  } else {
+    // Fetch (tagged) ObjectMonitor* from the markWord
+    movq(scrReg, tmpReg);
+  }
+
+  // Lock the monitor
+  if (LockingMode == LM_LIGHTWEIGHT && C2OMLockCacheSize == 0) {
+    // Uses no cache; take slow-path with the ZFlag = 0 from the IsInflated cmp/jump
+  } else {
     xorq(tmpReg, tmpReg);
     lock();
     cmpxchgptr(thread, Address(scrReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)));
@@ -726,15 +742,17 @@ void C2_MacroAssembler::fast_lock(Register objReg, Register boxReg, Register tmp
     // Propagate ICC.ZF from CAS above into DONE_LABEL.
     jccb(Assembler::equal, COUNT);          // CAS above succeeded; propagate ZF = 1 (success)
 
-    cmpptr(thread, rax);                // Check if we are already the owner (recursive lock)
+    cmpptr(thread, rax);                    // Check if we are already the owner (recursive lock)
     jccb(Assembler::notEqual, NO_COUNT);    // If not recursive, ZF = 0 at this point (fail)
     incq(Address(scrReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(recursions)));
     xorq(rax, rax); // Set ZF = 1 (success) for recursive lock, denoting locking success
   }
 #endif // _LP64
+
 #if INCLUDE_RTM_OPT
   } // use_rtm()
 #endif
+
   bind(DONE_LABEL);
 
   // ZFlag == 1 count in fast path
@@ -817,15 +835,21 @@ void C2_MacroAssembler::fast_unlock(Register objReg, Register boxReg, Register t
     jcc(Assembler::zero, Stacked);
   }
 
+  // The lock is inflated.
+
   Label CheckSucc, LNotRecursive, LSuccess, LGoSlowPath;
 
-  // It's inflated.
   if (LockingMode == LM_LIGHTWEIGHT) {
-    if (C2OMUnlockCacheSize == 0) {
-      jmpb(LGoSlowPath);
-    } else {
+#ifndef _LP64
+    // No cache implemented; take the slow-path
+    // ZFlag = 0 after the earlier markWord::monitor_value test.
+    jmpb(NO_COUNT);
+
+#else // _LP64
+    // Fetch the monitor from the cache or take the slow-path
+    if (C2OMUnlockCacheSize > 0) {
       Label monitor_found;
-      Label monitor_load[JavaThread::OM_CACHE_SIZE-1];
+      Label monitor_load[JavaThread::OM_CACHE_SIZE - 1];
       const int end = C2OMUnlockCacheSize - 1;
       for (int i = 0; i < end; ++i) {
         cmpptr(objReg, Address(r15_thread, JavaThread::om_nth_cache_oop_offset(i)));
@@ -833,6 +857,7 @@ void C2_MacroAssembler::fast_unlock(Register objReg, Register boxReg, Register t
       }
       cmpptr(objReg, Address(r15_thread, JavaThread::om_nth_cache_oop_offset(end)));
       jcc(Assembler::notEqual, NO_COUNT); // Slow path ZFlag = 0 if different
+
       movptr(tmpReg, Address(r15_thread, JavaThread::om_nth_cache_monitor_offset(end)));
       for (int i = 0; i < end; ++i) {
         jmpb(monitor_found);
@@ -840,15 +865,16 @@ void C2_MacroAssembler::fast_unlock(Register objReg, Register boxReg, Register t
         movptr(tmpReg, Address(r15_thread, JavaThread::om_nth_cache_monitor_offset(end - i - 1)));
       }
       bind(monitor_found);
-      // It's inflated, check the cache
-      cmpptr(objReg, Address(r15_thread, JavaThread::om_cache_oop_offset()));
-      jcc(Assembler::notEqual, LGoSlowPath);
-      movptr(tmpReg, Address(r15_thread, JavaThread::om_cache_monitor_offset()));
 
-      // Check if the cached monitor can be used, take slowpath otherwise.
+      // Check if the cached monitor can be used, take slow-path otherwise.
       testb(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)), ObjectMonitor::ANONYMOUS_OWNER_OR_DEFLATION_MARKER);
       jcc(Assembler::notZero, NO_COUNT);
+    } else {
+      // No cache; take the slow-path
+      // ZFlag = 0 after the earlier markWord::monitor_value test.
+      jmpb(NO_COUNT);
     }
+#endif // _LP64
   }
 
 #if INCLUDE_RTM_OPT
@@ -895,8 +921,8 @@ void C2_MacroAssembler::fast_unlock(Register objReg, Register boxReg, Register t
   jccb  (Assembler::notZero, DONE_LABEL);
   movptr(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)), NULL_WORD);
   jmpb  (DONE_LABEL);
-#else // _LP64
 
+#else // _LP64
   cmpptr(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(recursions)), 0);
   jccb(Assembler::equal, LNotRecursive);
 
@@ -967,8 +993,8 @@ void C2_MacroAssembler::fast_unlock(Register objReg, Register boxReg, Register t
   bind  (LSuccess);
   testl (boxReg, 0);                      // set ICC.ZF=1 to indicate success
   jmpb  (DONE_LABEL);
+#endif // _LP64
 
-#endif
   if (LockingMode != LM_MONITOR) {
     bind  (Stacked);
     if (LockingMode == LM_LIGHTWEIGHT) {
