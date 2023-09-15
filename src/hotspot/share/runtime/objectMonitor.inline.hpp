@@ -61,6 +61,15 @@ inline uintptr_t ObjectMonitor::header_value() const {
   return Atomic::load(&_header).value();
 }
 
+inline volatile markWord* ObjectMonitor::header_addr() {
+  return &_header;
+}
+
+inline void ObjectMonitor::set_header(markWord hdr) {
+  assert(LockingMode != LM_LIGHTWEIGHT, "Lightweight locking does not use header");
+  Atomic::store(&_header, hdr);
+}
+
 inline intptr_t ObjectMonitor::hash_lightweight() const {
   assert(LockingMode == LM_LIGHTWEIGHT, "Only used by lightweight locking");
   return Atomic::load(&_header).hash();
@@ -69,15 +78,6 @@ inline intptr_t ObjectMonitor::hash_lightweight() const {
 inline void ObjectMonitor::set_hash_lightweight(intptr_t hash) {
   assert(LockingMode == LM_LIGHTWEIGHT, "Only used by lightweight locking");
   Atomic::store(&_header, markWord::zero().copy_set_hash(hash));
-}
-
-inline volatile markWord* ObjectMonitor::header_addr() {
-  return &_header;
-}
-
-inline void ObjectMonitor::set_header(markWord hdr) {
-  assert(LockingMode != LM_LIGHTWEIGHT, "Lightweight locking does not use header");
-  Atomic::store(&_header, hdr);
 }
 
 inline int ObjectMonitor::waiters() const {

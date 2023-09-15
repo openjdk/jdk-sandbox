@@ -237,14 +237,17 @@ private:
   // stall so the helper macro adjusts the offset value that is returned
   // to the ObjectMonitor reference manipulation code:
   //
+  // Lightweight locking fetches ObjectMonitor references from a cache
+  // instead of the markWord and doesn't work with tagged values.
+  //
   #define OM_OFFSET_NO_MONITOR_VALUE_TAG(f) \
     ((in_bytes(ObjectMonitor::f ## _offset())) - (LockingMode == LM_LIGHTWEIGHT ? 0 : checked_cast<int>(markWord::monitor_value)))
 
   markWord           header() const;
+  uintptr_t          header_value() const;
   volatile markWord* header_addr();
   void               set_header(markWord hdr);
 
-  uintptr_t          header_value() const;
   intptr_t           hash_lightweight() const;
   void               set_hash_lightweight(intptr_t hash);
 
