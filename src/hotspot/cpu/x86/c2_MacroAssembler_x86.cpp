@@ -710,8 +710,8 @@ void C2_MacroAssembler::fast_lock(Register objReg, Register boxReg, Register tmp
       movptr(scrReg, Address(r15_thread, JavaThread::om_nth_cache_monitor_offset(end)));
       for (int i = 0; i < end; ++i) {
         jmpb(monitor_found);
-        bind(monitor_load[i]);
-        movptr(scrReg, Address(r15_thread, JavaThread::om_nth_cache_monitor_offset(i)));
+        bind(monitor_load[end - i - 1]);
+        movptr(scrReg, Address(r15_thread, JavaThread::om_nth_cache_monitor_offset(end - i - 1)));
       }
       bind(monitor_found);
     } else {
@@ -836,8 +836,8 @@ void C2_MacroAssembler::fast_unlock(Register objReg, Register boxReg, Register t
       movptr(tmpReg, Address(r15_thread, JavaThread::om_nth_cache_monitor_offset(end)));
       for (int i = 0; i < end; ++i) {
         jmpb(monitor_found);
-        bind(monitor_load[i]);
-        movptr(tmpReg, Address(r15_thread, JavaThread::om_nth_cache_monitor_offset(i)));
+        bind(monitor_load[end - i - 1]);
+        movptr(tmpReg, Address(r15_thread, JavaThread::om_nth_cache_monitor_offset(end - i - 1)));
       }
       bind(monitor_found);
       // It's inflated, check the cache
