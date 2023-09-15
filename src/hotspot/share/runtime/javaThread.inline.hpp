@@ -328,12 +328,12 @@ inline ObjectMonitor* JavaThread::om_get_from_monitor_cache(oop obj) {
 
 inline ByteSize JavaThread::om_nth_cache_oop_offset(size_t n) {
   assert(n < OM_CACHE_SIZE, "out of bounds");
-  return om_cache_oop_offset() + in_ByteSize(sizeof(_om_cache_oop[n]) * n);
+  return om_cache_oop_offset() + in_ByteSize(checked_cast<int>(sizeof(_om_cache_oop[n]) * n));
 }
 
 inline ByteSize JavaThread::om_nth_cache_monitor_offset(size_t n){
   assert(n < OM_CACHE_SIZE, "out of bounds");
-  return om_cache_monitor_offset() + in_ByteSize(sizeof(_om_cache_monitor[n]) * n);
+  return om_cache_monitor_offset() + in_ByteSize(checked_cast<int>(sizeof(_om_cache_monitor[n]) * n));
 }
 
 #endif // SHARE_RUNTIME_JAVATHREAD_INLINE_HPP
