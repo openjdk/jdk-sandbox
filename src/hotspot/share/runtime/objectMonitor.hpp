@@ -153,11 +153,12 @@ class ObjectMonitor : public CHeapObj<mtObjectMonitor> {
   //   and small values encode much better.
   // - We test for anonymous owner by testing for the lowest bit, therefore
   //   DEFLATER_MARKER must *not* have that bit set.
-  #define DEFLATER_MARKER reinterpret_cast<void*>(2)
+  static const uintptr_t DEFLATER_MARKER_VALUE = 2;
+  #define DEFLATER_MARKER reinterpret_cast<void*>(DEFLATER_MARKER_VALUE)
 public:
   // NOTE: Typed as uintptr_t so that we can pick it up in SA, via vmStructs.
   static const uintptr_t ANONYMOUS_OWNER = 1;
-  static const uintptr_t ANONYMOUS_OWNER_OR_DEFLATION_MARKER = ANONYMOUS_OWNER | (uintptr_t)2; // TODO: Fix DEFLATER_MARKER
+  static const uintptr_t ANONYMOUS_OWNER_OR_DEFLATER_MARKER = ANONYMOUS_OWNER | DEFLATER_MARKER_VALUE;
 
 private:
   static void* anon_owner_ptr() { return reinterpret_cast<void*>(ANONYMOUS_OWNER); }

@@ -600,12 +600,12 @@ bool ObjectMonitor::deflate_monitor(Thread* current) {
                                   p2i(obj), obj->mark().value(),
                                   obj->klass()->external_name());
     }
-    if (LockingMode != LM_LIGHTWEIGHT) {
-      // Install the old mark word if nobody else has already done it.
-      install_displaced_markword_in_object(obj);
-    } else {
+    if (LockingMode == LM_LIGHTWEIGHT) {
       transition_from_monitor(obj);
       LightweightSynchronizer::remove_monitor(current, obj, this);
+    } else {
+      // Install the old mark word if nobody else has already done it.
+      install_displaced_markword_in_object(obj);
     }
   }
 

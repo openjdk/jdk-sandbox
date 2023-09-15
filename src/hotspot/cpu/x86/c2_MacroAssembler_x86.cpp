@@ -867,7 +867,7 @@ void C2_MacroAssembler::fast_unlock(Register objReg, Register boxReg, Register t
       bind(monitor_found);
 
       // Check if the cached monitor can be used, take slow-path otherwise.
-      testb(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)), ObjectMonitor::ANONYMOUS_OWNER_OR_DEFLATION_MARKER);
+      testb(Address(tmpReg, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner)), ObjectMonitor::ANONYMOUS_OWNER_OR_DEFLATER_MARKER);
       jcc(Assembler::notZero, NO_COUNT);
     } else {
       // No cache; take the slow-path
