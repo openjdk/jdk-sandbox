@@ -62,30 +62,20 @@ void markWord::set_displaced_mark_helper(markWord m) const {
   fatal("bad header=" INTPTR_FORMAT, value());
 }
 
-void markWord::print_on(outputStream* st, bool print_monitor_info, oop obj) const {
+void markWord::print_on(outputStream* st, bool print_monitor_info) const {
   if (is_marked()) {  // last bits = 11
     st->print(" marked(" INTPTR_FORMAT ")", value());
   } else if (has_monitor()) {  // last bits = 10
     // have to check has_monitor() before is_locked()
-    st->print(" monitor(");
-    if (print_monitor_info) {
-      assert(obj != nullptr, "supply an obj if print_monitor_info");
-      ObjectMonitor* mon = ObjectSynchronizer::read_monitor(Thread::current(), obj, *this);
+    st->print(" monitor(" INTPTR_FORMAT ")=", value());
+    if (print_monitor_info && LockingMode != LM_LIGHTWEIGHT) {
+      ObjectMonitor* mon = monitor();
       if (mon == nullptr) {
-        st->print("null (racing with inflation/deflation)");
+        st->print("null (this should never be seen!)");
       } else {
-        st->print(PTR_FORMAT, p2i(mon));
         mon->print_on(st);
       }
     }
-    if (LockingMode == LM_LIGHTWEIGHT) {
-      if (has_no_hash()) {
-        st->print(" no_hash");
-      } else {
-        st->print(" hash=" INTPTR_FORMAT, hash());
-      }
-    }
-    st->print(" age=%d)", age());
   } else if (is_locked()) {  // last bits != 01 => 00
     // thin locked
     st->print(" locked(" INTPTR_FORMAT ")", value());
