@@ -872,7 +872,7 @@ void C2_MacroAssembler::fast_unlock(Register objReg, Register boxReg, Register t
     } else {
       // No cache; take the slow-path
       // ZFlag = 0 after the earlier markWord::monitor_value test.
-      jmpb(NO_COUNT);
+      jmp(NO_COUNT);
     }
 #endif // _LP64
   }
