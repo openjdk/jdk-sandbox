@@ -269,7 +269,7 @@ inline void JavaThread::om_set_monitor_cache(ObjectMonitor* monitor) {
         _om_cache_monitor[i] != nullptr &&
         _om_cache_oop[i] == nullptr) {
       oop woop = _om_cache_monitor[i]->object_peek();
-      if (woop == nullptr) {
+      if (woop == nullptr || woop == cmp_obj) {
         _om_cache_oop[i] = obj;
         _om_cache_monitor[i] = monitor;
         return;
