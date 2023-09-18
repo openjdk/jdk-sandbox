@@ -245,6 +245,7 @@ inline InstanceKlass* JavaThread::class_to_be_initialized() const {
 inline void JavaThread::om_set_monitor_cache(ObjectMonitor* monitor) {
   assert(LockingMode == LM_LIGHTWEIGHT, "must be");
   assert(monitor != nullptr, "use om_clear_monitor_cache to clear");
+  assert(this == current(), "only set own thread locals");
 
   const int end = MAX3(CPPOMCacheSize, C2OMLockCacheSize, C2OMUnlockCacheSize) - 1;
   if (end < 0) {
@@ -311,6 +312,7 @@ inline void JavaThread::om_clear_monitor_cache() {
 
 inline ObjectMonitor* JavaThread::om_get_from_monitor_cache(oop obj) {
   assert(obj != nullptr, "do not look for null objects");
+  assert(this == current(), "only get own thread locals");
   for (int i = 0; i < CPPOMCacheSize; ++i) {
     if (_om_cache_oop[i] == obj) {
       assert(_om_cache_monitor[i] != nullptr, "monitor must exist");

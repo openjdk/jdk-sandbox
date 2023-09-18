@@ -1582,7 +1582,7 @@ static void log_inflate(Thread* current, oop object, const ObjectSynchronizer::I
   }
 }
 
-ObjectMonitor* LightweightSynchronizer::inflate_fast_locked_object(Thread* locking_thread, oop object, const ObjectSynchronizer::InflateCause cause) {
+ObjectMonitor* LightweightSynchronizer::inflate_fast_locked_object(JavaThread* locking_thread, oop object, const ObjectSynchronizer::InflateCause cause) {
   assert(LockingMode == LM_LIGHTWEIGHT, "only used for lightweight");
   assert(locking_thread == Thread::current(), "must be");
   assert(is_lock_owned(locking_thread, object), "locking_thread must have object on its lock stack");
@@ -1617,10 +1617,10 @@ ObjectMonitor* LightweightSynchronizer::inflate_fast_locked_object(Thread* locki
 }
 
 
-ObjectMonitor* LightweightSynchronizer::get_or_insert_monitor(oop object, JavaThread* locking_thread, Thread* current, const ObjectSynchronizer::InflateCause cause, bool try_read) {
+ObjectMonitor* LightweightSynchronizer::get_or_insert_monitor(oop object, JavaThread* locking_thread, JavaThread* current, const ObjectSynchronizer::InflateCause cause, bool try_read) {
   EventJavaMonitorInflate event;
 
-  ObjectMonitor* monitor = locking_thread->om_get_from_monitor_cache(object);
+  ObjectMonitor* monitor = (current == locking_thread) ? locking_thread->om_get_from_monitor_cache(object) : nullptr;
 
   if (monitor == nullptr && try_read) {
     monitor = read_monitor(current, object);
@@ -1651,7 +1651,7 @@ ObjectMonitor* LightweightSynchronizer::get_or_insert_monitor(oop object, JavaTh
   return monitor;
 }
 
-bool LightweightSynchronizer::inflate_and_enter(oop object, JavaThread* locking_thread, Thread* current, const ObjectSynchronizer::InflateCause cause) {
+bool LightweightSynchronizer::inflate_and_enter(oop object, JavaThread* locking_thread, JavaThread* current, const ObjectSynchronizer::InflateCause cause) {
   assert(LockingMode == LM_LIGHTWEIGHT, "only used for lightweight");
   assert(current == Thread::current(), "must be");
   NoSafepointVerifier nsv;
@@ -1730,7 +1730,7 @@ bool LightweightSynchronizer::inflate_and_enter(oop object, JavaThread* locking_
 
     // Transitioned from unlocked to monitor means locking_thread owns the lock.
     monitor->set_owner_from_anonymous(locking_thread);
-    locking_thread->om_set_monitor_cache(monitor);
+    current->om_set_monitor_cache(monitor);
     return true;
   }
 
@@ -1739,7 +1739,7 @@ bool LightweightSynchronizer::inflate_and_enter(oop object, JavaThread* locking_
   object = nullptr;
 
   if (monitor->enter(locking_thread)) {
-    locking_thread->om_set_monitor_cache(monitor);
+    current->om_set_monitor_cache(monitor);
     return true;
   }
 
