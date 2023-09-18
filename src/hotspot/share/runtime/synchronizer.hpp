@@ -237,12 +237,20 @@ class ObjectSynchronizer : AllStatic {
   static void handle_sync_on_value_based_class(Handle obj, JavaThread* current);
 };
 
+class ObjectMonitorWorld;
+
 class LightweightSynchronizer : AllStatic {
 private:
+  static ObjectMonitorWorld* _omworld;
+
   static ObjectMonitor* get_or_insert_monitor_from_table(oop object, JavaThread* current, bool try_read, bool* inserted);
   static ObjectMonitor* get_or_insert_monitor(oop object, JavaThread* current, const ObjectSynchronizer::InflateCause cause, bool try_read);
 
+  static ObjectMonitor* add_monitor(JavaThread* current, ObjectMonitor* monitor, oop obj);
+
  public:
+  static void initialize();
+
   static void enter(Handle obj, JavaThread* locking_thread, JavaThread* current);
   static void exit(oop object, JavaThread* current);
 
@@ -250,10 +258,13 @@ private:
   static ObjectMonitor* inflate_fast_locked_object(JavaThread* current, oop obj, const ObjectSynchronizer::InflateCause cause);
   static bool inflate_and_enter(oop object, JavaThread* locking_thread, JavaThread* current, const ObjectSynchronizer::InflateCause cause);
 
+  static void deflate_monitor(Thread* current, oop obj, ObjectMonitor* monitor);
   static void deflate_mark_word(oop object);
 
   static ObjectMonitor* read_monitor(Thread* current, oop obj);
-  static void remove_monitor(Thread* current, oop obj, ObjectMonitor* monitor);
+  static bool remove_monitor(Thread* current, oop obj, ObjectMonitor* monitor);
+
+  static bool contains_monitor(Thread* current, ObjectMonitor* monitor);
 
   // NOTE: May not cause monitor inflation
   static intptr_t FastHashCode(Thread* current, oop obj);
