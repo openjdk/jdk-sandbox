@@ -601,7 +601,7 @@ bool ObjectMonitor::deflate_monitor(Thread* current) {
                                   obj->klass()->external_name());
     }
     if (LockingMode == LM_LIGHTWEIGHT) {
-      transition_from_monitor(obj);
+      LightweightSynchronizer::deflate_mark_word(obj);
       LightweightSynchronizer::remove_monitor(current, obj, this);
     } else {
       // Install the old mark word if nobody else has already done it.
@@ -615,16 +615,6 @@ bool ObjectMonitor::deflate_monitor(Thread* current) {
   // We leave owner == DEFLATER_MARKER and contentions < 0
   // to force any racing threads to retry.
   return true;  // Success, ObjectMonitor has been deflated.
-}
-
-void ObjectMonitor::transition_from_monitor(const oop obj) const {
-  assert(LockingMode == LM_LIGHTWEIGHT, "must use lightweight locking");
-  markWord old_mark = obj->mark_acquire();
-  assert(!old_mark.has_no_hash(), "obj with inflated monitor must have had a hash");
-  while (old_mark.has_monitor()) {
-    const markWord new_mark = old_mark.set_fast_locked().set_unlocked();
-    old_mark = obj->cas_set_mark(new_mark, old_mark);
-  }
 }
 
 // Install the displaced mark word (dmw) of a deflating ObjectMonitor
