@@ -100,6 +100,7 @@ inline void LockStack::remove(oop o) {
 }
 
 inline bool LockStack::contains(oop o) const {
+  assert(o != nullptr, "Catch me!");
   verify("pre-contains");
   if (!SafepointSynchronize::is_at_safepoint() && !is_owning_thread()) {
     // When a foreign thread inspects this thread's lock-stack, it may see
