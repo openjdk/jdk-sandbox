@@ -2206,6 +2206,26 @@ ObjectMonitor* LightweightSynchronizer::add_monitor(JavaThread* current, ObjectM
   return _omworld->monitor_put_get(current, monitor, obj);
 }
 
+bool LightweightSynchronizer::remove_monitor(Thread* current, oop obj, ObjectMonitor* monitor) {
+  assert(LockingMode == LM_LIGHTWEIGHT, "must be");
+  assert(monitor->object_peek() == obj, "must be, cleared objects are removed by is_dead");
+
+  return _omworld->remove_monitor_entry(current, monitor);
+}
+
+void LightweightSynchronizer::deflate_mark_word(oop obj) {
+  assert(LockingMode == LM_LIGHTWEIGHT, "must use lightweight locking");
+
+  markWord mark = obj->mark_acquire();
+  assert(!mark.has_no_hash(), "obj with inflated monitor must have had a hash");
+
+  while (mark.has_monitor()) {
+    const markWord new_mark = mark.set_fast_locked().set_unlocked();
+    mark = obj->cas_set_mark(new_mark, mark);
+  }
+}
+
+
 void LightweightSynchronizer::initialize() {
   _omworld = new ObjectMonitorWorld();
 }
@@ -2505,28 +2525,9 @@ void LightweightSynchronizer::deflate_monitor(Thread* current, oop obj, ObjectMo
   }
 }
 
-void LightweightSynchronizer::deflate_mark_word(oop obj) {
-  assert(LockingMode == LM_LIGHTWEIGHT, "must use lightweight locking");
-
-  markWord mark = obj->mark_acquire();
-  assert(!mark.has_no_hash(), "obj with inflated monitor must have had a hash");
-
-  while (mark.has_monitor()) {
-    const markWord new_mark = mark.set_fast_locked().set_unlocked();
-    mark = obj->cas_set_mark(new_mark, mark);
-  }
-}
-
 ObjectMonitor* LightweightSynchronizer::read_monitor(Thread* current, oop obj) {
   assert(LockingMode == LM_LIGHTWEIGHT, "must be");
   return _omworld->monitor_get(current, obj);
-}
-
-bool LightweightSynchronizer::remove_monitor(Thread* current, oop obj, ObjectMonitor* monitor) {
-  assert(LockingMode == LM_LIGHTWEIGHT, "must be");
-  assert(monitor->object_peek() == obj, "must be, cleared objects are removed by is_dead");
-
-  return _omworld->remove_monitor_entry(current, monitor);
 }
 
 bool LightweightSynchronizer::contains_monitor(Thread* current, ObjectMonitor* monitor) {

@@ -247,6 +247,9 @@ private:
   static ObjectMonitor* get_or_insert_monitor(oop object, JavaThread* current, const ObjectSynchronizer::InflateCause cause, bool try_read);
 
   static ObjectMonitor* add_monitor(JavaThread* current, ObjectMonitor* monitor, oop obj);
+  static bool remove_monitor(Thread* current, oop obj, ObjectMonitor* monitor);
+
+  static void deflate_mark_word(oop object);
 
  public:
   static void initialize();
@@ -259,10 +262,8 @@ private:
   static bool inflate_and_enter(oop object, JavaThread* locking_thread, JavaThread* current, const ObjectSynchronizer::InflateCause cause);
 
   static void deflate_monitor(Thread* current, oop obj, ObjectMonitor* monitor);
-  static void deflate_mark_word(oop object);
 
   static ObjectMonitor* read_monitor(Thread* current, oop obj);
-  static bool remove_monitor(Thread* current, oop obj, ObjectMonitor* monitor);
 
   static bool contains_monitor(Thread* current, ObjectMonitor* monitor);
 
