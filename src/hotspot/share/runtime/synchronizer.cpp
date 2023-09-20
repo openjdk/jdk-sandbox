@@ -1295,7 +1295,7 @@ void ObjectSynchronizer::inflate_helper(oop obj) {
 }
 
 static void log_inflate(Thread* current, oop object, const ObjectSynchronizer::InflateCause cause) {
-  if (log_is_enabled(Info, monitorinflation)) {
+  if (log_is_enabled(Trace, monitorinflation)) {
     ResourceMark rm(current);
     log_info(monitorinflation)("inflate(has_locker): object=" INTPTR_FORMAT ", mark="
                                INTPTR_FORMAT ", type='%s' cause %s", p2i(object),
