@@ -299,7 +299,7 @@ inline void JavaThread::om_clear_monitor_cache() {
 #if 1
     if (!OMRegenerateCache ||
         (_om_cache_monitor[i] != nullptr &&
-         !_om_cache_monitor[i]->is_being_async_deflated())) {
+         _om_cache_monitor[i]->is_being_async_deflated())) {
       _om_cache_monitor[i] = nullptr;
     } else {
       _om_cache_monitor[r++] = _om_cache_monitor[i];

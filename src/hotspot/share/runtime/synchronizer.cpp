@@ -1669,6 +1669,14 @@ size_t ObjectSynchronizer::deflate_idle_monitors(ObjectMonitorsHashtable* table)
       // This is not a monitor deflation thread.
       // No handshake or rendezvous is needed when we are already at safepoint.
       assert_at_safepoint();
+      if (OMRegenerateCache) {
+        assert(LockingMode == LM_LIGHTWEIGHT, "");
+        // The cache is cleared when JavaThreads enter a safepoint. But monitors may be left.
+        // As this deflation happened during a safepoint, deflating monitors must be cleared before deleting.
+        for (JavaThreadIteratorWithHandle jtiwh; JavaThread *jt = jtiwh.next(); ) {
+          jt->om_clear_monitor_cache();
+        }
+      }
     }
 
     // After the handshake, safely free the ObjectMonitors that were
