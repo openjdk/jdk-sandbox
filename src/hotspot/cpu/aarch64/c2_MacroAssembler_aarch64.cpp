@@ -117,7 +117,7 @@ void C2_MacroAssembler::fast_lock(Register objectReg, Register boxReg, Register 
 
   // Handle existing monitor.
   bind(object_has_monitor);
-  if (LockingMode == LM_LIGHTWEIGHT) {
+  if (LockingMode == LM_LIGHTWEIGHT && C2OMLockCacheSize > 0) {
     Label monitor_found;
     Label monitor_load[JavaThread::OM_CACHE_SIZE - 1];
     const int end = C2OMLockCacheSize - 1;
@@ -197,7 +197,7 @@ void C2_MacroAssembler::fast_unlock(Register objectReg, Register boxReg, Registe
 
   // Handle existing monitor.
   ldr(tmp, Address(oop, oopDesc::mark_offset_in_bytes()));
-  if (LockingMode == LM_LIGHTWEIGHT && C2OMLockCacheSize == 0) {
+  if (LockingMode == LM_LIGHTWEIGHT && C2OMUnlockCacheSize == 0) {
     // Always slow path for monitors
     tst(tmp, markWord::monitor_value);
     br(Assembler::NE, no_count);
@@ -226,10 +226,10 @@ void C2_MacroAssembler::fast_unlock(Register objectReg, Register boxReg, Registe
 
   // Handle existing monitor.
   bind(object_has_monitor);
-  if (LockingMode == LM_LIGHTWEIGHT) {
+  if (LockingMode == LM_LIGHTWEIGHT && C2OMUnlockCacheSize > 0) {
     Label monitor_found;
     Label monitor_load[JavaThread::OM_CACHE_SIZE - 1];
-    const int end = C2OMLockCacheSize - 1;
+    const int end = C2OMUnlockCacheSize - 1;
     for (int i = 0; i < end; ++i) {
       ldr(tmp, Address(rthread, JavaThread::om_nth_cache_oop_offset(i)));
       cmp(oop, tmp);
