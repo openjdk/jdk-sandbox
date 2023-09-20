@@ -31,7 +31,11 @@
 #include "opto/intrinsicnode.hpp"
 #include "opto/output.hpp"
 #include "opto/subnode.hpp"
+#include "runtime/globals.hpp"
+#include "runtime/javaThread.inline.hpp"
+#include "runtime/objectMonitor.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 #ifdef PRODUCT
 #define BLOCK_COMMENT(str) /* nothing */
@@ -54,6 +58,7 @@ void C2_MacroAssembler::fast_lock(Register objectReg, Register boxReg, Register 
   Label cont;
   Label object_has_monitor;
   Label count, no_count;
+  Label slow;
 
   assert_different_registers(oop, box, tmp, disp_hdr, t0);
 
@@ -67,9 +72,15 @@ void C2_MacroAssembler::fast_lock(Register objectReg, Register boxReg, Register 
     bnez(flag, cont, true /* is_far */);
   }
 
-  // Check for existing monitor
-  test_bit(t0, disp_hdr, exact_log2(markWord::monitor_value));
-  bnez(t0, object_has_monitor);
+  if (LockingMode == LM_LIGHTWEIGHT && C2OMLockCacheSize == 0) {
+    // Always slow path for monitors
+    test_bit(flag, disp_hdr, exact_log2(markWord::monitor_value));
+    bnez(flag, no_count);
+  } else {
+    // Check for existing monitor
+    test_bit(t0, disp_hdr, exact_log2(markWord::monitor_value));
+    bnez(t0, object_has_monitor);
+  }
 
   if (LockingMode == LM_MONITOR) {
     mv(flag, 1); // Set non-zero flag to indicate 'failure' -> take slow-path
@@ -108,7 +119,6 @@ void C2_MacroAssembler::fast_lock(Register objectReg, Register boxReg, Register 
     j(cont);
   } else {
     assert(LockingMode == LM_LIGHTWEIGHT, "");
-    Label slow;
     lightweight_lock(oop, disp_hdr, tmp, t0, slow);
 
     // Indicate success on completion.
@@ -121,11 +131,30 @@ void C2_MacroAssembler::fast_lock(Register objectReg, Register boxReg, Register 
 
   // Handle existing monitor.
   bind(object_has_monitor);
+  if (LockingMode == LM_LIGHTWEIGHT && C2OMLockCacheSize > 0) {
+    Label monitor_found;
+    Label monitor_load[JavaThread::OM_CACHE_SIZE - 1];
+    const int end = C2OMLockCacheSize - 1;
+    for (int i = 0; i < end; ++i) {
+      ld(tmp, Address(xthread, JavaThread::om_nth_cache_oop_offset(i)));
+      beq(oop, tmp, monitor_load[i]);
+    }
+    ld(oop, Address(xthread, JavaThread::om_nth_cache_oop_offset(end)));
+    bne(oop, tmp, slow);
+
+    ld(disp_hdr, Address(xthread, JavaThread::om_nth_cache_monitor_offset(end)));
+    for (int i = 0; i < end; ++i) {
+      j(monitor_found);
+      bind(monitor_load[end - i - 1]);
+      ld(disp_hdr, Address(xthread, JavaThread::om_nth_cache_monitor_offset(end - i - 1)));
+    }
+    bind(monitor_found);
+  }
   // The object's monitor m is unlocked iff m->owner == NULL,
   // otherwise m->owner may contain a thread or a stack address.
   //
   // Try to CAS m->owner from NULL to current thread.
-  add(tmp, disp_hdr, (in_bytes(ObjectMonitor::owner_offset()) - markWord::monitor_value));
+  add(tmp, disp_hdr, OM_OFFSET_NO_MONITOR_VALUE_TAG(owner));
   cmpxchg(/*memory address*/tmp, /*expected value*/zr, /*new value*/xthread, Assembler::int64, Assembler::aq,
           Assembler::rl, /*result*/flag); // cas succeeds if flag == zr(expected)
 
@@ -144,7 +173,7 @@ void C2_MacroAssembler::fast_lock(Register objectReg, Register boxReg, Register 
 
   // Recursive lock case
   mv(flag, zr);
-  increment(Address(disp_hdr, in_bytes(ObjectMonitor::recursions_offset()) - markWord::monitor_value), 1, t0, tmp);
+  increment(Address(disp_hdr, OM_OFFSET_NO_MONITOR_VALUE_TAG(recursions)), 1, t0, tmp);
 
   bind(cont);
   // zero flag indicates success
@@ -168,6 +197,7 @@ void C2_MacroAssembler::fast_unlock(Register objectReg, Register boxReg, Registe
   Label cont;
   Label object_has_monitor;
   Label count, no_count;
+  Label slow;
 
   assert_different_registers(oop, box, tmp, disp_hdr, flag);
 
@@ -182,9 +212,15 @@ void C2_MacroAssembler::fast_unlock(Register objectReg, Register boxReg, Registe
 
   // Handle existing monitor.
   ld(tmp, Address(oop, oopDesc::mark_offset_in_bytes()));
-  test_bit(t0, tmp, exact_log2(markWord::monitor_value));
-  bnez(t0, object_has_monitor);
 
+  if (LockingMode == LM_LIGHTWEIGHT && C2OMUnlockCacheSize == 0) {
+    // Always slow path for monitors
+    test_bit(flag, tmp, exact_log2(markWord::monitor_value));
+    bnez(flag, no_count);
+  } else {
+    test_bit(t0, tmp, exact_log2(markWord::monitor_value));
+    bnez(t0, object_has_monitor);
+  }
   if (LockingMode == LM_MONITOR) {
     mv(flag, 1); // Set non-zero flag to indicate 'failure' -> take slow path
     j(cont);
@@ -199,7 +235,6 @@ void C2_MacroAssembler::fast_unlock(Register objectReg, Register boxReg, Registe
     j(cont);
   } else {
     assert(LockingMode == LM_LIGHTWEIGHT, "");
-    Label slow;
     lightweight_unlock(oop, tmp, box, disp_hdr, slow);
 
     // Indicate success on completion.
@@ -214,18 +249,32 @@ void C2_MacroAssembler::fast_unlock(Register objectReg, Register boxReg, Registe
 
   // Handle existing monitor.
   bind(object_has_monitor);
-  STATIC_ASSERT(markWord::monitor_value <= INT_MAX);
-  add(tmp, tmp, -(int)markWord::monitor_value); // monitor
 
-  if (LockingMode == LM_LIGHTWEIGHT) {
-    // If the owner is anonymous, we need to fix it -- in an outline stub.
-    Register tmp2 = disp_hdr;
-    ld(tmp2, Address(tmp, ObjectMonitor::owner_offset()));
-    test_bit(t0, tmp2, exact_log2(ObjectMonitor::ANONYMOUS_OWNER));
-    C2HandleAnonOMOwnerStub* stub = new (Compile::current()->comp_arena()) C2HandleAnonOMOwnerStub(tmp, tmp2);
-    Compile::current()->output()->add_stub(stub);
-    bnez(t0, stub->entry(), /* is_far */ true);
-    bind(stub->continuation());
+  if (LockingMode == LM_LIGHTWEIGHT && C2OMUnlockCacheSize > 0) {
+    Label monitor_found;
+    Label monitor_load[JavaThread::OM_CACHE_SIZE - 1];
+    const int end = C2OMUnlockCacheSize - 1;
+    for (int i = 0; i < end; ++i) {
+      ld(tmp, Address(xthread, JavaThread::om_nth_cache_oop_offset(i)));
+      beq(oop, tmp, monitor_load[i]);
+    }
+    ld(oop, Address(xthread, JavaThread::om_nth_cache_oop_offset(end)));
+    bne(oop, tmp, slow);
+
+    ld(tmp, Address(xthread, JavaThread::om_nth_cache_monitor_offset(end)));
+    for (int i = 0; i < end; ++i) {
+      j(monitor_found);
+      bind(monitor_load[end - i - 1]);
+      ld(tmp, Address(xthread, JavaThread::om_nth_cache_monitor_offset(end - i - 1)));
+    }
+    bind(monitor_found);
+
+    ld(disp_hdr, Address(tmp, ObjectMonitor::owner_offset()));
+    and_imm12(disp_hdr, disp_hdr, ObjectMonitor::ANONYMOUS_OWNER_OR_DEFLATER_MARKER);
+    bnez(disp_hdr, slow);
+  } else {
+    STATIC_ASSERT(markWord::monitor_value <= INT_MAX);
+    add(tmp, tmp, -(int)markWord::monitor_value); // monitor
   }
 
   ld(disp_hdr, Address(tmp, ObjectMonitor::recursions_offset()));
