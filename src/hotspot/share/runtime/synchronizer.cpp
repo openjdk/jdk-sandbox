@@ -2358,9 +2358,21 @@ ObjectMonitor* LightweightSynchronizer::inflate_fast_locked_object(JavaThread* c
   markWord mark = object->mark_acquire();
   assert(!mark.is_unlocked(), "Cannot be unlocked");
 
+  ObjectMonitor* monitor;
+
+  for (;;) {
   // Fetch the monitor from the table
-  ObjectMonitor* monitor = get_or_insert_monitor(object, current, cause, false /* try_read */);
-  assert(monitor == read_monitor(current, object), "The monitor must be in the table");
+    monitor = get_or_insert_monitor(object, current, cause, false /* try_read */);
+    assert(monitor == read_monitor(current, object), "The monitor must be in the table");
+
+    if (monitor->is_owner_anonymous()) {
+      // New fresh monitor
+      break;
+    }
+
+    os::naked_yield();
+    assert(monitor->is_being_async_deflated(), "Should be the reason");
+  }
 
   // Set the mark word; loop to handle concurrent updates to other parts of the mark word
   while (mark.is_fast_locked()) {
