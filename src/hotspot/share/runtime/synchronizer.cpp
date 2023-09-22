@@ -614,7 +614,7 @@ void ObjectSynchronizer::jni_exit(oop obj, TRAPS) {
 
   ObjectMonitor* monitor;
   if (LockingMode == LM_LIGHTWEIGHT) {
-    monitor = LightweightSynchronizer::inflate_locked_or_imse(obj, inflate_cause_wait, CHECK);
+    monitor = LightweightSynchronizer::inflate_locked_or_imse(obj, inflate_cause_jni_exit, CHECK);
   } else {
     // The ObjectMonitor* can't be async deflated until ownership is
     // dropped inside exit() and the ObjectMonitor* must be !is_busy().
