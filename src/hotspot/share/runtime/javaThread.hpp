@@ -1153,13 +1153,21 @@ private:
 
 public:
   LockStack& lock_stack() { return _lock_stack; }
+  size_t _unlocked_inflation = 0;
+  size_t _recursive_inflation = 0;
+  size_t _contended_recursive_inflation = 0;
+  size_t _contended_inflation = 0;
+  size_t _wait_inflation = 0;
+  size_t _lock_stack_inflation = 0;
 
   static ByteSize lock_stack_offset()      { return byte_offset_of(JavaThread, _lock_stack); }
   // Those offsets are used in code generators to access the LockStack that is embedded in this
   // JavaThread structure. Those accesses are relative to the current thread, which
   // is typically in a dedicated register.
   static ByteSize lock_stack_top_offset()  { return lock_stack_offset() + LockStack::top_offset(); }
+  static ByteSize lock_stack_has_recu_offset() { return lock_stack_offset() + LockStack::has_recu_offset(); }
   static ByteSize lock_stack_base_offset() { return lock_stack_offset() + LockStack::base_offset(); }
+  static ByteSize lock_stack_recu_offset() { return lock_stack_offset() + LockStack::recu_offset(); }
 
   static ByteSize om_cache_oop_offset()    { return byte_offset_of(JavaThread, _om_cache_oop); }
   static ByteSize om_cache_monitor_offset(){ return byte_offset_of(JavaThread, _om_cache_monitor); }

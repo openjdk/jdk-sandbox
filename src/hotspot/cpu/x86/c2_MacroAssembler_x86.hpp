@@ -33,6 +33,21 @@ public:
 
   Assembler::AvxVectorLen vector_length_encoding(int vlen_in_bytes);
 
+  // Shared between fast_lock_legacy and fast_lock_rtm, fallthrough means inflated
+  void fast_lock_legacy_shared(Register objReg, Register boxReg, Register tmpReg, Register scrReg, Label& SUCCESS, Label& SLOW_PATH);
+
+  // For all fast_lock_*(...)
+  // Fallthrough means success, ZFlag irrelevant
+  // Branches to SLOW_PATH must have ZFlag == 0
+  void fast_lock_lightweight(Register objReg, Register boxReg, Register tmpReg, Register scrReg, Register thread, Label& SUCCESS, Label &SLOW_PATH);
+  void fast_lock_legacy(Register objReg, Register boxReg, Register tmpReg, Register scrReg, Register thread, Label& SUCCESS, Label& SLOW_PATH);
+  void fast_lock_rtm(Register objReg, Register boxReg, Register tmpReg,
+                      Register scrReg, Register cx1Reg, Register cx2Reg, Register thread,
+                      RTMLockingCounters* rtm_counters,
+                      RTMLockingCounters* stack_rtm_counters,
+                      Metadata* method_data, bool profile_rtm, Label& SUCCESS, Label& SLOW_PATH);
+  void fast_lock_inflated(Register boxReg, Register tmpReg, Register monReg, Register thread, Label& SUCCESS, Label& SLOW_PATH);
+
   // Code used by cmpFastLock and cmpFastUnlock mach instructions in .ad file.
   // See full description in macroAssembler_x86.cpp.
   void fast_lock(Register obj, Register box, Register tmp,
@@ -57,7 +72,7 @@ public:
                          Register retry_on_abort_count,
                          RTMLockingCounters* stack_rtm_counters,
                          Metadata* method_data, bool profile_rtm,
-                         Label& DONE_LABEL, Label& IsInflated);
+                         Label& SUCCESS, Label& INFLATED);
   void rtm_inflated_locking(Register obj, Register box, Register tmp,
                             Register scr, Register retry_on_busy_count,
                             Register retry_on_abort_count,

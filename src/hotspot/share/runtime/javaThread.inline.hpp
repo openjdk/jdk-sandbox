@@ -308,6 +308,26 @@ inline void JavaThread::om_clear_monitor_cache() {
     _om_cache_monitor[i] = nullptr;
 #endif
   }
+  if (_unlocked_inflation != 0 ||
+      _recursive_inflation != 0 ||
+      _contended_recursive_inflation != 0 ||
+      _contended_inflation != 0 ||
+      _wait_inflation != 0 ||
+      _lock_stack_inflation != 0) {
+    log_info(monitorinflation)("Mon: %8zu Rec: %8zu CRec: %8zu Cont: %8zu Wait: %8zu Stack: %8zu",
+                              _unlocked_inflation,
+                              _recursive_inflation,
+                              _contended_recursive_inflation,
+                              _contended_inflation,
+                              _wait_inflation,
+                              _lock_stack_inflation);
+  }
+  _unlocked_inflation            = 0;
+  _recursive_inflation           = 0;
+  _contended_recursive_inflation = 0;
+  _contended_inflation           = 0;
+  _wait_inflation                = 0;
+  _lock_stack_inflation          = 0;
 }
 
 inline ObjectMonitor* JavaThread::om_get_from_monitor_cache(oop obj) {

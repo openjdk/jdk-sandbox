@@ -34,6 +34,7 @@
 #include "runtime/globals.hpp"
 #include "runtime/lockStack.inline.hpp"
 #include "runtime/synchronizer.hpp"
+#include "utilities/checkedCast.hpp"
 #include "utilities/globalDefinitions.hpp"
 
 inline bool ObjectMonitor::is_entered(JavaThread* current) const {
@@ -119,6 +120,13 @@ inline int ObjectMonitor::contentions() const {
 // Add value to the contentions field.
 inline void ObjectMonitor::add_to_contentions(int value) {
   Atomic::add(&_contentions, value);
+}
+
+inline void ObjectMonitor::set_recursions(size_t recursions) {
+  // TODO: Fix recursions type
+  assert(_recursions == 0, "must be");
+  assert(has_owner(), "must be owned");
+  _recursions = checked_cast<intx>(recursions);
 }
 
 // Clear _owner field; current value must match old_value.

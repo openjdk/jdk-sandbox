@@ -9832,9 +9832,16 @@ void MacroAssembler::lightweight_lock(Register obj, Register hdr, Register threa
 // obj: the object to be unlocked
 // hdr: the (pre-loaded) header of the object, must be rax
 // tmp: a temporary register
-void MacroAssembler::lightweight_unlock(Register obj, Register hdr, Register tmp, Label& slow) {
+void MacroAssembler::lightweight_unlock(Register obj, Register hdr, Register tmp, Label& recu, Label& slow) {
   assert(hdr == rax, "header must be in rax for cmpxchg");
   assert_different_registers(obj, hdr, tmp);
+
+#ifdef _LP64
+  if (OMRecursiveLightweight) {
+    cmpb(Address(r15_thread, JavaThread::lock_stack_has_recu_offset()), false);
+    jcc(Assembler::notEqual, recu);
+  }
+#endif
 
   // Mark-word must be lock_mask now, try to swing it back to unlocked_value.
   movptr(tmp, hdr); // The expected old value
@@ -9854,4 +9861,8 @@ void MacroAssembler::lightweight_unlock(Register obj, Register hdr, Register tmp
   movl(tmp, Address(thread, JavaThread::lock_stack_top_offset()));
   movptr(Address(thread, tmp), 0);
 #endif
+}
+
+void MacroAssembler::lightweight_unlock(Register obj, Register hdr, Register tmp, Label& slow) {
+  lightweight_unlock(obj, hdr, tmp, slow, slow);
 }
