@@ -25,6 +25,7 @@
 
 #include <sys/types.h>
 
+#include "assembler_aarch64.hpp"
 #include "precompiled.hpp"
 #include "asm/assembler.hpp"
 #include "asm/assembler.inline.hpp"
@@ -6351,6 +6352,10 @@ void MacroAssembler::lightweight_lock(Register obj, Register hdr, Register t1, R
 // - hdr: the (pre-loaded) header of the object
 // - t1, t2: temporary registers
 void MacroAssembler::lightweight_unlock(Register obj, Register hdr, Register t1, Register t2, Label& slow) {
+  lightweight_unlock(obj, hdr, t1, t2, slow, slow);
+}
+
+void MacroAssembler::lightweight_unlock(Register obj, Register hdr, Register t1, Register t2, Label& recur, Label& slow) {
   assert(LockingMode == LM_LIGHTWEIGHT, "only used with new lightweight locking");
   assert_different_registers(obj, hdr, t1, t2, rscratch1);
 
@@ -6387,6 +6392,12 @@ void MacroAssembler::lightweight_unlock(Register obj, Register hdr, Register t1,
     bind(hdr_ok);
   }
 #endif
+
+  if (OMRecursiveLightweight) {
+    ldrb(t1, Address(rthread, JavaThread::lock_stack_has_recu_offset()));
+    cmp(t1, zr);
+    br(Assembler::NE, recur);
+  }
 
   // Load the new header (unlocked) into t1
   orr(t1, hdr, markWord::unlocked_value);
