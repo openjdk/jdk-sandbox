@@ -136,6 +136,9 @@ void C2_MacroAssembler::fast_lock(Register objectReg, Register boxReg, Register 
       ldr(tmp, Address(rthread, JavaThread::om_nth_cache_monitor_offset(end - i - 1)));
     }
     bind(monitor_found);
+
+    // TODO: cleanup +markWord::monitor_value offset
+    add(disp_hdr, tmp, markWord::monitor_value);
   } else {
     // The object's monitor m is unlocked iff m->owner == NULL,
     // otherwise m->owner may contain a thread or a stack address.
