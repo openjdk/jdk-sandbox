@@ -2000,6 +2000,10 @@ const int ObjectAlignmentInBytes = 8;
                                                                             \
   product(bool, OMRetryLock, false, "")                                     \
                                                                             \
+  product(int, OMSpins, 20, "")                                             \
+                                                                            \
+  product(int, OMYields, 5, "")                                             \
+                                                                            \
   product(uint, TrimNativeHeapInterval, 0, EXPERIMENTAL,                    \
           "Interval, in ms, at which the JVM will trim the native heap if " \
           "the platform supports that. Lower values will reclaim memory "   \

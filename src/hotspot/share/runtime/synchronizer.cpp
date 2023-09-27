@@ -2286,6 +2286,9 @@ void LightweightSynchronizer::enter(Handle obj, JavaThread* locking_thread, Java
     return;
   }
 
+  const int spins = OMSpins;
+  const int yields = OMYields;
+
   // Make room on lock_stack
   if (!lock_stack.can_push() && !lock_stack.contains(obj())) {
     // Inflate contented objects
@@ -2299,8 +2302,9 @@ void LightweightSynchronizer::enter(Handle obj, JavaThread* locking_thread, Java
   while (true) {
     assert(lock_stack.can_push() || lock_stack.contains(obj()), "must have made room on the lock stack");
 
+    SpinYield fast_lock_spin_yield(spins, yields);
     // Fast-locking does not use the 'lock' argument.
-    if (lock_stack.can_push()) {
+    for (int attempts = spins + yields; attempts > 0; attempts--) {
       markWord mark = obj()->mark_acquire();
       while (mark.is_unlocked()) {
         assert(!lock_stack.contains(obj()), "thread must not already hold the lock");
@@ -2315,6 +2319,8 @@ void LightweightSynchronizer::enter(Handle obj, JavaThread* locking_thread, Java
 
         mark = old_mark;
       }
+
+      fast_lock_spin_yield.wait();
     }
 
     if (!first_time) {
