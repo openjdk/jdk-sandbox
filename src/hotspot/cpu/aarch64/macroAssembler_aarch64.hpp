@@ -1593,7 +1593,6 @@ public:
   void spin_wait();
 
   void lightweight_lock(Register obj, Register hdr, Register t1, Register t2, Label& slow);
-  void lightweight_unlock(Register obj, Register hdr, Register t1, Register t2, Label& recur, Label& slow);
   void lightweight_unlock(Register obj, Register hdr, Register t1, Register t2, Label& slow);
 
 private:
