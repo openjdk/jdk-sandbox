@@ -568,18 +568,6 @@ void C2_MacroAssembler::fast_lock_lightweight(Register objReg, Register boxReg, 
   // x86_64
   assert_different_registers(objReg, boxReg, tmpReg, monReg);
 
-  // Setup medium path stub
-  C2LightweightRecursiveLockStub* stub = nullptr;
-  if (OMRecursiveLightweight &&
-      C2OMLockMediumPathRecursiveLightweight &&
-      !Compile::current()->output()->in_scratch_emit_size()) {
-    stub = new (Compile::current()->comp_arena()) C2LightweightRecursiveLockStub(objReg, tmpReg);
-    Compile::current()->output()->add_stub(stub);
-  }
-  Label dummy_stub;
-  Label& MEDIUM_PATH = stub == nullptr ? SLOW_PATH : stub->entry();
-  Label& STUB_CONT = stub == nullptr ? dummy_stub : stub->continuation();
-
   // Check if monitor
   movptr(tmpReg, Address(objReg, oopDesc::mark_offset_in_bytes()));
   testptr(tmpReg, markWord::monitor_value);
@@ -588,14 +576,14 @@ void C2_MacroAssembler::fast_lock_lightweight(Register objReg, Register boxReg, 
   // Take the slow-path into the runtime.
   if (C2OMLockCacheSize == 0) {
     jcc(Assembler::notZero, SLOW_PATH);
-    lightweight_lock(objReg, tmpReg, thread, monReg, MEDIUM_PATH);
+    lightweight_lock(objReg, tmpReg, thread, monReg, SLOW_PATH);
     jmp(SUCCESS);
   } else {
     Label INFLATED;
 
     jcc(Assembler::notZero, INFLATED);
 
-    lightweight_lock(objReg, tmpReg, thread, monReg, MEDIUM_PATH);
+    lightweight_lock(objReg, tmpReg, thread, monReg, SLOW_PATH);
     jmp(SUCCESS);
 
     bind(INFLATED);
@@ -623,7 +611,6 @@ void C2_MacroAssembler::fast_lock_lightweight(Register objReg, Register boxReg, 
     fast_lock_inflated(boxReg, tmpReg, monReg, thread, SUCCESS, SLOW_PATH);
     jmp(SUCCESS);
   }
-  bind(STUB_CONT);
   // Medium path stub exits with ZF == 0 on Failure
   jccb(Assembler::notZero, SLOW_PATH);
   // Fallthrough == Success
@@ -1041,32 +1028,14 @@ void C2_MacroAssembler::fast_unlock(Register objReg, Register boxReg, Register t
     jmpb  (DONE_LABEL);
   }
 
-  // Setup medium path stub lightweight
-  C2LightweightRecursiveUnlockStub* stub = nullptr;
-  if (LockingMode == LM_LIGHTWEIGHT &&
-      OMRecursiveLightweight &&
-      C2OMUnlockMediumPathRecursiveLightweight &&
-      !Compile::current()->output()->in_scratch_emit_size()) {
-    stub = new (Compile::current()->comp_arena()) C2LightweightRecursiveUnlockStub(objReg, tmpReg, boxReg);
-    Compile::current()->output()->add_stub(stub);
-  }
-  Label dummy_stub;
-  Label& MEDIUM_PATH = stub == nullptr ? NO_COUNT : stub->entry();
-  Label& STUB_CONT = stub == nullptr ? dummy_stub : stub->continuation();
 #endif // _LP64
 
   if (LockingMode != LM_MONITOR) {
     bind  (Stacked);
     if (LockingMode == LM_LIGHTWEIGHT) {
       mov(boxReg, tmpReg);
-#ifndef _LP64
       lightweight_unlock(objReg, boxReg, tmpReg, NO_COUNT);
       jmp(COUNT);
-#else // _LP64
-      lightweight_unlock(objReg, boxReg, tmpReg, MEDIUM_PATH, NO_COUNT);
-      jmp(COUNT);
-      bind(STUB_CONT);
-#endif // _LP64
     } else if (LockingMode == LM_LEGACY) {
       movptr(tmpReg, Address (boxReg, 0));      // re-fetch
       lock();

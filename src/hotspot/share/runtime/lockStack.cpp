@@ -25,6 +25,7 @@
 
 #include "precompiled.hpp"
 #include "memory/allocation.hpp"
+#include "runtime/globals.hpp"
 #include "runtime/lockStack.inline.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/stackWatermark.hpp"
@@ -38,7 +39,7 @@ const int LockStack::lock_stack_top_offset =  in_bytes(JavaThread::lock_stack_to
 const int LockStack::lock_stack_base_offset = in_bytes(JavaThread::lock_stack_base_offset());
 
 LockStack::LockStack(JavaThread* jt) :
-  _top(lock_stack_base_offset), _has_recu(false), _base(), _recu() {
+  _top(lock_stack_base_offset), _base() {
 #ifdef ASSERT
   for (int i = 0; i < CAPACITY; i++) {
     _base[i] = nullptr;
@@ -68,16 +69,22 @@ void LockStack::verify(const char* msg) const {
     bool found_recu = false;
     for (int i = 0; i < top; i++) {
       assert(_base[i] != nullptr, "no zapped before top");
-      assert(_has_recu || _recu[i] == 0, "!_has_recu => for all i : _recu[i] == 0");
-      found_recu = found_recu || _recu[i] != 0;
+      if (OMRecursiveLightweight) {
+        oop o = _base[i];
+        for (;i < top - 1; i++) {
+          // Consecutive entries may be the same
+          if (_base[i + 1] != o) {
+            break;
+          }
+        }
+      }
+
       for (int j = i + 1; j < top; j++) {
         assert(_base[i] != _base[j], "entries must be unique: %s", msg);
       }
     }
-    assert(!_has_recu || found_recu, "_has_recu => exists i : _recu[i] != 0");
     for (int i = top; i < CAPACITY; i++) {
       assert(_base[i] == nullptr, "only zapped entries after top: i: %d, top: %d, entry: " PTR_FORMAT, i, top, p2i(_base[i]));
-      assert(_recu[i] == 0, "only 0 recu entries after top: i: %d, top: %d, entry: " PTR_FORMAT ", recu: %zu", i, top, p2i(_base[i]), _recu[i]);
     }
   }
 }

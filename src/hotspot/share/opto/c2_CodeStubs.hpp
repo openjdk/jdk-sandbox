@@ -97,36 +97,6 @@ public:
   void emit(C2_MacroAssembler& masm);
 };
 
-#ifdef _LP64
-class C2LightweightRecursiveLockStub : public C2CodeStub {
-private:
-  Register _object;
-  Register _tmp;
-public:
-  C2LightweightRecursiveLockStub(Register object, Register tmp) : C2CodeStub(),
-    _object(object), _tmp(tmp) {}
-  Register object() { return _object; }
-  Register tmp() { return _tmp; }
-  int max_size() const;
-  void emit(C2_MacroAssembler& masm);
-};
-
-class C2LightweightRecursiveUnlockStub : public C2CodeStub {
-private:
-  Register _object;
-  Register _tmp1;
-  Register _tmp2;
-public:
-  C2LightweightRecursiveUnlockStub(Register object, Register tmp1, Register tmp2) : C2CodeStub(),
-    _object(object), _tmp1(tmp1), _tmp2(tmp2) {}
-  Register object() { return _object; }
-  Register tmp1() { return _tmp1; }
-  Register tmp2() { return _tmp2; }
-  int max_size() const;
-  void emit(C2_MacroAssembler& masm);
-};
-#endif
-
 //-----------------------------C2GeneralStub-----------------------------------
 // A generalized stub that can be used to implement an arbitrary stub in a
 // type-safe manner. An example:

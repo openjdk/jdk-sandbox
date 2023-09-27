@@ -52,9 +52,7 @@ private:
   // We do this instead of a simple index into the array because this allows for
   // efficient addressing in generated code.
   uint32_t _top;
-  bool _has_recu;
   oop _base[CAPACITY];
-  size_t _recu[CAPACITY];
 
   // Get the owning thread of this lock-stack.
   inline JavaThread* get_thread() const;
@@ -71,8 +69,6 @@ private:
 public:
   static ByteSize top_offset()  { return byte_offset_of(LockStack, _top); }
   static ByteSize base_offset() { return byte_offset_of(LockStack, _base); }
-  static ByteSize has_recu_offset() { return byte_offset_of(LockStack, _has_recu); }
-  static ByteSize recu_offset() { return byte_offset_of(LockStack, _recu); }
 
   LockStack(JavaThread* jt);
 
@@ -106,7 +102,6 @@ public:
 
   // GC support
   inline void oops_do(OopClosure* cl);
-  inline void recursive_oops_do(OopClosure* cl);
 
   // Printing
   void print_on(outputStream* st);

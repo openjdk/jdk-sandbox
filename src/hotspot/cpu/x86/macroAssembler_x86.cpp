@@ -43,6 +43,7 @@
 #include "oops/klass.inline.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/continuation.hpp"
+#include "runtime/globals.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaThread.hpp"
 #include "runtime/jniHandles.hpp"
@@ -53,6 +54,7 @@
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "utilities/checkedCast.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 
 #ifdef PRODUCT
@@ -9800,6 +9802,7 @@ void MacroAssembler::check_stack_alignment(Register sp, const char* msg, unsigne
 void MacroAssembler::lightweight_lock(Register obj, Register hdr, Register thread, Register tmp, Label& slow) {
   assert(hdr == rax, "header must be in rax for cmpxchg");
   assert_different_registers(obj, hdr, thread, tmp);
+  Label success, retry;
 
   // First we need to check if the lock-stack has room for pushing the object reference.
   // Note: we subtract 1 from the end-offset so that we can do a 'greater' comparison, instead
@@ -9810,16 +9813,40 @@ void MacroAssembler::lightweight_lock(Register obj, Register hdr, Register threa
 
   // Now we attempt to take the fast-lock.
   // Clear lock_mask bits (locked state).
+  bind(retry);
   andptr(hdr, ~(int32_t)markWord::lock_mask_in_place);
   movptr(tmp, hdr);
   // Set unlocked_value bit.
   orptr(hdr, markWord::unlocked_value);
   lock();
   cmpxchgptr(tmp, Address(obj, oopDesc::mark_offset_in_bytes()));
-  jcc(Assembler::notEqual, slow);
 
+#ifdef _LP64
+  if (OMRecursiveLightweight) {
+    // Load lock_stack_top, this is only not used in the slowest of paths
+    movl(tmp, Address(thread, JavaThread::lock_stack_top_offset()));
+    // CAS successful
+    jcc(Assembler::equal, success);
+
+    if (OMRetryLock) {
+      // Retry lock if failed due to non-lock bits changed
+      testptr(hdr, markWord::unlocked_value);
+      jccb(Assembler::notZero, retry);
+    }
+    // Check if fast locked
+    testptr(hdr, markWord::monitor_value | markWord::unlocked_value);
+    jcc(Assembler::notZero, slow);
+
+    cmpptr(obj, Address(thread, tmp, Address::times_1, -oopSize));
+    jcc(Assembler::notEqual, slow);
+  } else {
+    jcc(Assembler::notEqual, slow);
+    movl(tmp, Address(thread, JavaThread::lock_stack_top_offset()));
+  }
+#endif
+
+  bind(success);
   // If successful, push object to lock-stack.
-  movl(tmp, Address(thread, JavaThread::lock_stack_top_offset()));
   movptr(Address(thread, tmp), obj);
   incrementl(tmp, oopSize);
   movl(Address(thread, JavaThread::lock_stack_top_offset()), tmp);
@@ -9835,11 +9862,15 @@ void MacroAssembler::lightweight_lock(Register obj, Register hdr, Register threa
 void MacroAssembler::lightweight_unlock(Register obj, Register hdr, Register tmp, Label& recu, Label& slow) {
   assert(hdr == rax, "header must be in rax for cmpxchg");
   assert_different_registers(obj, hdr, tmp);
+  Label success;
 
 #ifdef _LP64
   if (OMRecursiveLightweight) {
-    cmpb(Address(r15_thread, JavaThread::lock_stack_has_recu_offset()), false);
-    jcc(Assembler::notEqual, recu);
+    movl(tmp, Address(r15_thread, JavaThread::lock_stack_top_offset()));
+    // oopSize * 2 may underflow but is _top and padding, probably does not look like this oop. TODO: ensure this.
+    cmpptr(obj, Address(r15_thread, tmp, Address::times_1, -oopSize * 2));
+    // next to last obj on lock_stack is also this oop, recursive unlock
+    jccb(Assembler::equal, success);
   }
 #endif
 
@@ -9856,6 +9887,7 @@ void MacroAssembler::lightweight_unlock(Register obj, Register hdr, Register tmp
   const Register thread = rax;
   get_thread(thread);
 #endif
+  bind(success);
   subl(Address(thread, JavaThread::lock_stack_top_offset()), oopSize);
 #ifdef ASSERT
   movl(tmp, Address(thread, JavaThread::lock_stack_top_offset()));

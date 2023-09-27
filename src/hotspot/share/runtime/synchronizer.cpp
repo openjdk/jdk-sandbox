@@ -2237,6 +2237,11 @@ class LockStackInflateContendedLocks : private OopClosure {
   void do_oop(oop* o) final {
     oop obj = *o;
     if (obj->mark_acquire().has_monitor()) {
+      if (_length > 0 && _contended_oops[_length-1] == obj) {
+        assert(OMRecursiveLightweight, "must be");
+        // Recursive
+        return;
+      }
       _contended_oops[_length++] = obj;
     }
   }
@@ -2259,36 +2264,6 @@ class LockStackInflateContendedLocks : private OopClosure {
   }
 };
 
-class LockStackInflateRecursiveLocks : private OopClosure {
- private:
-  oop _recursive_oops[LockStack::CAPACITY];
-  int _length;
-
-  void do_oop(oop* o) final {
-    oop obj = *o;
-    if (obj->mark_acquire().has_monitor()) {
-      _recursive_oops[_length++] = obj;
-    }
-  }
-
-  void do_oop(narrowOop* o) final {
-    ShouldNotReachHere();
-  }
-
- public:
-  LockStackInflateRecursiveLocks() :
-    _recursive_oops(),
-    _length(0) {};
-
-  void inflate(JavaThread* thread) {
-    thread->lock_stack().recursive_oops_do(this);
-    for (int i = 0; i < _length; i++) {
-      LightweightSynchronizer::
-        inflate_fast_locked_object(thread, _recursive_oops[i], ObjectSynchronizer::inflate_cause_vm_internal);
-    }
-  }
-};
-
 void LightweightSynchronizer::enter(Handle obj, JavaThread* locking_thread, JavaThread* current) {
   assert(LockingMode == LM_LIGHTWEIGHT, "must be");
   assert(current == Thread::current(), "must be");
@@ -2304,7 +2279,26 @@ void LightweightSynchronizer::enter(Handle obj, JavaThread* locking_thread, Java
     return;
   }
 
+  if (locking_thread != current) {
+    // Relock objects from compiler thread
+    bool locked = inflate_and_enter(obj(), locking_thread, current, ObjectSynchronizer::inflate_cause_monitor_enter);
+    assert(locked, "relock must lock the object, without races");
+    return;
+  }
+
+  // Make room on lock_stack
+  if (!lock_stack.can_push() && !lock_stack.contains(obj())) {
+    // Inflate contented objects
+    LockStackInflateContendedLocks().inflate(locking_thread);
+    if (!lock_stack.can_push()) {
+      // Inflate the oldest object
+      inflate_fast_locked_object(locking_thread, lock_stack.bottom(), ObjectSynchronizer::inflate_cause_vm_internal);
+    }
+  }
+
   while (true) {
+    assert(lock_stack.can_push() || lock_stack.contains(obj()), "must have made room on the lock stack");
+
     // Fast-locking does not use the 'lock' argument.
     if (lock_stack.can_push()) {
       markWord mark = obj()->mark_acquire();
@@ -2321,15 +2315,6 @@ void LightweightSynchronizer::enter(Handle obj, JavaThread* locking_thread, Java
 
         mark = old_mark;
       }
-    } else if (locking_thread == current) {
-      // Inflate contented objects
-      LockStackInflateContendedLocks().inflate(locking_thread);
-      if (!lock_stack.can_push()) {
-        // Inflate the oldest object
-        inflate_fast_locked_object(locking_thread, lock_stack.bottom(), ObjectSynchronizer::inflate_cause_vm_internal);
-      }
-      assert(lock_stack.can_push(), "must have made room on the lock stack");
-      continue;
     }
 
     if (!first_time) {
@@ -2352,9 +2337,15 @@ void LightweightSynchronizer::exit(oop object, JavaThread* current) {
   assert(!mark.is_unlocked(), "must be unlocked");
 
   LockStack& lock_stack = current->lock_stack();
-  if (mark.is_fast_locked() && lock_stack.try_recursive_exit(object)) {
-    // This is a recursive exit which succeded
-    return;
+  if (mark.is_fast_locked()) {
+    if (lock_stack.try_recursive_exit(object)) {
+      // This is a recursive exit which succeeded
+      return;
+    }
+    if (OMRecursiveLightweight && lock_stack.contains(object)) {
+      // This must handle unbalanced unlocks
+      inflate_fast_locked_object(current, object, ObjectSynchronizer::inflate_cause_vm_internal);
+    }
   }
 
   // Fast-locking does not use the 'lock' argument.
