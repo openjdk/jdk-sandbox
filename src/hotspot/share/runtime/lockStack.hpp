@@ -88,6 +88,12 @@ public:
   // Get the oldest oop in the stack
   inline oop bottom();
 
+  // Get the oldest oop in the stack
+  inline oop top();
+
+  // Check if object is recursive
+  inline bool is_recursive(oop o);
+
   // Try recursive exit
   inline bool try_recursive_exit(oop o);
 

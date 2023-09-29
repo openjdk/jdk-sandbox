@@ -251,6 +251,8 @@ private:
 
   static void deflate_mark_word(oop object);
 
+  static void ensure_lock_stack_space(JavaThread* locking_thread, JavaThread* current);
+
  public:
   static void initialize();
 
@@ -258,7 +260,7 @@ private:
   static void exit(oop object, JavaThread* current);
 
   static ObjectMonitor* inflate_locked_or_imse(oop object, const ObjectSynchronizer::InflateCause cause, TRAPS);
-  static ObjectMonitor* inflate_fast_locked_object(JavaThread* current, oop obj, const ObjectSynchronizer::InflateCause cause);
+  static ObjectMonitor* inflate_fast_locked_object(oop object, JavaThread* locking_thread, JavaThread* current, const ObjectSynchronizer::InflateCause cause);
   static bool inflate_and_enter(oop object, JavaThread* locking_thread, JavaThread* current, const ObjectSynchronizer::InflateCause cause);
 
   static void deflate_monitor(Thread* current, oop obj, ObjectMonitor* monitor);

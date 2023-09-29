@@ -2255,14 +2255,28 @@ class LockStackInflateContendedLocks : private OopClosure {
     _contended_oops(),
     _length(0) {};
 
-  void inflate(JavaThread* thread) {
-    thread->lock_stack().oops_do(this);
+  void inflate(JavaThread* locking_thread, JavaThread* current) {
+    locking_thread->lock_stack().oops_do(this);
     for (int i = 0; i < _length; i++) {
       LightweightSynchronizer::
-        inflate_fast_locked_object(thread, _contended_oops[i], ObjectSynchronizer::inflate_cause_vm_internal);
+        inflate_fast_locked_object(_contended_oops[i], locking_thread, current, ObjectSynchronizer::inflate_cause_vm_internal);
     }
   }
 };
+
+void LightweightSynchronizer::ensure_lock_stack_space(JavaThread* locking_thread, JavaThread* current) {
+  LockStack& lock_stack = locking_thread->lock_stack();
+
+  // Make room on lock_stack
+  if (!lock_stack.can_push()) {
+    // Inflate contented objects
+    LockStackInflateContendedLocks().inflate(locking_thread, current);
+    if (!lock_stack.can_push()) {
+      // Inflate the oldest object
+      inflate_fast_locked_object(lock_stack.bottom(), locking_thread, current, ObjectSynchronizer::inflate_cause_vm_internal);
+    }
+  }
+}
 
 void LightweightSynchronizer::enter(Handle obj, JavaThread* locking_thread, JavaThread* current) {
   assert(LockingMode == LM_LIGHTWEIGHT, "must be");
@@ -2274,39 +2288,52 @@ void LightweightSynchronizer::enter(Handle obj, JavaThread* locking_thread, Java
 
   LockStack& lock_stack = locking_thread->lock_stack();
 
+  if (locking_thread != current) {
+    // Relock objects from compiler thread
+    oop o = obj();
+    if (lock_stack.can_push()) {
+      markWord mark = o->mark_acquire();
+      while (o->mark_acquire().is_unlocked()) {
+        markWord old_mark = mark;
+        mark = o->cas_set_mark(mark.set_fast_locked(), old_mark);
+        if (old_mark == mark) {
+          lock_stack.push(o);
+          return;
+        }
+      }
+      fatal("Should not reach here, compiler should not have elided the lock");
+    }
+    // Alternatively inflate the bottom
+    bool entered = inflate_and_enter(o, locking_thread, current, ObjectSynchronizer::inflate_cause_monitor_enter);
+    assert(entered, "relock must lock the object, without races");
+    return;
+  }
+
   if (lock_stack.try_recursive_enter(obj())) {
     // Recursively fast locked
     return;
   }
 
-  if (locking_thread != current) {
-    // Relock objects from compiler thread
-    bool locked = inflate_and_enter(obj(), locking_thread, current, ObjectSynchronizer::inflate_cause_monitor_enter);
-    assert(locked, "relock must lock the object, without races");
+  if (lock_stack.contains(obj())) {
+    ObjectMonitor* mon = inflate_fast_locked_object(obj(), locking_thread, current, ObjectSynchronizer::inflate_cause_jni_enter);
+    bool entered = mon->enter(locking_thread);
+    assert(entered, "recursive ObjectMonitor::enter must succeed");
     return;
   }
 
   const int spins = OMSpins;
   const int yields = OMYields;
 
-  // Make room on lock_stack
-  if (!lock_stack.can_push() && !lock_stack.contains(obj())) {
-    // Inflate contented objects
-    LockStackInflateContendedLocks().inflate(locking_thread);
-    if (!lock_stack.can_push()) {
-      // Inflate the oldest object
-      inflate_fast_locked_object(locking_thread, lock_stack.bottom(), ObjectSynchronizer::inflate_cause_vm_internal);
-    }
-  }
-
   while (true) {
-    assert(lock_stack.can_push() || lock_stack.contains(obj()), "must have made room on the lock stack");
 
     SpinYield fast_lock_spin_yield(spins, yields);
     // Fast-locking does not use the 'lock' argument.
-    for (int attempts = spins + yields; attempts > 0; attempts--) {
-      markWord mark = obj()->mark_acquire();
+    markWord mark = obj()->mark_acquire();
+    const bool try_spin = !first_time || !mark.has_monitor();
+    for (int attempts = spins + yields; try_spin && attempts > 0; attempts--) {
       while (mark.is_unlocked()) {
+        ensure_lock_stack_space(locking_thread, current);
+        assert(lock_stack.can_push(), "must have made room on the lock stack");
         assert(!lock_stack.contains(obj()), "thread must not already hold the lock");
         // Try to swing into 'fast-locked' state.
         markWord locked_mark = mark.set_fast_locked();
@@ -2321,6 +2348,7 @@ void LightweightSynchronizer::enter(Handle obj, JavaThread* locking_thread, Java
       }
 
       fast_lock_spin_yield.wait();
+      mark = obj()->mark_acquire();
     }
 
     if (!first_time) {
@@ -2348,24 +2376,25 @@ void LightweightSynchronizer::exit(oop object, JavaThread* current) {
       // This is a recursive exit which succeeded
       return;
     }
-    if (OMRecursiveLightweight && lock_stack.contains(object)) {
-      // This must handle unbalanced unlocks
-      inflate_fast_locked_object(current, object, ObjectSynchronizer::inflate_cause_vm_internal);
+    if (OMRecursiveLightweight && lock_stack.is_recursive(object)) {
+      // Must inflate recursive locks if try_recursive_exit fails
+      // This happens for unbalanced unlocks, could potentially
+      // fix try_recursive_exit to handle these.
+      inflate_fast_locked_object(object, current, current, ObjectSynchronizer::inflate_cause_vm_internal);
     }
   }
 
   // Fast-locking does not use the 'lock' argument.
   while (mark.is_fast_locked()) {
     markWord unlocked_mark = mark.set_unlocked();
-    markWord old_mark = object->cas_set_mark(unlocked_mark, mark);
+    markWord old_mark = mark;
+    mark = object->cas_set_mark(unlocked_mark, old_mark);
     if (old_mark == mark) {
       // CAS successful, remove from lock_stack
       int recu = lock_stack.remove(object);
       assert(recu == 0, "Should not have unlocked here");
       return;
     }
-
-    mark = old_mark;
   }
 
   assert(mark.has_monitor(), "must be");
@@ -2402,7 +2431,7 @@ ObjectMonitor* LightweightSynchronizer::inflate_locked_or_imse(oop obj, const Ob
                   "current thread is not owner", nullptr);
       } else {
         // Current thread owns the lock, must inflate
-        return inflate_fast_locked_object(current, obj, cause);
+        return inflate_fast_locked_object(obj, current, current, cause);
       }
     }
 
@@ -2428,10 +2457,10 @@ ObjectMonitor* LightweightSynchronizer::inflate_locked_or_imse(oop obj, const Ob
   }
 }
 
-ObjectMonitor* LightweightSynchronizer::inflate_fast_locked_object(JavaThread* current, oop object, const ObjectSynchronizer::InflateCause cause) {
+ObjectMonitor* LightweightSynchronizer::inflate_fast_locked_object(oop object, JavaThread* locking_thread, JavaThread* current, const ObjectSynchronizer::InflateCause cause) {
   assert(LockingMode == LM_LIGHTWEIGHT, "only used for lightweight");
   assert(current == JavaThread::current(), "must be");
-  assert(is_lock_owned(current, object), "locking_thread must have object on its lock stack");
+  assert(is_lock_owned(locking_thread, object), "locking_thread must have object on its lock stack");
 
   // Inflating requires a hash code
   FastHashCode(current, object);
@@ -2443,7 +2472,7 @@ ObjectMonitor* LightweightSynchronizer::inflate_fast_locked_object(JavaThread* c
 
   for (;;) {
   // Fetch the monitor from the table
-    monitor = get_or_insert_monitor(object, current, cause, false /* try_read */);
+    monitor = get_or_insert_monitor(object, current, cause, true /* try_read */);
     assert(monitor == read_monitor(current, object), "The monitor must be in the table");
 
     if (monitor->is_owner_anonymous()) {
@@ -2461,17 +2490,19 @@ ObjectMonitor* LightweightSynchronizer::inflate_fast_locked_object(JavaThread* c
   }
 
   // Indicate that the monitor now has a known owner
-  monitor->set_owner_from_anonymous(current);
+  monitor->set_owner_from_anonymous(locking_thread);
 
   // Remove the entry from the thread's lock stack
-  monitor->set_recursions(current->lock_stack().remove(object));
+  monitor->set_recursions(locking_thread->lock_stack().remove(object));
 
-  current->om_set_monitor_cache(monitor);
+  locking_thread->om_set_monitor_cache(monitor);
 
   if (cause == ObjectSynchronizer::inflate_cause_wait) {
-    current->_wait_inflation++;
+    locking_thread->_wait_inflation++;
+  } else if (cause == ObjectSynchronizer::inflate_cause_monitor_enter) {
+    locking_thread->_recursive_inflation++;
   } else if (cause == ObjectSynchronizer::inflate_cause_vm_internal) {
-    current->_lock_stack_inflation++;
+    locking_thread->_lock_stack_inflation++;
   }
 
   return monitor;
@@ -2605,7 +2636,7 @@ bool LightweightSynchronizer::inflate_and_enter(oop object, JavaThread* locking_
 
   if (current == locking_thread && monitor->has_owner() && monitor->owner_raw() != locking_thread) {
     // Someone else owns the lock, take the time befor entering to fix the lock stack
-    LockStackInflateContendedLocks().inflate(locking_thread);
+    LockStackInflateContendedLocks().inflate(locking_thread, current);
   }
 
   // enter can block for safepoints; clear the unhandled object oop

@@ -84,6 +84,28 @@ inline oop LockStack::bottom() {
   return _base[0];
 }
 
+inline oop LockStack::top() {
+  assert(to_index(_top) > 0, "may only call with at least one element in the stack");
+  return _base[to_index(_top) - 1];
+}
+
+inline bool LockStack::is_recursive(oop o) {
+#ifdef _LP64
+  if (!OMRecursiveLightweight) {
+    return false;
+  }
+
+  assert(contains(o), "entries must exist");
+  int last = to_index(_top) - 1;
+  for (int i = 1; i < last; i++) {
+    if (_base[i-1] == o && _base[i] == o) {
+      return true;
+    }
+  }
+#endif
+  return false;
+}
+
 inline bool LockStack::try_recursive_exit(oop o) {
 #ifdef _LP64
   if (!OMRecursiveLightweight) {
