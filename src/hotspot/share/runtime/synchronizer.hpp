@@ -264,6 +264,7 @@ private:
   static bool inflate_and_enter(oop object, JavaThread* locking_thread, JavaThread* current, const ObjectSynchronizer::InflateCause cause);
 
   static void deflate_monitor(Thread* current, oop obj, ObjectMonitor* monitor);
+  static void deflate_anon_monitor(Thread* current, oop obj, ObjectMonitor* monitor);
 
   static ObjectMonitor* read_monitor(Thread* current, oop obj);
 

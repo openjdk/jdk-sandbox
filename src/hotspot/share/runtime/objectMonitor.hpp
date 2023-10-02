@@ -263,6 +263,15 @@ private:
     }
     return ret_code != 0;
   }
+  bool is_busy_anon() const {
+    // precond (uintptr_t)owner_raw() == ANONYMOUS_OWNER
+    intptr_t ret_code = intptr_t(_waiters) | intptr_t(_cxq) | intptr_t(_EntryList);
+    int cnts = contentions(); // read once
+    if (cnts > 0) {
+      ret_code |= intptr_t(cnts);
+    }
+    return ret_code != 0;
+  }
   const char* is_busy_to_string(stringStream* ss);
 
   bool is_entered(JavaThread* current) const;
@@ -373,6 +382,9 @@ private:
 
   // Deflation support
   bool      deflate_monitor(Thread* current);
+public:
+  bool      deflate_anon_monitor(JavaThread* current);
+private:
   void      install_displaced_markword_in_object(const oop obj);
   void      release_object() { _object.release(_oop_storage); }
 };

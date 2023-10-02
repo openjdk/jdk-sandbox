@@ -328,6 +328,15 @@ inline void JavaThread::om_clear_monitor_cache() {
   _contended_inflation           = 0;
   _wait_inflation                = 0;
   _lock_stack_inflation          = 0;
+
+  if (_wait_deflation != 0 ||
+      _exit_deflation != 0) {
+    log_info(monitorinflation)("Wait: %8zu Exit: %8zu",
+                              _wait_deflation,
+                              _exit_deflation);
+  }
+  _wait_deflation = 0;
+  _exit_deflation = 0;
 }
 
 inline ObjectMonitor* JavaThread::om_get_from_monitor_cache(oop obj) {

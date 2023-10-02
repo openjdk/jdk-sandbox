@@ -1160,6 +1160,9 @@ public:
   size_t _wait_inflation = 0;
   size_t _lock_stack_inflation = 0;
 
+  size_t _wait_deflation = 0;
+  size_t _exit_deflation = 0;
+
   static ByteSize lock_stack_offset()      { return byte_offset_of(JavaThread, _lock_stack); }
   // Those offsets are used in code generators to access the LockStack that is embedded in this
   // JavaThread structure. Those accesses are relative to the current thread, which

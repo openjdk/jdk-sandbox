@@ -661,6 +661,7 @@ int ObjectSynchronizer::wait(Handle obj, jlong millis, TRAPS) {
 
   ObjectMonitor* monitor;
   if (LockingMode == LM_LIGHTWEIGHT) {
+    current->lock_stack().clear_wait_was_inflated();
     monitor = LightweightSynchronizer::inflate_locked_or_imse(obj(), inflate_cause_wait, CHECK_0);
   } else {
     // The ObjectMonitor* can't be async deflated because the _waiters
@@ -2220,7 +2221,7 @@ void LightweightSynchronizer::deflate_mark_word(oop obj) {
   assert(!mark.has_no_hash(), "obj with inflated monitor must have had a hash");
 
   while (mark.has_monitor()) {
-    const markWord new_mark = mark.set_fast_locked().set_unlocked();
+    const markWord new_mark = mark.clear_lock_bits().set_unlocked();
     mark = obj->cas_set_mark(new_mark, mark);
   }
 }
@@ -2326,14 +2327,13 @@ void LightweightSynchronizer::enter(Handle obj, JavaThread* locking_thread, Java
         assert(!lock_stack.contains(obj()), "thread must not already hold the lock");
         // Try to swing into 'fast-locked' state.
         markWord locked_mark = mark.set_fast_locked();
-        markWord old_mark = obj()->cas_set_mark(locked_mark, mark);
+        markWord old_mark = mark;
+        mark = obj()->cas_set_mark(locked_mark, old_mark);
         if (old_mark == mark) {
           // Successfully fast-locked, push object to lock-stack and return.
           lock_stack.push(obj());
           return;
         }
-
-        mark = old_mark;
       }
 
       fast_lock_spin_yield.wait();
@@ -2356,6 +2356,8 @@ void LightweightSynchronizer::exit(oop object, JavaThread* current) {
   assert(LockingMode == LM_LIGHTWEIGHT, "must be");
   assert(current == Thread::current(), "must be");
 
+  bool first_try = true;
+
   markWord mark = object->mark();
   assert(!mark.is_unlocked(), "must be unlocked");
 
@@ -2373,6 +2375,7 @@ void LightweightSynchronizer::exit(oop object, JavaThread* current) {
     }
   }
 
+retry:
   // Fast-locking does not use the 'lock' argument.
   while (mark.is_fast_locked()) {
     markWord unlocked_mark = mark.set_unlocked();
@@ -2395,8 +2398,18 @@ void LightweightSynchronizer::exit(oop object, JavaThread* current) {
     monitor->set_recursions(current->lock_stack().remove(object));
     current->_contended_inflation++;
   }
-  // Experiment with inflating recursive locks when exiting
-  // LockStackInflateRecursiveLocks().inflate(current);
+
+  if (OMDeflateBeforeExit && first_try && monitor->recursions() == 0) {
+    // Only deflate if recursions are 0 or the lock stack may become
+    // imbalanced.
+    first_try = false;
+    if (monitor->deflate_anon_monitor(current)) {
+      mark = object->mark();
+      current->_exit_deflation++;
+      goto retry;
+    }
+  }
+
   monitor->exit(current);
 }
 
@@ -2487,6 +2500,7 @@ ObjectMonitor* LightweightSynchronizer::inflate_fast_locked_object(oop object, J
   locking_thread->om_set_monitor_cache(monitor);
 
   if (cause == ObjectSynchronizer::inflate_cause_wait) {
+    locking_thread->lock_stack().set_wait_was_inflated();
     locking_thread->_wait_inflation++;
   } else if (cause == ObjectSynchronizer::inflate_cause_monitor_enter) {
     locking_thread->_recursive_inflation++;
@@ -2534,10 +2548,16 @@ bool LightweightSynchronizer::inflate_and_enter(oop object, JavaThread* locking_
     const markWord mark = object->mark_acquire();
 
     if (mark.has_monitor()) {
-      // Let this thread help update the mark word to unlocked.
-      const markWord new_mark = mark.set_fast_locked().set_unlocked();
-      (void)object->cas_set_mark(new_mark, mark);
-      // Retry immediately
+      if (monitor->owner_is_DEFLATER_MARKER()) {
+        // Only help the monitor deflation thread transition to unlocked.
+        // If owner is anonymous then a java thread deflated, and only they
+        // may transition the mark word directly to fast_locked
+
+        // Let this thread help update the mark word to unlocked.
+        const markWord new_mark = mark.clear_lock_bits().set_unlocked();
+        (void)object->cas_set_mark(new_mark, mark);
+        // Retry immediately
+      }
 
     } else if (mark.is_fast_locked()) {
       // Some other thread managed to fast-lock the lock, or this is a
@@ -2652,6 +2672,19 @@ void LightweightSynchronizer::deflate_monitor(Thread* current, oop obj, ObjectMo
   if (obj != nullptr) {
     assert(removed, "Should have removed the entry if obj was alive");
   }
+}
+
+void LightweightSynchronizer::deflate_anon_monitor(Thread* current, oop obj, ObjectMonitor* monitor) {
+  markWord mark = obj->mark_acquire();
+  assert(!mark.has_no_hash(), "obj with inflated monitor must have had a hash");
+
+  while (mark.has_monitor()) {
+    const markWord new_mark = mark.set_fast_locked();
+    mark = obj->cas_set_mark(new_mark, mark);
+  }
+
+  bool removed = remove_monitor(current, obj, monitor);
+  assert(removed, "Should have removed the entry");
 }
 
 ObjectMonitor* LightweightSynchronizer::read_monitor(Thread* current, oop obj) {
