@@ -2380,7 +2380,7 @@ void LightweightSynchronizer::exit(oop object, JavaThread* current) {
     mark = object->cas_set_mark(unlocked_mark, old_mark);
     if (old_mark == mark) {
       // CAS successful, remove from lock_stack
-      int recu = lock_stack.remove(object);
+      size_t recu = lock_stack.remove(object);
       assert(recu == 0, "Should not have unlocked here");
       return;
     }

@@ -146,7 +146,7 @@ inline size_t LockStack::remove(oop o) {
   assert(contains(o), "entry must be present: " PTR_FORMAT, p2i(o));
 
   int end = to_index(_top);
-  size_t recursions = 0;
+  uint32_t recursions = 0;
 
   for (int i = 0; i < end; i++) {
     if (_base[i] == o) {
