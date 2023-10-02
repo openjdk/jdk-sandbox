@@ -2315,7 +2315,7 @@ void LightweightSynchronizer::enter(Handle obj, JavaThread* locking_thread, Java
   }
 
   if (lock_stack.contains(obj())) {
-    ObjectMonitor* mon = inflate_fast_locked_object(obj(), locking_thread, current, ObjectSynchronizer::inflate_cause_jni_enter);
+    ObjectMonitor* mon = inflate_fast_locked_object(obj(), locking_thread, current, ObjectSynchronizer::inflate_cause_monitor_enter);
     bool entered = mon->enter(locking_thread);
     assert(entered, "recursive ObjectMonitor::enter must succeed");
     return;
