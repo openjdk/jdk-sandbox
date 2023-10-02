@@ -2291,19 +2291,8 @@ void LightweightSynchronizer::enter(Handle obj, JavaThread* locking_thread, Java
   if (locking_thread != current) {
     // Relock objects from compiler thread
     oop o = obj();
-    if (lock_stack.can_push()) {
-      markWord mark = o->mark_acquire();
-      while (o->mark_acquire().is_unlocked()) {
-        markWord old_mark = mark;
-        mark = o->cas_set_mark(mark.set_fast_locked(), old_mark);
-        if (old_mark == mark) {
-          lock_stack.push(o);
-          return;
-        }
-      }
-      fatal("Should not reach here, compiler should not have elided the lock");
-    }
-    // Alternatively inflate the bottom
+    // Would like to fast lock here, but cannot ensure lock order
+    // Inflate the relocked lock.
     bool entered = inflate_and_enter(o, locking_thread, current, ObjectSynchronizer::inflate_cause_monitor_enter);
     assert(entered, "relock must lock the object, without races");
     return;
