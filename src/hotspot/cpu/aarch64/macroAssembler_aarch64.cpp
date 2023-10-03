@@ -6326,94 +6326,54 @@ void MacroAssembler::lightweight_lock(Register obj, Register hdr, Register t1, R
   assert_different_registers(obj, hdr, t1, t2, rscratch1);
   Label success, retry;
 
-  Register top;
-  Register new_val;
-  if (t1 == rscratch1) {
-    top = t1;
-    new_val = t2;
-  } else {
-    top = t2;
-    new_val = t1;
-  }
-
-  Register result = noreg;
-  if (OMRecursiveLightweight) {
-    if (new_val != rscratch2 && top != rscratch2) {
-      result = rscratch2;
-    } else if (UseLSE) {
-      result = rscratch1;
-    } else {
-      // Not enough registers to handle the cmpxchg
-      // Takes slow path instead.
-      // Happens from C1 and Interpreter
-    }
-  }
-
-  assert_different_registers(obj, hdr, new_val, result);
-  assert(UseLSE || result != rscratch1, "will be clobbered");
-  const bool cmpxchg_clobbers_top = !UseLSE && top == rscratch1;
-
   // Check if we would have space on lock-stack for the object.
-  ldrw(top, Address(rthread, JavaThread::lock_stack_top_offset()));
-  cmpw(top, (unsigned)LockStack::end_offset() - 1);
+  ldrw(t1, Address(rthread, JavaThread::lock_stack_top_offset()));
+  cmpw(t1, (unsigned)LockStack::end_offset() - 1);
   br(Assembler::GT, slow);
 
   bind(retry);
+
   // Load (object->mark() | 1) into hdr
   orr(hdr, hdr, markWord::unlocked_value);
-  // Clear lock-bits, into t2
-  eor(new_val, hdr, markWord::unlocked_value);
+  // Clear lock-bits, into t1
+  eor(t1, hdr, markWord::unlocked_value);
   // Try to swing header from unlocked to locked
-  // Clobbers rscratch1 when UseLSE is false
-  cmpxchg(/*addr*/ obj, /*expected*/ hdr, /*new*/ new_val, Assembler::xword,
-          /*acquire*/ true, /*release*/ true, /*weak*/ false, result);
+  cmpxchg(/*addr*/ obj, /*expected*/ hdr, /*new*/ t1, Assembler::xword,
+          /*acquire*/ true, /*release*/ true, /*weak*/ false, t2);
 
-  if (OMRecursiveLightweight && result != noreg) {
+  // Reload top
+  ldrw(t1, Address(rthread, JavaThread::lock_stack_top_offset()));
 
-    if (cmpxchg_clobbers_top) {
-      // top was clobbered by cmpxchg, reload
-      // Use by both success and recursive enter
-      // Will be reloaded with OMRetryLock, maybe two
-      // reloads would be better when OMRetryLock.
-      ldrw(top, Address(rthread, JavaThread::lock_stack_top_offset()));
-    }
+  if (OMRecursiveLightweight) {
     // CAS successful
     br(Assembler::EQ, success);
 
     if (OMRetryLock) {
       // Retry lock if failed due to non-lock bits changed
-      mov(hdr, result);
+      mov(hdr, t2);
       // Test unlock bit, if still set, retry
       tbnz(hdr, log2i_exact(markWord::unlocked_value), retry);
     }
+
     // Check if fast locked
-    tst(result, markWord::monitor_value | markWord::unlocked_value);
+    tst(t2, markWord::monitor_value | markWord::unlocked_value);
     br(Assembler::NE, slow);
 
-    Register top_oop;
-    if (top == rscratch1) {
-      top_oop = rscratch2;
-    } else {
-      top_oop = rscratch1;
-    }
-
-    subw(top_oop, top, oopSize);
-    ldr(top_oop, Address(rthread, top_oop));
-    cmp(obj, top_oop);
+    // Check if the lock is lightweight-lock recursive
+    subw(t2, t1, oopSize);
+    ldr(t2, Address(rthread, t2));
+    cmp(obj, t2);
     br(Assembler::NE, slow);
   } else {
     br(Assembler::NE, slow);
-    if (cmpxchg_clobbers_top) {
-      // top was clobbered by cmpxchg, reload
-      ldrw(top, Address(rthread, JavaThread::lock_stack_top_offset()));
-    }
   }
 
   bind(success);
+
   // After successful lock, push object on lock-stack
-  str(obj, Address(rthread, top));
-  addw(top, top, oopSize);
-  strw(top, Address(rthread, JavaThread::lock_stack_top_offset()));
+  str(obj, Address(rthread, t1));
+  addw(t1, t1, oopSize);
+  strw(t1, Address(rthread, JavaThread::lock_stack_top_offset()));
 }
 
 // Implements lightweight-unlocking.
@@ -6461,50 +6421,34 @@ void MacroAssembler::lightweight_unlock(Register obj, Register hdr, Register t1,
   }
 #endif
 
-  Register top;
-  Register new_val;
-  if (t1 == rscratch1) {
-    top = t1;
-    new_val = t2;
-  } else {
-    top = t2;
-    new_val = t1;
-  }
-
-  assert_different_registers(obj, hdr, new_val);
-  const bool cmpxchg_clobbers_top = !UseLSE && top == rscratch1;
-
   Label success;
 
+  ldrw(t1, Address(rthread, JavaThread::lock_stack_top_offset()));
+
   if (OMRecursiveLightweight) {
-    ldrw(top, Address(rthread, JavaThread::lock_stack_top_offset()));
     // oopSize * 2 may underflow but is _top and padding, probably does not look like this oop. TODO: ensure this.
-    subw(new_val, top, oopSize * 2);
-    ldr(new_val, Address(rthread, new_val));
-    cmp(obj, new_val);
+    subw(t2, t1, oopSize * 2);
+    ldr(t2, Address(rthread, t2));
+    cmp(obj, t2);
     // next to last obj on lock_stack is also this oop, recursive unlock
     br(Assembler::EQ, success);
   }
 
   // Load the new header (unlocked) into t1
-  orr(new_val, hdr, markWord::unlocked_value);
+  orr(t2, hdr, markWord::unlocked_value);
 
   // Try to swing header from locked to unlocked
   // Clobbers rscratch1 when UseLSE is false
-  cmpxchg(obj, hdr, new_val, Assembler::xword,
+  cmpxchg(obj, hdr, t2, Assembler::xword,
           /*acquire*/ true, /*release*/ true, /*weak*/ false, noreg);
   br(Assembler::NE, slow);
 
-  // After successful unlock, pop object from lock-stack
   bind(success);
-  if (!OMRecursiveLightweight || cmpxchg_clobbers_top) {
-    // Load first time if !OMRecursiveLightweight
-    // Reload if cmpxchg_clobbers_top
-    ldrw(top, Address(rthread, JavaThread::lock_stack_top_offset()));
-  }
-  subw(top, top, oopSize);
+
+  // After successful unlock, pop object from lock-stack
+  subw(t1, t1, oopSize);
 #ifdef ASSERT
-  str(zr, Address(rthread, top));
+  str(zr, Address(rthread, t1));
 #endif
-  strw(top, Address(rthread, JavaThread::lock_stack_top_offset()));
+  strw(t1, Address(rthread, JavaThread::lock_stack_top_offset()));
 }
