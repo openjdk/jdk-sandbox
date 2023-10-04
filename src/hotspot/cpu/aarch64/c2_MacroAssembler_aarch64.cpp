@@ -122,29 +122,29 @@ void C2_MacroAssembler::fast_lock(Register objectReg, Register boxReg, Register 
     Label monitor_load[JavaThread::OM_CACHE_SIZE - 1];
     const int end = C2OMLockCacheSize - 1;
     for (int i = 0; i < end; ++i) {
-      ldr(tmp, Address(rthread, JavaThread::om_nth_cache_oop_offset(i)));
-      cmp(oop, tmp);
+      ldr(disp_hdr, Address(rthread, JavaThread::om_nth_cache_oop_offset(i)));
+      cmp(oop, disp_hdr);
       br(Assembler::EQ, monitor_load[i]);
     }
-    ldr(tmp, Address(rthread, JavaThread::om_nth_cache_oop_offset(end)));
-    cmp(oop, tmp);
+    ldr(disp_hdr, Address(rthread, JavaThread::om_nth_cache_oop_offset(end)));
+    cmp(oop, disp_hdr);
     br(Assembler::NE, no_count);
-    ldr(tmp, Address(rthread, JavaThread::om_nth_cache_monitor_offset(end)));
+    ldr(disp_hdr, Address(rthread, JavaThread::om_nth_cache_monitor_offset(end)));
     for (int i = 0; i < end; ++i) {
       b(monitor_found);
       bind(monitor_load[end - i - 1]);
-      ldr(tmp, Address(rthread, JavaThread::om_nth_cache_monitor_offset(end - i - 1)));
+      ldr(disp_hdr, Address(rthread, JavaThread::om_nth_cache_monitor_offset(end - i - 1)));
     }
     bind(monitor_found);
 
-    // TODO: cleanup +markWord::monitor_value offset
-    add(disp_hdr, tmp, markWord::monitor_value);
+    // disp_hdr contains the ObjectMonitor
+    add(tmp, disp_hdr, in_bytes(ObjectMonitor::owner_offset()));
   } else {
     // The object's monitor m is unlocked iff m->owner == NULL,
     // otherwise m->owner may contain a thread or a stack address.
     //
     // Try to CAS m->owner from NULL to current thread.
-    add(tmp, disp_hdr, (in_bytes(ObjectMonitor::owner_offset())-markWord::monitor_value));
+    add(tmp, disp_hdr, (in_bytes(ObjectMonitor::owner_offset()) - markWord::monitor_value));
   }
   cmpxchg(tmp, zr, rthread, Assembler::xword, /*acquire*/ true,
           /*release*/ true, /*weak*/ false, tmp3Reg); // Sets flags for result
@@ -163,7 +163,11 @@ void C2_MacroAssembler::fast_lock(Register objectReg, Register boxReg, Register 
   br(Assembler::NE, cont); // Check for recursive locking
 
   // Recursive lock case
-  increment(Address(disp_hdr, in_bytes(ObjectMonitor::recursions_offset()) - markWord::monitor_value), 1);
+  if (LockingMode == LM_LIGHTWEIGHT) {
+    increment(Address(disp_hdr, in_bytes(ObjectMonitor::recursions_offset())), 1);
+  } else {
+    increment(Address(disp_hdr, in_bytes(ObjectMonitor::recursions_offset()) - markWord::monitor_value), 1);
+  }
   // flag == EQ still from the cmp above, checking if this is a reentrant lock
 
   bind(cont);
