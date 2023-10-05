@@ -55,6 +55,7 @@ void C2_MacroAssembler::fast_lock(Register objectReg, Register boxReg, Register 
   Label cont;
   Label object_has_monitor;
   Label count, no_count;
+  Label recursive;
 
   assert_different_registers(oop, box, tmp, disp_hdr, tmp3Reg, rscratch1);
 
@@ -117,6 +118,17 @@ void C2_MacroAssembler::fast_lock(Register objectReg, Register boxReg, Register 
 
   // Handle existing monitor.
   bind(object_has_monitor);
+
+  if (LockingMode != LM_LIGHTWEIGHT) {
+    // Store a non-null value into the box to avoid looking like a re-entrant
+    // lock. The fast-path monitor unlock code checks for
+    // markWord::monitor_value so use markWord::unused_mark which has the
+    // relevant bit set, and also matches ObjectSynchronizer::enter.
+    mov(tmp, (address)markWord::unused_mark().value());
+    str(tmp, Address(box, BasicLock::displaced_header_offset_in_bytes()));
+  }
+
+  // Fetch the monitor
   if (LockingMode == LM_LIGHTWEIGHT && C2OMLockCacheSize > 0) {
     Label monitor_found;
     Label monitor_load[JavaThread::OM_CACHE_SIZE - 1];
@@ -137,37 +149,39 @@ void C2_MacroAssembler::fast_lock(Register objectReg, Register boxReg, Register 
     }
     bind(monitor_found);
 
-    // disp_hdr contains the ObjectMonitor
-    add(tmp, disp_hdr, in_bytes(ObjectMonitor::owner_offset()));
   } else {
-    // The object's monitor m is unlocked iff m->owner == NULL,
-    // otherwise m->owner may contain a thread or a stack address.
-    //
-    // Try to CAS m->owner from NULL to current thread.
-    add(tmp, disp_hdr, (in_bytes(ObjectMonitor::owner_offset()) - markWord::monitor_value));
+    // Convert markWord to ObjectMonitor
+    sub(disp_hdr, disp_hdr, markWord::monitor_value);
   }
+
+  // Materialize owner field address.
+  // disp_hdr contains the ObjectMonitor
+  add(tmp, disp_hdr, in_bytes(ObjectMonitor::owner_offset()));
+
+  if (OMRecursiveFastPath) {
+    // Check for recursive locking without the expensive cmpxchg
+    ldr(rscratch1, Address(tmp, 0));
+    cmp(rscratch1, rthread);
+    br(Assembler::EQ, recursive);
+  }
+
+  // The object's monitor m is unlocked iff m->owner == NULL,
+  // otherwise m->owner may contain a thread or a stack address.
+  //
+  // Try to CAS m->owner from NULL to current thread.
   cmpxchg(tmp, zr, rthread, Assembler::xword, /*acquire*/ true,
           /*release*/ true, /*weak*/ false, tmp3Reg); // Sets flags for result
-
-  if (LockingMode != LM_LIGHTWEIGHT) {
-    // Store a non-null value into the box to avoid looking like a re-entrant
-    // lock. The fast-path monitor unlock code checks for
-    // markWord::monitor_value so use markWord::unused_mark which has the
-    // relevant bit set, and also matches ObjectSynchronizer::enter.
-    mov(tmp, (address)markWord::unused_mark().value());
-    str(tmp, Address(box, BasicLock::displaced_header_offset_in_bytes()));
-  }
   br(Assembler::EQ, cont); // CAS success means locking succeeded
 
+  // Check for recursive locking
   cmp(tmp3Reg, rthread);
-  br(Assembler::NE, cont); // Check for recursive locking
+  br(Assembler::NE, cont);
 
   // Recursive lock case
-  if (LockingMode == LM_LIGHTWEIGHT) {
-    increment(Address(disp_hdr, in_bytes(ObjectMonitor::recursions_offset())), 1);
-  } else {
-    increment(Address(disp_hdr, in_bytes(ObjectMonitor::recursions_offset()) - markWord::monitor_value), 1);
-  }
+  bind(recursive);
+
+  increment(Address(disp_hdr, in_bytes(ObjectMonitor::recursions_offset())), 1);
+
   // flag == EQ still from the cmp above, checking if this is a reentrant lock
 
   bind(cont);
