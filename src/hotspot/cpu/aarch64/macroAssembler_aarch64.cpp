@@ -2833,7 +2833,10 @@ void MacroAssembler::cmpxchg(Register addr, Register expected,
                              bool acquire, bool release,
                              bool weak,
                              Register result) {
-  assert(result != rscratch1, "This will clobber the result register");
+  assert(rscratch1 != addr, "Are you sure you want to clobber this register?");
+  assert(rscratch1 != expected, "Are you sure you want to clobber this register?");
+  assert(rscratch1 != new_val, "Are you sure you want to clobber this register?");
+  assert(rscratch1 != result, "This will clobber the result register");
   if (result == noreg) { result = rscratch1; }
   BLOCK_COMMENT("cmpxchg {");
   if (UseLSE) {
@@ -2845,9 +2848,6 @@ void MacroAssembler::cmpxchg(Register addr, Register expected,
     mov(rscratch1, 0x1f1f1f1f1f1f1f1f);
 #endif
   } else {
-    assert(rscratch1 != addr, "Are you sure you want to clobber this register?");
-    assert(rscratch1 != expected, "Are you sure you want to clobber this register?");
-    assert(rscratch1 != new_val, "Are you sure you want to clobber this register?");
     Label retry_load, done;
     prfm(Address(addr), PSTL1STRM);
     bind(retry_load);
