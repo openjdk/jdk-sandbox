@@ -2000,6 +2000,8 @@ const int ObjectAlignmentInBytes = 8;
                                                                             \
   product(bool, OMRecursiveFastPath, true, "")                              \
                                                                             \
+  product(bool, OMRecursiveFastPath2, true, "")                             \
+                                                                            \
   product(bool, OMRetryLock, false, "")                                     \
                                                                             \
   product(int, OMSpins, 20, "")                                             \

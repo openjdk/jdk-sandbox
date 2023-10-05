@@ -6324,7 +6324,7 @@ void MacroAssembler::double_move(VMRegPair src, VMRegPair dst, Register tmp) {
 void MacroAssembler::lightweight_lock(Register obj, Register hdr, Register t1, Register t2, Label& slow) {
   assert(LockingMode == LM_LIGHTWEIGHT, "only used with new lightweight locking");
   assert_different_registers(obj, hdr, t1, t2, rscratch1);
-  Label success, retry;
+  Label success, retry, recursive_check;
 
   // Check if we would have space on lock-stack for the object.
   ldrw(t1, Address(rthread, JavaThread::lock_stack_top_offset()));
@@ -6332,6 +6332,11 @@ void MacroAssembler::lightweight_lock(Register obj, Register hdr, Register t1, R
   br(Assembler::GT, slow);
 
   bind(retry);
+
+  if (OMRecursiveLightweight && OMRecursiveFastPath2) {
+    tst(hdr, markWord::monitor_value | markWord::unlocked_value);
+    br(Assembler::EQ, recursive_check);
+  }
 
   // Load (object->mark() | 1) into hdr
   orr(hdr, hdr, markWord::unlocked_value);
@@ -6358,6 +6363,8 @@ void MacroAssembler::lightweight_lock(Register obj, Register hdr, Register t1, R
     // Check if fast locked
     tst(t2, markWord::monitor_value | markWord::unlocked_value);
     br(Assembler::NE, slow);
+
+    bind(recursive_check);
 
     // Check if the lock is lightweight-lock recursive
     subw(t2, t1, oopSize);
