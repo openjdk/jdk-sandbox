@@ -287,7 +287,7 @@ void ZBarrierSetAssembler::store_barrier_medium(MacroAssembler* masm,
     __ cmpxchg(rtmp2, zr, rtmp1,
                Assembler::xword,
                false /* acquire */, false /* release */, true /* weak */,
-               rtmp3);
+               noreg);
     __ br(Assembler::NE, slow_path);
 
     __ bind(slow_path_continuation);
