@@ -82,6 +82,12 @@ public class CheckSegmentedCodeCache {
         out.shouldHaveExitValue(1);
     }
 
+    private static void verifyCodeHeapSize(ProcessBuilder pb, String heapNameAndSize) throws Exception {
+        OutputAnalyzer out = new OutputAnalyzer(pb.start());
+        out.shouldHaveExitValue(0);
+        out.shouldContain(heapNameAndSize);
+    }
+
     /**
     * Check the result of segmented code cache related VM options.
     */
@@ -160,9 +166,60 @@ public class CheckSegmentedCodeCache {
         // minimum size: CodeCacheMinimumUseSpace DEBUG_ONLY(* 3)
         long minSize = (Platform.isDebugBuild() ? 3 : 1) * minUseSpace;
         pb = ProcessTools.createJavaProcessBuilder("-XX:+SegmentedCodeCache",
+                                                   "-XX:NonNMethodCodeHeapSize=" + minSize,
                                                    "-XX:ReservedCodeCacheSize=" + minSize,
                                                    "-XX:InitialCodeCacheSize=100K",
                                                    "-version");
         failsWith(pb, "Not enough space in non-nmethod code heap to run VM");
+
+        // Try different combination of Segment Sizes
+
+        // Fails if there is not enough space for code cache.
+        // All segments are set to minimum allowed value, but VM still fails
+        pb = ProcessTools.createJavaProcessBuilder("-XX:+SegmentedCodeCache",
+                                                   "-XX:ReservedCodeCacheSize=" + minSize,
+                                                   "-XX:InitialCodeCacheSize=100K",
+                                                   "-version");
+        failsWith(pb, "Invalid code heap sizes");
+
+
+        // Reserved code cache is set but not equal to the sum of other segments
+        // that are explicitly specified - fails
+        pb = ProcessTools.createJavaProcessBuilder("-XX:+SegmentedCodeCache",
+                                                   "-XX:ReservedCodeCacheSize=100M",
+                                                   "-XX:NonNMethodCodeHeapSize=10M",
+                                                   "-XX:ProfiledCodeHeapSize=10M",
+                                                   "-XX:NonProfiledCodeHeapSize=10M",
+                                                   "-version");
+        failsWith(pb, "Invalid code heap sizes");
+
+        // Reserved code cache is not set - it's automatically adjusted to the sum of other segments
+        // that are explicitly specified
+        pb = ProcessTools.createJavaProcessBuilder("-XX:+SegmentedCodeCache",
+                                                   "-XX:NonNMethodCodeHeapSize=10M",
+                                                   "-XX:ProfiledCodeHeapSize=10M",
+                                                   "-XX:NonProfiledCodeHeapSize=10M",
+                                                   "-XX:+PrintFlagsFinal",
+                                                   "-version");
+        verifyCodeHeapSize(pb, "ReservedCodeCacheSize                    = 31457280");
+
+        // Reserved code cache is set, NonNmethod segment size is set, two other segments is automatically
+        // adjusted to half of the remaining space
+        pb = ProcessTools.createJavaProcessBuilder("-XX:+SegmentedCodeCache",
+                                                   "-XX:ReservedCodeCacheSize=100M",
+                                                   "-XX:NonNMethodCodeHeapSize=10M",
+                                                   "-XX:+PrintFlagsFinal",
+                                                   "-version");
+        verifyCodeHeapSize(pb, "uintx ProfiledCodeHeapSize                     = 47185920");
+
+        // Reserved code cache is set but NonNmethodCodeHeapSize is not set.
+        // It's calculated based on the number of compiler threads
+        pb = ProcessTools.createJavaProcessBuilder("-XX:+SegmentedCodeCache",
+                                                   "-XX:ReservedCodeCacheSize=100M",
+                                                   "-XX:ProfiledCodeHeapSize=10M",
+                                                   "-XX:NonProfiledCodeHeapSize=10M",
+                                                   "-XX:+PrintFlagsFinal",
+                                                   "-version");
+        verifyCodeHeapSize(pb, " uintx NonNMethodCodeHeapSize                   = 83886080");
     }
 }
