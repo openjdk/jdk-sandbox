@@ -1,0 +1,165 @@
+= HotCode Agent
+
+== Build
+
+Make sure you have JDK 17 installed and `JAVA_HOME` points to the installation path.
+For building use Gradle 7.x (provided by gradlew) or higher.
+
+[source,shell]
+----
+JAVA_HOME=/usr/lib/jvm/bellsoft-java17-amd64 ./gradlew clean build
+----
+
+== Usage
+
+=== Live Mode
+
+The agent is loaded into by using JVM option `-javaagent`, i.e.
+
+[source,shell]
+----
+  java -javaagent:hotcode-agent-1.0-SNAPSHOT.jar \
+    -XX:+HotCodeHeap -jar application.jar
+----
+
+It automatically starts a JFR recording, collects execution profiling data, generates a list of hot methods, turns it
+into compiler directives and, finally, applies these directives to VM.
+
+The directives are stored in a temporary file in the following format:
+[source,text]
+----
+{
+        match: [
+                "dotty/tools/dotc/core/Types$TypeMap mapOver (Ldotty/tools/dotc/core/Types$Type;)Ldotty/tools/dotc/core/Types$Type;",
+                "dotty/tools/tasty/TastyHash$ pjwHash64 ([B)J",
+        ],
+        c2: {
+                Hot: true,
+        },
+},
+----
+
+The agent can be configured with a few options by appending them to the JAR filename. The options are separated by
+comma.
+
+Supported options are:
+
+* delay -- time between the agent activation and first profiling, default is 30 minutes;
+* period -- time between profiling iterations, default is no repetitions (0h);
+* interval -- sampling interval during profiling, default is 20 milliseconds;
+* duration -- profiling iteration duration, default is 300 seconds;
+* topK -- number of top K methods, default is 1000;
+* maxStackDepth -- maximum number of the stack frames to be processed, default is MaxInlineLevel (15);
+
+For example:
+
+[source,shell]
+----
+  java -javaagent:hotcode-agent-1.0-SNAPSHOT.jar=interval=50ms,delay=1h,topk=100 \
+    -XX:+HotCodeHeap -jar application.jar
+----
+
+instructs the agent to run the profiling once, 1 hour after the JVM start, with a default duration of 300 seconds and a sampling interval of 50 milliseconds, and move 100 hottest methods to the hot code heap.
+
+All unrecognized options are ignored. When an invalid option value occurs then the default value is used.
+
+[NOTE]
+====
+All time intervals should be specified with time units, the supported time units are:
+
+* ms -- milliseconds;
+* s -- seconds;
+* m -- minutes;
+* h -- hours;
+* d -- days;
+
+For example:
+
+[source,text]
+----
+200ms -- 200 milliseconds;
+90s -- 90 seconds;
+2d -- 2 days;
+----
+
+complex durations are possible as well:
+
+----
+5hd16m100ms -- 5 hours 16 minutes and 100 milliseconds;
+1439m60s -- 1 day (= 1440 minutes = 24 hours = 1 day)
+----
+
+No uppercase, no spaces are allowed.
+
+====
+
+=== Offline Mode
+
+The agent can be executed as a standalone application to analyze existing recordings or to connect to JFR events
+repository. In the second scenario it doesn't analyze any previous events, instead, it consumes only new ones and only
+when the stream is closed, it does the analysis and shows the report.
+
+The agent requires only one argument to run -- the path either to the JFR events repository or to the JFR recording.
+
+For instance:
+[source,shell]
+----
+  java -jar hotcode-agent-1.0-SNAPSHOT.jar recording.jfr
+----
+
+The full list of options and arguments can be obtained by running the agent with `-h` option, as follows:
+
+[source,shell]
+----
+    java -jar hotcode-agent-1.0-SNAPSHOT.jar -h
+    USAGE: java -jar hotcode-agent.jar [options] RECORDING [DIRECTIVES_FILE]
+    Options:
+     -h | --help                 shows this help screen and exits
+     -k | --topk NUM             specifies the NUM of top K execution samples, default is 100;
+     -d | --max-stack-depth NUM  specifies the maximum NUM of the stack frames to be processed, default is -1 (unlimited)
+
+    Arguments:
+     RECORDING        a JFR recording file or repository to be processed
+     DIRECTIVES_FILE  a file where the compiler directives will be written, if omitted
+                      then the output will be written into RECORDING.directives file
+----
+
+After the recording stream is closed, it outputs the summary report, i.e.
+
+[source, shell]
+----
+
+------------------------------------------------------------------------------------------------------------------------
+| COUNT   | %         | METHOD                                                                                         |
+------------------------------------------------------------------------------------------------------------------------
+|      42 |      6.74 | denot(Ldotty/tools/dotc/core/Contexts$Context;)Ldotty/tools/dotc/core/Denotations$Denotation;  |
+|      41 |      6.58 | apply(Ljava/lang/Object;)Lscala/runtime/BoxedUnit;                                             |
+|      31 |      4.98 | enterIfNew([CII)Ldotty/tools/dotc/core/Names$SimpleName;                                       |
+|      29 |      4.65 | map(Lscala/Function1;)Lscala/collection/immutable/List;                                        |
+|      26 |      4.17 | mapOver(Ldotty/tools/dotc/core/Types$Type;)Ldotty/tools/dotc/core/Types$Type;                  |
+|      25 |      4.01 | adjustedOffset(I)I
+------------------------------------------------------------------------------------------------------------------------
+
+----
+
+and generates the compiler directives file, based on the analysis.
+
+== Some implementation details
+
+=== Counting strategies
+
+The current implementation uses class `TopKProfile` which is based on `HashMap` and stores the number of occurrences for top nmethod frames.
+
+=== Time Complexity
+
+The only implemented profile counting strategy is `CountAll`, so given `n` events and top `k` elements (n >= k):
+
+* `add` -- O(1)
+* `top` -- O(n), because top `k` elements are built from `n` elements stored in the hashmap
+
+==== Applying the compiler directives
+
+Applying is performed automatically with use of https://docs.oracle.com/en/java/javase/11/docs/api/jdk.management/com/sun/management/DiagnosticCommandMBean.html[DiagnosticCommandMBean].
+
+At the very first step of applying the directive, all directives (if any) are removed and then a new one
+is added.
