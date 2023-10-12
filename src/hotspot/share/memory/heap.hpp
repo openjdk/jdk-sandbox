@@ -202,8 +202,14 @@ class CodeHeap : public CHeapObj<mtCode> {
   size_t unallocated_capacity() const            { return max_capacity() - allocated_capacity(); }
 
   // Returns true if the CodeHeap contains CodeBlobs of the given type
-  bool accepts(CodeBlobType code_blob_type) const{ return (_code_blob_type == CodeBlobType::All) ||
-                                                          (_code_blob_type == code_blob_type); }
+  bool accepts(CodeBlobType code_blob_type) const {
+    if (code_blob_type == CodeBlobType::MethodHot) {
+      //Hot requires explicit match
+      return (_code_blob_type == code_blob_type);
+    }
+    return (_code_blob_type == CodeBlobType::All) || (_code_blob_type == code_blob_type);
+  }
+
   CodeBlobType code_blob_type() const            { return _code_blob_type; }
 
   // Debugging / Profiling

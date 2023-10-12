@@ -4066,6 +4066,14 @@ jint Arguments::apply_ergo() {
       LogConfiguration::configure_stdout(LogLevel::Info, true, LOG_TAGS(valuebasedclasses));
     }
   }
+
+  if (!HotCodeHeap) {
+    if (FLAG_IS_CMDLINE(HotCodeHeapSize)) {
+      warning("HotCodeHeap is not enabled. Ignoring value of HotCodeHeapSize.");
+    }
+    FLAG_SET_DEFAULT(HotCodeHeapSize, 0);
+  }
+
   return JNI_OK;
 }
 
