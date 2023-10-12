@@ -1544,6 +1544,10 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, SegmentedCodeCache, false,                                  \
           "Use a segmented code cache")                                     \
                                                                             \
+  product(uintx, EmulateFragmentation, 1,                                   \
+          "blow up the CodeHeap with code blobs larger than needed for nmethod")   \
+          range(1, 100)                                                     \
+                                                                            \
   product_pd(uintx, ReservedCodeCacheSize,                                  \
           "Reserved code cache size (in bytes) - maximum code cache size")  \
           constraint(VMPageSizeConstraintFunc, AtParse)                     \
