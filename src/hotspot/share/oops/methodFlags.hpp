@@ -59,6 +59,7 @@ class MethodFlags {
    status(has_loops_flag_init         , 1 << 14) /* The loop flag has been initialized */ \
    status(on_stack_flag               , 1 << 15) /* RedefineClasses support to keep Metadata from being cleaned */ \
    status(has_matching_directives     , 1 << 16) /* The method has matching directives */ \
+   status(is_hot                      , 1 << 17) /* The method is hot */ \
    /* end of list */
 
 #define M_STATUS_ENUM_NAME(name, value)    _misc_##name = value,

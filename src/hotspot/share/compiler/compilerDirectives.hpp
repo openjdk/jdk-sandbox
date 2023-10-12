@@ -72,6 +72,7 @@ NOT_PRODUCT(cflags(PrintIdeal,          bool, PrintIdeal, PrintIdeal)) \
 NOT_PRODUCT(cflags(PrintIdealPhase,     ccstrlist, "", PrintIdealPhase)) \
     cflags(TraceSpilling,           bool, TraceSpilling, TraceSpilling) \
     cflags(Vectorize,               bool, false, Vectorize) \
+    cflags(Hot,                     bool, false, Hot) \
     cflags(CloneMapDebug,           bool, false, CloneMapDebug) \
 NOT_PRODUCT(cflags(IGVPrintLevel,       intx, PrintIdealGraphLevel, IGVPrintLevel)) \
     cflags(VectorizeDebug,          uintx, 0, VectorizeDebug) \

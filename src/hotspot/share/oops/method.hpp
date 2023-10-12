@@ -809,6 +809,7 @@ public:
   // because the directives can be updated.
   void clear_method_flags() {
     set_has_matching_directives(false);
+    set_is_hot(false);
     clear_is_not_c1_compilable();
     clear_is_not_c2_compilable();
   }
