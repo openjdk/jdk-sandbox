@@ -217,6 +217,7 @@ void CodeCache::initialize_heaps() {
   CodeCacheSegment non_nmethod = {NonNMethodCodeHeapSize, FLAG_IS_CMDLINE(NonNMethodCodeHeapSize), true};
   CodeCacheSegment profiled = {ProfiledCodeHeapSize, FLAG_IS_CMDLINE(ProfiledCodeHeapSize), true};
   CodeCacheSegment non_profiled = {NonProfiledCodeHeapSize, FLAG_IS_CMDLINE(NonProfiledCodeHeapSize), true};
+  CodeCacheSegment hot = {HotCodeHeapSize, FLAG_IS_CMDLINE(HotCodeHeapSize), HotCodeHeap};
 
   bool cache_size_set       = FLAG_IS_CMDLINE(ReservedCodeCacheSize);
   size_t cache_size         = ReservedCodeCacheSize;
@@ -246,6 +247,11 @@ void CodeCache::initialize_heaps() {
     non_profiled.enabled = false;
   }
 
+  if (!hot.enabled) {
+    hot.size = 0;
+    hot.set = true;
+  }
+
 // Code below account enabled/disabled compilators
 // inside CompilationPolicy::initialize()
 #ifdef COMPILER1
@@ -265,26 +271,27 @@ void CodeCache::initialize_heaps() {
   }
 
   if (!profiled.set && !non_profiled.set) {
-    profiled.size = (non_nmethod.size < cache_size && (cache_size - non_nmethod.size)/2 > min_size) ? (cache_size - non_nmethod.size)/2 : min_size;
+    size_t cold_cache_size = cache_size - hot.size;
+    profiled.size = (non_nmethod.size < cold_cache_size && (cold_cache_size - non_nmethod.size)/2 > min_size) ? (cold_cache_size - non_nmethod.size)/2 : min_size;
     non_profiled.size = profiled.size;
   }
 
   if (profiled.set && !non_profiled.set) {
-    non_profiled.size = safe_size(non_nmethod.size + profiled.size, cache_size, min_size);
+    non_profiled.size = safe_size(non_nmethod.size + profiled.size + hot.size, cache_size, min_size);
   }
 
   if (!profiled.set && non_profiled.set) {
-    profiled.size = safe_size(non_nmethod.size + non_profiled.size, cache_size, min_size);
+    profiled.size = safe_size(non_nmethod.size + non_profiled.size + hot.size, cache_size, min_size);
   }
 
   // Compatibility.
   // Override Non-NMethod default size if two other segments are set explicitly
   size_t nm_min_size = min_cache_size + compiler_buffer_size;
   if (!non_nmethod.set && profiled.set && non_profiled.set) {
-    non_nmethod.size = safe_size(profiled.size + non_profiled.size, cache_size, nm_min_size);
+    non_nmethod.size = safe_size(profiled.size + non_profiled.size + hot.size, cache_size, nm_min_size);
   }
 
-  size_t total = non_nmethod.size + profiled.size + non_profiled.size;
+  size_t total = non_nmethod.size + hot.size + profiled.size + non_profiled.size;
   if (!cache_size_set && (total > cache_size || total != cache_size)) {
     log_info(codecache)("ReservedCodeCache size %lld changed to total segments size NonNMethod %lld NonProfiled %lld Profiled %lld = %lld",
                         (long long) cache_size, (long long) non_nmethod.size,
@@ -352,6 +359,7 @@ void CodeCache::initialize_heaps() {
   FLAG_SET_ERGO(ProfiledCodeHeapSize, profiled.size);
   FLAG_SET_ERGO(NonProfiledCodeHeapSize, non_profiled.size);
   FLAG_SET_ERGO(ReservedCodeCacheSize, cache_size);
+  // Hot code heap is never changed
 
   ReservedCodeSpace rs = reserve_heap_memory(cache_size, ps);
 
@@ -370,6 +378,13 @@ void CodeCache::initialize_heaps() {
   offset += non_nmethod.size;
   // Non-nmethods (stubs, adapters, ...)
   add_heap(non_method_space, "CodeHeap 'non-nmethods'", CodeBlobType::NonNMethod);
+
+  if (hot.enabled) {
+    ReservedSpace hot_space  = rs.partition(offset, hot.size);
+    offset += hot.size;
+    // Hot methods
+    add_heap(hot_space, "CodeHeap 'hot nmethods'", CodeBlobType::MethodHot);
+  }
 
   if (non_profiled.enabled) {
     ReservedSpace non_profiled_space  = rs.partition(offset, non_profiled.size);

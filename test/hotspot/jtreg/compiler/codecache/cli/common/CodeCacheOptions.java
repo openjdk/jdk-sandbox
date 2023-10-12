@@ -32,11 +32,12 @@ import java.util.List;
 
 public class CodeCacheOptions {
     public static final String SEGMENTED_CODE_CACHE = "SegmentedCodeCache";
+    public static final String HOT_CODE_HEAP = "HotCodeHeap";
 
     private static final EnumSet<BlobType> NON_SEGMENTED_HEAPS
             = EnumSet.of(BlobType.All);
     private static final EnumSet<BlobType> ALL_SEGMENTED_HEAPS
-            = EnumSet.complementOf(NON_SEGMENTED_HEAPS);
+            = EnumSet.of(BlobType.MethodNonProfiled, BlobType.MethodProfiled, BlobType.NonNMethod);
     private static final EnumSet<BlobType> SEGMENTED_HEAPS_WO_PROFILED
             = EnumSet.of(BlobType.NonNMethod, BlobType.MethodNonProfiled);
     private static final EnumSet<BlobType> ONLY_NON_METHODS_HEAP
@@ -44,6 +45,7 @@ public class CodeCacheOptions {
 
     public final long reserved;
     public final long nonNmethods;
+    public final long hot;
     public final long nonProfiled;
     public final long profiled;
     public final boolean segmented;
@@ -59,6 +61,7 @@ public class CodeCacheOptions {
     public CodeCacheOptions(long reserved) {
         this.reserved = reserved;
         this.nonNmethods = 0;
+        this.hot = 0;
         this.nonProfiled = 0;
         this.profiled = 0;
         this.segmented = false;
@@ -66,8 +69,14 @@ public class CodeCacheOptions {
 
     public CodeCacheOptions(long reserved, long nonNmethods, long nonProfiled,
             long profiled) {
+        this(reserved, nonNmethods, 0, nonProfiled, profiled);
+    }
+
+    public CodeCacheOptions(long reserved, long nonNmethods, long hot,
+            long nonProfiled, long profiled) {
         this.reserved = reserved;
         this.nonNmethods = nonNmethods;
+        this.hot = hot;
         this.nonProfiled = nonProfiled;
         this.profiled = profiled;
         this.segmented = true;
@@ -79,6 +88,8 @@ public class CodeCacheOptions {
                 return this.reserved;
             case NonNMethod:
                 return this.nonNmethods;
+            case MethodHot:
+                return this.hot;
             case MethodNonProfiled:
                 return this.nonProfiled;
             case MethodProfiled:
@@ -107,6 +118,13 @@ public class CodeCacheOptions {
                     CommandLineOptionTest.prepareNumericFlag(
                             BlobType.MethodProfiled.sizeOptionName, profiled));
         }
+        if (hot > 0) {
+            Collections.addAll(options,
+                    CommandLineOptionTest.prepareBooleanFlag(
+                            HOT_CODE_HEAP, true),
+                    CommandLineOptionTest.prepareNumericFlag(
+                            BlobType.MethodHot.sizeOptionName, hot));
+        }
         return options.toArray(new String[options.size()]);
     }
 
@@ -117,11 +135,12 @@ public class CodeCacheOptions {
             return this;
         } else if (involvedCodeHeaps.equals(SEGMENTED_HEAPS_WO_PROFILED)) {
             return new CodeCacheOptions(reserved, nonNmethods,
-                    profiled + nonProfiled, 0L);
+                    hot, profiled + nonProfiled, 0L);
         } else if (involvedCodeHeaps.equals(ONLY_NON_METHODS_HEAP)) {
             return new CodeCacheOptions(reserved, nonNmethods + profiled
-                    + nonProfiled, 0L, 0L);
+                    + nonProfiled + hot, 0L, 0L);
         } else {
+            System.out.println(involvedCodeHeaps);
             throw new Error("Test bug: unexpected set of code heaps involved "
                     + "into test.");
         }

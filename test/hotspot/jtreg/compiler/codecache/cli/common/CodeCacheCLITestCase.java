@@ -110,7 +110,8 @@ public class CodeCacheCLITestCase {
          * contain information about all three code heaps.
          */
         TIERED_LEVEL_4(SEGMENTED_SERVER,
-                EnumSet.complementOf(EnumSet.of(BlobType.All)),
+                EnumSet.of(BlobType.MethodNonProfiled, BlobType.MethodProfiled,
+                        BlobType.NonNMethod),
                 CommandLineOptionTest.prepareBooleanFlag(TIERED_COMPILATION,
                         true),
                 CommandLineOptionTest.prepareNumericFlag(TIERED_STOP_AT, 4));

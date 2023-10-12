@@ -1560,6 +1560,13 @@ const int ObjectAlignmentInBytes = 8;
           "Size of code heap with non-nmethods (in bytes)")                 \
           constraint(VMPageSizeConstraintFunc, AtParse)                     \
                                                                             \
+  product(bool, HotCodeHeap, false,                                         \
+          "Use a separate code cahe segmented for hot methods")             \
+                                                                            \
+  product(uintx, HotCodeHeapSize,  8*M,                                     \
+          "Size of code heap with hot methods (in bytes)")                  \
+          range(0, max_uintx)                                               \
+                                                                            \
   product_pd(uintx, CodeCacheExpansionSize,                                 \
           "Code cache expansion size (in bytes)")                           \
           range(32*K, max_uintx)                                            \
