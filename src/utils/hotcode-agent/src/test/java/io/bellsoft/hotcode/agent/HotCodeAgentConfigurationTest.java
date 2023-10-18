@@ -13,16 +13,16 @@ class HotCodeAgentConfigurationTest {
     void topK() {
         int expected = 42;
         var props = new Properties();
-        props.put("topK", String.valueOf(expected));
+        props.put("top", String.valueOf(expected));
         var c = HotCodeAgentConfiguration.from(props);
-        assertEquals(expected, c.topK);
+        assertEquals(expected, c.top);
     }
 
     @Test
     void maxStackDepth() {
         int expected = 42;
         var props = new Properties();
-        props.put("maxStackDepth", String.valueOf(expected));
+        props.put("max-stack-depth", String.valueOf(expected));
         var c = HotCodeAgentConfiguration.from(props);
         assertEquals(expected, c.maxStackDepth);
     }

@@ -10,8 +10,8 @@ public class JfrOfflineProfiling extends AbstractJfrProfiling {
 
     private final Path recordingPath;
 
-    public JfrOfflineProfiling(int topKSamplesCount, int maxStackDepth, Path recordingPath) {
-        super(topKSamplesCount, maxStackDepth);
+    public JfrOfflineProfiling(int topK, int maxStackDepth, Path recordingPath) {
+        super(topK, maxStackDepth);
         this.recordingPath = recordingPath;
     }
 

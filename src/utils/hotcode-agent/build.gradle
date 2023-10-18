@@ -20,8 +20,9 @@ dependencies {
 jar {
     manifest {
         attributes (
-                'Main-Class': 'io.bellsoft.hotcode.profiling.jfr.JfrOfflineMain',
+                'Main-Class': 'io.bellsoft.hotcode.agent.HotCodeMain',
                 'Premain-Class': 'io.bellsoft.hotcode.agent.HotCodeAgent',
+                'Agent-Class': 'io.bellsoft.hotcode.agent.HotCodeAgent',
                 'Implementation-Version': rootProject.version
         )
     }

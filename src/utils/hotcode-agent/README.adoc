@@ -48,8 +48,8 @@ Supported options are:
 * period -- time between profiling iterations, default is no repetitions (0h);
 * interval -- sampling interval during profiling, default is 20 milliseconds;
 * duration -- profiling iteration duration, default is 300 seconds;
-* topK -- number of top K methods, default is 1000;
-* maxStackDepth -- maximum number of the stack frames to be processed, default is MaxInlineLevel (15);
+* top -- number of top hot nmethods, default is 1000;
+* max-stack-depth -- maximum number of the stack frames to be processed, default is MaxInlineLevel (15);
 
 For example:
 
@@ -95,50 +95,39 @@ No uppercase, no spaces are allowed.
 
 === Offline Mode
 
-The agent can be executed as a standalone application to analyze existing recordings or to connect to JFR events
-repository. In the second scenario it doesn't analyze any previous events, instead, it consumes only new ones and only
-when the stream is closed, it does the analysis and shows the report.
+The agent can be executed as a standalone application. Supported commands:
 
-The agent requires only one argument to run -- the path either to the JFR events repository or to the JFR recording.
+* `convert` -- analyze existing recordings or connect to JFR events repository. In the second scenario it doesn't analyze any previous events, instead, it consumes only new ones and only when the stream is closed, it does the analysis and shows the report.
+* `attach` -- dynamically inject itself into the running JVM.
 
 For instance:
 [source,shell]
 ----
-  java -jar hotcode-agent-1.0-SNAPSHOT.jar recording.jfr
+  java -jar hotcode-agent-1.0-SNAPSHOT.jar convert recording.jfr
+  java -jar hotcode-agent-1.0-SNAPSHOT.jar attach 1234 --duration 10s --period 1h
 ----
 
-The full list of options and arguments can be obtained by running the agent with `-h` option, as follows:
+The full list of options and arguments can be obtained by running the agent with `-h` option:
 
 [source,shell]
 ----
     java -jar hotcode-agent-1.0-SNAPSHOT.jar -h
-    USAGE: java -jar hotcode-agent.jar [options] RECORDING [DIRECTIVES_FILE]
-    Options:
-     -h | --help                 shows this help screen and exits
-     -k | --topk NUM             specifies the NUM of top K execution samples, default is 100;
-     -d | --max-stack-depth NUM  specifies the maximum NUM of the stack frames to be processed, default is -1 (unlimited)
-
-    Arguments:
-     RECORDING        a JFR recording file or repository to be processed
-     DIRECTIVES_FILE  a file where the compiler directives will be written, if omitted
-                      then the output will be written into RECORDING.directives file
 ----
 
-After the recording stream is closed, it outputs the summary report, i.e.
+After the recording stream is closed, `convert` outputs the summary report, i.e.
 
 [source, shell]
 ----
 
-------------------------------------------------------------------------------------------------------------------------
-| COUNT   | %         | METHOD                                                                                         |
-------------------------------------------------------------------------------------------------------------------------
-|      42 |      6.74 | denot(Ldotty/tools/dotc/core/Contexts$Context;)Ldotty/tools/dotc/core/Denotations$Denotation;  |
-|      41 |      6.58 | apply(Ljava/lang/Object;)Lscala/runtime/BoxedUnit;                                             |
-|      31 |      4.98 | enterIfNew([CII)Ldotty/tools/dotc/core/Names$SimpleName;                                       |
-|      29 |      4.65 | map(Lscala/Function1;)Lscala/collection/immutable/List;                                        |
-|      26 |      4.17 | mapOver(Ldotty/tools/dotc/core/Types$Type;)Ldotty/tools/dotc/core/Types$Type;                  |
-|      25 |      4.01 | adjustedOffset(I)I
-------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
+| COUNT   | %         | METHOD                                                                                       |
+----------------------------------------------------------------------------------------------------------------------
+|     42  |      6.74 | denot(Ldotty/tools/dotc/core/Contexts$Context;)Ldotty/tools/dotc/core/Denotations$Denotation;|
+|     41  |      6.58 | apply(Ljava/lang/Object;)Lscala/runtime/BoxedUnit;                                           |
+|     31  |      4.98 | enterIfNew([CII)Ldotty/tools/dotc/core/Names$SimpleName;                                     |
+|     29  |      4.65 | map(Lscala/Function1;)Lscala/collection/immutable/List;                                      |
+|     26  |      4.17 | mapOver(Ldotty/tools/dotc/core/Types$Type;)Ldotty/tools/dotc/core/Types$Type;                |
+|     25  |      4.01 | adjustedOffset(I)I                                                                           | ----------------------------------------------------------------------------------------------------------------------
 
 ----
 

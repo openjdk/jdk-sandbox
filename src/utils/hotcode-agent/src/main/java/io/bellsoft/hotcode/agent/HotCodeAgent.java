@@ -5,7 +5,7 @@ import io.bellsoft.hotcode.dcmd.CompilerDirectivesControl;
 import io.bellsoft.hotcode.profiling.ProfilingTask;
 import io.bellsoft.hotcode.profiling.jfr.JfrLiveProfiling;
 
-import java.lang.instrument.Instrumentation;
+import java.util.Properties;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
@@ -21,17 +21,19 @@ public class HotCodeAgent {
     private ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor(new DaemonThreadFactory());
     private final CompilerDirectivesControl directivesControl = new CompilerDirectivesControl();
 
-    public static void premain(String argumentString, Instrumentation instrumentation) {
+    public static void premain(String argumentString) {
         new HotCodeAgent().run(argumentString);
     }
 
-    public static void agentmain(String argumentString, Instrumentation instrumentation) {
+    public static void agentmain(String argumentString) {
         new HotCodeAgent().run(argumentString);
     }
 
     public void run(String argumentString) {
-        configuration = HotCodeAgentConfiguration.from(argumentString);
-        var task = new ProfileAndOptimize(new JfrLiveProfiling(configuration.topK, configuration.maxStackDepth,
+        var settings = new Properties();
+        parseArgs(argumentString, settings);
+        configuration = HotCodeAgentConfiguration.from(settings);
+        var task = new ProfileAndOptimize(new JfrLiveProfiling(configuration.top, configuration.maxStackDepth,
                 configuration.samplingInterval, configuration.profilingDuration));
         if (configuration.profilingPeriod.isZero()) {
             service.schedule(
@@ -44,6 +46,22 @@ public class HotCodeAgent {
                     configuration.profilingDelay.toMillis(),
                     configuration.profilingPeriod.toMillis(),
                     TimeUnit.MILLISECONDS);
+        }
+    }
+
+    private static void parseArgs(String argumentString, Properties properties) {
+        if (argumentString != null) {
+            var arguments = argumentString.split(",");
+            for (var argument : arguments) {
+                int idx = argument.indexOf('=');
+                if (idx >= 0) {
+                    var key = argument.substring(0, idx);
+                    var value = argument.substring(idx + 1);
+                    properties.put(key, value);
+                } else {
+                    properties.put(argument, "");
+                }
+            }
         }
     }
 

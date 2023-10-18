@@ -11,19 +11,19 @@ import java.io.IOException;
 public abstract class AbstractJfrProfiling implements ProfilingTask {
 
     protected static final String EXECUTION_SAMPLE_EVENT_NAME = "jdk.ExecutionSample";
-    private final int topKSamplesCount;
+    private final int topK;
     private final int maxStackDepth;
 
     abstract protected EventStream openEventStream() throws IOException;
 
-    public AbstractJfrProfiling(int topKSamplesCount, int maxStackDepth) {
-        this.topKSamplesCount = topKSamplesCount;
+    public AbstractJfrProfiling(int topK, int maxStackDepth) {
+        this.topK = topK;
         this.maxStackDepth = maxStackDepth;
     }
 
     @Override
     public Profile<Method> call() {
-        var counter = new ExecutionSampleCounter(new TopKProfile<>(topKSamplesCount), maxStackDepth);
+        var counter = new ExecutionSampleCounter(new TopKProfile<>(topK), maxStackDepth);
 
         try (var rs = openEventStream()) {
             rs.onEvent(EXECUTION_SAMPLE_EVENT_NAME, counter);

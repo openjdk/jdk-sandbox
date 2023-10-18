@@ -14,7 +14,7 @@ public class HotCodeAgentConfiguration {
     Duration profilingPeriod = (Duration) Option.PROFILING_PERIOD.defaultValue;
     Duration samplingInterval = (Duration) Option.SAMPLING_INTERVAL.defaultValue;
     Duration profilingDuration = (Duration) Option.PROFILING_DURATION.defaultValue;
-    int topK = (int) Option.TOP_K.defaultValue;
+    int top = (int) Option.TOP.defaultValue;
     int maxStackDepth = (int) Option.MAX_STACK_DEPTH.defaultValue;
 
     public enum Option {
@@ -54,16 +54,16 @@ public class HotCodeAgentConfiguration {
                 }
             }
         }),
-        TOP_K("topK", 1000, new BiConsumer<HotCodeAgentConfiguration, String>() {
+        TOP("top", 1000, new BiConsumer<HotCodeAgentConfiguration, String>() {
             @Override
             public void accept(HotCodeAgentConfiguration config, String value) {
                 try {
-                    config.topK = Integer.parseInt(value);
+                    config.top = Integer.parseInt(value);
                 } catch (NumberFormatException e) {
                 }
             }
         }),
-        MAX_STACK_DEPTH("maxStackDepth", 15, new BiConsumer<HotCodeAgentConfiguration, String>() {
+        MAX_STACK_DEPTH("max-stack-depth", 15, new BiConsumer<HotCodeAgentConfiguration, String>() {
             @Override
             public void accept(HotCodeAgentConfiguration config, String value) {
                 try {
@@ -107,21 +107,4 @@ public class HotCodeAgentConfiguration {
         return config;
     }
 
-    public static HotCodeAgentConfiguration from(String argumentString) {
-        var properties = new Properties();
-        if (argumentString != null) {
-            var arguments = argumentString.split(",");
-            for (var argument : arguments) {
-                int idx = argument.indexOf('=');
-                if (idx >= 0) {
-                    var key = argument.substring(0, idx);
-                    var value = argument.substring(idx + 1);
-                    properties.put(key, value);
-                } else {
-                    properties.put(argument, "");
-                }
-            }
-        }
-        return HotCodeAgentConfiguration.from(properties);
-    }
 }
