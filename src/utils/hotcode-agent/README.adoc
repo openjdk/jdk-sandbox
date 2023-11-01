@@ -2,12 +2,11 @@
 
 == Build
 
-Make sure you have JDK 17 installed and `JAVA_HOME` points to the installation path.
-For building use Gradle 7.x (provided by gradlew) or higher.
+Make sure you have JDK 17 installed and `JAVA_HOME` points to the installation path. Use Maven.
 
 [source,shell]
 ----
-JAVA_HOME=/usr/lib/jvm/bellsoft-java17-amd64 ./gradlew clean build
+  JAVA_HOME=/usr/lib/jvm/bellsoft-java17-amd64 mvn clean install
 ----
 
 == Usage
@@ -49,7 +48,7 @@ Supported options are:
 * interval -- sampling interval during profiling, default is 20 milliseconds;
 * duration -- profiling iteration duration, default is 300 seconds;
 * top -- number of top hot nmethods, default is 1000;
-* max-stack-depth -- maximum number of the stack frames to be processed, default is MaxInlineLevel (15);
+* max-stack-depth -- maximum number of the stack frames to be processed, default is MaxInlineLevel+1 (16);
 
 For example:
 
@@ -77,16 +76,16 @@ For example:
 
 [source,text]
 ----
-200ms -- 200 milliseconds;
-90s -- 90 seconds;
-2d -- 2 days;
+  200ms -- 200 milliseconds;
+  90s -- 90 seconds;
+  2d -- 2 days;
 ----
 
 complex durations are possible as well:
 
 ----
-5hd16m100ms -- 5 hours 16 minutes and 100 milliseconds;
-1439m60s -- 1 day (= 1440 minutes = 24 hours = 1 day)
+  5hd16m100ms -- 5 hours 16 minutes and 100 milliseconds;
+  1439m60s -- 1 day (= 1440 minutes = 24 hours = 1 day)
 ----
 
 No uppercase, no spaces are allowed.
@@ -127,28 +126,31 @@ After the recording stream is closed, `convert` outputs the summary report, i.e.
 |     31  |      4.98 | enterIfNew([CII)Ldotty/tools/dotc/core/Names$SimpleName;                                     |
 |     29  |      4.65 | map(Lscala/Function1;)Lscala/collection/immutable/List;                                      |
 |     26  |      4.17 | mapOver(Ldotty/tools/dotc/core/Types$Type;)Ldotty/tools/dotc/core/Types$Type;                |
-|     25  |      4.01 | adjustedOffset(I)I                                                                           | ----------------------------------------------------------------------------------------------------------------------
+|     25  |      4.01 | adjustedOffset(I)I                                                                           |
+----------------------------------------------------------------------------------------------------------------------
+
+
 
 ----
 
 and generates the compiler directives file, based on the analysis.
 
-== Some implementation details
+== Useful target JVM options
 
-=== Counting strategies
+For diagnostics consider printing more info about code cache.
 
-The current implementation uses class `TopKProfile` which is based on `HashMap` and stores the number of occurrences for top nmethod frames.
+----
+  -XX:+PrintCodeCache -Xlog:codecache
+----
 
-=== Time Complexity
+For some benchmarks it is useful to fix code cache and disable flushing.
 
-The only implemented profile counting strategy is `CountAll`, so given `n` events and top `k` elements (n >= k):
+----
+  -XX:ReservedCodeCacheSize=2G -XX:InitialCodeCacheSize=2G -XX:+HotCodeHeap -XX:HotCodeHeapSize=32M -XX:-UseCodeCacheFlushing
+----
 
-* `add` -- O(1)
-* `top` -- O(n), because top `k` elements are built from `n` elements stored in the hashmap
+It makes sense to ensure that dynamic agent loading in on.
 
-==== Applying the compiler directives
-
-Applying is performed automatically with use of https://docs.oracle.com/en/java/javase/11/docs/api/jdk.management/com/sun/management/DiagnosticCommandMBean.html[DiagnosticCommandMBean].
-
-At the very first step of applying the directive, all directives (if any) are removed and then a new one
-is added.
+----
+  -XX:+EnableDynamicAgentLoading
+----

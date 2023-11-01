@@ -1,6 +1,7 @@
 package io.bellsoft.hotcode.dcmd;
 
 import javax.management.MBeanServer;
+import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -10,30 +11,39 @@ import java.util.Arrays;
 
 public class CompilerDirectivesControl {
 
-    private final MBeanServer beanServer = ManagementFactory.getPlatformMBeanServer();
+    private static final MBeanServer beanServer = ManagementFactory.getPlatformMBeanServer();
+    private static final ObjectName dcmdName;
+    static {
+        try {
+            dcmdName = new ObjectName("com.sun.management:type=DiagnosticCommand");
+        } catch (MalformedObjectNameException e) {
+            throw new RuntimeException(e);
+        }
+    }
+    private static final String[] replaceSignature = { String[].class.getName() };
 
-    public void replace(String directives) {
+    public static void replace(String directives) {
         try {
             var directivesPath = Files.createTempFile("compiler-directives", "");
-            Files.writeString(directivesPath, directives);
-            replace(directivesPath);
-            directivesPath.toFile().delete();
+            try {
+                Files.writeString(directivesPath, directives);
+                replace(directivesPath);   
+            } finally {
+                directivesPath.toFile().delete();
+            }
         } catch (IOException e) {
-            throw new RuntimeException("failed to apply compiler directives due to %s", e);
+            throw new RuntimeException(e);
         }
     }
 
-    private String replace(Path directives) {
-        var cmd = "compilerDirectivesReplace";
-        String[] signature = { String[].class.getName() };
+    private static String replace(Path directives) {
         Object[] dcmdArgs = { new String[] { "-r", directives.toAbsolutePath().toString() } };
-        return invoke(cmd, signature, dcmdArgs);
+        return invoke("compilerDirectivesReplace", replaceSignature, dcmdArgs);
     }
 
-    private String invoke(String cmd, String[] signature, Object[] dcmdArgs) {
+    private static String invoke(String cmd, String[] signature, Object[] dcmdArgs) {
         try {
-            var name = new ObjectName("com.sun.management:type=DiagnosticCommand");
-            return (String) beanServer.invoke(name, cmd, dcmdArgs, signature);
+            return (String) beanServer.invoke(dcmdName, cmd, dcmdArgs, signature);
         } catch (Exception e) {
             throw new RuntimeException(String.format("failed to execute dcmd command: '%s' with args: '%s'", cmd,
                     Arrays.toString(dcmdArgs)), e);

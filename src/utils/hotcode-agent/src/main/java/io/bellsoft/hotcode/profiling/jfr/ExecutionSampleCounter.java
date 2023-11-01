@@ -14,10 +14,6 @@ public class ExecutionSampleCounter implements Consumer<RecordedEvent> {
     private final Profile<Method> profile;
     private final int maxStackDepth;
 
-    public ExecutionSampleCounter(Profile<Method> topKStrategy) {
-        this(topKStrategy, -1);
-    }
-
     public ExecutionSampleCounter(Profile<Method> profile, int maxStackDepth) {
         this.profile = profile;
         this.maxStackDepth = maxStackDepth;
@@ -52,10 +48,6 @@ public class ExecutionSampleCounter implements Consumer<RecordedEvent> {
             depth++;
         }
         return null;
-    }
-
-    public Profile<Method> getProfile() {
-        return profile;
     }
 
     private static Method createMethodFrom(RecordedMethod method) {

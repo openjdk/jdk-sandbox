@@ -1,29 +1,25 @@
 package io.bellsoft.hotcode.profiling.jfr;
 
-import io.bellsoft.hotcode.profiling.TopKProfile;
 import io.bellsoft.hotcode.profiling.Method;
-import io.bellsoft.hotcode.profiling.ProfilingTask;
+import io.bellsoft.hotcode.profiling.Profiling;
 import io.bellsoft.hotcode.profiling.Profile;
 import jdk.jfr.consumer.EventStream;
 
 import java.io.IOException;
 
-public abstract class AbstractJfrProfiling implements ProfilingTask {
+public abstract class AbstractJfrProfiling implements Profiling {
 
     protected static final String EXECUTION_SAMPLE_EVENT_NAME = "jdk.ExecutionSample";
-    private final int topK;
     private final int maxStackDepth;
 
     abstract protected EventStream openEventStream() throws IOException;
 
-    public AbstractJfrProfiling(int topK, int maxStackDepth) {
-        this.topK = topK;
+    public AbstractJfrProfiling(int maxStackDepth) {
         this.maxStackDepth = maxStackDepth;
     }
 
-    @Override
-    public Profile<Method> call() {
-        var counter = new ExecutionSampleCounter(new TopKProfile<>(topK), maxStackDepth);
+    public void fill(Profile<Method> profile) {
+        var counter = new ExecutionSampleCounter(profile, maxStackDepth);
 
         try (var rs = openEventStream()) {
             rs.onEvent(EXECUTION_SAMPLE_EVENT_NAME, counter);
@@ -31,8 +27,6 @@ public abstract class AbstractJfrProfiling implements ProfilingTask {
         } catch (IOException e) {
             throw new RuntimeException("cannot open recording stream", e);
         }
-
-        return counter.getProfile();
     }
 
 }

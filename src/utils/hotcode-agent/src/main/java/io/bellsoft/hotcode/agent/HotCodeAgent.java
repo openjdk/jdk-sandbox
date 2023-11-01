@@ -2,9 +2,13 @@ package io.bellsoft.hotcode.agent;
 
 import io.bellsoft.hotcode.dcmd.CompilerDirectives;
 import io.bellsoft.hotcode.dcmd.CompilerDirectivesControl;
-import io.bellsoft.hotcode.profiling.ProfilingTask;
+import io.bellsoft.hotcode.profiling.Method;
+import io.bellsoft.hotcode.profiling.Profile;
+import io.bellsoft.hotcode.profiling.Profiling;
+import io.bellsoft.hotcode.profiling.TopKProfile;
 import io.bellsoft.hotcode.profiling.jfr.JfrLiveProfiling;
 
+import java.lang.management.ManagementFactory;
 import java.util.Properties;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -13,38 +17,52 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.sun.management.HotSpotDiagnosticMXBean;
+
 public class HotCodeAgent {
 
     private final static Logger LOGGER = Logger.getLogger(HotCodeAgent.class.getName());
 
-    private HotCodeAgentConfiguration configuration;
-    private ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor(new DaemonThreadFactory());
-    private final CompilerDirectivesControl directivesControl = new CompilerDirectivesControl();
+    private final HotCodeAgentConfiguration config;
+    private final ScheduledExecutorService service;
+    private final Profile<Method> profile;
+    private final Profiling profiling;
+    
+    private HotCodeAgent(String argumentString) {
+        var settings = new Properties();
+        parseArgs(argumentString, settings);
+        config = HotCodeAgentConfiguration.from(settings);
+        service = Executors.newSingleThreadScheduledExecutor(new DaemonThreadFactory());
+        profile = new TopKProfile<>();
+        profiling = new JfrLiveProfiling(config.maxStackDepth, config.samplingInterval, config.profilingDuration);
+    }
 
     public static void premain(String argumentString) {
-        new HotCodeAgent().run(argumentString);
+        new HotCodeAgent(argumentString).run();
     }
 
     public static void agentmain(String argumentString) {
-        new HotCodeAgent().run(argumentString);
+        new HotCodeAgent(argumentString).run();
     }
 
-    public void run(String argumentString) {
-        var settings = new Properties();
-        parseArgs(argumentString, settings);
-        configuration = HotCodeAgentConfiguration.from(settings);
-        var task = new ProfileAndOptimize(new JfrLiveProfiling(configuration.top, configuration.maxStackDepth,
-                configuration.samplingInterval, configuration.profilingDuration));
-        if (configuration.profilingPeriod.isZero()) {
+    public void run() {
+        var diagnosticBean = ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class);
+        var hotCodeOption = diagnosticBean.getVMOption("HotCodeHeap");
+        if (!Boolean.parseBoolean(hotCodeOption.getValue())) {
+            LOGGER.log(Level.SEVERE, "Run the JVM with -XX:+HotCodeHeap");
+            return;
+        }
+
+        if (config.profilingPeriod.isZero()) {
             service.schedule(
-                    task,
-                    configuration.profilingDelay.toMillis(),
+                    new ProfileAndOptimize(),
+                    config.profilingDelay.toMillis(),
                     TimeUnit.MILLISECONDS);
         } else {
             service.scheduleAtFixedRate(
-                    task,
-                    configuration.profilingDelay.toMillis(),
-                    configuration.profilingPeriod.toMillis(),
+                    new ProfileAndOptimize(),
+                    config.profilingDelay.toMillis(),
+                    config.profilingPeriod.toMillis(),
                     TimeUnit.MILLISECONDS);
         }
     }
@@ -66,18 +84,14 @@ public class HotCodeAgent {
     }
 
     private class ProfileAndOptimize implements Runnable {
-        private ProfilingTask profilingTask;
-
-        public ProfileAndOptimize(ProfilingTask profilingTask) {
-            this.profilingTask = profilingTask;
-        }
-
         @Override
         public void run() {
             try {
-                var hotMethods = profilingTask.call().getTop();
+                profiling.fill(profile);
+                var hotMethods = profile.getTop(config.top);
                 var directives = CompilerDirectives.build(hotMethods);
-                directivesControl.replace(directives);
+                CompilerDirectivesControl.replace(directives);
+                profile.clear();
             } catch (Throwable e) {
                 LOGGER.log(Level.SEVERE,
                         "an error occurred during the profiling task execution, further profiling is cancelled", e);
@@ -86,7 +100,7 @@ public class HotCodeAgent {
         }
     }
 
-    private static final class DaemonThreadFactory implements ThreadFactory {
+    private static class DaemonThreadFactory implements ThreadFactory {
         public Thread newThread(Runnable r) {
             var t = new Thread(r);
             t.setDaemon(true);

@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class HotCodeAgentConfigurationTest {
 
     @Test
-    void topK() {
+    void top() {
         int expected = 42;
         var props = new Properties();
         props.put("top", String.valueOf(expected));
@@ -63,4 +63,13 @@ class HotCodeAgentConfigurationTest {
         assertEquals(expected, c.profilingPeriod);
     }
 
+    @Test
+    void durationLessThanPeriod() {
+        var props = new Properties();
+        props.put("duration", "30s");
+        HotCodeAgentConfiguration.from(props);
+        props.put("period", "20s");
+        assertThrows(IllegalArgumentException.class, () -> HotCodeAgentConfiguration.from(props));
+    }
+    
 }

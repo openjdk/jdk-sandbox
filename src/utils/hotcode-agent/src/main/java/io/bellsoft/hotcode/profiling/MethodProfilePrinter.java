@@ -14,15 +14,15 @@ public class MethodProfilePrinter {
         printWriter = new PrintWriter(output);
     }
     
-    public void print(Profile<Method> profile) {
+    public void print(Profile<Method> profile, int topK) {
         printWriter.println(ROW_SEP);
         printWriter.println(HEADER);
         printWriter.println(ROW_SEP);
 
-        for (var m : profile.getTop()) {
+        for (var m : profile.getTop(topK)) {
             int count = profile.occurrences(m);
             float ratio = 100.0f * count / profile.getTotalUnique();
-            printWriter.println(String.format(ROW_FMT, count, ratio, m.getSignature()));
+            printWriter.println(String.format(ROW_FMT, count, ratio, m.signature()));
         }
 
         printWriter.println(ROW_SEP);
