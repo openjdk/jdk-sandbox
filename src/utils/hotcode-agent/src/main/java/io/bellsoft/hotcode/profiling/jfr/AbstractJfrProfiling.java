@@ -18,14 +18,12 @@ public abstract class AbstractJfrProfiling implements Profiling {
         this.maxStackDepth = maxStackDepth;
     }
 
-    public void fill(Profile<Method> profile) {
+    public void fill(Profile<Method> profile) throws IOException {
         var counter = new ExecutionSampleCounter(profile, maxStackDepth);
 
         try (var rs = openEventStream()) {
             rs.onEvent(EXECUTION_SAMPLE_EVENT_NAME, counter);
             rs.start();
-        } catch (IOException e) {
-            throw new RuntimeException("cannot open recording stream", e);
         }
     }
 

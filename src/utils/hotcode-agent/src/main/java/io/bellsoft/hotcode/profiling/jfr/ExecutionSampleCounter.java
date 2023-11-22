@@ -4,9 +4,7 @@ import io.bellsoft.hotcode.profiling.Method;
 import io.bellsoft.hotcode.profiling.Profile;
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordedFrame;
-import jdk.jfr.consumer.RecordedMethod;
 
-import java.util.List;
 import java.util.function.Consumer;
 
 public class ExecutionSampleCounter implements Consumer<RecordedEvent> {
@@ -27,31 +25,36 @@ public class ExecutionSampleCounter implements Consumer<RecordedEvent> {
             return;
         }
 
-        var frame = getFirstJitCompiledJavaFrame(frames);
-        if (frame != null) {
-            profile.addSample(createMethodFrom(frame.getMethod()));
-        }
-    }
-
-    private RecordedFrame getFirstJitCompiledJavaFrame(List<RecordedFrame> frames) {
         int depth = 0;
         for (var frame : frames) {
             if (maxStackDepth > 0 && depth > maxStackDepth) {
-                return null;
+                return;
             }
             if (!frame.isJavaFrame()) {
-                return null;
+                return;
             }
             if (frame.getType().equals("JIT compiled")) {
-                return frame;
+                profile.addSample(createMethodFrom(frame));
+                return;
             }
             depth++;
         }
-        return null;
     }
 
-    private static Method createMethodFrom(RecordedMethod method) {
-        return new Method(method.getName() + method.getDescriptor(), method.getType().getName());
+    private static Method createMethodFrom(RecordedFrame frame) {
+        var method = frame.getMethod();
+        var signature = method.getName() + method.getDescriptor();
+        var type = method.getType().getName();
+        // com.Clazz$$Lambda$1234+0x0123456789abcdef.0123456789
+        int lambdaIdx = type.indexOf("$$Lambda");
+        if (lambdaIdx >= 0) {
+            int hashIdx = type.indexOf('.', lambdaIdx);
+            if (hashIdx >= 0) {
+                type = type.substring(0, hashIdx);
+
+            }
+        }
+        return new Method(type, signature);
     }
 
 }

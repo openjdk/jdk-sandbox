@@ -49,12 +49,13 @@ Supported options are:
 * duration -- profiling iteration duration, default is 300 seconds;
 * top -- number of top hot nmethods, default is 1000;
 * max-stack-depth -- maximum number of the stack frames to be processed, default is MaxInlineLevel+1 (16);
+* print -- if true, collected profile is printed to stdout, default is false;
 
 For example:
 
 [source,shell]
 ----
-  java -javaagent:hotcode-agent-1.0-SNAPSHOT.jar=interval=50ms,delay=1h,topk=100 \
+  java -javaagent:hotcode-agent-1.0-SNAPSHOT.jar=interval=50ms,delay=1h,top=100 \
     -XX:+HotCodeHeap -jar application.jar
 ----
 

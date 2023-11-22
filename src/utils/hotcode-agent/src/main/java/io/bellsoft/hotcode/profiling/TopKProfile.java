@@ -55,11 +55,6 @@ public class TopKProfile<T> implements Profile<T> {
     }
 
     @Override
-    public int getTotalUnique() {
-        return samples.size();
-    }
-
-    @Override
     public int getTotal() {
         return total;
     }

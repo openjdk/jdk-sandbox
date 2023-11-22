@@ -21,6 +21,7 @@ public class HotCodeAgentConfiguration {
     Duration profilingDuration = Duration.ofSeconds(300);
     int top = 1000;
     int maxStackDepth = MAX_INLINE_LEVEL + 1;
+    boolean print = false;
 
     public static HotCodeAgentConfiguration from(Properties props) {
         var config = new HotCodeAgentConfiguration();
@@ -33,6 +34,7 @@ public class HotCodeAgentConfiguration {
                 case "duration" -> config.profilingDuration = DurationParser.parse(value);
                 case "top" -> config.top = Integer.parseInt(value);
                 case "max-stack-depth" -> config.maxStackDepth = Integer.parseInt(value);
+                case "print" -> config.print = Boolean.parseBoolean(value);
             }
         }
         if (!config.profilingPeriod.isZero()) {

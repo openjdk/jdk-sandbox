@@ -4,7 +4,7 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 
 public class MethodProfilePrinter {
-    private final static String ROW_SEP = String.format("%120s", "-").replace(" ", "-");
+    private final static String ROW_SEP = "-".repeat(120);
     private final static String HEADER = String.format("| %-7s | %-9s | %-94s |", "COUNT", "%", "METHOD");
     private final static String ROW_FMT = "| %7d | %9.2f | %-94s |";
     
@@ -21,7 +21,7 @@ public class MethodProfilePrinter {
 
         for (var m : profile.getTop(topK)) {
             int count = profile.occurrences(m);
-            float ratio = 100.0f * count / profile.getTotalUnique();
+            float ratio = 100.0f * count / profile.getTotal();
             printWriter.println(String.format(ROW_FMT, count, ratio, m.signature()));
         }
 

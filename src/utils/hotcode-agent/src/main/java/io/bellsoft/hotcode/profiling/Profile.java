@@ -7,6 +7,5 @@ public interface Profile<T> {
     List<T> getTop(int k);
     int occurrences(T elem);
     int getTotal();
-    int getTotalUnique();
     void clear();
 }
