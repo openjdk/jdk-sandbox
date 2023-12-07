@@ -19,12 +19,15 @@ class HotCodeAgentConfigurationTest {
     }
 
     @Test
-    void maxStackDepth() {
-        int expected = 42;
+    void chunk() {
+        int expected = 99;
         var props = new Properties();
-        props.put("max-stack-depth", String.valueOf(expected));
+        props.put("chunk", String.valueOf(expected));
         var c = HotCodeAgentConfiguration.from(props);
-        assertEquals(expected, c.maxStackDepth);
+        assertEquals(c.top, c.chunk);
+        props.put("period", "1h");
+        c = HotCodeAgentConfiguration.from(props);
+        assertEquals(expected, c.chunk);
     }
 
     @Test

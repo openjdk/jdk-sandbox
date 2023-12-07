@@ -15,14 +15,14 @@ class TopKProfileTest {
 
     @Test
     void constructor() {
-        var profile = new TopKProfile<>();
-        assertEquals(0, profile.getTotal(), "no occurrences must be recorded");
-        assertTrue(profile.getTop(42).isEmpty(), "top k elements must be an empty list");
+        var profile = new TopKProfile<>(16);
+        assertEquals(0, profile.total(), "No occurrences must be recorded.");
+        assertTrue(profile.getTop(42).isEmpty(), "Top k elements must be an empty list.");
     }
 
     @Test
     void topFiveOfNumbersWithTheSameFrequency() {
-        var profile = new TopKProfile<Integer>();
+        var profile = new TopKProfile<Integer>(16);
         var input = List.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
         for (var v : input) {
             profile.addSample(v);
@@ -36,7 +36,7 @@ class TopKProfileTest {
 
     @Test
     void topFive() {
-        var profile = new TopKProfile<Integer>();
+        var profile = new TopKProfile<Integer>(16);
         var input = List.of(
                 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
                 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
@@ -57,7 +57,7 @@ class TopKProfileTest {
 
     @Test
     void topTwoOfAllNumbersTheSame() {
-        var profile = new TopKProfile<Integer>();
+        var profile = new TopKProfile<Integer>(16);
         var input = List.of(42, 42, 42, 42, 42, 42, 42, 42, 42, 42);
         for (var v : input) {
             profile.addSample(v);
@@ -69,7 +69,7 @@ class TopKProfileTest {
 
     @Test
     void topTenOfFiveNumbers() {
-        var profile = new TopKProfile<Integer>();
+        var profile = new TopKProfile<Integer>(16);
         var input = Arrays.asList(1, 2, 3, 4, 5);
         for (var v : input) {
             profile.addSample(v);
@@ -86,7 +86,7 @@ class TopKProfileTest {
 
     @Test
     void topFourWhenNoInputGiven() {
-        var profile = new TopKProfile<Integer>();
+        var profile = new TopKProfile<Integer>(16);
         var expected = Collections.emptyList();
         var topK = profile.getTop(4);
         assertEquals(expected, topK);
@@ -94,13 +94,13 @@ class TopKProfileTest {
 
     @Test
     void occurrencesWhenNullGiven() {
-        var profile = new TopKProfile<Integer>();
+        var profile = new TopKProfile<Integer>(16);
         assertEquals(0, profile.occurrences(null));
     }
 
     @Test
     void occurrencesNotContainedInTopK() {
-        var profile = new TopKProfile<Integer>();
+        var profile = new TopKProfile<Integer>(16);
         var input = List.of(1, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5);
         for (var v : input) {
             profile.addSample(v);

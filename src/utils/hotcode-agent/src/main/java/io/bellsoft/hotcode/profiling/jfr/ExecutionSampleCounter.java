@@ -19,21 +19,19 @@ public class ExecutionSampleCounter implements Consumer<RecordedEvent> {
 
     @Override
     public void accept(RecordedEvent recordedEvent) {
-        var frames = recordedEvent.getStackTrace().getFrames();
-        if (frames.isEmpty()) {
-            // ignore samples with empty stacktrace, is it possible?
+        var st = recordedEvent.getStackTrace();
+        if (st == null) {
             return;
         }
-
         int depth = 0;
-        for (var frame : frames) {
+        for (var frame : st.getFrames()) {
             if (maxStackDepth > 0 && depth > maxStackDepth) {
                 return;
             }
             if (!frame.isJavaFrame()) {
                 return;
             }
-            if (frame.getType().equals("JIT compiled")) {
+            if ("JIT compiled".equals(frame.getType())) {
                 profile.addSample(createMethodFrom(frame));
                 return;
             }

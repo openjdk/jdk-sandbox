@@ -21,7 +21,7 @@ public class MethodProfilePrinter {
 
         for (var m : profile.getTop(topK)) {
             int count = profile.occurrences(m);
-            float ratio = 100.0f * count / profile.getTotal();
+            float ratio = 100.0f * count / profile.total();
             printWriter.println(String.format(ROW_FMT, count, ratio, m.signature()));
         }
 

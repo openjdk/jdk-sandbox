@@ -5,17 +5,26 @@ import java.io.IOException;
 import java.lang.Exception;
 import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Arrays;
 
 public class CompilerDirectivesControl {
 
-    public static void replace(String directives) throws DirectivesException {
+    public static String clear(boolean refresh) throws DirectivesException {
+        var args = refresh ? new String[] { "-r" } : new String[] { };
+        Object[] dcmdArgs = { args };
+        return invoke("compilerDirectivesClear", dcmdArgs);
+    }
+
+    public static String add(String directives, boolean refresh) throws DirectivesException {
         try {
             var directivesPath = Files.createTempFile("compiler-directives", "");
             try {
                 Files.writeString(directivesPath, directives);
-                replace(directivesPath);
+
+                var path = directivesPath.toAbsolutePath().toString();
+                var args = refresh ? new String[] { "-r", path } : new String[] { path };
+                Object[] dcmdArgs = { args };
+                return invoke("compilerDirectivesAdd", dcmdArgs);
             } finally {
                 Files.deleteIfExists(directivesPath);
             }
@@ -24,16 +33,11 @@ public class CompilerDirectivesControl {
         }
     }
 
-    private static String replace(Path directives) throws DirectivesException {
-        Object[] dcmdArgs = { new String[] { "-r", directives.toAbsolutePath().toString() } };
-        String[] replaceSignature = { String[].class.getName() };
-        return invoke("compilerDirectivesReplace", dcmdArgs, replaceSignature);
-    }
-
-    private static String invoke(String cmd, Object[] dcmdArgs, String[] signature) throws DirectivesException {
+    private static String invoke(String cmd, Object[] dcmdArgs) throws DirectivesException {
         try {
             var beanServer = ManagementFactory.getPlatformMBeanServer();
             var dcmdName = new ObjectName("com.sun.management:type=DiagnosticCommand");
+            String[] signature = { String[].class.getName() };
             return (String) beanServer.invoke(dcmdName, cmd, dcmdArgs, signature);
         } catch (Exception e) {
             throw new DirectivesException(String.format("failed to execute dcmd command: '%s' with args: '%s'", cmd,

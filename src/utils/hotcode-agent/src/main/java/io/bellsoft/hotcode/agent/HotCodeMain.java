@@ -73,15 +73,15 @@ public class HotCodeMain {
 
     private void convert(Path recordingPath, Path directiveFilePath) {
         var config = HotCodeAgentConfiguration.from(keyArgs);
-        var profile = new TopKProfile<Method>();
-        var profiling = new JfrOfflineProfiling(config.maxStackDepth, recordingPath);
+        var profile = new TopKProfile<Method>(config.top);
+        var profiling = new JfrOfflineProfiling(recordingPath);
         try {
             profiling.fill(profile);
 
             new MethodProfilePrinter(System.out).print(profile, config.top);
 
             var hotMethods = profile.getTop(config.top);
-            var directives = CompilerDirectives.build(hotMethods);
+            var directives = CompilerDirectives.build(hotMethods, true);
 
             Files.writeString(directiveFilePath, directives);
         } catch (IOException e) {
