@@ -262,6 +262,8 @@ class nmethod : public CompiledMethod {
 
   int _skipped_instructions_size;
 
+  bool _reused;
+
   // For native wrappers
   nmethod(Method* method,
           CompilerType type,
@@ -297,6 +299,8 @@ class nmethod : public CompiledMethod {
           JVMCINMethodData* jvmci_data = nullptr
 #endif
           );
+
+  nmethod(const nmethod& nm);
 
   // helper methods
   void* operator new(size_t size, int nmethod_size, int comp_level) throw();
@@ -348,6 +352,8 @@ class nmethod : public CompiledMethod {
                               JVMCINMethodData* jvmci_data = nullptr
 #endif
   );
+
+  static nmethod* new_nmethod(const nmethod* nm);
 
   // Only used for unit tests.
   nmethod()
@@ -715,6 +721,9 @@ public:
 
   virtual void  make_deoptimized();
   void finalize_relocations();
+
+  bool reused() const { return _reused; }
+  void set_reused(bool reused) { _reused = reused; }
 };
 
 #endif // SHARE_CODE_NMETHOD_HPP

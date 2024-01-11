@@ -446,6 +446,7 @@ void nmethod::init_defaults() {
 
   _oops_do_mark_link       = nullptr;
   _osr_link                = nullptr;
+  _reused = false;
 #if INCLUDE_RTM_OPT
   _rtm_state               = NoRTM;
 #endif
@@ -532,6 +533,151 @@ nmethod* nmethod::new_native_nmethod(const methodHandle& method,
     nm->log_new_nmethod();
   }
   return nm;
+}
+
+nmethod::nmethod(const nmethod& nm)
+  : CompiledMethod(nm.method(), "nmethod", nm.compiler_type(),
+                   CodeBlobLayout((address)this, nm.size(), sizeof(nmethod), nm.relocation_size(), nm.data_offset()),
+                   nm.frame_complete_offset(), nm.frame_size(),
+                   nm.oop_maps()->clone(), false, true),
+  _unlinked_next(nullptr),
+  _native_receiver_sp_offset(in_ByteSize(-1)),
+  _native_basic_lock_sp_offset(in_ByteSize(-1)),
+  _is_unloading_state(0)
+{
+  {
+    debug_only(NoSafepointVerifier nsv;)
+    assert_locked_or_safepoint(CodeCache_lock);
+
+    init_defaults();
+    _entry_bci               = nm._entry_bci;
+    _compile_id              = nm._compile_id;
+    _comp_level              = nm._comp_level;
+    _orig_pc_offset          = nm._orig_pc_offset;
+    _gc_epoch                = CodeCache::gc_epoch();
+
+    // Section offsets
+    _consts_offset           = nm._consts_offset;
+    _stub_offset             = nm._stub_offset;
+    set_ctable_begin(header_begin() + _consts_offset);
+    _skipped_instructions_size      = nm._skipped_instructions_size;
+
+    _exception_offset        = nm._exception_offset;
+    _deopt_handler_begin  = (address)this + (nm._deopt_handler_begin - (address)&nm);
+    _deopt_mh_handler_begin  = nullptr;
+    if (nm._deopt_mh_handler_begin != nullptr) {
+      _deopt_mh_handler_begin = (address)this + (nm._deopt_mh_handler_begin - (address)&nm);
+    }
+    _unwind_handler_offset   = nm._unwind_handler_offset;
+    _oops_offset             = nm._oops_offset;
+    _metadata_offset         = nm._metadata_offset;
+    _scopes_pcs_offset       = nm._scopes_pcs_offset;
+    _dependencies_offset     = nm._dependencies_offset;
+    _handler_table_offset    = nm._handler_table_offset;
+    _nul_chk_table_offset    = nm._nul_chk_table_offset;
+#if INCLUDE_JVMCI
+    _speculations_offset     = nm._speculations_offset;
+    _jvmci_data_offset       = nm._jvmci_data_offset;
+#endif
+    _nmethod_end_offset      = nm._nmethod_end_offset;
+    _entry_point             = code_begin() + (nm._entry_point - nm.code_begin());
+    _verified_entry_point    = code_begin() + (nm._verified_entry_point - nm.code_begin());
+    _osr_entry_point         = code_begin() + (nm._osr_entry_point - nm.code_begin());
+    _exception_cache         = nullptr;
+    _scopes_data_begin       = (address) this + (nm._scopes_data_begin - (address)&nm);
+
+    _pc_desc_container.reset_to(scopes_pcs_begin());
+
+    CodeBuffer cb(nm.content_begin(), nm.content_size());
+    cb.set_name(nm.name());
+    cb.set_insts_end(nm.content_end());
+    cb.insts()->initialize_shared_locs(nm.relocation_begin(), nm.relocation_end() - nm.relocation_begin());
+    cb.insts()->set_locs_end(nm.relocation_end());
+#ifndef PRODUCT
+    cb.asm_remarks().share(nm._asm_remarks);
+    cb.dbg_strings().share(nm._dbg_strings);
+#endif
+    cb.copy_code_and_locs_to(this);
+
+    memcpy(oops_begin(), nm.oops_begin(), nm.oops_size());
+    memcpy(metadata_begin(), nm.metadata_begin(), nm.metadata_size());
+    memcpy(scopes_data_begin(), nm.scopes_data_begin(), nm.scopes_data_size());
+    memcpy(scopes_pcs_begin(), nm.scopes_pcs_begin(), nm.scopes_pcs_size());
+    memcpy(dependencies_begin(), nm.dependencies_begin(), nm.dependencies_size());
+    memcpy(handler_table_begin(), nm.handler_table_begin(), nm.handler_table_size());
+    memcpy(nul_chk_table_begin(), nm.nul_chk_table_begin(), nm.nul_chk_table_size());
+
+    _has_unsafe_access = nm._has_unsafe_access;
+    _has_method_handle_invokes = nm._has_method_handle_invokes;
+    _has_wide_vectors = nm._has_wide_vectors;
+    _has_monitors = nm._has_monitors;
+
+    // Don't know what to do with:
+    // _oops_do_mark_link
+
+    clear_unloading_state();
+
+    Universe::heap()->register_nmethod(this);
+    debug_only(Universe::heap()->verify_nmethod(this));
+
+    CodeCache::commit(this);
+
+    finalize_relocations();
+
+#if INCLUDE_JVMCI
+    // Copy speculations to nmethod
+    if (speculations_size() != 0) {
+      memcpy(speculations_begin(), nm.speculations_begin(), nm.speculations_size());
+    }
+#endif
+  }
+}
+
+nmethod* nmethod::new_nmethod(const nmethod* nm) {
+  nmethod* nm_copy = nullptr;
+
+  {
+    MutexLocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
+
+    {
+      ConditionalMutexLocker ml(CompiledMethod_lock, !CompiledMethod_lock->owned_by_self(), Mutex::_no_safepoint_check_flag);
+      nm_copy = new (nm->size(), nm->comp_level()) nmethod(*nm);
+    }
+
+    if (nm_copy != nullptr) {
+      // To make dependency checking during class loading fast, record
+      // the nmethod dependencies in the classes it is dependent on.
+      // This allows the dependency checking code to simply walk the
+      // class hierarchy above the loaded class, checking only nmethods
+      // which are dependent on those classes.  The slow way is to
+      // check every nmethod for dependencies which makes it linear in
+      // the number of methods compiled.  For applications with a lot
+      // classes the slow way is too slow.
+      for (Dependencies::DepStream deps(nm_copy); deps.next(); ) {
+        if (deps.type() == Dependencies::call_site_target_value) {
+          // CallSite dependencies are managed on per-CallSite instance basis.
+          oop call_site = deps.argument_oop(0);
+          MethodHandles::add_dependent_nmethod(call_site, nm_copy);
+        } else {
+          InstanceKlass* ik = deps.context_type();
+          if (ik == nullptr) {
+            continue;  // ignore things like evol_method
+          }
+          // record this nmethod as dependent on this klass
+          ik->add_dependent_nmethod(nm_copy);
+        }
+      }
+    }
+  }
+  // Do verification and logging outside CodeCache_lock.
+  if (nm_copy != nullptr) {
+    NOT_PRODUCT(note_java_nmethod(nm_copy));
+    // Safepoints in nmethod::verify aren't allowed because nm_copy hasn't been installed yet.
+    DEBUG_ONLY(nm_copy->verify();)
+    nm_copy->log_new_nmethod();
+  }
+
+  return nm_copy;
 }
 
 nmethod* nmethod::new_nmethod(const methodHandle& method,
