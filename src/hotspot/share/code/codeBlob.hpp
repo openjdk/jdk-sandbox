@@ -275,20 +275,20 @@ private:
   address _relocation_end;
 
 public:
-  CodeBlobLayout(address code_begin, address code_end, address content_begin, address content_end, address data_end, address relocation_begin, address relocation_end) :
-    _size(0),
-    _header_size(0),
-    _relocation_size(0),
-    _content_offset(0),
-    _code_offset(0),
-    _data_offset(0),
-    _code_begin(code_begin),
-    _code_end(code_end),
-    _content_begin(content_begin),
-    _content_end(content_end),
-    _data_end(data_end),
-    _relocation_begin(relocation_begin),
-    _relocation_end(relocation_end)
+  CodeBlobLayout(const address start, int size, int header_size, int relocation_size, int content_offset, int code_offset, int data_offset) :
+    _size(size),
+    _header_size(header_size),
+    _relocation_size(relocation_size),
+    _content_offset(content_offset),
+    _code_offset(code_offset),
+    _data_offset(data_offset),
+    _code_begin(start + code_offset),
+    _code_end(start + data_offset),
+    _content_begin(start + content_offset),
+    _content_end(start + data_offset),
+    _data_end(start + size),
+    _relocation_begin(start + header_size),
+    _relocation_end(_relocation_begin + relocation_size)
   {
   }
 

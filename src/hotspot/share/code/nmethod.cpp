@@ -537,7 +537,7 @@ nmethod* nmethod::new_native_nmethod(const methodHandle& method,
 
 nmethod::nmethod(const nmethod& nm)
   : CompiledMethod(nm.method(), "nmethod", nm.compiler_type(),
-                   CodeBlobLayout((address)this, nm.size(), sizeof(nmethod), nm.relocation_size(), nm.data_offset()),
+                   CodeBlobLayout((address)this, nm.size(), sizeof(nmethod), nm.relocation_size(), nm.content_offset(), nm.code_offset(), nm.data_offset()),
                    nm.frame_complete_offset(), nm.frame_size(),
                    nm.oop_maps()->clone(), false, true),
   _unlinked_next(nullptr),
@@ -559,7 +559,6 @@ nmethod::nmethod(const nmethod& nm)
     // Section offsets
     _consts_offset           = nm._consts_offset;
     _stub_offset             = nm._stub_offset;
-    set_ctable_begin(header_begin() + _consts_offset);
     _skipped_instructions_size      = nm._skipped_instructions_size;
 
     _exception_offset        = nm._exception_offset;
@@ -599,6 +598,8 @@ nmethod::nmethod(const nmethod& nm)
 #endif
     cb.copy_code_and_locs_to(this);
 
+    set_ctable_begin(header_begin() + _consts_offset);
+
     memcpy(oops_begin(), nm.oops_begin(), nm.oops_size());
     memcpy(metadata_begin(), nm.metadata_begin(), nm.metadata_size());
     memcpy(scopes_data_begin(), nm.scopes_data_begin(), nm.scopes_data_size());
@@ -606,6 +607,7 @@ nmethod::nmethod(const nmethod& nm)
     memcpy(dependencies_begin(), nm.dependencies_begin(), nm.dependencies_size());
     memcpy(handler_table_begin(), nm.handler_table_begin(), nm.handler_table_size());
     memcpy(nul_chk_table_begin(), nm.nul_chk_table_begin(), nm.nul_chk_table_size());
+    memcpy(consts_begin(), nm.consts_begin(), nm.consts_size());
 
     _has_unsafe_access = nm._has_unsafe_access;
     _has_method_handle_invokes = nm._has_method_handle_invokes;

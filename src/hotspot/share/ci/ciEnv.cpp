@@ -1134,10 +1134,9 @@ void ciEnv::register_method(ciMethod* target,
     code_buffer->free_blob();
 
     if (nm != nullptr) {
-      if (UseNewCode && (entry_bci == InvocationEntryBci) && method->name()->starts_with("testNMR")) {
-        //nm->print_nmethod(true);
+      if (UseNewCode && (entry_bci == InvocationEntryBci)) {
         nmethod* nm_copy = nmethod::new_nmethod(nm);
-        nm->flush();
+        nm->make_not_used();
         nm = nm_copy;
 
         ResourceMark rm;
