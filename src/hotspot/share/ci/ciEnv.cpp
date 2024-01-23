@@ -1162,11 +1162,14 @@ void ciEnv::register_method(ciMethod* target,
             tty->print_cr("Replacing method %s", method_name);
           }
           if (old != nullptr) {
-            //if (UseNewCode && !((nmethod*)old)->reused() && method->name()->starts_with("testNMR")) {
-            //  nm->flush();
-            //  nm = nmethod::new_nmethod((nmethod*)old);
-            //  nm->set_reused(true);
-            //}
+            if (UseNewCode2 && !((nmethod*)old)->reused()) {
+              nm->make_not_used();
+              nm = nmethod::new_nmethod((nmethod*)old);
+              nm->set_reused(true);
+              ResourceMark rm;
+              char *method_name = nm->method()->name_and_sig_as_C_string();
+              tty->print_cr("Reused method %s", method_name);
+            }
             old->make_not_used();
           }
         }

@@ -542,7 +542,6 @@ nmethod::nmethod(const nmethod& nm)
                    CodeBlobLayout((address)this, nm.size(), sizeof(nmethod), nm.relocation_size(), nm.content_offset(), nm.code_offset(), nm.data_offset()),
                    nm.frame_complete_offset(), nm.frame_size(),
                    nm.oop_maps()->clone(), false, true),
-  _unlinked_next(nullptr),
   _native_receiver_sp_offset(in_ByteSize(-1)),
   _native_basic_lock_sp_offset(in_ByteSize(-1)),
   _is_unloading_state(0)
