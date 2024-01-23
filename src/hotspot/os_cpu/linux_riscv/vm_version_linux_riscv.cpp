@@ -74,7 +74,7 @@
 
 #define read_csr(csr)                                           \
 ({                                                              \
-        register unsigned long __v;                             \
+        unsigned long __v;                                      \
         __asm__ __volatile__ ("csrr %0, %1"                     \
                               : "=r" (__v)                      \
                               : "i" (csr)                       \
@@ -150,12 +150,21 @@ void VM_Version::setup_cpu_available_features() {
 
 void VM_Version::os_aux_features() {
   uint64_t auxv = getauxval(AT_HWCAP);
-  int i = 0;
-  while (_feature_list[i] != nullptr) {
+  for (int i = 0; _feature_list[i] != nullptr; i++) {
+    if (_feature_list[i]->feature_bit() == HWCAP_ISA_V) {
+      // Special case for V: some dev boards only support RVV version 0.7, while
+      // the OpenJDK only supports RVV version 1.0. These two versions are not
+      // compatible with each other. Given the V bit is set through HWCAP on
+      // some custom kernels, regardless of the version, it can lead to
+      // generating V instructions on boards that don't support RVV version 1.0
+      // (ex: Sipeed LicheePi), leading to a SIGILL.
+      // That is an acceptable workaround as only Linux Kernel v6.5+ supports V,
+      // and that version already support hwprobe anyway
+      continue;
+    }
     if ((_feature_list[i]->feature_bit() & auxv) != 0) {
       _feature_list[i]->enable_feature();
     }
-    i++;
   }
 }
 
@@ -230,6 +239,10 @@ void VM_Version::rivos_features() {
   ext_Zba.enable_feature();
   ext_Zbb.enable_feature();
   ext_Zbs.enable_feature();
+
+  ext_Zcb.enable_feature();
+
+  ext_Zfh.enable_feature();
 
   ext_Zicsr.enable_feature();
   ext_Zifencei.enable_feature();

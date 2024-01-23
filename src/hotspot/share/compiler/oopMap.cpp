@@ -877,7 +877,9 @@ ImmutableOopMapSet* ImmutableOopMapSet::clone() const {
   return (ImmutableOopMapSet*)buffer;
 }
 
-
+void ImmutableOopMapSet::operator delete(void* p) {
+  FREE_C_HEAP_ARRAY(unsigned char, p);
+}
 
 //------------------------------DerivedPointerTable---------------------------
 
