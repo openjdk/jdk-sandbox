@@ -1,0 +1,39 @@
+Tool for working with Hot Code Heap
+
+ help (aliases --help, -h, -?)
+      Display all available commands
+
+ version (aliases --version, -v)
+      Display the tool version
+
+ attach <pid>
+        [--delay <time>]
+        [--period <time>]
+        [--interval <time>]
+        [--duration <time>]
+        [--top <integer>]
+    Attach the agent to a running JVM.
+
+    <pid>               The abstract identifier of the Java virtual machine
+
+    --delay             Time between the agent activation and first profiling, default is 30 minutes
+
+    --period            Time between profiling iterations, default is no repetitions (0h)
+
+    --interval          Sampling interval during profiling, default is 20 milliseconds
+
+    --duration          Profiling iteration duration, default is 300 seconds
+
+    --top               Number of top hot nmethods, default is 1000
+
+ convert [--top <integer>]
+         <input-file>
+         [<output-file>]
+    Extract directives for hot methods from a JFR recording.
+
+    --top               Number of top hot nmethods, default is 1000
+
+    <input-file>        JFR recording file or repository to be processed (<recording>.jfr)
+
+    <output-file>       File where the compiler directives will be written,
+                        default is <recording>.directives file

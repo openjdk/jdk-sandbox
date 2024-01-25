@@ -3,9 +3,31 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>io.bellsoft</groupId>
+	<groupId>com.bell-sw</groupId>
 	<artifactId>hotcode-agent</artifactId>
 	<version>1.0-SNAPSHOT</version>
+	<packaging>jar</packaging>
+
+	<name>Hot code agent</name>
+	<description>A tool to analyze and compact Java code in running JVMs</description>
+	<url>http://github.com/bell-sw/hotcode-agent</url>
+
+	<licenses>
+		<license>
+			<name>Apache-2.0</name>
+			<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+		</license>
+	</licenses>
+	<scm>
+		<url>https://github.com/bell-sw/hotcode-agent</url>
+		<connection>scm:git:git@github.com:bell-sw/hotcode-agent.git</connection>
+		<developerConnection>scm:git:git@github.com:bell-sw/hotcode-agent.git</developerConnection>
+	</scm>
+
+	<organization>
+		<name>BellSoft Corporation</name>
+		<url>https://bell-sw.com/</url>
+	</organization>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -18,7 +40,7 @@
 			<dependency>
 				<groupId>org.junit</groupId>
 				<artifactId>junit-bom</artifactId>
-				<version>5.10.0</version>
+				<version>5.10.1</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
@@ -43,18 +65,18 @@
 					<archive>
 						<manifest>
 							<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
-							<mainClass>io.bellsoft.hotcode.agent.HotCodeMain</mainClass>
+							<mainClass>com.bellsw.hotcode.agent.HotCodeMain</mainClass>
 						</manifest>
 						<manifestEntries>
-							<Premain-Class>io.bellsoft.hotcode.agent.HotCodeAgent</Premain-Class>
-							<Agent-Class>io.bellsoft.hotcode.agent.HotCodeAgent</Agent-Class>
+							<Premain-Class>com.bellsw.hotcode.agent.HotCodeAgent</Premain-Class>
+							<Agent-Class>com.bellsw.hotcode.agent.HotCodeAgent</Agent-Class>
 						</manifestEntries>
 					</archive>
 				</configuration>
 			</plugin>
 			<plugin>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>3.1.2</version>
+				<version>3.2.5</version>
 			</plugin>
 		</plugins>
 	</build>
