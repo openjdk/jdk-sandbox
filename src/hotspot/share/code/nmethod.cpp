@@ -588,19 +588,17 @@ nmethod::nmethod(const nmethod& nm)
 
     _pc_desc_container.reset_to(scopes_pcs_begin());
 
-    CodeBuffer cb(nm.content_begin(), nm.content_size());
-    cb.set_name(nm.name());
-    cb.set_insts_end(nm.content_end());
-    cb.insts()->initialize_shared_locs(nm.relocation_begin(), nm.relocation_end() - nm.relocation_begin());
-    cb.insts()->set_locs_end(nm.relocation_end());
-#ifndef PRODUCT
-    cb.asm_remarks().share(nm._asm_remarks);
-    cb.dbg_strings().share(nm._dbg_strings);
-#endif
-    cb.copy_code_and_locs_to(this);
-
     set_ctable_begin(header_begin() + _consts_offset);
 
+#ifndef PRODUCT
+    asm_remarks().share(nm._asm_remarks);
+    dbg_strings().share(nm._dbg_strings);
+#endif
+
+    memcpy(relocation_begin(), nm.relocation_begin(), nm.relocation_size());
+    memcpy(consts_begin(), nm.consts_begin(), nm.consts_size());
+    memcpy(insts_begin(), nm.insts_begin(), nm.insts_size());
+    memcpy(stub_begin(), nm.stub_begin(), nm.stub_size());
     memcpy(oops_begin(), nm.oops_begin(), nm.oops_size());
     memcpy(metadata_begin(), nm.metadata_begin(), nm.metadata_size());
     memcpy(scopes_data_begin(), nm.scopes_data_begin(), nm.scopes_data_size());
@@ -614,6 +612,16 @@ nmethod::nmethod(const nmethod& nm)
     _has_method_handle_invokes = nm._has_method_handle_invokes;
     _has_wide_vectors = nm._has_wide_vectors;
     _has_monitors = nm._has_monitors;
+
+    RelocIterator iter(this);
+    CodeBuffer src((CodeBlob *)&nm);
+    CodeBuffer dst(this);
+    while (iter.next()) {
+      iter.reloc()->fix_relocation_after_move(&src, &dst);
+    }
+
+    // Flush generated code
+    ICache::invalidate_range(code_begin(), code_size());
 
     // Don't know what to do with:
     // _oops_do_mark_link
