@@ -96,7 +96,6 @@ abstract class IOURingReaderWriter {
      * returns the buffer has already been returned to the IOUring registered
      * buffer list and should not be accessed again.
      *
-     * @param fd
      * @param buffer
      * @throws IOException
      * @throws IllegalArgumentException if buffer is not registered
@@ -149,7 +148,6 @@ abstract class IOURingReaderWriter {
      * buffer, it should be returned to the IOURing with
      * {@link IOUring#returnRegisteredBuffer(ByteBuffer)}
      *
-     * @param fd
      * @param buffer
      * @throws IOException
      * @throws IllegalArgumentException if buffer is not registered

@@ -29,7 +29,7 @@ package sun.nio.ch.iouring;
  * Completion Q entry (user view)
  *
  * @param user_data the long value that was returned from {@link IOUring#submit(Sqe)}
- * @param res >=0 signifies success, res < 0 means error occurred where -res == errno
+ * @param res if {@code res >=0} signifies success, {@code res < 0} means error occurred where -res == errno
  * @param flags
  */
 public record Cqe(long user_data, int res, int flags) {

@@ -97,9 +97,7 @@ public class IOURingSocket extends IOURingReaderWriter {
     /**
      * Not implmenented by IOURING
      *
-     * @param fd
-     * @param address
-     * @return
+     * @param address the InetSocketAddress to bind to
      */
     public void bind(InetSocketAddress address) throws IOException {
         MemorySegment addrseg = socketAddressToSegment(address);

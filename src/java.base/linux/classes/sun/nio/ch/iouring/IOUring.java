@@ -46,16 +46,18 @@ import static sun.nio.ch.iouring.foreign.iouring_h.*;
  * Requests are submitted through the {@link #submit(Sqe)} method. Completion
  * events can be awaited by calling {@link #enter(int, int, int)}. Completions
  * represented by {@link Cqe} are then obtained by calling {@link #pollCompletion()}.
- * Completions are linked to submissions by the {@link Cqe#user_data()}} field of
+ * Completions are linked to submissions by the {@link Cqe#user_data()} field of
  * the {@code Cqe} which contains the same 64-bit (long) value that was returned
- * from {@code submit}.
- *
+ * from {@link #submit(Sqe)}.
+ * <p>
  * A higher level interface {@link BlockingRing} provides a traditional
  * blocking API (for experiments). There are two implementations of that interface:
- * 1) a simple single threaded impl
- * 2) a multi thread impl where requests are submitted through a blocking queue and
- *    the ring itself is managed by two background threads.
- *
+ * <ol>
+ * <li>a simple single threaded impl</li>
+ * <li>a multi thread impl where requests are submitted through a blocking queue and
+ *    the ring itself is managed by two background threads.</li>
+ * </ol>
+ * <p>
  * Some IOUring operations work with kernel registered direct ByteBuffers. When creating
  * an IOUring instance, a number of these buffers can be created in a pool.
  * Registered buffers are not used with regular IOUring read/write operations.
@@ -219,7 +221,7 @@ public class IOUring {
      * @param nsubmit number of requests to submit
      * @param nreceive block until this number of events received
      *
-     * @return if < 0 means an error occurred. Otherwise, the number of
+     * @return if return value less than 0 means an error occurred. Otherwise, the number of
      *          Sqes successfully processed.
      */
     public int enter(int nsubmit, int nreceive, int flags) throws IOException {

@@ -32,10 +32,12 @@ import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 
 /**
- *  Submission Q entry (user view)
- *  Fields can be added here but should be given same name
- *  as in the io_uring_sqe structure (except for xxx_flags) which
- *  handles all the 32bit flag variants.
+ *  Submission Q entry (user view). The setter and getter methods of this
+ *  class have the same name as the respective field in the io_uring_sqe
+ *  structure. Support for all fields is not provided yet.
+ *  The exception is the xxx_flags field. This sets/gets any/all of
+ *  the 32 bit values in the unnamed union in io_uring_sqe with 
+ *  the large number of 32bit flag variants.
  */
 
 public class Sqe {
