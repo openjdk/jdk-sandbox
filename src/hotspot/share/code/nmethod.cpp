@@ -577,7 +577,7 @@ nmethod* nmethod::new_nmethod(const methodHandle& method,
 
     CodeBlobType code_blob_type = CodeCache::get_code_blob_type(comp_level);
     if (method->is_hot()) {
-      // EHT: Overiride usual code_blob_type guess
+      // Overiride usual code_blob_type guess
       code_blob_type = CodeBlobType::MethodHot;
       log_debug(codecache, hot)("Method %s on comp level %d is Hot",
                                        method->name_and_sig_as_C_string(), comp_level);

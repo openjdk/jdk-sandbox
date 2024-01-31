@@ -293,28 +293,35 @@ void CodeCache::initialize_heaps() {
 
   size_t total = non_nmethod.size + hot.size + profiled.size + non_profiled.size;
   if (!cache_size_set && (total > cache_size || total != cache_size)) {
-    log_info(codecache)("ReservedCodeCache size %lld changed to total segments size NonNMethod %lld NonProfiled %lld Profiled %lld = %lld",
-                        (long long) cache_size, (long long) non_nmethod.size,
-                        (long long) non_profiled.size, (long long) profiled.size,
+    log_info(codecache)("ReservedCodeCache size %lld changed to total segments size Profiled %lld NonNMethod %lld Hot %lld NonProfiled %lld = %lld",
+                        (long long) cache_size,
+                        (long long) profiled.size, (long long) non_nmethod.size,
+                        (long long) hot.size, (long long) non_profiled.size,
                         (long long) total);
 
     // Adjust RCCS as necessary because it was not set explicitly
     cache_size = total;
   }
 
-  log_debug(codecache)("Initializing code heaps ReservedCodeCache %lld NonNMethod %lld NonProfiled %lld Profiled %lld",
-                       (long long) cache_size, (long long) non_nmethod.size,
-                       (long long) non_profiled.size, (long long) profiled.size);
+  log_debug(codecache)("Initializing code heaps ReservedCodeCache %lld Profiled %lld NonNMethod %lld Hot %lld NonProfiled %lld",
+                       (long long) cache_size,
+                       (long long) profiled.size, (long long) non_nmethod.size,
+                       (long long) hot.size, (long long) non_profiled.size);
 
   // Validation
   // Check minimal required sizes
+  if (profiled.enabled && profiled.size < min_size) {
+    report_cache_minimal_size_error("profiled code heap", profiled.size, min_size);
+    return;
+  }
+
   if (non_nmethod.size < nm_min_size) {
     report_cache_minimal_size_error("non-nmethod code heap", non_nmethod.size, nm_min_size);
     return;
   }
 
-  if (profiled.enabled && profiled.size < min_size) {
-    report_cache_minimal_size_error("profiled code heap", profiled.size, min_size);
+  if (hot.enabled && hot.size < min_size) {
+    report_cache_minimal_size_error("hot code heap", hot.size, min_size);
     return;
   }
 
@@ -351,12 +358,14 @@ void CodeCache::initialize_heaps() {
   // page size to make sure that code cache is covered by large pages.
   const size_t alignment = MAX2(ps, os::vm_allocation_granularity());
 
-  non_nmethod.size = align_up(non_nmethod.size, alignment);
-  non_profiled.size = align_down(non_profiled.size, alignment);
   profiled.size = align_down(profiled.size, alignment);
+  non_nmethod.size = align_up(non_nmethod.size, alignment);
+  hot.size = align_down(hot.size, alignment);
+  non_profiled.size = align_down(non_profiled.size, alignment);
 
-  FLAG_SET_ERGO(NonNMethodCodeHeapSize, non_nmethod.size);
   FLAG_SET_ERGO(ProfiledCodeHeapSize, profiled.size);
+  FLAG_SET_ERGO(NonNMethodCodeHeapSize, non_nmethod.size);
+  FLAG_SET_ERGO(HotCodeHeapSize, hot.size);
   FLAG_SET_ERGO(NonProfiledCodeHeapSize, non_profiled.size);
   FLAG_SET_ERGO(ReservedCodeCacheSize, cache_size);
   // Hot code heap is never changed
