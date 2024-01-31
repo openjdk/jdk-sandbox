@@ -316,6 +316,7 @@ class CodeCache : AllStatic {
 
   static void mark_directives_matches(bool top_only = false);
   static void recompile_marked_directives_matches();
+  static float count_hot_method_sparsity();
 
   // Marks dependents during classloading
   static void mark_dependents_on(DeoptimizationScope* deopt_scope, InstanceKlass* dependee);
