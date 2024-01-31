@@ -1565,7 +1565,7 @@ const int ObjectAlignmentInBytes = 8;
           constraint(VMPageSizeConstraintFunc, AtParse)                     \
                                                                             \
   product(bool, HotCodeHeap, false,                                         \
-          "Use a separate code cahe segmented for hot methods")             \
+          "Use a separate code heap for hot methods")                       \
                                                                             \
   product(uintx, HotCodeHeapSize,  8*M,                                     \
           "Size of code heap with hot methods (in bytes)")                  \

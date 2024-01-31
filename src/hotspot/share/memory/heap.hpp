@@ -204,7 +204,7 @@ class CodeHeap : public CHeapObj<mtCode> {
   // Returns true if the CodeHeap contains CodeBlobs of the given type
   bool accepts(CodeBlobType code_blob_type) const {
     if (code_blob_type == CodeBlobType::MethodHot) {
-      //Hot requires explicit match
+      // Hot requires exact match
       return (_code_blob_type == code_blob_type);
     }
     return (_code_blob_type == CodeBlobType::All) || (_code_blob_type == code_blob_type);

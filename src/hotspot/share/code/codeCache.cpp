@@ -293,28 +293,35 @@ void CodeCache::initialize_heaps() {
 
   size_t total = non_nmethod.size + hot.size + profiled.size + non_profiled.size;
   if (!cache_size_set && (total > cache_size || total != cache_size)) {
-    log_info(codecache)("ReservedCodeCache size %lld changed to total segments size NonNMethod %lld NonProfiled %lld Profiled %lld = %lld",
-                        (long long) cache_size, (long long) non_nmethod.size,
-                        (long long) non_profiled.size, (long long) profiled.size,
+    log_info(codecache)("ReservedCodeCache size %lld changed to total segments size Profiled %lld NonNMethod %lld Hot %lld NonProfiled %lld = %lld",
+                        (long long) cache_size,
+                        (long long) profiled.size, (long long) non_nmethod.size,
+                        (long long) hot.size, (long long) non_profiled.size,
                         (long long) total);
 
     // Adjust RCCS as necessary because it was not set explicitly
     cache_size = total;
   }
 
-  log_debug(codecache)("Initializing code heaps ReservedCodeCache %lld NonNMethod %lld NonProfiled %lld Profiled %lld",
-                       (long long) cache_size, (long long) non_nmethod.size,
-                       (long long) non_profiled.size, (long long) profiled.size);
+  log_debug(codecache)("Initializing code heaps ReservedCodeCache %lld Profiled %lld NonNMethod %lld Hot %lld NonProfiled %lld",
+                       (long long) cache_size,
+                       (long long) profiled.size, (long long) non_nmethod.size,
+                       (long long) hot.size, (long long) non_profiled.size);
 
   // Validation
   // Check minimal required sizes
+  if (profiled.enabled && profiled.size < min_size) {
+    report_cache_minimal_size_error("profiled code heap", profiled.size, min_size);
+    return;
+  }
+
   if (non_nmethod.size < nm_min_size) {
     report_cache_minimal_size_error("non-nmethod code heap", non_nmethod.size, nm_min_size);
     return;
   }
 
-  if (profiled.enabled && profiled.size < min_size) {
-    report_cache_minimal_size_error("profiled code heap", profiled.size, min_size);
+  if (hot.enabled && hot.size < min_size) {
+    report_cache_minimal_size_error("hot code heap", hot.size, min_size);
     return;
   }
 
@@ -351,12 +358,14 @@ void CodeCache::initialize_heaps() {
   // page size to make sure that code cache is covered by large pages.
   const size_t alignment = MAX2(ps, os::vm_allocation_granularity());
 
-  non_nmethod.size = align_up(non_nmethod.size, alignment);
-  non_profiled.size = align_down(non_profiled.size, alignment);
   profiled.size = align_down(profiled.size, alignment);
+  non_nmethod.size = align_up(non_nmethod.size, alignment);
+  hot.size = align_down(hot.size, alignment);
+  non_profiled.size = align_down(non_profiled.size, alignment);
 
-  FLAG_SET_ERGO(NonNMethodCodeHeapSize, non_nmethod.size);
   FLAG_SET_ERGO(ProfiledCodeHeapSize, profiled.size);
+  FLAG_SET_ERGO(NonNMethodCodeHeapSize, non_nmethod.size);
+  FLAG_SET_ERGO(HotCodeHeapSize, hot.size);
   FLAG_SET_ERGO(NonProfiledCodeHeapSize, non_profiled.size);
   FLAG_SET_ERGO(ReservedCodeCacheSize, cache_size);
   // Hot code heap is never changed
@@ -579,6 +588,9 @@ CodeBlob* CodeCache::allocate(int size, CodeBlobType code_blob_type, bool handle
   // Get CodeHeap for the given CodeBlobType
   CodeHeap* heap = get_code_heap(code_blob_type);
   assert(heap != nullptr, "No heap for given code_blob_type %d, heap is null", (int) code_blob_type);
+  if (code_blob_type == CodeBlobType::MethodHot && log_is_enabled(Debug, codecache, hot)) {
+    count_hot_method_sparsity();
+  }
 
   while (true) {
     if ((EmulateFragmentation != 1) && (code_blob_type == CodeBlobType::MethodNonProfiled)) {
@@ -1472,6 +1484,10 @@ void CodeCache::recompile_marked_directives_matches() {
       gc_on_allocation(); // Flush unused methods from CodeCache if required.
     }
   }
+  if (log_is_enabled(Debug, codecache, hot)) {
+    MutexLocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
+    count_hot_method_sparsity();
+  }
 }
 
 // Mark methods for deopt (if safe or possible).
@@ -1844,6 +1860,49 @@ void CodeCache::print() {
   }
 
 #endif // !PRODUCT
+}
+
+/*
+ * The hot method sparsity metric formula:
+ * - divide CodeHeap into 256 blocks (~1MB each for default ReservedCodeCache=240MB)
+ * - count a number of blocks occupied by hot methods
+ * - metric result is occupied/total: 0 is good (no hot methods?), 1 is bad (high hot methods sparsity)
+ */
+float CodeCache::count_hot_method_sparsity() {
+  intptr_t code_cache_size = _high_bound - _low_bound;
+  const int number_of_blocks = 256;
+  int block_size = ReservedCodeCacheSize / number_of_blocks;
+  int hot_methods_per_block[number_of_blocks] = {0};
+  int hot_blocks = 0;
+  int stat_methodhotsegm_count = 0;
+  int stat_methodhotsegm_size = 0;
+  int stat_othersegm_count = 0;
+  int stat_othersegm_size = 0;
+  // CodeCache_lock MutexLocker: the method must be called from a locked context
+  CompiledMethodIterator iter(CompiledMethodIterator::only_not_unloading);
+  while (iter.next()) {
+    CompiledMethod* nm = iter.method();
+    ResourceMark rm;
+    bool is_hot = nm->method()->is_hot() && nm->is_in_use() && !nm->is_not_entrant();
+    if (is_hot) {
+      if (get_code_heap_containing(nm->header_begin())->code_blob_type() == CodeBlobType::MethodHot) {
+        stat_methodhotsegm_count++;
+        stat_methodhotsegm_size += nm->size();
+      } else {
+        stat_othersegm_count++;
+        stat_othersegm_size += nm->size();
+      }
+      int index = ((intptr_t)nm->header_begin() - (intptr_t)_low_bound) / block_size;
+      if (hot_methods_per_block[index] == 0) {
+        hot_blocks++;
+      }
+      hot_methods_per_block[index] += 1;
+    }
+  }
+  float result = (float)hot_blocks/number_of_blocks;
+  log_debug(codecache, hot)("hot methods occupy %i blocks out of %i ~ %f; hot methods in/out of the MethodHot segment: %i/%i, %i/%iKB",
+    hot_blocks, number_of_blocks, result, stat_methodhotsegm_count, stat_othersegm_count, stat_methodhotsegm_size/1024, stat_othersegm_size/1024);
+  return result;
 }
 
 void CodeCache::print_summary(outputStream* st, bool detailed) {
