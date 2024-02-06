@@ -40,7 +40,6 @@
 #include "gc/shared/gcTimer.hpp"
 #include "gc/shared/gcTrace.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
-#include "gc/shared/generationSpec.hpp"
 #include "gc/shared/preservedMarks.inline.hpp"
 #include "gc/shared/referencePolicy.hpp"
 #include "gc/shared/referenceProcessorPhaseTimes.hpp"
@@ -337,7 +336,7 @@ DefNewGeneration::DefNewGeneration(ReservedSpace rs,
 {
   MemRegion cmr((HeapWord*)_virtual_space.low(),
                 (HeapWord*)_virtual_space.high());
-  GenCollectedHeap* gch = GenCollectedHeap::heap();
+  SerialHeap* gch = SerialHeap::heap();
 
   gch->rem_set()->resize_covered_region(cmr);
 
@@ -556,11 +555,11 @@ void DefNewGeneration::compute_new_size() {
     return;
   }
 
-  GenCollectedHeap* gch = GenCollectedHeap::heap();
+  SerialHeap* gch = SerialHeap::heap();
 
   size_t old_size = gch->old_gen()->capacity();
   size_t new_size_before = _virtual_space.committed_size();
-  size_t min_new_size = initial_size();
+  size_t min_new_size = NewSize;
   size_t max_new_size = reserved().byte_size();
   assert(min_new_size <= new_size_before &&
          new_size_before <= max_new_size,
@@ -650,6 +649,12 @@ size_t DefNewGeneration::max_capacity() const {
   return reserved_bytes - compute_survivor_size(reserved_bytes, SpaceAlignment);
 }
 
+bool DefNewGeneration::is_in(const void* p) const {
+  return eden()->is_in(p)
+      || from()->is_in(p)
+      || to()  ->is_in(p);
+}
+
 size_t DefNewGeneration::unsafe_max_alloc_nogc() const {
   return eden()->free();
 }
@@ -692,7 +697,7 @@ HeapWord* DefNewGeneration::allocate_from_space(size_t size) {
 
   log_trace(gc, alloc)("DefNewGeneration::allocate_from_space(" SIZE_FORMAT "):  will_fail: %s  heap_lock: %s  free: " SIZE_FORMAT "%s%s returns %s",
                         size,
-                        GenCollectedHeap::heap()->incremental_collection_will_fail(false /* don't consult_young */) ?
+                        SerialHeap::heap()->incremental_collection_will_fail(false /* don't consult_young */) ?
                           "true" : "false",
                         Heap_lock->is_locked() ? "locked" : "unlocked",
                         from()->free(),
@@ -716,7 +721,7 @@ void DefNewGeneration::adjust_desired_tenuring_threshold() {
   _tenuring_threshold = age_table()->compute_tenuring_threshold(desired_survivor_size);
 
   if (UsePerfData) {
-    GCPolicyCounters* gc_counters = GenCollectedHeap::heap()->counters();
+    GCPolicyCounters* gc_counters = SerialHeap::heap()->counters();
     gc_counters->tenuring_threshold()->set_value(_tenuring_threshold);
     gc_counters->desired_survivor_size()->set_value(desired_survivor_size * oopSize);
   }
@@ -846,8 +851,6 @@ void DefNewGeneration::collect(bool   full,
     from()->set_next_compaction_space(to());
     heap->set_incremental_collection_failed();
 
-    // Inform the next generation that a promotion failure occurred.
-    _old_gen->promotion_failure_occurred();
     _gc_tracer->report_promotion_failed(_promotion_failed_info);
 
     // Reset the PromotionFailureALot counters.
@@ -1011,8 +1014,7 @@ bool DefNewGeneration::collection_attempt_is_safe() {
     return false;
   }
   if (_old_gen == nullptr) {
-    GenCollectedHeap* gch = GenCollectedHeap::heap();
-    _old_gen = gch->old_gen();
+    _old_gen = SerialHeap::heap()->old_gen();
   }
   return _old_gen->promotion_attempt_is_safe(used());
 }
@@ -1025,7 +1027,7 @@ void DefNewGeneration::gc_epilogue(bool full) {
   // been done.  Generally the young generation is empty at
   // a minimum at the end of a collection.  If it is not, then
   // the heap is approaching full.
-  GenCollectedHeap* gch = GenCollectedHeap::heap();
+  SerialHeap* gch = SerialHeap::heap();
   if (full) {
     DEBUG_ONLY(seen_incremental_collection_failed = false;)
     if (!collection_attempt_is_safe() && !_eden_space->is_empty()) {
@@ -1106,11 +1108,6 @@ void DefNewGeneration::print_on(outputStream* st) const {
 
 const char* DefNewGeneration::name() const {
   return "def new generation";
-}
-
-// Moved from inline file as they are not called inline
-ContiguousSpace* DefNewGeneration::first_compaction_space() const {
-  return eden();
 }
 
 HeapWord* DefNewGeneration::allocate(size_t word_size, bool is_tlab) {

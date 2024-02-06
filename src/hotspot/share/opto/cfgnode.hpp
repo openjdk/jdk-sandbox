@@ -268,6 +268,8 @@ public:
 #else //ASSERT
   void verify_adr_type(bool recursive = false) const {}
 #endif //ASSERT
+
+  const TypeTuple* collect_types(PhaseGVN* phase) const;
 };
 
 //------------------------------GotoNode---------------------------------------
@@ -339,7 +341,7 @@ private:
 protected:
   ProjNode* range_check_trap_proj(int& flip, Node*& l, Node*& r);
   Node* Ideal_common(PhaseGVN *phase, bool can_reshape);
-  Node* search_identical(int dist);
+  Node* search_identical(int dist, PhaseIterGVN* igvn);
 
   Node* simple_subsuming(PhaseIterGVN* igvn);
 
@@ -428,7 +430,8 @@ public:
   virtual const RegMask &out_RegMask() const;
   Node* fold_compares(PhaseIterGVN* phase);
   static Node* up_one_dom(Node* curr, bool linear_only = false);
-  Node* dominated_by(Node* prev_dom, PhaseIterGVN* igvn);
+  bool is_zero_trip_guard() const;
+  Node* dominated_by(Node* prev_dom, PhaseIterGVN* igvn, bool pin_array_access_nodes);
 
   // Takes the type of val and filters it through the test represented
   // by if_proj and returns a more refined type if one is produced.
@@ -438,6 +441,8 @@ public:
 #ifndef PRODUCT
   virtual void dump_spec(outputStream *st) const;
 #endif
+
+  bool same_condition(const Node* dom, PhaseIterGVN* igvn) const;
 };
 
 class RangeCheckNode : public IfNode {
@@ -463,8 +468,9 @@ public:
 // More information about predicates can be found in loopPredicate.cpp.
 class ParsePredicateNode : public IfNode {
   Deoptimization::DeoptReason _deopt_reason;
+  bool _useless; // If the associated loop dies, this parse predicate becomes useless and can be cleaned up by Value().
  public:
-  ParsePredicateNode(Node* control, Node* bol, Deoptimization::DeoptReason deopt_reason);
+  ParsePredicateNode(Node* control, Deoptimization::DeoptReason deopt_reason, PhaseGVN* gvn);
   virtual int Opcode() const;
   virtual uint size_of() const { return sizeof(*this); }
 
@@ -472,8 +478,25 @@ class ParsePredicateNode : public IfNode {
     return _deopt_reason;
   }
 
+  bool is_useless() const {
+    return _useless;
+  }
+
+  void mark_useless() {
+    _useless = true;
+  }
+
+  void mark_useful() {
+    _useless = false;
+  }
+
   Node* uncommon_trap() const;
 
+  Node* Ideal(PhaseGVN* phase, bool can_reshape) {
+    return nullptr; // Don't optimize
+  }
+
+  const Type* Value(PhaseGVN* phase) const;
   NOT_PRODUCT(void dump_spec(outputStream* st) const;)
 };
 
@@ -481,6 +504,8 @@ class IfProjNode : public CProjNode {
 public:
   IfProjNode(IfNode *ifnode, uint idx) : CProjNode(ifnode,idx) {}
   virtual Node* Identity(PhaseGVN* phase);
+
+  void pin_array_access_nodes(PhaseIterGVN* igvn);
 
 protected:
   // Type of If input when this branch is always taken
