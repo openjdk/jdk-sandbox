@@ -89,33 +89,19 @@ public class SimpleIO {
     }
 
     /*
-     * This test checks that a prompt is NOT output if stdin is redirected.
-     *
-     * The test uses different console "modes", to make sure that none of the
-     * them affect how SimpleIO reads from a redirected stdin.
-     *
-     * In general, a console shouldn't be used if stdin is redirected, because
-     * that console might not be designed for the redirection use. In particular,
-     * the JLine implementation is very picky in regard to newline.
-     * If a redirection file consists of a line not terminated with whatever
-     * JLine likes, it will return null from readLine().
+     * Check that the input works if System.console() is absent.
      */
-    @ParameterizedTest
-    @ValueSource(strings = {"null", "java.base", "jdk.internal.le"})
-    public void inputTestRedirected(String mode) throws Exception {
-        final var expected = "hello";
-        // write bytes not string, for clarity
-        var f = Files.write(Path.of("input"), expected.getBytes(StandardCharsets.UTF_8)).toFile();
+    @Test
+    public void nullConsole() throws Exception {
+        var f = Files.writeString(Path.of("input"), "world").toFile();
         var file = Path.of(System.getProperty("test.src", "."), "Input.java")
                 .toAbsolutePath().toString();
-        String[] command = mode.equals("null") ? new String[]{file}
-                : new String[]{"-Djdk.console=" + mode, file};
-        var pb = ProcessTools.createTestJavaProcessBuilder(command);
+        var pb = ProcessTools.createTestJavaProcessBuilder("-Djdk.console=java.base", file);
         pb.redirectInput(ProcessBuilder.Redirect.from(f));
         OutputAnalyzer output = ProcessTools.executeProcess(pb);
         output.reportDiagnosticSummary();
         assertEquals(0, output.getExitValue());
         String stdout = output.getOutput();
-        assertEquals(expected, stdout);
+        assertEquals("helloworld", stdout);
     }
 }
