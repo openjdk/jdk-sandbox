@@ -62,6 +62,7 @@ import static sun.nio.ch.iouring.foreign.iouring_h.*;
  * an IOUring instance, a number of these buffers can be created in a pool.
  * Registered buffers are not used with regular IOUring read/write operations.
  */
+@SuppressWarnings("restricted")
 public class IOUring {
     private static Arena arena = Arena.ofAuto();
 

@@ -27,7 +27,7 @@ import static java.lang.foreign.MemoryLayout.PathElement.*;
  * }
  * }
  */
-public class io_cqring_offsets {
+@SuppressWarnings("restricted") public class io_cqring_offsets {
 
     io_cqring_offsets() {
         // Suppresses public default constructor, ensuring non-instantiability,

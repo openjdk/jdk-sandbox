@@ -28,7 +28,7 @@ import static java.lang.foreign.MemoryLayout.PathElement.*;
  * }
  * }
  */
-public class io_uring_params {
+@SuppressWarnings("restricted") public class io_uring_params {
 
     io_uring_params() {
         // Suppresses public default constructor, ensuring non-instantiability,

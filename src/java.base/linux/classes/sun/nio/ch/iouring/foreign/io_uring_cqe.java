@@ -22,7 +22,7 @@ import static java.lang.foreign.MemoryLayout.PathElement.*;
  * }
  * }
  */
-public class io_uring_cqe {
+@SuppressWarnings("restricted") public class io_uring_cqe {
 
     io_uring_cqe() {
         // Suppresses public default constructor, ensuring non-instantiability,

@@ -12,7 +12,7 @@ import java.util.stream.*;
 import static java.lang.foreign.ValueLayout.*;
 import static java.lang.foreign.MemoryLayout.PathElement.*;
 
-public class iouring_h extends iouring_h_1 {
+@SuppressWarnings("restricted") public class iouring_h extends iouring_h_1 {
 
     iouring_h() {
         // Suppresses public default constructor, ensuring non-instantiability,

@@ -22,7 +22,7 @@ import static java.lang.foreign.MemoryLayout.PathElement.*;
  * }
  * }
  */
-public class epoll_data {
+@SuppressWarnings("restricted") public class epoll_data {
 
     epoll_data() {
         // Suppresses public default constructor, ensuring non-instantiability,

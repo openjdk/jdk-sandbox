@@ -23,7 +23,7 @@ import static java.lang.foreign.MemoryLayout.PathElement.*;
  * }
  * }
  */
-public class io_uring_rsrc_register {
+@SuppressWarnings("restricted") public class io_uring_rsrc_register {
 
     io_uring_rsrc_register() {
         // Suppresses public default constructor, ensuring non-instantiability,

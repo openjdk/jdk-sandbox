@@ -23,7 +23,7 @@ import static java.lang.foreign.MemoryLayout.PathElement.*;
  * }
  * }
  */
-public class in6_addr {
+@SuppressWarnings("restricted") public class in6_addr {
 
     in6_addr() {
         // Suppresses public default constructor, ensuring non-instantiability,

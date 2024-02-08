@@ -35,6 +35,7 @@ import java.util.List;
 import static java.lang.foreign.ValueLayout.JAVA_BYTE;
 import static sun.nio.ch.iouring.foreign.iouring_h.*;
 
+@SuppressWarnings("restricted")
 class Util {
     public static void print(MemorySegment segment, String title) {
         print(segment, title, 32);

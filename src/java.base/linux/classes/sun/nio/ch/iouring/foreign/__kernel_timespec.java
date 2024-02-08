@@ -20,7 +20,7 @@ import static java.lang.foreign.MemoryLayout.PathElement.*;
  * }
  * }
  */
-public class __kernel_timespec {
+@SuppressWarnings("restricted") public class __kernel_timespec {
 
     __kernel_timespec() {
         // Suppresses public default constructor, ensuring non-instantiability,

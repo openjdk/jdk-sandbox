@@ -22,7 +22,7 @@ import static java.lang.foreign.MemoryLayout.PathElement.*;
  * }
  * }
  */
-public class sockaddr_in {
+@SuppressWarnings("restricted") public class sockaddr_in {
 
     sockaddr_in() {
         // Suppresses public default constructor, ensuring non-instantiability,

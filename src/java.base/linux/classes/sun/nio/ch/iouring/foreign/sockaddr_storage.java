@@ -21,7 +21,7 @@ import static java.lang.foreign.MemoryLayout.PathElement.*;
  * }
  * }
  */
-public class sockaddr_storage {
+@SuppressWarnings("restricted") public class sockaddr_storage {
 
     sockaddr_storage() {
         // Suppresses public default constructor, ensuring non-instantiability,

@@ -20,7 +20,7 @@ import static java.lang.foreign.MemoryLayout.PathElement.*;
  * }
  * }
  */
-public class iovec {
+@SuppressWarnings("restricted") public class iovec {
 
     iovec() {
         // Suppresses public default constructor, ensuring non-instantiability,

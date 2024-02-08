@@ -20,7 +20,7 @@ import static java.lang.foreign.MemoryLayout.PathElement.*;
  * }
  * }
  */
-public class epoll_event {
+@SuppressWarnings("restricted") public class epoll_event {
 
     epoll_event() {
         // Suppresses public default constructor, ensuring non-instantiability,
