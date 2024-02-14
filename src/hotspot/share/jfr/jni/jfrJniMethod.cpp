@@ -22,7 +22,6 @@
  *
  */
 
-#include "jfr/periodic/sampling/jfrCPUTimeThreadSampler.hpp"
 #include "jfrfiles/jfrEventClasses.hpp"
 #include "precompiled.hpp"
 #include "jfr/jfr.hpp"

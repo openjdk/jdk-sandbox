@@ -27,6 +27,8 @@
 
 #include "jfr/utilities/jfrAllocation.hpp"
 
+#if defined(LINUX) || defined(BSD)
+
 class JavaThread;
 class JfrCPUTimeThreadSampler;
 
@@ -49,6 +51,22 @@ class JfrCPUTimeThreadSampling : public JfrCHeapObj {
   static void set_java_sample_period(int64_t period_millis);
   static void set_native_sample_period(int64_t period_millis);
   static void on_javathread_suspend(JavaThread* thread);
+  void handle_timer_signal(void* context);
 };
+#else
+class JfrCPUTimeThreadSampling : public JfrCHeapObj {
+ public:
+  static void set_java_sample_period(int64_t period_millis) {
+    warning("JFR CPU time sampling not supported on this platform");
+  }
+  static void set_native_sample_period(int64_t period_millis) {
+    warning("JFR CPU time sampling not supported on this platform");
+  }
+  static void on_javathread_suspend(JavaThread* thread) {
+    warning("JFR CPU time sampling not supported on this platform");
+  }
+};
+#endif // defined(LINUX) || defined(BSD)
+
 
 #endif // SHARE_JFR_PERIODIC_SAMPLING_JFRCPUTIMETHREADSAMPLER_HPP
