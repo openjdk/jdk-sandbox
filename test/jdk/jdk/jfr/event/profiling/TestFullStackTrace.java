@@ -41,13 +41,15 @@ import jdk.test.lib.jfr.RecurseThread;
  * @key jfr
  * @requires vm.hasJFR
  * @library /test/lib
- * @run main/othervm jdk.jfr.event.profiling.TestFullStackTrace
+ * @run main/othervm jdk.jfr.event.profiling.TestFullStackTrace wall-clock
+ * @run main/othervm jdk.jfr.event.profiling.TestFullStackTrace cpu-time
  */
 public class TestFullStackTrace {
-    private final static String EVENT_NAME = EventNames.ExecutionSample;
+    private static String eventName;
     private final static int MAX_DEPTH = 64; // currently hardcoded in jvm
 
     public static void main(String[] args) throws Throwable {
+        eventName = args[0].equals("wall-clock") ? EventNames.ExecutionSample : EventNames.CPUTimeExecutionSample;
         RecurseThread[] threads = new RecurseThread[3];
         for (int i = 0; i < threads.length; ++i) {
             int depth = MAX_DEPTH - 1 + i;
@@ -74,7 +76,7 @@ public class TestFullStackTrace {
         Recording recording= null;
         do {
             recording = new Recording();
-            recording.enable(EVENT_NAME).withPeriod(Duration.ofMillis(50));
+            recording.enable(eventName).withPeriod(Duration.ofMillis(50));
             recording.start();
             Thread.sleep(500);
             recording.stop();

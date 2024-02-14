@@ -22,6 +22,8 @@
  *
  */
 
+#include "jfr/periodic/sampling/jfrCPUTimeThreadSampler.hpp"
+#include "jfrfiles/jfrEventClasses.hpp"
 #include "precompiled.hpp"
 #include "jfr/jfr.hpp"
 #include "jfr/jfrEvents.hpp"
@@ -283,6 +285,21 @@ JVM_ENTRY_NO_ENV(void, jfr_set_method_sampling_period(JNIEnv* env, jclass jvm, j
     JfrThreadSampling::set_native_sample_period(periodMillis);
   }
 JVM_END
+
+JVM_ENTRY_NO_ENV(void, jfr_set_cpu_time_method_sampling_period(JNIEnv* env, jclass jvm, jlong type, jlong periodMillis))
+  if (periodMillis < 0) {
+    periodMillis = 0;
+  }
+  JfrEventId typed_event_id = (JfrEventId)type;
+  assert(EventCPUTimeExecutionSample::eventId == typed_event_id || EventCPUTimeNativeMethodSample::eventId == typed_event_id, "invariant");
+  JfrEventSetting::set_enabled(typed_event_id, periodMillis > 0);
+  if (EventCPUTimeExecutionSample::eventId == type) {
+    JfrCPUTimeThreadSampling::set_java_sample_period(periodMillis);
+  } else {
+    JfrCPUTimeThreadSampling::set_native_sample_period(periodMillis);
+  }
+JVM_END
+
 
 JVM_ENTRY_NO_ENV(void, jfr_store_metadata_descriptor(JNIEnv* env, jclass jvm, jbyteArray descriptor))
   JfrMetadataEvent::update(descriptor);

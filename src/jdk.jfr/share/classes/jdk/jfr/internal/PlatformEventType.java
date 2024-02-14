@@ -43,6 +43,7 @@ public final class PlatformEventType extends Type {
     private final boolean isJVM;
     private final boolean isJDK;
     private final boolean isMethodSampling;
+    private final boolean isCPUTimeMethodSampling;
     private final List<SettingDescriptor> settings = new ArrayList<>(5);
     private final boolean dynamicSettings;
     private final int stackTraceOffset;
@@ -73,6 +74,7 @@ public final class PlatformEventType extends Type {
         this.dynamicSettings = dynamicSettings;
         this.isJVM = Type.isDefinedByJVM(id);
         this.isMethodSampling = isJVM && (name.equals(Type.EVENT_NAME_PREFIX + "ExecutionSample") || name.equals(Type.EVENT_NAME_PREFIX + "NativeMethodSample"));
+        this.isCPUTimeMethodSampling = isJVM && (name.equals(Type.EVENT_NAME_PREFIX + "CPUTimeExecutionSample") || name.equals(Type.EVENT_NAME_PREFIX + "CPUTimeNativeMethodSample"));
         this.isJDK = isJDK;
         this.stackTraceOffset = stackTraceOffset(name, isJDK);
     }
@@ -223,6 +225,9 @@ public final class PlatformEventType extends Type {
             if (isMethodSampling) {
                 long p = enabled ? period : 0;
                 JVM.setMethodSamplingPeriod(getId(), p);
+            } else if (isCPUTimeMethodSampling) {
+                long p = enabled ? period : 0;
+                JVM.setCPUTimeMethodSamplingPeriod(getId(), p);
             } else {
                 JVM.setEnabled(getId(), enabled);
             }
@@ -236,6 +241,9 @@ public final class PlatformEventType extends Type {
         if (isMethodSampling) {
             long p = enabled ? periodMillis : 0;
             JVM.setMethodSamplingPeriod(getId(), p);
+        } else if (isCPUTimeMethodSampling) {
+            long p = enabled ? periodMillis : 0;
+            JVM.setCPUTimeMethodSamplingPeriod(getId(), p);
         }
         this.beginChunk = beginChunk;
         this.endChunk = endChunk;
@@ -358,6 +366,10 @@ public final class PlatformEventType extends Type {
 
     public boolean isMethodSampling() {
         return isMethodSampling;
+    }
+
+    public boolean isCPUTimeMethodSampling() {
+        return isCPUTimeMethodSampling;
     }
 
     public void setStackFilterId(long id) {

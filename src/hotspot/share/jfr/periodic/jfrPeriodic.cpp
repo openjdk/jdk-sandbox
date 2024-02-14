@@ -145,6 +145,10 @@ TRACE_REQUEST_FUNC(ExecutionSample) {
 }
 TRACE_REQUEST_FUNC(NativeMethodSample) {
 }
+TRACE_REQUEST_FUNC(CPUTimeExecutionSample) {
+}
+TRACE_REQUEST_FUNC(CPUTimeNativeMethodSample) {
+}
 
 TRACE_REQUEST_FUNC(ThreadDump) {
   ResourceMark rm;

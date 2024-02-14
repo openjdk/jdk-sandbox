@@ -63,10 +63,12 @@ class JfrStackFrame {
 
 class JfrStackTrace : public JfrCHeapObj {
   friend class JfrNativeSamplerCallback;
+  friend class JfrNativeCPUTimeSamplerCallback;
   friend class JfrStackTraceRepository;
   friend class ObjectSampleCheckpoint;
   friend class ObjectSampler;
   friend class OSThreadSampler;
+  friend class CPUTimeOSThreadSampler;
   friend class StackTraceResolver;
  private:
   const JfrStackTrace* _next;

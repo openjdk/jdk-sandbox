@@ -271,6 +271,15 @@ public final class JVM {
     public static native void setMethodSamplingPeriod(long type, long periodMillis);
 
     /**
+     * Set period for CPU time sampler method samples, in milliseconds.
+     *
+     * Setting period to 0 turns off the CPU time method sampler.
+     *
+     * @param periodMillis the sampling period
+     */
+    public static native void setCPUTimeMethodSamplingPeriod(long type, long periodMillis);
+
+    /**
      * Sets the file where data should be written.
      *
      * Requires that JFR has been started with {@link #createNativeJFR()}

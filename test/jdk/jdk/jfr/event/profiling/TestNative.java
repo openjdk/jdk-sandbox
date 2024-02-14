@@ -40,14 +40,15 @@ import jdk.test.lib.jfr.EventNames;
  */
 public class TestNative {
 
-    final static String NATIVE_EVENT = EventNames.NativeMethodSample;
+    static String nativeEvent;
 
     static volatile boolean alive = true;
 
     public static void main(String[] args) throws Exception {
+        nativeEvent = EventNames.NativeMethodSample;
         try (RecordingStream rs = new RecordingStream()) {
-            rs.enable(NATIVE_EVENT).withPeriod(Duration.ofMillis(1));
-            rs.onEvent(NATIVE_EVENT, e -> {
+            rs.enable(nativeEvent).withPeriod(Duration.ofMillis(1));
+            rs.onEvent(nativeEvent, e -> {
                 alive = false;
                 rs.close();
             });
