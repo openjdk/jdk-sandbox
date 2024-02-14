@@ -70,6 +70,7 @@ class JfrStackTrace : public JfrCHeapObj {
   friend class OSThreadSampler;
   friend class CPUTimeOSThreadSampler;
   friend class StackTraceResolver;
+  friend class JfrCPUTimeTrace;
  private:
   const JfrStackTrace* _next;
   JfrStackFrame* _frames;

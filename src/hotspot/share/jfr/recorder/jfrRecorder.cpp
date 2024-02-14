@@ -22,7 +22,6 @@
  *
  */
 
-#include "jfr/periodic/sampling/jfrCPUTimeThreadSampler.hpp"
 #include "precompiled.hpp"
 #include "cds/cdsConfig.hpp"
 #include "classfile/javaClasses.hpp"
