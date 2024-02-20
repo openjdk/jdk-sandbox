@@ -31,5 +31,7 @@
  *
  * See {@link sun.nio.ch.iouring.IOUring} {@link sun.nio.ch.iouring.Sqe} 
  * {@link sun.nio.ch.iouring.Cqe}
+ *
+ * A blocking layer is provided by {@link sun.nio.ch.iouring.BlockingRing}
  */
 package sun.nio.ch.iouring;
