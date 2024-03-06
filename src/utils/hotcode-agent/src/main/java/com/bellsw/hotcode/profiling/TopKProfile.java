@@ -15,15 +15,15 @@
  */
 package com.bellsw.hotcode.profiling;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.PriorityQueue;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
 
-public class TopKProfile<T> implements Profile<T> {
+public final class TopKProfile<T> implements Profile<T> {
 
     private final HashMap<T, Integer> samples;
     private int total;
@@ -40,13 +40,13 @@ public class TopKProfile<T> implements Profile<T> {
         return newCount == 1;
     }
 
-    private final Comparator<Map.Entry<T, Integer>> DESC = new Comparator<>() {
+    private final Comparator<Map.Entry<T, Integer>> desc = new Comparator<>() {
         @Override
         public int compare(Entry<T, Integer> o1, Entry<T, Integer> o2) {
             return -o1.getValue().compareTo(o2.getValue());
         }
     };
-    
+
     @Override
     public List<T> getTop(int k) {
         if (k < 1) {
@@ -56,7 +56,7 @@ public class TopKProfile<T> implements Profile<T> {
         if (n == 0) {
             return List.of();
         }
-        var pq = new PriorityQueue<Map.Entry<T, Integer>>(n, DESC);
+        var pq = new PriorityQueue<Map.Entry<T, Integer>>(n, desc);
         pq.addAll(samples.entrySet());
         int len = Math.min(k, pq.size());
         var result = new ArrayList<T>(len);

@@ -28,13 +28,13 @@ import com.bellsw.hotcode.profiling.TopKProfile;
 import com.bellsw.hotcode.profiling.jfr.JfrOfflineProfiling;
 import com.sun.tools.attach.VirtualMachine;
 
-public class HotCodeMain {
+public final class HotCodeMain {
     private static final String USAGE_TXT = "usage.txt";
 
     private final Properties keyArgs = new Properties();
     private final ArrayList<String> freeArgs = new ArrayList<>();
     private final String command;
-    
+
     private HotCodeMain(String[] args) {
         if (args.length < 1) {
             usage();
@@ -46,7 +46,7 @@ public class HotCodeMain {
     public static void main(String[] args) {
         new HotCodeMain(args).dispatch();
     }
-    
+
     private void dispatch() {
         switch (command) {
         case "-h", "-?", "--help", "help" -> usage();
@@ -87,14 +87,14 @@ public class HotCodeMain {
 
     private void convert(Path recordingPath, Path directiveFilePath) {
         var config = HotCodeAgentConfiguration.from(keyArgs);
-        var profile = new TopKProfile<Method>(config.top);
+        var profile = new TopKProfile<Method>(config.top());
         var profiling = new JfrOfflineProfiling(recordingPath);
         try {
             profiling.fill(profile);
 
-            new MethodProfilePrinter(System.out).print(profile, config.top);
+            new MethodProfilePrinter(System.out).print(profile, config.top());
 
-            var hotMethods = profile.getTop(config.top);
+            var hotMethods = profile.getTop(config.top());
             var directives = CompilerDirectives.build(hotMethods, true);
 
             Files.writeString(directiveFilePath, directives);
@@ -105,7 +105,7 @@ public class HotCodeMain {
 
     private void parseCommandArgs(String[] args) {
         String key = null;
-        
+
         for (int i = 1; i < args.length; i++) {
             if (args[i].startsWith("--")) {
                 // check for key without value
@@ -131,7 +131,7 @@ public class HotCodeMain {
             usage();
         }
     }
-    
+
     private static String agentArgs(Properties keyArgs) {
         var sb = new StringBuilder();
         for (var key : keyArgs.keySet()) {
@@ -142,7 +142,7 @@ public class HotCodeMain {
         }
         return sb.toString();
     }
- 
+
     static void usage() {
         try (var in = HotCodeMain.class.getResourceAsStream(USAGE_TXT)) {
             in.transferTo(System.out);
@@ -156,5 +156,5 @@ public class HotCodeMain {
         System.out.println(HotCodeMain.class.getPackage().getImplementationVersion());
         System.exit(1);
     }
-    
+
 }

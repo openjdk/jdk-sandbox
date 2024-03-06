@@ -19,26 +19,31 @@ import java.util.List;
 
 import com.bellsw.hotcode.profiling.Method;
 
-public class CompilerDirectives {
+public final class CompilerDirectives {
+
+    private static final int EST_METHOD_SIZE = 128;
+
+    private CompilerDirectives() {
+    }
 
     public static String build(List<Method> methods, boolean hot) {
-        var sb = new StringBuilder(methods.size() * 128);
+        var sb = new StringBuilder(methods.size() * EST_METHOD_SIZE);
         sb.append("[{").append("\n");
-        {
-            sb.append("match: [").append("\n");
-            for (var m : methods) {
-                var type = m.type().replace('.', '/');
-                var signature = m.signature();
-                sb.append("\"").append(type).append(" ").append(signature).append("\",").append("\n");
-            }
-            sb.append("],").append("\n");
+
+        sb.append("match: [").append("\n");
+        for (var m : methods) {
+            var type = m.type().replace('.', '/');
+            var signature = m.signature();
+            sb.append("\"").append(type).append(" ").append(signature).append("\",").append("\n");
         }
-        {
-            sb.append("c2: {").append("\n");
-            sb.append("Hot: ").append(String.valueOf(hot)).append(",").append("\n");
-            // sb.append("BackgroundCompilation: ").append(String.valueOf(bg)).append(",").append("\n");
-            sb.append("}").append("\n");
-        }
+        sb.append("],").append("\n");
+
+        sb.append("c2: {").append("\n");
+        sb.append("Hot: ").append(String.valueOf(hot)).append(",").append("\n");
+        // sb.append("BackgroundCompilation:
+        // ").append(String.valueOf(bg)).append(",").append("\n");
+        sb.append("}").append("\n");
+
         sb.append("}]");
         return sb.toString();
     }

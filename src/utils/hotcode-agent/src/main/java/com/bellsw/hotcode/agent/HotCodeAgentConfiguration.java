@@ -20,42 +20,34 @@ import java.util.Properties;
 
 import com.bellsw.hotcode.util.DurationParser;
 
-public class HotCodeAgentConfiguration {
+public record HotCodeAgentConfiguration(Duration profilingDelay, Duration profilingPeriod, Duration samplingInterval,
+        Duration profilingDuration, int top, int chunk, boolean print) {
 
-    Duration profilingDelay = Duration.ofMinutes(10);
-    Duration profilingPeriod = Duration.ZERO;
-    Duration samplingInterval = Duration.ofMillis(10);
-    Duration profilingDuration = Duration.ofSeconds(60);
-    int top = 1000;
-    int chunk = 100;
-    boolean print = false;
+    public HotCodeAgentConfiguration {
+        if (!profilingPeriod.isZero()) {
+            checkArgNot(profilingPeriod.compareTo(profilingDuration) < 0, "period < duration");
+            checkArgNot(chunk > top, "chunk > top");
+        }
+
+        checkArgNot(top < 1, "top < 1");
+        checkArgNot(chunk < 1, "chunk < 1");
+    }
 
     public static HotCodeAgentConfiguration from(Properties props) {
-        var config = new HotCodeAgentConfiguration();
-        for (var key : props.stringPropertyNames()) {
-            String value = props.getProperty(key);
-            switch (key) {
-            case "delay" -> config.profilingDelay = DurationParser.parse(value);
-            case "period" -> config.profilingPeriod = DurationParser.parse(value);
-            case "interval" -> config.samplingInterval = DurationParser.parse(value);
-            case "duration" -> config.profilingDuration = DurationParser.parse(value);
-            case "top" -> config.top = Integer.parseInt(value);
-            case "chunk" -> config.chunk = Integer.parseInt(value);
-            case "print" -> config.print = Boolean.parseBoolean(value);
-            }
+        var profilingDelay = DurationParser.parse(props.getProperty("delay", "10m"));
+        var profilingPeriod = DurationParser.parse(props.getProperty("period", "0m"));
+        var samplingInterval = DurationParser.parse(props.getProperty("interval", "10ms"));
+        var profilingDuration = DurationParser.parse(props.getProperty("duration", "60s"));
+        int top = Integer.parseInt(props.getProperty("top", "1000"));
+        int chunk = Integer.parseInt(props.getProperty("chunk", "100"));
+        boolean print = Boolean.parseBoolean(props.getProperty("print", "false"));
+
+        if (profilingPeriod.isZero()) {
+            chunk = top;
         }
 
-        if (config.profilingPeriod.isZero()) {
-            config.chunk = config.top;
-        } else {
-            checkArgNot(config.profilingPeriod.compareTo(config.profilingDuration) < 0, "period < duration");
-            checkArgNot(config.chunk > config.top, "chunk > top");
-        }
-
-        checkArgNot(config.top < 1, "top < 1");
-        checkArgNot(config.chunk < 1, "chunk < 1");
-
-        return config;
+        return new HotCodeAgentConfiguration(profilingDelay, profilingPeriod, samplingInterval, profilingDuration, top,
+                chunk, print);
     }
 
     private static void checkArgNot(boolean badCond, String msg) {

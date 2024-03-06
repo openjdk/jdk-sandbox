@@ -37,23 +37,23 @@ import com.bellsw.hotcode.util.ListUtils;
 import com.bellsw.hotcode.util.SimpleThreadFactory;
 import com.sun.management.HotSpotDiagnosticMXBean;
 
-public class HotCodeAgent {
+public final class HotCodeAgent {
 
-    private final static Logger LOGGER = Logger.getLogger(HotCodeAgent.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(HotCodeAgent.class.getName());
 
     private final HotCodeAgentConfiguration config;
     private final ScheduledExecutorService service;
     private final Profile<Method> profile;
     private final Profiling profiling;
     private final MethodProfilePrinter profilePrinter;
-    
+
     private HotCodeAgent(String argumentString) {
         var settings = new Properties();
         parseArgs(argumentString, settings);
         config = HotCodeAgentConfiguration.from(settings);
         service = Executors.newSingleThreadScheduledExecutor(new SimpleThreadFactory("hotcode-optimization", true));
-        profile = new TopKProfile<>(config.top);
-        profiling = new JfrLiveProfiling(config.samplingInterval, config.profilingDuration);
+        profile = new TopKProfile<>(config.top());
+        profiling = new JfrLiveProfiling(config.samplingInterval(), config.profilingDuration());
         profilePrinter = new MethodProfilePrinter(System.out);
     }
 
@@ -75,17 +75,11 @@ public class HotCodeAgent {
             return;
         }
 
-        if (config.profilingPeriod.isZero()) {
-            service.schedule(
-                    new ProfileAndOptimize(),
-                    config.profilingDelay.toMillis(),
-                    TimeUnit.MILLISECONDS);
+        if (config.profilingPeriod().isZero()) {
+            service.schedule(new ProfileAndOptimize(), config.profilingDelay().toMillis(), TimeUnit.MILLISECONDS);
         } else {
-            service.scheduleAtFixedRate(
-                    new ProfileAndOptimize(),
-                    config.profilingDelay.toMillis(),
-                    config.profilingPeriod.toMillis(),
-                    TimeUnit.MILLISECONDS);
+            service.scheduleAtFixedRate(new ProfileAndOptimize(), config.profilingDelay().toMillis(),
+                    config.profilingPeriod().toMillis(), TimeUnit.MILLISECONDS);
         }
     }
 
@@ -105,8 +99,8 @@ public class HotCodeAgent {
         }
     }
 
-    private class ProfileAndOptimize implements Runnable {
-        List<Method> oldTop = List.of();
+    private final class ProfileAndOptimize implements Runnable {
+        private List<Method> oldTop = List.of();
 
         private static void update(List<Method> methods, boolean hot, boolean refresh) throws DirectivesException {
             if (!methods.isEmpty()) {
@@ -123,12 +117,12 @@ public class HotCodeAgent {
 
                 profiling.fill(profile);
                 LOGGER.log(Level.INFO, "Determined {0} hottest methods", profile.size());
-                if (config.print) {
-                    profilePrinter.print(profile, config.top);
+                if (config.print()) {
+                    profilePrinter.print(profile, config.top());
                 }
 
                 // reduce initial overhead
-                int fetchCount = oldTop.isEmpty() ? config.chunk : config.top;
+                int fetchCount = oldTop.isEmpty() ? config.chunk() : config.top();
                 var newTop = profile.getTop(fetchCount);
 
                 var dcmdResult = CompilerDirectivesControl.clear(false); // no refresh
@@ -145,7 +139,7 @@ public class HotCodeAgent {
 
                 var methodsToAdd = ListUtils.diff(newTop, oldTop); // preserve order to select hottest ones
                 LOGGER.log(Level.INFO, "{0} new hot methods", methodsToAdd.size());
-                methodsToAdd = ListUtils.limit(methodsToAdd, config.chunk);
+                methodsToAdd = ListUtils.limit(methodsToAdd, config.chunk());
                 LOGGER.log(Level.INFO, "Adding directives for {0} hot methods", methodsToAdd.size());
                 update(methodsToAdd, true, true); // hot, refresh
 

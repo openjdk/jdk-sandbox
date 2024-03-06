@@ -21,9 +21,12 @@ import java.util.List;
 
 public final class ListUtils {
 
+    private ListUtils() {
+    }
+
     /**
      * Values of list2 are subtracted from values of list1, the order is preserved.
-     * 
+     *
      * @param list1
      * @param list2
      * @return New modifiable list
@@ -38,11 +41,11 @@ public final class ListUtils {
         }
         return result;
     }
-    
+
     public static <E> List<E> limit(List<E> list, int maxSize) {
         return list.subList(0, Math.min(maxSize, list.size()));
     }
-    
+
     public static <E> List<E> concat(List<E> list1, List<E> list2) {
         var result = new ArrayList<E>(list1.size() + list2.size());
         result.addAll(list1);

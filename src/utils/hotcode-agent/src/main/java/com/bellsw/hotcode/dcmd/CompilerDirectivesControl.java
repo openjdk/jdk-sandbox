@@ -15,17 +15,20 @@
  */
 package com.bellsw.hotcode.dcmd;
 
-import javax.management.ObjectName;
 import java.io.IOException;
-import java.lang.Exception;
 import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.util.Arrays;
 
-public class CompilerDirectivesControl {
+import javax.management.ObjectName;
+
+public final class CompilerDirectivesControl {
+
+    private CompilerDirectivesControl() {
+    }
 
     public static String clear(boolean refresh) throws DirectivesException {
-        var args = refresh ? new String[] { "-r" } : new String[] { };
+        var args = refresh ? new String[] { "-r" } : new String[] {};
         Object[] dcmdArgs = { args };
         return invoke("compilerDirectivesClear", dcmdArgs);
     }

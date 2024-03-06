@@ -15,15 +15,15 @@
  */
 package com.bellsw.hotcode.profiling.jfr;
 
-import jdk.jfr.consumer.RecordedEvent;
-import jdk.jfr.consumer.RecordedFrame;
-
 import java.util.function.Consumer;
 
 import com.bellsw.hotcode.profiling.Method;
 import com.bellsw.hotcode.profiling.Profile;
 
-public class ExecutionSampleCounter implements Consumer<RecordedEvent> {
+import jdk.jfr.consumer.RecordedEvent;
+import jdk.jfr.consumer.RecordedFrame;
+
+public final class ExecutionSampleCounter implements Consumer<RecordedEvent> {
 
     private final Profile<Method> profile;
     private final int maxStackDepth;

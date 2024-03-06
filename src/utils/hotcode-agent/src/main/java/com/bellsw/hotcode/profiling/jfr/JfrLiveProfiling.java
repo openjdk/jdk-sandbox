@@ -15,21 +15,22 @@
  */
 package com.bellsw.hotcode.profiling.jfr;
 
-import jdk.jfr.consumer.EventStream;
-import jdk.jfr.consumer.RecordingStream;
-
 import java.lang.management.ManagementFactory;
 import java.time.Duration;
 import java.time.Instant;
 
 import com.sun.management.HotSpotDiagnosticMXBean;
 
-public class JfrLiveProfiling extends AbstractJfrProfiling {
+import jdk.jfr.consumer.EventStream;
+import jdk.jfr.consumer.RecordingStream;
+
+public final class JfrLiveProfiling extends AbstractJfrProfiling {
 
     private final Duration samplingInterval;
     private final Duration duration;
-    
+
     private static final int MAX_INLINE_LEVEL;
+
     static {
         var diagnosticBean = ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class);
         var option = diagnosticBean.getVMOption("MaxInlineLevel");

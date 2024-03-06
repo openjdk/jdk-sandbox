@@ -15,14 +15,13 @@
  */
 package com.bellsw.hotcode.agent;
 
-import org.junit.jupiter.api.Test;
-
-import com.bellsw.hotcode.agent.HotCodeAgentConfiguration;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Duration;
 import java.util.Properties;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 class HotCodeAgentConfigurationTest {
 
@@ -32,7 +31,7 @@ class HotCodeAgentConfigurationTest {
         var props = new Properties();
         props.put("top", String.valueOf(expected));
         var c = HotCodeAgentConfiguration.from(props);
-        assertEquals(expected, c.top);
+        assertEquals(expected, c.top());
     }
 
     @Test
@@ -41,10 +40,10 @@ class HotCodeAgentConfigurationTest {
         var props = new Properties();
         props.put("chunk", String.valueOf(expected));
         var c = HotCodeAgentConfiguration.from(props);
-        assertEquals(c.top, c.chunk);
+        assertEquals(c.top(), c.chunk());
         props.put("period", "1h");
         c = HotCodeAgentConfiguration.from(props);
-        assertEquals(expected, c.chunk);
+        assertEquals(expected, c.chunk());
     }
 
     @Test
@@ -53,7 +52,7 @@ class HotCodeAgentConfigurationTest {
         var props = new Properties();
         props.put("delay", "5m");
         var c = HotCodeAgentConfiguration.from(props);
-        assertEquals(expected, c.profilingDelay);
+        assertEquals(expected, c.profilingDelay());
     }
 
     @Test
@@ -62,7 +61,7 @@ class HotCodeAgentConfigurationTest {
         var props = new Properties();
         props.put("duration", "30s");
         var c = HotCodeAgentConfiguration.from(props);
-        assertEquals(expected, c.profilingDuration);
+        assertEquals(expected, c.profilingDuration());
     }
 
     @Test
@@ -71,7 +70,7 @@ class HotCodeAgentConfigurationTest {
         var props = new Properties();
         props.put("interval", "50ms");
         var c = HotCodeAgentConfiguration.from(props);
-        assertEquals(expected, c.samplingInterval);
+        assertEquals(expected, c.samplingInterval());
     }
 
     @Test
@@ -80,7 +79,7 @@ class HotCodeAgentConfigurationTest {
         var props = new Properties();
         props.put("period", "2h");
         var c = HotCodeAgentConfiguration.from(props);
-        assertEquals(expected, c.profilingPeriod);
+        assertEquals(expected, c.profilingPeriod());
     }
 
     @Test
@@ -91,5 +90,5 @@ class HotCodeAgentConfigurationTest {
         props.put("period", "20s");
         assertThrows(IllegalArgumentException.class, () -> HotCodeAgentConfiguration.from(props));
     }
-    
+
 }

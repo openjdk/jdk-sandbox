@@ -15,13 +15,13 @@
  */
 package com.bellsw.hotcode.profiling.jfr;
 
-import jdk.jfr.consumer.EventStream;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public class JfrOfflineProfiling extends AbstractJfrProfiling {
+import jdk.jfr.consumer.EventStream;
+
+public final class JfrOfflineProfiling extends AbstractJfrProfiling {
 
     private final Path recordingPath;
 

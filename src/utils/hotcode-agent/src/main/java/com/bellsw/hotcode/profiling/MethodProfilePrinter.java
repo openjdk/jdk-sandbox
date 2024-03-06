@@ -18,17 +18,17 @@ package com.bellsw.hotcode.profiling;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 
-public class MethodProfilePrinter {
-    private final static String ROW_SEP = "-".repeat(120);
-    private final static String HEADER = String.format("| %-7s | %-9s | %-94s |", "COUNT", "%", "METHOD");
-    private final static String ROW_FMT = "| %7d | %9.2f | %-94s |";
-    
+public final class MethodProfilePrinter {
+    private static final String ROW_SEP = "-".repeat(120);
+    private static final String HEADER = String.format("| %-7s | %-9s | %-94s |", "COUNT", "%", "METHOD");
+    private static final String ROW_FMT = "| %7d | %9.2f | %-94s |";
+
     private final PrintWriter printWriter;
-    
+
     public MethodProfilePrinter(OutputStream output) {
         printWriter = new PrintWriter(output);
     }
-    
+
     public void print(Profile<Method> profile, int topK) {
         printWriter.println(ROW_SEP);
         printWriter.println(HEADER);

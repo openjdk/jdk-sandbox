@@ -15,26 +15,26 @@
  */
 package com.bellsw.hotcode.profiling.jfr;
 
-import jdk.jfr.consumer.EventStream;
-
 import java.io.IOException;
 
 import com.bellsw.hotcode.profiling.Method;
 import com.bellsw.hotcode.profiling.Profile;
 import com.bellsw.hotcode.profiling.Profiling;
 
+import jdk.jfr.consumer.EventStream;
+
 public abstract class AbstractJfrProfiling implements Profiling {
 
     protected static final String EXECUTION_SAMPLE_EVENT_NAME = "jdk.ExecutionSample";
     private final int maxStackDepth;
 
-    abstract protected EventStream openEventStream() throws IOException;
+    protected abstract EventStream openEventStream() throws IOException;
 
     public AbstractJfrProfiling(int maxStackDepth) {
         this.maxStackDepth = maxStackDepth;
     }
 
-    public void fill(Profile<Method> profile) throws IOException {
+    public final void fill(Profile<Method> profile) throws IOException {
         var counter = new ExecutionSampleCounter(profile, maxStackDepth);
 
         try (var rs = openEventStream()) {
