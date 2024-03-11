@@ -52,7 +52,6 @@
  * @provides javax.tools.DocumentationTool
  * @provides javax.tools.Tool
  *
- *
  * @moduleGraph
  * @since 9
  */
