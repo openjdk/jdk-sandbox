@@ -99,8 +99,8 @@ JfrBuffer* JfrTraceIdLoadBarrier::get_sampler_enqueue_buffer(Thread* thread) {
   return sampler_klass_queue().get_enqueue_buffer(thread);
 }
 
-JfrBuffer* JfrTraceIdLoadBarrier::renew_sampler_enqueue_buffer(Thread* thread) {
-  return sampler_klass_queue().renew_enqueue_buffer(thread);
+JfrBuffer* JfrTraceIdLoadBarrier::renew_sampler_enqueue_buffer(Thread* thread, size_t size) {
+  return sampler_klass_queue().renew_enqueue_buffer(thread, size);
 }
 
 void JfrTraceIdLoadBarrier::do_klasses(klass_callback callback, bool previous_epoch) {
