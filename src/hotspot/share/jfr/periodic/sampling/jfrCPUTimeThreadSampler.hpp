@@ -51,6 +51,8 @@ class JfrCPUTimeThreadSampling : public JfrCHeapObj {
   static void set_java_sample_period(int64_t period_millis);
   static void set_native_sample_period(int64_t period_millis);
   static void on_javathread_suspend(JavaThread* thread);
+  static void on_javathread_create(JavaThread* thread);
+  static void on_javathread_terminate(JavaThread* thread);
   void handle_timer_signal(void* context);
 };
 #else
