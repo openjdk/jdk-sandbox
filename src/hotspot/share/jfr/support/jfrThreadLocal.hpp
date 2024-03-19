@@ -27,6 +27,7 @@
 
 #include "jfr/utilities/jfrBlob.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
+#include "utilities/macros.hpp"
 
 class Arena;
 class JavaThread;
@@ -72,6 +73,7 @@ class JfrThreadLocal {
   bool _vthread;
   bool _notified;
   bool _dead;
+  LINUX_ONLY(timer_t _timer);
 
   JfrBuffer* install_native_buffer() const;
   JfrBuffer* install_java_buffer() const;
@@ -277,6 +279,17 @@ class JfrThreadLocal {
   bool has_thread_blob() const;
   void set_thread_blob(const JfrBlobHandle& handle);
   const JfrBlobHandle& thread_blob() const;
+
+  // CPU time sampling
+#ifdef LINUX
+  void set_timerid(timer_t timer) {
+    _timer = timer;
+  }
+
+  timer_t timerid() const {
+    return _timer;
+  }
+#endif
 
   // Hooks
   static void on_start(Thread* t);

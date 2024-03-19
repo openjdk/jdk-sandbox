@@ -28,6 +28,7 @@
 #include "jfr/periodic/sampling/jfrCPUTimeThreadSampler.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
 #include "memory/allStatic.hpp"
+#include <cstddef>
 
 class ClassLoaderData;
 class JfrBuffer;
@@ -81,7 +82,7 @@ class JfrTraceIdLoadBarrier : AllStatic {
   static void enqueue(const Klass* klass);
   static void load_barrier(const Klass* klass);
   static JfrBuffer* get_sampler_enqueue_buffer(Thread* thread);
-  static JfrBuffer* renew_sampler_enqueue_buffer(Thread* thread);
+  static JfrBuffer* renew_sampler_enqueue_buffer(Thread* thread, size_t size = 0);
  public:
   static traceid load(const ClassLoaderData* cld);
   static traceid load(const Klass* klass);
