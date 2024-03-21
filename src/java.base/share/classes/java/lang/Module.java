@@ -75,32 +75,30 @@ import jdk.internal.reflect.Reflection;
 import jdk.internal.vm.annotation.Stable;
 import sun.security.util.SecurityConstants;
 
-/**
- * Represents a run-time module, either {@link #isNamed() named} or unnamed.
- *
- * <p> Named modules have a {@link #getName() name} and are constructed by the
- * Java Virtual Machine when a graph of modules is defined to the Java virtual
- * machine to create a {@linkplain ModuleLayer module layer}. </p>
- *
- * <p> An unnamed module does not have a name. There is an unnamed module for
- * each {@link ClassLoader ClassLoader}, obtained by invoking its {@link
- * ClassLoader#getUnnamedModule() getUnnamedModule} method. All types that are
- * not in a named module are members of their defining class loader's unnamed
- * module. </p>
- *
- * <p> The package names that are parameters or returned by methods defined in
- * this class are the fully-qualified names of the packages as defined in
- * section {@jls 6.5.3} of <cite>The Java Language Specification</cite>, for
- * example, {@code "java.lang"}. </p>
- *
- * <p> Unless otherwise specified, passing a {@code null} argument to a method
- * in this class causes a {@link NullPointerException NullPointerException} to
- * be thrown. </p>
- *
- * @since 9
- * @see Class#getModule()
- * @jls 7.7 Module Declarations
- */
+/// Represents a run-time module, either [named][#isNamed()] or unnamed.
+///
+/// Named modules have a [name][#getName()] and are constructed by the
+/// Java Virtual Machine when a graph of modules is defined to the Java virtual
+/// machine to create a [module layer][ModuleLayer].
+///
+/// An unnamed module does not have a name. There is an unnamed module for
+/// each [ClassLoader], obtained by invoking its
+/// [`getUnnamedModule`][ClassLoader#getUnnamedModule()] method. All types that are
+/// not in a named module are members of their defining class loader's unnamed
+/// module.
+///
+/// The package names that are parameters or returned by methods defined in
+/// this class are the fully-qualified names of the packages as defined in
+/// section {@jls 6.5.3} of <cite>The Java Language Specification</cite>, for
+/// example, `"java.lang"`.
+///
+/// Unless otherwise specified, passing a `null` argument to a method
+/// in this class causes a [NullPointerException] to
+/// be thrown.
+///
+/// @since 9
+/// @see Class#getModule()
+/// @jls 7.7 Module Declarations
 
 public final class Module implements AnnotatedElement {
 
@@ -120,11 +118,9 @@ public final class Module implements AnnotatedElement {
     @Stable
     private boolean enableNativeAccess;
 
-    /**
-     * Creates a new named Module. The resulting Module will be defined to the
-     * VM but will not read any other modules, will not have any exports setup
-     * and will not be registered in the service catalog.
-     */
+    /// Creates a new named Module. The resulting Module will be defined to the
+    /// VM but will not read any other modules, will not have any exports setup
+    /// and will not be registered in the service catalog.
     Module(ModuleLayer layer,
            ClassLoader loader,
            ModuleDescriptor descriptor,
@@ -145,12 +141,9 @@ public final class Module implements AnnotatedElement {
         defineModule0(this, isOpen, vs, loc, packages);
     }
 
-
-    /**
-     * Create the unnamed Module for the given ClassLoader.
-     *
-     * @see ClassLoader#getUnnamedModule
-     */
+    /// Create the unnamed Module for the given ClassLoader.
+    ///
+    /// @see ClassLoader#getUnnamedModule
     Module(ClassLoader loader) {
         this.layer = null;
         this.name = null;
@@ -159,11 +152,9 @@ public final class Module implements AnnotatedElement {
     }
 
 
-    /**
-     * Creates a named module but without defining the module to the VM.
-     *
-     * @apiNote This constructor is for VM white-box testing.
-     */
+    /// Creates a named module but without defining the module to the VM.
+    ///
+    /// @apiNote This constructor is for VM white-box testing.
     Module(ClassLoader loader, ModuleDescriptor descriptor) {
         this.layer = null;
         this.name = descriptor.name();
@@ -172,41 +163,35 @@ public final class Module implements AnnotatedElement {
     }
 
 
-    /**
-     * Returns {@code true} if this module is a named module.
-     *
-     * @return {@code true} if this is a named module
-     *
-     * @see ClassLoader#getUnnamedModule()
-     * @jls 7.7.5 Unnamed Modules
-     */
+    /// Returns `true` if this module is a named module.
+    ///
+    /// @return `true` if this is a named module
+    ///
+    /// @see ClassLoader#getUnnamedModule()
+    /// @jls 7.7.5 Unnamed Modules
     public boolean isNamed() {
         return name != null;
     }
 
-    /**
-     * Returns the module name or {@code null} if this module is an unnamed
-     * module.
-     *
-     * @return The module name
-     */
+    /// Returns the module name or `null` if this module is an unnamed
+    /// module.
+    ///
+    /// @return The module name
     public String getName() {
         return name;
     }
 
-    /**
-     * Returns the {@code ClassLoader} for this module.
-     *
-     * <p> If there is a security manager then its {@code checkPermission}
-     * method if first called with a {@code RuntimePermission("getClassLoader")}
-     * permission to check that the caller is allowed to get access to the
-     * class loader. </p>
-     *
-     * @return The class loader for this module
-     *
-     * @throws SecurityException
-     *         If denied by the security manager
-     */
+    /// Returns the `ClassLoader` for this module.
+    ///
+    /// If there is a security manager then its `checkPermission`
+    /// method if first called with a `RuntimePermission("getClassLoader")`
+    /// permission to check that the caller is allowed to get access to the
+    /// class loader.
+    ///
+    /// @return The class loader for this module
+    ///
+    /// @throws SecurityException
+    ///         If denied by the security manager
     public ClassLoader getClassLoader() {
         @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
@@ -216,31 +201,27 @@ public final class Module implements AnnotatedElement {
         return loader;
     }
 
-    /**
-     * Returns the module descriptor for this module or {@code null} if this
-     * module is an unnamed module.
-     *
-     * @return The module descriptor for this module
-     */
+    /// Returns the module descriptor for this module or `null` if this
+    /// module is an unnamed module.
+    ///
+    /// @return The module descriptor for this module
     public ModuleDescriptor getDescriptor() {
         return descriptor;
     }
 
-    /**
-     * Returns the module layer that contains this module or {@code null} if
-     * this module is not in a module layer.
-     *
-     * A module layer contains named modules and therefore this method always
-     * returns {@code null} when invoked on an unnamed module.
-     *
-     * <p> <a href="reflect/Proxy.html#dynamicmodule">Dynamic modules</a> are
-     * named modules that are generated at runtime. A dynamic module may or may
-     * not be in a module layer. </p>
-     *
-     * @return The module layer that contains this module
-     *
-     * @see java.lang.reflect.Proxy
-     */
+    /// Returns the module layer that contains this module or `null` if
+    /// this module is not in a module layer.
+    ///
+    /// A module layer contains named modules and therefore this method always
+    /// returns `null` when invoked on an unnamed module.
+    ///
+    /// [Dynamic modules][java.lang.reflect.Proxy##dynamicmodule] are
+    /// named modules that are generated at runtime. A dynamic module may or may
+    /// not be in a module layer.
+    ///
+    /// @return The module layer that contains this module
+    ///
+    /// @see java.lang.reflect.Proxy
     public ModuleLayer getLayer() {
         if (isNamed()) {
             ModuleLayer layer = this.layer;
@@ -255,30 +236,24 @@ public final class Module implements AnnotatedElement {
         return null;
     }
 
-    /**
-     * Update this module to allow access to restricted methods.
-     */
+    /// Update this module to allow access to restricted methods.
     Module implAddEnableNativeAccess() {
         EnableNativeAccess.trySetEnableNativeAccess(this);
         return this;
     }
 
-    /**
-     * Returns {@code true} if this module can access
-     * <a href="foreign/package-summary.html#restricted"><em>restricted</em></a> methods.
-     *
-     * @return {@code true} if this module can access <em>restricted</em> methods.
-     * @since 22
-     */
+    /// Returns `true` if this module can access
+    /// [_restricted_][java.lang.foreign##restricted] methods.
+    ///
+    /// @return `true` if this module can access _restricted_ methods.
+    /// @since 22
     public boolean isNativeAccessEnabled() {
         Module target = moduleForNativeAccess();
         return EnableNativeAccess.isNativeAccessEnabled(target);
     }
 
-    /**
-     * This class is used to be able to bootstrap without using Unsafe
-     * in the outer Module class as that would create a circular initializer dependency.
-     */
+    /// This class is used to be able to bootstrap without using Unsafe
+    /// in the outer Module class as that would create a circular initializer dependency.
     private static final class EnableNativeAccess {
 
         private EnableNativeAccess() {}
@@ -328,9 +303,7 @@ public final class Module implements AnnotatedElement {
         }
     }
 
-    /**
-     * Update all unnamed modules to allow access to restricted methods.
-     */
+    /// Update all unnamed modules to allow access to restricted methods.
     static void implAddEnableNativeAccessToAllUnnamed() {
         EnableNativeAccess.trySetEnableNativeAccess(ALL_UNNAMED_MODULE);
     }
@@ -388,28 +361,20 @@ public final class Module implements AnnotatedElement {
         }
     }
 
-    /**
-     * The holder of data structures to support readability, exports, and
-     * service use added at runtime with the reflective APIs.
-     */
+    /// The holder of data structures to support readability, exports, and
+    /// service use added at runtime with the reflective APIs.
     private static class ReflectionData {
-        /**
-         * A module (1st key) reads another module (2nd key)
-         */
+        /// A module (1st key) reads another module (2nd key)
         static final WeakPairMap<Module, Module, Boolean> reads =
             new WeakPairMap<>();
 
-        /**
-         * A module (1st key) exports or opens a package to another module
-         * (2nd key). The map value is a map of package name to a boolean
-         * that indicates if the package is opened.
-         */
+        /// A module (1st key) exports or opens a package to another module
+        /// (2nd key). The map value is a map of package name to a boolean
+        /// that indicates if the package is opened.
         static final WeakPairMap<Module, Module, Map<String, Boolean>> exports =
             new WeakPairMap<>();
 
-        /**
-         * A module (1st key) uses a service (2nd key)
-         */
+        /// A module (1st key) uses a service (2nd key)
         static final WeakPairMap<Module, Class<?>, Boolean> uses =
             new WeakPairMap<>();
     }
@@ -420,19 +385,17 @@ public final class Module implements AnnotatedElement {
     // the modules that this module reads
     private volatile Set<Module> reads;
 
-    /**
-     * Indicates if this module reads the given module. This method returns
-     * {@code true} if invoked to test if this module reads itself. It also
-     * returns {@code true} if invoked on an unnamed module (as unnamed
-     * modules read all modules).
-     *
-     * @param  other
-     *         The other module
-     *
-     * @return {@code true} if this module reads {@code other}
-     *
-     * @see #addReads(Module)
-     */
+    /// Indicates if this module reads the given module. This method returns
+    /// `true` if invoked to test if this module reads itself. It also
+    /// returns `true` if invoked on an unnamed module (as unnamed
+    /// modules read all modules).
+    ///
+    /// @param  other
+    ///         The other module
+    ///
+    /// @return `true` if this module reads `other`
+    ///
+    /// @see #addReads(Module)
     public boolean canRead(Module other) {
         Objects.requireNonNull(other);
 
@@ -464,29 +427,27 @@ public final class Module implements AnnotatedElement {
         return false;
     }
 
-    /**
-     * If the caller's module is this module then update this module to read
-     * the given module.
-     *
-     * This method is a no-op if {@code other} is this module (all modules read
-     * themselves), this module is an unnamed module (as unnamed modules read
-     * all modules), or this module already reads {@code other}.
-     *
-     * @implNote <em>Read edges</em> added by this method are <em>weak</em> and
-     * do not prevent {@code other} from being GC'ed when this module is
-     * strongly reachable.
-     *
-     * @param  other
-     *         The other module
-     *
-     * @return this module
-     *
-     * @throws IllegalCallerException
-     *         If this is a named module and the caller's module is not this
-     *         module
-     *
-     * @see #canRead
-     */
+    /// If the caller's module is this module then update this module to read
+    /// the given module.
+    ///
+    /// This method is a no-op if `other` is this module (all modules read
+    /// themselves), this module is an unnamed module (as unnamed modules read
+    /// all modules), or this module already reads `other`.
+    ///
+    /// @implNote _Read edges_ added by this method are _weak_ and
+    /// do not prevent `other` from being GC'ed when this module is
+    /// strongly reachable.
+    ///
+    /// @param  other
+    ///         The other module
+    ///
+    /// @return this module
+    ///
+    /// @throws IllegalCallerException
+    ///         If this is a named module and the caller's module is not this
+    ///         module
+    ///
+    /// @see #canRead
     @CallerSensitive
     public Module addReads(Module other) {
         Objects.requireNonNull(other);
@@ -500,38 +461,30 @@ public final class Module implements AnnotatedElement {
         return this;
     }
 
-    /**
-     * Updates this module to read another module.
-     *
-     * @apiNote Used by the --add-reads command line option.
-     */
+    /// Updates this module to read another module.
+    ///
+    /// @apiNote Used by the --add-reads command line option.
     void implAddReads(Module other) {
         implAddReads(other, true);
     }
 
-    /**
-     * Updates this module to read all unnamed modules.
-     *
-     * @apiNote Used by the --add-reads command line option.
-     */
+    /// Updates this module to read all unnamed modules.
+    ///
+    /// @apiNote Used by the --add-reads command line option.
     void implAddReadsAllUnnamed() {
         implAddReads(Module.ALL_UNNAMED_MODULE, true);
     }
 
-    /**
-     * Updates this module to read another module without notifying the VM.
-     *
-     * @apiNote This method is for VM white-box testing.
-     */
+    /// Updates this module to read another module without notifying the VM.
+    ///
+    /// @apiNote This method is for VM white-box testing.
     void implAddReadsNoSync(Module other) {
         implAddReads(other, false);
     }
 
-    /**
-     * Makes the given {@code Module} readable to this module.
-     *
-     * If {@code syncVM} is {@code true} then the VM is notified.
-     */
+    /// Makes the given `Module` readable to this module.
+    ///
+    /// If `syncVM` is `true` then the VM is notified.
     private void implAddReads(Module other, boolean syncVM) {
         Objects.requireNonNull(other);
         if (!canRead(other)) {
@@ -560,137 +513,127 @@ public final class Module implements AnnotatedElement {
     // if the value contains EVERYONE_MODULE then the package is exported to all
     private volatile Map<String, Set<Module>> exportedPackages;
 
-    /**
-     * Returns {@code true} if this module exports the given package to at
-     * least the given module.
-     *
-     * <p> This method returns {@code true} if invoked to test if a package in
-     * this module is exported to itself. It always returns {@code true} when
-     * invoked on an unnamed module. A package that is {@link #isOpen open} to
-     * the given module is considered exported to that module at run-time and
-     * so this method returns {@code true} if the package is open to the given
-     * module. </p>
-     *
-     * <p> This method does not check if the given module reads this module. </p>
-     *
-     * @param  pn
-     *         The package name
-     * @param  other
-     *         The other module
-     *
-     * @return {@code true} if this module exports the package to at least the
-     *         given module
-     *
-     * @see ModuleDescriptor#exports()
-     * @see #addExports(String,Module)
-     */
+    /// Returns `true` if this module exports the given package to at
+    /// least the given module.
+    ///
+    /// This method returns `true` if invoked to test if a package in
+    /// this module is exported to itself. It always returns `true` when
+    /// invoked on an unnamed module. A package that is [open][#isOpen] to
+    /// the given module is considered exported to that module at run-time and
+    /// so this method returns `true` if the package is open to the given
+    /// module.
+    ///
+    /// This method does not check if the given module reads this module.
+    ///
+    /// @param  pn
+    ///         The package name
+    /// @param  other
+    ///         The other module
+    ///
+    /// @return `true` if this module exports the package to at least the
+    ///         given module
+    ///
+    /// @see ModuleDescriptor#exports()
+    /// @see #addExports(String,Module)
     public boolean isExported(String pn, Module other) {
         Objects.requireNonNull(pn);
         Objects.requireNonNull(other);
         return implIsExportedOrOpen(pn, other, /*open*/false);
     }
 
-    /**
-     * Returns {@code true} if this module has <em>opened</em> a package to at
-     * least the given module.
-     *
-     * <p> This method returns {@code true} if invoked to test if a package in
-     * this module is open to itself. It returns {@code true} when invoked on an
-     * {@link ModuleDescriptor#isOpen open} module with a package in the module.
-     * It always returns {@code true} when invoked on an unnamed module. </p>
-     *
-     * <p> This method does not check if the given module reads this module. </p>
-     *
-     * @apiNote A package {@code p} opened to module {@code M} allows code in
-     * {@code M} do {@linkplain java.lang.reflect.AccessibleObject#setAccessible(boolean)
-     * deep reflection} on all types in the package.
-     * Further, if {@code M} reads this module, it can obtain a
-     * {@link java.lang.invoke.MethodHandles.Lookup Lookup} object that is allowed to
-     * {@link java.lang.invoke.MethodHandles.Lookup#defineClass(byte[]) define classes}
-     * in package {@code p}.
-     *
-     * @param  pn
-     *         The package name
-     * @param  other
-     *         The other module
-     *
-     * @return {@code true} if this module has <em>opened</em> the package
-     *         to at least the given module
-     *
-     * @see ModuleDescriptor#opens()
-     * @see #addOpens(String,Module)
-     * @see java.lang.reflect.AccessibleObject#setAccessible(boolean)
-     * @see java.lang.invoke.MethodHandles#privateLookupIn
-     */
+    /// Returns `true` if this module has _opened_ a package to at
+    /// least the given module.
+    ///
+    /// This method returns `true` if invoked to test if a package in
+    /// this module is open to itself. It returns `true` when invoked on an
+    /// [open][ModuleDescriptor#isOpen] module with a package in the module.
+    /// It always returns `true` when invoked on an unnamed module.
+    ///
+    /// This method does not check if the given module reads this module.
+    ///
+    /// @apiNote A package `p` opened to module `M` allows code in
+    /// `M` do [deep reflection][java.lang.reflect.AccessibleObject#setAccessible(boolean)]
+    /// on all types in the package.
+    /// Further, if `M` reads this module, it can obtain a
+    /// [java.lang.invoke.MethodHandles.Lookup] object that is allowed to
+    /// [define classes][java.lang.invoke.MethodHandles.Lookup#defineClass(byte\[\])]
+    /// in package `p`.
+    ///
+    /// @param  pn
+    ///         The package name
+    /// @param  other
+    ///         The other module
+    ///
+    /// @return `true` if this module has _opened_ the package
+    ///         to at least the given module
+    ///
+    /// @see ModuleDescriptor#opens()
+    /// @see #addOpens(String,Module)
+    /// @see java.lang.reflect.AccessibleObject#setAccessible(boolean)
+    /// @see java.lang.invoke.MethodHandles#privateLookupIn
     public boolean isOpen(String pn, Module other) {
         Objects.requireNonNull(pn);
         Objects.requireNonNull(other);
         return implIsExportedOrOpen(pn, other, /*open*/true);
     }
 
-    /**
-     * Returns {@code true} if this module exports the given package
-     * unconditionally.
-     *
-     * <p> This method always returns {@code true} when invoked on an unnamed
-     * module. A package that is {@link #isOpen(String) opened} unconditionally
-     * is considered exported unconditionally at run-time and so this method
-     * returns {@code true} if the package is opened unconditionally. </p>
-     *
-     * <p> This method does not check if the given module reads this module. </p>
-     *
-     * @param  pn
-     *         The package name
-     *
-     * @return {@code true} if this module exports the package unconditionally
-     *
-     * @see ModuleDescriptor#exports()
-     */
+    /// Returns `true` if this module exports the given package
+    /// unconditionally.
+    ///
+    /// This method always returns `true` when invoked on an unnamed
+    /// module. A package that is [opened][#isOpen(String)] unconditionally
+    /// is considered exported unconditionally at run-time and so this method
+    /// returns `true` if the package is opened unconditionally.
+    ///
+    /// This method does not check if the given module reads this module.
+    ///
+    /// @param  pn
+    ///         The package name
+    ///
+    /// @return `true` if this module exports the package unconditionally
+    ///
+    /// @see ModuleDescriptor#exports()
     public boolean isExported(String pn) {
         Objects.requireNonNull(pn);
         return implIsExportedOrOpen(pn, EVERYONE_MODULE, /*open*/false);
     }
 
-    /**
-     * Returns {@code true} if this module has <em>opened</em> a package
-     * unconditionally.
-     *
-     * <p> This method always returns {@code true} when invoked on an unnamed
-     * module. Additionally, it always returns {@code true} when invoked on an
-     * {@link ModuleDescriptor#isOpen open} module with a package in the
-     * module. </p>
-     *
-     * <p> This method does not check if the given module reads this module. </p>
-     *
-     * @apiNote A package {@code p} opened to module {@code M} allows code in
-     * {@code M} do {@linkplain java.lang.reflect.AccessibleObject#setAccessible(boolean)
-     * deep reflection} on all types in the package.
-     * Further, if {@code M} reads this module, it can obtain a
-     * {@link java.lang.invoke.MethodHandles.Lookup Lookup} object that is allowed to
-     * {@link java.lang.invoke.MethodHandles.Lookup#defineClass(byte[]) define classes}
-     * in package {@code p}.
-     *
-     * @param  pn
-     *         The package name
-     *
-     * @return {@code true} if this module has <em>opened</em> the package
-     *         unconditionally
-     *
-     * @see ModuleDescriptor#opens()
-     * @see java.lang.reflect.AccessibleObject#setAccessible(boolean)
-     * @see java.lang.invoke.MethodHandles#privateLookupIn
-     */
+    /// Returns `true` if this module has _opened_ a package
+    /// unconditionally.
+    ///
+    /// This method always returns `true` when invoked on an unnamed
+    /// module. Additionally, it always returns `true` when invoked on an
+    /// [open][ModuleDescriptor#isOpen] module with a package in the
+    /// module.
+    ///
+    /// This method does not check if the given module reads this module.
+    ///
+    /// @apiNote A package `p` opened to module `M` allows code in
+    /// `M` do [deep reflection][java.lang.reflect.AccessibleObject#setAccessible(boolean)]
+    /// on all types in the package.
+    /// Further, if `M` reads this module, it can obtain a
+    /// [java.lang.invoke.MethodHandles.Lookup] object that is allowed to
+    /// [define classes][java.lang.invoke.MethodHandles.Lookup#defineClass(byte\[\])]
+    /// in package `p`.
+    ///
+    /// @param  pn
+    ///         The package name
+    ///
+    /// @return `true` if this module has _opened_ the package
+    ///         unconditionally
+    ///
+    /// @see ModuleDescriptor#opens()
+    /// @see java.lang.reflect.AccessibleObject#setAccessible(boolean)
+    /// @see java.lang.invoke.MethodHandles#privateLookupIn
     public boolean isOpen(String pn) {
         Objects.requireNonNull(pn);
         return implIsExportedOrOpen(pn, EVERYONE_MODULE, /*open*/true);
     }
 
 
-    /**
-     * Returns {@code true} if this module exports or opens the given package
-     * to the given module. If the other module is {@code EVERYONE_MODULE} then
-     * this method tests if the package is exported or opened unconditionally.
-     */
+    /// Returns `true` if this module exports or opens the given package
+    /// to the given module. If the other module is `EVERYONE_MODULE` then
+    /// this method tests if the package is exported or opened unconditionally.
     private boolean implIsExportedOrOpen(String pn, Module other, boolean open) {
         // all packages in unnamed modules are open
         if (!isNamed())
@@ -716,10 +659,8 @@ public final class Module implements AnnotatedElement {
         return false;
     }
 
-    /**
-     * Returns {@code true} if this module exports or opens a package to
-     * the given module via its module declaration or CLI options.
-     */
+    /// Returns `true` if this module exports or opens a package to
+    /// the given module via its module declaration or CLI options.
     private boolean isStaticallyExportedOrOpen(String pn, Module other, boolean open) {
         // test if package is open to everyone or <other>
         Map<String, Set<Module>> openPackages = this.openPackages;
@@ -738,11 +679,9 @@ public final class Module implements AnnotatedElement {
         return false;
     }
 
-    /**
-     * Returns {@code true} if targets is non-null and contains EVERYONE_MODULE
-     * or the given module. Also returns true if the given module is an unnamed
-     * module and targets contains ALL_UNNAMED_MODULE.
-     */
+    /// Returns `true` if targets is non-null and contains EVERYONE_MODULE
+    /// or the given module. Also returns true if the given module is an unnamed
+    /// module and targets contains ALL_UNNAMED_MODULE.
     private boolean allows(Set<Module> targets, Module module) {
        if (targets != null) {
            if (targets.contains(EVERYONE_MODULE))
@@ -757,10 +696,8 @@ public final class Module implements AnnotatedElement {
         return false;
     }
 
-    /**
-     * Returns {@code true} if this module reflectively exports or opens the
-     * given package to the given module.
-     */
+    /// Returns `true` if this module reflectively exports or opens the
+    /// given package to the given module.
     private boolean isReflectivelyExportedOrOpen(String pn, Module other, boolean open) {
         // exported or open to all modules
         Map<String, Boolean> exports = ReflectionData.exports.get(this, EVERYONE_MODULE);
@@ -801,53 +738,46 @@ public final class Module implements AnnotatedElement {
         return false;
     }
 
-    /**
-     * Returns {@code true} if this module reflectively exports the
-     * given package to the given module.
-     */
+    /// Returns `true` if this module reflectively exports the
+    /// given package to the given module.
     boolean isReflectivelyExported(String pn, Module other) {
         return isReflectivelyExportedOrOpen(pn, other, false);
     }
 
-    /**
-     * Returns {@code true} if this module reflectively opens the
-     * given package to the given module.
-     */
+    /// Returns `true` if this module reflectively opens the
+    /// given package to the given module.
     boolean isReflectivelyOpened(String pn, Module other) {
         return isReflectivelyExportedOrOpen(pn, other, true);
     }
 
-
-    /**
-     * If the caller's module is this module then update this module to export
-     * the given package to the given module.
-     *
-     * <p> This method has no effect if the package is already exported (or
-     * <em>open</em>) to the given module. </p>
-     *
-     * @apiNote As specified in section {@jvms 5.4.3} of the <cite>The Java
-     * Virtual Machine Specification </cite>, if an attempt to resolve a
-     * symbolic reference fails because of a linkage error, then subsequent
-     * attempts to resolve the reference always fail with the same error that
-     * was thrown as a result of the initial resolution attempt.
-     *
-     * @param  pn
-     *         The package name
-     * @param  other
-     *         The module
-     *
-     * @return this module
-     *
-     * @throws IllegalArgumentException
-     *         If {@code pn} is {@code null}, or this is a named module and the
-     *         package {@code pn} is not a package in this module
-     * @throws IllegalCallerException
-     *         If this is a named module and the caller's module is not this
-     *         module
-     *
-     * @jvms 5.4.3 Resolution
-     * @see #isExported(String,Module)
-     */
+    /// If the caller's module is this module then update this module to export
+    /// the given package to the given module.
+    ///
+    /// This method has no effect if the package is already exported (or
+    /// _open_) to the given module.
+    ///
+    /// @apiNote As specified in section {@jvms 5.4.3} of the <cite>The Java
+    /// Virtual Machine Specification </cite>, if an attempt to resolve a
+    /// symbolic reference fails because of a linkage error, then subsequent
+    /// attempts to resolve the reference always fail with the same error that
+    /// was thrown as a result of the initial resolution attempt.
+    ///
+    /// @param  pn
+    ///         The package name
+    /// @param  other
+    ///         The module
+    ///
+    /// @return this module
+    ///
+    /// @throws IllegalArgumentException
+    ///         If `pn` is `null`, or this is a named module and the
+    ///         package `pn` is not a package in this module
+    /// @throws IllegalCallerException
+    ///         If this is a named module and the caller's module is not this
+    ///         module
+    ///
+    /// @jvms 5.4.3 Resolution
+    /// @see #isExported(String,Module)
     @CallerSensitive
     public Module addExports(String pn, Module other) {
         if (pn == null)
@@ -865,43 +795,41 @@ public final class Module implements AnnotatedElement {
         return this;
     }
 
-    /**
-     * If this module has <em>opened</em> a package to at least the caller
-     * module then update this module to open the package to the given module.
-     * Opening a package with this method allows all types in the package,
-     * and all their members, not just public types and their public members,
-     * to be reflected on by the given module when using APIs that support
-     * private access or a way to bypass or suppress default Java language
-     * access control checks.
-     *
-     * <p> This method has no effect if the package is already <em>open</em>
-     * to the given module. </p>
-     *
-     * @apiNote This method can be used for cases where a <em>consumer
-     * module</em> uses a qualified opens to open a package to an <em>API
-     * module</em> but where the reflective access to the members of classes in
-     * the consumer module is delegated to code in another module. Code in the
-     * API module can use this method to open the package in the consumer module
-     * to the other module.
-     *
-     * @param  pn
-     *         The package name
-     * @param  other
-     *         The module
-     *
-     * @return this module
-     *
-     * @throws IllegalArgumentException
-     *         If {@code pn} is {@code null}, or this is a named module and the
-     *         package {@code pn} is not a package in this module
-     * @throws IllegalCallerException
-     *         If this is a named module and this module has not opened the
-     *         package to at least the caller's module
-     *
-     * @see #isOpen(String,Module)
-     * @see java.lang.reflect.AccessibleObject#setAccessible(boolean)
-     * @see java.lang.invoke.MethodHandles#privateLookupIn
-     */
+    /// If this module has _opened_ a package to at least the caller
+    /// module then update this module to open the package to the given module.
+    /// Opening a package with this method allows all types in the package,
+    /// and all their members, not just public types and their public members,
+    /// to be reflected on by the given module when using APIs that support
+    /// private access or a way to bypass or suppress default Java language
+    /// access control checks.
+    ///
+    /// This method has no effect if the package is already _open_
+    /// to the given module.
+    ///
+    /// @apiNote This method can be used for cases where a _consumer
+    /// module_ uses a qualified opens to open a package to an _API
+    /// module_ but where the reflective access to the members of classes in
+    /// the consumer module is delegated to code in another module. Code in the
+    /// API module can use this method to open the package in the consumer module
+    /// to the other module.
+    ///
+    /// @param  pn
+    ///         The package name
+    /// @param  other
+    ///         The module
+    ///
+    /// @return this module
+    ///
+    /// @throws IllegalArgumentException
+    ///         If `pn` is `null`, or this is a named module and the
+    ///         package `pn` is not a package in this module
+    /// @throws IllegalCallerException
+    ///         If this is a named module and this module has not opened the
+    ///         package to at least the caller's module
+    ///
+    /// @see #isOpen(String,Module)
+    /// @see java.lang.reflect.AccessibleObject#setAccessible(boolean)
+    /// @see java.lang.invoke.MethodHandles#privateLookupIn
     @CallerSensitive
     public Module addOpens(String pn, Module other) {
         if (pn == null)
@@ -919,85 +847,67 @@ public final class Module implements AnnotatedElement {
     }
 
 
-    /**
-     * Updates this module to export a package unconditionally.
-     *
-     * @apiNote This method is for JDK tests only.
-     */
+    /// Updates this module to export a package unconditionally.
+    ///
+    /// @apiNote This method is for JDK tests only.
     void implAddExports(String pn) {
         implAddExportsOrOpens(pn, Module.EVERYONE_MODULE, false, true);
     }
 
-    /**
-     * Updates this module to export a package to another module.
-     *
-     * @apiNote Used by Instrumentation::redefineModule and --add-exports
-     */
+    /// Updates this module to export a package to another module.
+    ///
+    /// @apiNote Used by Instrumentation::redefineModule and --add-exports
     void implAddExports(String pn, Module other) {
         implAddExportsOrOpens(pn, other, false, true);
     }
 
-    /**
-     * Updates this module to export a package to all unnamed modules.
-     *
-     * @apiNote Used by the --add-exports command line option.
-     */
+    /// Updates this module to export a package to all unnamed modules.
+    ///
+    /// @apiNote Used by the --add-exports command line option.
     void implAddExportsToAllUnnamed(String pn) {
         implAddExportsOrOpens(pn, Module.ALL_UNNAMED_MODULE, false, true);
     }
 
-    /**
-     * Updates this export to export a package unconditionally without
-     * notifying the VM.
-     *
-     * @apiNote This method is for VM white-box testing.
-     */
+    /// Updates this export to export a package unconditionally without
+    /// notifying the VM.
+    ///
+    /// @apiNote This method is for VM white-box testing.
     void implAddExportsNoSync(String pn) {
         implAddExportsOrOpens(pn.replace('/', '.'), Module.EVERYONE_MODULE, false, false);
     }
 
-    /**
-     * Updates a module to export a package to another module without
-     * notifying the VM.
-     *
-     * @apiNote This method is for VM white-box testing.
-     */
+    /// Updates a module to export a package to another module without
+    /// notifying the VM.
+    ///
+    /// @apiNote This method is for VM white-box testing.
     void implAddExportsNoSync(String pn, Module other) {
         implAddExportsOrOpens(pn.replace('/', '.'), other, false, false);
     }
 
-    /**
-     * Updates this module to open a package unconditionally.
-     *
-     * @apiNote This method is for JDK tests only.
-     */
+    /// Updates this module to open a package unconditionally.
+    ///
+    /// @apiNote This method is for JDK tests only.
     void implAddOpens(String pn) {
         implAddExportsOrOpens(pn, Module.EVERYONE_MODULE, true, true);
     }
 
-    /**
-     * Updates this module to open a package to another module.
-     *
-     * @apiNote Used by Instrumentation::redefineModule and --add-opens
-     */
+    /// Updates this module to open a package to another module.
+    ///
+    /// @apiNote Used by Instrumentation::redefineModule and --add-opens
     void implAddOpens(String pn, Module other) {
         implAddExportsOrOpens(pn, other, true, true);
     }
 
-    /**
-     * Updates this module to open a package to all unnamed modules.
-     *
-     * @apiNote Used by the --add-opens command line option.
-     */
+    /// Updates this module to open a package to all unnamed modules.
+    ///
+    /// @apiNote Used by the --add-opens command line option.
     void implAddOpensToAllUnnamed(String pn) {
         implAddExportsOrOpens(pn, Module.ALL_UNNAMED_MODULE, true, true);
     }
 
-    /**
-     * Updates a module to export or open a module to another module.
-     *
-     * If {@code syncVM} is {@code true} then the VM is notified.
-     */
+    /// Updates a module to export or open a module to another module.
+    ///
+    /// If `syncVM` is `true` then the VM is notified.
     private void implAddExportsOrOpens(String pn,
                                        Module other,
                                        boolean open,
@@ -1041,12 +951,10 @@ public final class Module implements AnnotatedElement {
         }
     }
 
-    /**
-     * Updates a module to open all packages in the given sets to all unnamed
-     * modules.
-     *
-     * @apiNote Used during startup to open packages for illegal access.
-     */
+    /// Updates a module to open all packages in the given sets to all unnamed
+    /// modules.
+    ///
+    /// @apiNote Used during startup to open packages for illegal access.
     void implAddOpensToAllUnnamed(Set<String> concealedPkgs, Set<String> exportedPkgs) {
         if (jdk.internal.misc.VM.isModuleSystemInited()) {
             throw new IllegalStateException("Module system already initialized");
@@ -1079,29 +987,27 @@ public final class Module implements AnnotatedElement {
 
     // -- services --
 
-    /**
-     * If the caller's module is this module then update this module to add a
-     * service dependence on the given service type. This method is intended
-     * for use by frameworks that invoke {@link java.util.ServiceLoader
-     * ServiceLoader} on behalf of other modules or where the framework is
-     * passed a reference to the service type by other code. This method is
-     * a no-op when invoked on an unnamed module or an automatic module.
-     *
-     * <p> This method does not cause {@link Configuration#resolveAndBind
-     * resolveAndBind} to be re-run. </p>
-     *
-     * @param  service
-     *         The service type
-     *
-     * @return this module
-     *
-     * @throws IllegalCallerException
-     *         If this is a named module and the caller's module is not this
-     *         module
-     *
-     * @see #canUse(Class)
-     * @see ModuleDescriptor#uses()
-     */
+    /// If the caller's module is this module then update this module to add a
+    /// service dependence on the given service type. This method is intended
+    /// for use by frameworks that invoke [java.util.ServiceLoader]
+    /// on behalf of other modules or where the framework is
+    /// passed a reference to the service type by other code. This method is
+    /// a no-op when invoked on an unnamed module or an automatic module.
+    ///
+    /// This method does not cause [`resolveAndBind`][Configuration#resolveAndBind]
+    /// to be re-run.
+    ///
+    /// @param  service
+    ///         The service type
+    ///
+    /// @return this module
+    ///
+    /// @throws IllegalCallerException
+    ///         If this is a named module and the caller's module is not this
+    ///         module
+    ///
+    /// @see #canUse(Class)
+    /// @see ModuleDescriptor#uses()
     @CallerSensitive
     public Module addUses(Class<?> service) {
         Objects.requireNonNull(service);
@@ -1117,10 +1023,8 @@ public final class Module implements AnnotatedElement {
         return this;
     }
 
-    /**
-     * Update this module to add a service dependence on the given service
-     * type.
-     */
+    /// Update this module to add a service dependence on the given service
+    /// type.
     void implAddUses(Class<?> service) {
         if (!canUse(service)) {
             ReflectionData.uses.putIfAbsent(this, service, Boolean.TRUE);
@@ -1128,18 +1032,16 @@ public final class Module implements AnnotatedElement {
     }
 
 
-    /**
-     * Indicates if this module has a service dependence on the given service
-     * type. This method always returns {@code true} when invoked on an unnamed
-     * module or an automatic module.
-     *
-     * @param  service
-     *         The service type
-     *
-     * @return {@code true} if this module uses service type {@code st}
-     *
-     * @see #addUses(Class)
-     */
+    /// Indicates if this module has a service dependence on the given service
+    /// type. This method always returns `true` when invoked on an unnamed
+    /// module or an automatic module.
+    ///
+    /// @param  service
+    ///         The service type
+    ///
+    /// @return `true` if this module uses service type `st`
+    ///
+    /// @see #addUses(Class)
     public boolean canUse(Class<?> service) {
         Objects.requireNonNull(service);
 
@@ -1161,18 +1063,16 @@ public final class Module implements AnnotatedElement {
 
     // -- packages --
 
-    /**
-     * Returns the set of package names for the packages in this module.
-     *
-     * <p> For named modules, the returned set contains an element for each
-     * package in the module. </p>
-     *
-     * <p> For unnamed modules, the returned set contains an element for
-     * each package that {@link ClassLoader#getDefinedPackages() has been defined}
-     * in the unnamed module.</p>
-     *
-     * @return the set of the package names of the packages in this module
-     */
+    /// Returns the set of package names for the packages in this module.
+    ///
+    /// For named modules, the returned set contains an element for each
+    /// package in the module.
+    ///
+    /// For unnamed modules, the returned set contains an element for
+    /// each package that [has been defined][ClassLoader#getDefinedPackages()]
+    /// in the unnamed module.
+    ///
+    /// @return the set of the package names of the packages in this module
     public Set<String> getPackages() {
         if (isNamed()) {
             return descriptor.packages();
@@ -1191,17 +1091,15 @@ public final class Module implements AnnotatedElement {
 
     // -- creating Module objects --
 
-    /**
-     * Defines all module in a configuration to the runtime.
-     *
-     * @return a map of module name to runtime {@code Module}
-     *
-     * @throws IllegalArgumentException
-     *         If the function maps a module to the null or platform class loader
-     * @throws IllegalStateException
-     *         If the module cannot be defined to the VM or its packages overlap
-     *         with another module mapped to the same class loader
-     */
+    /// Defines all module in a configuration to the runtime.
+    ///
+    /// @return a map of module name to runtime `Module`
+    ///
+    /// @throws IllegalArgumentException
+    ///         If the function maps a module to the null or platform class loader
+    /// @throws IllegalStateException
+    ///         If the module cannot be defined to the VM or its packages overlap
+    ///         with another module mapped to the same class loader
     static Map<String, Module> defineModules(Configuration cf,
                                              Function<String, ClassLoader> clf,
                                              ModuleLayer layer)
@@ -1346,10 +1244,8 @@ public final class Module implements AnnotatedElement {
         return nameToModule;
     }
 
-    /**
-     * Find the runtime Module corresponding to the given ResolvedModule
-     * in the given parent layer (or its parents).
-     */
+    /// Find the runtime Module corresponding to the given ResolvedModule
+    /// in the given parent layer (or its parents).
     private static Module findModule(ModuleLayer parent,
                                      ResolvedModule resolvedModule) {
         Configuration cf = resolvedModule.configuration();
@@ -1367,12 +1263,10 @@ public final class Module implements AnnotatedElement {
                 .orElse(null);
     }
 
-    /**
-     * Initialize/setup a module's exports.
-     *
-     * @param m the module
-     * @param nameToModule map of module name to Module (for qualified exports)
-     */
+    /// Initialize/setup a module's exports.
+    ///
+    /// @param m the module
+    /// @param nameToModule map of module name to Module (for qualified exports)
     private static void initExports(Module m, Map<String, Module> nameToModule) {
         Map<String, Set<Module>> exportedPackages = new HashMap<>();
 
@@ -1402,15 +1296,13 @@ public final class Module implements AnnotatedElement {
             m.exportedPackages = exportedPackages;
     }
 
-    /**
-     * Initialize/setup a module's exports.
-     *
-     * @param m the module
-     * @param nameToSource map of module name to Module for modules that m reads
-     * @param nameToModule map of module name to Module for modules in the layer
-     *                     under construction
-     * @param parents the parent layers
-     */
+    /// Initialize/setup a module's exports.
+    ///
+    /// @param m the module
+    /// @param nameToSource map of module name to Module for modules that m reads
+    /// @param nameToModule map of module name to Module for modules in the layer
+    ///                     under construction
+    /// @param parents the parent layers
     private static void initExportsAndOpens(Module m,
                                             Map<String, Module> nameToSource,
                                             Map<String, Module> nameToModule,
@@ -1481,15 +1373,13 @@ public final class Module implements AnnotatedElement {
             m.exportedPackages = exportedPackages;
     }
 
-    /**
-     * Find the runtime Module with the given name. The module name is the
-     * name of a target module in a qualified exports or opens directive.
-     *
-     * @param target The target module to find
-     * @param nameToSource The modules in parent layers that are read
-     * @param nameToModule The modules in the layer under construction
-     * @param parents The parent layers
-     */
+    /// Find the runtime Module with the given name. The module name is the
+    /// name of a target module in a qualified exports or opens directive.
+    ///
+    /// @param target The target module to find
+    /// @param nameToSource The modules in parent layers that are read
+    /// @param nameToModule The modules in the layer under construction
+    /// @param parents The parent layers
     private static Module findModule(String target,
                                      Map<String, Module> nameToSource,
                                      Map<String, Module> nameToModule,
@@ -1510,37 +1400,31 @@ public final class Module implements AnnotatedElement {
 
     // -- annotations --
 
-    /**
-     * {@inheritDoc}
-     * This method returns {@code null} when invoked on an unnamed module.
-     *
-     * <p> Note that any annotation returned by this method is a
-     * declaration annotation.
-     */
+    /// {@inheritDoc}
+    /// This method returns `null` when invoked on an unnamed module.
+    ///
+    /// Note that any annotation returned by this method is a
+    /// declaration annotation.
     @Override
     public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
         return moduleInfoClass().getDeclaredAnnotation(annotationClass);
     }
 
-    /**
-     * {@inheritDoc}
-     * This method returns an empty array when invoked on an unnamed module.
-     *
-     * <p> Note that any annotations returned by this method are
-     * declaration annotations.
-     */
+    /// {@inheritDoc}
+    /// This method returns an empty array when invoked on an unnamed module.
+    ///
+    /// Note that any annotations returned by this method are
+    /// declaration annotations.
     @Override
     public Annotation[] getAnnotations() {
         return moduleInfoClass().getAnnotations();
     }
 
-    /**
-     * {@inheritDoc}
-     * This method returns an empty array when invoked on an unnamed module.
-     *
-     * <p> Note that any annotations returned by this method are
-     * declaration annotations.
-     */
+    /// {@inheritDoc}
+    /// This method returns an empty array when invoked on an unnamed module.
+    ///
+    /// Note that any annotations returned by this method are
+    /// declaration annotations.
     @Override
     public Annotation[] getDeclaredAnnotations() {
         return moduleInfoClass().getDeclaredAnnotations();
@@ -1581,10 +1465,8 @@ public final class Module implements AnnotatedElement {
         return clazz;
     }
 
-    /**
-     * Loads module-info.class as a package-private interface in a class loader
-     * that is a child of this module's class loader.
-     */
+    /// Loads module-info.class as a package-private interface in a class loader
+    /// that is a child of this module's class loader.
     private Class<?> loadModuleInfoClass(InputStream in) throws IOException {
         final String MODULE_INFO = "module-info";
         var cc = ClassFile.of(ClassFile.ConstantPoolSharingOption.NEW_POOL);
@@ -1638,56 +1520,52 @@ public final class Module implements AnnotatedElement {
     // -- misc --
 
 
-    /**
-     * Returns an input stream for reading a resource in this module.
-     * The {@code name} parameter is a {@code '/'}-separated path name that
-     * identifies the resource. As with {@link Class#getResourceAsStream
-     * Class.getResourceAsStream}, this method delegates to the module's class
-     * loader {@link ClassLoader#findResource(String,String)
-     * findResource(String,String)} method, invoking it with the module name
-     * (or {@code null} when the module is unnamed) and the name of the
-     * resource. If the resource name has a leading slash then it is dropped
-     * before delegation.
-     *
-     * <p> A resource in a named module may be <em>encapsulated</em> so that
-     * it cannot be located by code in other modules. Whether a resource can be
-     * located or not is determined as follows: </p>
-     *
-     * <ul>
-     *     <li> If the resource name ends with  "{@code .class}" then it is not
-     *     encapsulated. </li>
-     *
-     *     <li> A <em>package name</em> is derived from the resource name. If
-     *     the package name is a {@linkplain #getPackages() package} in the
-     *     module then the resource can only be located by the caller of this
-     *     method when the package is {@linkplain #isOpen(String,Module) open}
-     *     to at least the caller's module. If the resource is not in a
-     *     package in the module then the resource is not encapsulated. </li>
-     * </ul>
-     *
-     * <p> In the above, the <em>package name</em> for a resource is derived
-     * from the subsequence of characters that precedes the last {@code '/'} in
-     * the name and then replacing each {@code '/'} character in the subsequence
-     * with {@code '.'}. A leading slash is ignored when deriving the package
-     * name. As an example, the package name derived for a resource named
-     * "{@code a/b/c/foo.properties}" is "{@code a.b.c}". A resource name
-     * with the name "{@code META-INF/MANIFEST.MF}" is never encapsulated
-     * because "{@code META-INF}" is not a legal package name. </p>
-     *
-     * <p> This method returns {@code null} if the resource is not in this
-     * module, the resource is encapsulated and cannot be located by the caller,
-     * or access to the resource is denied by the security manager. </p>
-     *
-     * @param  name
-     *         The resource name
-     *
-     * @return An input stream for reading the resource or {@code null}
-     *
-     * @throws IOException
-     *         If an I/O error occurs
-     *
-     * @see Class#getResourceAsStream(String)
-     */
+    /// Returns an input stream for reading a resource in this module.
+    /// The `name` parameter is a `'/'`-separated path name that
+    /// identifies the resource. As with [`Class.getResourceAsStream`][Class#getResourceAsStream],
+    /// this method delegates to the module's class
+    /// loader [ClassLoader#findResource(String,String)]
+    /// method, invoking it with the module name
+    /// (or `null` when the module is unnamed) and the name of the
+    /// resource. If the resource name has a leading slash then it is dropped
+    /// before delegation.
+    ///
+    /// A resource in a named module may be _encapsulated_ so that
+    /// it cannot be located by code in other modules. Whether a resource can be
+    /// located or not is determined as follows:
+    ///
+    ///   - If the resource name ends with  "`.class`" then it is not
+    ///     encapsulated.
+    ///
+    ///   - A _package name_ is derived from the resource name. If
+    ///     the package name is a [package][#getPackages()] in the
+    ///     module then the resource can only be located by the caller of this
+    ///     method when the package is [open][#isOpen(String,Module)]
+    ///     to at least the caller's module. If the resource is not in a
+    ///     package in the module then the resource is not encapsulated.
+    ///
+    /// In the above, the _package name_ for a resource is derived
+    /// from the subsequence of characters that precedes the last `'/'` in
+    /// the name and then replacing each `'/'` character in the subsequence
+    /// with `'.'`. A leading slash is ignored when deriving the package
+    /// name. As an example, the package name derived for a resource named
+    /// "`a/b/c/foo.properties`" is "`a.b.c`". A resource name
+    /// with the name "`META-INF/MANIFEST.MF`" is never encapsulated
+    /// because "`META-INF`" is not a legal package name.
+    ///
+    /// This method returns `null` if the resource is not in this
+    /// module, the resource is encapsulated and cannot be located by the caller,
+    /// or access to the resource is denied by the security manager.
+    ///
+    /// @param  name
+    ///         The resource name
+    ///
+    /// @return An input stream for reading the resource or `null`
+    ///
+    /// @throws IOException
+    ///         If an I/O error occurs
+    ///
+    /// @see Class#getResourceAsStream(String)
     @CallerSensitive
     public InputStream getResourceAsStream(String name) throws IOException {
         if (name.startsWith("/")) {
@@ -1731,15 +1609,13 @@ public final class Module implements AnnotatedElement {
         return null;
     }
 
-    /**
-     * Returns the string representation of this module. For a named module,
-     * the representation is the string {@code "module"}, followed by a space,
-     * and then the module name. For an unnamed module, the representation is
-     * the string {@code "unnamed module"}, followed by a space, and then an
-     * implementation specific string that identifies the unnamed module.
-     *
-     * @return The string representation of this module
-     */
+    /// Returns the string representation of this module. For a named module,
+    /// the representation is the string `"module"`, followed by a space,
+    /// and then the module name. For an unnamed module, the representation is
+    /// the string `"unnamed module"`, followed by a space, and then an
+    /// implementation specific string that identifies the unnamed module.
+    ///
+    /// @return The string representation of this module
     @Override
     public String toString() {
         if (isNamed()) {
@@ -1750,10 +1626,8 @@ public final class Module implements AnnotatedElement {
         }
     }
 
-    /**
-     * Returns the module that a given caller class is a member of. Returns
-     * {@code null} if the caller is {@code null}.
-     */
+    /// Returns the module that a given caller class is a member of. Returns
+    /// `null` if the caller is `null`.
     private Module getCallerModule(Class<?> caller) {
         return (caller != null) ? caller.getModule() : null;
     }

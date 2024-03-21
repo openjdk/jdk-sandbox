@@ -27,230 +27,200 @@ package java.lang.reflect;
 
 import java.util.StringJoiner;
 
-/**
- * The Modifier class provides {@code static} methods and
- * constants to decode class and member access modifiers.  The sets of
- * modifiers are represented as integers with distinct bit positions
- * representing different modifiers.  The values for the constants
- * representing the modifiers are taken from the tables in sections
- * {@jvms 4.1}, {@jvms 4.4}, {@jvms 4.5}, and {@jvms 4.7} of
- * <cite>The Java Virtual Machine Specification</cite>.
- *
- * @apiNote
- * Not all modifiers that are syntactic Java language modifiers are
- * represented in this class, only those modifiers that <em>also</em>
- * have a corresponding JVM {@linkplain AccessFlag access flag} are
- * included. In particular the {@code default} method modifier (JLS
- * {@jls 9.4.3}) and the {@code sealed} and {@code non-sealed} class
- * (JLS {@jls 8.1.1.2}) and interface (JLS {@jls 9.1.1.4}) modifiers
- * are <em>not</em> represented in this class.
- *
- * @see Class#getModifiers()
- * @see Member#getModifiers()
- *
- * @author Nakul Saraiya
- * @author Kenneth Russell
- * @since 1.1
- */
+/// The Modifier class provides `static` methods and
+/// constants to decode class and member access modifiers.  The sets of
+/// modifiers are represented as integers with distinct bit positions
+/// representing different modifiers.  The values for the constants
+/// representing the modifiers are taken from the tables in sections
+/// {@jvms 4.1}, {@jvms 4.4}, {@jvms 4.5}, and {@jvms 4.7} of
+/// <cite>The Java Virtual Machine Specification</cite>.
+///
+/// @apiNote
+/// Not all modifiers that are syntactic Java language modifiers are
+/// represented in this class, only those modifiers that _also_
+/// have a corresponding JVM [access flag][AccessFlag] are
+/// included. In particular the `default` method modifier (JLS
+/// {@jls 9.4.3}) and the `sealed` and `non-sealed` class
+/// (JLS {@jls 8.1.1.2}) and interface (JLS {@jls 9.1.1.4}) modifiers
+/// are _not_ represented in this class.
+///
+/// @see Class#getModifiers()
+/// @see Member#getModifiers()
+///
+/// @author Nakul Saraiya
+/// @author Kenneth Russell
+/// @since 1.1
 public class Modifier {
-    /**
-     * Do not call.
-     */
+    /// Do not call.
     private Modifier() {throw new AssertionError();}
 
 
-    /**
-     * Return {@code true} if the integer argument includes the
-     * {@code public} modifier, {@code false} otherwise.
-     *
-     * @param   mod a set of modifiers
-     * @return {@code true} if {@code mod} includes the
-     * {@code public} modifier; {@code false} otherwise.
-     */
+    /// Return `true` if the integer argument includes the
+    /// `public` modifier, `false` otherwise.
+    ///
+    /// @param   mod a set of modifiers
+    /// @return `true` if `mod` includes the
+    /// `public` modifier; `false` otherwise.
     public static boolean isPublic(int mod) {
         return (mod & PUBLIC) != 0;
     }
 
-    /**
-     * Return {@code true} if the integer argument includes the
-     * {@code private} modifier, {@code false} otherwise.
-     *
-     * @param   mod a set of modifiers
-     * @return {@code true} if {@code mod} includes the
-     * {@code private} modifier; {@code false} otherwise.
-     */
+    /// Return `true` if the integer argument includes the
+    /// `private` modifier, `false` otherwise.
+    ///
+    /// @param   mod a set of modifiers
+    /// @return `true` if `mod` includes the
+    /// `private` modifier; `false` otherwise.
     public static boolean isPrivate(int mod) {
         return (mod & PRIVATE) != 0;
     }
 
-    /**
-     * Return {@code true} if the integer argument includes the
-     * {@code protected} modifier, {@code false} otherwise.
-     *
-     * @param   mod a set of modifiers
-     * @return {@code true} if {@code mod} includes the
-     * {@code protected} modifier; {@code false} otherwise.
-     */
+    /// Return `true` if the integer argument includes the
+    /// `protected` modifier, `false` otherwise.
+    ///
+    /// @param   mod a set of modifiers
+    /// @return `true` if `mod` includes the
+    /// `protected` modifier; `false` otherwise.
     public static boolean isProtected(int mod) {
         return (mod & PROTECTED) != 0;
     }
 
-    /**
-     * Return {@code true} if the integer argument includes the
-     * {@code static} modifier, {@code false} otherwise.
-     *
-     * @param   mod a set of modifiers
-     * @return {@code true} if {@code mod} includes the
-     * {@code static} modifier; {@code false} otherwise.
-     */
+    /// Return `true` if the integer argument includes the
+    /// `static` modifier, `false` otherwise.
+    ///
+    /// @param   mod a set of modifiers
+    /// @return `true` if `mod` includes the
+    /// `static` modifier; `false` otherwise.
     public static boolean isStatic(int mod) {
         return (mod & STATIC) != 0;
     }
 
-    /**
-     * Return {@code true} if the integer argument includes the
-     * {@code final} modifier, {@code false} otherwise.
-     *
-     * @param   mod a set of modifiers
-     * @return {@code true} if {@code mod} includes the
-     * {@code final} modifier; {@code false} otherwise.
-     */
+    /// Return `true` if the integer argument includes the
+    /// `final` modifier, `false` otherwise.
+    ///
+    /// @param   mod a set of modifiers
+    /// @return `true` if `mod` includes the
+    /// `final` modifier; `false` otherwise.
     public static boolean isFinal(int mod) {
         return (mod & FINAL) != 0;
     }
 
-    /**
-     * Return {@code true} if the integer argument includes the
-     * {@code synchronized} modifier, {@code false} otherwise.
-     *
-     * @param   mod a set of modifiers
-     * @return {@code true} if {@code mod} includes the
-     * {@code synchronized} modifier; {@code false} otherwise.
-     */
+    /// Return `true` if the integer argument includes the
+    /// `synchronized` modifier, `false` otherwise.
+    ///
+    /// @param   mod a set of modifiers
+    /// @return `true` if `mod` includes the
+    /// `synchronized` modifier; `false` otherwise.
     public static boolean isSynchronized(int mod) {
         return (mod & SYNCHRONIZED) != 0;
     }
 
-    /**
-     * Return {@code true} if the integer argument includes the
-     * {@code volatile} modifier, {@code false} otherwise.
-     *
-     * @param   mod a set of modifiers
-     * @return {@code true} if {@code mod} includes the
-     * {@code volatile} modifier; {@code false} otherwise.
-     */
+    /// Return `true` if the integer argument includes the
+    /// `volatile` modifier, `false` otherwise.
+    ///
+    /// @param   mod a set of modifiers
+    /// @return `true` if `mod` includes the
+    /// `volatile` modifier; `false` otherwise.
     public static boolean isVolatile(int mod) {
         return (mod & VOLATILE) != 0;
     }
 
-    /**
-     * Return {@code true} if the integer argument includes the
-     * {@code transient} modifier, {@code false} otherwise.
-     *
-     * @param   mod a set of modifiers
-     * @return {@code true} if {@code mod} includes the
-     * {@code transient} modifier; {@code false} otherwise.
-     */
+    /// Return `true` if the integer argument includes the
+    /// `transient` modifier, `false` otherwise.
+    ///
+    /// @param   mod a set of modifiers
+    /// @return `true` if `mod` includes the
+    /// `transient` modifier; `false` otherwise.
     public static boolean isTransient(int mod) {
         return (mod & TRANSIENT) != 0;
     }
 
-    /**
-     * Return {@code true} if the integer argument includes the
-     * {@code native} modifier, {@code false} otherwise.
-     *
-     * @param   mod a set of modifiers
-     * @return {@code true} if {@code mod} includes the
-     * {@code native} modifier; {@code false} otherwise.
-     */
+    /// Return `true` if the integer argument includes the
+    /// `native` modifier, `false` otherwise.
+    ///
+    /// @param   mod a set of modifiers
+    /// @return `true` if `mod` includes the
+    /// `native` modifier; `false` otherwise.
     public static boolean isNative(int mod) {
         return (mod & NATIVE) != 0;
     }
 
-    /**
-     * Return {@code true} if the integer argument includes the
-     * {@code interface} modifier, {@code false} otherwise.
-     *
-     * @param   mod a set of modifiers
-     * @return {@code true} if {@code mod} includes the
-     * {@code interface} modifier; {@code false} otherwise.
-     */
+    /// Return `true` if the integer argument includes the
+    /// `interface` modifier, `false` otherwise.
+    ///
+    /// @param   mod a set of modifiers
+    /// @return `true` if `mod` includes the
+    /// `interface` modifier; `false` otherwise.
     public static boolean isInterface(int mod) {
         return (mod & INTERFACE) != 0;
     }
 
-    /**
-     * Return {@code true} if the integer argument includes the
-     * {@code abstract} modifier, {@code false} otherwise.
-     *
-     * @param   mod a set of modifiers
-     * @return {@code true} if {@code mod} includes the
-     * {@code abstract} modifier; {@code false} otherwise.
-     */
+    /// Return `true` if the integer argument includes the
+    /// `abstract` modifier, `false` otherwise.
+    ///
+    /// @param   mod a set of modifiers
+    /// @return `true` if `mod` includes the
+    /// `abstract` modifier; `false` otherwise.
     public static boolean isAbstract(int mod) {
         return (mod & ABSTRACT) != 0;
     }
 
-    /**
-     * Return {@code true} if the integer argument includes the
-     * {@code strictfp} modifier, {@code false} otherwise.
-     *
-     * @param   mod a set of modifiers
-     * @return {@code true} if {@code mod} includes the
-     * {@code strictfp} modifier; {@code false} otherwise.
-     */
+    /// Return `true` if the integer argument includes the
+    /// `strictfp` modifier, `false` otherwise.
+    ///
+    /// @param   mod a set of modifiers
+    /// @return `true` if `mod` includes the
+    /// `strictfp` modifier; `false` otherwise.
     public static boolean isStrict(int mod) {
         return (mod & STRICT) != 0;
     }
 
-    /**
-     * Return a string describing the access modifier flags in
-     * the specified modifier. For example:
-     * <blockquote><pre>
-     *    public final synchronized strictfp
-     * </pre></blockquote>
-     * The modifier names are returned in an order consistent with the
-     * suggested modifier orderings given in sections 8.1.1, 8.3.1, 8.4.3, 8.8.3, and 9.1.1 of
-     * <cite>The Java Language Specification</cite>.
-     * The full modifier ordering used by this method is:
-     * <blockquote> {@code
-     * public protected private abstract static final transient
-     * volatile synchronized native strictfp
-     * interface } </blockquote>
-     *
-     * The {@code interface} modifier discussed in this class is
-     * not a true modifier in the Java language and it appears after
-     * all other modifiers listed by this method.  This method may
-     * return a string of modifiers that are not valid modifiers of a
-     * Java entity; in other words, no checking is done on the
-     * possible validity of the combination of modifiers represented
-     * by the input.
-     *
-     * Note that to perform such checking for a known kind of entity,
-     * such as a constructor or method, first AND the argument of
-     * {@code toString} with the appropriate mask from a method like
-     * {@link #constructorModifiers} or {@link #methodModifiers}.
-     *
-     * @apiNote
-     * To make a high-fidelity representation of the Java source
-     * modifiers of a class or member, source-level modifiers that do
-     * <em>not</em> have a constant in this class should be included
-     * and appear in an order consistent with the full recommended
-     * ordering for that kind of declaration as given in <cite>The
-     * Java Language Specification</cite>. For example, for a
-     * {@linkplain Method#toGenericString() method} the "{@link
-     * Method#isDefault() default}" modifier is ordered immediately
-     * before "{@code static}" (JLS {@jls 9.4}). For a {@linkplain
-     * Class#toGenericString() class object}, the "{@link
-     * Class#isSealed() sealed}" or {@code "non-sealed"} modifier is
-     * ordered immediately after "{@code final}" for a class (JLS
-     * {@jls 8.1.1}) and immediately after "{@code static}" for an
-     * interface (JLS {@jls 9.1.1}).
-     *
-     * @param   mod a set of modifiers
-     * @return  a string representation of the set of modifiers
-     * represented by {@code mod}
-     */
+    /// Return a string describing the access modifier flags in
+    /// the specified modifier. For example:
+    /// ```
+    ///    public final synchronized strictfp
+    /// ```
+    /// The modifier names are returned in an order consistent with the
+    /// suggested modifier orderings given in sections 8.1.1, 8.3.1, 8.4.3, 8.8.3, and 9.1.1 of
+    /// <cite>The Java Language Specification</cite>.
+    /// The full modifier ordering used by this method is:
+    /// <blockquote>`
+    /// public protected private abstract static final transient
+    /// volatile synchronized native strictfp
+    /// interface ` </blockquote>
+    ///
+    /// The `interface` modifier discussed in this class is
+    /// not a true modifier in the Java language and it appears after
+    /// all other modifiers listed by this method.  This method may
+    /// return a string of modifiers that are not valid modifiers of a
+    /// Java entity; in other words, no checking is done on the
+    /// possible validity of the combination of modifiers represented
+    /// by the input.
+    ///
+    /// Note that to perform such checking for a known kind of entity,
+    /// such as a constructor or method, first AND the argument of
+    /// `toString` with the appropriate mask from a method like
+    /// [#constructorModifiers] or [#methodModifiers].
+    ///
+    /// @apiNote
+    /// To make a high-fidelity representation of the Java source
+    /// modifiers of a class or member, source-level modifiers that do
+    /// _not_ have a constant in this class should be included
+    /// and appear in an order consistent with the full recommended
+    /// ordering for that kind of declaration as given in <cite>The
+    /// Java Language Specification</cite>. For example, for a
+    /// [method][Method#toGenericString()] the "[default][Method#isDefault()]"
+    /// modifier is ordered immediately
+    /// before "`static`" (JLS {@jls 9.4}). For a
+    /// [class object][Class#toGenericString()], the
+    /// "[sealed][Class#isSealed()]" or `"non-sealed"` modifier is
+    /// ordered immediately after "`final`" for a class (JLS
+    /// {@jls 8.1.1}) and immediately after "`static`" for an
+    /// interface (JLS {@jls 9.1.1}).
+    ///
+    /// @param   mod a set of modifiers
+    /// @return  a string representation of the set of modifiers
+    /// represented by `mod`
     public static String toString(int mod) {
         StringJoiner sj = new StringJoiner(" ");
 
@@ -277,88 +247,64 @@ public class Modifier {
      * <cite>The Java Virtual Machine Specification</cite>
      */
 
-    /**
-     * The {@code int} value representing the {@code public}
-     * modifier.
-     * @see AccessFlag#PUBLIC
-     */
+    /// The `int` value representing the `public`
+    /// modifier.
+    /// @see AccessFlag#PUBLIC
     public static final int PUBLIC           = 0x00000001;
 
-    /**
-     * The {@code int} value representing the {@code private}
-     * modifier.
-     * @see AccessFlag#PRIVATE
-     */
+    /// The `int` value representing the `private`
+    /// modifier.
+    /// @see AccessFlag#PRIVATE
     public static final int PRIVATE          = 0x00000002;
 
-    /**
-     * The {@code int} value representing the {@code protected}
-     * modifier.
-     * @see AccessFlag#PROTECTED
-     */
+    /// The `int` value representing the `protected`
+    /// modifier.
+    /// @see AccessFlag#PROTECTED
     public static final int PROTECTED        = 0x00000004;
 
-    /**
-     * The {@code int} value representing the {@code static}
-     * modifier.
-     * @see AccessFlag#STATIC
-     */
+    /// The `int` value representing the `static`
+    /// modifier.
+    /// @see AccessFlag#STATIC
     public static final int STATIC           = 0x00000008;
 
-    /**
-     * The {@code int} value representing the {@code final}
-     * modifier.
-     * @see AccessFlag#FINAL
-     */
+    /// The `int` value representing the `final`
+    /// modifier.
+    /// @see AccessFlag#FINAL
     public static final int FINAL            = 0x00000010;
 
-    /**
-     * The {@code int} value representing the {@code synchronized}
-     * modifier.
-     * @see AccessFlag#SYNCHRONIZED
-     */
+    /// The `int` value representing the `synchronized`
+    /// modifier.
+    /// @see AccessFlag#SYNCHRONIZED
     public static final int SYNCHRONIZED     = 0x00000020;
 
-    /**
-     * The {@code int} value representing the {@code volatile}
-     * modifier.
-     * @see AccessFlag#VOLATILE
-     */
+    /// The `int` value representing the `volatile`
+    /// modifier.
+    /// @see AccessFlag#VOLATILE
     public static final int VOLATILE         = 0x00000040;
 
-    /**
-     * The {@code int} value representing the {@code transient}
-     * modifier.
-     * @see AccessFlag#TRANSIENT
-     */
+    /// The `int` value representing the `transient`
+    /// modifier.
+    /// @see AccessFlag#TRANSIENT
     public static final int TRANSIENT        = 0x00000080;
 
-    /**
-     * The {@code int} value representing the {@code native}
-     * modifier.
-     * @see AccessFlag#NATIVE
-     */
+    /// The `int` value representing the `native`
+    /// modifier.
+    /// @see AccessFlag#NATIVE
     public static final int NATIVE           = 0x00000100;
 
-    /**
-     * The {@code int} value representing the {@code interface}
-     * modifier.
-     * @see AccessFlag#INTERFACE
-     */
+    /// The `int` value representing the `interface`
+    /// modifier.
+    /// @see AccessFlag#INTERFACE
     public static final int INTERFACE        = 0x00000200;
 
-    /**
-     * The {@code int} value representing the {@code abstract}
-     * modifier.
-     * @see AccessFlag#ABSTRACT
-     */
+    /// The `int` value representing the `abstract`
+    /// modifier.
+    /// @see AccessFlag#ABSTRACT
     public static final int ABSTRACT         = 0x00000400;
 
-    /**
-     * The {@code int} value representing the {@code strictfp}
-     * modifier.
-     * @see AccessFlag#STRICT
-     */
+    /// The `int` value representing the `strictfp`
+    /// modifier.
+    /// @see AccessFlag#STRICT
     public static final int STRICT           = 0x00000800;
 
     // Bits not (yet) exposed in the public API either because they
@@ -389,133 +335,109 @@ public class Modifier {
     // methods return an unchanging values for a given release, but a
     // value that can potentially change over time.
 
-    /**
-     * The Java source modifiers that can be applied to a class.
-     * @jls 8.1.1 Class Modifiers
-     */
+    /// The Java source modifiers that can be applied to a class.
+    /// @jls 8.1.1 Class Modifiers
     private static final int CLASS_MODIFIERS =
         Modifier.PUBLIC         | Modifier.PROTECTED    | Modifier.PRIVATE |
         Modifier.ABSTRACT       | Modifier.STATIC       | Modifier.FINAL   |
         Modifier.STRICT;
 
-    /**
-     * The Java source modifiers that can be applied to an interface.
-     * @jls 9.1.1 Interface Modifiers
-     */
+    /// The Java source modifiers that can be applied to an interface.
+    /// @jls 9.1.1 Interface Modifiers
     private static final int INTERFACE_MODIFIERS =
         Modifier.PUBLIC         | Modifier.PROTECTED    | Modifier.PRIVATE |
         Modifier.ABSTRACT       | Modifier.STATIC       | Modifier.STRICT;
 
 
-    /**
-     * The Java source modifiers that can be applied to a constructor.
-     * @jls 8.8.3 Constructor Modifiers
-     */
+    /// The Java source modifiers that can be applied to a constructor.
+    /// @jls 8.8.3 Constructor Modifiers
     private static final int CONSTRUCTOR_MODIFIERS =
         Modifier.PUBLIC         | Modifier.PROTECTED    | Modifier.PRIVATE;
 
-    /**
-     * The Java source modifiers that can be applied to a method.
-     * @jls 8.4.3  Method Modifiers
-     */
+    /// The Java source modifiers that can be applied to a method.
+    /// @jls 8.4.3  Method Modifiers
     private static final int METHOD_MODIFIERS =
         Modifier.PUBLIC         | Modifier.PROTECTED    | Modifier.PRIVATE |
         Modifier.ABSTRACT       | Modifier.STATIC       | Modifier.FINAL   |
         Modifier.SYNCHRONIZED   | Modifier.NATIVE       | Modifier.STRICT;
 
-    /**
-     * The Java source modifiers that can be applied to a field.
-     * @jls 8.3.1 Field Modifiers
-     */
+    /// The Java source modifiers that can be applied to a field.
+    /// @jls 8.3.1 Field Modifiers
     private static final int FIELD_MODIFIERS =
         Modifier.PUBLIC         | Modifier.PROTECTED    | Modifier.PRIVATE |
         Modifier.STATIC         | Modifier.FINAL        | Modifier.TRANSIENT |
         Modifier.VOLATILE;
 
-    /**
-     * The Java source modifiers that can be applied to a method or constructor parameter.
-     * @jls 8.4.1 Formal Parameters
-     */
+    /// The Java source modifiers that can be applied to a method or constructor parameter.
+    /// @jls 8.4.1 Formal Parameters
     private static final int PARAMETER_MODIFIERS =
         Modifier.FINAL;
 
     static final int ACCESS_MODIFIERS =
         Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE;
 
-    /**
-     * Return an {@code int} value OR-ing together the source language
-     * modifiers that can be applied to a class.
-     * @return an {@code int} value OR-ing together the source language
-     * modifiers that can be applied to a class.
-     *
-     * @jls 8.1.1 Class Modifiers
-     * @since 1.7
-     */
+    /// Return an `int` value OR-ing together the source language
+    /// modifiers that can be applied to a class.
+    /// @return an `int` value OR-ing together the source language
+    /// modifiers that can be applied to a class.
+    ///
+    /// @jls 8.1.1 Class Modifiers
+    /// @since 1.7
     public static int classModifiers() {
         return CLASS_MODIFIERS;
     }
 
-    /**
-     * Return an {@code int} value OR-ing together the source language
-     * modifiers that can be applied to an interface.
-     * @return an {@code int} value OR-ing together the source language
-     * modifiers that can be applied to an interface.
-     *
-     * @jls 9.1.1 Interface Modifiers
-     * @since 1.7
-     */
+    /// Return an `int` value OR-ing together the source language
+    /// modifiers that can be applied to an interface.
+    /// @return an `int` value OR-ing together the source language
+    /// modifiers that can be applied to an interface.
+    ///
+    /// @jls 9.1.1 Interface Modifiers
+    /// @since 1.7
     public static int interfaceModifiers() {
         return INTERFACE_MODIFIERS;
     }
 
-    /**
-     * Return an {@code int} value OR-ing together the source language
-     * modifiers that can be applied to a constructor.
-     * @return an {@code int} value OR-ing together the source language
-     * modifiers that can be applied to a constructor.
-     *
-     * @jls 8.8.3 Constructor Modifiers
-     * @since 1.7
-     */
+    /// Return an `int` value OR-ing together the source language
+    /// modifiers that can be applied to a constructor.
+    /// @return an `int` value OR-ing together the source language
+    /// modifiers that can be applied to a constructor.
+    ///
+    /// @jls 8.8.3 Constructor Modifiers
+    /// @since 1.7
     public static int constructorModifiers() {
         return CONSTRUCTOR_MODIFIERS;
     }
 
-    /**
-     * Return an {@code int} value OR-ing together the source language
-     * modifiers that can be applied to a method.
-     * @return an {@code int} value OR-ing together the source language
-     * modifiers that can be applied to a method.
-     *
-     * @jls 8.4.3 Method Modifiers
-     * @since 1.7
-     */
+    /// Return an `int` value OR-ing together the source language
+    /// modifiers that can be applied to a method.
+    /// @return an `int` value OR-ing together the source language
+    /// modifiers that can be applied to a method.
+    ///
+    /// @jls 8.4.3 Method Modifiers
+    /// @since 1.7
     public static int methodModifiers() {
         return METHOD_MODIFIERS;
     }
 
-    /**
-     * Return an {@code int} value OR-ing together the source language
-     * modifiers that can be applied to a field.
-     * @return an {@code int} value OR-ing together the source language
-     * modifiers that can be applied to a field.
-     *
-     * @jls 8.3.1 Field Modifiers
-     * @since 1.7
-     */
+    /// Return an `int` value OR-ing together the source language
+    /// modifiers that can be applied to a field.
+    /// @return an `int` value OR-ing together the source language
+    /// modifiers that can be applied to a field.
+    ///
+    /// @jls 8.3.1 Field Modifiers
+    /// @since 1.7
     public static int fieldModifiers() {
         return FIELD_MODIFIERS;
     }
 
-    /**
-     * Return an {@code int} value OR-ing together the source language
-     * modifiers that can be applied to a parameter.
-     * @return an {@code int} value OR-ing together the source language
-     * modifiers that can be applied to a parameter.
-     *
-     * @jls 8.4.1 Formal Parameters
-     * @since 1.8
-     */
+    /// Return an `int` value OR-ing together the source language
+    /// modifiers that can be applied to a parameter.
+    /// @return an `int` value OR-ing together the source language
+    /// modifiers that can be applied to a parameter.
+    ///
+    /// @jls 8.4.1 Formal Parameters
+    /// @since 1.8
     public static int parameterModifiers() {
         return PARAMETER_MODIFIERS;
     }
