@@ -33,6 +33,7 @@ import jdk.internal.access.JavaIOAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.io.JdkConsoleImpl;
 import jdk.internal.io.JdkConsoleProvider;
+import jdk.internal.javac.PreviewFeature;
 import jdk.internal.util.StaticProperty;
 import sun.security.action.GetPropertyAction;
 
@@ -142,6 +143,57 @@ public sealed class Console implements Flushable permits ProxyingConsole {
      * @return  The reader associated with this console
      */
     public Reader reader() {
+        throw newUnsupportedOperationException();
+    }
+
+    /**
+     * Prints its argument followed by the platform line terminator on this
+     * console's output stream.
+     *
+     * @param  obj
+     *         An argument to print.
+     *
+     * @return  This console
+     *
+     * @since 23
+     */
+    @PreviewFeature(feature = PreviewFeature.Feature.IMPLICIT_CLASSES)
+    public Console println(Object obj) {
+        throw newUnsupportedOperationException();
+    }
+
+    /**
+     * Prints its argument on this console's output stream.
+     *
+     * @param  obj
+     *         An argument to print.
+     *
+     * @return  This console
+     *
+     * @since 23
+     */
+    @PreviewFeature(feature = PreviewFeature.Feature.IMPLICIT_CLASSES)
+    public Console print(Object obj) {
+        throw newUnsupportedOperationException();
+    }
+
+    /**
+     * Provides a prompt, then reads a single line of text from the console.
+     *
+     * @param  prompt
+     *         A prompt string.
+     *
+     * @throws IOError
+     *         If an I/O error occurs.
+     *
+     * @return  A string containing the line read from the console, not
+     *          including any line-termination characters, or {@code null}
+     *          if an end of stream has been reached.
+     *
+     * @since 23
+     */
+    @PreviewFeature(feature = PreviewFeature.Feature.IMPLICIT_CLASSES)
+    public String input(String prompt) {
         throw newUnsupportedOperationException();
     }
 

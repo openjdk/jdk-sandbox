@@ -81,6 +81,28 @@ public class JdkConsoleProviderImpl implements JdkConsoleProvider {
         }
 
         @Override
+        public JdkConsole println(Object obj) {
+            writer().println(obj);
+            return this;
+        }
+
+        @Override
+        public JdkConsole print(Object obj) {
+            writer().print(obj);
+            return this;
+        }
+
+        @Override
+        public String input(String prompt) {
+            try {
+                initJLineIfNeeded();
+                return jline.readLine(prompt);
+            } catch (EndOfFileException eofe) {
+                return null;
+            }
+        }
+
+        @Override
         public JdkConsole format(String fmt, Object ... args) {
             writer().format(fmt, args).flush();
             return this;

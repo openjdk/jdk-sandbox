@@ -38,6 +38,9 @@ public interface JdkConsole {
     PrintWriter writer();
     Reader reader();
     JdkConsole format(String fmt, Object ... args);
+    JdkConsole println(Object obj);
+    JdkConsole print(Object obj);
+    String input(String prompt);
     JdkConsole printf(String format, Object ... args);
     String readLine(String fmt, Object ... args);
     String readLine();

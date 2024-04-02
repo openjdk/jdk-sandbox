@@ -57,6 +57,37 @@ public final class JdkConsoleImpl implements JdkConsole {
     }
 
     @Override
+    public JdkConsole println(Object obj) {
+        pw.println(obj);
+        return this;
+    }
+
+    @Override
+    public JdkConsole print(Object obj) {
+        pw.print(obj);
+        return this;
+    }
+
+    @Override
+    public String input(String prompt) {
+        String line = null;
+        synchronized (writeLock) {
+            synchronized(readLock) {
+                if (!prompt.isEmpty())
+                    pw.print(prompt);
+                try {
+                    char[] ca = readline(false);
+                    if (ca != null)
+                        line = new String(ca);
+                } catch (IOException x) {
+                    throw new IOError(x);
+                }
+            }
+        }
+        return line;
+    }
+
+    @Override
     public JdkConsole format(String fmt, Object ... args) {
         formatter.format(fmt, args).flush();
         return this;

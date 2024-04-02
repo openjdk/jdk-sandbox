@@ -193,6 +193,44 @@ public class ConsoleImpl {
          * {@inheritDoc}
          */
         @Override
+        public JdkConsole println(Object obj) {
+            writer().println(obj);
+            return this;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public JdkConsole print(Object obj) {
+            writer().print(obj);
+            return this;
+        }
+
+        /**
+         * {@inheritDoc}
+         *
+         * @throws IOError {@inheritDoc}
+         */
+        @Override
+        public String input(String prompt) {
+            try {
+                return sendAndReceive(() -> {
+                    remoteInput.write(Task.READ_LINE.ordinal());
+                    char[] chars = prompt.toCharArray();
+                    sendChars(chars, 0, chars.length);
+                    char[] line = readChars();
+                    return new String(line);
+                });
+            } catch (IOException ex) {
+                throw new IOError(ex);
+            }
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
         public JdkConsole format(String fmt, Object... args) {
             writer().format(fmt, args).flush();
             return this;
