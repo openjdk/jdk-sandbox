@@ -36,9 +36,9 @@ class JfrCPUTimeThreadSampling : public JfrCHeapObj {
   friend class JfrRecorder;
  private:
   JfrCPUTimeThreadSampler* _sampler;
-  void create_sampler(int64_t java_period_millis, int64_t native_period_millis);
-  void update_run_state(int64_t java_period_millis, int64_t native_period_millis);
-  void set_sampling_period(bool is_java_period, int64_t period_millis);
+  void create_sampler(int64_t period_millis);
+  void update_run_state(int64_t period_millis);
+  void set_sampling_period(int64_t period_millis);
 
   JfrCPUTimeThreadSampling();
   ~JfrCPUTimeThreadSampling();
@@ -48,8 +48,7 @@ class JfrCPUTimeThreadSampling : public JfrCHeapObj {
   static void destroy();
 
  public:
-  static void set_java_sample_period(int64_t period_millis);
-  static void set_native_sample_period(int64_t period_millis);
+  static void set_sample_period(int64_t period_millis);
   static void on_javathread_suspend(JavaThread* thread);
   static void on_javathread_create(JavaThread* thread);
   static void on_javathread_terminate(JavaThread* thread);
@@ -58,10 +57,7 @@ class JfrCPUTimeThreadSampling : public JfrCHeapObj {
 #else
 class JfrCPUTimeThreadSampling : public JfrCHeapObj {
  public:
-  static void set_java_sample_period(int64_t period_millis) {
-    warning("JFR CPU time sampling not supported on this platform");
-  }
-  static void set_native_sample_period(int64_t period_millis) {
+  static void set_sample_period(int64_t period_millis) {
     warning("JFR CPU time sampling not supported on this platform");
   }
   static void on_javathread_suspend(JavaThread* thread) {
