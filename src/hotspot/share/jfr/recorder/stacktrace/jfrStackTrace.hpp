@@ -27,12 +27,26 @@
 
 #include "jfr/utilities/jfrAllocation.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
+#include "runtime/vframe.inline.hpp"
 
 class frame;
 class InstanceKlass;
 class JavaThread;
 class JfrCheckpointWriter;
 class JfrChunkWriter;
+class ContinuationEntry;
+
+class JfrVframeStream : public vframeStreamCommon {
+ private:
+  bool _vthread;
+  const ContinuationEntry* _cont_entry;
+  bool _async_mode;
+  bool step_to_sender();
+  void next_frame();
+ public:
+  JfrVframeStream(JavaThread* jt, const frame& fr, bool stop_at_java_call_stub, bool async_mode);
+  void next_vframe();
+};
 
 class JfrStackFrame {
   friend class ObjectSampleCheckpoint;
