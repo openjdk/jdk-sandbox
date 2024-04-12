@@ -25,6 +25,7 @@
 #ifndef SHARE_JFR_RECORDER_STACKTRACE_JFRSTACKTRACE_HPP
 #define SHARE_JFR_RECORDER_STACKTRACE_JFRSTACKTRACE_HPP
 
+#include "jfr/recorder/stacktrace/jfrAsyncStackTrace.hpp"
 #include "jfr/utilities/jfrAllocation.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
 #include "runtime/vframe.inline.hpp"
@@ -85,6 +86,8 @@ class JfrStackTrace : public JfrCHeapObj {
   friend class CPUTimeOSThreadSampler;
   friend class StackTraceResolver;
   friend class JfrCPUTimeTrace;
+  friend class JfrAsyncStackTrace;
+  friend class JfrCPUTimeThreadSampler;
  private:
   const JfrStackTrace* _next;
   JfrStackFrame* _frames;
