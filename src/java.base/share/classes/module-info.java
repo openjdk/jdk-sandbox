@@ -135,7 +135,6 @@ module java.base {
     exports javax.security.auth.spi;
     exports javax.security.auth.x500;
     exports javax.security.cert;
-    exports sun.nio.ch.iouring;
 
 
     // additional qualified exports may be inserted at build time
