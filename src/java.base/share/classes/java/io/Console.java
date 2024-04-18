@@ -198,6 +198,63 @@ public sealed class Console implements Flushable permits ProxyingConsole {
     }
 
     /**
+     * Provides access to console for Implicitly Declared Classes.
+     *
+     * @since 23
+     */
+    @PreviewFeature(feature = PreviewFeature.Feature.IMPLICIT_CLASSES)
+    public static class Basic {
+
+        private Basic() {
+            throw new Error("no instances");
+        }
+
+        /**
+         * Calls {@link Console#println(Object)} on {@link System#console()},
+         * or throws {@link IOError} if {@code System.console()} returns
+         * {@code null}.
+         *
+         * @param obj the obj to print
+         */
+        public void println(Object obj) {
+            con().println(obj);
+        }
+
+        /**
+         * Calls {@link Console#print(Object)} on {@link System#console()},
+         * or throws {@link IOError} if {@code System.console()} returns
+         * {@code null}.
+         *
+         * @param obj the obj to print
+         */
+        @PreviewFeature(feature = PreviewFeature.Feature.IMPLICIT_CLASSES)
+        public void print(Object obj) {
+            con().print(obj);
+        }
+
+        /**
+         * {@return the result of a call to {@link Console#input(String)} on
+         * {@link System#console()}, or throws {@link IOError} if
+         * {@code System.console()} returns {@code null}}
+         *
+         * @param prompt the prompt string
+         */
+        @PreviewFeature(feature = PreviewFeature.Feature.IMPLICIT_CLASSES)
+        public String input(String prompt) {
+            return con().input(prompt);
+        }
+
+        private static Console con() {
+            var con = System.console();
+            if (con != null) {
+                return con;
+            } else {
+                throw new IOError(null);
+            }
+        }
+    }
+
+    /**
      * Writes a formatted string to this console's output stream using
      * the specified format string and arguments.
      *
