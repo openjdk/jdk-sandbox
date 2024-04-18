@@ -26,6 +26,7 @@ package jdk.internal.org.jline.terminal.impl.jna.osx;
 
 import jdk.internal.org.jline.terminal.impl.jna.LastErrorException;
 
+@SuppressWarnings("restricted")
 public final class CLibraryImpl implements CLibrary {
 
     static {

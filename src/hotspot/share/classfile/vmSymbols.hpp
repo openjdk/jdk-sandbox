@@ -217,6 +217,7 @@ class SerializeClosure;
   template(java_lang_CloneNotSupportedException,      "java/lang/CloneNotSupportedException")     \
   template(java_lang_IllegalAccessException,          "java/lang/IllegalAccessException")         \
   template(java_lang_IllegalArgumentException,        "java/lang/IllegalArgumentException")       \
+  template(java_lang_IllegalCallerException,          "java/lang/IllegalCallerException")         \
   template(java_lang_IllegalStateException,           "java/lang/IllegalStateException")          \
   template(java_lang_IllegalMonitorStateException,    "java/lang/IllegalMonitorStateException")   \
   template(java_lang_IllegalThreadStateException,     "java/lang/IllegalThreadStateException")    \

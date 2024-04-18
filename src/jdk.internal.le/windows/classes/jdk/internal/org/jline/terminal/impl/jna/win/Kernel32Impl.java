@@ -31,6 +31,7 @@ import jdk.internal.org.jline.terminal.impl.jna.win.Kernel32.COORD;
 import jdk.internal.org.jline.terminal.impl.jna.win.Kernel32.INPUT_RECORD;
 import jdk.internal.org.jline.terminal.impl.jna.win.Kernel32.SMALL_RECT;
 
+@SuppressWarnings("restricted")
 public class Kernel32Impl implements Kernel32 {
 
     static {

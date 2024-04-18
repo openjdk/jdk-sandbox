@@ -419,7 +419,7 @@ address NativeLookup::lookup_base(const methodHandle& method, TRAPS) {
 
   if (THREAD->has_pending_exception()) {
     oop exception = THREAD->pending_exception();
-    if (exception->is_a(vmClasses::IllegalCallerError_klass())) {
+    if (exception->is_a(vmClasses::IllegalCallerException_klass())) {
       // we already have a pending exception from the restricted method check, just return
       return nullptr;
     }

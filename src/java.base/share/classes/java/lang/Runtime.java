@@ -36,6 +36,7 @@ import java.util.Optional;
 import java.util.StringTokenizer;
 
 import jdk.internal.access.SharedSecrets;
+import jdk.internal.javac.Restricted;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
 
@@ -817,11 +818,6 @@ public class Runtime {
      * <p>
      * The method {@link System#load(String)} is the conventional and
      * convenient means of invoking this method.
-     * <p>
-     * This method is <a href="package-summary.html#restricted"><em>restricted</em></a>.
-     * Restricted methods are unsafe, and, if used incorrectly, their use might crash
-     * the JVM or, worse, silently result in memory corruption. Thus, clients should refrain from depending on
-     * restricted methods, and use safe and supported functionalities, where possible.
      *
      * @param      filename   the file to load.
      * @throws     SecurityException  if a security manager exists and its
@@ -841,6 +837,7 @@ public class Runtime {
      * @see        java.lang.SecurityManager#checkLink(java.lang.String)
      */
     @CallerSensitive
+    @Restricted
     public void load(String filename) {
         Class<?> caller = Reflection.getCallerClass();
         Reflection.ensureNativeAccess(caller, Runtime.class, "load");
@@ -892,11 +889,6 @@ public class Runtime {
      * <p>
      * If this method is called more than once with the same library
      * name, the second and subsequent calls are ignored.
-     * <p>
-     * This method is <a href="package-summary.html#restricted"><em>restricted</em></a>.
-     * Restricted methods are unsafe, and, if used incorrectly, their use might crash
-     * the JVM or, worse, silently result in memory corruption. Thus, clients should refrain from depending on
-     * restricted methods, and use safe and supported functionalities, where possible.
      *
      * @param      libname   the name of the library.
      * @throws     SecurityException  if a security manager exists and its
@@ -915,6 +907,7 @@ public class Runtime {
      * @see        java.lang.SecurityManager#checkLink(java.lang.String)
      */
     @CallerSensitive
+    @Restricted
     public void loadLibrary(String libname) {
         Class<?> caller = Reflection.getCallerClass();
         Reflection.ensureNativeAccess(caller, Runtime.class, "loadLibrary");
