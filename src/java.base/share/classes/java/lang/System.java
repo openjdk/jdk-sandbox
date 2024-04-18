@@ -2031,7 +2031,7 @@ public final class System {
     @Restricted
     public static void load(String filename) {
         Class<?> caller = Reflection.getCallerClass();
-        Reflection.ensureNativeAccess(caller, System.class, "loadLibrary");
+        Reflection.ensureNativeAccess(caller, System.class, "load");
         Runtime.getRuntime().load0(caller, filename);
     }
 
