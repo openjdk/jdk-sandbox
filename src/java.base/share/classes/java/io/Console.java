@@ -227,7 +227,6 @@ public sealed class Console implements Flushable permits ProxyingConsole {
          *
          * @param obj the obj to print
          */
-        @PreviewFeature(feature = PreviewFeature.Feature.IMPLICIT_CLASSES)
         public void print(Object obj) {
             con().print(obj);
         }
@@ -239,7 +238,6 @@ public sealed class Console implements Flushable permits ProxyingConsole {
          *
          * @param prompt the prompt string
          */
-        @PreviewFeature(feature = PreviewFeature.Feature.IMPLICIT_CLASSES)
         public String input(String prompt) {
             return con().input(prompt);
         }
