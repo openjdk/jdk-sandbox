@@ -216,7 +216,7 @@ public sealed class Console implements Flushable permits ProxyingConsole {
          *
          * @param obj the obj to print
          */
-        public void println(Object obj) {
+        public static void println(Object obj) {
             con().println(obj);
         }
 
@@ -227,7 +227,7 @@ public sealed class Console implements Flushable permits ProxyingConsole {
          *
          * @param obj the obj to print
          */
-        public void print(Object obj) {
+        public static void print(Object obj) {
             con().print(obj);
         }
 
@@ -238,7 +238,7 @@ public sealed class Console implements Flushable permits ProxyingConsole {
          *
          * @param prompt the prompt string
          */
-        public String input(String prompt) {
+        public static String input(String prompt) {
             return con().input(prompt);
         }
 
