@@ -22,7 +22,9 @@
  */
 
 // no precompiled headers
+#ifdef COMPILER1
 #include "c1/c1_Compiler.hpp"
+#endif
 #include "ci/ciUtilities.hpp"
 #include "compiler/compiler_globals.hpp"
 #include "compiler/oopMap.hpp"
@@ -43,7 +45,10 @@
 #include "memory/universe.hpp"
 #include "oops/compressedOops.hpp"
 #include "oops/klass.inline.hpp"
+#include "prims/jvmtiExport.hpp"
+#ifdef COMPILER2
 #include "opto/c2compiler.hpp"
+#endif
 #include "runtime/flags/jvmFlag.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -126,6 +131,8 @@ address CompilerToVM::Data::symbol_clinit;
 
 int CompilerToVM::Data::data_section_item_alignment;
 
+int* CompilerToVM::Data::_should_notify_object_alloc;
+
 void CompilerToVM::Data::initialize(JVMCI_TRAPS) {
   Klass_vtable_start_offset = in_bytes(Klass::vtable_start_offset());
   Klass_vtable_length_offset = in_bytes(Klass::vtable_length_offset());
@@ -142,8 +149,7 @@ void CompilerToVM::Data::initialize(JVMCI_TRAPS) {
   BarrierSetNMethod* bs_nm = BarrierSet::barrier_set()->barrier_set_nmethod();
   if (bs_nm != nullptr) {
     thread_disarmed_guard_value_offset = in_bytes(bs_nm->thread_disarmed_guard_value_offset());
-    AMD64_ONLY(nmethod_entry_barrier = StubRoutines::x86::method_entry_barrier());
-    AARCH64_ONLY(nmethod_entry_barrier = StubRoutines::aarch64::method_entry_barrier());
+    nmethod_entry_barrier = StubRoutines::method_entry_barrier();
     BarrierSetAssembler* bs_asm = BarrierSet::barrier_set()->barrier_set_assembler();
     AARCH64_ONLY(BarrierSetAssembler_nmethod_patching_type = (int) bs_asm->nmethod_patching_type());
     AARCH64_ONLY(BarrierSetAssembler_patching_epoch_addr = bs_asm->patching_epoch_addr());
@@ -193,6 +199,8 @@ void CompilerToVM::Data::initialize(JVMCI_TRAPS) {
 
   data_section_item_alignment = relocInfo::addr_unit();
 
+  _should_notify_object_alloc = &JvmtiExport::_should_notify_object_alloc;
+
   BarrierSet* bs = BarrierSet::barrier_set();
   if (bs->is_a(BarrierSet::CardTableBarrierSet)) {
     CardTable::CardValue* base = ci_card_table_address();
@@ -225,6 +233,22 @@ void CompilerToVM::Data::initialize(JVMCI_TRAPS) {
 #undef SET_TRIGFUNC
 }
 
+static jboolean is_c1_supported(vmIntrinsics::ID id){
+    jboolean supported = false;
+#ifdef COMPILER1
+    supported = (jboolean) Compiler::is_intrinsic_supported(id);
+#endif
+    return supported;
+}
+
+static jboolean is_c2_supported(vmIntrinsics::ID id){
+    jboolean supported = false;
+#ifdef COMPILER2
+    supported = (jboolean) C2Compiler::is_intrinsic_supported(id);
+#endif
+    return supported;
+}
+
 JVMCIObjectArray CompilerToVM::initialize_intrinsics(JVMCI_TRAPS) {
   int len = vmIntrinsics::number_of_intrinsics() - 1; // Exclude vmIntrinsics::_none, which is 0
   JVMCIObjectArray vmIntrinsics = JVMCIENV->new_VMIntrinsicMethod_array(len, JVMCI_CHECK_NULL);
@@ -243,8 +267,8 @@ JVMCIObjectArray CompilerToVM::initialize_intrinsics(JVMCI_TRAPS) {
     JVMCIObject sig_str = VM_SYMBOL_TO_STRING(sig);                      \
     JVMCIObject vmIntrinsicMethod = JVMCIENV->new_VMIntrinsicMethod(kls_str, name_str, sig_str, (jint) vmIntrinsics::id, \
                                     (jboolean) vmIntrinsics::is_intrinsic_available(vmIntrinsics::id),                   \
-                                    (jboolean) Compiler::is_intrinsic_supported(vmIntrinsics::id),                       \
-                                    (jboolean) C2Compiler::is_intrinsic_supported(vmIntrinsics::id), JVMCI_CHECK_NULL);  \
+                                    is_c1_supported(vmIntrinsics::id),                       \
+                                    is_c2_supported(vmIntrinsics::id), JVMCI_CHECK_NULL);    \
     JVMCIENV->put_object_at(vmIntrinsics, index++, vmIntrinsicMethod);   \
   }
 
@@ -280,14 +304,12 @@ JVMCIObjectArray CompilerToVM::initialize_intrinsics(JVMCI_TRAPS) {
   do_bool_flag(Inline)                                                     \
   do_intx_flag(JVMCICounterSize)                                           \
   do_bool_flag(JVMCIPrintProperties)                                       \
-  do_bool_flag(JVMCIUseFastLocking)                                        \
   do_int_flag(ObjectAlignmentInBytes)                                      \
   do_bool_flag(PrintInlining)                                              \
   do_bool_flag(ReduceInitialCardMarks)                                     \
   do_bool_flag(RestrictContended)                                          \
   do_intx_flag(StackReservedPages)                                         \
   do_intx_flag(StackShadowPages)                                           \
-  do_bool_flag(TLABStats)                                                  \
   do_uintx_flag(TLABWasteIncrement)                                        \
   do_intx_flag(TypeProfileWidth)                                           \
   do_bool_flag(UseAESIntrinsics)                                           \
@@ -379,6 +401,7 @@ jobjectArray readConfiguration0(JNIEnv *env, JVMCI_TRAPS) {
         assert(box.is_non_null(), "must have a box");
       } else if (strcmp(vmField.typeString, "int") == 0 ||
                  strcmp(vmField.typeString, "jint") == 0 ||
+                 strcmp(vmField.typeString, "uint") == 0 ||
                  strcmp(vmField.typeString, "uint32_t") == 0) {
         BOXED_LONG(box, *(jint*) vmField.address);
         assert(box.is_non_null(), "must have a box");

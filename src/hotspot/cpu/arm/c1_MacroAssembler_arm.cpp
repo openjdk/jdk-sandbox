@@ -43,16 +43,6 @@
 // arm [macro]assembler) and used with care in the other C1 specific
 // files.
 
-void C1_MacroAssembler::inline_cache_check(Register receiver, Register iCache) {
-  Label verified;
-  load_klass(Rtemp, receiver);
-  cmp(Rtemp, iCache);
-  b(verified, eq); // jump over alignment no-ops
-  jump(SharedRuntime::get_ic_miss_stub(), relocInfo::runtime_call_type);
-  align(CodeEntryAlignment);
-  bind(verified);
-}
-
 void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_bytes) {
   assert(bang_size_in_bytes >= frame_size_in_bytes, "stack bang size incorrect");
   assert((frame_size_in_bytes % StackAlignmentInBytes) == 0, "frame size should be aligned");
@@ -219,7 +209,7 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
     Register t2 = hdr;      // blow
     Register t3 = Rtemp;    // blow
 
-    fast_lock_2(obj /* obj */, t1, t2, t3, 1 /* savemask - save t1 */, slow_case);
+    lightweight_lock(obj /* obj */, t1, t2, t3, 1 /* savemask - save t1 */, slow_case);
     // Success: fall through
 
   } else if (LockingMode == LM_LEGACY) {
@@ -282,8 +272,8 @@ void C1_MacroAssembler::unlock_object(Register hdr, Register obj, Register disp_
     Register t2 = hdr;      // blow
     Register t3 = Rtemp;    // blow
 
-    fast_unlock_2(obj /* object */, t1, t2, t3, 1 /* savemask (save t1) */,
-                    slow_case);
+    lightweight_unlock(obj /* object */, t1, t2, t3, 1 /* savemask (save t1) */,
+                       slow_case);
     // Success: Fall through
 
   } else if (LockingMode == LM_LEGACY) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
 #include "asm/macroAssembler.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/access.inline.hpp"
+#include "oops/klass.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/vectorSupport.hpp"
 #include "runtime/continuation.hpp"
@@ -176,6 +177,10 @@ address StubRoutines::_hf2f = nullptr;
 address StubRoutines::_vector_f_math[VectorSupport::NUM_VEC_SIZES][VectorSupport::NUM_SVML_OP] = {{nullptr}, {nullptr}};
 address StubRoutines::_vector_d_math[VectorSupport::NUM_VEC_SIZES][VectorSupport::NUM_SVML_OP] = {{nullptr}, {nullptr}};
 
+address StubRoutines::_method_entry_barrier = nullptr;
+address StubRoutines::_array_sort = nullptr;
+address StubRoutines::_array_partition  = nullptr;
+
 address StubRoutines::_cont_thaw          = nullptr;
 address StubRoutines::_cont_returnBarrier = nullptr;
 address StubRoutines::_cont_returnBarrierExc = nullptr;
@@ -184,6 +189,12 @@ JFR_ONLY(RuntimeStub* StubRoutines::_jfr_write_checkpoint_stub = nullptr;)
 JFR_ONLY(address StubRoutines::_jfr_write_checkpoint = nullptr;)
 JFR_ONLY(RuntimeStub* StubRoutines::_jfr_return_lease_stub = nullptr;)
 JFR_ONLY(address StubRoutines::_jfr_return_lease = nullptr;)
+
+address StubRoutines::_upcall_stub_exception_handler = nullptr;
+
+address StubRoutines::_lookup_secondary_supers_table_slow_path_stub = nullptr;
+address StubRoutines::_lookup_secondary_supers_table_stubs[Klass::SECONDARY_SUPERS_TABLE_SIZE] = { nullptr };
+
 
 // Initialization
 //

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,8 +38,8 @@
 
 package java.text;
 
-import java.io.InvalidObjectException;
 import java.io.IOException;
+import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.math.BigInteger;
@@ -52,6 +52,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+
 import sun.util.locale.provider.LocaleProviderAdapter;
 import sun.util.locale.provider.LocaleServiceProviderPool;
 
@@ -82,8 +83,8 @@ import sun.util.locale.provider.LocaleServiceProviderPool;
  * <blockquote>
  * {@snippet lang=java :
  * NumberFormat nf = NumberFormat.getInstance();
- * for (int i = 0; i < myNumber.length; ++i) {
- *     output.println(nf.format(myNumber[i]) + "; ");
+ * for (var myNumber : numbers) {
+ *     output.println(nf.format(myNumber) + "; ");
  * }
  * }
  * </blockquote>
@@ -147,7 +148,6 @@ import sun.util.locale.provider.LocaleServiceProviderPool;
  * if false, 3456.00 &rarr; "3456"
  * This is independent of parsing.  If you want parsing to stop at the decimal
  * point, use setParseIntegerOnly.
- *
  * <p>
  * You can also use forms of the {@code parse} and {@code format}
  * methods with {@code ParsePosition} and {@code FieldPosition} to
@@ -175,9 +175,23 @@ import sun.util.locale.provider.LocaleServiceProviderPool;
  *      numbers: "(12)" for -12.
  * </ol>
  *
- * <h2><a id="synchronization">Synchronization</a></h2>
- *
+ * <h2><a id="leniency">Leniency</a></h2>
+ * {@code NumberFormat} by default, parses leniently. Subclasses may consider
+ * implementing strict parsing and as such, overriding and providing
+ * implementations for the optional {@link #isStrict()} and {@link
+ * #setStrict(boolean)} methods.
  * <p>
+ * Lenient parsing should be used when attempting to parse a number
+ * out of a String that contains non-numerical or non-format related values.
+ * For example, using a {@link Locale#US} currency format to parse the number
+ * {@code 1000} out of the String "$1,000.00 was paid".
+ * <p>
+ * Strict parsing should be used when attempting to ensure a String adheres exactly
+ * to a locale's conventions, and can thus serve to validate input. For example, successfully
+ * parsing the number {@code 1000.55} out of the String "1.000,55" confirms the String
+ * exactly adhered to the {@link Locale#GERMANY} numerical conventions.
+ *
+ * <h2><a id="synchronization">Synchronization</a></h2>
  * Number formats are generally not synchronized.
  * It is recommended to create separate format instances for each thread.
  * If multiple threads access a format concurrently, it must be synchronized
@@ -285,23 +299,11 @@ public abstract class NumberFormat extends Format  {
     }
 
     /**
-     * Parses text from a string to produce a {@code Number}.
-     * <p>
-     * The method attempts to parse text starting at the index given by
-     * {@code pos}.
-     * If parsing succeeds, then the index of {@code pos} is updated
-     * to the index after the last character used (parsing does not necessarily
-     * use all characters up to the end of the string), and the parsed
-     * number is returned. The updated {@code pos} can be used to
-     * indicate the starting point for the next call to this method.
-     * If an error occurs, then the index of {@code pos} is not
-     * changed, the error index of {@code pos} is set to the index of
-     * the character where the error occurred, and null is returned.
-     * <p>
-     * See the {@link #parse(String, ParsePosition)} method for more information
-     * on number parsing.
+     * {@inheritDoc Format}
      *
-     * @param source A {@code String}, part of which should be parsed.
+     * @implSpec This implementation is equivalent to calling {@code parse(source,
+     *           pos)}.
+     * @param source the {@code String} to parse
      * @param pos A {@code ParsePosition} object with index and error
      *            index information as described above.
      * @return A {@code Number} parsed from the string. In case of
@@ -399,33 +401,44 @@ public abstract class NumberFormat extends Format  {
                                         FieldPosition pos);
 
     /**
-     * Returns a Long if possible (e.g., within the range [Long.MIN_VALUE,
+     * Parses text from the beginning of the given string to produce a {@code Number}.
+     * <p>
+     * This method attempts to parse text starting at the index given by the
+     * {@code ParsePosition}. If parsing succeeds, then the index of the {@code
+     * ParsePosition} is updated to the index after the last character used
+     * (parsing does not necessarily use all characters up to the end of the
+     * string), and the parsed number is returned. The updated {@code
+     * ParsePosition} can be used to indicate the starting
+     * point for the next call to this method. If an error occurs, then the
+     * index of the {@code ParsePosition} is not changed, the error index of the
+     * {@code ParsePosition} is set to the index of the character where the error
+     * occurred, and {@code null} is returned.
+     * <p>
+     * This method will return a Long if possible (e.g., within the range [Long.MIN_VALUE,
      * Long.MAX_VALUE] and with no decimals), otherwise a Double.
-     * If IntegerOnly is set, will stop at a decimal
-     * point (or equivalent; e.g., for rational numbers "1 2/3", will stop
-     * after the 1).
-     * Does not throw an exception; if no object can be parsed, index is
-     * unchanged!
      *
-     * @param source the String to parse
-     * @param parsePosition the parse position
-     * @return the parsed value
-     * @see java.text.NumberFormat#isParseIntegerOnly
-     * @see java.text.Format#parseObject
+     * @param source the {@code String} to parse
+     * @param parsePosition A {@code ParsePosition} object with index and error
+     *            index information as described above.
+     * @return A {@code Number} parsed from the string. In case of
+     *         failure, returns {@code null}.
+     * @throws NullPointerException if {@code source} or {@code ParsePosition}
+     *         is {@code null}.
+     * @see #isStrict()
      */
     public abstract Number parse(String source, ParsePosition parsePosition);
 
     /**
-     * Parses text from the beginning of the given string to produce a number.
-     * The method may not use the entire text of the given string.
+     * Parses text from the beginning of the given string to produce a {@code Number}.
      * <p>
-     * See the {@link #parse(String, ParsePosition)} method for more information
-     * on number parsing.
+     * This method will return a Long if possible (e.g., within the range [Long.MIN_VALUE,
+     * Long.MAX_VALUE] and with no decimals), otherwise a Double.
      *
-     * @param source A {@code String} whose beginning should be parsed.
+     * @param source A {@code String}, to be parsed from the beginning.
      * @return A {@code Number} parsed from the string.
-     * @throws    ParseException if the beginning of the specified string
-     *            cannot be parsed.
+     * @throws ParseException if parsing fails
+     * @throws NullPointerException if {@code source} is {@code null}.
+     * @see #isStrict()
      */
     public Number parse(String source) throws ParseException {
         ParsePosition parsePosition = new ParsePosition(0);
@@ -461,6 +474,44 @@ public abstract class NumberFormat extends Format  {
      */
     public void setParseIntegerOnly(boolean value) {
         parseIntegerOnly = value;
+    }
+
+    /**
+     * {@return {@code true} if this format will parse numbers strictly;
+     * {@code false} otherwise}
+     *
+     * @implSpec The default implementation always throws {@code
+     * UnsupportedOperationException}. Subclasses should override this method
+     * when implementing strict parsing.
+     * @throws    UnsupportedOperationException if the implementation of this
+     *            method does not support this operation
+     * @see ##leniency Leniency Section
+     * @see #setStrict(boolean)
+     * @since 23
+     */
+    public boolean isStrict() {
+        throw new UnsupportedOperationException("Subclasses should override this " +
+                "method when implementing strict parsing");
+    }
+
+    /**
+     * Change the leniency value for parsing. Parsing can either be strict or lenient,
+     * by default it is lenient.
+     *
+     * @implSpec The default implementation always throws {@code
+     * UnsupportedOperationException}. Subclasses should override this method
+     * when implementing strict parsing.
+     * @param strict {@code true} if parsing should be done strictly;
+     *               {@code false} otherwise
+     * @throws    UnsupportedOperationException if the implementation of this
+     *            method does not support this operation
+     * @see ##leniency Leniency Section
+     * @see #isStrict()
+     * @since 23
+     */
+    public void setStrict(boolean strict) {
+        throw new UnsupportedOperationException("Subclasses should override this " +
+                "method when implementing strict parsing");
     }
 
     //============== Locale Stuff =====================
@@ -678,6 +729,33 @@ public abstract class NumberFormat extends Format  {
     }
 
     /**
+     * This method compares the passed NumberFormat to a number of pre-defined
+     * style NumberFormat instances, (created with the passed locale). Returns a
+     * matching FormatStyle string if found, otherwise null.
+     * This method is used by MessageFormat to provide string pattens for NumberFormat
+     * Subformats. Any future pre-defined NumberFormat styles should be added to this method.
+     */
+    static String matchToStyle(NumberFormat fmt, Locale locale) {
+        if (fmt.equals(NumberFormat.getInstance(locale))) {
+            return "";
+        } else if (fmt.equals(NumberFormat.getCurrencyInstance(locale))) {
+            return "currency";
+        } else if (fmt.equals(NumberFormat.getPercentInstance(locale))) {
+            return "percent";
+        } else if (fmt.equals(NumberFormat.getIntegerInstance(locale))) {
+            return "integer";
+        } else if (fmt.equals(NumberFormat.getCompactNumberInstance(locale,
+                NumberFormat.Style.SHORT))) {
+            return "compact_short";
+        } else if (fmt.equals(NumberFormat.getCompactNumberInstance(locale,
+                NumberFormat.Style.LONG))) {
+            return "compact_long";
+        } else {
+            return null;
+        }
+    }
+
+    /**
      * Returns an array of all locales for which the
      * {@code get*Instance} methods of this class can return
      * localized instances.
@@ -698,7 +776,11 @@ public abstract class NumberFormat extends Format  {
     }
 
     /**
-     * Overrides hashCode.
+     * {@return the hash code for this {@code NumberFormat}}
+     *
+     * @implSpec This method calculates the hash code value using the values returned by
+     * {@link #getMaximumIntegerDigits()} and {@link #getMaximumFractionDigits()}.
+     * @see Object#hashCode()
      */
     @Override
     public int hashCode() {
@@ -707,7 +789,17 @@ public abstract class NumberFormat extends Format  {
     }
 
     /**
-     * Overrides equals.
+     * Compares the specified object with this {@code NumberFormat} for equality.
+     * Returns true if the object is also a {@code NumberFormat} and the
+     * two formats would format any value the same.
+     *
+     * @implSpec This method performs an equality check with a notion of class
+     * identity based on {@code getClass()}, rather than {@code instanceof}.
+     * Therefore, in the equals methods in subclasses, no instance of this class
+     * should compare as equal to an instance of a subclass.
+     * @param  obj object to be compared for equality
+     * @return {@code true} if the specified object is equal to this {@code NumberFormat}
+     * @see Object#equals(Object)
      */
     @Override
     public boolean equals(Object obj) {
@@ -718,12 +810,12 @@ public abstract class NumberFormat extends Format  {
             return false;
         }
         NumberFormat other = (NumberFormat) obj;
-        return (maximumIntegerDigits == other.maximumIntegerDigits
+        return maximumIntegerDigits == other.maximumIntegerDigits
             && minimumIntegerDigits == other.minimumIntegerDigits
             && maximumFractionDigits == other.maximumFractionDigits
             && minimumFractionDigits == other.minimumFractionDigits
             && groupingUsed == other.groupingUsed
-            && parseIntegerOnly == other.parseIntegerOnly);
+            && parseIntegerOnly == other.parseIntegerOnly;
     }
 
     /**
@@ -883,16 +975,16 @@ public abstract class NumberFormat extends Format  {
     /**
      * Gets the currency used by this number format when formatting
      * currency values. The initial value is derived in a locale dependent
-     * way. The returned value may be null if no valid
+     * way. The returned value may be {@code null} if no valid
      * currency could be determined and no currency has been set using
-     * {@link #setCurrency(java.util.Currency) setCurrency}.
-     * <p>
-     * The default implementation throws
-     * {@code UnsupportedOperationException}.
+     * {@link #setCurrency(Currency)}.
      *
+     * @implSpec The default implementation always throws {@code
+     * UnsupportedOperationException}. Subclasses should override this method
+     * if currency formatting is desired.
      * @return the currency used by this number format, or {@code null}
-     * @throws    UnsupportedOperationException if the number format class
-     * doesn't implement currency formatting
+     * @throws    UnsupportedOperationException if the implementation of this
+     *            method does not support this operation
      * @since 1.4
      */
     public Currency getCurrency() {
@@ -903,14 +995,14 @@ public abstract class NumberFormat extends Format  {
      * Sets the currency used by this number format when formatting
      * currency values. This does not update the minimum or maximum
      * number of fraction digits used by the number format.
-     * <p>
-     * The default implementation throws
-     * {@code UnsupportedOperationException}.
      *
+     * @implSpec The default implementation always throws {@code
+     * UnsupportedOperationException}. Subclasses should override this method
+     * if currency formatting is desired.
      * @param currency the new currency to be used by this number format
-     * @throws    UnsupportedOperationException if the number format class
-     * doesn't implement currency formatting
-     * @throws    NullPointerException if {@code currency} is null
+     * @throws    NullPointerException if {@code currency} is {@code null}
+     * @throws    UnsupportedOperationException if the implementation of this
+     *            method does not support this operation
      * @since 1.4
      */
     public void setCurrency(Currency currency) {
@@ -919,14 +1011,13 @@ public abstract class NumberFormat extends Format  {
 
     /**
      * Gets the {@link java.math.RoundingMode} used in this NumberFormat.
-     * The default implementation of this method in NumberFormat
-     * always throws {@link java.lang.UnsupportedOperationException}.
-     * Subclasses which handle different rounding modes should override
-     * this method.
      *
-     * @throws    UnsupportedOperationException The default implementation
-     *     always throws this exception
+     * @implSpec The default implementation always throws {@code
+     * UnsupportedOperationException}. Subclasses which handle different
+     * rounding modes should override this method.
      * @return The {@code RoundingMode} used for this NumberFormat.
+     * @throws    UnsupportedOperationException if the implementation of this
+     *            method does not support this operation
      * @see #setRoundingMode(RoundingMode)
      * @since 1.6
      */
@@ -936,14 +1027,13 @@ public abstract class NumberFormat extends Format  {
 
     /**
      * Sets the {@link java.math.RoundingMode} used in this NumberFormat.
-     * The default implementation of this method in NumberFormat always
-     * throws {@link java.lang.UnsupportedOperationException}.
-     * Subclasses which handle different rounding modes should override
-     * this method.
      *
-     * @throws    UnsupportedOperationException The default implementation
-     *     always throws this exception
-     * @throws    NullPointerException if {@code roundingMode} is null
+     * @implSpec The default implementation always throws {@code
+     * UnsupportedOperationException}. Subclasses which handle different
+     * rounding modes should override this method.
+     * @throws    NullPointerException if {@code roundingMode} is {@code null}
+     * @throws    UnsupportedOperationException if the implementation of this
+     *            method does not support this operation
      * @param roundingMode The {@code RoundingMode} to be used
      * @see #getRoundingMode()
      * @since 1.6
@@ -1246,6 +1336,7 @@ public abstract class NumberFormat extends Format  {
          *
          * @param name Name of the attribute
          */
+        @SuppressWarnings("this-escape")
         protected Field(String name) {
             super(name);
             if (this.getClass() == NumberFormat.Field.class) {

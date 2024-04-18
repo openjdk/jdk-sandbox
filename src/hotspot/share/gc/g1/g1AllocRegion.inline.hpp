@@ -27,7 +27,7 @@
 
 #include "gc/g1/g1AllocRegion.hpp"
 
-#include "gc/g1/heapRegion.inline.hpp"
+#include "gc/g1/g1HeapRegion.inline.hpp"
 
 #define assert_alloc_region(p, message)                                  \
   do {                                                                   \
@@ -61,11 +61,6 @@ inline HeapWord* G1AllocRegion::par_allocate(HeapRegion* alloc_region,
   assert(!alloc_region->is_empty(), "pre-condition");
 
   return alloc_region->par_allocate(min_word_size, desired_word_size, actual_word_size);
-}
-
-inline HeapWord* G1AllocRegion::attempt_allocation(size_t word_size) {
-  size_t temp;
-  return attempt_allocation(word_size, word_size, &temp);
 }
 
 inline HeapWord* G1AllocRegion::attempt_allocation(size_t min_word_size,
