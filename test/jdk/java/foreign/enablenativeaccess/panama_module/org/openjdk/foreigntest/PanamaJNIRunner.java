@@ -3,13 +3,9 @@ package org.openjdk.foreigntest;
 import java.lang.foreign.FunctionDescriptor;
 import java.lang.foreign.Linker;
 
-public class PanamaMainJNI {
+public class PanamaJNIRunner {
 
-    static {
-        System.loadLibrary("LinkerInvokerModule");
-    }
-
-    public static void main(String[] args) {
+    public static void run() {
         testDirectAccessCLinker();
     }
 

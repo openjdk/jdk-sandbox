@@ -28,6 +28,7 @@
  * @library /test/lib
  * @build TestEnableNativeAccess
  *        panama_module/*
+ *        panama_native/*
  *        org.openjdk.foreigntest.unnamed.PanamaMainUnnamedModule
  * @run testng/othervm/timeout=180 TestEnableNativeAccess
  * @summary Basic test for java --enable-native-access
@@ -66,12 +67,12 @@ public class TestEnableNativeAccess extends TestEnableNativeAccessBase {
                 { "panama_comma_separated_enable", PANAMA_MAIN, successNoWarning(), new String[]{"--enable-native-access=java.base,panama_module"} },
                 { "panama_comma_separated_enable_reflection", PANAMA_REFLECTION, successNoWarning(), new String[]{"--enable-native-access=java.base,panama_module"} },
                 { "panama_comma_separated_enable_invoke", PANAMA_INVOKE, successNoWarning(), new String[]{"--enable-native-access=java.base,panama_module"} },
-                { "panama_comma_separated_enable_jni", PANAMA_JNI, successNoWarning(), new String[]{"--enable-native-access=panama_module,ALL-UNNAMED"} },
+                { "panama_comma_separated_enable_jni", PANAMA_JNI, successNoWarning(), new String[]{"--enable-native-access=panama_native,panama_module,ALL-UNNAMED"} },
 
                 { "panama_enable_native_access_warn", PANAMA_MAIN, successWithWarning("panama"), new String[]{} },
                 { "panama_enable_native_access_warn_reflection", PANAMA_REFLECTION, successWithWarning("panama"), new String[]{} },
                 { "panama_enable_native_access_warn_invoke", PANAMA_INVOKE, successWithWarning("panama"), new String[]{} },
-                { "panama_enable_native_access_warn_jni", PANAMA_JNI, successWithWarning("ALL-UNNAMED"), new String[]{} },
+                { "panama_enable_native_access_warn_jni", PANAMA_JNI, successWithWarnings("panama_native", "panama_module", "ALL-UNNAMED"), new String[]{} },
 
                 { "panama_no_unnamed_module_native_access", UNNAMED, successWithWarning("ALL-UNNAMED"), new String[]{} },
                 { "panama_all_unnamed_module_native_access", UNNAMED, successNoWarning(), new String[]{"--enable-native-access=ALL-UNNAMED"} },
