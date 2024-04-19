@@ -62,12 +62,11 @@ public class TestEnableNativeAccess extends TestEnableNativeAccessBase {
                 { "panama_enable_native_access", PANAMA_MAIN, successNoWarning(), new String[]{"--enable-native-access=panama_module"} },
                 { "panama_enable_native_access_reflection", PANAMA_REFLECTION, successNoWarning(), new String[]{"--enable-native-access=panama_module"} },
                 { "panama_enable_native_access_invoke", PANAMA_INVOKE, successNoWarning(), new String[]{"--enable-native-access=panama_module"} },
-                { "panama_enable_native_access_jni", PANAMA_JNI, successNoWarning(), new String[]{"--enable-native-access=ALL-UNNAMED"} },
 
                 { "panama_comma_separated_enable", PANAMA_MAIN, successNoWarning(), new String[]{"--enable-native-access=java.base,panama_module"} },
                 { "panama_comma_separated_enable_reflection", PANAMA_REFLECTION, successNoWarning(), new String[]{"--enable-native-access=java.base,panama_module"} },
                 { "panama_comma_separated_enable_invoke", PANAMA_INVOKE, successNoWarning(), new String[]{"--enable-native-access=java.base,panama_module"} },
-                { "panama_comma_separated_enable_jni", PANAMA_JNI, successNoWarning(), new String[]{"--enable-native-access=java.base,ALL-UNNAMED"} },
+                { "panama_comma_separated_enable_jni", PANAMA_JNI, successNoWarning(), new String[]{"--enable-native-access=panama_module,ALL-UNNAMED"} },
 
                 { "panama_enable_native_access_warn", PANAMA_MAIN, successWithWarning("panama"), new String[]{} },
                 { "panama_enable_native_access_warn_reflection", PANAMA_REFLECTION, successWithWarning("panama"), new String[]{} },
