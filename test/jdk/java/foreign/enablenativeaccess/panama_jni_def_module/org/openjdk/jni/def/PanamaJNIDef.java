@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,17 +21,12 @@
  * questions.
  */
 
-package org.openjdk.nativetest;
+package org.openjdk.jni.def;
 
-import org.openjdk.foreigntest.PanamaJNIRunner;
+import java.lang.foreign.FunctionDescriptor;
+import java.lang.foreign.Linker;
 
-public class PanamaMainJNI {
+public class PanamaJNIDef {
 
-    static {
-        System.loadLibrary("LinkerInvokerModule");
-    }
-
-    public static void main(String[] args) {
-        PanamaJNIRunner.run();
-    }
+    public static native void nativeLinker0(Linker linker, FunctionDescriptor desc, Linker.Option[] options);
 }

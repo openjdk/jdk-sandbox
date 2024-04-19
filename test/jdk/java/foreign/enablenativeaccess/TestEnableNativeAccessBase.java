@@ -38,8 +38,8 @@ public class TestEnableNativeAccessBase {
     static final String PANAMA_REFLECTION = "panama_module/" + PANAMA_REFLECTION_CLS;
     static final String PANAMA_INVOKE_CLS = "org.openjdk.foreigntest.PanamaMainInvoke";
     static final String PANAMA_INVOKE = "panama_module/" + PANAMA_INVOKE_CLS;
-    static final String PANAMA_JNI_CLS = "org.openjdk.nativetest.PanamaMainJNI";
-    static final String PANAMA_JNI = "panama_native/" + PANAMA_JNI_CLS;
+    static final String PANAMA_JNI_CLS = "org.openjdk.jni.PanamaMainJNI";
+    static final String PANAMA_JNI = "panama_jni_load_module/" + PANAMA_JNI_CLS;
     static final String UNNAMED = "org.openjdk.foreigntest.unnamed.PanamaMainUnnamedModule";
 
     /**
