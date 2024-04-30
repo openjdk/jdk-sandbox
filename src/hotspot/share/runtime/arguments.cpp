@@ -2263,6 +2263,10 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, bool* patch_m
       if (!create_numbered_module_property("jdk.module.enable.native.access", tail, enable_native_access_count++)) {
         return JNI_ENOMEM;
       }
+    } else if (match_option(option, "--illegal-native-access=", &tail)) {
+      if (!create_module_property("jdk.module.illegal.native.access", tail, InternalProperty)) {
+        return JNI_ENOMEM;
+      }
     } else if (match_option(option, "--limit-modules=", &tail)) {
       if (!create_module_property("jdk.module.limitmods", tail, InternalProperty)) {
         return JNI_ENOMEM;

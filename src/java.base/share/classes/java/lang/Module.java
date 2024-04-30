@@ -41,15 +41,10 @@ import java.net.URI;
 import java.net.URL;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.lang.classfile.AccessFlags;
@@ -74,6 +69,8 @@ import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.vm.annotation.Stable;
 import sun.security.util.SecurityConstants;
+
+import static java.util.Objects.hash;
 
 /**
  * Represents a run-time module, either {@link #isNamed() named} or unnamed.
@@ -307,23 +304,121 @@ public final class Module implements AnnotatedElement {
     void ensureNativeAccess(Class<?> owner, String methodName, Class<?> currentClass) {
         // The target module whose enableNativeAccess flag is ensured
         Module target = moduleForNativeAccess();
-        if (!EnableNativeAccess.isNativeAccessEnabled(target)) {
-            if (ModuleBootstrap.hasEnableNativeAccessFlag()) {
+        ModuleBootstrap.IllegalNativeAccess illegalNativeAccess = ModuleBootstrap.illegalNativeAccess();
+        if (illegalNativeAccess != ModuleBootstrap.IllegalNativeAccess.ALLOW ||
+                !EnableNativeAccess.isNativeAccessEnabled(target)) {
+            if (illegalNativeAccess == ModuleBootstrap.IllegalNativeAccess.DENY) {
                 throw new IllegalCallerException("Illegal native access from: " + this);
-            }
-            if (EnableNativeAccess.trySetEnableNativeAccess(target)) {
+            } else if (illegalNativeAccess == ModuleBootstrap.IllegalNativeAccess.DEBUG ||
+                    EnableNativeAccess.trySetEnableNativeAccess(target)) {
                 // warn and set flag, so that only one warning is reported per module
                 String cls = owner.getName();
                 String mtd = cls + "::" + methodName;
                 String mod = isNamed() ? "module " + getName() : "an unnamed module";
                 String modflag = isNamed() ? getName() : "ALL-UNNAMED";
                 String caller = currentClass != null ? currentClass.getName() : "code";
-                System.err.printf("""
+                String warningMsg = String.format("""
                         WARNING: A restricted method in %s has been called
                         WARNING: %s has been called by %s in %s
                         WARNING: Use --enable-native-access=%s to avoid a warning for callers in this module
                         WARNING: Restricted methods will be blocked in a future release unless native access is enabled
                         %n""", cls, mtd, caller, mod, modflag);
+                NATIVE_ACCESS_LOGGER.report(currentClass, mtd, ModuleBootstrap.illegalNativeAccess(), warningMsg);
+            }
+        }
+    }
+
+    static final IllegalNativeAccessLogger NATIVE_ACCESS_LOGGER = new IllegalNativeAccessLogger();
+
+    static class IllegalNativeAccessLogger {
+        // caller -> usages
+        private final Map<Class<?>, Usages> callerToUsages = new WeakHashMap<>();
+
+        void report(Class<?> caller, String what, ModuleBootstrap.IllegalNativeAccess mode, String warningMsg) {
+            // debug
+            // stack trace without the top-most frames in java.base
+            List<StackWalker.StackFrame> stack = StackWalker.getInstance().walk(s ->
+                    s.dropWhile(this::isJavaBase)
+                            .limit(32)
+                            .collect(Collectors.toList())
+            );
+
+            // record usage if this is the first (or not recently recorded)
+            Usage u = new Usage(what, hash(stack));
+            boolean added;
+            synchronized (this) {
+                added = callerToUsages.computeIfAbsent(caller, k -> new Usages()).add(u);
+            }
+
+            // print warning if this is the first (or not a recent) usage
+            if (added) {
+                String msg = warningMsg;
+                if (mode == ModuleBootstrap.IllegalNativeAccess.DEBUG) {
+                    StringBuilder sb = new StringBuilder(msg);
+                    stack.forEach(f ->
+                            sb.append(System.lineSeparator()).append("\tat " + f)
+                    );
+                    msg = sb.toString();
+                }
+                System.err.println(msg);
+            }
+        }
+
+        /**
+         * Returns true if the stack frame is for a class in java.base.
+         */
+        private boolean isJavaBase(StackWalker.StackFrame frame) {
+            Module caller = frame.getDeclaringClass().getModule();
+            return "java.base".equals(caller.getName());
+        }
+
+        /**
+         * Computes a hash code for the give stack frames. The hash code is based
+         * on the class, method name, and BCI.
+         */
+        private int hash(List<StackWalker.StackFrame> stack) {
+            int hash = 0;
+            for (StackWalker.StackFrame frame : stack) {
+                hash = (31 * hash) + Objects.hash(frame.getDeclaringClass(),
+                        frame.getMethodName(),
+                        frame.getByteCodeIndex());
+            }
+            return hash;
+        }
+
+        private static class Usage {
+            private final String what;
+            private final int stack;
+            Usage(String what, int stack) {
+                this.what = what;
+                this.stack = stack;
+            }
+            @Override
+            public int hashCode() {
+                return what.hashCode() ^ stack;
+            }
+            @Override
+            public boolean equals(Object ob) {
+                if (ob instanceof Usage) {
+                    Usage that = (Usage)ob;
+                    return what.equals(that.what) && stack == (that.stack);
+                } else {
+                    return false;
+                }
+            }
+        }
+
+        @SuppressWarnings("serial")
+        private static class Usages extends LinkedHashMap<Usage, Boolean> {
+            Usages() { }
+            boolean add(Usage u) {
+                return (putIfAbsent(u, Boolean.TRUE) == null);
+            }
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<Usage, Boolean> oldest) {
+                // prevent map growing too big, say where a utility class
+                // is used by generated code to do illegal access
+                return size() > 16;
             }
         }
     }
