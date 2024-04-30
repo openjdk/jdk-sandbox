@@ -308,7 +308,7 @@ public final class Module implements AnnotatedElement {
         if (illegalNativeAccess != ModuleBootstrap.IllegalNativeAccess.ALLOW ||
                 !EnableNativeAccess.isNativeAccessEnabled(target)) {
             if (illegalNativeAccess == ModuleBootstrap.IllegalNativeAccess.DENY) {
-                throw new IllegalCallerException("Illegal native access from: " + this);
+                throw new IllegalCallerException("Illegal native access from: " + currentClass);
             } else if (illegalNativeAccess == ModuleBootstrap.IllegalNativeAccess.DEBUG ||
                     EnableNativeAccess.trySetEnableNativeAccess(target)) {
                 // warn and set flag, so that only one warning is reported per module
@@ -323,12 +323,10 @@ public final class Module implements AnnotatedElement {
                         WARNING: Use --enable-native-access=%s to avoid a warning for callers in this module
                         WARNING: Restricted methods will be blocked in a future release unless native access is enabled
                         %n""", cls, mtd, caller, mod, modflag);
-                NATIVE_ACCESS_LOGGER.report(currentClass, mtd, ModuleBootstrap.illegalNativeAccess(), warningMsg);
+                IllegalNativeAccessLogger.INSTANCE.report(currentClass, mtd, ModuleBootstrap.illegalNativeAccess(), warningMsg);
             }
         }
     }
-
-    static final IllegalNativeAccessLogger NATIVE_ACCESS_LOGGER = new IllegalNativeAccessLogger();
 
     static class IllegalNativeAccessLogger {
         // caller -> usages
@@ -337,7 +335,7 @@ public final class Module implements AnnotatedElement {
         void report(Class<?> caller, String what, ModuleBootstrap.IllegalNativeAccess mode, String warningMsg) {
             // debug
             // stack trace without the top-most frames in java.base
-            List<StackWalker.StackFrame> stack = StackWalker.getInstance().walk(s ->
+            List<StackWalker.StackFrame> stack = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE).walk(s ->
                     s.dropWhile(this::isJavaBase)
                             .limit(32)
                             .collect(Collectors.toList())
@@ -421,6 +419,8 @@ public final class Module implements AnnotatedElement {
                 return size() > 16;
             }
         }
+
+        static final IllegalNativeAccessLogger INSTANCE = new IllegalNativeAccessLogger();
     }
 
     /**
