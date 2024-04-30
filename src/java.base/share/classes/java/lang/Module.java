@@ -41,10 +41,18 @@ import java.net.URI;
 import java.net.URL;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
-import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.lang.classfile.AccessFlags;
@@ -69,8 +77,6 @@ import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.vm.annotation.Stable;
 import sun.security.util.SecurityConstants;
-
-import static java.util.Objects.hash;
 
 /**
  * Represents a run-time module, either {@link #isNamed() named} or unnamed.
@@ -305,7 +311,7 @@ public final class Module implements AnnotatedElement {
         // The target module whose enableNativeAccess flag is ensured
         Module target = moduleForNativeAccess();
         ModuleBootstrap.IllegalNativeAccess illegalNativeAccess = ModuleBootstrap.illegalNativeAccess();
-        if (illegalNativeAccess != ModuleBootstrap.IllegalNativeAccess.ALLOW ||
+        if (illegalNativeAccess != ModuleBootstrap.IllegalNativeAccess.ALLOW &&
                 !EnableNativeAccess.isNativeAccessEnabled(target)) {
             if (illegalNativeAccess == ModuleBootstrap.IllegalNativeAccess.DENY) {
                 throw new IllegalCallerException("Illegal native access from: " + currentClass);
@@ -317,22 +323,27 @@ public final class Module implements AnnotatedElement {
                 String mod = isNamed() ? "module " + getName() : "an unnamed module";
                 String modflag = isNamed() ? getName() : "ALL-UNNAMED";
                 String caller = currentClass != null ? currentClass.getName() : "code";
-                String warningMsg = String.format("""
+                UnaryOperator<String> warningSupplier = rest -> String.format("""
                         WARNING: A restricted method in %s has been called
                         WARNING: %s has been called by %s in %s
                         WARNING: Use --enable-native-access=%s to avoid a warning for callers in this module
-                        WARNING: Restricted methods will be blocked in a future release unless native access is enabled
-                        %n""", cls, mtd, caller, mod, modflag);
-                IllegalNativeAccessLogger.INSTANCE.report(currentClass, mtd, ModuleBootstrap.illegalNativeAccess(), warningMsg);
+                        WARNING: Restricted methods will be blocked in a future release unless native access is enabled%s
+                        %n""", cls, mtd, caller, mod, modflag, rest);
+                if (illegalNativeAccess == ModuleBootstrap.IllegalNativeAccess.DEBUG) {
+                    IllegalNativeAccessDebugLogger.INSTANCE.report(currentClass, mtd, warningSupplier);
+                } else {
+                    // warn
+                    System.err.print(warningSupplier.apply(""));
+                }
             }
         }
     }
 
-    static class IllegalNativeAccessLogger {
+    static class IllegalNativeAccessDebugLogger {
         // caller -> usages
         private final Map<Class<?>, Usages> callerToUsages = new WeakHashMap<>();
 
-        void report(Class<?> caller, String what, ModuleBootstrap.IllegalNativeAccess mode, String warningMsg) {
+        void report(Class<?> caller, String what, UnaryOperator<String> warningSupplier) {
             // debug
             // stack trace without the top-most frames in java.base
             List<StackWalker.StackFrame> stack = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE).walk(s ->
@@ -350,15 +361,11 @@ public final class Module implements AnnotatedElement {
 
             // print warning if this is the first (or not a recent) usage
             if (added) {
-                String msg = warningMsg;
-                if (mode == ModuleBootstrap.IllegalNativeAccess.DEBUG) {
-                    StringBuilder sb = new StringBuilder(msg);
-                    stack.forEach(f ->
-                            sb.append(System.lineSeparator()).append("\tat " + f)
-                    );
-                    msg = sb.toString();
-                }
-                System.err.println(msg);
+                StringBuilder sb = new StringBuilder();
+                stack.forEach(f ->
+                        sb.append(System.lineSeparator()).append("\tat " + f)
+                );
+                System.err.print(warningSupplier.apply(sb.toString()));
             }
         }
 
@@ -420,7 +427,7 @@ public final class Module implements AnnotatedElement {
             }
         }
 
-        static final IllegalNativeAccessLogger INSTANCE = new IllegalNativeAccessLogger();
+        static final IllegalNativeAccessDebugLogger INSTANCE = new IllegalNativeAccessDebugLogger();
     }
 
     /**
