@@ -314,7 +314,7 @@ public final class Module implements AnnotatedElement {
         if (illegalNativeAccess != ModuleBootstrap.IllegalNativeAccess.ALLOW &&
                 !EnableNativeAccess.isNativeAccessEnabled(target)) {
             if (illegalNativeAccess == ModuleBootstrap.IllegalNativeAccess.DENY) {
-                throw new IllegalCallerException("Illegal native access from: " + currentClass);
+                throw new IllegalCallerException("Illegal native access from: " + this);
             } else if (illegalNativeAccess == ModuleBootstrap.IllegalNativeAccess.DEBUG ||
                     EnableNativeAccess.trySetEnableNativeAccess(target)) {
                 // warn and set flag, so that only one warning is reported per module

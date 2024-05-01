@@ -134,12 +134,15 @@ public class TestEnableNativeAccess extends TestEnableNativeAccessBase {
      * Specifies bad value to --enable-native-access.
      */
     public void testBadValue() throws Exception {
-        run("panama_enable_native_access_warn_unknown_module", PANAMA_MAIN,
+        run("panama_deny_bad_unknown_module", PANAMA_MAIN,
                 failWithWarning("WARNING: Unknown module: BAD specified to --enable-native-access"),
-                "--enable-native-access=BAD");
-        run("panama_no_all_module_path_blanket_native_access", PANAMA_MAIN,
+                "--illegal-native-access=deny", "--enable-native-access=BAD");
+        run("panama_deny_bad_all_module_path_module", PANAMA_MAIN,
                 failWithWarning("WARNING: Unknown module: ALL-MODULE-PATH specified to --enable-native-access"),
-                "--enable-native-access=ALL-MODULE-PATH" );
+                "--illegal-native-access=deny", "--enable-native-access=ALL-MODULE-PATH" );
+        run("panama_deny_no_module", PANAMA_MAIN,
+                failWithError("module panama_module"),
+                "--illegal-native-access=deny");
     }
 
     private int count(Iterable<String> lines, CharSequence cs) {

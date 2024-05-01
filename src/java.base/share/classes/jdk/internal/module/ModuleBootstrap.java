@@ -859,18 +859,22 @@ public final class ModuleBootstrap {
      */
     private static IllegalNativeAccess addIllegalNativeAccess() {
         String value = getAndRemoveProperty("jdk.module.illegal.native.access");
-        return switch (value) {
-            case "deny" -> IllegalNativeAccess.DENY;
-            case "allow" -> IllegalNativeAccess.ALLOW;
-            case "warn" -> IllegalNativeAccess.WARN;
-            case "debug" -> IllegalNativeAccess.DEBUG;
-            case null -> IllegalNativeAccess.WARN; // default
-            default -> {
-                fail("Value specified to --illegal-access not recognized:"
-                        + " '" + value + "'");
-                yield null;
-            }
-        };
+        // don't use a switch: bootstrapping issues!
+        if (value == null) {
+            return IllegalNativeAccess.WARN; // default
+        } else if (value.equals("deny")) {
+            return IllegalNativeAccess.DENY;
+        } else if (value.equals("allow")) {
+            return IllegalNativeAccess.ALLOW;
+        } else if (value.equals("warn")) {
+            return IllegalNativeAccess.WARN;
+        } else if (value.equals("debug")) {
+            return IllegalNativeAccess.DEBUG;
+        } else {
+            fail("Value specified to --illegal-access not recognized:"
+                    + " '" + value + "'");
+            return null;
+        }
     }
 
     /**
