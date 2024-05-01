@@ -77,8 +77,14 @@ public class TestEnableNativeAccess extends TestEnableNativeAccessBase {
                 { "panama_enable_native_access_warn_invoke", PANAMA_INVOKE, successWithWarning("panama"), new String[]{} },
                 { "panama_enable_native_access_warn_jni", PANAMA_JNI, successWithWarnings("panama_jni_load_module", "panama_jni_def_module", "ALL-UNNAMED"), new String[]{} },
 
+                { "panama_enable_native_access_allow", PANAMA_MAIN, successNoWarning(), new String[]{"--illegal-native-access=allow"} },
+                { "panama_enable_native_access_allow_reflection", PANAMA_REFLECTION, successNoWarning(), new String[]{"--illegal-native-access=allow"} },
+                { "panama_enable_native_access_allow_invoke", PANAMA_INVOKE, successNoWarning(), new String[]{"--illegal-native-access=allow"} },
+                { "panama_enable_native_access_allow_jni", PANAMA_JNI, successNoWarning(), new String[]{"--illegal-native-access=allow"} },
+
                 { "panama_no_unnamed_module_native_access", UNNAMED, successWithWarning("ALL-UNNAMED"), new String[]{} },
                 { "panama_all_unnamed_module_native_access", UNNAMED, successNoWarning(), new String[]{"--enable-native-access=ALL-UNNAMED"} },
+                { "panama_allow_unnamed_module_native_access", UNNAMED, successNoWarning(), new String[]{"--illegal-native-access=allow"} },
         };
     }
 
