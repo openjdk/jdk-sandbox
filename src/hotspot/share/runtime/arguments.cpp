@@ -304,6 +304,8 @@ bool needs_module_property_warning = false;
 #define UPGRADE_PATH_LEN 12
 #define ENABLE_NATIVE_ACCESS "enable.native.access"
 #define ENABLE_NATIVE_ACCESS_LEN 20
+#define ILLEGAL_NATIVE_ACCESS "illegal.native.access"
+#define ILLEGAL_NATIVE_ACCESS_LEN 21
 
 // Return TRUE if option matches 'property', or 'property=', or 'property.'.
 static bool matches_property_suffix(const char* option, const char* property, size_t len) {
@@ -325,6 +327,7 @@ bool Arguments::is_internal_module_property(const char* property) {
         matches_property_suffix(property_suffix, LIMITMODS, LIMITMODS_LEN) ||
         matches_property_suffix(property_suffix, PATH, PATH_LEN) ||
         matches_property_suffix(property_suffix, UPGRADE_PATH, UPGRADE_PATH_LEN) ||
+        matches_property_suffix(property_suffix, ILLEGAL_NATIVE_ACCESS, ILLEGAL_NATIVE_ACCESS_LEN) ||
         matches_property_suffix(property_suffix, ENABLE_NATIVE_ACCESS, ENABLE_NATIVE_ACCESS_LEN)) {
       return true;
     }
