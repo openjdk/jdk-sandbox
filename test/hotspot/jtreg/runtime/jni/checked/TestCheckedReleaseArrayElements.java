@@ -26,7 +26,7 @@
  * @summary verify multiple release calls on a copied array work when checked
  * @requires vm.flagless
  * @library /test/lib
- * @run main/native TestCheckedReleaseArrayElements launch
+ * @run main/native --enable-native-access=ALL-UNNAMED TestCheckedReleaseArrayElements launch
  */
 
 import java.util.Arrays;
