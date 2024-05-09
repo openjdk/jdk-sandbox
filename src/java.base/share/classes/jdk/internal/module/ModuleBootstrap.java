@@ -794,8 +794,7 @@ public final class ModuleBootstrap {
     public enum IllegalNativeAccess {
         ALLOW,
         WARN,
-        DENY,
-        DEBUG;
+        DENY
     }
 
     public static IllegalNativeAccess illegalNativeAccess() {
@@ -868,8 +867,6 @@ public final class ModuleBootstrap {
             return IllegalNativeAccess.ALLOW;
         } else if (value.equals("warn")) {
             return IllegalNativeAccess.WARN;
-        } else if (value.equals("debug")) {
-            return IllegalNativeAccess.DEBUG;
         } else {
             fail("Value specified to --illegal-access not recognized:"
                     + " '" + value + "'");

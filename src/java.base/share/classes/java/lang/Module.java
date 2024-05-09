@@ -43,16 +43,13 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
-import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.lang.classfile.AccessFlags;
@@ -315,119 +312,21 @@ public final class Module implements AnnotatedElement {
                 !EnableNativeAccess.isNativeAccessEnabled(target)) {
             if (illegalNativeAccess == ModuleBootstrap.IllegalNativeAccess.DENY) {
                 throw new IllegalCallerException("Illegal native access from: " + this);
-            } else if (illegalNativeAccess == ModuleBootstrap.IllegalNativeAccess.DEBUG ||
-                    EnableNativeAccess.trySetEnableNativeAccess(target)) {
+            } else if (EnableNativeAccess.trySetEnableNativeAccess(target)) {
                 // warn and set flag, so that only one warning is reported per module
                 String cls = owner.getName();
                 String mtd = cls + "::" + methodName;
                 String mod = isNamed() ? "module " + getName() : "an unnamed module";
                 String modflag = isNamed() ? getName() : "ALL-UNNAMED";
                 String caller = currentClass != null ? currentClass.getName() : "code";
-                UnaryOperator<String> warningSupplier = rest -> String.format("""
+                System.err.printf("""
                         WARNING: A restricted method in %s has been called
                         WARNING: %s has been called by %s in %s
                         WARNING: Use --enable-native-access=%s to avoid a warning for callers in this module
-                        WARNING: Restricted methods will be blocked in a future release unless native access is enabled%s
-                        %n""", cls, mtd, caller, mod, modflag, rest);
-                if (illegalNativeAccess == ModuleBootstrap.IllegalNativeAccess.DEBUG) {
-                    IllegalNativeAccessDebugLogger.INSTANCE.report(currentClass, mtd, warningSupplier);
-                } else {
-                    // warn
-                    System.err.print(warningSupplier.apply(""));
-                }
+                        WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+                        %n""", cls, mtd, caller, mod, modflag);
             }
         }
-    }
-
-    static class IllegalNativeAccessDebugLogger {
-        // caller -> usages
-        private final Map<Class<?>, Usages> callerToUsages = new WeakHashMap<>();
-
-        void report(Class<?> caller, String what, UnaryOperator<String> warningSupplier) {
-            // debug
-            // stack trace without the top-most frames in java.base
-            List<StackWalker.StackFrame> stack = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE).walk(s ->
-                    s.dropWhile(this::isJavaBase)
-                            .limit(32)
-                            .collect(Collectors.toList())
-            );
-
-            // record usage if this is the first (or not recently recorded)
-            Usage u = new Usage(what, hash(stack));
-            boolean added;
-            synchronized (this) {
-                added = callerToUsages.computeIfAbsent(caller, k -> new Usages()).add(u);
-            }
-
-            // print warning if this is the first (or not a recent) usage
-            if (added) {
-                StringBuilder sb = new StringBuilder();
-                stack.forEach(f ->
-                        sb.append(System.lineSeparator()).append("\tat " + f)
-                );
-                System.err.print(warningSupplier.apply(sb.toString()));
-            }
-        }
-
-        /**
-         * Returns true if the stack frame is for a class in java.base.
-         */
-        private boolean isJavaBase(StackWalker.StackFrame frame) {
-            Module caller = frame.getDeclaringClass().getModule();
-            return "java.base".equals(caller.getName());
-        }
-
-        /**
-         * Computes a hash code for the give stack frames. The hash code is based
-         * on the class, method name, and BCI.
-         */
-        private int hash(List<StackWalker.StackFrame> stack) {
-            int hash = 0;
-            for (StackWalker.StackFrame frame : stack) {
-                hash = (31 * hash) + Objects.hash(frame.getDeclaringClass(),
-                        frame.getMethodName(),
-                        frame.getByteCodeIndex());
-            }
-            return hash;
-        }
-
-        private static class Usage {
-            private final String what;
-            private final int stack;
-            Usage(String what, int stack) {
-                this.what = what;
-                this.stack = stack;
-            }
-            @Override
-            public int hashCode() {
-                return what.hashCode() ^ stack;
-            }
-            @Override
-            public boolean equals(Object ob) {
-                if (ob instanceof Usage) {
-                    Usage that = (Usage)ob;
-                    return what.equals(that.what) && stack == (that.stack);
-                } else {
-                    return false;
-                }
-            }
-        }
-
-        @SuppressWarnings("serial")
-        private static class Usages extends LinkedHashMap<Usage, Boolean> {
-            Usages() { }
-            boolean add(Usage u) {
-                return (putIfAbsent(u, Boolean.TRUE) == null);
-            }
-            @Override
-            protected boolean removeEldestEntry(Map.Entry<Usage, Boolean> oldest) {
-                // prevent map growing too big, say where a utility class
-                // is used by generated code to do illegal access
-                return size() > 16;
-            }
-        }
-
-        static final IllegalNativeAccessDebugLogger INSTANCE = new IllegalNativeAccessDebugLogger();
     }
 
     /**
