@@ -317,6 +317,13 @@ public final class Module implements AnnotatedElement {
                 String cls = owner.getName();
                 String mtd = cls + "::" + methodName;
                 String mod = isNamed() ? "module " + getName() : "an unnamed module";
+                if (currentClass != null) {
+                    // try to extract location of the current class (e.g. jar or folder)
+                    URL url = System.codeSource(currentClass);
+                    if (url != null) {
+                        mod += " (" + url + ")";
+                    }
+                }
                 String modflag = isNamed() ? getName() : "ALL-UNNAMED";
                 String caller = currentClass != null ? currentClass.getName() : "code";
                 System.err.printf("""

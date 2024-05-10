@@ -359,7 +359,7 @@ public final class System {
     // Remember initial System.err. setSecurityManager() warning goes here
     private static volatile @Stable PrintStream initialErrStream;
 
-    private static URL codeSource(Class<?> clazz) {
+    static URL codeSource(Class<?> clazz) {
         PrivilegedAction<ProtectionDomain> pa = clazz::getProtectionDomain;
         @SuppressWarnings("removal")
         CodeSource cs = AccessController.doPrivileged(pa).getCodeSource();
