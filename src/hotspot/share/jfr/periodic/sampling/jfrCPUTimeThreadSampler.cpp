@@ -356,9 +356,8 @@ class JfrCPUTimeThreadSampler : public NonJavaThread {
   int64_t _period_millis;
   const size_t _max_frames_per_trace; // for enqueue buffer monitoring
   volatile bool _disenrolled;
-  volatile bool _stop_signals;
+  volatile bool _stop_signals = false;
   volatile int _active_signal_handlers;
-  GrowableArray<JavaThread*> _threads;
   JfrStackFrame *_jfrFrames;
 
   const JfrBuffer* get_enqueue_buffer();
@@ -407,7 +406,6 @@ JfrCPUTimeThreadSampler::JfrCPUTimeThreadSampler(int64_t period_millis, u4 max_t
   _period_millis(period_millis),
   _max_frames_per_trace(max_frames_per_trace),
   _disenrolled(true),
-  _threads(100),
   _jfrFrames((JfrStackFrame*)os::malloc(sizeof(JfrStackFrame) * _max_frames_per_trace, mtThread)) {
   assert(_period_millis >= 0, "invariant");
 }
@@ -432,15 +430,8 @@ void JfrCPUTimeThreadSampler::on_javathread_create(JavaThread* thread) {
 }
 
 void JfrCPUTimeThreadSampler::on_javathread_terminate(JavaThread* thread) {
-  if (thread->jfr_thread_local() != nullptr && thread->jfr_thread_local()->timerid() != nullptr) {
-    //timer_delete(thread->jfr_thread_local()->timerid());
-    MonitorLocker ml(JfrCPUTimeThreadSamplerThreadSet_lock, Mutex::_no_safepoint_check_flag);
-    for (int i = 0; i < _threads.length(); i++) {
-      if (_threads.at(i) == thread) {
-        _threads.at_put(i, _threads.at(_threads.length() - 1));
-      }
-    }
-    _threads.trunc_to(_threads.length() - 1);
+  if (thread->jfr_thread_local() != nullptr && thread->jfr_thread_local()->has_timerid()) {
+    timer_delete(thread->jfr_thread_local()->timerid());
   }
 }
 
@@ -762,23 +753,27 @@ void JfrCPUTimeThreadSampler::init_timers() {
 }
 
 void JfrCPUTimeThreadSampler::stop_timer() {
-  MonitorLocker ml(JfrCPUTimeThreadSamplerThreadSet_lock, Mutex::_no_safepoint_check_flag);
-  for (int i = 0; i < _threads.length(); i++) {
-    timer_t timerid = _threads.at(i)->jfr_thread_local()->timerid();
-    if (timerid != 0) {
-      timer_delete(timerid);
-      _threads.at(i)->jfr_thread_local()->set_timerid(0);
+  MutexLocker tlock(Threads_lock);
+  ThreadsListHandle tlh;
+  for (size_t i = 0; i < tlh.length(); i++) {
+    JavaThread* thread = tlh.thread_at(i);
+    JfrThreadLocal* jfr_thread_local = thread->jfr_thread_local();
+    if (jfr_thread_local != nullptr && jfr_thread_local->has_timerid()) {
+      timer_delete(jfr_thread_local->timerid());
+      thread->jfr_thread_local()->set_timerid(0);
     }
   }
 }
 
 void JfrCPUTimeThreadSampler::set_sampling_period(int64_t period_millis) {
   Atomic::store(&_period_millis, period_millis);
-  MonitorLocker ml(JfrCPUTimeThreadSamplerThreadSet_lock, Mutex::_no_safepoint_check_flag);
-  for (int i = 0; i < _threads.length(); i++) {
-    timer_t timerid = _threads.at(i)->jfr_thread_local()->timerid();
-    if (timerid != 0) {
-      set_timer_time(timerid);
+  MutexLocker tlock(Threads_lock);
+  ThreadsListHandle tlh;
+  for (size_t i = 0; i < tlh.length(); i++) {
+    JavaThread* thread = tlh.thread_at(i);
+    JfrThreadLocal* jfr_thread_local = thread->jfr_thread_local();
+    if (jfr_thread_local != nullptr && jfr_thread_local->has_timerid()) {
+      set_timer_time(jfr_thread_local->timerid());
     }
   }
 }
