@@ -73,7 +73,8 @@ class JfrThreadLocal {
   bool _vthread;
   bool _notified;
   bool _dead;
-  LINUX_ONLY(timer_t _timer);
+  LINUX_ONLY(bool _has_cpu_timer = false);
+  LINUX_ONLY(timer_t _cpu_timer);
 
   JfrBuffer* install_native_buffer() const;
   JfrBuffer* install_java_buffer() const;
@@ -283,11 +284,16 @@ class JfrThreadLocal {
   // CPU time sampling
 #ifdef LINUX
   void set_timerid(timer_t timer) {
-    _timer = timer;
+    _has_cpu_timer = true;
+    _cpu_timer = timer;
   }
 
   timer_t timerid() const {
-    return _timer;
+    return _cpu_timer;
+  }
+
+  bool has_timerid() const {
+    return _has_cpu_timer;
   }
 #endif
 
