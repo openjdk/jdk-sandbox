@@ -66,8 +66,11 @@
 #include <algorithm>
 #include <bits/types/clockid_t.h>
 #include <bits/types/timer_t.h>
+#include <cerrno>
 #include <climits>
+#include <cstdio>
 #include <ctime>
+#include <pthread.h>
 #include <signal.h>
 #include <time.h>
 #include <sys/syscall.h>
@@ -352,8 +355,9 @@ class JfrCPUTimeThreadSampler : public NonJavaThread {
   JfrTraceQueues _queues;
   int64_t _period_millis;
   const size_t _max_frames_per_trace; // for enqueue buffer monitoring
-  int _cur_index;
   volatile bool _disenrolled;
+  volatile bool _stop_signals;
+  volatile int _active_signal_handlers;
   GrowableArray<JavaThread*> _threads;
   JfrStackFrame *_jfrFrames;
 
@@ -381,7 +385,7 @@ class JfrCPUTimeThreadSampler : public NonJavaThread {
     static Monitor* transition_block() { return JfrCPUTimeThreadSampler_lock; }
     static void on_javathread_suspend(JavaThread* thread);
     void on_javathread_create(JavaThread* thread);
-    timer_t create_timer_for_thread(JavaThread* thread);
+    bool create_timer_for_thread(JavaThread* thread, timer_t &timerid);
     void set_timer_time(timer_t timerid);
     void on_javathread_terminate(JavaThread* thread);
     int64_t get_sampling_period() const { return Atomic::load(&_period_millis); };
@@ -402,7 +406,6 @@ JfrCPUTimeThreadSampler::JfrCPUTimeThreadSampler(int64_t period_millis, u4 max_t
   _queues(max_traces, max_frames_per_trace),
   _period_millis(period_millis),
   _max_frames_per_trace(max_frames_per_trace),
-  _cur_index(-1),
   _disenrolled(true),
   _threads(100),
   _jfrFrames((JfrStackFrame*)os::malloc(sizeof(JfrStackFrame) * _max_frames_per_trace, mtThread)) {
@@ -421,11 +424,9 @@ void JfrCPUTimeThreadSampler::on_javathread_create(JavaThread* thread) {
     return;
   }
   if (thread->jfr_thread_local() != nullptr) {
-    timer_t timerid = create_timer_for_thread(thread);
-    if (timerid != 0 && thread->jfr_thread_local() != nullptr) {
+    timer_t timerid;
+    if (create_timer_for_thread(thread, timerid) && thread->jfr_thread_local() != nullptr) {
       thread->jfr_thread_local()->set_timerid(timerid);
-      //MonitorLocker ml(JfrCPUTimeThreadSamplerThreadSet_lock, Mutex::_no_safepoint_check_flag);
-      //_threads.append(thread);
     }
   }
 }
@@ -466,8 +467,13 @@ void JfrCPUTimeThreadSampler::disenroll() {
   if (!_disenrolled) {
     printf("Disenrolled\n");
     stop_timer();
+    Atomic::store(&_stop_signals, true);
+    while (_active_signal_handlers > 0) {
+      // wait for all signal handlers to finish
+      os::naked_short_nanosleep(1000);
+    }
     _sample.wait();
-    _disenrolled = true;
+    Atomic::store(&_disenrolled, true);
     log_trace(jfr)("Disenrolling thread sampler");
   }
 }
@@ -668,10 +674,12 @@ void handle_timer_signal(int signo, siginfo_t* info, void* context) {
 
 void JfrCPUTimeThreadSampling::handle_timer_signal(void* context) {
   assert(_sampler != nullptr, "invariant");
-  if (_sampler->_disenrolled) {
+  if (_sampler->_stop_signals) {
     return;
   }
+  Atomic::inc(&_sampler->_active_signal_handlers);
   _sampler->handle_timer_signal(context);
+  Atomic::dec(&_sampler->_active_signal_handlers);
 }
 
 class JfrCPUTimeSamplerCallback : public CrashProtectionCallback {
@@ -704,10 +712,6 @@ clockid_t make_process_cpu_clock(unsigned int pid, clockid_t clock) {
   return (~pid << 3) | clock;
 }
 
-clockid_t make_thread_cpu_clock(unsigned int tid) {
-  return make_process_cpu_clock(tid,  2 /*CPUCLOCK_SCHED*/ | 4/*CPUCLOCK_PERTHREAD_MASK*/);
-}
-
 void JfrCPUTimeThreadSampler::set_timer_time(timer_t timerid) {
   struct itimerspec its;
   int64_t period_millis = get_sampling_period();
@@ -719,9 +723,9 @@ void JfrCPUTimeThreadSampler::set_timer_time(timer_t timerid) {
   }
 }
 
-timer_t JfrCPUTimeThreadSampler::create_timer_for_thread(JavaThread* thread) {
+bool JfrCPUTimeThreadSampler::create_timer_for_thread(JavaThread* thread, timer_t& timerid) {
   if (thread->osthread() == nullptr || thread->osthread()->thread_id() == 0){
-    return 0;
+    return false;
   }
   timer_t t;
   OSThread::thread_id_t tid = thread->osthread()->thread_id();
@@ -730,12 +734,19 @@ timer_t JfrCPUTimeThreadSampler::create_timer_for_thread(JavaThread* thread) {
   sev.sigev_signo = SIG;
   sev.sigev_value.sival_ptr = &t;
   ((int*)&sev.sigev_notify)[1] = tid;
-  clockid_t clock = make_thread_cpu_clock(tid);
+  clockid_t clock;
+  int err = pthread_getcpuclockid(thread->osthread()->pthread_id(), &clock);
+  if (err != 0) {
+    errno = err;
+    perror("pthread_getcpuclockid");
+    return false;
+  }
   if (syscall(__NR_timer_create, clock, &sev, &t) < 0) {
-    return 0;
+    return false;
   }
   set_timer_time(t);
-  return t;
+  timerid = t;
+  return true;
 }
 
 void JfrCPUTimeThreadSampler::init_timers() {
