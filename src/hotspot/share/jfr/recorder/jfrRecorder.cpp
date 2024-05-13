@@ -441,6 +441,10 @@ void JfrRecorder::destroy_components() {
     JfrThreadSampling::destroy();
     _thread_sampling = nullptr;
   }
+  if (_cpu_time_thread_sampling != nullptr) {
+    JfrCPUTimeThreadSampling::destroy();
+    _cpu_time_thread_sampling = nullptr;
+  }
   JfrEventThrottler::destroy();
 }
 
