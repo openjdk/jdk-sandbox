@@ -73,7 +73,6 @@
 #include <pthread.h>
 #include <signal.h>
 #include <time.h>
-#include <sys/syscall.h>
 
 enum JfrSampleType {
   NO_SAMPLE = 0,
@@ -346,9 +345,11 @@ public:
   u4 max_traces() const { return _max_traces; }
 };
 
+class JfrCPUTimeFillCallback;
 
 class JfrCPUTimeThreadSampler : public NonJavaThread {
   friend class JfrCPUTimeThreadSampling;
+  friend class JfrCPUTimeFillCallback;
  private:
   Semaphore _sample;
   Thread* _sampler_thread;
@@ -374,6 +375,7 @@ class JfrCPUTimeThreadSampler : public NonJavaThread {
   void set_sampling_period(int64_t period_millis);
 
   void process_trace_queue();
+  void fill_event(JfrCPUTimeTrace* trace, EventCPUTimeExecutionSample& event, JfrStackTrace& jfrTrace);
  protected:
     virtual void post_run();
    public:
@@ -432,6 +434,7 @@ void JfrCPUTimeThreadSampler::on_javathread_create(JavaThread* thread) {
 void JfrCPUTimeThreadSampler::on_javathread_terminate(JavaThread* thread) {
   if (thread->jfr_thread_local() != nullptr && thread->jfr_thread_local()->has_timerid()) {
     timer_delete(thread->jfr_thread_local()->timerid());
+    thread->jfr_thread_local()->unset_timerid();
   }
 }
 
@@ -504,32 +507,65 @@ void JfrCPUTimeThreadSampler::run() {
   }
 }
 
-void JfrCPUTimeThreadSampler::process_trace_queue() {
+#define LOG_LINE printf("Line %d\n", __LINE__);
 
+void JfrCPUTimeThreadSampler::fill_event(JfrCPUTimeTrace* trace, EventCPUTimeExecutionSample& event, JfrStackTrace& jfrTrace) {
   const JfrBuffer* enqueue_buffer = get_enqueue_buffer();
-  assert(enqueue_buffer != nullptr, "invariant");
+  trace->stacktrace().store(&jfrTrace, enqueue_buffer);
+  traceid id = JfrStackTraceRepository::add(jfrTrace);
+  event.set_starttime(trace->start_time());
+  event.set_endtime(trace->end_time());
+  event.set_sampledThread(JfrThreadLocal::thread_id(trace->sampled_thread()));
+  event.set_state(static_cast<u8>(JavaThreadStatus::RUNNABLE));
+  event.set_stackTrace(id);
+  if (EventCPUTimeExecutionSample::is_enabled()) {
+    event.commit();
+  }
+}
+
+class JfrCPUTimeFillCallback : public CrashProtectionCallback {
+ public:
+  JfrCPUTimeFillCallback(JfrCPUTimeThreadSampler *sampler, JfrCPUTimeTrace* trace, EventCPUTimeExecutionSample& event, JfrStackTrace& jfrTrace) :
+  _sampler(sampler), _trace(trace), _event(event), _jfrTrace(jfrTrace), _success(false) {}
+  virtual void call() {
+    _sampler->fill_event(_trace, _event, _jfrTrace);
+    printf("Filled event\n");
+    _success = true;
+  }
+  bool success() { return _success; }
+
+ private:
+  JfrCPUTimeThreadSampler *_sampler;
+  JavaThread* _jt;
+  JfrCPUTimeTrace* _trace;
+  EventCPUTimeExecutionSample& _event;
+  const JfrBuffer* _enqueue_buffer;
+  JfrStackTrace& _jfrTrace;
+  bool _success;
+};
+
+void JfrCPUTimeThreadSampler::process_trace_queue() {
   JfrStackTrace jfrTrace(_jfrFrames, _max_frames_per_trace);
 
   while (!_queues.filled().is_empty()) {
     JfrCPUTimeTrace* trace = _queues.filled().dequeue();
-    if (trace != nullptr && trace->error() == 0 && !is_excluded(trace->sampled_thread()) && trace->stacktrace().nr_of_frames() > 0) {
+    if (os::is_readable_pointer(trace) && trace->error() == 0 && !is_excluded(trace->sampled_thread()) && trace->stacktrace().nr_of_frames() > 0) {
       // create event, convert frames (resolve method ids)
       // we can't do the conversion in the signal handler,
       // as this causes segmentation faults related to the
       // enqueue buffers
-      trace->stacktrace().store(&jfrTrace, enqueue_buffer);
-      traceid id = JfrStackTraceRepository::add(jfrTrace);
       EventCPUTimeExecutionSample event;
-      event.set_starttime(trace->start_time());
-      event.set_endtime(trace->end_time());
-      event.set_sampledThread(JfrThreadLocal::thread_id(trace->sampled_thread()));
-      event.set_state(static_cast<u8>(JavaThreadStatus::RUNNABLE));
-      event.set_stackTrace(id);
-      if (EventCPUTimeExecutionSample::is_enabled()) {
-        event.commit();
+      JfrCPUTimeFillCallback cb(this, trace, event, jfrTrace);
+      ThreadCrashProtection crash_protection;
+      if (!crash_protection.call(cb)) {
+        log_warning(jfr)("Thread method filler crashed for native");
+      }
+      //cb.call();
+      if (!cb.success()) {
+        continue;
       }
     }
-    enqueue_buffer = get_enqueue_buffer();
+    auto enqueue_buffer = get_enqueue_buffer();
     trace->reset();
     _queues.fresh().enqueue(trace);
   }
@@ -691,7 +727,7 @@ void JfrCPUTimeThreadSampler::handle_timer_signal(void* context) {
     trace->record_trace(context);
     this->_queues.filled().enqueue(trace);
   } else {
-    printf("Queue is full\n");
+    //printf("Queue is full\n");
   }
 }
 
@@ -732,7 +768,7 @@ bool JfrCPUTimeThreadSampler::create_timer_for_thread(JavaThread* thread, timer_
     perror("pthread_getcpuclockid");
     return false;
   }
-  if (syscall(__NR_timer_create, clock, &sev, &t) < 0) {
+  if (timer_create(clock, &sev, &t) < 0) {
     return false;
   }
   set_timer_time(t);
@@ -760,7 +796,7 @@ void JfrCPUTimeThreadSampler::stop_timer() {
     JfrThreadLocal* jfr_thread_local = thread->jfr_thread_local();
     if (jfr_thread_local != nullptr && jfr_thread_local->has_timerid()) {
       timer_delete(jfr_thread_local->timerid());
-      thread->jfr_thread_local()->set_timerid(0);
+      thread->jfr_thread_local()->unset_timerid();
     }
   }
 }

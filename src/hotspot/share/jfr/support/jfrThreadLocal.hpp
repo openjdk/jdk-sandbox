@@ -288,6 +288,10 @@ class JfrThreadLocal {
     _cpu_timer = timer;
   }
 
+  void unset_timerid() {
+    _has_cpu_timer = false;
+  }
+
   timer_t timerid() const {
     return _cpu_timer;
   }
