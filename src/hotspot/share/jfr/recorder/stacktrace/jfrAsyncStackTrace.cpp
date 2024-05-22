@@ -40,6 +40,9 @@
 #include "runtime/continuationEntry.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/vframe.inline.hpp"
+#include "runtime/threadCrashProtection.hpp"
+#include "jfr/recorder/stacktrace/jfrStackTrace.hpp"
+
 
 
 JfrAsyncStackFrame::JfrAsyncStackFrame(const Method* method, int bci, u1 type, int lineno, const InstanceKlass* ik) :
@@ -108,12 +111,23 @@ bool JfrAsyncStackTrace::record_async(JavaThread* jt, const frame& frame) {
   return count > 0;
 }
 
-bool JfrAsyncStackTrace::store(JfrStackTrace* trace, const JfrBuffer* const enqueue_buffer) const {
-  assert(trace != nullptr, "invariant");
-  Thread* current_thread = Thread::current();
-  assert(current_thread->is_JfrSampler_thread() || current_thread->in_asgct(), "invariant");
-  trace->set_nr_of_frames(_nr_of_frames);
-  trace->set_reached_root(_reached_root);
+class JfrAsyncStackTraceStoreCallback : public CrashProtectionCallback {
+ public:
+  JfrAsyncStackTraceStoreCallback(const JfrAsyncStackTrace * asyncTrace, JfrStackTrace* trace, const JfrBuffer* const enqueue_buffer) :
+  _asyncTrace(asyncTrace), _trace(trace), _enqueue_buffer(enqueue_buffer), _success(false) {}
+  virtual void call() {
+    _success = _asyncTrace->inner_store(_trace, _enqueue_buffer);
+  }
+  bool success() { return _success; }
+
+ private:
+  const JfrAsyncStackTrace* _asyncTrace;
+  JfrStackTrace* _trace;
+  const JfrBuffer* const _enqueue_buffer;
+  bool _success;
+};
+
+bool JfrAsyncStackTrace::inner_store(JfrStackTrace* trace, const JfrBuffer* const enqueue_buffer) const {
   traceid hash = 1;
   for (u4 i = 0; i < _nr_of_frames; i++) {
     const JfrAsyncStackFrame& frame = _frames[i];
@@ -129,6 +143,25 @@ bool JfrAsyncStackTrace::store(JfrStackTrace* trace, const JfrBuffer* const enqu
     trace->_frames[i] = JfrStackFrame(mid, frame._bci, frame._type, frame._line, frame._klass);
   }
   trace->set_hash(hash);
+  return true;
+}
+
+bool JfrAsyncStackTrace::store(JfrStackTrace* trace, const JfrBuffer* const enqueue_buffer) const {
+  assert(trace != nullptr, "invariant");
+  Thread* current_thread = Thread::current();
+  assert(current_thread->is_JfrSampler_thread() || current_thread->in_asgct(), "invariant");
+  trace->set_nr_of_frames(_nr_of_frames);
+  trace->set_reached_root(_reached_root);
+
+  JfrAsyncStackTraceStoreCallback cb(this, trace, enqueue_buffer);
+  ThreadCrashProtection crash_protection;
+  if (!crash_protection.call(cb)) {
+    log_warning(jfr)("Thread method filler crashed for native");
+  }
+  if (!cb.success()) {
+    return false;
+  }
+
   trace->_lineno = true;
   return true;
 }
