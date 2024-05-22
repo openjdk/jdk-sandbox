@@ -625,13 +625,6 @@ SHARED_LIBRARY_FLAGS := @SHARED_LIBRARY_FLAGS@
 SET_SHARED_LIBRARY_ORIGIN = @SET_SHARED_LIBRARY_ORIGIN@
 SET_EXECUTABLE_ORIGIN = @SET_EXECUTABLE_ORIGIN@
 
-# Different OS:es have different ways of naming shared libraries.
-# The SHARED_LIBRARY and STATIC_LIBRARY macros takes "verify" as and argument and returns:
-#    "libverify.so" or "libverify.dylib" or "verify.dll" depending on platform.
-# (Note absence of := assignment, because we do not want to evaluate the macro body here)
-SHARED_LIBRARY = @SHARED_LIBRARY@
-STATIC_LIBRARY = @STATIC_LIBRARY@
-
 LIBRARY_PREFIX := @LIBRARY_PREFIX@
 SHARED_LIBRARY_SUFFIX := @SHARED_LIBRARY_SUFFIX@
 STATIC_LIBRARY_SUFFIX := @STATIC_LIBRARY_SUFFIX@
@@ -682,7 +675,7 @@ DOCS_REFERENCE_JAVADOC := @DOCS_REFERENCE_JAVADOC@
 SOURCE_REVISION_TRACKER := $(SUPPORT_OUTPUTDIR)/src-rev/source-revision-tracker
 
 # Interim langtools modules and arguments
-INTERIM_LANGTOOLS_BASE_MODULES := java.compiler jdk.compiler jdk.javadoc
+INTERIM_LANGTOOLS_BASE_MODULES := java.compiler jdk.compiler jdk.internal.md jdk.javadoc
 INTERIM_LANGTOOLS_MODULES := $(addsuffix .interim, $(INTERIM_LANGTOOLS_BASE_MODULES))
 INTERIM_LANGTOOLS_ADD_EXPORTS := \
     --add-exports java.base/sun.reflect.annotation=jdk.compiler.interim \
