@@ -54,10 +54,9 @@
 #include "runtime/stackWatermark.hpp"
 #include "runtime/suspendedThreadTask.hpp"
 #include "runtime/thread.hpp"
-#include "runtime/threadCrashProtection.hpp"
 #include "runtime/threadSMR.hpp"
 #include "signals_posix.hpp"
-#include "threadCrashProtection_posix.hpp"
+#include "runtime/threadCrashProtection.hpp"
 #include "utilities/concurrentHashTable.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -360,6 +359,7 @@ class JfrCPUTimeThreadSampler : public NonJavaThread {
   volatile bool _stop_signals = false;
   volatile int _active_signal_handlers;
   JfrStackFrame *_jfrFrames;
+  const size_t _min_jfr_buffer_size;
 
   const JfrBuffer* get_enqueue_buffer();
   const JfrBuffer* renew_if_full(const JfrBuffer* enqueue_buffer);
@@ -375,7 +375,6 @@ class JfrCPUTimeThreadSampler : public NonJavaThread {
   void set_sampling_period(int64_t period_millis);
 
   void process_trace_queue();
-  void fill_event(JfrCPUTimeTrace* trace, EventCPUTimeExecutionSample& event, JfrStackTrace& jfrTrace);
  protected:
     virtual void post_run();
    public:
@@ -408,7 +407,8 @@ JfrCPUTimeThreadSampler::JfrCPUTimeThreadSampler(int64_t period_millis, u4 max_t
   _period_millis(period_millis),
   _max_frames_per_trace(max_frames_per_trace),
   _disenrolled(true),
-  _jfrFrames((JfrStackFrame*)os::malloc(sizeof(JfrStackFrame) * _max_frames_per_trace, mtThread)) {
+  _jfrFrames((JfrStackFrame*)os::malloc(sizeof(JfrStackFrame) * _max_frames_per_trace, mtThread)),
+  _min_jfr_buffer_size(_max_frames_per_trace * 2 * wordSize * (_queues.fresh().count() + 1)) {
   assert(_period_millis >= 0, "invariant");
 }
 
@@ -475,7 +475,7 @@ void JfrCPUTimeThreadSampler::disenroll() {
 void JfrCPUTimeThreadSampler::run() {
   assert(_sampler_thread == nullptr, "invariant");
   // initialize the buffer
-  (void*)get_enqueue_buffer();
+  JfrTraceIdLoadBarrier::renew_sampler_enqueue_buffer(this, _min_jfr_buffer_size * 5);
   _sampler_thread = this;
   while (true) {
     if (!_sample.trywait()) {
@@ -507,46 +507,8 @@ void JfrCPUTimeThreadSampler::run() {
   }
 }
 
-#define LOG_LINE printf("Line %d\n", __LINE__);
-
-void JfrCPUTimeThreadSampler::fill_event(JfrCPUTimeTrace* trace, EventCPUTimeExecutionSample& event, JfrStackTrace& jfrTrace) {
-  const JfrBuffer* enqueue_buffer = get_enqueue_buffer();
-  trace->stacktrace().store(&jfrTrace, enqueue_buffer);
-  traceid id = JfrStackTraceRepository::add(jfrTrace);
-  event.set_starttime(trace->start_time());
-  event.set_endtime(trace->end_time());
-  event.set_sampledThread(JfrThreadLocal::thread_id(trace->sampled_thread()));
-  event.set_state(static_cast<u8>(JavaThreadStatus::RUNNABLE));
-  event.set_stackTrace(id);
-  if (EventCPUTimeExecutionSample::is_enabled()) {
-    event.commit();
-  }
-}
-
-class JfrCPUTimeFillCallback : public CrashProtectionCallback {
- public:
-  JfrCPUTimeFillCallback(JfrCPUTimeThreadSampler *sampler, JfrCPUTimeTrace* trace, EventCPUTimeExecutionSample& event, JfrStackTrace& jfrTrace) :
-  _sampler(sampler), _trace(trace), _event(event), _jfrTrace(jfrTrace), _success(false) {}
-  virtual void call() {
-    _sampler->fill_event(_trace, _event, _jfrTrace);
-    printf("Filled event\n");
-    _success = true;
-  }
-  bool success() { return _success; }
-
- private:
-  JfrCPUTimeThreadSampler *_sampler;
-  JavaThread* _jt;
-  JfrCPUTimeTrace* _trace;
-  EventCPUTimeExecutionSample& _event;
-  const JfrBuffer* _enqueue_buffer;
-  JfrStackTrace& _jfrTrace;
-  bool _success;
-};
 
 void JfrCPUTimeThreadSampler::process_trace_queue() {
-  JfrStackTrace jfrTrace(_jfrFrames, _max_frames_per_trace);
-
   while (!_queues.filled().is_empty()) {
     JfrCPUTimeTrace* trace = _queues.filled().dequeue();
     if (os::is_readable_pointer(trace) && trace->error() == 0 && !is_excluded(trace->sampled_thread()) && trace->stacktrace().nr_of_frames() > 0) {
@@ -555,17 +517,22 @@ void JfrCPUTimeThreadSampler::process_trace_queue() {
       // as this causes segmentation faults related to the
       // enqueue buffers
       EventCPUTimeExecutionSample event;
-      JfrCPUTimeFillCallback cb(this, trace, event, jfrTrace);
-      ThreadCrashProtection crash_protection;
-      if (!crash_protection.call(cb)) {
-        log_warning(jfr)("Thread method filler crashed for native");
-      }
-      //cb.call();
-      if (!cb.success()) {
+      JfrStackTrace jfrTrace(_jfrFrames, _max_frames_per_trace);
+      const JfrBuffer* enqueue_buffer = get_enqueue_buffer();
+      if (!trace->stacktrace().store(&jfrTrace, enqueue_buffer)) {
         continue;
       }
+      traceid id = JfrStackTraceRepository::add(jfrTrace);
+      event.set_starttime(trace->start_time());
+      event.set_endtime(trace->end_time());
+      event.set_sampledThread(JfrThreadLocal::thread_id(trace->sampled_thread()));
+      event.set_state(static_cast<u8>(JavaThreadStatus::RUNNABLE));
+      event.set_stackTrace(id);
+      if (EventCPUTimeExecutionSample::is_enabled()) {
+        event.commit();
+      }
     }
-    auto enqueue_buffer = get_enqueue_buffer();
+
     trace->reset();
     _queues.fresh().enqueue(trace);
   }
@@ -581,7 +548,7 @@ void JfrCPUTimeThreadSampler::post_run() {
 const JfrBuffer* JfrCPUTimeThreadSampler::get_enqueue_buffer() {
   const JfrBuffer* buffer = JfrTraceIdLoadBarrier::get_sampler_enqueue_buffer(this);
   if (buffer == nullptr) {
-    JfrBuffer* buffer = JfrTraceIdLoadBarrier::renew_sampler_enqueue_buffer(this);
+    JfrBuffer* buffer = JfrTraceIdLoadBarrier::renew_sampler_enqueue_buffer(this, _min_jfr_buffer_size * 5);
     return buffer;
   }
   return renew_if_full(buffer);
@@ -589,9 +556,8 @@ const JfrBuffer* JfrCPUTimeThreadSampler::get_enqueue_buffer() {
 
 const JfrBuffer* JfrCPUTimeThreadSampler::renew_if_full(const JfrBuffer* enqueue_buffer) {
   assert(enqueue_buffer != nullptr, "invariant");
-  const size_t _min_size = _max_frames_per_trace * 2 * wordSize * (_queues.fresh().count() + 1);
-  if (enqueue_buffer->free_size() < _min_size) {
-    JfrBuffer* buffer = JfrTraceIdLoadBarrier::renew_sampler_enqueue_buffer(this);
+  if (enqueue_buffer->free_size() < _min_jfr_buffer_size) {
+    JfrBuffer* buffer = JfrTraceIdLoadBarrier::renew_sampler_enqueue_buffer(this, _min_jfr_buffer_size * 5);
     return buffer;
   }
   return enqueue_buffer;

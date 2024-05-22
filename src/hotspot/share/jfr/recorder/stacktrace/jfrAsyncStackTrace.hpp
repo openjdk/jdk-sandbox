@@ -55,8 +55,11 @@ class JfrAsyncStackFrame {
   };
 };
 
+class JfrAsyncStackTraceStoreCallback;
+
 class JfrAsyncStackTrace : public JfrCHeapObj {
   friend class JfrCPUTimeTrace;
+  friend class JfrAsyncStackTraceStoreCallback;
  private:
   JfrAsyncStackFrame* _frames;
   u4 _nr_of_frames;
@@ -72,6 +75,8 @@ class JfrAsyncStackTrace : public JfrCHeapObj {
   bool full_stacktrace() const { return _reached_root; }
 
   JfrAsyncStackTrace(JfrAsyncStackFrame* frames, u4 max_frames);
+
+  bool inner_store(JfrStackTrace* trace, const JfrBuffer* const enqueue_buffer) const;
 
  public:
 
