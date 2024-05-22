@@ -360,6 +360,7 @@ class JfrCPUTimeThreadSampler : public NonJavaThread {
   volatile int _active_signal_handlers;
   JfrStackFrame *_jfrFrames;
   const size_t _min_jfr_buffer_size;
+  volatile int _ignore_because_queue_full = 0;
 
   const JfrBuffer* get_enqueue_buffer();
   const JfrBuffer* renew_if_full(const JfrBuffer* enqueue_buffer);
@@ -495,6 +496,9 @@ void JfrCPUTimeThreadSampler::run() {
 
     // process all filled traces
     if (!_queues.filled().is_empty()) {
+      if (_ignore_because_queue_full != 0)
+      printf("ignore because queue full %d\n", _ignore_because_queue_full);
+      Atomic::store(&_ignore_because_queue_full, 0);
       process_trace_queue();
     }
     if (_disenrolled) {
@@ -693,7 +697,7 @@ void JfrCPUTimeThreadSampler::handle_timer_signal(void* context) {
     trace->record_trace(context);
     this->_queues.filled().enqueue(trace);
   } else {
-    //printf("Queue is full\n");
+    Atomic::inc(&_ignore_because_queue_full);
   }
 }
 
