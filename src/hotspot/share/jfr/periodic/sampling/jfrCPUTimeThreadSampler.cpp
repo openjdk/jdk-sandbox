@@ -114,9 +114,9 @@ static bool thread_state_in_native(JavaThread* thread) {
     case _thread_in_Java_trans:
     case _thread_in_Java:
     case _thread_in_native_trans:
+    case _thread_in_vm:
       break;
     case _thread_in_native:
-        case _thread_in_vm:
       return true;
     default:
       ShouldNotReachHere();
@@ -226,8 +226,12 @@ public:
     _sampled_thread = jt;
     if (thread_state_in_java(jt)) {
       record_java_trace(jt, ucontext);
+  //    printf("record trace _error=%d\n", _error);
     } else if (thread_state_in_native(jt)) {
       record_native_trace(jt);
+     // printf("record trace _error=%d\n", _error);
+    } else {
+    //  printf("record trace wrong thread state%s\n", thread_state_string(jt));
     }
     _end_time = JfrTicks::now();
   }
@@ -239,9 +243,9 @@ private:
     JfrGetCallTrace trace(true, jt);
     frame topframe;
     if (trace.get_topframe(ucontext, topframe)) {
-      if (_stacktrace.record_async(jt, topframe)) {
-        _error = 0;
-      }
+      _error = !_stacktrace.record_async(jt, topframe);
+    } else {
+      _error = 2;
     }
   }
 
@@ -250,6 +254,7 @@ private:
     _type = NATIVE_SAMPLE;
     _error = 1;
     if (!jt->has_last_Java_frame()) {
+      _error = 3;
       return;
     }
     frame topframe = jt->last_frame();
@@ -257,13 +262,15 @@ private:
     Method* method = nullptr;
     JfrGetCallTrace gct(false, jt);
     if (!gct.find_top_frame(topframe, &method, first_java_frame)) {
+      _error = 4;
       return;
     }
     if (method == nullptr) {
+      _error = 5;
       return;
     }
     topframe = first_java_frame;
-    _error = _stacktrace.record_async(jt, topframe) ? 0 : 1;
+    _error = !_stacktrace.record_async(jt, topframe) ? 0 : 1;
   }
 };
 
@@ -361,6 +368,7 @@ class JfrCPUTimeThreadSampler : public NonJavaThread {
   JfrStackFrame *_jfrFrames;
   const size_t _min_jfr_buffer_size;
   volatile int _ignore_because_queue_full = 0;
+  volatile int _ignore_because_queue_full_sum = 0;
 
   const JfrBuffer* get_enqueue_buffer();
   const JfrBuffer* renew_if_full(const JfrBuffer* enqueue_buffer);
@@ -497,7 +505,7 @@ void JfrCPUTimeThreadSampler::run() {
     // process all filled traces
     if (!_queues.filled().is_empty()) {
       if (_ignore_because_queue_full != 0)
-      printf("ignore because queue full %d\n", _ignore_because_queue_full);
+      printf("ignore because queue full %d sum %d\n", _ignore_because_queue_full, _ignore_because_queue_full_sum);
       Atomic::store(&_ignore_because_queue_full, 0);
       process_trace_queue();
     }
@@ -515,28 +523,38 @@ void JfrCPUTimeThreadSampler::run() {
 void JfrCPUTimeThreadSampler::process_trace_queue() {
   while (!_queues.filled().is_empty()) {
     JfrCPUTimeTrace* trace = _queues.filled().dequeue();
-    if (os::is_readable_pointer(trace) && trace->error() == 0 && !is_excluded(trace->sampled_thread()) && trace->stacktrace().nr_of_frames() > 0) {
+     if (!os::is_readable_pointer(trace)) {
+      continue;
+     }
+    if (!is_excluded(trace->sampled_thread())) {
       // create event, convert frames (resolve method ids)
       // we can't do the conversion in the signal handler,
       // as this causes segmentation faults related to the
       // enqueue buffers
       EventCPUTimeExecutionSample event;
+      const JfrBuffer* enqueue_buffer = get_enqueue_buffer();
+      if (trace->error() == 0 && trace->stacktrace().nr_of_frames() > 0) {
+      JfrStackTrace jfrTrace(_jfrFrames, _max_frames_per_trace);
       JfrStackTrace jfrTrace(_jfrFrames, _max_frames_per_trace);
       const JfrBuffer* enqueue_buffer = get_enqueue_buffer();
-      if (!trace->stacktrace().store(&jfrTrace, enqueue_buffer)) {
-        continue;
+        JfrStackTrace jfrTrace(_jfrFrames, _max_frames_per_trace);
+      const JfrBuffer* enqueue_buffer = get_enqueue_buffer();
+        if (!trace->stacktrace().store(&jfrTrace, enqueue_buffer)) {
+          continue;
+        }
+        traceid id = JfrStackTraceRepository::add(jfrTrace);
+        event.set_stackTrace(id);
+      } else {
+        event.set_stackTrace(0);
       }
-      traceid id = JfrStackTraceRepository::add(jfrTrace);
       event.set_starttime(trace->start_time());
       event.set_endtime(trace->end_time());
       event.set_sampledThread(JfrThreadLocal::thread_id(trace->sampled_thread()));
       event.set_state(static_cast<u8>(JavaThreadStatus::RUNNABLE));
-      event.set_stackTrace(id);
       if (EventCPUTimeExecutionSample::is_enabled()) {
         event.commit();
       }
     }
-
     trace->reset();
     _queues.fresh().enqueue(trace);
   }
@@ -552,7 +570,7 @@ void JfrCPUTimeThreadSampler::post_run() {
 const JfrBuffer* JfrCPUTimeThreadSampler::get_enqueue_buffer() {
   const JfrBuffer* buffer = JfrTraceIdLoadBarrier::get_sampler_enqueue_buffer(this);
   if (buffer == nullptr) {
-    JfrBuffer* buffer = JfrTraceIdLoadBarrier::renew_sampler_enqueue_buffer(this, _min_jfr_buffer_size * 5);
+    JfrBuffer* buffer = JfrTraceIdLoadBarrier::renew_sampler_enqueue_buffer(this, _min_jfr_buffer_size * 2);
     return buffer;
   }
   return renew_if_full(buffer);
@@ -561,7 +579,7 @@ const JfrBuffer* JfrCPUTimeThreadSampler::get_enqueue_buffer() {
 const JfrBuffer* JfrCPUTimeThreadSampler::renew_if_full(const JfrBuffer* enqueue_buffer) {
   assert(enqueue_buffer != nullptr, "invariant");
   if (enqueue_buffer->free_size() < _min_jfr_buffer_size) {
-    JfrBuffer* buffer = JfrTraceIdLoadBarrier::renew_sampler_enqueue_buffer(this, _min_jfr_buffer_size * 5);
+    JfrBuffer* buffer = JfrTraceIdLoadBarrier::renew_sampler_enqueue_buffer(this, _min_jfr_buffer_size * 2);
     return buffer;
   }
   return enqueue_buffer;
@@ -608,7 +626,7 @@ static void log(int64_t period_millis) {
 void JfrCPUTimeThreadSampling::create_sampler(int64_t period_millis) {
   assert(_sampler == nullptr, "invariant");
   log_trace(jfr)("Creating thread sampler for java:" INT64_FORMAT " ms", period_millis);
-  _sampler = new JfrCPUTimeThreadSampler(period_millis, os::processor_count() * 10, JfrOptionSet::stackdepth());
+  _sampler = new JfrCPUTimeThreadSampler(period_millis, os::processor_count() * 100, JfrOptionSet::stackdepth());
   _sampler->start_thread();
   _sampler->enroll();
 }
@@ -698,6 +716,7 @@ void JfrCPUTimeThreadSampler::handle_timer_signal(void* context) {
     this->_queues.filled().enqueue(trace);
   } else {
     Atomic::inc(&_ignore_because_queue_full);
+    Atomic::inc(&_ignore_because_queue_full_sum);
   }
 }
 
