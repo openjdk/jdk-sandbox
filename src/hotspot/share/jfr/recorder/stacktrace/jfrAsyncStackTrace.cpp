@@ -65,19 +65,16 @@ static inline bool is_full(const JfrBuffer* enqueue_buffer) {
 
 bool JfrAsyncStackTrace::record_async(JavaThread* jt, const frame& frame) {
   assert(jt != nullptr, "invariant");
-
   Thread* current_thread = Thread::current();
   assert(current_thread->is_JfrSampler_thread() || current_thread->in_asgct(), "invariant");
   assert(jt != current_thread || current_thread->in_asgct(), "invariant");
 
-  // Explicitly monitor the available space of the thread-local buffer used for enqueuing klasses as part of tagging methods.
-  // We do this because if space becomes sparse, we cannot rely on the implicit allocation of a new buffer as part of the
-  // regular tag mechanism. If the free list is empty, a malloc could result, and the problem with that is that the thread
-  // we have suspended could be the holder of the malloc lock. If there is no more available space, the attempt is aborted.
-  HandleMark hm(current_thread); // RegisterMap uses Handles to support continuations.
-  JfrVframeStream vfs(jt, frame, false, true);
   u4 count = 0;
   _reached_root = true;
+
+  HandleMark hm(current_thread); // RegisterMap uses Handles to support continuations.
+  JfrVframeStream vfs(jt, frame, false, true, true);
+
   while (!vfs.at_end()) {
     if (count >= _max_frames) {
       _reached_root = false;
