@@ -26,6 +26,7 @@
 #include "jfr/recorder/stacktrace/jfrStackTrace.hpp"
 #include "jfr/recorder/stacktrace/jfrAsyncStackTrace.hpp"
 #include "jfr/utilities/jfrAllocation.hpp"
+#include "jfr/utilities/jfrTypes.hpp"
 #include "memory/allocation.hpp"
 #include "precompiled.hpp"
 #include "classfile/javaThreadStatus.hpp"
@@ -110,11 +111,11 @@ static bool thread_state_in_native(JavaThread* thread) {
     case _thread_new_trans:
     case _thread_in_Java_trans:
     case _thread_in_Java:
-      break;
     case _thread_blocked_trans:
-    case _thread_blocked:
     case _thread_in_vm_trans:
     case _thread_in_native_trans:
+      break;
+    case _thread_blocked:
     case _thread_in_vm:
     case _thread_in_native:
       return true;
@@ -248,7 +249,6 @@ private:
       _error = 2;
       return;
      }
-    _error = !_stacktrace.record_async(jt, topframe);
   }
 
   void record_native_trace(JavaThread* jt, void* ucontext) {
@@ -520,19 +520,45 @@ void JfrCPUTimeThreadSampler::run() {
     }
 
     // assumption: every sample_interval / max_traces should come a new sample
-    int64_t sleep_to_next = period_millis * NANOSECS_PER_MILLISEC / _queues.max_traces();
-    os::naked_short_nanosleep(sleep_to_next);
+    int64_t sleep_to_next = period_millis * NANOSECS_PER_MILLISEC / os::processor_count();
+    if (sleep_to_next > 20000) {
+      os::naked_short_nanosleep(sleep_to_next);
+    }
   }
 }
 
+static u4 max_queue_size = 0;
+
+
+// crash protection for JfrThreadLocal::thread_id(trace->sampled_thread())
+// because the thread could be deallocated between the time of recording
+// and the time of processing
+class JFRRecordSampledThreadCallback : public CrashProtectionCallback {
+  friend class JfrCPUTimeThreadSampler;
+ public:
+  JFRRecordSampledThreadCallback(JavaThread* thread) :
+    _thread(thread) {
+  }
+  virtual void call() {
+    _thread_id = JfrThreadLocal::thread_id(_thread);
+  }
+ private:
+  JavaThread* _thread;
+  traceid _thread_id;
+};
+
 
 void JfrCPUTimeThreadSampler::process_trace_queue() {
+  if (max_queue_size < _queues.filled().count()) {
+    max_queue_size = _queues.filled().count();
+    printf("max queue size %d\n", max_queue_size);
+  }
   while (!_queues.filled().is_empty()) {
     JfrCPUTimeTrace* trace = _queues.filled().dequeue();
      if (!os::is_readable_pointer(trace)) {
       continue;
      }
-    if (!is_excluded(trace->sampled_thread())) {
+    if (os::is_readable_pointer(trace->sampled_thread()) && !is_excluded(trace->sampled_thread())) {
       // create event, convert frames (resolve method ids)
       // we can't do the conversion in the signal handler,
       // as this causes segmentation faults related to the
@@ -540,8 +566,8 @@ void JfrCPUTimeThreadSampler::process_trace_queue() {
       EventCPUTimeExecutionSample event;
       const JfrBuffer* enqueue_buffer = get_enqueue_buffer();
       if (trace->error() == 0 && trace->stacktrace().nr_of_frames() > 0) {
-      JfrStackTrace jfrTrace(_jfrFrames, _max_frames_per_trace);
-      const JfrBuffer* enqueue_buffer = get_enqueue_buffer();
+        JfrStackTrace jfrTrace(_jfrFrames, _max_frames_per_trace);
+        const JfrBuffer* enqueue_buffer = get_enqueue_buffer();
         if (!trace->stacktrace().store(&jfrTrace, enqueue_buffer)) {
           continue;
         }
@@ -552,7 +578,14 @@ void JfrCPUTimeThreadSampler::process_trace_queue() {
       }
       event.set_starttime(trace->start_time());
       event.set_endtime(trace->end_time());
-      event.set_sampledThread(JfrThreadLocal::thread_id(trace->sampled_thread()));
+
+      JFRRecordSampledThreadCallback cb(trace->sampled_thread());
+      ThreadCrashProtection crash_protection;
+      if (!crash_protection.call(cb)) {
+        printf("Recording thread failed\n");
+        continue;
+      }
+      event.set_sampledThread(cb._thread_id);
       event.set_state(static_cast<u8>(JavaThreadStatus::RUNNABLE));
       if (EventCPUTimeExecutionSample::is_enabled()) {
         event.commit();
