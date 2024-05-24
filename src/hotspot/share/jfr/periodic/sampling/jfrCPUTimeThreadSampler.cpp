@@ -92,8 +92,8 @@ static bool thread_state_in_java(JavaThread* thread) {
     case _thread_blocked:
     case _thread_in_vm:
     case _thread_in_native:
-      break;
     case _thread_in_Java_trans:
+      break;
     case _thread_in_Java:
       return true;
     default:
@@ -114,8 +114,8 @@ static bool thread_state_in_native(JavaThread* thread) {
     case _thread_blocked_trans:
     case _thread_in_vm_trans:
     case _thread_in_native_trans:
-      break;
     case _thread_blocked:
+      break;
     case _thread_in_vm:
     case _thread_in_native:
       return true;
