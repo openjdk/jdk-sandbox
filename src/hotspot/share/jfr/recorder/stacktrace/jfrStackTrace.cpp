@@ -150,7 +150,8 @@ static RegisterMap::WalkContinuation walk_continuation(JavaThread* jt) {
       : RegisterMap::WalkContinuation::include;
 }
 
-JfrVframeStream::JfrVframeStream(JavaThread* jt, const frame& fr, bool stop_at_java_call_stub, bool async_mode) :
+
+JfrVframeStream::JfrVframeStream(JavaThread* jt, const frame& fr, bool stop_at_java_call_stub, bool async_mode, bool check_top_frame) :
   vframeStreamCommon(RegisterMap(jt,
                                  RegisterMap::UpdateMap::skip,
                                  RegisterMap::ProcessFrames::skip,
@@ -162,6 +163,10 @@ JfrVframeStream::JfrVframeStream(JavaThread* jt, const frame& fr, bool stop_at_j
   _reg_map.set_async(async_mode);
   _frame = fr;
   _stop_at_java_call_stub = stop_at_java_call_stub;
+  if (check_top_frame && _frame.is_interpreted_frame() && !has_interpreted_frame_valid_bci(fr)) {
+    _mode = at_end_mode;
+    return;
+  }
   while (!fill_from_frame()) {
     step_to_sender();
   }

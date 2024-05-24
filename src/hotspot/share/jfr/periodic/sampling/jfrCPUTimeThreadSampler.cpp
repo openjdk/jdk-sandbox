@@ -91,8 +91,8 @@ static bool thread_state_in_java(JavaThread* thread) {
     case _thread_blocked:
     case _thread_in_vm:
     case _thread_in_native:
-    case _thread_in_Java_trans:
       break;
+    case _thread_in_Java_trans:
     case _thread_in_Java:
       return true;
     default:
@@ -108,14 +108,14 @@ static bool thread_state_in_native(JavaThread* thread) {
     case _thread_new:
     case _thread_uninitialized:
     case _thread_new_trans:
+    case _thread_in_Java_trans:
+    case _thread_in_Java:
+      break;
     case _thread_blocked_trans:
     case _thread_blocked:
     case _thread_in_vm_trans:
-    case _thread_in_Java_trans:
-    case _thread_in_Java:
     case _thread_in_native_trans:
     case _thread_in_vm:
-      break;
     case _thread_in_native:
       return true;
     default:
@@ -228,7 +228,7 @@ public:
       record_java_trace(jt, ucontext);
   //    printf("record trace _error=%d\n", _error);
     } else if (thread_state_in_native(jt)) {
-      record_native_trace(jt);
+      record_native_trace(jt, ucontext);
      // printf("record trace _error=%d\n", _error);
     } else {
     //  printf("record trace wrong thread state%s\n", thread_state_string(jt));
@@ -246,18 +246,24 @@ private:
       _error = !_stacktrace.record_async(jt, topframe);
     } else {
       _error = 2;
-    }
+      return;
+     }
+    _error = !_stacktrace.record_async(jt, topframe);
   }
 
-  void record_native_trace(JavaThread* jt) {
+  void record_native_trace(JavaThread* jt, void* ucontext) {
     // When a thread is only attach it will be native without a last java frame
-    _type = NATIVE_SAMPLE;
+   _type = NATIVE_SAMPLE;
     _error = 1;
-    if (!jt->has_last_Java_frame()) {
+    if (!jt-> has_last_Java_frame()) {
       _error = 3;
       return;
     }
-    frame topframe = jt->last_frame();
+    frame topframe;
+    if (!jt->pd_get_top_frame_for_signal_handler(&topframe, ucontext, false)) {
+      _error = 6;
+      return;
+    }
     frame first_java_frame;
     Method* method = nullptr;
     JfrGetCallTrace gct(false, jt);
@@ -535,9 +541,6 @@ void JfrCPUTimeThreadSampler::process_trace_queue() {
       const JfrBuffer* enqueue_buffer = get_enqueue_buffer();
       if (trace->error() == 0 && trace->stacktrace().nr_of_frames() > 0) {
       JfrStackTrace jfrTrace(_jfrFrames, _max_frames_per_trace);
-      JfrStackTrace jfrTrace(_jfrFrames, _max_frames_per_trace);
-      const JfrBuffer* enqueue_buffer = get_enqueue_buffer();
-        JfrStackTrace jfrTrace(_jfrFrames, _max_frames_per_trace);
       const JfrBuffer* enqueue_buffer = get_enqueue_buffer();
         if (!trace->stacktrace().store(&jfrTrace, enqueue_buffer)) {
           continue;

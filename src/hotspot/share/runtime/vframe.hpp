@@ -314,6 +314,7 @@ class vframeStreamCommon : StackObj {
   // Implements security traversal. Skips depth no. of frame including
   // special security frames and prefixed native methods
   void security_get_caller_frame(int depth);
+  bool has_interpreted_frame_valid_bci(frame fr);
 };
 
 class vframeStream : public vframeStreamCommon {
