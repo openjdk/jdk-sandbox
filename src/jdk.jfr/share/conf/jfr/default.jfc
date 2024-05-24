@@ -195,6 +195,10 @@
       <setting name="period" control="method-sampling-java-interval">20 ms</setting>
     </event>
 
+    <event name="jdk.CPUTimeExecutionSamplerQueueFull">
+      <setting name="enabled" control="method-sampling-enabled">true</setting>
+    </event>
+
     <event name="jdk.SafepointBegin">
       <setting name="enabled">true</setting>
       <setting name="threshold">10 ms</setting>
