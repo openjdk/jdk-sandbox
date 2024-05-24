@@ -510,9 +510,16 @@ void JfrCPUTimeThreadSampler::run() {
 
     // process all filled traces
     if (!_queues.filled().is_empty()) {
-      if (_ignore_because_queue_full != 0)
-      printf("ignore because queue full %d sum %d\n", _ignore_because_queue_full, _ignore_because_queue_full_sum);
-      Atomic::store(&_ignore_because_queue_full, 0);
+      if (_ignore_because_queue_full != 0) {
+        printf("ignore because queue full %d sum %d\n", _ignore_because_queue_full, _ignore_because_queue_full_sum);
+        if (EventCPUTimeExecutionSamplerQueueFull::is_enabled()) {
+          EventCPUTimeExecutionSamplerQueueFull event;
+          event.set_starttime(JfrTicks::now());
+          event.set_droppedSamples(_ignore_because_queue_full);
+          event.commit();
+        }
+        Atomic::store(&_ignore_because_queue_full, 0);
+      }
       process_trace_queue();
     }
     if (_disenrolled) {

@@ -943,6 +943,10 @@
     <Field type="ThreadState" name="state" label="Thread State" />
   </Event>
 
+  <Event name="CPUTimeExecutionSamplerQueueFull" category="Java Virtual Machine, Profiling" label="CPU Time Method Profiling Sampler Queue Full" description="Records that the CPU time sampler queue is full and samples are being dropped" thread="false" stackTrace="false" startTime="false">
+    <Field type="int" name="droppedSamples" label="Dropped Samples since last event" />
+  </Event>
+
   <Event name="ThreadDump" category="Java Virtual Machine, Runtime" label="Thread Dump" period="everyChunk">
     <Field type="string" name="result" label="Thread Dump" />
   </Event>
