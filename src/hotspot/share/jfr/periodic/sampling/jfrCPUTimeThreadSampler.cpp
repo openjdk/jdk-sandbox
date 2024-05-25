@@ -116,7 +116,8 @@ static bool thread_state_in_native(JavaThread* thread) {
     case _thread_in_native_trans:
     case _thread_blocked:
       break;
-    case _thread_in_vm:
+        case _thread_in_vm:
+
     case _thread_in_native:
       return true;
     default:
@@ -221,8 +222,10 @@ public:
 
     if (raw_thread == nullptr || !raw_thread->is_Java_thread() ||
         (jt = JavaThread::cast(raw_thread))->is_exiting()) {
+          _end_time = JfrTicks::now();
       return;
     }
+
     ThreadInAsgct tia(jt);
     _sampled_thread = jt;
     if (thread_state_in_java(jt)) {
@@ -555,6 +558,8 @@ class JFRRecordSampledThreadCallback : public CrashProtectionCallback {
 };
 
 
+static size_t count = 0;
+
 void JfrCPUTimeThreadSampler::process_trace_queue() {
   if (max_queue_size < _queues.filled().count()) {
     max_queue_size = _queues.filled().count();
@@ -596,6 +601,10 @@ void JfrCPUTimeThreadSampler::process_trace_queue() {
       event.set_state(static_cast<u8>(JavaThreadStatus::RUNNABLE));
       if (EventCPUTimeExecutionSample::is_enabled()) {
         event.commit();
+        count++;
+        if (count % 1000 == 0) {
+          printf("count %lu\n", count);
+        }
       }
     }
     trace->reset();
