@@ -776,12 +776,6 @@ void JfrCPUTimeThreadSampler::handle_timer_signal(void* context) {
 
 const int SIG = SIGPROF;
 
-// libc doesn't allow to set thread specific timers, so we need to create a timer for each thread
-
-clockid_t make_process_cpu_clock(unsigned int pid, clockid_t clock) {
-  return (~pid << 3) | clock;
-}
-
 void JfrCPUTimeThreadSampler::set_timer_time(timer_t timerid) {
   struct itimerspec its;
   int64_t period_millis = get_sampling_period();
