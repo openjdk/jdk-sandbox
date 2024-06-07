@@ -75,8 +75,11 @@
 #include <time.h>
 
 enum JfrSampleType {
+  // no sample, because thread not in walkable state
   NO_SAMPLE = 0,
+  // sample from thread while in Java
   JAVA_SAMPLE = 1,
+  // sample from thread while in native
   NATIVE_SAMPLE = 2
 };
 
@@ -424,13 +427,13 @@ JfrCPUTimeThreadSampler::JfrCPUTimeThreadSampler(int64_t period_millis, u4 max_t
   _period_millis(period_millis),
   _max_frames_per_trace(max_frames_per_trace),
   _disenrolled(true),
-  _jfrFrames((JfrStackFrame*)os::malloc(sizeof(JfrStackFrame) * _max_frames_per_trace, mtThread)),
+  _jfrFrames(JfrCHeapObj::new_array<JfrStackFrame>(_max_frames_per_trace)),
   _min_jfr_buffer_size(_max_frames_per_trace * 2 * wordSize * (_queues.fresh().count() + 1)) {
   assert(_period_millis >= 0, "invariant");
 }
 
 JfrCPUTimeThreadSampler::~JfrCPUTimeThreadSampler() {
-  os::free(_jfrFrames);
+  JfrCHeapObj::free(_jfrFrames, sizeof(JfrStackFrame) * _max_frames_per_trace);
 }
 
 void JfrCPUTimeThreadSampler::on_javathread_suspend(JavaThread* thread) {
@@ -615,7 +618,7 @@ void JfrCPUTimeThreadSampler::process_trace_queue() {
 
 void JfrCPUTimeThreadSampler::post_run() {
   this->NonJavaThread::post_run();
-  delete this;
+  // delete this; // this leads to crashes
 }
 
 const JfrBuffer* JfrCPUTimeThreadSampler::get_enqueue_buffer() {
