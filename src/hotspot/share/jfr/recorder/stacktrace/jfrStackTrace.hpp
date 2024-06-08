@@ -127,6 +127,7 @@ class JfrStackTrace : public JfrCHeapObj {
  public:
   traceid hash() const { return _hash; }
   traceid id() const { return _id; }
+  u4 nr_of_frames() const { return _nr_of_frames; }
 };
 
 #endif // SHARE_JFR_RECORDER_STACKTRACE_JFRSTACKTRACE_HPP
