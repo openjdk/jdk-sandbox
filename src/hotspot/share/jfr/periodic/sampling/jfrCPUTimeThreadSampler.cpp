@@ -118,8 +118,8 @@ static bool thread_state_in_native(JavaThread* thread) {
     case _thread_in_vm_trans:
     case _thread_in_native_trans:
     case _thread_blocked:
-    case _thread_in_vm:
-      break;
+    case _thread_in_vm: // walking in vm causes weird bugs (assertions in G1 fail), so don't
+          break;
     case _thread_in_native:
       return true;
     default:
@@ -162,6 +162,27 @@ static bool thread_state_in_native(JavaThread* thread) {
   return (char*)"unknown state";
 }*/
 
+static bool is_excluded(JavaThread* thread) {
+  return thread->is_hidden_from_external_view()
+  || thread->in_deopt_handler()
+  || (os::is_readable_pointer(thread->jfr_thread_local()) && thread->jfr_thread_local()->is_excluded());
+}
+
+static JavaThread* get_java_thread_if_valid() {
+  Thread* raw_thread = Thread::current_or_null_safe();
+  JavaThread* jt;
+
+  if (raw_thread == nullptr || !raw_thread->is_Java_thread() ||
+      (jt = JavaThread::cast(raw_thread))->is_exiting()) {
+    return nullptr;
+  }
+
+  if (is_excluded(jt)) {
+    return nullptr;
+  }
+  return jt;
+}
+
 // A trace of stack frames, contains all information
 // collected in the signal handler, required to create
 // a JFR event with a stack trace
@@ -178,7 +199,6 @@ class JfrCPUTimeTrace {
   JfrTicks _start_time;
   JfrTicks _end_time;
   JavaThread* _sampled_thread;
-
 
 public:
   JfrCPUTimeTrace(u4 index, JfrAsyncStackFrame* frames, u4 max_frames):
@@ -198,38 +218,22 @@ public:
   JfrTicks start_time() const { return _start_time; }
   void set_end_time(JfrTicks end_time) { _end_time = end_time; }
   JfrTicks end_time() const { return _end_time; }
-  void set_sampled_thread(JavaThread* thread) { _sampled_thread = thread; }
+  void set_sampled_thread(JavaThread* thread) { Atomic::store(&_sampled_thread, thread); }
   JavaThread* sampled_thread() const { return _sampled_thread; }
-
-  void reset() {
-    _error = 0;
-    _stacktrace = JfrAsyncStackTrace(_frames, _max_frames);
-    _type = NO_SAMPLE;
-    _start_time = JfrTicks::now();
-    _end_time = JfrTicks::now();
-    _sampled_thread = nullptr;
-  }
 
   JfrAsyncStackTrace& stacktrace() { return _stacktrace; }
 
   // Record a trace of the current thread
-  void record_trace(void* ucontext) {
-
+  void record_trace(JavaThread* jt, void* ucontext) {
+    _stacktrace = JfrAsyncStackTrace(_frames, _max_frames);
+    set_sampled_thread(jt);
     _type = NO_SAMPLE;
     _error = 1;
     _start_time = JfrTicks::now();
     _end_time = JfrTicks::now();
-    Thread* raw_thread = Thread::current_or_null_safe();
-    JavaThread* jt;
 
-    if (raw_thread == nullptr || !raw_thread->is_Java_thread() ||
-        (jt = JavaThread::cast(raw_thread))->is_exiting()) {
-          _end_time = JfrTicks::now();
-      return;
-    }
 
     ThreadInAsgct tia(jt);
-    _sampled_thread = jt;
     if (thread_state_in_java(jt)) {
       record_java_trace(jt, ucontext);
   //    printf("record trace _error=%d\n", _error);
@@ -237,7 +241,7 @@ public:
       record_native_trace(jt, ucontext);
      // printf("record trace _error=%d\n", _error);
     } else {
-    //  printf("record trace wrong thread state%s\n", thread_state_string(jt));
+      //printf("record trace wrong thread state%s\n", thread_state_string(jt));
     }
     _end_time = JfrTicks::now();
   }
@@ -249,7 +253,7 @@ private:
     JfrGetCallTrace trace(true, jt);
     frame topframe;
     if (trace.get_topframe(ucontext, topframe)) {
-      _error = !_stacktrace.record_async(jt, topframe);
+      _error = _stacktrace.record_async(jt, topframe) ? 0 : 11;
     } else {
       _error = 2;
       return;
@@ -281,7 +285,7 @@ private:
       return;
     }
     topframe = first_java_frame;
-    _error = !_stacktrace.record_async(jt, topframe) ? 0 : 1;
+    _error = _stacktrace.record_async(jt, topframe) ? 0 : 10;
   }
 };
 
@@ -414,10 +418,6 @@ class JfrCPUTimeThreadSampler : public NonJavaThread {
     void init_timers();
     void stop_timer();
 };
-
-static bool is_excluded(JavaThread* thread) {
-  return thread == nullptr || thread->is_hidden_from_external_view() || thread->in_deopt_handler() || thread->jfr_thread_local()->is_excluded();
-}
 
 
 JfrCPUTimeThreadSampler::JfrCPUTimeThreadSampler(int64_t period_millis, u4 max_traces, u4 max_frames_per_trace) :
@@ -569,47 +569,45 @@ void JfrCPUTimeThreadSampler::process_trace_queue() {
   }
   while (!_queues.filled().is_empty()) {
     JfrCPUTimeTrace* trace = _queues.filled().dequeue();
-     if (!os::is_readable_pointer(trace)) {
+    if (!os::is_readable_pointer(trace)) {
       continue;
-     }
-    if (os::is_readable_pointer(trace->sampled_thread()) && !is_excluded(trace->sampled_thread())) {
-      // create event, convert frames (resolve method ids)
-      // we can't do the conversion in the signal handler,
-      // as this causes segmentation faults related to the
-      // enqueue buffers
-      EventCPUTimeExecutionSample event;
+    }
+    // create event, convert frames (resolve method ids)
+    // we can't do the conversion in the signal handler,
+    // as this causes segmentation faults related to the
+    // enqueue buffers
+    EventCPUTimeExecutionSample event;
+    const JfrBuffer* enqueue_buffer = get_enqueue_buffer();
+    if (trace->error() == 0 && trace->stacktrace().nr_of_frames() > 0) {
+      JfrStackTrace jfrTrace(_jfrFrames, _max_frames_per_trace);
       const JfrBuffer* enqueue_buffer = get_enqueue_buffer();
-      if (trace->error() == 0 && trace->stacktrace().nr_of_frames() > 0) {
-        JfrStackTrace jfrTrace(_jfrFrames, _max_frames_per_trace);
-        const JfrBuffer* enqueue_buffer = get_enqueue_buffer();
-        if (!trace->stacktrace().store(&jfrTrace, enqueue_buffer)) {
-          continue;
-        }
+      if (trace->stacktrace().store(&jfrTrace, enqueue_buffer) && jfrTrace.nr_of_frames() > 0) {
         traceid id = JfrStackTraceRepository::add(jfrTrace);
         event.set_stackTrace(id);
       } else {
         event.set_stackTrace(0);
       }
-      event.set_starttime(trace->start_time());
-      event.set_endtime(trace->end_time());
+    } else {
+      event.set_stackTrace(0);
+    }
+    event.set_starttime(trace->start_time());
+    event.set_endtime(trace->end_time());
 
-      JFRRecordSampledThreadCallback cb(trace->sampled_thread());
-      ThreadCrashProtection crash_protection;
-      if (!crash_protection.call(cb)) {
-        printf("Recording thread failed\n");
-        continue;
-      }
+    JFRRecordSampledThreadCallback cb(trace->sampled_thread());
+    ThreadCrashProtection crash_protection;
+    if (crash_protection.call(cb)) {
       event.set_sampledThread(cb._thread_id);
       event.set_state(static_cast<u8>(JavaThreadStatus::RUNNABLE));
       if (EventCPUTimeExecutionSample::is_enabled()) {
         event.commit();
         count++;
-        if (count % 1000 == 0) {
+        if (count % 10000 == 0) {
           printf("count %lu\n", count);
         }
       }
+    } else {
+      printf("crash protection failed\n");
     }
-    trace->reset();
     _queues.fresh().enqueue(trace);
   }
 }
@@ -751,22 +749,14 @@ void JfrCPUTimeThreadSampling::handle_timer_signal(void* context) {
   Atomic::dec(&_sampler->_active_signal_handlers);
 }
 
-class JfrCPUTimeSamplerCallback : public CrashProtectionCallback {
- public:
-  JfrCPUTimeSamplerCallback(JfrCPUTimeTrace* trace, void* context) : _trace(trace), _context(context) {}
-
-  void call() {
-    _trace->record_trace(_context);
-  }
-  private:
-    JfrCPUTimeTrace* _trace;
-    void* _context;
-};
-
 void JfrCPUTimeThreadSampler::handle_timer_signal(void* context) {
+  JavaThread* jt = get_java_thread_if_valid();
+  if (jt == nullptr) {
+    return;
+  }
   JfrCPUTimeTrace* trace = this->_queues.fresh().dequeue();
   if (trace != nullptr) {
-    trace->record_trace(context);
+    trace->record_trace(jt, context);
     this->_queues.filled().enqueue(trace);
   } else {
     Atomic::inc(&_ignore_because_queue_full);
