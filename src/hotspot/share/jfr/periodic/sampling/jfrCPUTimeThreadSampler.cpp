@@ -677,7 +677,13 @@ static void log(int64_t period_millis) {
 void JfrCPUTimeThreadSampling::create_sampler(int64_t period_millis) {
   assert(_sampler == nullptr, "invariant");
   log_trace(jfr)("Creating thread sampler for java:" INT64_FORMAT " ms", period_millis);
-  _sampler = new JfrCPUTimeThreadSampler(period_millis, os::processor_count() * 100, JfrOptionSet::stackdepth());
+  int factor = 100;
+  if (const char* env_p = std::getenv("FACTOR")) {
+    factor = std::atoi(env_p);
+  }
+  int queue_size = factor * os::processor_count();
+  printf("queue size %d\n", queue_size);
+  _sampler = new JfrCPUTimeThreadSampler(period_millis, queue_size, JfrOptionSet::stackdepth());
   _sampler->start_thread();
   _sampler->enroll();
 }
