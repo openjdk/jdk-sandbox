@@ -164,7 +164,6 @@ static bool thread_state_in_native(JavaThread* thread) {
 
 static bool is_excluded(JavaThread* thread) {
   return thread->is_hidden_from_external_view()
-  || thread->in_deopt_handler()
   || (os::is_readable_pointer(thread->jfr_thread_local()) && thread->jfr_thread_local()->is_excluded());
 }
 
@@ -231,17 +230,17 @@ public:
     _error = 1;
     _start_time = JfrTicks::now();
     _end_time = JfrTicks::now();
-
-
-    ThreadInAsgct tia(jt);
-    if (thread_state_in_java(jt)) {
-      record_java_trace(jt, ucontext);
-  //    printf("record trace _error=%d\n", _error);
-    } else if (thread_state_in_native(jt)) {
-      record_native_trace(jt, ucontext);
-     // printf("record trace _error=%d\n", _error);
-    } else {
-      //printf("record trace wrong thread state%s\n", thread_state_string(jt));
+    if (!jt->in_deopt_handler())  {
+      ThreadInAsgct tia(jt);
+      if (thread_state_in_java(jt)) {
+        record_java_trace(jt, ucontext);
+    //    printf("record trace _error=%d\n", _error);
+      } else if (thread_state_in_native(jt)) {
+        record_native_trace(jt, ucontext);
+      // printf("record trace _error=%d\n", _error);
+      } else {
+        //printf("record trace wrong thread state%s\n", thread_state_string(jt));
+      }
     }
     _end_time = JfrTicks::now();
   }
