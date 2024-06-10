@@ -189,6 +189,7 @@ static JavaThread* get_java_thread_if_valid() {
 // collected in the signal handler, required to create
 // a JFR event with a stack trace
 class JfrCPUTimeTrace {
+  template <bool multiple_dequeuers, bool multipler_enqueuers>
   friend class JfrTraceQueue;
   u4 _index;
   JfrAsyncStackFrame* _frames;
@@ -293,6 +294,8 @@ private:
 
 // An atomic circular buffer of JfrTraces with a fixed size
 // Does not own any frames
+// TODO: improve parallelism, I use sequential memory order for simoplicity
+template <bool multiple_dequeuers, bool multipler_enqueuers>
 class JfrTraceQueue {
   JfrCPUTimeTrace** _traces;
   u4 _size;
@@ -310,28 +313,44 @@ public:
   bool is_full() const { return (_head + 1) % _size == _tail; }
 
   JfrCPUTimeTrace* dequeue() {
-    // aquire
-    if (is_empty()) {
-      return nullptr;
+    while (true) {
+      u4 current_tail = _tail;
+      u4 next_tail = (current_tail + 1) % _size;
+      if (current_tail == _tail) {
+        if (current_tail == _head) {
+          return nullptr; // queue is empty
+        }
+        if (Atomic::cmpxchg(&_tail, current_tail, next_tail, atomic_memory_order::memory_order_seq_cst) == current_tail) {
+          JfrCPUTimeTrace* trace = _traces[current_tail];
+          return trace;
+        }
+      }
     }
-    JfrCPUTimeTrace* trace = _traces[_tail];
-    _tail = (_tail + 1) % _size;
-    return trace;
   }
 
   bool enqueue(JfrCPUTimeTrace* trace) {
-    // release
-    if (is_full()) {
-      return false;
+    while (true) {
+      u4 current_head = _head;
+      u4 next_head = (current_head + 1) % _size;
+      if (current_head == _head) {
+        if (is_full()) {
+          return false;
+        }
+        if (Atomic::cmpxchg(&_head,
+          current_head, next_head, atomic_memory_order::memory_order_seq_cst) == current_head) {
+          _traces[current_head] = trace;
+          return true;
+        }
+      }
     }
-    _traces[_head] = trace;
-    _head = (_head + 1) % _size;
-    return true;
   }
 
   u4 count() const { return (_head - _tail) % _size; }
 };
 
+
+typedef JfrTraceQueue<true, false> JfrFreshTraceQueue;
+typedef JfrTraceQueue<false, true> JfrFilledTraceQueue;
 
 
 // Two queues for sampling, fresh and filled
@@ -339,8 +358,8 @@ public:
 class JfrTraceQueues {
   JfrAsyncStackFrame* _frames;
   JfrCPUTimeTrace* _traces;
-  JfrTraceQueue _fresh;
-  JfrTraceQueue  _filled;
+  JfrFreshTraceQueue _fresh;
+  JfrFilledTraceQueue  _filled;
   u4 _max_traces;
   u4 _max_frames_per_trace;
 
@@ -364,8 +383,8 @@ public:
     JfrCHeapObj::free(_traces, sizeof(JfrCPUTimeTrace) * _max_traces);
   }
 
-  JfrTraceQueue& fresh() { return _fresh; }
-  JfrTraceQueue& filled() { return _filled; }
+  JfrFreshTraceQueue& fresh() { return _fresh; }
+  JfrFilledTraceQueue& filled() { return _filled; }
 
   u4 max_traces() const { return _max_traces; }
 };
