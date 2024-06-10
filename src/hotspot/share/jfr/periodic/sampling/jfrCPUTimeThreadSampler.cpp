@@ -316,14 +316,12 @@ public:
     while (true) {
       u4 current_tail = _tail;
       u4 next_tail = (current_tail + 1) % _size;
-      if (current_tail == _tail) {
-        if (current_tail == _head) {
-          return nullptr; // queue is empty
-        }
-        if (Atomic::cmpxchg(&_tail, current_tail, next_tail, atomic_memory_order::memory_order_seq_cst) == current_tail) {
-          JfrCPUTimeTrace* trace = _traces[current_tail];
-          return trace;
-        }
+      if (current_tail == _head) {
+        return nullptr; // queue is empty
+      }
+      if (Atomic::cmpxchg(&_tail, current_tail, next_tail, atomic_memory_order::memory_order_seq_cst) == current_tail) {
+        JfrCPUTimeTrace* trace = _traces[current_tail];
+        return trace;
       }
     }
   }
@@ -332,15 +330,13 @@ public:
     while (true) {
       u4 current_head = _head;
       u4 next_head = (current_head + 1) % _size;
-      if (current_head == _head) {
-        if (is_full()) {
-          return false;
-        }
-        if (Atomic::cmpxchg(&_head,
-          current_head, next_head, atomic_memory_order::memory_order_seq_cst) == current_head) {
-          _traces[current_head] = trace;
-          return true;
-        }
+      if (is_full()) {
+        return false;
+      }
+      if (Atomic::cmpxchg(&_head,
+        current_head, next_head, atomic_memory_order::memory_order_seq_cst) == current_head) {
+        _traces[current_head] = trace;
+        return true;
       }
     }
   }
