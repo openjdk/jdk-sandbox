@@ -22,6 +22,10 @@
  *
  */
 
+#include "jfr/periodic/sampling/jfrCPUTimeThreadSampler.hpp"
+
+#if defined(LINUX)
+
 #include "jfr/recorder/service/jfrEvent.hpp"
 #include "jfr/recorder/stacktrace/jfrStackTrace.hpp"
 #include "jfr/recorder/stacktrace/jfrAsyncStackTrace.hpp"
@@ -33,7 +37,6 @@
 #include "jfr/jfrEvents.hpp"
 #include "jfr/recorder/jfrRecorder.hpp"
 #include "jfr/periodic/sampling/jfrCallTrace.hpp"
-#include "jfr/periodic/sampling/jfrCPUTimeThreadSampler.hpp"
 #include "jfr/recorder/checkpoint/types/traceid/jfrTraceIdLoadBarrier.inline.hpp"
 #include "jfr/recorder/service/jfrOptionSet.hpp"
 #include "jfr/recorder/stacktrace/jfrStackTraceRepository.hpp"
@@ -307,6 +310,7 @@ public:
   bool is_full() const { return (_head + 1) % _size == _tail; }
 
   JfrCPUTimeTrace* dequeue() {
+    // aquire
     if (is_empty()) {
       return nullptr;
     }
@@ -316,6 +320,7 @@ public:
   }
 
   bool enqueue(JfrCPUTimeTrace* trace) {
+    // release
     if (is_full()) {
       return false;
     }
@@ -406,7 +411,6 @@ class JfrCPUTimeThreadSampler : public NonJavaThread {
     bool is_JfrSampler_thread() const { return true; }
     void run();
     static Monitor* transition_block() { return JfrCPUTimeThreadSampler_lock; }
-    static void on_javathread_suspend(JavaThread* thread);
     void on_javathread_create(JavaThread* thread);
     bool create_timer_for_thread(JavaThread* thread, timer_t &timerid);
     void set_timer_time(timer_t timerid);
@@ -433,9 +437,6 @@ JfrCPUTimeThreadSampler::JfrCPUTimeThreadSampler(int64_t period_millis, u4 max_t
 
 JfrCPUTimeThreadSampler::~JfrCPUTimeThreadSampler() {
   JfrCHeapObj::free(_jfrFrames, sizeof(JfrStackFrame) * _max_frames_per_trace);
-}
-
-void JfrCPUTimeThreadSampler::on_javathread_suspend(JavaThread* thread) {
 }
 
 void JfrCPUTimeThreadSampler::on_javathread_create(JavaThread* thread) {
@@ -722,10 +723,6 @@ void JfrCPUTimeThreadSampling::set_sample_period(int64_t period_millis) {
   instance().set_sampling_period(period_millis);
 }
 
-void JfrCPUTimeThreadSampling::on_javathread_suspend(JavaThread* thread) {
-  JfrCPUTimeThreadSampler::on_javathread_suspend(thread);
-}
-
 void JfrCPUTimeThreadSampling::on_javathread_create(JavaThread *thread) {
   if (_instance != nullptr && _instance->_sampler != nullptr) {
     _instance->_sampler->on_javathread_create(thread);
@@ -845,3 +842,45 @@ void JfrCPUTimeThreadSampler::set_sampling_period(int64_t period_millis) {
     }
   }
 }
+
+#else
+
+static bool _showed_warning = false;
+
+void warn() {
+  if (!_showed_warning) {
+    warning("CPU time method sampling not supported in JFR on your platform");
+    _showed_warning = true;
+  }
+}
+
+static JfrCPUTimeThreadSampling* _instance = nullptr;
+
+JfrCPUTimeThreadSampling& JfrCPUTimeThreadSampling::instance() {
+  return *_instance;
+}
+
+JfrCPUTimeThreadSampling* JfrCPUTimeThreadSampling::create() {
+  _instance = new JfrCPUTimeThreadSampling();
+  return _instance;
+}
+
+void JfrCPUTimeThreadSampling::destroy() {
+  delete _instance;
+  _instance = nullptr;
+}
+
+void JfrCPUTimeThreadSampling::set_sample_period(int64_t period_millis) {
+  if (period_millis != 0) {
+    warn();
+  }
+}
+
+void JfrCPUTimeThreadSampling::on_javathread_create(JavaThread* thread) {
+}
+
+void JfrCPUTimeThreadSampling::on_javathread_terminate(JavaThread* thread) {
+}
+
+
+#endif // defined(LINUX)
