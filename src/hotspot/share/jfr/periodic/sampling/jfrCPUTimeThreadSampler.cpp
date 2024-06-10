@@ -596,16 +596,16 @@ void JfrCPUTimeThreadSampler::process_trace_queue() {
     ThreadCrashProtection crash_protection;
     if (crash_protection.call(cb)) {
       event.set_sampledThread(cb._thread_id);
-      event.set_state(static_cast<u8>(JavaThreadStatus::RUNNABLE));
-      if (EventCPUTimeExecutionSample::is_enabled()) {
-        event.commit();
-        count++;
-        if (count % 10000 == 0) {
-          printf("count %lu\n", count);
-        }
-      }
     } else {
-      printf("crash protection failed\n");
+      event.set_sampledThread(0);
+    }
+    event.set_state(static_cast<u8>(JavaThreadStatus::RUNNABLE));
+    if (EventCPUTimeExecutionSample::is_enabled()) {
+      event.commit();
+      count++;
+      if (count % 10000 == 0) {
+        printf("count %lu\n", count);
+      }
     }
     _queues.fresh().enqueue(trace);
   }
