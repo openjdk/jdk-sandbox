@@ -294,7 +294,6 @@ private:
 
 // An atomic circular buffer of JfrTraces with a fixed size
 // Does not own any frames
-// TODO: improve parallelism, I use sequential memory order for simoplicity
 template <bool multiple_dequeuers, bool multipler_enqueuers>
 class JfrTraceQueue {
   JfrCPUTimeTrace** _traces;
@@ -320,7 +319,7 @@ public:
         if (current_tail == _head) {
           return nullptr; // queue is empty
         }
-        if (Atomic::cmpxchg(&_tail, current_tail, next_tail, atomic_memory_order::memory_order_seq_cst) == current_tail) {
+        if (Atomic::cmpxchg(&_tail, current_tail, next_tail, atomic_memory_order::memory_order_acquire) == current_tail) {
           JfrCPUTimeTrace* trace = _traces[current_tail];
           return trace;
         }
@@ -337,7 +336,7 @@ public:
           return false;
         }
         if (Atomic::cmpxchg(&_head,
-          current_head, next_head, atomic_memory_order::memory_order_seq_cst) == current_head) {
+          current_head, next_head, atomic_memory_order::memory_order_release) == current_head) {
           _traces[current_head] = trace;
           return true;
         }
