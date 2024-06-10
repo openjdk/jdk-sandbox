@@ -47,7 +47,6 @@
 #include "runtime/threadCrashProtection.hpp"
 #include "runtime/threadSMR.hpp"
 #include "utilities/systemMemoryBarrier.hpp"
-#include <alsa/output.h>
 
 enum JfrSampleType {
   NO_SAMPLE = 0,
