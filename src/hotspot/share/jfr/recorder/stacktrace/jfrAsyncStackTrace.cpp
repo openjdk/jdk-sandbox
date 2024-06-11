@@ -65,7 +65,10 @@ static inline bool is_full(const JfrBuffer* enqueue_buffer) {
 
 bool JfrAsyncStackTrace::record_async(JavaThread* jt, const frame& frame) {
   assert(jt != nullptr, "invariant");
-  Thread* current_thread = Thread::current();
+  Thread* current_thread = Thread::current_or_null_safe();
+  if (current_thread == nullptr) {
+    return false;
+  }
   assert(current_thread->is_JfrSampler_thread() || current_thread->in_asgct(), "invariant");
   assert(jt != current_thread || current_thread->in_asgct(), "invariant");
 
@@ -81,6 +84,11 @@ bool JfrAsyncStackTrace::record_async(JavaThread* jt, const frame& frame) {
       break;
     }
     const Method* method = vfs.method();
+    if (method == nullptr || !Method::is_valid_method(method)) {
+      // we throw away everything we've gathered in this sample since
+      // none of it is safe
+      return false;
+    }
     if (!Method::is_valid_method(method)) {
       // we throw away everything we've gathered in this sample since
       // none of it is safe
