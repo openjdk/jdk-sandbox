@@ -7,6 +7,7 @@
 
 # Set the timeout
 TIMEOUT=${TIMEOUT:-10}
+TIMEOUT2=$((TIMEOUT + 4))
 MAX_TRIES=${MAX_TRIES:-100000}
 
 # Check the number of arguments
@@ -18,7 +19,7 @@ fi
 # Run the command in a loop
 for i in $(seq 1 $MAX_TRIES); do
   echo "Running $@"
-  timeout --preserve-status $TIMEOUT "$@"
+  timeout --preserve-status --kill-after=$TIMEOUT2 $TIMEOUT "$@"
   err_code=$?
   # if err_code is not 0 and not 143
   if [ $err_code -ne 0 ] && [ $err_code -ne 143 ]; then
