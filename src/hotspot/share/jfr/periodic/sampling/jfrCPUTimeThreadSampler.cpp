@@ -77,6 +77,8 @@
 #include <signal.h>
 #include <time.h>
 
+#define WALK_IN_VM 1
+
 enum JfrSampleType {
   // no sample, because thread not in walkable state
   NO_SAMPLE = 0,
@@ -121,9 +123,14 @@ static bool thread_state_in_native(JavaThread* thread) {
     case _thread_in_vm_trans:
     case _thread_in_native_trans:
     case _thread_blocked:
-    case _thread_in_vm: // walking in vm causes weird bugs (assertions in G1 fail), so don't
+    #if not(WALK_IN_VM)
+    case _thread_in_vm:
+    #endif
           break;
     case _thread_in_native:
+    #if WALK_IN_VM
+    case _thread_in_vm: // walking in vm causes weird bugs (assertions in G1 fail), so don't
+    #endif
       return true;
     default:
       ShouldNotReachHere();
@@ -267,7 +274,7 @@ private:
     // When a thread is only attach it will be native without a last java frame
    _type = NATIVE_SAMPLE;
     _error = 1;
-    if (!jt-> has_last_Java_frame()) {
+    if (!jt->has_last_Java_frame()) {
       _error = 3;
       return;
     }
