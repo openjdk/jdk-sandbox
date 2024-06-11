@@ -19,6 +19,15 @@ if [ ! -f renaissance.jar ]; then
   wget https://github.com/renaissance-benchmarks/renaissance/releases/download/v0.15.0/renaissance-gpl-0.15.0.jar -O $ABS_SCRIPT_FOLDER/renaissance.jar
 fi
 
+# if build/linux-x86_64-server-fastdebug does not exist, run bash configure
+if [ ! -d $ABS_SCRIPT_FOLDER/build/linux-x86_64-server-fastdebug ]; then
+  bash $ABS_SCRIPT_FOLDER/configure --with-debug-level=fastdebug
+  make CONF=linux-x86_64-server-fastdebug images
+fi
+
+export JAVA_HOME=$ABS_SCRIPT_FOLDER/build/linux-x86_64-server-fastdebug/images/jdk
+export PATH=$JAVA_HOME/bin:$PATH
+
 # run java -XX:StartFlightRecording=filename=fligt_and_10.jfr,jdk.CPUTimeExecutionSample#enabled=true,jdk.CPUTimeExecutionSample#period=1ms -jar renaissance.jar all
 # in a tmp folder until it fails
 # then print head -n40
