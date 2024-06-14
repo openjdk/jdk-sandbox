@@ -57,7 +57,7 @@ class JfrAsyncStackFrame {
 
 class JfrAsyncStackTraceStoreCallback;
 
-class JfrAsyncStackTrace : public JfrCHeapObj {
+class JfrAsyncStackTrace {
   friend class JfrCPUTimeTrace;
   friend class JfrAsyncStackTraceStoreCallback;
  private:
