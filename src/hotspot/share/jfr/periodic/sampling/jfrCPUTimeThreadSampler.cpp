@@ -98,8 +98,8 @@ static bool thread_state_in_java(JavaThread* thread) {
     case _thread_blocked:
     case _thread_in_vm:
     case _thread_in_native:
-    case _thread_in_Java_trans:
       break;
+    case _thread_in_Java_trans:
     case _thread_in_Java:
       return true;
     default:
@@ -117,11 +117,11 @@ static bool thread_state_in_native(JavaThread* thread) {
     case _thread_new_trans:
     case _thread_in_Java_trans:
     case _thread_in_Java:
+          break;
     case _thread_blocked_trans:
     case _thread_in_vm_trans:
     case _thread_in_native_trans:
     case _thread_blocked:
-          break;
     case _thread_in_native:
     case _thread_in_vm: // walking in vm causes weird bugs (assertions in G1 fail), so don't
       return true;
@@ -234,7 +234,7 @@ public:
     _error = 1;
     _start_time = JfrTicks::now();
     _end_time = JfrTicks::now();
-    if (!jt->in_deopt_handler())  {
+    if (!jt->in_deopt_handler() && !Universe::heap()->is_stw_gc_active())  {
       ThreadInAsgct tia(jt);
       if (thread_state_in_java(jt)) {
         record_java_trace(jt, ucontext);
@@ -696,7 +696,7 @@ static void log(int64_t period_millis) {
 void JfrCPUTimeThreadSampling::create_sampler(int64_t period_millis) {
   assert(_sampler == nullptr, "invariant");
   log_trace(jfr)("Creating thread sampler for java:" INT64_FORMAT " ms", period_millis);
-  int factor = 100;
+  int factor = 20;
   if (const char* env_p = std::getenv("FACTOR")) {
     factor = std::atoi(env_p);
   }
