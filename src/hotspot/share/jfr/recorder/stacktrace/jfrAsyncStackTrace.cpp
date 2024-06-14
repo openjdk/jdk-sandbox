@@ -64,6 +64,8 @@ static inline bool is_full(const JfrBuffer* enqueue_buffer) {
 }
 
 bool JfrAsyncStackTrace::record_async(JavaThread* jt, const frame& frame) {
+  NoHandleMark nhm;
+
   assert(jt != nullptr, "invariant");
   Thread* current_thread = Thread::current_or_null_safe();
   if (current_thread == nullptr) {
@@ -75,7 +77,6 @@ bool JfrAsyncStackTrace::record_async(JavaThread* jt, const frame& frame) {
   u4 count = 0;
   _reached_root = true;
 
-  HandleMark hm(current_thread); // RegisterMap uses Handles to support continuations.
   JfrVframeStream vfs(jt, frame, false, true, true);
 
   while (!vfs.at_end()) {
