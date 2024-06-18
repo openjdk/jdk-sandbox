@@ -25,7 +25,6 @@
 #ifndef SHARE_JFR_RECORDER_STACKTRACE_JFRSTACKTRACE_HPP
 #define SHARE_JFR_RECORDER_STACKTRACE_JFRSTACKTRACE_HPP
 
-#include "jfr/recorder/stacktrace/jfrAsyncStackTrace.hpp"
 #include "jfr/utilities/jfrAllocation.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
 #include "runtime/vframe.inline.hpp"
@@ -35,7 +34,6 @@ class InstanceKlass;
 class JavaThread;
 class JfrCheckpointWriter;
 class JfrChunkWriter;
-class ContinuationEntry;
 
 class JfrVframeStream : public vframeStreamCommon {
  private:
@@ -78,12 +76,10 @@ class JfrStackFrame {
 
 class JfrStackTrace : public JfrCHeapObj {
   friend class JfrNativeSamplerCallback;
-  friend class JfrNativeCPUTimeSamplerCallback;
   friend class JfrStackTraceRepository;
   friend class ObjectSampleCheckpoint;
   friend class ObjectSampler;
   friend class OSThreadSampler;
-  friend class CPUTimeOSThreadSampler;
   friend class StackTraceResolver;
   friend class JfrCPUTimeTrace;
   friend class JfrAsyncStackTrace;

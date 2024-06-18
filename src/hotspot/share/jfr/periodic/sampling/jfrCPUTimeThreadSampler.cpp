@@ -428,7 +428,6 @@ class JfrCPUTimeThreadSampler : public NonJavaThread {
     virtual const char* type_name() const { return "JfrCPUTimeThreadSampler"; }
     bool is_JfrSampler_thread() const { return true; }
     void run();
-    static Monitor* transition_block() { return JfrCPUTimeThreadSampler_lock; }
     void on_javathread_create(JavaThread* thread);
     bool create_timer_for_thread(JavaThread* thread, timer_t &timerid);
     void set_timer_time(timer_t timerid);
