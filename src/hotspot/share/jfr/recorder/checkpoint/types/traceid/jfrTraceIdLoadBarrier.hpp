@@ -28,7 +28,6 @@
 #include "jfr/periodic/sampling/jfrCPUTimeThreadSampler.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
 #include "memory/allStatic.hpp"
-#include <cstddef>
 
 class ClassLoaderData;
 class JfrBuffer;

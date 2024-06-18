@@ -686,7 +686,7 @@ JavaThread::~JavaThread() {
 
   // All Java related clean up happens in exit
   ThreadSafepointState::destroy(this);
-  if (_thread_stat != nullptr) delete _thread_stat;;
+  if (_thread_stat != nullptr) delete _thread_stat;
 
 #if INCLUDE_JVMCI
   if (JVMCICounterSize > 0) {
@@ -760,7 +760,6 @@ void JavaThread::thread_main_inner() {
     JFR_ONLY(JfrCPUTimeThreadSampling::on_javathread_create(this);)
 
     HandleMark hm(this);
-
     this->entry_point()(this, this);
   }
 

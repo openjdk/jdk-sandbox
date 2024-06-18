@@ -94,9 +94,6 @@ void JfrBuffer::release_critical_section_top(const u1* new_top) {
 }
 
 bool JfrBuffer::acquired_by(const void* id) const {
-  if (identity() != id) {
-    return false;
-  }
   return identity() == id;
 }
 
