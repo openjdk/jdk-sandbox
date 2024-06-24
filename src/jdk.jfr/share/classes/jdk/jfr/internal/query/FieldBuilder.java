@@ -133,10 +133,6 @@ final class FieldBuilder {
             configureStackTraceIsNullField();
             return true;
         }
-        if (fieldName.equals("sampledThread.isNull")) {
-            configureSampledThreadIsNullField();
-            return true;
-        }
         if (fieldName.equals("id") && field.type.getName().equals("jdk.ActiveSetting")) {
             configureEventTypeIdField();
             return true;
@@ -240,15 +236,7 @@ final class FieldBuilder {
         field.lexicalSort = true;
         field.valueGetter = e -> e.getStackTrace() == null;
     }
-
-    private void configureSampledThreadIsNullField() {
-        field.alignLeft = true;
-        field.dataType = "boolean";
-        field.label = "Has no Sampled Thread";
-        field.lexicalSort = true;
-        field.valueGetter = e -> e.getThread("sampledThread") == null;
-    }
-
+    
     private void configureEventType(Function<RecordedEvent, Object> retriever) {
         field.alignLeft = true;
         field.dataType = String.class.getName();
