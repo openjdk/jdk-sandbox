@@ -578,6 +578,7 @@ void JfrCPUTimeThreadSampler::process_trace_queue() {
       event.set_sampledThread(cb._thread_id);
     } else {
       event.set_sampledThread(0);
+      event.set_stackTrace(0);
     }
     event.set_state(static_cast<u8>(JavaThreadStatus::RUNNABLE));
     if (EventCPUTimeExecutionSample::is_enabled()) {
