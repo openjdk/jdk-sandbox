@@ -151,7 +151,7 @@ static RegisterMap::WalkContinuation walk_continuation(JavaThread* jt) {
 }
 
 
-JfrVframeStream::JfrVframeStream(JavaThread* jt, const frame& fr, bool stop_at_java_call_stub, bool async_mode, bool check_top_frame) :
+JfrVframeStream::JfrVframeStream(JavaThread* jt, const frame& fr, bool stop_at_java_call_stub, bool async_mode) :
   vframeStreamCommon(RegisterMap(jt,
                                  RegisterMap::UpdateMap::skip,
                                  RegisterMap::ProcessFrames::skip,
@@ -163,10 +163,6 @@ JfrVframeStream::JfrVframeStream(JavaThread* jt, const frame& fr, bool stop_at_j
   _reg_map.set_async(async_mode);
   _frame = fr;
   _stop_at_java_call_stub = stop_at_java_call_stub;
-  if (check_top_frame && _frame.is_interpreted_frame() && !has_interpreted_frame_valid_bci(fr)) {
-    _mode = at_end_mode;
-    return;
-  }
   while (!fill_from_frame()) {
     step_to_sender();
   }
@@ -229,8 +225,8 @@ bool JfrStackTrace::record_async(JavaThread* jt, const frame& frame) {
   assert(jt != nullptr, "invariant");
   assert(!_lineno, "invariant");
   Thread* current_thread = Thread::current();
-  assert(current_thread->is_JfrSampler_thread() || current_thread->in_asgct(), "invariant");
-  assert(jt != current_thread || current_thread->in_asgct(), "invariant");
+  assert(current_thread->is_JfrSampler_thread(), "invariant");
+  assert(jt != current_thread, "invariant");
   // Explicitly monitor the available space of the thread-local buffer used for enqueuing klasses as part of tagging methods.
   // We do this because if space becomes sparse, we cannot rely on the implicit allocation of a new buffer as part of the
   // regular tag mechanism. If the free list is empty, a malloc could result, and the problem with that is that the thread

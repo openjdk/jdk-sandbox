@@ -71,13 +71,13 @@ bool JfrAsyncStackTrace::record_async(JavaThread* jt, const frame& frame) {
   if (current_thread == nullptr) {
     return false;
   }
-  assert(current_thread->is_JfrSampler_thread() || current_thread->in_asgct(), "invariant");
+  assert(current_thread->in_asgct(), "invariant");
   assert(jt != current_thread || current_thread->in_asgct(), "invariant");
 
   u4 count = 0;
   _reached_root = true;
 
-  JfrVframeStream vfs(jt, frame, false, true, true);
+  JfrVframeStream vfs(jt, frame, false, true);
 
   while (!vfs.at_end()) {
     if (count >= _max_frames) {
@@ -119,7 +119,7 @@ bool JfrAsyncStackTrace::record_async(JavaThread* jt, const frame& frame) {
 
 class JfrAsyncStackTraceStoreCallback : public CrashProtectionCallback {
  public:
-  JfrAsyncStackTraceStoreCallback(const JfrAsyncStackTrace * asyncTrace, JfrStackTrace* trace, const JfrBuffer* const enqueue_buffer) :
+  JfrAsyncStackTraceStoreCallback(const JfrAsyncStackTrace* asyncTrace, JfrStackTrace* trace, const JfrBuffer* const enqueue_buffer) :
   _asyncTrace(asyncTrace), _trace(trace), _enqueue_buffer(enqueue_buffer), _success(false) {}
   virtual void call() {
     _success = _asyncTrace->inner_store(_trace, _enqueue_buffer);

@@ -752,12 +752,14 @@ void JavaThread::thread_main_inner() {
   // Execute thread entry point unless this thread has a pending exception.
   // Note: Due to JVMTI StopThread we can have pending exceptions already!
   if (!this->has_pending_exception()) {
+#ifdef INCLUDE_JFR
     {
       ResourceMark rm(this);
       this->set_native_thread_name(this->name());
     }
 
-    JFR_ONLY(JfrCPUTimeThreadSampling::on_javathread_create(this);)
+    JfrCPUTimeThreadSampling::on_javathread_create(this);
+#endif
 
     HandleMark hm(this);
     this->entry_point()(this, this);
@@ -804,7 +806,7 @@ void JavaThread::exit(bool destroy_vm, ExitType exit_type) {
   assert(this == JavaThread::current(), "thread consistency check");
   assert(!is_exiting(), "should not be exiting or terminated already");
 
-  JfrCPUTimeThreadSampling::on_javathread_terminate(this);
+  JFR_ONLY(JfrCPUTimeThreadSampling::on_javathread_terminate(this));
 
   elapsedTimer _timer_exit_phase1;
   elapsedTimer _timer_exit_phase2;
