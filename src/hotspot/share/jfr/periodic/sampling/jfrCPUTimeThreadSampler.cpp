@@ -577,7 +577,7 @@ void JfrCPUTimeThreadSampler::process_trace_queue() {
     if (crash_protection.call(cb)) {
       event.set_sampledThread(cb._thread_id);
       event.set_state(static_cast<u8>(JavaThreadStatus::RUNNABLE));
-      assert(EventCPUTimeExecutionSample::is_enabled());
+      assert(EventCPUTimeExecutionSample::is_enabled(), "invariant");
       event.commit();
       count++;
       if (count % 10000 == 0) {
@@ -592,7 +592,7 @@ void JfrCPUTimeThreadSampler::process_trace_queue() {
 
 void JfrCPUTimeThreadSampler::post_run() {
   this->NonJavaThread::post_run();
-  // delete this; // this leads to crashes
+  delete this;
 }
 
 const JfrBuffer* JfrCPUTimeThreadSampler::get_enqueue_buffer() {
