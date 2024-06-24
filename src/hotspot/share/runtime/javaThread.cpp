@@ -752,14 +752,12 @@ void JavaThread::thread_main_inner() {
   // Execute thread entry point unless this thread has a pending exception.
   // Note: Due to JVMTI StopThread we can have pending exceptions already!
   if (!this->has_pending_exception()) {
-#ifdef INCLUDE_JFR
     {
       ResourceMark rm(this);
       this->set_native_thread_name(this->name());
     }
 
-    JfrCPUTimeThreadSampling::on_javathread_create(this);
-#endif
+    JFR_ONLY(JfrCPUTimeThreadSampling::on_javathread_create(this));
 
     HandleMark hm(this);
     this->entry_point()(this, this);
