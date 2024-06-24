@@ -86,7 +86,7 @@ inline void HandleMark::push() {
 inline void HandleMark::pop_and_restore() {
   // Delete later chunks
   if(_chunk->next() != nullptr) {
-    assert(_area->size_in_bytes() > size_in_bytes(), "Sanity check"); // TODO: fix this
+    assert(_area->size_in_bytes() > size_in_bytes(), "Sanity check");
     chop_later_chunks();
   } else {
     assert(_area->size_in_bytes() == size_in_bytes(), "Sanity check");

@@ -25,7 +25,6 @@
 #ifndef SHARE_RUNTIME_VFRAME_INLINE_HPP
 #define SHARE_RUNTIME_VFRAME_INLINE_HPP
 
-#include "runtime/frame.hpp"
 #include "runtime/vframe.hpp"
 
 #include "classfile/javaClasses.inline.hpp"
@@ -306,20 +305,6 @@ inline void vframeStreamCommon::fill_from_interpreter_frame() {
   _mode   = interpreted_mode;
   _method = method;
   _bci    = bci;
-}
-
-inline bool vframeStreamCommon::has_interpreted_frame_valid_bci(frame fr) {
-  Method* method;
-  address bcp;
-  if (!_reg_map.in_cont()) {
-    method = fr.interpreter_frame_method();
-    bcp    = fr.interpreter_frame_bcp();
-  } else {
-    method = _reg_map.stack_chunk()->interpreter_frame_method(fr);
-    bcp    = _reg_map.stack_chunk()->interpreter_frame_bcp(fr);
-  }
-  int bci  = method->validate_bci_from_bcp(bcp);
-  return bci >= 0;
 }
 
 #endif // SHARE_RUNTIME_VFRAME_INLINE_HPP

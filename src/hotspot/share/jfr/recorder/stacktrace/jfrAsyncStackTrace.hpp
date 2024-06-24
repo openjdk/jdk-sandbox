@@ -29,6 +29,9 @@
 #include "jfr/utilities/jfrTypes.hpp"
 #include "oops/method.hpp"
 
+// This is based on JfrStackTrace, with the major difference that methods
+// are not resolved
+
 class frame;
 class InstanceKlass;
 class JavaThread;

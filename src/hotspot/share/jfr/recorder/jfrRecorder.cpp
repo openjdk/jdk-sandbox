@@ -307,7 +307,6 @@ bool JfrRecorder::create_components() {
     return false;
   }
   if (!create_cpu_time_thread_sampling()) {
-    printf("create_cpu_time_thread_sampling failed\n");
     return false;
   }
   if (!create_event_throttler()) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -132,42 +132,9 @@ static bool thread_state_in_native(JavaThread* thread) {
   return false;
 }
 
-/*static char* thread_state_string(JavaThread* thread) {
-  assert(thread != nullptr, "invariant");
-  // switch case return all state names
-  switch(thread->thread_state()) {
-    case _thread_new:
-      return (char*)"new";
-    case _thread_uninitialized:
-      return (char*)"uninitialized";
-    case _thread_new_trans:
-      return (char*)"new_trans";
-    case _thread_blocked_trans:
-      return (char*)"blocked_trans";
-    case _thread_blocked:
-      return (char*)"blocked";
-    case _thread_in_vm:
-      return (char*)"in_vm";
-    case _thread_in_vm_trans:
-      return (char*)"in_vm_trans";
-    case _thread_in_Java_trans:
-      return (char*)"in_Java_trans";
-    case _thread_in_Java:
-      return (char*)"in_Java";
-    case _thread_in_native_trans:
-      return (char*)"in_native_trans";
-    case _thread_in_native:
-      return (char*)"in_native";
-    default:
-      ShouldNotReachHere();
-      break;
-  }
-  return (char*)"unknown state";
-}*/
-
 static bool is_excluded(JavaThread* thread) {
-  return thread->is_hidden_from_external_view()
-  || (os::is_readable_pointer(thread->jfr_thread_local()) && thread->jfr_thread_local()->is_excluded());
+  return thread->is_hidden_from_external_view() ||
+    (os::is_readable_pointer(thread->jfr_thread_local()) && thread->jfr_thread_local()->is_excluded());
 }
 
 static JavaThread* get_java_thread_if_valid() {
@@ -238,12 +205,8 @@ public:
       ThreadInAsgct tia(jt);
       if (thread_state_in_java(jt)) {
         record_java_trace(jt, ucontext);
-    //    printf("record trace _error=%d\n", _error);
       } else if (thread_state_in_native(jt)) {
         record_native_trace(jt, ucontext);
-      // printf("record trace _error=%d\n", _error);
-      } else {
-        //printf("record trace wrong thread state%s\n", thread_state_string(jt));
       }
     }
     _end_time = JfrTicks::now();
@@ -557,7 +520,6 @@ void JfrCPUTimeThreadSampler::run() {
 }
 
 static u4 max_queue_size = 0;
-
 
 // crash protection for JfrThreadLocal::thread_id(trace->sampled_thread())
 // because the thread could be deallocated between the time of recording

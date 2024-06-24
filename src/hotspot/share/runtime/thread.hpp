@@ -630,6 +630,7 @@ protected:
  private:
   bool _in_asgct = false;
  public:
+  // in ASGCT or the signal handler of the JfrCPUTimeSampler
   bool in_asgct() const { return _in_asgct; }
   void set_in_asgct(bool value) { _in_asgct = value; }
   static bool current_in_asgct() {
