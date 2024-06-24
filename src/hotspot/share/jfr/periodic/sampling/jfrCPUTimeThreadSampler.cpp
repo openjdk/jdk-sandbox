@@ -23,9 +23,8 @@
  */
 
 #include "jfr/periodic/sampling/jfrCPUTimeThreadSampler.hpp"
-#include <cstdint>
 
-#if defined(LINUX)
+#if defined(LINUX) && defined(INCLUDE_JFR)
 
 #include "jfr/recorder/service/jfrEvent.hpp"
 #include "jfr/recorder/stacktrace/jfrStackTrace.hpp"
@@ -582,7 +581,7 @@ void JfrCPUTimeThreadSampler::process_trace_queue() {
       event.commit();
       count++;
       if (count % 10000 == 0) {
-        printf("count %lu\n", (uint64_t) count);
+        printf("count %d\n", (int) count);
       }
     }
     _queues.fresh().enqueue(trace);
