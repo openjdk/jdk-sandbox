@@ -40,6 +40,7 @@
 #include "runtime/threadSMR.hpp"
 #include "signals_posix.hpp"
 #include "runtime/threadCrashProtection.hpp"
+#include "runtime/osThread.hpp"
 
 enum JfrSampleType {
   // no sample, because thread not in walkable state
