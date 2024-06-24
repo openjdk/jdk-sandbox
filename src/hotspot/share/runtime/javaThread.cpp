@@ -23,8 +23,8 @@
  *
  */
 
-#include "jfr/periodic/sampling/jfrCPUTimeThreadSampler.hpp"
 #include "precompiled.hpp"
+#include "jfr/periodic/sampling/jfrCPUTimeThreadSampler.hpp"
 #include "cds/dynamicArchive.hpp"
 #include "ci/ciEnv.hpp"
 #include "classfile/javaClasses.inline.hpp"
