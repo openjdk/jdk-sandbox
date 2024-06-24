@@ -22,26 +22,12 @@
  *
  */
 
-#include "jfr/utilities/jfrTypes.hpp"
 #include "precompiled.hpp"
-#include "jfr/recorder/checkpoint/jfrCheckpointWriter.hpp"
-#include "jfr/recorder/checkpoint/types/traceid/jfrTraceId.inline.hpp"
-#include "jfr/recorder/repository/jfrChunkWriter.hpp"
 #include "jfr/recorder/stacktrace/jfrAsyncStackTrace.hpp"
-#include "jfr/recorder/stacktrace/jfrStackTrace.hpp"
+#include "jfr/utilities/jfrTypes.hpp"
+#include "jfr/recorder/repository/jfrChunkWriter.hpp"
 #include "jfr/recorder/storage/jfrBuffer.hpp"
-#include "jfr/support/jfrMethodLookup.hpp"
-#include "jfr/support/jfrThreadLocal.hpp"
-#include "jfrStackFilter.hpp"
-#include "jfrStackFilterRegistry.hpp"
-#include "memory/allocation.inline.hpp"
-#include "oops/instanceKlass.inline.hpp"
-#include "runtime/continuation.hpp"
-#include "runtime/continuationEntry.inline.hpp"
-#include "runtime/handles.inline.hpp"
-#include "runtime/vframe.inline.hpp"
 #include "runtime/threadCrashProtection.hpp"
-#include "jfr/recorder/stacktrace/jfrStackTrace.hpp"
 
 
 

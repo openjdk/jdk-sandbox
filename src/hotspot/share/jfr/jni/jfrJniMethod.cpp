@@ -22,11 +22,11 @@
  *
  */
 
-#include "jfrfiles/jfrEventClasses.hpp"
 #include "precompiled.hpp"
 #include "jfr/jfr.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "jfr/periodic/sampling/jfrThreadSampler.hpp"
+#include "jfr/periodic/sampling/jfrCPUTimeThreadSampler.hpp"
 #include "jfr/recorder/jfrEventSetting.hpp"
 #include "jfr/recorder/jfrRecorder.hpp"
 #include "jfr/recorder/checkpoint/jfrMetadataEvent.hpp"
