@@ -27,7 +27,6 @@
 
 #include "jfr/utilities/jfrBlob.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
-#include "utilities/macros.hpp"
 
 class Arena;
 class JavaThread;

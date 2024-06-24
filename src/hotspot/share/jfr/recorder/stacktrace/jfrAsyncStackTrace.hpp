@@ -24,8 +24,8 @@
 
 #ifndef SHARE_JFR_RECORDER_STACKTRACE_JFRASYNCSTACKTRACE_HPP
 #define SHARE_JFR_RECORDER_STACKTRACE_JFRASYNCSTACKTRACE_HPP
+
 #include "jfr/recorder/stacktrace/jfrStackTrace.hpp"
-#include "jfr/utilities/jfrAllocation.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
 #include "oops/method.hpp"
 

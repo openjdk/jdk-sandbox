@@ -26,56 +26,20 @@
 
 #if defined(LINUX) && defined(INCLUDE_JFR)
 
-#include "jfr/recorder/service/jfrEvent.hpp"
-#include "jfr/recorder/stacktrace/jfrStackTrace.hpp"
-#include "jfr/recorder/stacktrace/jfrAsyncStackTrace.hpp"
-#include "jfr/utilities/jfrAllocation.hpp"
-#include "jfr/utilities/jfrTypes.hpp"
-#include "memory/allocation.hpp"
+
 #include "precompiled.hpp"
+#include "jfr/recorder/service/jfrEvent.hpp"
+#include "jfr/recorder/stacktrace/jfrAsyncStackTrace.hpp"
+#include "jfr/utilities/jfrTypes.hpp"
 #include "classfile/javaThreadStatus.hpp"
-#include "jfr/jfrEvents.hpp"
 #include "jfr/recorder/jfrRecorder.hpp"
 #include "jfr/periodic/sampling/jfrCallTrace.hpp"
-#include "jfr/recorder/checkpoint/types/traceid/jfrTraceIdLoadBarrier.inline.hpp"
-#include "jfr/recorder/service/jfrOptionSet.hpp"
-#include "jfr/recorder/stacktrace/jfrStackTraceRepository.hpp"
 #include "jfr/recorder/storage/jfrBuffer.hpp"
-#include "jfr/support/jfrThreadLocal.hpp"
 #include "jfr/utilities/jfrTime.hpp"
 #include "jfrfiles/jfrEventClasses.hpp"
-#include "logging/log.hpp"
-#include "runtime/atomic.hpp"
-#include "runtime/frame.inline.hpp"
-#include "runtime/globals.hpp"
-#include "runtime/javaThread.hpp"
-#include "runtime/javaThread.inline.hpp"
-#include "runtime/mutex.hpp"
-#include "runtime/mutexLocker.hpp"
-#include "runtime/os.hpp"
-#include "runtime/osThread.hpp"
-#include "runtime/semaphore.hpp"
-#include "runtime/stackWatermark.hpp"
-#include "runtime/suspendedThreadTask.hpp"
-#include "runtime/thread.hpp"
 #include "runtime/threadSMR.hpp"
 #include "signals_posix.hpp"
 #include "runtime/threadCrashProtection.hpp"
-#include "utilities/concurrentHashTable.hpp"
-#include "utilities/debug.hpp"
-#include "utilities/globalDefinitions.hpp"
-#include "utilities/growableArray.hpp"
-#include "utilities/systemMemoryBarrier.hpp"
-#include <algorithm>
-#include <bits/types/clockid_t.h>
-#include <bits/types/timer_t.h>
-#include <cerrno>
-#include <climits>
-#include <cstdio>
-#include <ctime>
-#include <pthread.h>
-#include <signal.h>
-#include <time.h>
 
 enum JfrSampleType {
   // no sample, because thread not in walkable state
@@ -859,4 +823,4 @@ void JfrCPUTimeThreadSampling::on_javathread_terminate(JavaThread* thread) {
 }
 
 
-#endif // defined(LINUX)
+#endif // defined(LINUX) && defined(INCLUDE_JFR)
