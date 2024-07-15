@@ -22,12 +22,8 @@
  *
  */
 
-#include "jfr/periodic/sampling/jfrCPUTimeThreadSampler.hpp"
-
-#if defined(LINUX) && defined(INCLUDE_JFR)
-
-
 #include "precompiled.hpp"
+#include "jfr/periodic/sampling/jfrCPUTimeThreadSampler.hpp"
 #include "jfr/recorder/service/jfrEvent.hpp"
 #include "jfr/recorder/stacktrace/jfrAsyncStackTrace.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
@@ -38,9 +34,11 @@
 #include "jfr/utilities/jfrTime.hpp"
 #include "jfrfiles/jfrEventClasses.hpp"
 #include "runtime/threadSMR.hpp"
-#include "signals_posix.hpp"
 #include "runtime/threadCrashProtection.hpp"
 #include "runtime/osThread.hpp"
+
+#if defined(LINUX)
+#include "signals_posix.hpp"
 
 enum JfrSampleType {
   // no sample, because thread not in walkable state
@@ -164,8 +162,7 @@ public:
     set_sampled_thread(jt);
     _type = NO_SAMPLE;
     _error = 1;
-    _start_time = JfrTicks::now();
-    _end_time = JfrTicks::now();
+    _start_time = _end_time = JfrTicks::now();
     if (!jt->in_deopt_handler() && !Universe::heap()->is_stw_gc_active())  {
       ThreadInAsgct tia(jt);
       if (thread_state_in_java(jt)) {
@@ -236,43 +233,37 @@ public:
     JfrCHeapObj::free(_traces, sizeof(JfrCPUTimeTrace) * _size);
   }
 
-  bool is_empty() const { return _head == _tail; }
-  bool is_full() const { return (_head + 1) % _size == _tail; }
-
   JfrCPUTimeTrace* dequeue() {
     while (true) {
-      u4 current_tail = _tail;
+      u4 current_tail = Atomic::load_acquire(&_tail);
       u4 next_tail = (current_tail + 1) % _size;
-      if (current_tail == _tail) {
-        if (current_tail == _head) {
-          return nullptr; // queue is empty
-        }
-        if (Atomic::cmpxchg(&_tail, current_tail, next_tail, atomic_memory_order::memory_order_acquire) == current_tail) {
-          JfrCPUTimeTrace* trace = _traces[current_tail];
-          return trace;
-        }
+      if (current_tail == Atomic::load_acquire(&_head)) {
+        return nullptr; // queue is empty
+      }
+      if (Atomic::cmpxchg(&_tail, current_tail, next_tail) == current_tail) {
+        JfrCPUTimeTrace* trace = _traces[current_tail];
+        _traces[current_tail] = nullptr;
+        return trace;
       }
     }
   }
 
   bool enqueue(JfrCPUTimeTrace* trace) {
     while (true) {
-      u4 current_head = _head;
+      u4 current_head = Atomic::load_acquire(&_head);
       u4 next_head = (current_head + 1) % _size;
-      if (current_head == _head) {
-        if (is_full()) {
-          return false;
-        }
-        if (Atomic::cmpxchg(&_head,
-          current_head, next_head, atomic_memory_order::memory_order_release) == current_head) {
-          _traces[current_head] = trace;
-          return true;
-        }
+      if ((current_head + 1) % _size == Atomic::load_acquire(&_tail)) {
+        return false;
+      }
+      if (Atomic::cmpxchg(&_head,
+        current_head, next_head) == current_head) {
+        _traces[current_head] = trace;
+        return true;
       }
     }
   }
 
-  u4 count() const { return (_head - _tail) % _size; }
+  u4 approximate_count() const { return (_head - _tail) % _size; }
 };
 
 
@@ -376,7 +367,7 @@ JfrCPUTimeThreadSampler::JfrCPUTimeThreadSampler(int64_t period_millis, u4 max_t
   _max_frames_per_trace(max_frames_per_trace),
   _disenrolled(true),
   _jfrFrames(JfrCHeapObj::new_array<JfrStackFrame>(_max_frames_per_trace)),
-  _min_jfr_buffer_size(_max_frames_per_trace * 2 * wordSize * (_queues.fresh().count() + 1)) {
+  _min_jfr_buffer_size(_max_frames_per_trace * 2 * wordSize * (_queues.max_traces() + 1)) {
   assert(_period_millis >= 0, "invariant");
 }
 
@@ -412,19 +403,19 @@ void JfrCPUTimeThreadSampler::start_thread() {
 }
 
 void JfrCPUTimeThreadSampler::enroll() {
-  if (_disenrolled) {
-    log_trace(jfr)("Enrolling thread sampler");
+  if (Atomic::load(&_disenrolled)) {
+    log_info(jfr)("Enrolling CPU thread sampler");
     _sample.signal();
-    _disenrolled = false;
-    printf("Enrolled\n");
+    Atomic::store(&_disenrolled, false);
     init_timers();
     set_sampling_period(get_sampling_period());
+    log_trace(jfr)("Enrolled CPU thread sampler");
   }
 }
 
 void JfrCPUTimeThreadSampler::disenroll() {
-  if (!_disenrolled) {
-    printf("Disenrolled\n");
+  if (!Atomic::load(&_disenrolled)) {
+    log_info(jfr)("Disenrolling CPU thread sampler");
     stop_timer();
     Atomic::store(&_stop_signals, true);
     while (_active_signal_handlers > 0) {
@@ -433,7 +424,7 @@ void JfrCPUTimeThreadSampler::disenroll() {
     }
     _sample.wait();
     Atomic::store(&_disenrolled, true);
-    log_trace(jfr)("Disenrolling thread sampler");
+    log_trace(jfr)("Disenrolled CPU thread sampler");
   }
 }
 
@@ -459,24 +450,20 @@ void JfrCPUTimeThreadSampler::run() {
     }
 
     // process all filled traces
-    if (!_queues.filled().is_empty()) {
-      if (_ignore_because_queue_full != 0) {
-        printf("ignore because queue full %d sum %d\n", _ignore_because_queue_full, _ignore_because_queue_full_sum);
-        if (EventCPUTimeExecutionSamplerQueueFull::is_enabled()) {
-          EventCPUTimeExecutionSamplerQueueFull event;
-          event.set_starttime(JfrTicks::now());
-          event.set_droppedSamples(_ignore_because_queue_full);
-          event.commit();
-        }
-        Atomic::store(&_ignore_because_queue_full, 0);
+    if (_ignore_because_queue_full != 0) {
+      log_info(jfr)("CPU thread sampler ignored %d elements because of full queue (sum %d)\n", _ignore_because_queue_full, _ignore_because_queue_full_sum);
+      if (EventCPUTimeExecutionSamplerQueueFull::is_enabled()) {
+        EventCPUTimeExecutionSamplerQueueFull event;
+        event.set_starttime(JfrTicks::now());
+        event.set_droppedSamples(_ignore_because_queue_full);
+        event.commit();
       }
-      process_trace_queue();
+      Atomic::store(&_ignore_because_queue_full, 0);
     }
-    if (_disenrolled) {
+    process_trace_queue();
+    if (Atomic::load(&_disenrolled)) {
       break;
     }
-
-    // assumption: every sample_interval / max_traces should come a new sample
     int64_t sleep_to_next = period_millis * NANOSECS_PER_MILLISEC / os::processor_count();
     if (sleep_to_next > 20000) {
       os::naked_short_nanosleep(sleep_to_next);
@@ -507,11 +494,11 @@ class JFRRecordSampledThreadCallback : public CrashProtectionCallback {
 static size_t count = 0;
 
 void JfrCPUTimeThreadSampler::process_trace_queue() {
-  if (max_queue_size < _queues.filled().count()) {
-    max_queue_size = _queues.filled().count();
-    printf("max queue size %d\n", max_queue_size);
+  if (max_queue_size < _queues.filled().approximate_count()) {
+    max_queue_size = _queues.filled().approximate_count();
+    log_info(jfr)("CPU thread sampler has max queue size %d\n", (int) max_queue_size);
   }
-  while (!_queues.filled().is_empty()) {
+  while (true) {
     JfrCPUTimeTrace* trace = _queues.filled().dequeue();
     if (!os::is_readable_pointer(trace)) {
       continue;
@@ -542,11 +529,12 @@ void JfrCPUTimeThreadSampler::process_trace_queue() {
     if (crash_protection.call(cb)) {
       event.set_sampledThread(cb._thread_id);
       event.set_state(static_cast<u8>(JavaThreadStatus::RUNNABLE));
-      assert(EventCPUTimeExecutionSample::is_enabled(), "invariant");
-      event.commit();
-      count++;
-      if (count % 10000 == 0) {
-        printf("count %d\n", (int) count);
+      if (EventCPUTimeExecutionSample::is_enabled()) {
+        event.commit();
+        count++;
+        if (count % 10000 == 0) {
+          log_trace(jfr)("CPU thread sampler count %d\n", (int) count);
+        }
       }
     }
     _queues.fresh().enqueue(trace);
@@ -592,8 +580,9 @@ JfrCPUTimeThreadSampling* JfrCPUTimeThreadSampling::create() {
 
 void JfrCPUTimeThreadSampling::destroy() {
   if (_instance != nullptr) {
-    delete _instance;
+    JfrCPUTimeThreadSampling *instance = _instance;
     _instance = nullptr;
+    delete _instance;
   }
 }
 
@@ -613,18 +602,15 @@ void assert_periods(const JfrCPUTimeThreadSampler* sampler, int64_t period_milli
 #endif
 
 static void log(int64_t period_millis) {
-  log_trace(jfr)("Updated thread sampler for java: " INT64_FORMAT "  ms", period_millis);
+  log_trace(jfr)("Updated CPU thread sampler for java: " INT64_FORMAT "  ms", period_millis);
 }
 
 void JfrCPUTimeThreadSampling::create_sampler(int64_t period_millis) {
   assert(_sampler == nullptr, "invariant");
-  log_trace(jfr)("Creating thread sampler for java:" INT64_FORMAT " ms", period_millis);
-  int factor = 20;
-  if (const char* env_p = std::getenv("FACTOR")) {
-    factor = std::atoi(env_p);
-  }
-  int queue_size = factor * os::processor_count();
-  printf("queue size %d\n", queue_size);
+  // factor of 20 seems to be a sweet spot between memory consumption
+  // and dropped samples
+  int queue_size = 20 * os::processor_count();
+  log_info(jfr)("Creating CPU thread sampler for java: with interval of " INT64_FORMAT " ms and a queue size of %d", period_millis, queue_size);
   _sampler = new JfrCPUTimeThreadSampler(period_millis, queue_size, JfrOptionSet::stackdepth());
   _sampler->start_thread();
   _sampler->enroll();
