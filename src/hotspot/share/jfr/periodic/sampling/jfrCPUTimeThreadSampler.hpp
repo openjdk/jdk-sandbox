@@ -28,7 +28,7 @@
 #include "jfr/utilities/jfrAllocation.hpp"
 #include "runtime/javaThread.hpp"
 
-#if defined(LINUX) && defined(INCLUDE_JFR)
+#if defined(LINUX)
 
 class JavaThread;
 class JfrCPUTimeThreadSampler;
