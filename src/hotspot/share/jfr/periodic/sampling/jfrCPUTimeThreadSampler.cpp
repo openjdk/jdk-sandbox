@@ -143,7 +143,7 @@ public:
   JfrAsyncStackFrame* frames() { return _frames; }
   u4 max_frames() const { return _max_frames; }
 
-  u4 error() const { return _error; }
+  bool successful() const { return _error == NO_ERROR; }
 
   JfrSampleType type() const { return _type; }
 
@@ -156,12 +156,22 @@ public:
 
   JfrAsyncStackTrace& stacktrace() { return _stacktrace; }
 
+  enum SampleError {
+    NO_ERROR = 0,
+    ERROR_NO_TRACE = 1,
+    ERROR_NO_TOPFRAME = 2,
+    ERROR_JAVA_WALK_FAILED = 3,
+    ERROR_NATIVE_WALK_FAILED = 4,
+    ERROR_NO_TOP_METHOD = 5,
+    ERROR_NO_LAST_JAVA_FRAME = 6
+  };
+
   // Record a trace of the current thread
   void record_trace(JavaThread* jt, void* ucontext) {
     _stacktrace = JfrAsyncStackTrace(_frames, _max_frames);
     set_sampled_thread(jt);
     _type = NO_SAMPLE;
-    _error = 1;
+    _error = ERROR_NO_TRACE;
     _start_time = _end_time = JfrTicks::now();
     if (!jt->in_deopt_handler() && !Universe::heap()->is_stw_gc_active())  {
       ThreadInAsgct tia(jt);
@@ -181,9 +191,9 @@ private:
     JfrGetCallTrace trace(true, jt);
     frame topframe;
     if (trace.get_topframe(ucontext, topframe)) {
-      _error = _stacktrace.record_async(jt, topframe) ? 0 : 11;
+      _error = _stacktrace.record_async(jt, topframe) ? NO_ERROR : ERROR_JAVA_WALK_FAILED;
     } else {
-      _error = 2;
+      _error = ERROR_NO_TOPFRAME;
       return;
      }
   }
@@ -191,29 +201,29 @@ private:
   void record_native_trace(JavaThread* jt, void* ucontext) {
     // When a thread is only attach it will be native without a last java frame
    _type = NATIVE_SAMPLE;
-    _error = 1;
+    _error = ERROR_NO_TRACE;
     if (!jt->has_last_Java_frame()) {
-      _error = 3;
+      _error = ERROR_NO_LAST_JAVA_FRAME;
       return;
     }
     frame topframe;
     if (!jt->pd_get_top_frame_for_signal_handler(&topframe, ucontext, false)) {
-      _error = 6;
+      _error = ERROR_NO_TOPFRAME;
       return;
     }
     frame first_java_frame;
     Method* method = nullptr;
     JfrGetCallTrace gct(false, jt);
     if (!gct.find_top_frame(topframe, &method, first_java_frame)) {
-      _error = 4;
+      _error = ERROR_NO_TOPFRAME;
       return;
     }
     if (method == nullptr) {
-      _error = 5;
+      _error = ERROR_NO_TOP_METHOD;
       return;
     }
     topframe = first_java_frame;
-    _error = _stacktrace.record_async(jt, topframe) ? 0 : 10;
+    _error = _stacktrace.record_async(jt, topframe) ? NO_ERROR: ERROR_NATIVE_WALK_FAILED;
   }
 };
 
@@ -509,7 +519,7 @@ void JfrCPUTimeThreadSampler::process_trace_queue() {
     // enqueue buffers
     EventCPUTimeExecutionSample event;
     const JfrBuffer* enqueue_buffer = get_enqueue_buffer();
-    if (trace->error() == 0 && trace->stacktrace().nr_of_frames() > 0) {
+    if (trace->successful() && trace->stacktrace().nr_of_frames() > 0) {
       JfrStackTrace jfrTrace(_jfrFrames, _max_frames_per_trace);
       const JfrBuffer* enqueue_buffer = get_enqueue_buffer();
       if (trace->stacktrace().store(&jfrTrace, enqueue_buffer) && jfrTrace.nr_of_frames() > 0) {

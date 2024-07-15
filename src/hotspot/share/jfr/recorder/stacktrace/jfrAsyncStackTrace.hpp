@@ -60,6 +60,7 @@ class JfrAsyncStackFrame {
 
 class JfrAsyncStackTraceStoreCallback;
 
+// A trace without methods resolved to ids
 class JfrAsyncStackTrace {
   friend class JfrCPUTimeTrace;
   friend class JfrAsyncStackTraceStoreCallback;
