@@ -36,7 +36,8 @@ import jdk.test.lib.jfr.EventNames;
  * @requires vm.hasJFR
  * @library /test/lib
  * @modules jdk.jfr/jdk.jfr.internal
- * @run main jdk.jfr.event.profiling.TestNative
+ * @run main jdk.jfr.event.profiling.TestNative wall-clock
+ * @run main jdk.jfr.event.profiling.TestNative cpu-time
  */
 public class TestNative {
 
@@ -45,7 +46,7 @@ public class TestNative {
     static volatile boolean alive = true;
 
     public static void main(String[] args) throws Exception {
-        nativeEvent = EventNames.NativeMethodSample;
+        nativeEvent = args[0].equals("wall-clock") ? EventNames.ExecutionSample : EventNames.CPUTimeExecutionSample;
         try (RecordingStream rs = new RecordingStream()) {
             rs.enable(nativeEvent).withPeriod(Duration.ofMillis(1));
             rs.onEvent(nativeEvent, e -> {
