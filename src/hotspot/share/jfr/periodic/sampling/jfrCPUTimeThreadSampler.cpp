@@ -272,8 +272,6 @@ public:
       }
     }
   }
-
-  u4 approximate_count() const { return (_head - _tail) % _size; }
 };
 
 
@@ -481,8 +479,6 @@ void JfrCPUTimeThreadSampler::run() {
   }
 }
 
-static u4 max_queue_size = 0;
-
 // crash protection for JfrThreadLocal::thread_id(trace->sampled_thread())
 // because the thread could be deallocated between the time of recording
 // and the time of processing
@@ -504,10 +500,6 @@ class JFRRecordSampledThreadCallback : public CrashProtectionCallback {
 static size_t count = 0;
 
 void JfrCPUTimeThreadSampler::process_trace_queue() {
-  if (max_queue_size < _queues.filled().approximate_count()) {
-    max_queue_size = _queues.filled().approximate_count();
-    log_info(jfr)("CPU thread sampler has max queue size %d\n", (int) max_queue_size);
-  }
   while (true) {
     JfrCPUTimeTrace* trace = _queues.filled().dequeue();
     if (!os::is_readable_pointer(trace)) {
