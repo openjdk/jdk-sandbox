@@ -147,7 +147,6 @@ public:
 
   JfrSampleType type() const { return _type; }
 
-  void set_start_time(JfrTicks start_time) { _start_time = start_time; }
   JfrTicks start_time() const { return _start_time; }
   void set_end_time(JfrTicks end_time) { _end_time = end_time; }
   JfrTicks end_time() const { return _end_time; }
@@ -530,7 +529,6 @@ void JfrCPUTimeThreadSampler::process_trace_queue() {
     ThreadCrashProtection crash_protection;
     if (crash_protection.call(cb)) {
       event.set_sampledThread(cb._thread_id);
-      event.set_state(static_cast<u8>(JavaThreadStatus::RUNNABLE));
       if (EventCPUTimeExecutionSample::is_enabled()) {
         event.commit();
         count++;
