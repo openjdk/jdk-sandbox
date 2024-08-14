@@ -608,8 +608,10 @@ static void log(int64_t period_millis) {
 void JfrCPUTimeThreadSampling::create_sampler(int64_t period_millis) {
   assert(_sampler == nullptr, "invariant");
   // factor of 20 seems to be a sweet spot between memory consumption
-  // and dropped samples
-  int queue_size = 20 * os::processor_count();
+  // and dropped samples, we additionally keep in a predetermined range
+  // to avoid adverse effects with too many or too little elements in
+  // the queue, as we only have one thread that processes the queue
+  int queue_size = 20 * max(4, min(os::processor_count(), 100));
   log_info(jfr)("Creating CPU thread sampler for java: with interval of " INT64_FORMAT " ms and a queue size of %d", period_millis, queue_size);
   _sampler = new JfrCPUTimeThreadSampler(period_millis, queue_size, JfrOptionSet::stackdepth());
   _sampler->start_thread();
