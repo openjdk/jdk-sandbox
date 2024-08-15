@@ -479,9 +479,6 @@ void JfrCPUTimeThreadSampler::run() {
       }
       Atomic::store(&_ignore_because_queue_full, 0);
     }
-    if (Atomic::load(&_disenrolled)) {
-      break;
-    }
     bool processed_anything = process_trace_queue();
     int64_t sleep_to_next = period_millis * NANOSECS_PER_MILLISEC / os::processor_count();
     if (sleep_to_next > 1000000) {
