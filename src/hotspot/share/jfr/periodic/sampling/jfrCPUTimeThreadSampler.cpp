@@ -358,7 +358,7 @@ class JfrCPUTimeThreadSampler : public NonJavaThread {
   void disenroll();
   void set_sampling_period(int64_t period_millis);
 
-  void process_trace_queue();
+  bool process_trace_queue();
  protected:
     virtual void post_run();
    public:
@@ -479,13 +479,15 @@ void JfrCPUTimeThreadSampler::run() {
       }
       Atomic::store(&_ignore_because_queue_full, 0);
     }
-    process_trace_queue();
     if (Atomic::load(&_disenrolled)) {
       break;
     }
+    bool processed_anything = process_trace_queue();
     int64_t sleep_to_next = period_millis * NANOSECS_PER_MILLISEC / os::processor_count();
-    if (sleep_to_next > 20000) {
+    if (sleep_to_next > 1000000) {
       os::naked_short_nanosleep(sleep_to_next);
+    } else if (!processed_anything) {
+      os::naked_yield();
     }
   }
 }
@@ -510,15 +512,17 @@ class JFRRecordSampledThreadCallback : public CrashProtectionCallback {
 
 static size_t count = 0;
 
-void JfrCPUTimeThreadSampler::process_trace_queue() {
+bool JfrCPUTimeThreadSampler::process_trace_queue() {
+  bool processed_anything = false;
   while (true) {
     JfrCPUTimeTrace* trace = _queues.filled().dequeue();
     if (trace == nullptr) {
-      break;
+      return processed_anything;
     }
     if (!os::is_readable_pointer(trace)) {
       continue;
     }
+    processed_anything = true;
     // create event, convert frames (resolve method ids)
     // we can't do the conversion in the signal handler,
     // as this causes segmentation faults related to the
