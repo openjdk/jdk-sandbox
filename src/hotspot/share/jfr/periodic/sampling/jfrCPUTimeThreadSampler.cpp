@@ -271,6 +271,10 @@ public:
       }
     }
   }
+
+  void reset() {
+    _head = _tail = 0;
+  }
 };
 
 
@@ -312,6 +316,14 @@ public:
   JfrFilledTraceQueue& filled() { return _filled; }
 
   u4 max_traces() const { return _max_traces; }
+
+  void reset() {
+    _fresh.reset();
+    for (u4 i = 0; i < _max_traces; i++) {
+      _fresh.enqueue(&_traces[i]);
+    }
+    _filled.reset();
+  }
 };
 
 class JfrCPUTimeFillCallback;
@@ -431,25 +443,25 @@ void JfrCPUTimeThreadSampler::disenroll() {
     }
     _sample.wait();
     Atomic::store(&_disenrolled, true);
+    _queues.reset();
+    Atomic::store(&_stop_signals, false);
     log_trace(jfr)("Disenrolled CPU thread sampler");
   }
 }
 
 void JfrCPUTimeThreadSampler::run() {
   assert(_sampler_thread == nullptr, "invariant");
-  // initialize the buffer
-  JfrTraceIdLoadBarrier::renew_sampler_enqueue_buffer(this, _min_jfr_buffer_size * 5);
   _sampler_thread = this;
   while (true) {
     if (!_sample.trywait()) {
       // disenrolled
+       printf("JfrCPUTimeThreadSampler::run() loop after trywait\n");
       _sample.wait();
     }
     _sample.signal();
 
     int64_t period_millis = get_sampling_period();
     period_millis = period_millis == 0 ? max_jlong : MAX2<int64_t>(period_millis, 1);
-
     // If both periods are max_jlong, it implies the sampler is in the process of
     // disenrolling. Loop back for graceful disenroll by means of the semaphore.
     if (period_millis == max_jlong) {
@@ -501,6 +513,9 @@ static size_t count = 0;
 void JfrCPUTimeThreadSampler::process_trace_queue() {
   while (true) {
     JfrCPUTimeTrace* trace = _queues.filled().dequeue();
+    if (trace == nullptr) {
+      break;
+    }
     if (!os::is_readable_pointer(trace)) {
       continue;
     }
@@ -580,9 +595,8 @@ JfrCPUTimeThreadSampling* JfrCPUTimeThreadSampling::create() {
 
 void JfrCPUTimeThreadSampling::destroy() {
   if (_instance != nullptr) {
-    JfrCPUTimeThreadSampling *instance = _instance;
-    _instance = nullptr;
     delete _instance;
+    _instance = nullptr;
   }
 }
 
@@ -672,7 +686,7 @@ void handle_timer_signal(int signo, siginfo_t* info, void* context) {
 
 void JfrCPUTimeThreadSampling::handle_timer_signal(void* context) {
   assert(_sampler != nullptr, "invariant");
-  if (_sampler->_stop_signals) {
+  if (Atomic::load(&_sampler->_stop_signals)) {
     return;
   }
   Atomic::inc(&_sampler->_active_signal_handlers);
