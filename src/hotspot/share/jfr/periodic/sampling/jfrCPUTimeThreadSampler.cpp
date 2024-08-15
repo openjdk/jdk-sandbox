@@ -628,7 +628,6 @@ void JfrCPUTimeThreadSampling::update_run_state(int64_t period_millis) {
       _sampler->enroll();
     }
     DEBUG_ONLY(assert_periods(_sampler, period_millis);)
-    log(period_millis);
     return;
   }
   if (_sampler != nullptr) {
@@ -723,8 +722,7 @@ bool JfrCPUTimeThreadSampler::create_timer_for_thread(JavaThread* thread, timer_
   clockid_t clock;
   int err = pthread_getcpuclockid(thread->osthread()->pthread_id(), &clock);
   if (err != 0) {
-    errno = err;
-    perror("pthread_getcpuclockid");
+    log_error(jfr)("Failed to get clock for thread sampling: %s", os::strerror(err));
     return false;
   }
   if (timer_create(clock, &sev, &t) < 0) {
