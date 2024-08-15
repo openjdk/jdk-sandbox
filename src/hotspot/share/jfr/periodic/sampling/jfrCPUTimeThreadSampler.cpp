@@ -455,7 +455,6 @@ void JfrCPUTimeThreadSampler::run() {
   while (true) {
     if (!_sample.trywait()) {
       // disenrolled
-       printf("JfrCPUTimeThreadSampler::run() loop after trywait\n");
       _sample.wait();
     }
     _sample.signal();
@@ -481,8 +480,8 @@ void JfrCPUTimeThreadSampler::run() {
     }
     bool processed_anything = process_trace_queue();
     int64_t sleep_to_next = period_millis * NANOSECS_PER_MILLISEC / os::processor_count();
-    if (sleep_to_next > 1000000) {
-      os::naked_short_nanosleep(sleep_to_next);
+    if (sleep_to_next > 300000) {
+      os::naked_sleep(sleep_to_next / 1000000);
     } else if (!processed_anything) {
       os::naked_yield();
     }
