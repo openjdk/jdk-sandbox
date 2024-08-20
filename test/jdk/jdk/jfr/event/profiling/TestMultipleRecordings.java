@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,10 +36,10 @@ import jdk.test.lib.jfr.EventNames;
  * @requires vm.hasJFR
  * @library /test/lib
  * @modules jdk.jfr/jdk.jfr.internal
- * @run main jdk.jfr.event.profiling.TestNative wall-clock
- * @run main jdk.jfr.event.profiling.TestNative cpu-time
+ * @run main jdk.jfr.event.profiling.TestMultipleRecordings wall-clock
+ * @run main jdk.jfr.event.profiling.TestMultipleRecordings cpu-time
  */
-public class TestNative {
+public class TestMultipleRecordings {
 
     static String nativeEvent;
 
@@ -47,18 +47,21 @@ public class TestNative {
 
     public static void main(String[] args) throws Exception {
         nativeEvent = args[0].equals("wall-clock") ? EventNames.NativeMethodSample : EventNames.CPUTimeExecutionSample;
-        try (RecordingStream rs = new RecordingStream()) {
-            rs.enable(nativeEvent).withPeriod(Duration.ofMillis(1));
-            rs.onEvent(nativeEvent, e -> {
-                alive = false;
-                rs.close();
-            });
-            Thread t = new Thread(TestNative::nativeMethod);
-            t.setDaemon(true);
-            t.start();
-            rs.start();
-        }
+        Thread t = new Thread(TestMultipleRecordings::nativeMethod);
+        t.setDaemon(true);
+        t.start();
+        for (int i = 0; i < 2; i++) {
+            try (RecordingStream rs = new RecordingStream()) {
+                rs.enable(nativeEvent).withPeriod(Duration.ofMillis(1));
+                rs.onEvent(nativeEvent, e -> {
+                    alive = false;
+                    rs.close();
+                });
 
+                rs.start();
+            }
+        }
+        alive = false;
     }
 
     public static void nativeMethod() {
