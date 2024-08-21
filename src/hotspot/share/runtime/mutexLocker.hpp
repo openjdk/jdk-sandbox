@@ -132,6 +132,7 @@ extern Mutex*   JfrStacktrace_lock;              // used to guard access to the 
 extern Monitor* JfrMsg_lock;                     // protects JFR messaging
 extern Mutex*   JfrBuffer_lock;                  // protects JFR buffer operations
 extern Monitor* JfrThreadSampler_lock;           // used to suspend/resume JFR thread sampler
+extern Mutex*   JfrThreadCrashProtection_lock;   // used to prevent the two JFR samplers from using CrashProtection at the same time
 #endif
 
 extern Mutex*   Metaspace_lock;                  // protects Metaspace virtualspace and chunk expansions

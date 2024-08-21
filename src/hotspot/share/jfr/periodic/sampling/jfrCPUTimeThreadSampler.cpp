@@ -359,7 +359,13 @@ class JfrCPUTimeThreadSampler : public NonJavaThread {
   void disenroll();
   void set_sampling_period(int64_t period_millis);
 
-  bool process_trace_queue();
+  enum ProcessResult {
+    PROCESS_RESULT_QUEUE_EMPTY,
+    PROCESS_RESULT_QUEUE_HAS_ELEMENTS,
+    PROCESS_RESULT_NOTHING_PROCESSED
+  };
+
+  ProcessResult process_trace_queue(int max_events);
  protected:
     virtual void post_run();
    public:
@@ -468,22 +474,30 @@ void JfrCPUTimeThreadSampler::run() {
       continue;
     }
 
-    // process all filled traces
-    if (_ignore_because_queue_full != 0) {
-      log_info(jfr)("CPU thread sampler ignored %d elements because of full queue (sum %d)\n", _ignore_because_queue_full, _ignore_because_queue_full_sum);
-      if (EventCPUTimeExecutionSamplerQueueFull::is_enabled()) {
-        EventCPUTimeExecutionSamplerQueueFull event;
-        event.set_starttime(JfrTicks::now());
-        event.set_droppedSamples(_ignore_because_queue_full);
-        event.commit();
+    ProcessResult processResult = PROCESS_RESULT_QUEUE_HAS_ELEMENTS;
+    while (processResult == PROCESS_RESULT_QUEUE_HAS_ELEMENTS) {
+
+      // process all filled traces
+      if (_ignore_because_queue_full != 0) {
+        log_info(jfr)("CPU thread sampler ignored %d elements because of full queue (sum %d)\n", _ignore_because_queue_full, _ignore_because_queue_full_sum);
+        if (EventCPUTimeExecutionSamplerQueueFull::is_enabled()) {
+          EventCPUTimeExecutionSamplerQueueFull event;
+          event.set_starttime(JfrTicks::now());
+          event.set_droppedSamples(_ignore_because_queue_full);
+          event.commit();
+        }
+        Atomic::store(&_ignore_because_queue_full, 0);
       }
-      Atomic::store(&_ignore_because_queue_full, 0);
+
+      {
+        MutexLocker ml(JfrThreadCrashProtection_lock, Mutex::_no_safepoint_check_flag);
+        processResult = process_trace_queue(1000);
+      }
     }
-    bool processed_anything = process_trace_queue();
     int64_t sleep_to_next = period_millis * NANOSECS_PER_MILLISEC / os::processor_count();
     if (sleep_to_next > 300000) {
       os::naked_sleep(sleep_to_next / 1000000);
-    } else if (!processed_anything) {
+    } else if (processResult == PROCESS_RESULT_NOTHING_PROCESSED) {
       os::naked_yield();
     }
   }
@@ -509,12 +523,13 @@ class JFRRecordSampledThreadCallback : public CrashProtectionCallback {
 
 static size_t count = 0;
 
-bool JfrCPUTimeThreadSampler::process_trace_queue() {
+ JfrCPUTimeThreadSampler::ProcessResult JfrCPUTimeThreadSampler::process_trace_queue(int max_elements) {
   bool processed_anything = false;
-  while (true) {
+  int processedElements = 0;
+  while (processedElements < max_elements) {
     JfrCPUTimeTrace* trace = _queues.filled().dequeue();
     if (trace == nullptr) {
-      return processed_anything;
+      return processed_anything ? PROCESS_RESULT_QUEUE_HAS_ELEMENTS : PROCESS_RESULT_QUEUE_EMPTY;
     }
     if (!os::is_readable_pointer(trace)) {
       continue;
@@ -555,6 +570,7 @@ bool JfrCPUTimeThreadSampler::process_trace_queue() {
     }
     _queues.fresh().enqueue(trace);
   }
+  return PROCESS_RESULT_QUEUE_HAS_ELEMENTS;
 }
 
 
@@ -623,7 +639,7 @@ void JfrCPUTimeThreadSampling::create_sampler(int64_t period_millis) {
   // predetermined range to avoid adverse effects with too many
   // or too little elements in the queue, as we only have
   // one thread that processes the queue
-  int queue_size = 20 * os::processor_count() / (period_millis > 5 ? 2 : 1);
+  int queue_size = 20 * os::processor_count() / (period_millis > 9 ? 2 : 1);
   // the queue should not be larger a factor of 4 of the max chunk size
   // so that it usually can be processed in one go without
   // allocating a new chunk
