@@ -22,6 +22,7 @@
  *
  */
 
+#include "jfr/recorder/service/jfrOptionSet.hpp"
 #include "precompiled.hpp"
 #include "jfr/periodic/sampling/jfrCPUTimeThreadSampler.hpp"
 #include "jfr/recorder/service/jfrEvent.hpp"
@@ -618,14 +619,20 @@ void assert_periods(const JfrCPUTimeThreadSampler* sampler, int64_t period_milli
 void JfrCPUTimeThreadSampling::create_sampler(int64_t period_millis) {
   assert(_sampler == nullptr, "invariant");
   // factor of 20 seems to be a sweet spot between memory consumption
-  // and dropped samples, we additionally keep in a predetermined range
-  // to avoid adverse effects with too many or too little elements in
-  // the queue, as we only have one thread that processes the queue
-  int queue_size = 20 * os::processor_count();
+  // and dropped samples for 1ms interval, we additionally keep in a
+  // predetermined range to avoid adverse effects with too many
+  // or too little elements in the queue, as we only have
+  // one thread that processes the queue
+  int queue_size = 20 * os::processor_count() / (period_millis > 5 ? 2 : 1);
+  // the queue should not be larger a factor of 4 of the max chunk size
+  // so that it usually can be processed in one go without
+  // allocating a new chunk
+  long max_chunk_size = JfrOptionSet::max_chunk_size() == 0 ? 12 * 1024 * 1024 : JfrOptionSet::max_chunk_size() / 2;
+  int max_size = max_chunk_size / 2 / wordSize / JfrOptionSet::stackdepth();
   if (queue_size < 20 * 4) {
     queue_size = 20 * 4;
-  } else if (queue_size > 20 * 100) {
-    queue_size = 20 * 100;
+  } else if (queue_size > max_size) {
+    queue_size = max_size;
   }
   log_info(jfr)("Creating CPU thread sampler for java: with interval of " INT64_FORMAT " ms and a queue size of %d", period_millis, queue_size);
   _sampler = new JfrCPUTimeThreadSampler(period_millis, queue_size, JfrOptionSet::stackdepth());
