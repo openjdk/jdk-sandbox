@@ -236,10 +236,9 @@ class JfrTraceQueue {
   u4 _size;
   volatile u4 _head;
   volatile u4 _tail;
-  volatile u4 _count;
 
 public:
-  JfrTraceQueue(u4 size): _traces(JfrCHeapObj::new_array<JfrCPUTimeTrace*>(size)), _size(size), _head(0), _tail(0), _count(0) {}
+  JfrTraceQueue(u4 size): _traces(JfrCHeapObj::new_array<JfrCPUTimeTrace*>(size)), _size(size), _head(0), _tail(0) {}
 
   ~JfrTraceQueue() {
     JfrCHeapObj::free(_traces, sizeof(JfrCPUTimeTrace) * _size);
@@ -247,15 +246,21 @@ public:
 
   JfrCPUTimeTrace* dequeue() {
     while (true) {
-      u4 current_tail = Atomic::load(&_tail);
+      u8 packed = Atomic::load_acquire(reinterpret_cast<volatile u8*>(&_head));
+#ifdef VM_LITTLE_ENDIAN
+      u4 current_head = static_cast<u4>(packed & 0xFFFFFFFF);
+      u4 current_tail = static_cast<u4>(packed >> 32);
+#else
+      u4 current_head = static_cast<u4>(packed >> 32);
+      u4 current_tail = static_cast<u4>(packed & 0xFFFFFFFF);
+#endif
       u4 next_tail = (current_tail + 1) % _size;
-      if (current_tail == Atomic::load(&_head)) {
+      if (current_tail == current_head) {
         return nullptr; // queue is empty
       }
       if (Atomic::cmpxchg(&_tail, current_tail, next_tail) == current_tail) {
         JfrCPUTimeTrace* trace = _traces[current_tail];
         _traces[current_tail] = nullptr;
-	Atomic::inc(&_count);
         return trace;
       }
     }
@@ -263,15 +268,21 @@ public:
 
   bool enqueue(JfrCPUTimeTrace* trace) {
     while (true) {
-      u4 current_head = Atomic::load(&_head);
+      u8 packed = Atomic::load_acquire(reinterpret_cast<volatile u8*>(&_head));
+#ifdef VM_LITTLE_ENDIAN
+      u4 current_head = static_cast<u4>(packed & 0xFFFFFFFF);
+      u4 current_tail = static_cast<u4>(packed >> 32);
+#else
+      u4 current_head = static_cast<u4>(packed >> 32);
+      u4 current_tail = static_cast<u4>(packed & 0xFFFFFFFF);
+#endif
       u4 next_head = (current_head + 1) % _size;
-      if ((current_head + 1) % _size == Atomic::load(&_tail)) {
+      if ((current_head + 1) % _size == current_tail) {
         return false;
       }
       if (Atomic::cmpxchg(&_head,
         current_head, next_head) == current_head) {
         _traces[current_head] = trace;
-	Atomic::dec(&_count);
 	return true;
       }
     }
@@ -280,11 +291,18 @@ public:
   void reset() {
     Atomic::store(&_tail, (u4)0);
     Atomic::store(&_head, (u4)0);
-    Atomic::store(&_count, (u4)0);
   }
 
   bool is_empty() {
-    return Atomic::load(&_count) == 0;
+    u8 packed = Atomic::load_acquire(reinterpret_cast<volatile u8*>(&_head));
+#ifdef VM_LITTLE_ENDIAN
+    u4 current_head = static_cast<u4>(packed & 0xFFFFFFFF);
+    u4 current_tail = static_cast<u4>(packed >> 32);
+#else
+    u4 current_head = static_cast<u4>(packed >> 32);
+    u4 current_tail = static_cast<u4>(packed & 0xFFFFFFFF);
+#endif
+    return current_head == current_tail;
   }
 };
 
