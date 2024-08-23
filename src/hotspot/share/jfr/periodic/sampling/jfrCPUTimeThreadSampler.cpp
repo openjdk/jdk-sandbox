@@ -247,9 +247,9 @@ public:
 
   JfrCPUTimeTrace* dequeue() {
     while (true) {
-      u4 current_tail = Atomic::load_acquire(&_tail);
+      u4 current_tail = Atomic::load(&_tail);
       u4 next_tail = (current_tail + 1) % _size;
-      if (current_tail == Atomic::load_acquire(&_head)) {
+      if (current_tail == Atomic::load(&_head)) {
         return nullptr; // queue is empty
       }
       if (Atomic::cmpxchg(&_tail, current_tail, next_tail) == current_tail) {
@@ -263,9 +263,9 @@ public:
 
   bool enqueue(JfrCPUTimeTrace* trace) {
     while (true) {
-      u4 current_head = Atomic::load_acquire(&_head);
+      u4 current_head = Atomic::load(&_head);
       u4 next_head = (current_head + 1) % _size;
-      if ((current_head + 1) % _size == Atomic::load_acquire(&_tail)) {
+      if ((current_head + 1) % _size == Atomic::load(&_tail)) {
         return false;
       }
       if (Atomic::cmpxchg(&_head,
@@ -278,12 +278,13 @@ public:
   }
 
   void reset() {
-    _head = _tail = 0;
-    _count = 0;
+    Atomic::store(&_tail, (u4)0);
+    Atomic::store(&_head, (u4)0);
+    Atomic::store(&_count, (u4)0);
   }
 
   bool is_empty() {
-    return Atomic::load(&_head) == Atomic::load(&_tail);
+    return Atomic::load(&_count) == 0;
   }
 };
 
