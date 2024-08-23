@@ -34,6 +34,7 @@
 #include "jfr/recorder/storage/jfrBuffer.hpp"
 #include "jfr/utilities/jfrTime.hpp"
 #include "jfrfiles/jfrEventClasses.hpp"
+#include "runtime/mutexLocker.hpp"
 #include "runtime/threadSMR.hpp"
 #include "runtime/threadCrashProtection.hpp"
 #include "runtime/osThread.hpp"
@@ -235,9 +236,10 @@ class JfrTraceQueue {
   u4 _size;
   volatile u4 _head;
   volatile u4 _tail;
+  volatile u4 _count;
 
 public:
-  JfrTraceQueue(u4 size): _traces(JfrCHeapObj::new_array<JfrCPUTimeTrace*>(size)), _size(size), _head(0), _tail(0) {}
+  JfrTraceQueue(u4 size): _traces(JfrCHeapObj::new_array<JfrCPUTimeTrace*>(size)), _size(size), _head(0), _tail(0), _count(0) {}
 
   ~JfrTraceQueue() {
     JfrCHeapObj::free(_traces, sizeof(JfrCPUTimeTrace) * _size);
@@ -253,6 +255,7 @@ public:
       if (Atomic::cmpxchg(&_tail, current_tail, next_tail) == current_tail) {
         JfrCPUTimeTrace* trace = _traces[current_tail];
         _traces[current_tail] = nullptr;
+	Atomic::inc(&_count);
         return trace;
       }
     }
@@ -268,13 +271,19 @@ public:
       if (Atomic::cmpxchg(&_head,
         current_head, next_head) == current_head) {
         _traces[current_head] = trace;
-        return true;
+	Atomic::dec(&_count);
+	return true;
       }
     }
   }
 
   void reset() {
     _head = _tail = 0;
+    _count = 0;
+  }
+
+  bool is_empty() {
+    return Atomic::load(&_head) == Atomic::load(&_tail);
   }
 };
 
@@ -475,7 +484,7 @@ void JfrCPUTimeThreadSampler::run() {
     }
 
     ProcessResult processResult = PROCESS_RESULT_QUEUE_HAS_ELEMENTS;
-    while (processResult == PROCESS_RESULT_QUEUE_HAS_ELEMENTS) {
+    while (processResult == PROCESS_RESULT_QUEUE_HAS_ELEMENTS && !_queues.filled().is_empty()) {
 
       // process all filled traces
       if (_ignore_because_queue_full != 0) {
@@ -491,15 +500,15 @@ void JfrCPUTimeThreadSampler::run() {
 
       {
         MutexLocker ml(JfrThreadCrashProtection_lock, Mutex::_no_safepoint_check_flag);
-        processResult = process_trace_queue(1000);
+        long end = os::javaTimeNanos();
+        processResult = process_trace_queue(20000);
+        if (processResult == PROCESS_RESULT_NOTHING_PROCESSED) {
+          break;
+        }
       }
     }
-    int64_t sleep_to_next = period_millis * NANOSECS_PER_MILLISEC / os::processor_count();
-    if (sleep_to_next > 300000) {
-      os::naked_sleep(sleep_to_next / 1000000);
-    } else if (processResult == PROCESS_RESULT_NOTHING_PROCESSED) {
-      os::naked_yield();
-    }
+    int64_t sleep_to_next = period_millis * NANOSECS_PER_MILLISEC / os::processor_count() / 2;
+    os::naked_short_nanosleep(sleep_to_next);
   }
 }
 
