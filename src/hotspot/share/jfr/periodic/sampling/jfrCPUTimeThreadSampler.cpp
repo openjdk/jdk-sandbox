@@ -232,10 +232,28 @@ private:
 // Does not own any frames
 template <bool multiple_dequeuers, bool multipler_enqueuers>
 class JfrTraceQueue {
+  struct HeadTail {
+    u4 head;
+    u4 tail;
+  };
   JfrCPUTimeTrace** _traces;
   u4 _size;
   volatile u4 _head;
   volatile u4 _tail;
+
+  HeadTail load_head_tail() {
+    HeadTail ret;
+
+    u8 packed = Atomic::load_acquire(reinterpret_cast<volatile u8*>(&_head));
+#ifdef VM_LITTLE_ENDIAN
+    ret.head = static_cast<u4>(packed & 0xFFFFFFFF);
+    ret.tail = static_cast<u4>(packed >> 32);
+#else
+    ret.head = static_cast<u4>(packed >> 32);
+    ret.tail = static_cast<u4>(packed & 0xFFFFFFFF);
+#endif
+    return ret;
+  }
 
 public:
   JfrTraceQueue(u4 size): _traces(JfrCHeapObj::new_array<JfrCPUTimeTrace*>(size)), _size(size), _head(0), _tail(0) {}
@@ -244,22 +262,11 @@ public:
     JfrCHeapObj::free(_traces, sizeof(JfrCPUTimeTrace) * _size);
   }
 
-  void unpack_head_tail(u8 packed, u4* head, u4* tail) {
-#ifdef VM_LITTLE_ENDIAN
-    *head = static_cast<u4>(packed & 0xFFFFFFFF);
-    *tail = static_cast<u4>(packed >> 32);
-#else
-    *head = static_cast<u4>(packed >> 32);
-    *tail = static_cast<u4>(packed & 0xFFFFFFFF);
-#endif
-  }
-
   JfrCPUTimeTrace* dequeue() {
     while (true) {
-      u8 packed = Atomic::load_acquire(reinterpret_cast<volatile u8*>(&_head));
-      u4 current_head = 0;
-      u4 current_tail = 0;
-      unpack_head_tail(packed, &current_head, &current_tail);
+      HeadTail ht = load_head_tail();
+      u4 current_head = ht.head;
+      u4 current_tail = ht.tail;
       u4 next_tail = (current_tail + 1) % _size;
       if (current_tail == current_head) {
         return nullptr; // queue is empty
@@ -274,10 +281,9 @@ public:
 
   bool enqueue(JfrCPUTimeTrace* trace) {
     while (true) {
-      u8 packed = Atomic::load_acquire(reinterpret_cast<volatile u8*>(&_head));
-      u4 current_head = 0;
-      u4 current_tail = 0;
-      unpack_head_tail(packed, &current_head, &current_tail);
+      HeadTail ht = load_head_tail();
+      u4 current_head = ht.head;
+      u4 current_tail = ht.tail;
       u4 next_head = (current_head + 1) % _size;
       if ((current_head + 1) % _size == current_tail) {
         return false;
@@ -291,15 +297,13 @@ public:
   }
 
   void reset() {
-    Atomic::store(&_tail, (u4)0);
-    Atomic::store(&_head, (u4)0);
+    Atomic::store(reinterpret_cast<volatile u8*>(_head), (u8)0);
   }
 
   bool is_empty() {
-    u8 packed = Atomic::load_acquire(reinterpret_cast<volatile u8*>(&_head));
-    u4 current_head = 0;
-    u4 current_tail = 0;
-    unpack_head_tail(packed, &current_head, &current_tail);
+    HeadTail ht = load_head_tail();
+    u4 current_head = ht.head;
+    u4 current_tail = ht.tail;
     return current_head == current_tail;
   }
 };
@@ -455,10 +459,9 @@ void JfrCPUTimeThreadSampler::start_thread() {
 }
 
 void JfrCPUTimeThreadSampler::enroll() {
-  if (Atomic::load(&_disenrolled)) {
+  if (Atomic::cmpxchg(&_disenrolled, true, false)) {
     log_info(jfr)("Enrolling CPU thread sampler");
     _sample.signal();
-    Atomic::store(&_disenrolled, false);
     init_timers();
     set_sampling_period(get_sampling_period());
     log_trace(jfr)("Enrolled CPU thread sampler");
@@ -466,7 +469,7 @@ void JfrCPUTimeThreadSampler::enroll() {
 }
 
 void JfrCPUTimeThreadSampler::disenroll() {
-  if (!Atomic::load(&_disenrolled)) {
+  if (Atomic::cmpxchg(&_disenrolled, false, true)) {
     log_info(jfr)("Disenrolling CPU thread sampler");
     stop_timer();
     Atomic::store(&_stop_signals, true);
@@ -475,7 +478,6 @@ void JfrCPUTimeThreadSampler::disenroll() {
       os::naked_short_nanosleep(1000);
     }
     _sample.wait();
-    Atomic::store(&_disenrolled, true);
     _queues.reset();
     Atomic::store(&_stop_signals, false);
     log_trace(jfr)("Disenrolled CPU thread sampler");
