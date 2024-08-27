@@ -121,7 +121,6 @@ static JavaThread* get_java_thread_if_valid() {
 // collected in the signal handler, required to create
 // a JFR event with a stack trace
 class JfrCPUTimeTrace {
-  template <bool multiple_dequeuers, bool multipler_enqueuers>
   friend class JfrTraceQueue;
   u4 _index;
   JfrAsyncStackFrame* _frames;
@@ -228,89 +227,92 @@ private:
   }
 };
 
-// An atomic circular buffer of JfrTraces with a fixed size
+// Fixed size array-based MPMC queue for storing traces.
 // Does not own any frames
-template <bool multiple_dequeuers, bool multipler_enqueuers>
 class JfrTraceQueue {
-  struct HeadTail {
-    u4 head;
-    u4 tail;
+
+  struct Element {
+    // Encodes generation of the element (to solve ABA problem)
+    // along with full/empty flag in the highest bit
+    u4 _state;
+    JfrCPUTimeTrace* _trace;
   };
-  JfrCPUTimeTrace** _traces;
-  u4 _size;
+
+  Element* _data;
+  u4 _capacity;
+
+  // Pad _head and _tail to avoid false sharing
+  DEFINE_PAD_MINUS_SIZE(0, DEFAULT_PADDING_SIZE, sizeof(Element*) + sizeof(u4));
+
   volatile u4 _head;
+  DEFINE_PAD_MINUS_SIZE(1, DEFAULT_PADDING_SIZE, sizeof(u4));
+
   volatile u4 _tail;
+  DEFINE_PAD_MINUS_SIZE(2, DEFAULT_PADDING_SIZE, sizeof(u4));
 
-  HeadTail load_head_tail() {
-    HeadTail ret;
+  inline Element* element(u4 index) {
+    return &_data[index % _capacity];
+  }
 
-    u8 packed = Atomic::load_acquire(reinterpret_cast<volatile u8*>(&_head));
-#ifdef VM_LITTLE_ENDIAN
-    ret.head = static_cast<u4>(packed & 0xFFFFFFFF);
-    ret.tail = static_cast<u4>(packed >> 32);
-#else
-    ret.head = static_cast<u4>(packed >> 32);
-    ret.tail = static_cast<u4>(packed & 0xFFFFFFFF);
-#endif
-    return ret;
+  inline u4 state_empty(u4 index) {
+    return (index / _capacity) & 0x7fffffff;
+  }
+
+  inline u4 state_full(u4 index) {
+    return (index / _capacity) | 0x80000000;
   }
 
 public:
-  JfrTraceQueue(u4 size): _traces(JfrCHeapObj::new_array<JfrCPUTimeTrace*>(size)), _size(size), _head(0), _tail(0) {}
-
-  ~JfrTraceQueue() {
-    JfrCHeapObj::free(_traces, sizeof(JfrCPUTimeTrace) * _size);
+  JfrTraceQueue(u4 capacity) : _capacity(capacity), _head(0), _tail(0) {
+    _data = JfrCHeapObj::new_array<Element>(capacity);
+    memset(_data, 0, _capacity * sizeof(Element));
   }
 
-  JfrCPUTimeTrace* dequeue() {
-    while (true) {
-      HeadTail ht = load_head_tail();
-      u4 current_head = ht.head;
-      u4 current_tail = ht.tail;
-      u4 next_tail = (current_tail + 1) % _size;
-      if (current_tail == current_head) {
-        return nullptr; // queue is empty
-      }
-      if (Atomic::cmpxchg(&_tail, current_tail, next_tail) == current_tail) {
-        JfrCPUTimeTrace* trace = _traces[current_tail];
-        _traces[current_tail] = nullptr;
-        return trace;
-      }
-    }
+  ~JfrTraceQueue() {
+    JfrCHeapObj::free(_data, _capacity * sizeof(Element));
   }
 
   bool enqueue(JfrCPUTimeTrace* trace) {
     while (true) {
-      HeadTail ht = load_head_tail();
-      u4 current_head = ht.head;
-      u4 current_tail = ht.tail;
-      u4 next_head = (current_head + 1) % _size;
-      if ((current_head + 1) % _size == current_tail) {
+      u4 tail = Atomic::load_acquire(&_tail);
+      Element* e = element(tail);
+      u4 state = Atomic::load_acquire(&e->_state);
+      if (state == state_empty(tail)) {
+        if (Atomic::cmpxchg(&_tail, tail, tail + 1) == tail) {
+            e->_trace = trace;
+            Atomic::release_store(&e->_state, state_full(tail));
+            return true;
+        }
+      } else if (state != state_full(tail)) {
         return false;
       }
-      if (Atomic::cmpxchg(&_head,
-        current_head, next_head) == current_head) {
-        _traces[current_head] = trace;
-	      return true;
+    }
+  }
+
+  JfrCPUTimeTrace* dequeue() {
+    while (true) {
+      u4 head = Atomic::load_acquire(&_head);
+      Element* e = element(head);
+      u4 state = Atomic::load_acquire(&e->_state);
+      if (state == state_full(head)) {
+        if (Atomic::cmpxchg(&_head, head, head + 1) == head) {
+            JfrCPUTimeTrace* trace = e->_trace;
+            Atomic::release_store(&e->_state, state_empty(head + _capacity));
+            return trace;
+        }
+      } else if (state == state_empty(head)) {
+        return nullptr;
       }
     }
   }
 
   void reset() {
-    Atomic::store(reinterpret_cast<volatile u8*>(_head), (u8)0);
-  }
-
-  bool is_empty() {
-    HeadTail ht = load_head_tail();
-    u4 current_head = ht.head;
-    u4 current_tail = ht.tail;
-    return current_head == current_tail;
+    memset(_data, 0, _capacity * sizeof(Element));
+    _head = 0;
+    _tail = 0;
+    OrderAccess::release();
   }
 };
-
-
-typedef JfrTraceQueue<true, false> JfrFreshTraceQueue;
-typedef JfrTraceQueue<false, true> JfrFilledTraceQueue;
 
 
 // Two queues for sampling, fresh and filled
@@ -318,8 +320,8 @@ typedef JfrTraceQueue<false, true> JfrFilledTraceQueue;
 class JfrTraceQueues {
   JfrAsyncStackFrame* _frames;
   JfrCPUTimeTrace* _traces;
-  JfrFreshTraceQueue _fresh;
-  JfrFilledTraceQueue  _filled;
+  JfrTraceQueue _fresh;
+  JfrTraceQueue _filled;
   u4 _max_traces;
   u4 _max_frames_per_trace;
 
@@ -343,8 +345,8 @@ public:
     JfrCHeapObj::free(_traces, sizeof(JfrCPUTimeTrace) * _max_traces);
   }
 
-  JfrFreshTraceQueue& fresh() { return _fresh; }
-  JfrFilledTraceQueue& filled() { return _filled; }
+  JfrTraceQueue& fresh() { return _fresh; }
+  JfrTraceQueue& filled() { return _filled; }
 
   u4 max_traces() const { return _max_traces; }
 
@@ -514,7 +516,7 @@ void JfrCPUTimeThreadSampler::run() {
         }
       }
 
-    while (processResult == PROCESS_RESULT_QUEUE_HAS_ELEMENTS && !_queues.filled().is_empty()) {
+    while (processResult == PROCESS_RESULT_QUEUE_HAS_ELEMENTS) {
       // process all filled traces
       {
         MutexLocker ml(JfrThreadCrashProtection_lock);
@@ -550,18 +552,13 @@ class JFRRecordSampledThreadCallback : public CrashProtectionCallback {
 
 static size_t count = 0;
 
- JfrCPUTimeThreadSampler::ProcessResult JfrCPUTimeThreadSampler::process_trace_queue(int max_elements) {
-  int processedElements = 0;
-  bool processed_anything = false;
-  while (processedElements++ < max_elements) {
+JfrCPUTimeThreadSampler::ProcessResult JfrCPUTimeThreadSampler::process_trace_queue(int max_elements) {
+  for (int processed_elements = 0; processed_elements < max_elements; processed_elements++) {
     JfrCPUTimeTrace* trace = _queues.filled().dequeue();
     if (trace == nullptr) {
-      return processed_anything ? PROCESS_RESULT_QUEUE_HAS_ELEMENTS : PROCESS_RESULT_QUEUE_EMPTY;
+      return processed_elements > 0 ? PROCESS_RESULT_QUEUE_HAS_ELEMENTS : PROCESS_RESULT_QUEUE_EMPTY;
     }
-    if (!os::is_readable_pointer(trace)) {
-      continue;
-    }
-    processed_anything = true;
+
     // create event, convert frames (resolve method ids)
     // we can't do the conversion in the signal handler,
     // as this causes segmentation faults related to the
