@@ -517,7 +517,7 @@ void JfrCPUTimeThreadSampler::run() {
     while (processResult == PROCESS_RESULT_QUEUE_HAS_ELEMENTS && !_queues.filled().is_empty()) {
       // process all filled traces
       {
-        MutexLocker ml(JfrThreadCrashProtection_lock, Mutex::_no_safepoint_check_flag);
+        MutexLocker ml(JfrThreadCrashProtection_lock);
         long end = os::javaTimeNanos();
         processResult = process_trace_queue(20000);
         if (processResult == PROCESS_RESULT_NOTHING_PROCESSED) {

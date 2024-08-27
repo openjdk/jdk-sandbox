@@ -558,12 +558,12 @@ void JfrThreadSampler::run() {
     // Note, this code used to check (next_j - sleep_to_next) <= 0,
     // but that can overflow (UB) and cause a spurious sample.
     if (next_j <= sleep_to_next) {
-      MutexLocker ml(JfrThreadCrashProtection_lock, Mutex::_no_safepoint_check_flag);
+      MutexLocker ml(JfrThreadCrashProtection_lock);
       task_stacktrace(JAVA_SAMPLE, &_last_thread_java);
       last_java_ms = get_monotonic_ms();
     }
     if (next_n <= sleep_to_next) {
-      MutexLocker ml(JfrThreadCrashProtection_lock, Mutex::_no_safepoint_check_flag);
+      MutexLocker ml(JfrThreadCrashProtection_lock);
       task_stacktrace(NATIVE_SAMPLE, &_last_thread_native);
       last_native_ms = get_monotonic_ms();
     }
