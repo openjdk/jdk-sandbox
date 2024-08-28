@@ -573,7 +573,7 @@ void JfrCPUTimeThreadSampler::process_trace_queue() {
           log_trace(jfr)("CPU thread sampler count %d\n", (int) count);
         }
       } else {
-        // TODO: log crash events
+        log_trace(jfr)("Couldn't obtain thread id\n");
       }
     }
     _queues.fresh().enqueue(trace);

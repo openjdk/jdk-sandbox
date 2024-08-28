@@ -148,7 +148,7 @@ bool JfrAsyncStackTrace::store(JfrStackTrace* trace, const JfrBuffer* const enqu
   JfrAsyncStackTraceStoreCallback cb(this, trace, enqueue_buffer);
   ThreadCrashProtection crash_protection;
   if (!crash_protection.call(cb)) {
-    log_warning(jfr)("Thread method filler crashed for native");
+    log_warning(jfr)("JFR CPU time method resolver crashed");
   }
   if (!cb.success()) {
     return false;
