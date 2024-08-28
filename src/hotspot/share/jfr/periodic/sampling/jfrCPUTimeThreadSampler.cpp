@@ -391,13 +391,8 @@ class JfrCPUTimeThreadSampler : public NonJavaThread {
   void disenroll();
   void set_sampling_period(int64_t period_millis);
 
-  enum ProcessResult {
-    PROCESS_RESULT_QUEUE_EMPTY,
-    PROCESS_RESULT_QUEUE_HAS_ELEMENTS,
-    PROCESS_RESULT_NOTHING_PROCESSED
-  };
+  void process_trace_queue();
 
-  ProcessResult process_trace_queue(int max_events);
  protected:
     virtual void post_run();
    public:
@@ -504,29 +499,20 @@ void JfrCPUTimeThreadSampler::run() {
       continue;
     }
 
-    ProcessResult processResult = PROCESS_RESULT_QUEUE_HAS_ELEMENTS;
     int ignored = Atomic::xchg(&_ignore_because_queue_full, 0);
     if (ignored != 0) {
-        log_info(jfr)("CPU thread sampler ignored %d elements because of full queue (sum %d)\n", ignored, _ignore_because_queue_full_sum);
-        if (EventCPUTimeExecutionSamplerQueueFull::is_enabled()) {
-          EventCPUTimeExecutionSamplerQueueFull event;
-          event.set_starttime(JfrTicks::now());
-          event.set_droppedSamples(ignored);
-          event.commit();
-        }
-      }
-
-    while (processResult == PROCESS_RESULT_QUEUE_HAS_ELEMENTS) {
-      // process all filled traces
-      {
-        MutexLocker ml(JfrThreadCrashProtection_lock);
-        long end = os::javaTimeNanos();
-        processResult = process_trace_queue(20000);
-        if (processResult == PROCESS_RESULT_NOTHING_PROCESSED) {
-          break;
-        }
+      log_info(jfr)("CPU thread sampler ignored %d elements because of full queue (sum %d)\n", ignored, _ignore_because_queue_full_sum);
+      if (EventCPUTimeExecutionSamplerQueueFull::is_enabled()) {
+        EventCPUTimeExecutionSamplerQueueFull event;
+        event.set_starttime(JfrTicks::now());
+        event.set_droppedSamples(ignored);
+        event.commit();
       }
     }
+
+    // process all filled traces
+    process_trace_queue();
+
     int64_t sleep_to_next = period_millis * NANOSECS_PER_MILLISEC / os::processor_count() / 2;
     os::naked_short_nanosleep(sleep_to_next);
   }
@@ -552,13 +538,9 @@ class JFRRecordSampledThreadCallback : public CrashProtectionCallback {
 
 static size_t count = 0;
 
-JfrCPUTimeThreadSampler::ProcessResult JfrCPUTimeThreadSampler::process_trace_queue(int max_elements) {
-  for (int processed_elements = 0; processed_elements < max_elements; processed_elements++) {
-    JfrCPUTimeTrace* trace = _queues.filled().dequeue();
-    if (trace == nullptr) {
-      return processed_elements > 0 ? PROCESS_RESULT_QUEUE_HAS_ELEMENTS : PROCESS_RESULT_QUEUE_EMPTY;
-    }
-
+void JfrCPUTimeThreadSampler::process_trace_queue() {
+  JfrCPUTimeTrace* trace;
+  while ((trace = _queues.filled().dequeue()) != nullptr) {
     // create event, convert frames (resolve method ids)
     // we can't do the conversion in the signal handler,
     // as this causes segmentation faults related to the
@@ -585,20 +567,18 @@ JfrCPUTimeThreadSampler::ProcessResult JfrCPUTimeThreadSampler::process_trace_qu
       ThreadCrashProtection crash_protection;
       if (crash_protection.call(cb)) {
         event.set_sampledThread(cb._thread_id);
-
         event.commit();
         count++;
         if (count % 10000 == 0) {
           log_trace(jfr)("CPU thread sampler count %d\n", (int) count);
         }
+      } else {
+        // TODO: log crash events
       }
     }
     _queues.fresh().enqueue(trace);
   }
-  return PROCESS_RESULT_QUEUE_HAS_ELEMENTS;
 }
-
-
 
 void JfrCPUTimeThreadSampler::post_run() {
   this->NonJavaThread::post_run();
