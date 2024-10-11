@@ -28,7 +28,7 @@
  * @requires vm.continuations
  * @library /test/lib
  * @modules jdk.management
- *          java.base/jdk.internal.util.json:+open
+ *          java.base/jdk.internal.util.json
  * @run junit/othervm DumpThreads
  * @run junit/othervm -Djdk.trackAllThreads DumpThreads
  * @run junit/othervm -Djdk.trackAllThreads=true DumpThreads

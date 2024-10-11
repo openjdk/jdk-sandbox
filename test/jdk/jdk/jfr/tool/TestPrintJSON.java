@@ -51,7 +51,7 @@ import jdk.test.lib.process.OutputAnalyzer;
  *
  * @library /test/lib /test/jdk
  * @modules jdk.jfr
- *          java.base/jdk.internal.util.json:+open
+ *         java.base/jdk.internal.util.json
  *
  * @run main/othervm jdk.jfr.tool.TestPrintJSON
  */
