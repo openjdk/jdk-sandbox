@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,9 @@
  * @bug 8284161 8287008 8309406
  * @summary Basic test for com.sun.management.HotSpotDiagnosticMXBean.dumpThreads
  * @requires vm.continuations
- * @modules jdk.management
  * @library /test/lib
+ * @modules jdk.management
+ *          java.base/jdk.internal.util.json:+open
  * @run junit/othervm DumpThreads
  * @run junit/othervm -Djdk.trackAllThreads DumpThreads
  * @run junit/othervm -Djdk.trackAllThreads=true DumpThreads
