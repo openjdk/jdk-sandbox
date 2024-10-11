@@ -64,7 +64,7 @@ public class TestPrintJSON {
         OutputAnalyzer output = ExecuteHelper.jfr("print", "--json", "--stack-depth", "999", recordingFile.toString());
         String json = output.getStdout();
 
-        JsonObject out = (JsonObject) JsonParser.parse(json);
+        JsonObject out = JsonParser.parseObjectRoot(json);
 
         List<RecordedEvent> events = RecordingFile.readAllEvents(recordingFile);
         Collections.sort(events, new EndTicksComparator());
