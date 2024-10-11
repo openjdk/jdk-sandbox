@@ -56,7 +56,7 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
                 if (entry.getValue() instanceof JsonValue jVal) {
                     m.put(strKey, jVal);
                 } else {
-                    m.put(strKey, JsonValue.fromUntyped(entry.getValue()));
+                    m.put(strKey, JsonValue.from(entry.getValue()));
                 }
             }
         }

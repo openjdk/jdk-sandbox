@@ -65,8 +65,8 @@ public class TestConvenienceAPI {
     @Test
     public void testGetOrDefault() {
         var obj = (JsonObject) JsonParser.parse(basicObj);
-        var fallback = JsonString.fromString("unknown");
-        assertEquals(JsonString.fromString("Brian"),
+        var fallback = JsonString.from("unknown");
+        assertEquals(JsonString.from("Brian"),
                 obj.getOrDefault("name", fallback));
         assertEquals(fallback, obj.getOrDefault("height", fallback));
     }

@@ -48,14 +48,14 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      * to any of {@code JsonValue} subtypes.
      * @throws StackOverflowError if {@code from} contains a circular reference
      */
-    static JsonValue fromUntyped(Object from) {
+    static JsonValue from(Object from) {
         return switch (from) {
-            case String str -> JsonString.fromString(str);
-            case Map<?, ?> map -> JsonObject.fromUntyped(map);
-            case List<?> list-> JsonArray.fromUntyped(list);
-            case Object[] array -> JsonArray.fromUntyped(Arrays.asList(array));
-            case Boolean bool -> JsonBoolean.fromBoolean(bool);
-            case Number num-> JsonNumber.fromNumber(num);
+            case String str -> JsonString.from(str);
+            case Map<?, ?> map -> JsonObject.from(map);
+            case List<?> list-> JsonArray.from(list);
+            case Object[] array -> JsonArray.from(Arrays.asList(array));
+            case Boolean bool -> JsonBoolean.from(bool);
+            case Number num-> JsonNumber.from(num);
             case null -> JsonNull.ofNull();
             default -> throw new IllegalArgumentException("Type not recognized.");
         };

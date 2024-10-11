@@ -83,8 +83,8 @@ public class TestSimple {
     // returns the source
     @Test
     public void untypedStringTest() {
-        var s = JsonString.fromString("\"afo\"");
-        var c = JsonString.fromString(new String(new char[]{'"', '\\', 'u', '0', '0', '6', '1', 'f', 'o', '"'}));
+        var s = JsonString.from("\"afo\"");
+        var c = JsonString.from(new String(new char[]{'"', '\\', 'u', '0', '0', '6', '1', 'f', 'o', '"'}));
         assertEquals(s.value(), c.value());
         assertNotEquals(s.toString(), c.toString());
     }
@@ -140,7 +140,7 @@ public class TestSimple {
         var doc = JsonParser.parse(sample2);
         var raw = doc.toUntyped();
         System.out.println(raw);
-        System.out.println(JsonValue.fromUntyped(raw));
+        System.out.println(JsonValue.from(raw));
 
         var m = HashMap.newHashMap(10);
         m.put("3", 3);
@@ -151,9 +151,9 @@ public class TestSimple {
         a.add(null);
         a.add("arrayElement");
         a.add(Boolean.FALSE);
-        System.out.println(JsonValue.fromUntyped(a));
+        System.out.println(JsonValue.from(a));
         try {
-            JsonValue.fromUntyped(Map.of(1, 1));
+            JsonValue.from(Map.of(1, 1));
             throw new RuntimeException("non string key was sneaked in");
         } catch (Exception _) {}
     }

@@ -79,7 +79,7 @@ public class TestEquality {
         if (JsonParser.parse(json) instanceof JsonArray jsonArray) {
             for (int i = 0; i < jsonArray.values().size(); i += 2) {
                 assertEquals(jsonArray.values().get(i), jsonArray.values().get(i + 1));
-                assertEquals(jsonArray.values().get(i), JsonValue.fromUntyped(untyped.get(i / 2)));
+                assertEquals(jsonArray.values().get(i), JsonValue.from(untyped.get(i / 2)));
             }
             System.out.println("Test passed");
         } else {

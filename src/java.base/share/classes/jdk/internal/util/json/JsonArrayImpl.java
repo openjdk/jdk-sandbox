@@ -52,7 +52,7 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
         inflated = true;
         List<JsonValue> l = new ArrayList<>(from.size());
         for (Object o : from) {
-            l.add(JsonValue.fromUntyped(o));
+            l.add(JsonValue.from(o));
         }
         theValues = Collections.unmodifiableList(l);
     }

@@ -49,7 +49,7 @@ public sealed interface JsonBoolean extends JsonValue permits JsonBooleanImpl {
      *
      * @param from the given {@code Boolean}. Non-null.
      */
-    static JsonBoolean fromBoolean(Boolean from) {
+    static JsonBoolean from(Boolean from) {
         Objects.requireNonNull(from);
         return from ? JsonBooleanImpl.TRUE : JsonBooleanImpl.FALSE;
     }

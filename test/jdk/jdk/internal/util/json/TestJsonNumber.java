@@ -41,13 +41,13 @@ import static org.junit.jupiter.api.Assertions.*;
 public class TestJsonNumber {
     @Test
     void testInteger() {
-        assertTrue(JsonValue.fromUntyped(42) instanceof JsonNumber jn &&
+        assertTrue(JsonValue.from(42) instanceof JsonNumber jn &&
                 jn.value() instanceof Integer);
     }
 
     @Test
     void testLong() {
-        assertTrue(JsonValue.fromUntyped(4242424242424242L) instanceof JsonNumber jn &&
+        assertTrue(JsonValue.from(4242424242424242L) instanceof JsonNumber jn &&
                 jn.value() instanceof Long);
     }
 
@@ -65,13 +65,13 @@ public class TestJsonNumber {
 
     @Test
     void testFraction() {
-        assertTrue(JsonValue.fromUntyped(42.42) instanceof JsonNumber jn &&
+        assertTrue(JsonValue.from(42.42) instanceof JsonNumber jn &&
                 jn.value() instanceof Double);
     }
 
     @Test
     void testExponent() {
-        assertTrue(JsonValue.fromUntyped(42e42) instanceof JsonNumber jn &&
+        assertTrue(JsonValue.from(42e42) instanceof JsonNumber jn &&
                 jn.value() instanceof Double);
     }
 }

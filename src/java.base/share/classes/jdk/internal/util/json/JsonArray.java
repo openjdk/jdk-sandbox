@@ -67,7 +67,7 @@ public sealed interface JsonArray extends JsonValue permits JsonArrayImpl {
      * @param from the list of {@code Object}s. Non-null.
      * @throws StackOverflowError if {@code from} contains a circular reference
      */
-    static JsonArray fromUntyped(List<?> from) {
+    static JsonArray from(List<?> from) {
         Objects.requireNonNull(from);
         return new JsonArrayImpl(from);
     }

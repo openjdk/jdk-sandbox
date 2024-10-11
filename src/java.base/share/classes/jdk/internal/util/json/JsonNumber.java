@@ -50,7 +50,7 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      *
      * @param num the given {@code Number}. Non-null.
      */
-    static JsonNumber fromNumber(Number num) {
+    static JsonNumber from(Number num) {
         Objects.requireNonNull(num);
         return new JsonNumberImpl(num);
     }

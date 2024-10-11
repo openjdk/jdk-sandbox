@@ -77,7 +77,7 @@ public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
      * @param from the Map of {@code Object}s. Non-null.
      * @throws StackOverflowError if {@code from} contains a circular reference
      */
-    static JsonObject fromUntyped(Map<?, ?> from) {
+    static JsonObject from(Map<?, ?> from) {
         Objects.requireNonNull(from);
         return new JsonObjectImpl(from);
     }
@@ -158,7 +158,7 @@ public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
          * @return A {@code JsonObject}.
          */
         public JsonObject build() {
-            return JsonObject.fromUntyped(map);
+            return JsonObject.from(map);
         }
     }
 }

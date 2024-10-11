@@ -49,7 +49,7 @@ public sealed interface JsonString extends JsonValue permits JsonStringImpl {
      *
      * @param from the given {@code String}. Non-null.
      */
-    static JsonString fromString(String from) {
+    static JsonString from(String from) {
         Objects.requireNonNull(from);
         return new JsonStringImpl(from);
     }

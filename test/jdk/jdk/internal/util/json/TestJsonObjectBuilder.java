@@ -58,8 +58,8 @@ public class TestJsonObjectBuilder {
     public void emptyBuildTest() {
         var expectedJson = JsonParser.parse(jsonObjStr);
         var builtJson = new JsonObject.Builder()
-                .put("name", JsonValue.fromUntyped("Brian"))
-                .put("shoeSize", JsonValue.fromUntyped(10)).build();
+                .put("name", JsonValue.from("Brian"))
+                .put("shoeSize", JsonValue.from(10)).build();
         assertEquals(expectedJson, builtJson);
     }
 
