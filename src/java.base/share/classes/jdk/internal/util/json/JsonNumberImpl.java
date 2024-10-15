@@ -192,7 +192,7 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     }
 
     @Override
-    public Number toUntyped() {
+    public Number to() {
         return value();
     }
 

@@ -63,7 +63,7 @@ public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
      * {@return the map of {@code String} to {@code Object} in this
      * JSON object}
      */
-    Map<String, Object> toUntyped();
+    Map<String, Object> to();
 
     /**
      * {@return the size of this JSON object}

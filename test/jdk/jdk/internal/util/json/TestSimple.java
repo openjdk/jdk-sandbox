@@ -138,7 +138,7 @@ public class TestSimple {
     @Test
     public void testUntyped() {
         var doc = JsonParser.parse(sample2);
-        var raw = doc.toUntyped();
+        var raw = doc.to();
         System.out.println(raw);
         System.out.println(JsonValue.from(raw));
 

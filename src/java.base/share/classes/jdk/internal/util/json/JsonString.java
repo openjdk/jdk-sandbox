@@ -41,7 +41,7 @@ public sealed interface JsonString extends JsonValue permits JsonStringImpl {
      * {@return the {@code String} value represented with this
      * {@code JsonString} value}
      */
-    String toUntyped();
+    String to();
 
     /**
      * {@return the {@code JsonString} created from the given

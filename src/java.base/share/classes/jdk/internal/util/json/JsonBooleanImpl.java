@@ -90,7 +90,7 @@ final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
     }
 
     @Override
-    public Boolean toUntyped() {
+    public Boolean to() {
         return value();
     }
 

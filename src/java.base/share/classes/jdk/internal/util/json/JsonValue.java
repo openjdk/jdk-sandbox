@@ -37,7 +37,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      * {@return an Object that represents the data} Actual data type depends
      * on the subtype of this interface.
      */
-    Object toUntyped();
+    Object to();
 
     /**
      * {@return a JsonValue that represents the data} Actual data type depends

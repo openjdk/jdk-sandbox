@@ -78,7 +78,7 @@ final class JsonNullImpl implements JsonNull, JsonValueImpl {
     }
 
     @Override
-    public Object toUntyped() {
+    public Object to() {
         return null;
     }
 

@@ -53,7 +53,7 @@ public sealed interface JsonArray extends JsonValue permits JsonArrayImpl {
     /**
      * {@return the list of {@code Object}s in this array}
      */
-    List<Object> toUntyped();
+    List<Object> to();
 
     /**
      * {@return the size of this JSON array}.

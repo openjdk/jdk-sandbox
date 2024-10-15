@@ -215,9 +215,9 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
     }
 
     @Override
-    public List<Object> toUntyped() {
+    public List<Object> to() {
         return values().stream()
-                .map(JsonValue::toUntyped)
+                .map(JsonValue::to)
                 .toList();
     }
 

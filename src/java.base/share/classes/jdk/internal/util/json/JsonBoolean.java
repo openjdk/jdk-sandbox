@@ -41,7 +41,7 @@ public sealed interface JsonBoolean extends JsonValue permits JsonBooleanImpl {
      * {@return the {@code Boolean} value represented with this
      * {@code JsonBoolean} value}
      */
-    Boolean toUntyped();
+    Boolean to();
 
     /**
      * {@return the {@code JsonBoolean} created from the given

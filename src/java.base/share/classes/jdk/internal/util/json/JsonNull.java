@@ -32,7 +32,7 @@ public sealed interface JsonNull extends JsonValue permits JsonNullImpl {
     /**
      * {@return {@code null}}
      */
-    Object toUntyped();
+    Object to();
 
     /**
      * {@return the {@code JsonNull} that represents "null" JSON value}

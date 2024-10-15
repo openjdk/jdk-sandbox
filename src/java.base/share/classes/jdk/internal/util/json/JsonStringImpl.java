@@ -89,7 +89,7 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
     }
 
     @Override
-    public String toUntyped() {
+    public String to() {
         return value();
     }
 

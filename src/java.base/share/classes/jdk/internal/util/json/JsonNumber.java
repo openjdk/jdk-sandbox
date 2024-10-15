@@ -42,7 +42,7 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      * {@code JsonNumber} value}. The actual Number type depends
      * on the number value in this JsonNumber object.
      */
-    Number toUntyped();
+    Number to();
 
     /**
      * {@return the {@code JsonNumber} created from the given
