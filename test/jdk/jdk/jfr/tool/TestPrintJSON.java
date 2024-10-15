@@ -64,14 +64,14 @@ public class TestPrintJSON {
         OutputAnalyzer output = ExecuteHelper.jfr("print", "--json", "--stack-depth", "999", recordingFile.toString());
         String json = output.getStdout();
 
-        JsonObject out = JsonParser.parseObjectRoot(json);
+        JsonValue out = JsonParser.parse(json);
 
         List<RecordedEvent> events = RecordingFile.readAllEvents(recordingFile);
         Collections.sort(events, new EndTicksComparator());
         Iterator<RecordedEvent> it = events.iterator();
 
         // Verify events are equal
-        if (out.get("recording") instanceof JsonObject recordings
+        if (out instanceof JsonObject jsonObj && jsonObj.get("recording") instanceof JsonObject recordings
                 && recordings.get("events") instanceof JsonArray jsonEvents) {
             for (JsonValue jsonEvent : jsonEvents.values()) {
                 RecordedEvent recordedEvent = it.next();

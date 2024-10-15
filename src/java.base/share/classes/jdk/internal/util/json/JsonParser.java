@@ -52,36 +52,6 @@ public class JsonParser {
     }
 
     /**
-     * Parses and creates the top level {@code JsonObject} in this JSON
-     * document.
-     *
-     * @apiNote This method serves as a convenience, and should be used
-     *          when {@code in} is a known {@code JsonObject} root. For a general
-     *          {@code JsonValue} parse, use {@link #parse(String)}.
-     * @param in the input JSON document as {@code String}. Non-null.
-     * @return a {@code JsonObject}
-     */
-    public static JsonObject parseObjectRoot(String in) {
-        Objects.requireNonNull(in);
-        return (JsonObject) parseImpl(new JsonDocumentInfo(in));
-    }
-
-    /**
-     * Parses and creates the top level {@code JsonArray} in this JSON
-     * document.
-     *
-     * @apiNote This method serves as a convenience, and should be used
-     *          when {@code in} is a known {@code JsonArray} root. For a general
-     *          {@code JsonValue} parse, use {@link #parse(String)}.
-     * @param in the input JSON document as {@code String}. Non-null.
-     * @return a {@code JsonArray}
-     */
-    public static JsonArray parseArrayRoot(String in) {
-        Objects.requireNonNull(in);
-        return (JsonArray) parseImpl(new JsonDocumentInfo(in));
-    }
-
-    /**
      * Parses and creates the top level {@code JsonValue} in this JSON
      * document.
      *
