@@ -313,7 +313,7 @@ public final class ThreadDump {
                     }
                     // threads array
                     Set<ThreadInfo> threadInfos = new HashSet<>();
-                    for (JsonValue threadObj : jaThreads) {
+                    for (JsonValue threadObj : jaThreads.values()) {
                         if (threadObj instanceof JsonObject joThread
                                 && joThread.get("tid") instanceof JsonString jsTid
                                 && joThread.get("name") instanceof JsonString jsName
@@ -321,7 +321,7 @@ public final class ThreadDump {
                             long tid = Long.parseLong(jsTid.value());
                             String threadName = jsName.value();
                             List<String> stack = new ArrayList<>();
-                            for (JsonValue steObject : jsStack) {
+                            for (JsonValue steObject : jsStack.values()) {
                                 if (steObject instanceof JsonString jsSte) {
                                     stack.add(jsSte.value());
                                 } else {

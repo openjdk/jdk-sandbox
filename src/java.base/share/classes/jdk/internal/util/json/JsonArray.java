@@ -25,7 +25,6 @@
 
 package jdk.internal.util.json;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
@@ -33,7 +32,7 @@ import java.util.stream.Stream;
 /**
  * The interface that represents JSON array
  */
-public sealed interface JsonArray extends JsonValue, Iterable<JsonValue> permits JsonArrayImpl {
+public sealed interface JsonArray extends JsonValue permits JsonArrayImpl {
     /**
      * {@return the list of {@code JsonValue} elements in this array
      * value}
@@ -60,11 +59,6 @@ public sealed interface JsonArray extends JsonValue, Iterable<JsonValue> permits
      * {@return the size of this JSON array}.
      */
     int size();
-
-    /**
-     * {@return an iterator over the {@code JsonValue}s of this {@code JsonArray}}.
-     */
-    Iterator<JsonValue> iterator();
 
     /**
      * {@return the {@code JsonArray} created from the given

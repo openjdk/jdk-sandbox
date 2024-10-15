@@ -28,7 +28,6 @@ package jdk.internal.util.json;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
@@ -268,10 +267,5 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
     @Override
     public int size() {
         return values().size();
-    }
-
-    @Override
-    public Iterator<JsonValue> iterator() {
-        return values().iterator();
     }
 }

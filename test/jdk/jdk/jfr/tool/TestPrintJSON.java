@@ -73,7 +73,7 @@ public class TestPrintJSON {
         // Verify events are equal
         if (out.get("recording") instanceof JsonObject recordings
                 && recordings.get("events") instanceof JsonArray jsonEvents) {
-            for (JsonValue jsonEvent : jsonEvents) {
+            for (JsonValue jsonEvent : jsonEvents.values()) {
                 RecordedEvent recordedEvent = it.next();
                 String typeName = recordedEvent.getEventType().getName();
                 if (jsonEvent instanceof JsonObject joEvent
