@@ -1,15 +1,41 @@
+/*
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ *
+ * This code is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 only, as
+ * published by the Free Software Foundation.
+ *
+ * This code is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * version 2 for more details (a copy is included in the LICENSE file that
+ * accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License version
+ * 2 along with this work; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
+ */
+
 package build.tools.pandocfilter;
 
-import build.tools.pandocfilter.json.JSON;
-import build.tools.pandocfilter.json.JSONArray;
-import build.tools.pandocfilter.json.JSONObject;
-import build.tools.pandocfilter.json.JSONString;
-import build.tools.pandocfilter.json.JSONValue;
+// Copied from internal.jdk.util.json by BUILD_TOOLS_JDK target
+import build.tools.json.JsonArray;
+import build.tools.json.JsonObject;
+import build.tools.json.JsonParser;
+import build.tools.json.JsonString;
+import build.tools.json.JsonValue;
 
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 public class PandocFilter {
@@ -20,76 +46,75 @@ public class PandocFilter {
      * Inspired by the walk method in
      * https://github.com/jgm/pandocfilters/blob/master/pandocfilters.py
      */
-    public JSONValue traverse(JSONValue obj, Callback callback, boolean deep) {
-        if (obj instanceof JSONArray) {
-            JSONArray array = (JSONArray) obj;
-
-            JSONArray processed_array = new JSONArray();
-            for (JSONValue elem : array) {
-                if (elem instanceof JSONObject && elem.contains("t")) {
-                    JSONValue replacement = callback.invoke(elem.get("t").asString(), elem.contains("c") ? elem.get("c") : new JSONArray());
+    public JsonValue traverse(JsonValue jsonIn, Callback callback, boolean deep) {
+        if (jsonIn instanceof JsonArray ja) {
+            List<JsonValue> processedArray = new ArrayList<>();
+            for (JsonValue jv : ja.values()) {
+                if (jv instanceof JsonObject jo && jo.contains("t") && jo.get("t") instanceof JsonString type) {
+                    JsonValue replacement = callback.invoke(
+                            type.value(), jo.contains("c") ? jo.get("c") : JsonParser.parse("[]"));
                     if (replacement == null) {
-                        // no replacement object returned, use original
-                        processed_array.add(traverse(elem, callback, deep));
-                    } else if (replacement instanceof JSONArray) {
+                        // no replacement object returned, use original value
+                        processedArray.add(traverse(jv, callback, deep));
+                    } else if (replacement instanceof JsonArray replacementArray) {
                         // array of objects returned, splice all elements into array
-                        JSONArray replacement_array = (JSONArray) replacement;
-                        for (JSONValue repl_elem : replacement_array) {
-                            processed_array.add(traverse(repl_elem, callback, deep));
+                        for (JsonValue replElem : replacementArray.values()) {
+                            processedArray.add(traverse(replElem, callback, deep));
                         }
                     } else {
                         // replacement object given, traverse it
-                        processed_array.add(traverse(replacement, callback, deep));
+                        processedArray.add(traverse(replacement, callback, deep));
                     }
                 } else {
-                    processed_array.add(traverse(elem, callback, deep));
+                    processedArray.add(traverse(jv, callback, deep));
                 }
             }
-            return processed_array;
-        } else if (obj instanceof JSONObject) {
-            if (deep && obj.contains("t")) {
-                JSONValue replacement = callback.invoke(obj.get("t").asString(), obj.contains("c") ? obj.get("c") : new JSONArray());
+            return JsonArray.ofValues(processedArray.toArray(new JsonValue[0]));
+        } else if (jsonIn instanceof JsonObject jo) {
+            if (deep && jo.contains("t") && jo.get("t") instanceof JsonString type) {
+                JsonValue replacement = callback.invoke(type.value(),
+                        jo.contains("c") ? jo.get("c") : JsonParser.parse("[]"));
                 if (replacement != null) {
                     return replacement;
                 }
-            }            JSONObject obj_obj = (JSONObject) obj;
-            var processed_obj = new JSONObject();
-            for (String key : obj_obj.keys()) {
-                processed_obj.put(key, traverse(obj_obj.get(key), callback, deep));
             }
-            return processed_obj;
+            var processed_obj = new JsonObject.Builder();
+            for (String key : jo.keys().keySet()) {
+                processed_obj.put(key, traverse(jo.get(key), callback, deep));
+            }
+            return processed_obj.build();
         } else {
-            return obj;
+            return jsonIn;
         }
     }
 
-    public JSONValue createPandocNode(String type, JSONValue content) {
+    public JsonValue createPandocNode(String type, JsonValue content) {
         if (content == null) {
-            return new JSONObject(Map.of(
-                    "t", new JSONString(type)));
+            return JsonObject.from(Map.of(
+                    "t", type));
         } else {
-            return new JSONObject(Map.of(
-                    "t", new JSONString(type),
-                    "c", content));
+            return JsonObject.from((Map.of(
+                    "t", type,
+                    "c", content)));
         }
     }
 
-    public JSONValue createPandocNode(String type) {
+    public JsonValue createPandocNode(String type) {
         return createPandocNode(type, null);
     }
 
     /*
      * Helper constructors to create pandoc format objects
      */
-    public JSONValue createSpace() {
+    public JsonValue createSpace() {
         return createPandocNode("Space");
     }
 
-    public JSONValue createStr(String string) {
-        return createPandocNode("Str", new JSONString(string));
+    public JsonValue createStr(String string) {
+        return createPandocNode("Str", JsonString.from(string));
     }
 
-    public static JSONValue loadJson(String[] args) throws FileNotFoundException {
+    public static JsonValue loadJson(String[] args) throws FileNotFoundException {
         StringBuffer input = new StringBuffer();
         InputStreamReader reader;
         if (args.length > 0)
@@ -97,12 +122,12 @@ public class PandocFilter {
         else {
             reader = new InputStreamReader(System.in);
         }
-        new BufferedReader(reader).lines().forEach(line -> input.append(line));
+        new BufferedReader(reader).lines().forEach(input::append);
 
-        return JSON.parse(input.toString());
+        return JsonParser.parse(input.toString());
     }
 
     public interface Callback {
-        JSONValue invoke(String type, JSONValue value);
+        JsonValue invoke(String type, JsonValue value);
     }
 }

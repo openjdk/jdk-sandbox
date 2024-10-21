@@ -42,6 +42,7 @@ $(eval $(call IncludeCustomExtension, CompileTools.gmk))
 BUILD_TOOLS_SRC_DIRS += \
     $(TOPDIR)/make/jdk/src/classes \
     $(BUILDTOOLS_OUTPUTDIR)/interim_tzdb_classes \
+    $(BUILDTOOLS_OUTPUTDIR)/interim_json_classes \
     #
 
 $(eval $(call SetupJavaCompilation, BUILD_TOOLS_JDK, \

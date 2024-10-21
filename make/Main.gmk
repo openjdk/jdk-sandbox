@@ -83,9 +83,13 @@ $(eval $(call SetupTarget, interim-tzdb, \
     MAKEFILE := CopyInterimTZDB, \
 ))
 
+$(eval $(call SetupTarget, interim-json, \
+    MAKEFILE := CopyInterimJSON, \
+))
+
 $(eval $(call SetupTarget, buildtools-jdk, \
     MAKEFILE := CompileToolsJdk, \
-    DEPS := interim-langtools interim-tzdb, \
+    DEPS := interim-langtools interim-tzdb interim-json, \
 ))
 
 $(eval $(call SetupTarget, buildtools-modules, \
