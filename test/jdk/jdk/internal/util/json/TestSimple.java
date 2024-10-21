@@ -23,7 +23,11 @@
  * questions.
  */
 
-
+/*
+ * @test
+ * @modules java.base/jdk.internal.util.json:+open
+ * @run junit TestSimple
+ */
 
 import org.junit.jupiter.api.Test;
 
