@@ -158,7 +158,7 @@ public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
          * @return A {@code JsonObject}.
          */
         public JsonObject build() {
-            return JsonObject.from(map);
+            return new JsonObjectImpl(map);
         }
     }
 }

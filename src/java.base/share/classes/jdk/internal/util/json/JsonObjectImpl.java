@@ -53,7 +53,10 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
             if (!(entry.getKey() instanceof String strKey)) {
                 throw new IllegalStateException("Key is not a String: " + entry.getKey());
             } else {
-                if (entry.getValue() instanceof JsonValue jVal) {
+                // Hack to allow builder to support JsonValue directly
+                if (JsonObject.Builder.class.equals(
+                        StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE).getCallerClass())
+                        && entry.getValue() instanceof JsonValue jVal) {
                     m.put(strKey, jVal);
                 } else {
                     m.put(strKey, JsonValue.from(entry.getValue()));

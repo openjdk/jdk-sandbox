@@ -90,12 +90,12 @@ public class PandocFilter {
 
     public JsonValue createPandocNode(String type, JsonValue content) {
         if (content == null) {
-            return JsonObject.from(Map.of(
-                    "t", type));
+            return new JsonObject.Builder()
+                    .put("t", JsonString.from(type)).build();
         } else {
-            return JsonObject.from((Map.of(
-                    "t", type,
-                    "c", content)));
+            return new JsonObject.Builder()
+                    .put("t", JsonString.from(type))
+                    .put("c", content).build();
         }
     }
 
