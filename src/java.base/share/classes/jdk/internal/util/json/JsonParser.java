@@ -36,14 +36,20 @@ import java.util.Objects;
  *         keys.get("name") instanceof JsonString(var name) &&
  *         keys.get("age") instanceof JsonNumber(var age)) { ... }
  * }
+ *
+ * @spec https://datatracker.ietf.org/doc/html/rfc7159 RFC 7159: The JavaScript
+ *          Object Notation (JSON) Data Interchange Format
  */
 public class JsonParser {
 
     /**
      * Parses and creates the top level {@code JsonValue} in this JSON
-     * document.
+     * document. Parsing may return the top level {@code JsonValue}
+     * without a complete parsing of the entire input document.
      *
      * @param in the input JSON document as {@code String}. Non-null.
+     * @throws JsonParseException if the input JSON document does not conform
+     *      to the JSON document format
      * @return the top level {@code JsonValue}
      */
     public static JsonValue parse(String in) {
@@ -53,14 +59,43 @@ public class JsonParser {
 
     /**
      * Parses and creates the top level {@code JsonValue} in this JSON
-     * document.
+     * document. Parsing may return the top level {@code JsonValue}
+     * without a complete parsing of the entire input document.
      *
      * @param in the input JSON document as {@code char[]}. Non-null.
+     * @throws JsonParseException if the input JSON document does not conform
+     *      to the JSON document format
      * @return the top level {@code JsonValue}
      */
     public static JsonValue parse(char[] in) {
         Objects.requireNonNull(in);
         return parseImpl(new JsonDocumentInfo(in));
+    }
+
+    /**
+     * Parses and creates the top level {@code JsonValue} in this JSON
+     * document. Parsing must validate the entire input JSON document.
+     *
+     * @param in the input JSON document as {@code String}. Non-null.
+     * @throws JsonParseException if the input JSON document does not conform
+     *      to the JSON document format
+     * @return the top level {@code JsonValue}
+     */
+    public static JsonValue parseEagerly(String in) {
+        return inflate(parse(in));
+    }
+
+    /**
+     * Parses and creates the top level {@code JsonValue} in this JSON
+     * document. Parsing must validate the entire input JSON document.
+     *
+     * @param in the input JSON document as {@code char[]}. Non-null.
+     * @throws JsonParseException if the input JSON document does not conform
+     *      to the JSON document format
+     * @return the top level {@code JsonValue}
+     */
+    public static JsonValue parseEagerly(char[] in) {
+        return inflate(parse(in));
     }
 
     // return the root value
@@ -145,6 +180,15 @@ public class JsonParser {
             case ' ', '\t', '\n', '\r' -> true;
             default -> false;
         };
+    }
+
+    static JsonValue inflate(JsonValue jv) {
+        switch (jv) {
+            case JsonArray ja -> ja.values().forEach(JsonParser::inflate);
+            case JsonObject jo -> jo.keys().forEach((k,v) -> inflate(v));
+            default -> {}
+        }
+        return jv;
     }
 
     // no instantiation of this parser
