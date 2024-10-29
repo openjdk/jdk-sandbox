@@ -82,7 +82,7 @@ public class JsonParser {
      * @return the top level {@code JsonValue}
      */
     public static JsonValue parseEagerly(String in) {
-        return inflate(parse(in));
+        return validate(parse(in));
     }
 
     /**
@@ -95,7 +95,7 @@ public class JsonParser {
      * @return the top level {@code JsonValue}
      */
     public static JsonValue parseEagerly(char[] in) {
-        return inflate(parse(in));
+        return validate(parse(in));
     }
 
     // return the root value
@@ -182,11 +182,14 @@ public class JsonParser {
         };
     }
 
-    static JsonValue inflate(JsonValue jv) {
+    static JsonValue validate(JsonValue jv) {
         switch (jv) {
-            case JsonArray ja -> ja.values().forEach(JsonParser::inflate);
-            case JsonObject jo -> jo.keys().forEach((k,v) -> inflate(v));
-            default -> {}
+            case JsonArray ja -> ja.values().forEach(JsonParser::validate);
+            case JsonBoolean jb -> jb.value();
+            case JsonNull _ -> {}
+            case JsonNumber jn -> jn.value();
+            case JsonObject jo -> jo.keys().forEach((k,v) -> validate(v));
+            case JsonString js -> js.value();
         }
         return jv;
     }
