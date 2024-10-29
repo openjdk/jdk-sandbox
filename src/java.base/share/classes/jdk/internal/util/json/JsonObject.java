@@ -49,6 +49,7 @@ public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
      * {@return the {@code JsonValue} member, or {@code defaultValue} if this
      * JSON object does not contain the key}
      * @param key the String key
+     * @param defaultValue the default value for the key
      */
     JsonValue getOrDefault(String key, JsonValue defaultValue);
 
@@ -123,6 +124,8 @@ public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
          * {@code Builder}. If the {@code Builder} previously contained a mapping
          * for the key, the old value is replaced.
          *
+         * @param key key with which the specified value is to be associated
+         * @param val value to be associated with the specified key
          * @return This {@code Builder}.
          */
         public Builder put(String key, JsonValue val) {
@@ -134,6 +137,7 @@ public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
          * Removes the mapping for the specified key from this {@code Builder},
          * if present.
          *
+         * @param key whose mapping is to be removed from this {@code Builder}
          * @return This {@code Builder}.
          */
         public Builder remove(String key) {
