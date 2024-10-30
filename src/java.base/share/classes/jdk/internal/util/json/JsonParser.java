@@ -186,8 +186,7 @@ public class JsonParser {
         switch (jv) {
             case JsonArray ja -> ja.values().forEach(JsonParser::validate);
             case JsonBoolean jb -> jb.value();
-            // Why not JsonNull? (Does not provide value(), nor should it)
-            case JsonNullImpl jnll -> jnll.value();
+            case JsonNull _ -> {}
             case JsonNumber jn -> jn.value();
             case JsonObject jo -> jo.keys().forEach((k,v) -> validate(v));
             case JsonString js -> js.value();
