@@ -64,7 +64,8 @@ public class TestParse {
             Arguments.of("{\"bar\": \"baz\"}"),
             Arguments.of(" 42 "),
             Arguments.of(" true "),
-            Arguments.of(" null ")
+            Arguments.of(" null "),
+            Arguments.of("\"foo\"")
         );
     }
 
@@ -74,7 +75,8 @@ public class TestParse {
             Arguments.of("{\"bar\": baz}"),
             Arguments.of(" 42-3 "),
             Arguments.of(" trueee "),
-            Arguments.of(" nul ")
+            Arguments.of(" nul "),
+            Arguments.of("\"foo\\u323\"")
         );
     }
 
