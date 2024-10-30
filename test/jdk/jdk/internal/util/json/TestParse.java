@@ -31,7 +31,11 @@
 
 import jdk.internal.util.json.JsonParseException;
 import jdk.internal.util.json.JsonParser;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -47,37 +51,55 @@ public class TestParse {
               "foo",
               "bar",
               {
-                %s
+                "foo": %s
               }
             ]
           }
         }
         """;
-    private static final String VALID = TEMPLATE.formatted("""
-            "foo": "bar"
-            """);
-    private static final String BROKEN = TEMPLATE.formatted("""
-            "foo": // invalid value
-            """);
 
-    @Test
-    public void validLazyParse() {
-        JsonParser.parse(VALID);
+    private static Stream<Arguments> validValues() {
+        return Stream.of(
+            Arguments.of("[ 1, 2, 3, \"bar\" ]"),
+            Arguments.of("{\"bar\": \"baz\"}"),
+            Arguments.of(" 42 "),
+            Arguments.of(" true "),
+            Arguments.of(" null ")
+        );
     }
 
-    @Test
-    public void brokenLazyParse() {
-        JsonParser.parse(BROKEN);
+    private static Stream<Arguments> invalidValues() {
+        return Stream.of(
+            Arguments.of("[ 1, 2, 3 \"bar\" ]"),
+            Arguments.of("{\"bar\": baz}"),
+            Arguments.of(" 42-3 "),
+            Arguments.of(" trueee "),
+            Arguments.of(" nul ")
+        );
     }
 
-    @Test
-    public void validEagerParse() {
-        JsonParser.parseEagerly(VALID);
+    @ParameterizedTest
+    @MethodSource("validValues")
+    public void validLazyParse(String value) {
+        JsonParser.parse(TEMPLATE.formatted(value));
     }
 
-    @Test
-    public void brokenEagerParse() {
+    @ParameterizedTest
+    @MethodSource("invalidValues")
+    public void invalidLazyParse(String value) {
+        JsonParser.parse(TEMPLATE.formatted(value));
+    }
+
+    @ParameterizedTest
+    @MethodSource("validValues")
+    public void validEagerParse(String value) {
+        JsonParser.parseEagerly(TEMPLATE.formatted(value));
+    }
+
+    @ParameterizedTest
+    @MethodSource("invalidValues")
+    public void invalidEagerParse(String value) {
         assertThrows(JsonParseException.class, () ->
-            JsonParser.parseEagerly(BROKEN));
+            JsonParser.parseEagerly(TEMPLATE.formatted(value)));
     }
 }
