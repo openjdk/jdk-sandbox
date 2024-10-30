@@ -36,14 +36,14 @@ final class JsonNullImpl implements JsonNull, JsonValueImpl {
     private final int endIndex;
 
     static final JsonNullImpl NULL = new JsonNullImpl();
-    static final String VALUE = "null";
-    static final int HASH = Objects.hash(VALUE);
+    private String value;
 
     JsonNullImpl() {
         docInfo = null;
         startOffset = 0;
         endOffset = 0;
         endIndex = 0;
+        value = "null";
     }
 
     JsonNullImpl(JsonDocumentInfo docInfo, int offset, int index) {
@@ -51,10 +51,6 @@ final class JsonNullImpl implements JsonNull, JsonValueImpl {
         startOffset = offset;
         endIndex = docInfo.nextIndex(index);
         endOffset = endIndex != -1 ? docInfo.getOffset(endIndex) : docInfo.getEndOffset();
-        if (!"null".equals(docInfo.substring(startOffset, endOffset).trim())) {
-            throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                    "'null' expected.", startOffset), startOffset);
-        }
     }
 
     @Override
@@ -74,7 +70,7 @@ final class JsonNullImpl implements JsonNull, JsonValueImpl {
 
     @Override
     public int hashCode() {
-        return HASH;
+        return Objects.hash(value());
     }
 
     @Override
@@ -84,12 +80,24 @@ final class JsonNullImpl implements JsonNull, JsonValueImpl {
 
     @Override
     public String toString() {
-        return VALUE;
+        return value();
+    }
+
+    // A validation method that returns a string representation of null, not null
+    public String value() {
+        if (value == null) {
+            if (!"null".equals(docInfo.substring(startOffset, endOffset).trim())) {
+                throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                        "'null' expected.", startOffset), startOffset);
+            }
+            value = "null";
+        }
+        return value;
     }
 
     @Override
     public String formatCompact() {
-        return VALUE;
+        return value();
     }
 
     @Override
@@ -99,6 +107,6 @@ final class JsonNullImpl implements JsonNull, JsonValueImpl {
 
     @Override
     public String formatReadable(int indent, boolean isField) {
-        return " ".repeat(isField ? 1 : indent) + VALUE;
+        return " ".repeat(isField ? 1 : indent) + value();
     }
 }
