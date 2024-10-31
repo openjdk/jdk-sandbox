@@ -30,22 +30,34 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The interface that represents JSON value
+ * The interface that represents a JSON value. {@code JsonValue} is the type returned
+ * by a {@link JsonParser} parse. Valid subtypes are either {@code JsonString},
+ * {@code JsonNumber}, {@code JsonObject}, {@code JsonArray}, {@code JsonBoolean},
+ * or {@code JsonNull}.
+ * <p>
+ * See {@link #to()} and {@link #from(Object)} for converting between a {@code JsonValue}
+ * and its corresponding data type. For example,
+ * {@snippet lang=java:
+ *     var values = Arrays.asList("foo", "bar", "baz");
+ *     var json = JsonValue.from(values);
+ *     json.to().equals(values); // returns true
+ * }
  */
-public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, JsonArray, JsonBoolean, JsonNull {
+public sealed interface JsonValue
+        permits JsonString, JsonNumber, JsonObject, JsonArray, JsonBoolean, JsonNull {
+
     /**
-     * {@return an Object that represents the data} Actual data type depends
-     * on the subtype of this interface.
+     * {@return an {@code Object} that represents the data of this {@code JsonValue}}
+     * The return type depends on the subtype of this interface.
      */
     Object to();
 
     /**
-     * {@return a JsonValue that represents the data} Actual data type depends
-     * on the subtype of this interface.
+     * {@return a {@code JsonValue} that represents the data type of {@code from}}
      *
-     * @param from the data to produce the JsonValue from. May be null.
+     * @param from the data to produce the {@code JsonValue} from. May be null.
      * @throws IllegalArgumentException if {@code from} cannot be converted
-     * to any of {@code JsonValue} subtypes.
+     * to any of the {@code JsonValue} subtypes.
      * @throws StackOverflowError if {@code from} contains a circular reference
      */
     static JsonValue from(Object from) {
@@ -63,14 +75,14 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
 
     /**
      * {@return the String representation of this {@code JsonValue} that conforms
-     * to the JSON syntax} The output String is as compact as possible, which does
-     * not contain any white spaces or line-breaks.
+     * to the JSON syntax} The output String is compact, it does not contain any
+     * white spaces or line-breaks.
      */
     String formatCompact();
 
     /**
      * {@return the String representation of this {@code JsonValue} that conforms
-     * to the JSON syntax} The output String is human-readable, which involves
+     * to the JSON syntax} The output String is human-readable, it involves
      * indentation, spacing, and line-breaks.
      */
     String formatReadable();
