@@ -26,15 +26,9 @@
 package jdk.internal.util.json;
 
 /**
- * The interface that represents JSON null
- * A {@code JsonNull} can be produced by a {@link JsonParser} parse. A {@code
- * JsonNull} string passed to a {@code parse} has syntax as follows,
- * <blockquote><pre>
- * <i>JSON Null</i> = <i>null</i>
- * </pre></blockquote>
- * A well-formed {@code JsonNull} string is simply the literal {@code null}.
- * Note that this value is case-sensitive, and is required to be lowercase.
+ * The interface that represents JSON null.
  * <p>
+ * A {@code JsonNull} can be produced by a {@link JsonParser} parse.
  * Alternatively, {@link #ofNull()} can be used to obtain a {@code JsonNull}.
  */
 public sealed interface JsonNull extends JsonValue permits JsonNullImpl {

@@ -32,20 +32,7 @@ import java.util.Objects;
 /**
  * The interface that represents JSON object.
  * <p>
- * A {@code JsonObject} can be produced by a {@link JsonParser} parse. A {@code
- * JsonObject} string passed to a {@code parse} has syntax as follows,
- * <blockquote><pre>
- * <i>JSON object</i> = '{' [ <i>element</i> *( ',' <i>element</i> ) ] '}'
- * <i>element</i> = <i>JSON String</i> ':' <i>JSON value</i>
- * </pre></blockquote>
- * A well-formed {@code JsonObject} string has the form of a pair of curly brackets
- * enclosing zero or more key value pairs. Each key is a {@code JsonString} string, and
- * each value is a {@code JsonValue} string. Each key and value are separated by a colon.
- * Subsequent key value pairs are followed by a comma. Duplicate keys are not allowed.
- * For example, the following is a well-formed {@code JsonObject} string,
- * <blockquote><pre>
- * {@code "{ \"name\" : \"John\", \"age\" : 35}" }
- * </pre></blockquote>
+ * A {@code JsonObject} can be produced by a {@link JsonParser} parse.
  * <p> Alternatively, {@link #from(Map)} can be used to obtain a {@code JsonObject}
  * from a {@code Map}. {@link #to} is the inverse operation, producing a {@code Map} from a
  * {@code JsonObject}. These methods are not guaranteed to produce a round-trip.

@@ -28,18 +28,9 @@ package jdk.internal.util.json;
 import java.util.Objects;
 
 /**
- * The interface that represents JSON boolean
- * A {@code JsonBoolean} can be produced by a {@link JsonParser} parse. A {@code
- * JsonBoolean} string passed to a {@code parse} has syntax as follows,
- * <blockquote><pre>
- * <i>JSON boolean</i> =
- *      <i>true</i>
- *      <i>false</i>
- * </pre></blockquote>
- * A well-formed {@code JsonBoolean} string is simply one of the literal names:
- * {@code true} or {@code false}. Note that these values are case-sensitive, and
- * are required to be lowercase.
+ * The interface that represents JSON boolean.
  * <p>
+ * A {@code JsonBoolean} can be produced by a {@link JsonParser} parse.
  * Alternatively, {@link #from(Boolean)} can be used to obtain a {@code JsonBoolean}
  * from a {@code Boolean}. {@link #to()} is the inverse operation, producing a {@code Boolean} from a
  * {@code JsonBoolean}.
