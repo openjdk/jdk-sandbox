@@ -39,8 +39,8 @@ import java.util.Objects;
  * <i>element</i> = JSON String ':' JSON value
  * </pre></blockquote>
  * A well-formed {@code JsonObject} string has the form of a pair of curly brackets
- * enclosing zero or more key value pairs. Each key is a {@code JsonString}, and
- * each value is a {@code JsonValue}. Each key and value are separated by a colon.
+ * enclosing zero or more key value pairs. Each key is a {@code JsonString} string, and
+ * each value is a {@code JsonValue} string. Each key and value are separated by a colon.
  * Subsequent key value pairs are followed by a comma. Duplicate keys are not allowed.
  * For example, the following is a well-formed {@code JsonObject} string,
  * <blockquote><pre>
