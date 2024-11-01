@@ -84,10 +84,18 @@ public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
     }
 
     /**
-     * Used to build instances of {@code JsonObject}
+     * {@code Builder} is used to build new instances of {@code JsonObject}.
+     * For example,
+     * {@snippet lang=java:
+     *     var original = JsonParser.parse("{ \"name\" : \"Foo\" }");
+     *     if (original instanceof JsonObject json) {
+     *         var modified = new JsonObject.Builder(json).put("name", JsonString.from("Bar")).build();
+     *     }
+     * }
      *
      * @apiNote Use this class to construct a new {@code JsonObject} from
-     * an existing {@code JsonObject}.
+     * an existing {@code JsonObject}. This is useful for mutating a {@code JsonObject}
+     * without having to modify the underlying data.
      */
     final class Builder {
 
@@ -95,14 +103,14 @@ public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
         private final Map<String, JsonValue> map;
 
         /**
-         * Constructs a {@code Builder} composed of the {@code JsonObject} provided.
+         * Constructs a {@code Builder} composed of the underlying data provided
+         * by {@code json}.
          *
-         * @param obj the {@code JsonObject} to initialize the {@code Builder} with.
+         * @param json the {@code JsonObject} to initialize the {@code Builder} with.
          * @throws NullPointerException if {@code JsonObject} is null.
          */
-        public Builder(JsonObject obj) {
-            Objects.requireNonNull(obj);
-            var impl = (JsonObjectImpl) obj;
+        public Builder(JsonObject json) {
+            var impl =  (JsonObjectImpl) Objects.requireNonNull(json);
             if (!impl.inflated) {
                 // Finish inflation to get all elements if not fully inflated
                 impl.inflateAll();
