@@ -37,7 +37,7 @@ import java.util.Objects;
  *         keys.get("age") instanceof JsonNumber(var age)) { ... }
  * }
  *
- * @spec https://datatracker.ietf.org/doc/html/rfc7159 RFC 7159: The JavaScript
+ * @spec https://datatracker.ietf.org/doc/html/rfc8259 RFC 8259: The JavaScript
  *          Object Notation (JSON) Data Interchange Format
  */
 public class JsonParser {
