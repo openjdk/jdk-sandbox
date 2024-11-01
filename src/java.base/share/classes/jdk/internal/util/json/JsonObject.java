@@ -30,7 +30,26 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * The interface that represents JSON object
+ * The interface that represents JSON object.
+ * <p>
+ * A {@code JsonObject} can be produced by a {@link JsonParser} parse. A {@code
+ * JsonObject} string passed to a {@code parse} has syntax as follows,
+ * <blockquote><pre>
+ * <i>JSON object</i> = '{' [ <i>element</i> *( ',' <i>element</i> ) ] '}'
+ * <i>element</i> = JSON String ':' JSON value
+ * </pre></blockquote>
+ * A well-formed {@code JsonObject} string has the form of a pair of curly brackets
+ * enclosing zero or more key value pairs. Each key is a {@code JsonString}, and
+ * each value is a {@code JsonValue}. Each key and value are separated by a colon.
+ * Subsequent key value pairs are followed by a comma. Duplicate keys are not allowed.
+ * For example, the following is a well-formed {@code JsonObject} string,
+ * <blockquote><pre>
+ * {@code "{ \"name\" : \"John\", \"age\" : 35}" }
+ * </pre></blockquote>
+ * <p> Alternatively, {@link #from(Map)} can be used to obtain a {@code JsonObject}
+ * from a {@code Map}. {@link #to} is the opposite operation, producing a {@code Map} from a
+ * {@code JsonObject}. Callers of {@link #from(Map)} should be aware that a {@code Map}
+ * containing a circular reference will cause a {@code StackOverFlowError}.
  */
 public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
     /**
@@ -73,7 +92,8 @@ public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
 
     /**
      * {@return the {@code JsonObject} created from the given
-     * Map of {@code Object}s}
+     * Map of {@code Object}s} Keys should be strings, and values should be any
+     * value that can be successfully passed to a {@link #from(Object)} call.
      *
      * @param from the Map of {@code Object}s. Non-null.
      * @throws StackOverflowError if {@code from} contains a circular reference
