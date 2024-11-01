@@ -31,6 +31,22 @@ import java.util.stream.Stream;
 
 /**
  * The interface that represents JSON array
+ * <p>
+ * A {@code JsonArray} can be produced by a {@link JsonParser} parse. A {@code
+ * JsonArray} string passed to a {@code parse} has syntax as follows,
+ * <blockquote><pre>
+ * <i>JSON array</i> = '[' [ <i>JSON value</i> *( ',' <i>JSON value</i> ) ] ']'
+ * </pre></blockquote>
+ * A well-formed {@code JsonArray} string has the form of a pair of square brackets
+ * enclosing zero or more JSON values. Subsequent JSON values are followed by a comma.
+ * Note that the JSON values need not be of the same subtype.
+ * For example, the following is a well-formed {@code JsonArray} string,
+ * <blockquote><pre>
+ * {@code "[ \"John\", 35, true ]" }
+ * </pre></blockquote>
+ * <p> Alternatively, {@link #from(List)} can be used to obtain a {@code JsonArray}
+ * from a {@code List}. {@link #to()} is the inverse operation, producing a {@code List} from a
+ * {@code JsonArray}. These methods are not guaranteed to produce a round-trip.
  */
 public sealed interface JsonArray extends JsonValue permits JsonArrayImpl {
     /**
@@ -62,7 +78,9 @@ public sealed interface JsonArray extends JsonValue permits JsonArrayImpl {
 
     /**
      * {@return the {@code JsonArray} created from the given
-     * list of {@code Object}s}
+     * list of {@code Object}s} {@code Element}(s) in {@code from} should be any
+     * value such that {@link #from(Object) JsonValue.from(element)} does not throw
+     * an exception.
      *
      * @param from the list of {@code Object}s. Non-null.
      * @throws StackOverflowError if {@code from} contains a circular reference
