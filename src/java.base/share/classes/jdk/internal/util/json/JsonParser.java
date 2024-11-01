@@ -28,8 +28,13 @@ package jdk.internal.util.json;
 import java.util.Objects;
 
 /**
- * A simple JSON parser that utilizes the deconstructor pattern matching. For a
- * simple JSON data, values can be retrieved using the pattern match, such as:
+ * This class is used to obtain a {@code JsonValue} by parsing data that
+ * adhere to the JSON syntax defined in RFC 8259. For alternative ways to obtain
+ * a {@code JsonValue}, see {@link JsonValue#from(Object)}.
+ * <p>
+ * This parser utilizes deconstructor pattern matching. For simple JSON data,
+ * the underlying data of a {@code JsonValue} can be retrieved using pattern matching,
+ * such as:
  * {@snippet lang=java :
  *     JsonValue doc = JsonParser.parse(aString);
  *     if (doc instanceof JsonObject(var keys) &&
