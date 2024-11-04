@@ -30,6 +30,7 @@
  */
 
 import jdk.internal.util.json.JsonNumber;
+import jdk.internal.util.json.JsonParseException;
 import jdk.internal.util.json.JsonParser;
 import jdk.internal.util.json.JsonValue;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,21 @@ import java.math.BigInteger;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestJsonNumber {
+
+    @Test
+    void testInfinity() {
+        assertThrows(JsonParseException.class, () -> JsonNumber.from(Double.POSITIVE_INFINITY));
+        assertThrows(JsonParseException.class, () -> JsonNumber.from(Double.NEGATIVE_INFINITY));
+        assertThrows(JsonParseException.class, () -> ((JsonNumber) JsonParser.parse("1e309")).value());
+        assertThrows(JsonParseException.class, () -> ((JsonNumber) JsonParser.parse("-1e309")).value());
+    }
+
+    @Test
+    void testNan() {
+        assertThrows(JsonParseException.class, () -> JsonNumber.from(Double.NaN));
+        // parse test not required for Nan, cannot parse "NaN"
+    }
+
     @Test
     void testInteger() {
         assertTrue(JsonValue.from(42) instanceof JsonNumber jn &&

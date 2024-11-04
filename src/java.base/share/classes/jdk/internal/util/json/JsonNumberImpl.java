@@ -43,6 +43,12 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
         startOffset = 0;
         endOffset = 0;
         endIndex = 0;
+        if (num instanceof Double d) {
+            if (Double.isNaN(d) || Double.isInfinite(d)) {
+                // Need more appropriate exception type later
+                throw new JsonParseException("Cannot create a JsonNumber from infinity or NaN", 0);
+            }
+        }
         theNumber = num;
     }
 
@@ -168,10 +174,9 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
         if (sawDecimal || sawExponent) {
             var num = Double.parseDouble(numString);
 
-            if (num == Double.POSITIVE_INFINITY ||
-                    num == Double.NEGATIVE_INFINITY) {
+            if (Double.isInfinite(num)) { // don't need to check NaN, parsing forbids non int start
                 throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                        "Number too large or small.", offset), offset);
+                        "Number cannot be infinite.", offset), offset);
             }
 
             return num;
