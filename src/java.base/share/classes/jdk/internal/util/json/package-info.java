@@ -57,9 +57,9 @@
 ///Then the leaf JSON value can be extracted in a single expression as follows:
 ///```
 ///JsonValue doc = JsonParser.parse(inputString);
-///if (doc instanceof JsonObject o && o.keys() instance Map<String, JsonValue> keys
-///    && keys.get("name") instanceof JsonString jstring && jstring.value() instance String name
-///    && keys.get("age") instanceof JsonNumber number && jnumber.value() instance int age) {
+///if (doc instanceof JsonObject o && o.keys() instanceof Map<String, JsonValue> keys
+///    && keys.get("name") instanceof JsonString jstring && jstring.value() instanceof String name
+///    && keys.get("age") instanceof JsonNumber number && jnumber.value() instanceof int age) {
 ///        // use "name" and "age"
 ///}
 ///```
