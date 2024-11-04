@@ -45,8 +45,7 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
         endIndex = 0;
         if (num instanceof Double d) {
             if (Double.isNaN(d) || Double.isInfinite(d)) {
-                // Need more appropriate exception type later
-                throw new JsonParseException("Cannot create a JsonNumber from infinity or NaN", 0);
+                throw new IllegalArgumentException("Not a valid JSON number");
             }
         }
         theNumber = num;

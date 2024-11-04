@@ -54,6 +54,7 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      * {@code Number} object}
      *
      * @param num the given {@code Number}. Non-null.
+     * @throws IllegalArgumentException if {@code num} is infinite or NaN.
      */
     static JsonNumber from(Number num) {
         Objects.requireNonNull(num);
