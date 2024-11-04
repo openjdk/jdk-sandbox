@@ -38,9 +38,16 @@ import java.util.Map;
  * See {@link #to()} and {@link #from(Object)} for converting between a {@code JsonValue}
  * and its corresponding data type. For example,
  * {@snippet lang=java:
- *     var values = Arrays.asList("foo", "bar", "baz");
+ *     var values = Arrays.asList("foo", true, 25);
  *     var json = JsonValue.from(values);
  *     json.to().equals(values); // returns true
+ * }
+ * See {@link #formatCompact()} and {@link #formatReadable()} for converting a {@code JsonValue}
+ * to its corresponding JSON String. For example,
+ * {@snippet lang=java:
+ *     var values = Arrays.asList("foo", true, 25);
+ *     var json = JsonValue.from(values);
+ *     json.formatCompact(); // returns "[\"foo\",true,25]"
  * }
  */
 public sealed interface JsonValue
