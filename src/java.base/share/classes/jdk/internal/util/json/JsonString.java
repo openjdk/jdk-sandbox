@@ -29,6 +29,11 @@ import java.util.Objects;
 
 /**
  * The interface that represents JSON string
+ * <p>
+ * A {@code JsonString} can be produced by a {@link JsonParser} parse.
+ * <p> Alternatively, {@link #from(String)} can be used to obtain a {@code JsonString}
+ * from a {@code String}. {@link #to()} is the inverse operation, producing a {@code String} from a
+ * {@code JsonString}. These methods are not guaranteed to produce a round-trip.
  */
 public sealed interface JsonString extends JsonValue permits JsonStringImpl {
     /**

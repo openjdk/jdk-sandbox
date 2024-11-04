@@ -29,6 +29,11 @@ import java.util.Objects;
 
 /**
  * The interface that represents JSON number
+ * <p>
+ * A {@code JsonNumber} can be produced by a {@link JsonParser} parse.
+ * <p> Alternatively, {@link #from(Number)} can be used to obtain a {@code JsonNumber}
+ * from a {@code Number}. {@link #to()} is the inverse operation, producing a {@code Number} from a
+ * {@code JsonNumber}. These methods are not guaranteed to produce a round-trip.
  */
 public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
     /**
