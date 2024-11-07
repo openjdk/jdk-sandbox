@@ -26,10 +26,22 @@
 package jdk.internal.util.json;
 
 /**
- * Implementation methods common to JsonXXXImpl classes
+ * JsonNull lazy implementation subclass
  */
-sealed interface JsonValueImpl permits JsonArrayImpl, JsonBooleanImpl, JsonNullImpl, JsonNumberImpl, JsonObjectImpl, JsonStringImpl {
-    int INDENT = 2;
-    int getEndOffset();
-    String formatReadable(int index, boolean isField);
+final class JsonNullLazyImpl extends JsonNullImpl implements JsonValueLazyImpl {
+
+    private final int endIndex;
+
+    JsonNullLazyImpl(JsonLazyDocumentInfo docInfo, int offset, int index) {
+        this.docInfo = docInfo;
+        startOffset = offset;
+        endIndex = docInfo.nextIndex(index);
+        endOffset = endIndex != -1 ? docInfo.getOffset(endIndex) : docInfo.getEndOffset();
+        validate();
+    }
+
+    @Override
+    public int getEndIndex() {
+        return endIndex;
+    }
 }

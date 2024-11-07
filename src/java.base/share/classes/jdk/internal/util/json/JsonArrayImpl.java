@@ -35,21 +35,20 @@ import java.util.stream.Stream;
 /**
  * JsonArray implementation class
  */
-final class JsonArrayImpl implements JsonArray, JsonValueImpl {
-    private final JsonDocumentInfo docInfo;
-    private final int startOffset, endOffset; // exclusive
-    private final int endIndex;
-    private List<JsonValue> theValues;
-    // For lazy inflation
-    private int currIndex;
-    private boolean inflated;
+sealed class JsonArrayImpl implements JsonArray, JsonValueImpl permits JsonArrayLazyImpl {
+
+    private JsonDocumentInfo docInfo;
+    int startOffset;
+    int endOffset; // exclusive
+    List<JsonValue> theValues;
+
+    // For use by subclasses
+    JsonArrayImpl() {}
 
     JsonArrayImpl(List<?> from) {
         docInfo = null;
         startOffset = 0;
         endOffset = 0;
-        endIndex = 0;
-        inflated = true;
         List<JsonValue> l = new ArrayList<>(from.size());
         for (Object o : from) {
             l.add(JsonValue.from(o));
@@ -61,31 +60,18 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
         docInfo = null;
         startOffset = 0;
         endOffset = 0;
-        endIndex = 0;
-        inflated = true;
         theValues = Arrays.asList(values);
-    }
-
-    JsonArrayImpl(JsonLazyDocumentInfo docInfo, int offset, int index) {
-        this.docInfo = docInfo;
-        startOffset = offset;
-        currIndex = index;
-        endIndex = docInfo.getStructureLength(index, offset, '[', ']');
-        endOffset = docInfo.getOffset(endIndex) + 1;
     }
 
     JsonArrayImpl(JsonDocumentInfo docInfo, int offset) {
         this.docInfo = docInfo;
         startOffset = offset;
-        endOffset = parseArray(docInfo, startOffset); // Sets "theValues"
-        // Not needed, for lazy parsing only
-        endIndex = 0;
-        inflated = true;
+        endOffset = parseArray(startOffset); // Sets "theValues"
     }
 
     // Used by the default (eager) implementation
     // Finds valid JsonValues and inserts until closing bracket encountered
-    private int parseArray(JsonDocumentInfo docInfo, int offset) {
+    private int parseArray(int offset) {
         var vals = new ArrayList<JsonValue>();
         // Walk past the '['
         offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
@@ -116,9 +102,6 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
 
     @Override
     public List<JsonValue> values() {
-        if (!inflated) {
-            inflateAll();
-        }
         return theValues;
     }
 
@@ -129,32 +112,12 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
 
     @Override
     public JsonValue get(int index) {
-        JsonValue val;
-        if (theValues == null) {
-            val = inflateUntilMatch(index);
-        } else {
-            // Search for key in list first, otherwise offsets
-            if (theValues.size() - 1 >= index) {
-                val = theValues.get(index);
-            } else if (inflated) {
-                throw new IndexOutOfBoundsException(
-                        String.format("Index %s is out of bounds for length %s", index, theValues.size()));
-            }
-            else {
-                val = inflateUntilMatch(index);
-            }
-        }
-        return val;
+        return theValues.get(index);
     }
 
     @Override
     public int getEndOffset() {
         return endOffset;
-    }
-
-    @Override
-    public int getEndIndex() {
-        return endIndex;
     }
 
     @Override
@@ -167,94 +130,6 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
     @Override
     public int hashCode() {
         return Objects.hash(values());
-    }
-
-    // Inflate the entire list
-    private void inflateAll() {
-        inflate(-1);
-    }
-
-    // Inflate until the index is created in the array
-    // If no match, should throw IOOBE
-    private JsonValue inflateUntilMatch(int index) {
-        var val = inflate(index);
-        // null returned on no match, fail
-        if (val == null) {
-            throw new IndexOutOfBoundsException(
-                    String.format("Index %s is out of bounds for length %s", index, theValues.size()));
-        }
-        return val;
-    }
-
-    private JsonValue inflate(int searchIndex) {
-        JsonLazyDocumentInfo docInfo;
-        if (this.docInfo instanceof JsonLazyDocumentInfo ldi) {
-            docInfo = ldi;
-        } else {
-            throw new InternalError("Document is not lazy");
-        }
-        if (inflated) {
-            throw new InternalError("JsonArray is already inflated");
-        }
-
-        if (theValues == null) { // first time init
-            if (JsonParser.checkWhitespaces(docInfo, startOffset + 1, endOffset - 1)) {
-                theValues = Collections.emptyList();
-                inflated = true;
-                return null;
-            }
-            theValues = new ArrayList<>();
-        }
-
-        var v = theValues;
-        while (currIndex < endIndex) {
-            // Traversal starts on the opening bracket, or a comma
-            int offset = docInfo.getOffset(currIndex) + 1;
-            boolean shouldWalk = false;
-
-            // For obj/arr we need to walk the comma to get the correct starting index
-            if (docInfo.isWalkableStartIndex(docInfo.charAtIndex(currIndex + 1))) {
-                shouldWalk = true;
-                currIndex++;
-            }
-
-            var value = JsonParser.parseValue(docInfo, offset, currIndex);
-            v.add(value);
-
-            offset = ((JsonValueImpl)value).getEndOffset();
-            currIndex = ((JsonValueImpl)value).getEndIndex();
-
-            if (shouldWalk) {
-                currIndex++;
-            }
-
-            // Check that there is only a single valid JsonValue
-            // Between the end of the value and the next index, there should only be WS
-            JsonParser.failIfWhitespaces(docInfo, offset, docInfo.getOffset(currIndex),
-                    "Unexpected character(s) found after JsonValue: %s.".formatted(value));
-
-            var c = docInfo.charAtIndex(currIndex);
-            if (c == ',' || c == ']') {
-                if (searchIndex == theValues.size() - 1) {
-                    if (c == ']') {
-                        inflated = true;
-                        theValues = Collections.unmodifiableList(v);
-                    }
-                    return value;
-                }
-                if (c == ']') {
-                    break;
-                }
-            } else {
-                throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                        "Unexpected character(s) found after JsonValue: %s."
-                                .formatted(value), offset), offset);
-            }
-        }
-        // inflated, so make unmodifiable
-        inflated = true;
-        theValues = Collections.unmodifiableList(v);
-        return null;
     }
 
     @Override

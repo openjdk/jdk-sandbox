@@ -26,10 +26,8 @@
 package jdk.internal.util.json;
 
 /**
- * Implementation methods common to JsonXXXImpl classes
+ * Implementation methods common to JsonXXXLazyImpl classes
  */
-sealed interface JsonValueImpl permits JsonArrayImpl, JsonBooleanImpl, JsonNullImpl, JsonNumberImpl, JsonObjectImpl, JsonStringImpl {
-    int INDENT = 2;
-    int getEndOffset();
-    String formatReadable(int index, boolean isField);
+sealed interface JsonValueLazyImpl permits JsonArrayLazyImpl, JsonBooleanLazyImpl, JsonNullLazyImpl, JsonNumberLazyImpl, JsonObjectLazyImpl, JsonStringLazyImpl {
+    int getEndIndex();
 }

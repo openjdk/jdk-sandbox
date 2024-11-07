@@ -25,86 +25,40 @@
 
 package jdk.internal.util.json;
 
-import java.util.Objects;
-
 /**
- * JsonString implementation class
+ * JsonString lazy implementation subclass
  */
-sealed class JsonStringImpl implements JsonString, JsonValueImpl permits JsonStringLazyImpl {
+final class JsonStringLazyImpl extends JsonStringImpl implements JsonValueLazyImpl {
 
-    JsonDocumentInfo docInfo;
-    int startOffset;
-    int endOffset;
-    String theString;
-    String source;
+    private final int endIndex;
 
-    // For use by subclasses
-    JsonStringImpl() {}
-
-    JsonStringImpl(JsonDocumentInfo docInfo, int offset) {
+    JsonStringLazyImpl(JsonLazyDocumentInfo docInfo, int offset, int index) {
         this.docInfo = docInfo;
         startOffset = offset;
-        theString = unescape(offset + 1, docInfo.getEndOffset()); // sets "endOffset"
-    }
-
-    @Override
-    public String value() {
-        return theString;
-    }
-
-    @Override
-    public int getEndOffset() {
-        return endOffset;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        return this == o ||
-            o instanceof JsonStringImpl ojsi &&
-            Objects.equals(toString(), ojsi.toString());
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(toString());
-    }
-
-    @Override
-    public String to() {
-        return value();
-    }
-
-    // toString should return the source input String
-    @Override
-    public String toString() {
-        return formatCompact();
-    }
-
-    @Override
-    public String formatCompact() {
-        if (source == null) {
-            source = docInfo.substring(startOffset, endOffset);
+        endIndex = docInfo.nextIndex(index);
+        // First quote is already implicitly matched during parse
+        if (endIndex != -1 && docInfo.charAtIndex(endIndex) == '"') {
+            endOffset = docInfo.getOffset(endIndex) + 1;
+        } else {
+            throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                    "Dangling quote.", offset), offset);
         }
-        return source;
     }
 
+    JsonStringLazyImpl(String str) {
+        docInfo = new JsonLazyDocumentInfo("\"" + str + "\"");
+        startOffset = 0;
+        endIndex = 0;
+        endOffset = docInfo.getEndOffset();
+        theString = unescape(startOffset + 1, endOffset - 1);
+    }
+
+    // Lazy implementation already knows start and closing quotes, simply unescape
     @Override
-    public String formatReadable() {
-        return formatReadable(0, false);
-    }
-
-    @Override
-    public String formatReadable(int indent, boolean isField) {
-        return " ".repeat(isField ? 1 : indent) + toString();
-    }
-
-    // gets the substring at the specified start/end offsets in the input with decoding
-    // escape sequences. Eager implementations must find the closing quote.
     String unescape(int startOffset, int endOffset) {
         var sb = new StringBuilder();
         var escape = false;
         int offset = startOffset;
-        boolean closeQuote = false;
         for (; offset < endOffset; offset++) {
             var c = docInfo.charAt(offset);
             if (escape) {
@@ -131,38 +85,32 @@ sealed class JsonStringImpl implements JsonString, JsonValueImpl permits JsonStr
             } else if (c == '\\') {
                 escape = true;
                 continue;
-            } else if (c == '\"') {
-                closeQuote = true;
-                break;
             } else if (c < ' ') {
                 throw new JsonParseException(docInfo.composeParseExceptionMessage(
                         "Unescaped control code.", offset), offset);
             }
             sb.append(c);
         }
-        if (!closeQuote) { // Eager fails if closing quote not found by end
-            throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                    "JsonString missing closing quote.", offset), offset);
-        }
-        // Eager needs to set endOffset, +1 for the closing quote
-        this.endOffset = ++offset;
         return sb.toString();
     }
 
-    char codeUnit(int offset) {
-        char val = 0;
-        for (int index = 0; index < 4; index ++) {
-            char c = docInfo.charAt(offset + index);
-            val <<= 4;
-            val += (char) (
-                switch (c) {
-                    case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> c - '0';
-                    case 'a', 'b', 'c', 'd', 'e', 'f' -> c - 'a' + 10;
-                    case 'A', 'B', 'C', 'D', 'E', 'F' -> c - 'A' + 10;
-                    default -> throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                            "Invalid Unicode escape.", offset), offset);
-                } );
+    @Override
+    public String value() {
+        // Ensure the input is validated
+        if (theString == null) {
+            theString = unescape(startOffset + 1, endOffset - 1);
         }
-        return val;
+        return theString;
+    }
+
+    @Override
+    public String formatCompact() {
+        value(); // Call to validate input
+        return super.formatCompact();
+    }
+
+    @Override
+    public int getEndIndex() {
+        return endIndex;
     }
 }

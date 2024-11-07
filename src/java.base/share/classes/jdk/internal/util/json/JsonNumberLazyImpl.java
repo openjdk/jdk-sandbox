@@ -25,72 +25,40 @@
 
 package jdk.internal.util.json;
 
-import java.math.BigInteger;
-import java.util.Objects;
-
 /**
- * JsonNumber implementation class
+ * JsonNumber lazy implementation subclass
  */
-sealed class JsonNumberImpl implements JsonNumber, JsonValueImpl permits JsonNumberLazyImpl {
+final class JsonNumberLazyImpl extends JsonNumberImpl implements JsonValueLazyImpl {
 
-    JsonDocumentInfo docInfo;
-    int startOffset;
-    int endOffset;
-    Number theNumber;
-    String numString;
+    private final int endIndex;
 
-    // For use by subclasses
-    JsonNumberImpl() {}
-
-    JsonNumberImpl(Number num) {
-        docInfo = null;
-        startOffset = 0;
-        endOffset = 0;
-        theNumber = num;
-        numString = num.toString();
-    }
-
-    JsonNumberImpl(JsonDocumentInfo docInfo, int offset) {
+    JsonNumberLazyImpl(JsonLazyDocumentInfo docInfo, int offset, int index) {
         this.docInfo = docInfo;
         startOffset = offset;
-        theNumber = parseNumber(docInfo.getEndOffset()); // Sets "endOffset", "numString"
+        endIndex = docInfo.nextIndex(index);
+        endOffset = endIndex != -1 ? docInfo.getOffset(endIndex) : docInfo.getEndOffset();
     }
 
     @Override
     public Number value() {
+        if (theNumber == null) {
+            theNumber = parseNumber(endOffset);
+        }
         return theNumber;
     }
 
+    // Lazy already knows the start and end offset, simply create/validate the value
     @Override
-    public int getEndOffset() {
-        return endOffset;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        return this == o ||
-            o instanceof JsonNumberImpl ojni &&
-            Objects.equals(toString(), ojni.toString());
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(toString());
-    }
-
-    // Eager must parse until non-numerical, since the end offset is not known
-    // However, it should not fail, since the non-numerical can be a ',', ']', '}'
     Number parseNumber(int endOffset) {
         boolean sawDecimal = false;
         boolean sawExponent = false;
         boolean sawZero = false;
         boolean sawWhitespace = false;
         boolean havePart = false;
-        boolean sawInvalid = false;
         int start = JsonParser.skipWhitespaces(docInfo, startOffset);
         int offset = start;
 
-        for (; offset < endOffset && !sawWhitespace && !sawInvalid; offset++) {
+        for (; offset < endOffset && !sawWhitespace; offset++) {
             switch (docInfo.charAt(offset)) {
                 case '-' -> {
                     if (offset != start && !sawExponent) {
@@ -147,68 +115,30 @@ sealed class JsonNumberImpl implements JsonNumber, JsonValueImpl permits JsonNum
                     sawWhitespace = true;
                     offset --;
                 }
-                default -> {
-                    offset--;
-                    sawInvalid = true;
-                }
+                default -> throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                                "Number not recognized.", offset), offset);
             }
         }
+
+        JsonParser.failIfWhitespaces(docInfo, offset, endOffset, "Garbage after the number.");
 
         if (!havePart) {
             throw new JsonParseException(docInfo.composeParseExceptionMessage(
                     "Dangling decimal point or exponent symbol.", offset), offset);
         }
+
         numString = docInfo.substring(start, offset);
-        this.endOffset = this.startOffset + (offset - start);
         return numToString(numString, sawDecimal || sawExponent, offset);
     }
 
-    Number numToString(String numStr, boolean fp, int offset) {
-        if (fp) {
-            var num = Double.parseDouble(numStr);
-            if (Double.isInfinite(num)) { // don't need to check NaN, parsing forbids non int start
-                throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                        "Number cannot be infinite.", offset), offset);
-            }
-            return num;
-        } else {
-            // integral numbers
-            try {
-                return Integer.parseInt(numStr);
-            } catch (NumberFormatException _) {
-                // int overflow. try long
-                try {
-                    return Long.parseLong(numStr);
-                } catch (NumberFormatException _) {
-                    // long overflow. convert to BigInteger
-                    return new BigInteger(numStr);
-                }
-            }
-        }
-    }
-
     @Override
-    public Number to() {
-        return value();
-    }
-
-    @Override
-    public String toString() {
-        return formatCompact();
+    public int getEndIndex() {
+        return endIndex;
     }
 
     @Override
     public String formatCompact() {
+        value(); // ensure "numString" is set
         return numString;
-    }
-
-    @Override
-    public String formatReadable() {
-        return formatReadable(0, false);
-    }
-
-    @Override
-    public String formatReadable(int indent, boolean isField) {
-        return " ".repeat(isField ? 1 : indent) + toString();
     }
 }

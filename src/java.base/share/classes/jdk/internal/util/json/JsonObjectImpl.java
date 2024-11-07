@@ -33,21 +33,19 @@ import java.util.Objects;
 /**
  * JsonObject implementation class
  */
-final class JsonObjectImpl implements JsonObject, JsonValueImpl {
-    private final JsonDocumentInfo docInfo;
-    private final int startOffset, endOffset;
-    private final int endIndex;
+sealed class JsonObjectImpl implements JsonObject, JsonValueImpl permits JsonObjectLazyImpl {
+
+    private JsonDocumentInfo docInfo;
+    int startOffset, endOffset;
     Map<String, JsonValue> theKeys;
-    // For lazy inflation
-    private int currIndex;
-    boolean inflated;
+
+    // For use by subclasses
+    JsonObjectImpl() {}
 
     JsonObjectImpl(Map<?, ?> map) {
         docInfo = null;
         startOffset = 0;
         endOffset = 0;
-        endIndex = 0;
-        inflated = true;
         HashMap<String, JsonValue> m = HashMap.newHashMap(map.size());
         for (Map.Entry<?, ?> entry : map.entrySet()) {
             if (!(entry.getKey() instanceof String strKey)) {
@@ -66,26 +64,15 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
         theKeys = Collections.unmodifiableMap(m);
     }
 
-    JsonObjectImpl(JsonLazyDocumentInfo docInfo, int offset, int index) {
-        this.docInfo = docInfo;
-        startOffset = offset;
-        currIndex = index;
-        endIndex = docInfo.getStructureLength(index, offset, '{', '}');
-        endOffset = docInfo.getOffset(endIndex) + 1;
-    }
-
     public JsonObjectImpl(JsonDocumentInfo docInfo, int offset) {
         this.docInfo = docInfo;
         startOffset = offset;
-        endOffset = parseObject(docInfo, startOffset); // Sets "theKeys"
-        // Not needed, for lazy parsing only
-        endIndex = 0;
-        inflated = true;
+        endOffset = parseObject(startOffset); // Sets "theKeys"
     }
 
     // Used by the default (eager) implementation
     // Finds valid keys and JsonValues and inserts until closing bracket encountered
-    private int parseObject(JsonDocumentInfo docInfo, int offset) {
+    private int parseObject(int offset) {
         var keys = new HashMap<String, JsonValue>();
         // Walk past the '{'
         offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
@@ -130,29 +117,12 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
 
     @Override
     public Map<String, JsonValue> keys() {
-        if (!inflated) {
-            inflateAll();
-        }
         return theKeys;
     }
 
     @Override
     public JsonValue get(String key) {
-        JsonValue val;
-        if (theKeys == null) {
-            val = inflateUntilMatch(key);
-        } else {
-            // Search for key in hashmap first, otherwise offsets
-            val = theKeys.get(key);
-            if (val == null) {
-                if (inflated) {
-                    return null;
-                } else {
-                    val = inflateUntilMatch(key);
-                }
-            }
-        }
-        return val;
+        return theKeys.get(key);
     }
 
     @Override
@@ -166,32 +136,12 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
 
     @Override
     public boolean contains(String key) {
-        // See if we already have it, otherwise continue inflation to check
-        JsonValue val;
-        if (theKeys == null) {
-            val = inflateUntilMatch(key);
-        } else {
-            if (!theKeys.containsKey(key)) {
-                if (inflated) {
-                    val = null;
-                } else {
-                    val = inflateUntilMatch(key);
-                }
-            } else {
-                return true;
-            }
-        }
-        return val != null;
+        return theKeys.containsKey(key);
     }
 
     @Override
     public int getEndOffset() {
         return endOffset;
-    }
-
-    @Override
-    public int getEndIndex() {
-        return endIndex;
     }
 
     @Override
@@ -204,122 +154,6 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
     @Override
     public int hashCode() {
         return Objects.hash(keys());
-    }
-
-    // Inflate the entire map
-    void inflateAll() {
-        inflate(null);
-    }
-
-    // Upon match, return the key and defer the rest of inflation
-    // Otherwise, if no match, returns null
-    private JsonValue inflateUntilMatch(String key) {
-        return inflate(key);
-    }
-
-    private JsonValue inflate(String searchKey) {
-        JsonLazyDocumentInfo docInfo;
-        if (this.docInfo instanceof JsonLazyDocumentInfo ldi) {
-            docInfo = ldi;
-        } else {
-            throw new InternalError("Document is not lazy");
-        }
-        if (inflated) {
-            throw new InternalError("JsonObject is already inflated");
-        }
-
-        if (theKeys == null) { // first time init
-            if (JsonParser.checkWhitespaces(docInfo, startOffset + 1, endOffset - 1)) {
-                theKeys = Collections.emptyMap();
-                inflated = true;
-                return null;
-            }
-            theKeys = new HashMap<>();
-        }
-
-        var k = theKeys;
-        while (currIndex < endIndex) {
-            // Traversal starts on the opening bracket, or a comma
-            // We need to parse a key, a value and ensure that there
-            // is no added garbage within our key/value pair
-            // As the initial creation was done lazily, we validate now
-            int offset;
-            var keyOffset = docInfo.getOffset(currIndex + 1);
-
-            // Check the key indices are as expected
-            if (docInfo.charAtIndex(currIndex + 1) != '"' ||
-                    docInfo.charAtIndex(currIndex + 2) != '"' ||
-                    docInfo.charAtIndex(currIndex + 3) != ':') {
-                offset = keyOffset;
-                throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                        "Invalid key:value syntax.", offset), offset);
-            }
-
-            // Ensure no garbage before key
-            JsonParser.failIfWhitespaces(docInfo,
-                    docInfo.getOffset(currIndex)+1, docInfo.getOffset(currIndex+1),
-                    "Unexpected character(s) found instead of key.");
-
-            var key = new JsonStringImpl(docInfo, keyOffset, currIndex + 1).value();
-
-            // Ensure no garbage after key and before colon
-            JsonParser.failIfWhitespaces(docInfo,
-                    docInfo.getOffset(currIndex+2)+1, docInfo.getOffset(currIndex+3),
-                    "Unexpected character(s) found after key: \"%s\".".formatted(key));
-
-            // Check for duplicate keys
-            if (k.containsKey(key)) {
-                offset = keyOffset;
-                throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                        "Duplicate keys not allowed.", offset), offset);
-            }
-
-            boolean shouldWalk = false;
-            offset = docInfo.getOffset(currIndex + 3) + 1;
-            if (docInfo.isWalkableStartIndex(docInfo.charAtIndex(currIndex + 4))) {
-                shouldWalk = true;
-                currIndex = currIndex + 4;
-            } else {
-                currIndex = currIndex + 3;
-            }
-
-            var value = JsonParser.parseValue(docInfo, offset, currIndex);
-            k.put(key, value);
-
-            offset = ((JsonValueImpl)value).getEndOffset();
-            currIndex = ((JsonValueImpl)value).getEndIndex();
-
-            if (shouldWalk) {
-                currIndex++;
-            }
-
-            // Check there is no garbage after the JsonValue
-            JsonParser.failIfWhitespaces(docInfo, offset, docInfo.getOffset(currIndex),
-                    "Unexpected character(s) found after JsonValue: %s, for key: \"%s\".".formatted(value, key));
-
-
-            var c = docInfo.charAtIndex(currIndex);
-            if (c == ',' || c == '}') {
-                if (searchKey != null && searchKey.equals(key)) {
-                    if (c == '}') {
-                        inflated = true;
-                        theKeys = Collections.unmodifiableMap(k);
-                    }
-                    return value;
-                }
-                if (c == '}') {
-                    break;
-                }
-            } else {
-                throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                        "Unexpected character(s) found after JsonValue: %s, for key: \"%s\"."
-                                .formatted(value, key), offset), offset);
-            }
-        }
-        // inflated, so make unmodifiable
-        inflated = true;
-        theKeys = Collections.unmodifiableMap(k);
-        return null;
     }
 
     @Override

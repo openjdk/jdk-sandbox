@@ -140,42 +140,42 @@ public class JsonParser {
 
     static JsonObject parseObject(JsonDocumentInfo docInfo, int offset, int index) {
         return switch (docInfo) {
-            case JsonLazyDocumentInfo li -> new JsonObjectImpl(li, offset, index);
+            case JsonLazyDocumentInfo li -> new JsonObjectLazyImpl(li, offset, index);
             default ->  new JsonObjectImpl(docInfo, offset);
         };
     }
 
     static JsonArray parseArray(JsonDocumentInfo docInfo, int offset, int index) {
         return switch (docInfo) {
-            case JsonLazyDocumentInfo li -> new JsonArrayImpl(li, offset, index);
+            case JsonLazyDocumentInfo li -> new JsonArrayLazyImpl(li, offset, index);
             default -> new JsonArrayImpl(docInfo, offset);
         };
     }
 
     static JsonString parseString(JsonDocumentInfo docInfo, int offset, int index) {
         return switch (docInfo) {
-            case JsonLazyDocumentInfo li -> new JsonStringImpl(li, offset, index);
+            case JsonLazyDocumentInfo li -> new JsonStringLazyImpl(li, offset, index);
             default -> new JsonStringImpl(docInfo, offset);
         };
     }
 
     static JsonBoolean parseBoolean(JsonDocumentInfo docInfo, int offset, int index) {
         return switch (docInfo) {
-            case JsonLazyDocumentInfo li -> new JsonBooleanImpl(li, offset, index);
+            case JsonLazyDocumentInfo li -> new JsonBooleanLazyImpl(li, offset, index);
             default -> new JsonBooleanImpl(docInfo, offset);
         };
     }
 
     static JsonNull parseNull(JsonDocumentInfo docInfo, int offset, int index) {
         return switch (docInfo) {
-            case JsonLazyDocumentInfo li -> new JsonNullImpl(li, offset, index);
+            case JsonLazyDocumentInfo li -> new JsonNullLazyImpl(li, offset, index);
             default -> new JsonNullImpl(docInfo, offset);
         };
     }
 
     static JsonNumber parseNumber(JsonDocumentInfo docInfo, int offset, int index) {
         return switch (docInfo) {
-            case JsonLazyDocumentInfo li -> new JsonNumberImpl(li, offset, index);
+            case JsonLazyDocumentInfo li -> new JsonNumberLazyImpl(li, offset, index);
             default -> new JsonNumberImpl(docInfo, offset);
         };
     }

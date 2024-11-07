@@ -30,36 +30,31 @@ import java.util.Objects;
 /**
  * JsonBoolean implementation class
  */
-final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
-    private final JsonDocumentInfo docInfo;
-    private final int startOffset, endOffset;
-    private final int endIndex;
-    private Boolean theBoolean;
+sealed class JsonBooleanImpl implements JsonBoolean, JsonValueImpl permits JsonBooleanLazyImpl {
+
+    JsonDocumentInfo docInfo;
+    int startOffset;
+    int endOffset;
+    Boolean theBoolean;
 
     static final JsonBooleanImpl TRUE = new JsonBooleanImpl(true);
     static final JsonBooleanImpl FALSE = new JsonBooleanImpl(false);
+
+    // For use by subclasses
+    JsonBooleanImpl() {}
 
     JsonBooleanImpl(Boolean bool) {
         docInfo = null;
         startOffset = 0;
         endOffset = 0;
-        endIndex = 0;
         theBoolean = bool;
     }
 
     JsonBooleanImpl(JsonDocumentInfo docInfo, int offset) {
         this.docInfo = docInfo;
         startOffset = offset;
-        endIndex = 0;
         endOffset = docInfo.charAt(startOffset) == 't' ? offset + 4 : offset + 5;
         value(); // validates input and sets "theBoolean"
-    }
-
-    JsonBooleanImpl(JsonLazyDocumentInfo docInfo, int offset, int index) {
-        this.docInfo = docInfo;
-        startOffset = offset;
-        endIndex = docInfo.nextIndex(index);
-        endOffset = endIndex != -1 ? docInfo.getOffset(endIndex) : docInfo.getEndOffset();
     }
 
     @Override
@@ -78,11 +73,6 @@ final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
     @Override
     public int getEndOffset() {
         return endOffset;
-    }
-
-    @Override
-    public int getEndIndex() {
-        return endIndex;
     }
 
     @Override

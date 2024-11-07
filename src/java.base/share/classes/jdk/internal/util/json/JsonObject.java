@@ -119,14 +119,8 @@ public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
          * @throws NullPointerException if {@code JsonObject} is null.
          */
         public Builder(JsonObject json) {
-            var impl =  (JsonObjectImpl) Objects.requireNonNull(json);
-            if (!impl.inflated) {
-                // Finish inflation to get all elements if not fully inflated
-                impl.inflateAll();
-            }
-            // This is safe as JsonValue is final and immutable.
-            // 'theKeys' is also unmodifiable once fully inflated
-            this.map = new HashMap<>(impl.theKeys);
+            Objects.requireNonNull(json);
+            this.map = new HashMap<>(json.keys());
         }
 
         /**

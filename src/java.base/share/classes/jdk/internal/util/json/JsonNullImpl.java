@@ -30,39 +30,27 @@ import java.util.Objects;
 /**
  * JsonNull implementation class
  */
-final class JsonNullImpl implements JsonNull, JsonValueImpl {
-    final JsonDocumentInfo docInfo;
-    final int startOffset, endOffset;
-    private final int endIndex;
+sealed class JsonNullImpl implements JsonNull, JsonValueImpl permits JsonNullLazyImpl {
+
+    JsonDocumentInfo docInfo;
+    int startOffset;
+    int endOffset;
 
     static final JsonNullImpl NULL = new JsonNullImpl();
     static final String VALUE = "null";
     static final int HASH = Objects.hash(VALUE);
 
-    JsonNullImpl() {
-        docInfo = null;
-        startOffset = 0;
-        endOffset = 0;
-        endIndex = 0;
-    }
+    // For use by subclasses
+    JsonNullImpl() {}
 
     JsonNullImpl(JsonDocumentInfo docInfo, int offset) {
         this.docInfo = docInfo;
         startOffset = offset;
-        endIndex = 0;
         endOffset = offset + 4;
         validate();
     }
 
-    JsonNullImpl(JsonLazyDocumentInfo docInfo, int offset, int index) {
-        this.docInfo = docInfo;
-        startOffset = offset;
-        endIndex = docInfo.nextIndex(index);
-        endOffset = endIndex != -1 ? docInfo.getOffset(endIndex) : docInfo.getEndOffset();
-        validate();
-    }
-
-    private void validate() {
+    void validate() {
         if (!VALUE.equals(docInfo.substring(startOffset, endOffset).trim())) {
             throw new JsonParseException(docInfo.composeParseExceptionMessage(
                     "'null' expected.", startOffset), startOffset);
@@ -75,13 +63,8 @@ final class JsonNullImpl implements JsonNull, JsonValueImpl {
     }
 
     @Override
-    public int getEndIndex() {
-        return endIndex;
-    }
-
-    @Override
     public boolean equals(Object o) {
-        return this == o || o instanceof JsonNullImpl;
+        return o instanceof JsonNullImpl;
     }
 
     @Override
