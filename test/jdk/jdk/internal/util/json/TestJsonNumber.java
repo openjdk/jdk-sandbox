@@ -43,15 +43,17 @@ public class TestJsonNumber {
 
     @Test
     void testInfinity() {
-        assertThrows(JsonParseException.class, () -> JsonNumber.from(Double.POSITIVE_INFINITY));
-        assertThrows(JsonParseException.class, () -> JsonNumber.from(Double.NEGATIVE_INFINITY));
+        assertThrows(IllegalArgumentException.class, () -> JsonNumber.from(Double.POSITIVE_INFINITY));
+        assertThrows(IllegalArgumentException.class, () -> JsonNumber.from(Double.NEGATIVE_INFINITY));
         assertThrows(JsonParseException.class, () -> ((JsonNumber) JsonParser.parse("1e309")).value());
         assertThrows(JsonParseException.class, () -> ((JsonNumber) JsonParser.parse("-1e309")).value());
+        assertThrows(JsonParseException.class, () -> ((JsonNumber) JsonParser.parseEagerly("1e309")).value());
+        assertThrows(JsonParseException.class, () -> ((JsonNumber) JsonParser.parseEagerly("-1e309")).value());
     }
 
     @Test
     void testNan() {
-        assertThrows(JsonParseException.class, () -> JsonNumber.from(Double.NaN));
+        assertThrows(IllegalArgumentException.class, () -> JsonNumber.from(Double.NaN));
         // parse test not required for Nan, cannot parse "NaN"
     }
 

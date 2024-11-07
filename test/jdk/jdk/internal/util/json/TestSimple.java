@@ -87,6 +87,7 @@ public class TestSimple {
     // returns the source
     @Test
     public void untypedStringTest() {
+        JsonParser.parseEagerly("[false]");
         var s = JsonString.from("\"afo\"");
         var c = JsonString.from(new String(new char[]{'"', '\\', 'u', '0', '0', '6', '1', 'f', 'o', '"'}));
         assertEquals(s.value(), c.value());
@@ -106,8 +107,22 @@ public class TestSimple {
     }
 
     @Test
+    public void testBasicPrimitives() throws Exception {
+        JsonParser.parseEagerly("true");
+        JsonParser.parseEagerly("[true]");
+        JsonParser.parseEagerly("{\"a\":true}");
+        JsonParser.parseEagerly("false");
+        JsonParser.parseEagerly("[false]");
+        JsonParser.parseEagerly("{\"a\":false}");
+        JsonParser.parseEagerly("null");
+        JsonParser.parseEagerly("[null]");
+        JsonParser.parseEagerly("{\"a\":null}");
+    }
+
+    @Test
     public void testSimple1() throws Exception {
         JsonValue doc = JsonParser.parse(sample4);
+        JsonParser.parseEagerly(sample4);
         System.out.println(doc.toString());
     }
 

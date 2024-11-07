@@ -45,6 +45,7 @@ public class TestUniqueKeys {
     public void testUniqueKeys() {
         // As lazy, checking is not done in parse
         JsonObject json = (JsonObject) JsonParser.parse(sample);
-        JsonParseException ex = assertThrows(JsonParseException.class, json::keys);
+        assertThrows(JsonParseException.class, json::keys);
+        assertThrows(JsonParseException.class, () -> JsonParser.parseEagerly(sample));
     }
 }

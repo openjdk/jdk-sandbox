@@ -32,11 +32,16 @@
 import jdk.internal.util.json.JsonArray;
 import jdk.internal.util.json.JsonParser;
 import jdk.internal.util.json.JsonValue;
-import org.junit.jupiter.api.Test;
+
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestJsonArray {
+
     private static final String ARRAY = """
       [1, "two", false, null, {"key": 42}]
     """;
@@ -45,9 +50,13 @@ public class TestJsonArray {
        1, "two", false, null, {"key": 42}]
     """;
 
-    @Test
-    void testVarargsFactory() {
-        var doc = JsonParser.parse(ARRAY);
+    private static Stream<JsonValue> testVarargsFactory() {
+        return Stream.of(JsonParser.parse(ARRAY), JsonParser.parseEagerly(ARRAY));
+    }
+
+    @MethodSource
+    @ParameterizedTest
+    void testVarargsFactory(JsonValue doc) {
         if (doc instanceof JsonArray ja) {
             var jsonValues = ja.values().toArray(new JsonValue[0]);
             var newValues = new JsonValue[jsonValues.length * 2];

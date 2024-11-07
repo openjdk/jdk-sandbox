@@ -42,7 +42,8 @@ public class TestBadStructuralJson {
     @ParameterizedTest
     @MethodSource
     public void badJsonParseTest(String badJson) {
-        assertThrows(Exception.class, () -> JsonParser.parse(badJson));
+        assertThrows(JsonParseException.class, () -> JsonParser.parse(badJson));
+        assertThrows(JsonParseException.class, () -> JsonParser.parseEagerly(badJson));
     }
 
     // Fails during parse
@@ -60,7 +61,9 @@ public class TestBadStructuralJson {
     @MethodSource
     public void badJsonKeysTest(String badJson) {
         var j = JsonParser.parse(badJson);
-        assertThrows(Exception.class, j::toString);
+        assertThrows(JsonParseException.class, j::toString);
+        assertThrows(JsonParseException.class,
+                () -> JsonParser.parseEagerly(badJson));
     }
 
     // Fails during values()/keys()
@@ -86,6 +89,8 @@ public class TestBadStructuralJson {
     @Test
     public void badJsonValuesTest() {
         var j = JsonParser.parse("[\"Brian\", 5, null, \"foo\" 5]");
-        assertThrows(Exception.class, j::toString);
+        assertThrows(JsonParseException.class, j::toString);
+        assertThrows(JsonParseException.class,
+                () -> JsonParser.parseEagerly("[\"Brian\", 5, null, \"foo\" 5]"));
     }
 }
