@@ -53,7 +53,7 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
             if (!(entry.getKey() instanceof String strKey)) {
                 throw new IllegalStateException("Key is not a String: " + entry.getKey());
             } else {
-                // Hack to allow builder to support JsonValue directly
+                // Hack to allow JsonObject.Builder to support JsonValue directly
                 if (JsonObject.Builder.class.equals(
                         StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE).getCallerClass())
                         && entry.getValue() instanceof JsonValue jVal) {
@@ -66,12 +66,66 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
         theKeys = Collections.unmodifiableMap(m);
     }
 
-    JsonObjectImpl(JsonDocumentInfo docInfo, int offset, int index) {
+    JsonObjectImpl(JsonLazyDocumentInfo docInfo, int offset, int index) {
         this.docInfo = docInfo;
         startOffset = offset;
         currIndex = index;
         endIndex = docInfo.getStructureLength(index, offset, '{', '}');
         endOffset = docInfo.getOffset(endIndex) + 1;
+    }
+
+    public JsonObjectImpl(JsonDocumentInfo docInfo, int offset) {
+        this.docInfo = docInfo;
+        startOffset = offset;
+        endOffset = parseObject(docInfo, startOffset); // Sets "theKeys"
+        // Not needed, for lazy parsing only
+        endIndex = 0;
+        inflated = true;
+    }
+
+    // Used by the default (eager) implementation
+    // Finds valid keys and JsonValues and inserts until closing bracket encountered
+    private int parseObject(JsonDocumentInfo docInfo, int offset) {
+        var keys = new HashMap<String, JsonValue>();
+        // Walk past the '{'
+        offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
+        // Check for empty case
+        if (docInfo.charAt(offset) == '}') {
+            theKeys = Collections.emptyMap();
+            return ++offset;
+        }
+        while (offset < docInfo.getEndOffset()) {
+            // Get the key, which should be a JsonString
+            var key = (JsonStringImpl) JsonParser.parseValue(docInfo, offset);
+            var keyString = key.value();
+            // Check for duplicate keys
+            if (keys.containsKey(keyString)) {
+                throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                        "Duplicate keys not allowed.", offset), offset);
+            }
+            // Move from key to ':'
+            offset = JsonParser.skipWhitespaces(docInfo, key.getEndOffset());
+            if (docInfo.charAt(offset) != ':') {
+                throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                        "Unexpected character(s) found after key: %s.".formatted(key), offset), offset);
+            }
+            // Move from ':' to JsonValue
+            offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
+            var val = JsonParser.parseValue(docInfo, offset);
+            keys.put(keyString, val);
+            // Walk to either ',' or '}'
+            offset = JsonParser.skipWhitespaces(docInfo, ((JsonValueImpl)val).getEndOffset());
+            var c = docInfo.charAt(offset);
+            if (c == '}') {
+                break;
+            } else if (docInfo.charAt(offset) != ',') {
+                throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                        "Unexpected character(s) found after JsonValue: %s.".formatted(val), offset), offset);
+            }
+            offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
+        }
+        theKeys = Collections.unmodifiableMap(keys);
+        return ++offset;
     }
 
     @Override
@@ -163,9 +217,14 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
         return inflate(key);
     }
 
-    // Used for eager or lazy inflation
     private JsonValue inflate(String searchKey) {
-        if (inflated) { // prevent misuse
+        JsonLazyDocumentInfo docInfo;
+        if (this.docInfo instanceof JsonLazyDocumentInfo ldi) {
+            docInfo = ldi;
+        } else {
+            throw new InternalError("Document is not lazy");
+        }
+        if (inflated) {
             throw new InternalError("JsonObject is already inflated");
         }
 
@@ -197,23 +256,16 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
             }
 
             // Ensure no garbage before key
-            if (!JsonParser.checkWhitespaces(docInfo,
-                    docInfo.getOffset(currIndex)+1, docInfo.getOffset(currIndex+1))) {
-                throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                        "Unexpected character(s) found instead of key.",
-                        docInfo.getOffset(currIndex)+1), docInfo.getOffset(currIndex)+1);
-            }
+            JsonParser.failIfWhitespaces(docInfo,
+                    docInfo.getOffset(currIndex)+1, docInfo.getOffset(currIndex+1),
+                    "Unexpected character(s) found instead of key.");
 
-            var key = docInfo.unescape(keyOffset + 1,
-                    docInfo.getOffset(currIndex + 2));
+            var key = new JsonStringImpl(docInfo, keyOffset, currIndex + 1).value();
 
             // Ensure no garbage after key and before colon
-            if (!JsonParser.checkWhitespaces(docInfo,
-                    docInfo.getOffset(currIndex+2)+1, docInfo.getOffset(currIndex+3))) {
-                throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                        "Unexpected character(s) found after key: \"%s\".".formatted(key),
-                        docInfo.getOffset(currIndex+2)+1), docInfo.getOffset(currIndex+2)+1);
-            }
+            JsonParser.failIfWhitespaces(docInfo,
+                    docInfo.getOffset(currIndex+2)+1, docInfo.getOffset(currIndex+3),
+                    "Unexpected character(s) found after key: \"%s\".".formatted(key));
 
             // Check for duplicate keys
             if (k.containsKey(key)) {
@@ -242,11 +294,8 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
             }
 
             // Check there is no garbage after the JsonValue
-            if (!JsonParser.checkWhitespaces(docInfo, offset, docInfo.getOffset(currIndex))) {
-                throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                        "Unexpected character(s) found after JsonValue: %s, for key: \"%s\"."
-                                .formatted(value, key), offset), offset);
-            }
+            JsonParser.failIfWhitespaces(docInfo, offset, docInfo.getOffset(currIndex),
+                    "Unexpected character(s) found after JsonValue: %s, for key: \"%s\".".formatted(value, key));
 
 
             var c = docInfo.charAtIndex(currIndex);

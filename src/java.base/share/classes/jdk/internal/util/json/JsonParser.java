@@ -59,7 +59,7 @@ public class JsonParser {
      */
     public static JsonValue parse(String in) {
         Objects.requireNonNull(in);
-        return parseImpl(new JsonDocumentInfo(in));
+        return parseImpl(new JsonLazyDocumentInfo(in));
     }
 
     /**
@@ -74,7 +74,7 @@ public class JsonParser {
      */
     public static JsonValue parse(char[] in) {
         Objects.requireNonNull(in);
-        return parseImpl(new JsonDocumentInfo(in));
+        return parseImpl(new JsonLazyDocumentInfo(in));
     }
 
     /**
@@ -87,7 +87,8 @@ public class JsonParser {
      * @return the top level {@code JsonValue}
      */
     public static JsonValue parseEagerly(String in) {
-        return validate(parse(in));
+        Objects.requireNonNull(in);
+        return parseImpl(new JsonDocumentInfo(in));
     }
 
     /**
@@ -100,22 +101,25 @@ public class JsonParser {
      * @return the top level {@code JsonValue}
      */
     public static JsonValue parseEagerly(char[] in) {
-        return validate(parse(in));
+        Objects.requireNonNull(in);
+        return parseImpl(new JsonDocumentInfo(in));
     }
 
     // return the root value
     private static JsonValue parseImpl(JsonDocumentInfo docInfo) {
         JsonValue jv = parseValue(docInfo, 0, 0);
-
-        // check the remainder is whitespace
         var offset = ((JsonValueImpl)jv).getEndOffset();
-        if (!checkWhitespaces(docInfo, offset, docInfo.getEndOffset())) {
-            throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                    "Garbage characters at end.", offset), offset);
-        }
+        failIfWhitespaces(docInfo, offset, docInfo.getEndOffset(),
+                "Garbage characters at end.");
         return jv;
     }
 
+    // eager parsing
+    static JsonValue parseValue(JsonDocumentInfo docInfo, int offset) {
+        return parseValue(docInfo, offset, -1);
+    }
+
+    // lazy parsing
     static JsonValue parseValue(JsonDocumentInfo docInfo, int offset, int index) {
         offset = skipWhitespaces(docInfo, offset);
         if (offset >= docInfo.getEndOffset()) {
@@ -135,27 +139,45 @@ public class JsonParser {
     }
 
     static JsonObject parseObject(JsonDocumentInfo docInfo, int offset, int index) {
-        return new JsonObjectImpl(docInfo, offset, index);
+        return switch (docInfo) {
+            case JsonLazyDocumentInfo li -> new JsonObjectImpl(li, offset, index);
+            default ->  new JsonObjectImpl(docInfo, offset);
+        };
     }
 
     static JsonArray parseArray(JsonDocumentInfo docInfo, int offset, int index) {
-        return new JsonArrayImpl(docInfo, offset, index);
+        return switch (docInfo) {
+            case JsonLazyDocumentInfo li -> new JsonArrayImpl(li, offset, index);
+            default -> new JsonArrayImpl(docInfo, offset);
+        };
     }
 
     static JsonString parseString(JsonDocumentInfo docInfo, int offset, int index) {
-        return new JsonStringImpl(docInfo, offset, index);
+        return switch (docInfo) {
+            case JsonLazyDocumentInfo li -> new JsonStringImpl(li, offset, index);
+            default -> new JsonStringImpl(docInfo, offset);
+        };
     }
 
     static JsonBoolean parseBoolean(JsonDocumentInfo docInfo, int offset, int index) {
-        return new JsonBooleanImpl(docInfo, offset, index);
+        return switch (docInfo) {
+            case JsonLazyDocumentInfo li -> new JsonBooleanImpl(li, offset, index);
+            default -> new JsonBooleanImpl(docInfo, offset);
+        };
     }
 
     static JsonNull parseNull(JsonDocumentInfo docInfo, int offset, int index) {
-        return new JsonNullImpl(docInfo, offset, index);
+        return switch (docInfo) {
+            case JsonLazyDocumentInfo li -> new JsonNullImpl(li, offset, index);
+            default -> new JsonNullImpl(docInfo, offset);
+        };
     }
 
     static JsonNumber parseNumber(JsonDocumentInfo docInfo, int offset, int index) {
-        return new JsonNumberImpl(docInfo, offset, index);
+        return switch (docInfo) {
+            case JsonLazyDocumentInfo li -> new JsonNumberImpl(li, offset, index);
+            default -> new JsonNumberImpl(docInfo, offset);
+        };
     }
 
     // Utility functions
@@ -167,6 +189,14 @@ public class JsonParser {
             offset ++;
         }
         return offset;
+    }
+
+    // Convenience method that throws an exception if non-whitespace encountered
+    static void failIfWhitespaces(JsonDocumentInfo docInfo, int offset, int endOffset, String message) {
+        if (!checkWhitespaces(docInfo, offset, endOffset)) {
+            throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                    message, offset), offset);
+        }
     }
 
     static boolean checkWhitespaces(JsonDocumentInfo docInfo, int offset, int endOffset) {
@@ -185,18 +215,6 @@ public class JsonParser {
             case ' ', '\t', '\n', '\r' -> true;
             default -> false;
         };
-    }
-
-    static JsonValue validate(JsonValue jv) {
-        switch (jv) {
-            case JsonArray ja -> ja.values().forEach(JsonParser::validate);
-            case JsonBoolean jb -> jb.value();
-            case JsonNull _ -> {}
-            case JsonNumber jn -> jn.value();
-            case JsonObject jo -> jo.keys().forEach((k,v) -> validate(v));
-            case JsonString js -> js.value();
-        }
-        return jv;
     }
 
     // no instantiation of this parser

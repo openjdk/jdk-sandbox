@@ -66,12 +66,52 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
         theValues = Arrays.asList(values);
     }
 
-    JsonArrayImpl(JsonDocumentInfo docInfo, int offset, int index) {
+    JsonArrayImpl(JsonLazyDocumentInfo docInfo, int offset, int index) {
         this.docInfo = docInfo;
         startOffset = offset;
         currIndex = index;
         endIndex = docInfo.getStructureLength(index, offset, '[', ']');
         endOffset = docInfo.getOffset(endIndex) + 1;
+    }
+
+    JsonArrayImpl(JsonDocumentInfo docInfo, int offset) {
+        this.docInfo = docInfo;
+        startOffset = offset;
+        endOffset = parseArray(docInfo, startOffset); // Sets "theValues"
+        // Not needed, for lazy parsing only
+        endIndex = 0;
+        inflated = true;
+    }
+
+    // Used by the default (eager) implementation
+    // Finds valid JsonValues and inserts until closing bracket encountered
+    private int parseArray(JsonDocumentInfo docInfo, int offset) {
+        var vals = new ArrayList<JsonValue>();
+        // Walk past the '['
+        offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
+        // Check for empty case
+        if (docInfo.charAt(offset) == ']') {
+            theValues = Collections.emptyList();
+            return ++offset;
+        }
+        while (offset < docInfo.getEndOffset()) {
+            // Get the JsonValue
+            var val = JsonParser.parseValue(docInfo, offset);
+            vals.add(val);
+            // Walk to either ',' or ']'
+            offset = JsonParser.skipWhitespaces(docInfo, ((JsonValueImpl)val).getEndOffset());
+            var c = docInfo.charAt(offset);
+            if (c == ']') {
+                break;
+            } else if (c != ',') {
+                throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                        "Unexpected character(s) found after JsonValue: %s.".formatted(val), offset), offset);
+            }
+            // Walk past the ','
+            offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
+        }
+        theValues = Collections.unmodifiableList(vals);
+        return ++offset;
     }
 
     @Override
@@ -146,9 +186,14 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
         return val;
     }
 
-    // Used for eager or lazy inflation
     private JsonValue inflate(int searchIndex) {
-        if (inflated) { // prevent misuse
+        JsonLazyDocumentInfo docInfo;
+        if (this.docInfo instanceof JsonLazyDocumentInfo ldi) {
+            docInfo = ldi;
+        } else {
+            throw new InternalError("Document is not lazy");
+        }
+        if (inflated) {
             throw new InternalError("JsonArray is already inflated");
         }
 
@@ -185,11 +230,9 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
 
             // Check that there is only a single valid JsonValue
             // Between the end of the value and the next index, there should only be WS
-            if (!JsonParser.checkWhitespaces(docInfo, offset, docInfo.getOffset(currIndex))) {
-                throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                        "Unexpected character(s) found after JsonValue: %s."
-                                .formatted(value), offset), offset);
-            }
+            JsonParser.failIfWhitespaces(docInfo, offset, docInfo.getOffset(currIndex),
+                    "Unexpected character(s) found after JsonValue: %s.".formatted(value));
+
             var c = docInfo.charAtIndex(currIndex);
             if (c == ',' || c == ']') {
                 if (searchIndex == theValues.size() - 1) {

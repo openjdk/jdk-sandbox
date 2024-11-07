@@ -33,7 +33,8 @@ import java.util.Objects;
  */
 final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     private final JsonDocumentInfo docInfo;
-    private final int startOffset, endOffset;
+    private final int startOffset;
+    private int endOffset;
     private final int endIndex;
     private Number theNumber;
     private String numString;
@@ -43,15 +44,17 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
         startOffset = 0;
         endOffset = 0;
         endIndex = 0;
-        if (num instanceof Double d) {
-            if (Double.isNaN(d) || Double.isInfinite(d)) {
-                throw new IllegalArgumentException("Not a valid JSON number");
-            }
-        }
         theNumber = num;
     }
 
-    JsonNumberImpl(JsonDocumentInfo docInfo, int offset, int index) {
+    JsonNumberImpl(JsonDocumentInfo docInfo, int offset) {
+        this.docInfo = docInfo;
+        startOffset = offset;
+        theNumber = parseNumber(); // Sets "endOffset"
+        endIndex = 0;
+    }
+
+    JsonNumberImpl(JsonLazyDocumentInfo docInfo, int offset, int index) {
         this.docInfo = docInfo;
         startOffset = offset;
         endIndex = docInfo.nextIndex(index);
@@ -61,7 +64,7 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     @Override
     public Number value() {
         if (theNumber == null) {
-            theNumber = parseNumber();
+            theNumber = createNumber(endOffset);
         }
         return theNumber;
     }
@@ -88,17 +91,26 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
         return Objects.hash(toString());
     }
 
-    private Number parseNumber() {
-        // check syntax
+    // Parse a number. This should only end on a non-numerical value or
+    // the end of the docInfo, as there is no known end offset yet
+    public Number parseNumber() {
+        return createNumber(docInfo.getEndOffset());
+    }
+
+    // Create a number from the startOffset to the desired end offset
+    // This method also sets "numString"
+    public Number createNumber(int endOffset) {
         boolean sawDecimal = false;
         boolean sawExponent = false;
         boolean sawZero = false;
         boolean sawWhitespace = false;
         boolean havePart = false;
-
+        boolean sawInvalid = false;
+        boolean lazy = docInfo instanceof JsonLazyDocumentInfo;
         int start = JsonParser.skipWhitespaces(docInfo, startOffset);
         int offset = start;
-        for (; offset < endOffset && !sawWhitespace; offset++) {
+
+        for (; offset < endOffset && !sawWhitespace && !sawInvalid; offset++) {
             switch (docInfo.charAt(offset)) {
                 case '-' -> {
                     if (offset != start && !sawExponent) {
@@ -155,29 +167,38 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
                     sawWhitespace = true;
                     offset --;
                 }
-                default -> throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                        "Number not recognized.", offset), offset);
+                default -> {
+                    if (lazy) {
+                        throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                                "Number not recognized.", offset), offset);
+                    } else {
+                        offset--;
+                        sawInvalid = true;
+                    }
+                }
             }
         }
 
-        if (!JsonParser.checkWhitespaces(docInfo, offset, endOffset)) {
-            throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                    "Garbage after the number.", offset), offset);
+        if (lazy) {
+            JsonParser.failIfWhitespaces(docInfo, offset, endOffset, "Garbage after the number.");
         }
+
         if (!havePart) {
             throw new JsonParseException(docInfo.composeParseExceptionMessage(
                     "Dangling decimal point or exponent symbol.", offset), offset);
         }
 
         numString = docInfo.substring(start, offset);
+        if (!lazy) {
+            this.endOffset = this.startOffset + (offset - start);
+        }
+
         if (sawDecimal || sawExponent) {
             var num = Double.parseDouble(numString);
-
             if (Double.isInfinite(num)) { // don't need to check NaN, parsing forbids non int start
                 throw new JsonParseException(docInfo.composeParseExceptionMessage(
                         "Number cannot be infinite.", offset), offset);
             }
-
             return num;
         } else {
             // integral numbers
@@ -213,7 +234,7 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
             return theNumber.toString(); // use theNumber if we have it
         } else {
             value(); // make sure parse is done
-            return numString;
+            return theNumber.toString();
         }
     }
 

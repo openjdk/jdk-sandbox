@@ -46,12 +46,24 @@ final class JsonNullImpl implements JsonNull, JsonValueImpl {
         endIndex = 0;
     }
 
-    JsonNullImpl(JsonDocumentInfo docInfo, int offset, int index) {
+    JsonNullImpl(JsonDocumentInfo docInfo, int offset) {
+        this.docInfo = docInfo;
+        startOffset = offset;
+        endIndex = 0;
+        endOffset = offset + 4;
+        validate();
+    }
+
+    JsonNullImpl(JsonLazyDocumentInfo docInfo, int offset, int index) {
         this.docInfo = docInfo;
         startOffset = offset;
         endIndex = docInfo.nextIndex(index);
         endOffset = endIndex != -1 ? docInfo.getOffset(endIndex) : docInfo.getEndOffset();
-        if (!"null".equals(docInfo.substring(startOffset, endOffset).trim())) {
+        validate();
+    }
+
+    private void validate() {
+        if (!VALUE.equals(docInfo.substring(startOffset, endOffset).trim())) {
             throw new JsonParseException(docInfo.composeParseExceptionMessage(
                     "'null' expected.", startOffset), startOffset);
         }

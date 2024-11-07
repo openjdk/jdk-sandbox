@@ -47,7 +47,15 @@ final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
         theBoolean = bool;
     }
 
-    JsonBooleanImpl(JsonDocumentInfo docInfo, int offset, int index) {
+    JsonBooleanImpl(JsonDocumentInfo docInfo, int offset) {
+        this.docInfo = docInfo;
+        startOffset = offset;
+        endIndex = 0;
+        endOffset = docInfo.charAt(startOffset) == 't' ? offset + 4 : offset + 5;
+        value(); // validates input and sets "theBoolean"
+    }
+
+    JsonBooleanImpl(JsonLazyDocumentInfo docInfo, int offset, int index) {
         this.docInfo = docInfo;
         startOffset = offset;
         endIndex = docInfo.nextIndex(index);

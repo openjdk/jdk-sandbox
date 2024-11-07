@@ -58,6 +58,11 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      */
     static JsonNumber from(Number num) {
         Objects.requireNonNull(num);
+        if (num instanceof Double d) {
+            if (Double.isNaN(d) || Double.isInfinite(d)) {
+                throw new IllegalArgumentException("Not a valid JSON number");
+            }
+        }
         return new JsonNumberImpl(num);
     }
 }

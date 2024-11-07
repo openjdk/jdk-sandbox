@@ -32,19 +32,27 @@ import java.util.Objects;
  */
 final class JsonStringImpl implements JsonString, JsonValueImpl {
     private final JsonDocumentInfo docInfo;
-    private final int startOffset, endOffset;
+    private final int startOffset;
+    private int endOffset;
     private final int endIndex;
     private String theString;
     private String source;
 
     JsonStringImpl(String str) {
-        docInfo = new JsonDocumentInfo("\"" + str + "\"");
+        docInfo = new JsonLazyDocumentInfo("\"" + str + "\"");
         startOffset = 0;
         endOffset = docInfo.getEndOffset();
         endIndex = 0;
     }
 
-    JsonStringImpl(JsonDocumentInfo docInfo, int offset, int index) {
+    JsonStringImpl(JsonDocumentInfo docInfo, int offset) {
+        this.docInfo = docInfo;
+        startOffset = offset;
+        theString = unescape(offset + 1, docInfo.getEndOffset()); // sets "endOffset"
+        endIndex = 0;
+    }
+
+    JsonStringImpl(JsonLazyDocumentInfo docInfo, int offset, int index) {
         this.docInfo = docInfo;
         startOffset = offset;
         endIndex = docInfo.nextIndex(index);
@@ -59,9 +67,9 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
 
     @Override
     public String value() {
-        // Ensure the input is sanitized
+        // Ensure the input is validated
         if (theString == null) {
-            theString = docInfo.unescape(startOffset + 1, endOffset - 1);
+            theString = unescape(startOffset + 1, endOffset - 1);
         }
         return theString;
     }
@@ -101,7 +109,7 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
 
     @Override
     public String formatCompact() {
-        value(); // Call to sanitize input
+        value(); // Call to validate input
         if (source == null) {
             source = docInfo.substring(startOffset, endOffset);
         }
@@ -116,5 +124,77 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
     @Override
     public String formatReadable(int indent, boolean isField) {
         return " ".repeat(isField ? 1 : indent) + toString();
+    }
+
+    // gets the substring at the specified start/end offsets in the input with decoding
+    // escape sequences. Eager implementations must find the closing quote, while lazy
+    // implementations know both quote locations
+    String unescape(int startOffset, int endOffset) {
+        boolean lazy = docInfo instanceof JsonLazyDocumentInfo;
+        var sb = new StringBuilder();
+        var escape = false;
+        int offset = startOffset;
+        boolean closeQuote = false;
+        for (; offset < endOffset; offset++) {
+            var c = docInfo.charAt(offset);
+            if (escape) {
+                switch (c) {
+                    case '"', '\\', '/' -> {}
+                    case 'b' -> c = '\b';
+                    case 'f' -> c = '\f';
+                    case 'n' -> c = '\n';
+                    case 'r' -> c = '\r';
+                    case 't' -> c = '\t';
+                    case 'u' -> {
+                        if (offset + 4 < endOffset) {
+                            c = codeUnit(offset + 1);
+                            offset += 4;
+                        } else {
+                            throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                                    "Illegal Unicode escape.", offset), offset);
+                        }
+                    }
+                    default -> throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                            "Illegal escape.", offset), offset);
+                }
+                escape = false;
+            } else if (c == '\\') {
+                escape = true;
+                continue;
+            } else if (!lazy && c == '\"') {
+                closeQuote = true;
+                break;
+            } else if (c < ' ') {
+                throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                        "Unescaped control code.", offset), offset);
+            }
+            sb.append(c);
+        }
+        if (!lazy) {
+            if (!closeQuote) { // Eager fails if closing quote not found by end
+                throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                        "Unescaped control code.", offset), offset);
+            }
+            // Eager needs to track endOffset, +1 for the closing quote
+            this.endOffset = ++offset;
+        }
+        return sb.toString();
+    }
+
+    private char codeUnit(int offset) {
+        char val = 0;
+        for (int index = 0; index < 4; index ++) {
+            char c = docInfo.charAt(offset + index);
+            val <<= 4;
+            val += (char) (
+                switch (c) {
+                    case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> c - '0';
+                    case 'a', 'b', 'c', 'd', 'e', 'f' -> c - 'a' + 10;
+                    case 'A', 'B', 'C', 'D', 'E', 'F' -> c - 'A' + 10;
+                    default -> throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                            "Invalid Unicode escape.", offset), offset);
+                } );
+        }
+        return val;
     }
 }
