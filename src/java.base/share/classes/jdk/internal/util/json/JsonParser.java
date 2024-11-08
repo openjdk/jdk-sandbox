@@ -108,9 +108,13 @@ public class JsonParser {
     // return the root value
     private static JsonValue parseImpl(JsonDocumentInfo docInfo) {
         JsonValue jv = parseValue(docInfo, 0, 0);
+
+        // check the remainder is whitespace
         var offset = ((JsonValueImpl)jv).getEndOffset();
-        failIfWhitespaces(docInfo, offset, docInfo.getEndOffset(),
-                "Garbage characters at end.");
+        if (!checkWhitespaces(docInfo, offset, docInfo.getEndOffset())) {
+            throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                    "Garbage characters at end.", offset), offset);
+        }
         return jv;
     }
 
@@ -189,14 +193,6 @@ public class JsonParser {
             offset ++;
         }
         return offset;
-    }
-
-    // Convenience method that throws an exception if non-whitespace encountered
-    static void failIfWhitespaces(JsonDocumentInfo docInfo, int offset, int endOffset, String message) {
-        if (!checkWhitespaces(docInfo, offset, endOffset)) {
-            throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                    message, offset), offset);
-        }
     }
 
     static boolean checkWhitespaces(JsonDocumentInfo docInfo, int offset, int endOffset) {

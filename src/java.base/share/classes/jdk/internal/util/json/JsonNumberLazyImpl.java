@@ -120,7 +120,11 @@ final class JsonNumberLazyImpl extends JsonNumberImpl implements JsonValueLazyIm
             }
         }
 
-        JsonParser.failIfWhitespaces(docInfo, offset, endOffset, "Garbage after the number.");
+        if (!JsonParser.checkWhitespaces(docInfo, offset, endOffset)) {
+            throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                    "Garbage after the number.", offset), offset);
+        }
+
 
         if (!havePart) {
             throw new JsonParseException(docInfo.composeParseExceptionMessage(

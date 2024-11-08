@@ -138,16 +138,22 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
             }
 
             // Ensure no garbage before key
-            JsonParser.failIfWhitespaces(docInfo,
-                    docInfo.getOffset(currIndex)+1, docInfo.getOffset(currIndex+1),
-                    "Unexpected character(s) found instead of key.");
+            if (!JsonParser.checkWhitespaces(docInfo,
+                    docInfo.getOffset(currIndex)+1, docInfo.getOffset(currIndex+1))) {
+                throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                        "Unexpected character(s) found instead of key.",
+                        docInfo.getOffset(currIndex)+1), docInfo.getOffset(currIndex)+1);
+            }
 
             var key = new JsonStringLazyImpl(docInfo, keyOffset, currIndex + 1).value();
 
             // Ensure no garbage after key and before colon
-            JsonParser.failIfWhitespaces(docInfo,
-                    docInfo.getOffset(currIndex+2)+1, docInfo.getOffset(currIndex+3),
-                    "Unexpected character(s) found after key: \"%s\".".formatted(key));
+            if (!JsonParser.checkWhitespaces(docInfo,
+                    docInfo.getOffset(currIndex+2)+1, docInfo.getOffset(currIndex+3))) {
+                throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                        "Unexpected character(s) found after key: \"%s\".".formatted(key),
+                        docInfo.getOffset(currIndex+2)+1), docInfo.getOffset(currIndex+2)+1);
+            }
 
             // Check for duplicate keys
             if (k.containsKey(key)) {
@@ -176,8 +182,11 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
             }
 
             // Check there is no garbage after the JsonValue
-            JsonParser.failIfWhitespaces(docInfo, offset, docInfo.getOffset(currIndex),
-                    "Unexpected character(s) found after JsonValue: %s, for key: \"%s\".".formatted(value, key));
+            if (!JsonParser.checkWhitespaces(docInfo, offset, docInfo.getOffset(currIndex))) {
+                throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                        "Unexpected character(s) found after JsonValue: %s, for key: \"%s\"."
+                                .formatted(value, key), offset), offset);
+            }
 
 
             var c = docInfo.charAtIndex(currIndex);

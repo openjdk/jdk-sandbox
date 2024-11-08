@@ -129,8 +129,11 @@ final class JsonArrayLazyImpl extends JsonArrayImpl implements JsonValueLazyImpl
 
             // Check that there is only a single valid JsonValue
             // Between the end of the value and the next index, there should only be WS
-            JsonParser.failIfWhitespaces(docInfo, offset, docInfo.getOffset(currIndex),
-                    "Unexpected character(s) found after JsonValue: %s.".formatted(value));
+            if (!JsonParser.checkWhitespaces(docInfo, offset, docInfo.getOffset(currIndex))) {
+                throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                        "Unexpected character(s) found after JsonValue: %s."
+                                .formatted(value), offset), offset);
+            }
 
             var c = docInfo.charAtIndex(currIndex);
             if (c == ',' || c == ']') {
