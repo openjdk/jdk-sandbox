@@ -73,28 +73,23 @@ sealed class JsonArrayImpl implements JsonArray, JsonValueImpl permits JsonArray
     // Finds valid JsonValues and inserts until closing bracket encountered
     private int parseArray(int offset) {
         var vals = new ArrayList<JsonValue>();
-        // Walk past the '['
+        // Walk initial '['
         offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
-        // Check for empty case
-        if (docInfo.charAt(offset) == ']') {
-            theValues = Collections.emptyList();
-            return ++offset;
-        }
-        while (offset < docInfo.getEndOffset()) {
+        var c = docInfo.charAt(offset);
+        while (c != ']') {
             // Get the JsonValue
             var val = JsonParser.parseValue(docInfo, offset);
             vals.add(val);
             // Walk to either ',' or ']'
             offset = JsonParser.skipWhitespaces(docInfo, ((JsonValueImpl)val).getEndOffset());
-            var c = docInfo.charAt(offset);
-            if (c == ']') {
-                break;
-            } else if (c != ',') {
+            c = docInfo.charAt(offset);
+            if (c == ',') {
+                offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
+            } else if (c != ']') {
+                // fail
                 throw new JsonParseException(docInfo.composeParseExceptionMessage(
                         "Unexpected character(s) found after JsonValue: %s.".formatted(val), offset), offset);
             }
-            // Walk past the ','
-            offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
         }
         theValues = Collections.unmodifiableList(vals);
         return ++offset;

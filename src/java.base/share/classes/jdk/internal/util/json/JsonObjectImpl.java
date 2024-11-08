@@ -76,12 +76,8 @@ sealed class JsonObjectImpl implements JsonObject, JsonValueImpl permits JsonObj
         var keys = new HashMap<String, JsonValue>();
         // Walk past the '{'
         offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
-        // Check for empty case
-        if (docInfo.charAt(offset) == '}') {
-            theKeys = Collections.emptyMap();
-            return ++offset;
-        }
-        while (offset < docInfo.getEndOffset()) {
+        var c = docInfo.charAt(offset);
+        while (c != '}') {
             // Get the key, which should be a JsonString
             var key = (JsonStringImpl) JsonParser.parseValue(docInfo, offset);
             var keyString = key.value();
@@ -92,7 +88,8 @@ sealed class JsonObjectImpl implements JsonObject, JsonValueImpl permits JsonObj
             }
             // Move from key to ':'
             offset = JsonParser.skipWhitespaces(docInfo, key.getEndOffset());
-            if (docInfo.charAt(offset) != ':') {
+            c = docInfo.charAt(offset);
+            if (c != ':') {
                 throw new JsonParseException(docInfo.composeParseExceptionMessage(
                         "Unexpected character(s) found after key: %s.".formatted(key), offset), offset);
             }
@@ -100,16 +97,17 @@ sealed class JsonObjectImpl implements JsonObject, JsonValueImpl permits JsonObj
             offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
             var val = JsonParser.parseValue(docInfo, offset);
             keys.put(keyString, val);
+
             // Walk to either ',' or '}'
             offset = JsonParser.skipWhitespaces(docInfo, ((JsonValueImpl)val).getEndOffset());
-            var c = docInfo.charAt(offset);
-            if (c == '}') {
-                break;
-            } else if (docInfo.charAt(offset) != ',') {
+            c = docInfo.charAt(offset);
+            if (c == ',') {
+                offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
+            } else if (c != '}') {
+                // fail
                 throw new JsonParseException(docInfo.composeParseExceptionMessage(
                         "Unexpected character(s) found after JsonValue: %s.".formatted(val), offset), offset);
             }
-            offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
         }
         theKeys = Collections.unmodifiableMap(keys);
         return ++offset;
