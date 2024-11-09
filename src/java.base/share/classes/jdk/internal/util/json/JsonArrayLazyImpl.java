@@ -109,11 +109,9 @@ final class JsonArrayLazyImpl extends JsonArrayImpl implements JsonValueLazyImpl
         while (currIndex < endIndex) {
             // Traversal starts on the opening bracket, or a comma
             int offset = docInfo.getOffset(currIndex) + 1;
-            boolean shouldWalk = false;
 
             // For obj/arr we need to walk the comma to get the correct starting index
             if (docInfo.isWalkableStartIndex(docInfo.charAtIndex(currIndex + 1))) {
-                shouldWalk = true;
                 currIndex++;
             }
 
@@ -122,10 +120,6 @@ final class JsonArrayLazyImpl extends JsonArrayImpl implements JsonValueLazyImpl
 
             offset = ((JsonValueImpl)value).getEndOffset();
             currIndex = ((JsonValueLazyImpl)value).getEndIndex();
-
-            if (shouldWalk) {
-                currIndex++;
-            }
 
             // Check that there is only a single valid JsonValue
             // Between the end of the value and the next index, there should only be WS
@@ -161,6 +155,6 @@ final class JsonArrayLazyImpl extends JsonArrayImpl implements JsonValueLazyImpl
 
     @Override
     public int getEndIndex() {
-        return endIndex;
+        return endIndex + 1;
     }
 }

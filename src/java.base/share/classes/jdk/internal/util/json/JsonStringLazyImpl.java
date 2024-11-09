@@ -111,6 +111,6 @@ final class JsonStringLazyImpl extends JsonStringImpl implements JsonValueLazyIm
 
     @Override
     public int getEndIndex() {
-        return endIndex;
+        return endIndex + 1;
     }
 }

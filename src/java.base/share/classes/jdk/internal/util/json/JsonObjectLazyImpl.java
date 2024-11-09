@@ -162,10 +162,10 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
                         "Duplicate keys not allowed.", offset), offset);
             }
 
-            boolean shouldWalk = false;
             offset = docInfo.getOffset(currIndex + 3) + 1;
+
+
             if (docInfo.isWalkableStartIndex(docInfo.charAtIndex(currIndex + 4))) {
-                shouldWalk = true;
                 currIndex = currIndex + 4;
             } else {
                 currIndex = currIndex + 3;
@@ -176,10 +176,6 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
 
             offset = ((JsonValueImpl)value).getEndOffset();
             currIndex = ((JsonValueLazyImpl)value).getEndIndex();
-
-            if (shouldWalk) {
-                currIndex++;
-            }
 
             // Check there is no garbage after the JsonValue
             if (!JsonParser.checkWhitespaces(docInfo, offset, docInfo.getOffset(currIndex))) {
@@ -215,6 +211,6 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
 
     @Override
     public int getEndIndex() {
-        return endIndex;
+        return endIndex + 1;
     }
 }
