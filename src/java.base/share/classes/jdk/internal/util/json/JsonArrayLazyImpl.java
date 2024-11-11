@@ -138,9 +138,6 @@ final class JsonArrayLazyImpl extends JsonArrayImpl implements JsonValueLazyImpl
                     }
                     return value;
                 }
-                if (c == ']') {
-                    break;
-                }
             } else {
                 throw new JsonParseException(docInfo.composeParseExceptionMessage(
                         "Unexpected character(s) found after JsonValue: %s."

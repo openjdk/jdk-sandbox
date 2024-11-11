@@ -192,9 +192,6 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
                     }
                     return value;
                 }
-                if (c == '}') {
-                    break;
-                }
             } else {
                 throw new JsonParseException(docInfo.composeParseExceptionMessage(
                         "Unexpected character(s) found after JsonValue: %s, for key: \"%s\"."
