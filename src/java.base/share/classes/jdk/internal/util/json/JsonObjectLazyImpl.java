@@ -128,15 +128,6 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
             int offset;
             var keyOffset = docInfo.getOffset(currIndex + 1);
 
-            // Check the key indices are as expected
-            if (docInfo.charAtIndex(currIndex + 1) != '"' ||
-                    docInfo.charAtIndex(currIndex + 2) != '"' ||
-                    docInfo.charAtIndex(currIndex + 3) != ':') {
-                offset = keyOffset;
-                throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                        "Invalid key:value syntax.", offset), offset);
-            }
-
             // Ensure no garbage before key
             if (!JsonParser.checkWhitespaces(docInfo,
                     docInfo.getOffset(currIndex)+1, docInfo.getOffset(currIndex+1))) {
@@ -155,13 +146,20 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
                         docInfo.getOffset(currIndex+2)+1), docInfo.getOffset(currIndex+2)+1);
             }
 
-            // Check for duplicate keys
-            if (k.containsKey(key)) {
-                offset = keyOffset;
+            // Check for the colon
+            if (docInfo.charAtIndex(currIndex + 3) != ':') {
                 throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                        "Duplicate keys not allowed.", offset), offset);
+                        "Invalid key:value syntax.", keyOffset), keyOffset);
             }
 
+            // Check for duplicate keys
+            if (k.containsKey(key)) {
+                throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                        "Duplicate keys not allowed.", keyOffset), keyOffset);
+            }
+
+
+            // Get value
             offset = docInfo.getOffset(currIndex + 3) + 1;
 
 
