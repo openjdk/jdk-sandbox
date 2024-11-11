@@ -28,6 +28,7 @@ package jdk.internal.util.json;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * JsonArray lazy implementation subclass
@@ -58,18 +59,14 @@ final class JsonArrayLazyImpl extends JsonArrayImpl implements JsonValueLazyImpl
     @Override
     public JsonValue get(int index) {
         JsonValue val;
-        if (theValues == null) {
-            val = inflateUntilMatch(index);
+        // Search for key in list first, otherwise offsets
+        if (theValues != null && theValues.size() - 1 >= index) {
+            val = theValues.get(index);
+        } else if (inflated) {
+            throw new IndexOutOfBoundsException(
+                    String.format("Index %s is out of bounds for length %s", index, theValues.size()));
         } else {
-            // Search for key in list first, otherwise offsets
-            if (theValues.size() - 1 >= index) {
-                val = theValues.get(index);
-            } else if (inflated) {
-                throw new IndexOutOfBoundsException(
-                        String.format("Index %s is out of bounds for length %s", index, theValues.size()));
-            } else {
-                val = inflateUntilMatch(index);
-            }
+            val = inflateUntilMatch(index);
         }
         return val;
     }
@@ -84,14 +81,14 @@ final class JsonArrayLazyImpl extends JsonArrayImpl implements JsonValueLazyImpl
     private JsonValue inflateUntilMatch(int index) {
         var val = inflate(index);
         // null returned on no match, fail
-        if (val == null) {
+        if (val.isEmpty()) {
             throw new IndexOutOfBoundsException(
                     String.format("Index %s is out of bounds for length %s", index, theValues.size()));
         }
-        return val;
+        return val.get();
     }
 
-    private JsonValue inflate(int searchIndex) {
+    private Optional<JsonValue> inflate(int searchIndex) {
         if (inflated) {
             throw new InternalError("JsonArray is already inflated");
         }
@@ -100,7 +97,7 @@ final class JsonArrayLazyImpl extends JsonArrayImpl implements JsonValueLazyImpl
             if (JsonParser.checkWhitespaces(docInfo, startOffset + 1, endOffset - 1)) {
                 theValues = Collections.emptyList();
                 inflated = true;
-                return null;
+                return Optional.empty();
             }
             theValues = new ArrayList<>();
         }
@@ -136,7 +133,7 @@ final class JsonArrayLazyImpl extends JsonArrayImpl implements JsonValueLazyImpl
                         inflated = true;
                         theValues = Collections.unmodifiableList(v);
                     }
-                    return value;
+                    return Optional.of(value);
                 }
             } else {
                 throw new JsonParseException(docInfo.composeParseExceptionMessage(
@@ -147,7 +144,7 @@ final class JsonArrayLazyImpl extends JsonArrayImpl implements JsonValueLazyImpl
         // inflated, so make unmodifiable
         inflated = true;
         theValues = Collections.unmodifiableList(v);
-        return null;
+        return Optional.empty();
     }
 
     @Override

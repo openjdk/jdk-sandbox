@@ -28,6 +28,7 @@ package jdk.internal.util.json;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * JsonObject lazy implementation subclass
@@ -57,33 +58,31 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
 
     @Override
     public JsonValue get(String key) {
-        JsonValue val;
+        Optional<JsonValue> val;
         if (theKeys == null) {
             val = inflateUntilMatch(key);
         } else {
             // Search for key in hashmap first, otherwise offsets
-            val = theKeys.get(key);
-            if (val == null) {
-                if (inflated) {
-                    return null;
-                } else {
+            val = Optional.ofNullable(theKeys.get(key));
+            if (val.isEmpty()) {
+                if (!inflated) {
                     val = inflateUntilMatch(key);
                 }
             }
         }
-        return val;
+        return val.orElse(null);
     }
 
     @Override
     public boolean contains(String key) {
         // See if we already have it, otherwise continue inflation to check
-        JsonValue val;
+        Optional<JsonValue> val;
         if (theKeys == null) {
             val = inflateUntilMatch(key);
         } else {
             if (!theKeys.containsKey(key)) {
                 if (inflated) {
-                    val = null;
+                    val = Optional.empty();
                 } else {
                     val = inflateUntilMatch(key);
                 }
@@ -91,7 +90,7 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
                 return true;
             }
         }
-        return val != null;
+        return val.isPresent();
     }
 
     // Inflate the entire map
@@ -100,12 +99,12 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
     }
 
     // Upon match, return the key and defer the rest of inflation
-    // Otherwise, if no match, returns null
-    private JsonValue inflateUntilMatch(String key) {
+    // Otherwise, if no match, returns empty Optional
+    private Optional<JsonValue> inflateUntilMatch(String key) {
         return inflate(key);
     }
 
-    private JsonValue inflate(String searchKey) {
+    private Optional<JsonValue> inflate(String searchKey) {
         if (inflated) {
             throw new InternalError("JsonObject is already inflated");
         }
@@ -114,7 +113,7 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
             if (JsonParser.checkWhitespaces(docInfo, startOffset + 1, endOffset - 1)) {
                 theKeys = Collections.emptyMap();
                 inflated = true;
-                return null;
+                return Optional.empty();
             }
             theKeys = new HashMap<>();
         }
@@ -190,7 +189,7 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
                         inflated = true;
                         theKeys = Collections.unmodifiableMap(k);
                     }
-                    return value;
+                    return Optional.of(value);
                 }
             } else {
                 throw new JsonParseException(docInfo.composeParseExceptionMessage(
@@ -201,7 +200,7 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
         // inflated, so make unmodifiable
         inflated = true;
         theKeys = Collections.unmodifiableMap(k);
-        return null;
+        return Optional.empty();
     }
 
     @Override
