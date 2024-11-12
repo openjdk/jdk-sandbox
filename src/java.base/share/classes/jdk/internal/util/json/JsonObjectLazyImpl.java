@@ -28,6 +28,7 @@ package jdk.internal.util.json;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -58,6 +59,7 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
 
     @Override
     public JsonValue get(String key) {
+        Objects.requireNonNull(key); // RFC8259 does not permit null keys
         Optional<JsonValue> val;
         if (theKeys == null) {
             val = inflateUntilMatch(key);
@@ -75,22 +77,7 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
 
     @Override
     public boolean contains(String key) {
-        // See if we already have it, otherwise continue inflation to check
-        Optional<JsonValue> val;
-        if (theKeys == null) {
-            val = inflateUntilMatch(key);
-        } else {
-            if (!theKeys.containsKey(key)) {
-                if (inflated) {
-                    val = Optional.empty();
-                } else {
-                    val = inflateUntilMatch(key);
-                }
-            } else {
-                return true;
-            }
-        }
-        return val.isPresent();
+        return get(key) != null;
     }
 
     // Inflate the entire map
@@ -104,16 +91,25 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
         return inflate(key);
     }
 
+    /*
+     * Inflates the JsonObject using the offsets array. Callers should not call
+     * this method if the JsonObject is already inflated.
+     *
+     * @param searchKey a String key to stop inflation on. Can be null as well to ensure
+     *        the full document is inflated.
+     * @throws JsonParseException if the JSON syntax is violated or there exists a
+     *         duplicate key
+     * @return an Optional<JsonValue> that contains a JsonValue if searchKey was found,
+     *         otherwise empty
+     */
     private Optional<JsonValue> inflate(String searchKey) {
-        if (inflated) {
-            throw new InternalError("JsonObject is already inflated");
-        }
 
+        Optional<JsonValue> ret = Optional.empty();
         if (theKeys == null) { // first time init
             if (JsonParser.checkWhitespaces(docInfo, startOffset + 1, endOffset - 1)) {
                 theKeys = Collections.emptyMap();
                 inflated = true;
-                return Optional.empty();
+                return ret;
             }
             theKeys = new HashMap<>();
         }
@@ -121,11 +117,8 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
         var k = theKeys;
         while (currIndex < endIndex) {
             // Traversal starts on the opening bracket, or a comma
-            // We need to parse a key, a value and ensure that there
-            // is no added garbage within our key/value pair
-            // As the initial creation was done lazily, we validate now
-            int offset;
-            var keyOffset = docInfo.getOffset(currIndex + 1);
+            // First, validate the key
+            int offset = docInfo.getOffset(currIndex + 1);
 
             // Ensure no garbage before key
             if (!JsonParser.checkWhitespaces(docInfo,
@@ -135,7 +128,7 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
                         docInfo.getOffset(currIndex)+1), docInfo.getOffset(currIndex)+1);
             }
 
-            var key = new JsonStringLazyImpl(docInfo, keyOffset, currIndex + 1).value();
+            var key = new JsonStringLazyImpl(docInfo, offset, currIndex + 1).value();
 
             // Ensure no garbage after key and before colon
             if (!JsonParser.checkWhitespaces(docInfo,
@@ -148,26 +141,25 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
             // Check for the colon
             if (docInfo.charAtIndex(currIndex + 3) != ':') {
                 throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                        "Invalid key:value syntax.", keyOffset), keyOffset);
+                        "Invalid key:value syntax.",offset), offset);
             }
 
             // Check for duplicate keys
             if (k.containsKey(key)) {
                 throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                        "Duplicate keys not allowed.", keyOffset), keyOffset);
+                        "Duplicate keys not allowed.", offset), offset);
             }
 
+            // Key is validated. Move offset and index to colon to get the value
+            currIndex = currIndex + 3;
+            offset = docInfo.getOffset(currIndex) + 1;
 
-            // Get value
-            offset = docInfo.getOffset(currIndex + 3) + 1;
-
-
-            if (docInfo.isWalkableStartIndex(docInfo.charAtIndex(currIndex + 4))) {
-                currIndex = currIndex + 4;
-            } else {
-                currIndex = currIndex + 3;
+            // For obj/arr/str we need to walk the colon to get the correct starting index
+            if (docInfo.isWalkableStartIndex(docInfo.charAtIndex(currIndex + 1))) {
+                currIndex++;
             }
 
+            // Get the value
             var value = JsonParser.parseValue(docInfo, offset, currIndex);
             k.put(key, value);
 
@@ -181,15 +173,11 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
                                 .formatted(value, key), offset), offset);
             }
 
-
             var c = docInfo.charAtIndex(currIndex);
             if (c == ',' || c == '}') {
-                if (searchKey != null && searchKey.equals(key)) {
-                    if (c == '}') {
-                        inflated = true;
-                        theKeys = Collections.unmodifiableMap(k);
-                    }
-                    return Optional.of(value);
+                if (Objects.equals(searchKey, key)) {
+                    ret = Optional.of(value);
+                    return ret;
                 }
             } else {
                 throw new JsonParseException(docInfo.composeParseExceptionMessage(
@@ -200,11 +188,11 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
         // inflated, so make unmodifiable
         inflated = true;
         theKeys = Collections.unmodifiableMap(k);
-        return Optional.empty();
+        return ret;
     }
 
     @Override
     public int getEndIndex() {
-        return endIndex + 1;
+        return endIndex + 1; // We are interested in the index after '}'
     }
 }

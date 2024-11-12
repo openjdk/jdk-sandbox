@@ -49,6 +49,7 @@ public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
     /**
      * {@return the {@code JsonValue} member in this JSON object}
      * @param key the String key
+     * @throws NullPointerException if {@code key} is {@code null}
      */
     JsonValue get(String key);
 
@@ -57,6 +58,7 @@ public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
      * JSON object does not contain the key}
      * @param key the String key
      * @param defaultValue the default value for the key
+     * @throws NullPointerException if {@code key} is {@code null}
      */
     JsonValue getOrDefault(String key, JsonValue defaultValue);
 
@@ -64,6 +66,7 @@ public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
      * {@return {@code true} if this JSON object contains a mapping for
      * the specified key}
      * @param key the String key
+     * @throws NullPointerException if {@code key} is {@code null}
      */
     boolean contains(String key);
 

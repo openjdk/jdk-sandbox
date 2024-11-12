@@ -80,7 +80,7 @@ final class JsonArrayLazyImpl extends JsonArrayImpl implements JsonValueLazyImpl
     // If no match, should throw IOOBE
     private JsonValue inflateUntilMatch(int index) {
         var val = inflate(index);
-        // null returned on no match, fail
+        // empty returned on no match, fail
         if (val.isEmpty()) {
             throw new IndexOutOfBoundsException(
                     String.format("Index %s is out of bounds for length %s", index, theValues.size()));
@@ -88,16 +88,24 @@ final class JsonArrayLazyImpl extends JsonArrayImpl implements JsonValueLazyImpl
         return val.get();
     }
 
+    /*
+     * Inflates the JsonArray using the offsets array. Callers should not call
+     * this method if the JsonArray is already inflated.
+     *
+     * @param searchIndex an index to stop inflation on. Can be -1 as well to ensure
+     *        the full document is inflated.
+     * @throws JsonParseException if the JSON syntax is violated
+     * @return an Optional<JsonValue> that contains a JsonValue if searchIndex was found,
+     *         otherwise empty
+     */
     private Optional<JsonValue> inflate(int searchIndex) {
-        if (inflated) {
-            throw new InternalError("JsonArray is already inflated");
-        }
 
+        Optional<JsonValue> ret = Optional.empty();
         if (theValues == null) { // first time init
             if (JsonParser.checkWhitespaces(docInfo, startOffset + 1, endOffset - 1)) {
                 theValues = Collections.emptyList();
                 inflated = true;
-                return Optional.empty();
+                return ret;
             }
             theValues = new ArrayList<>();
         }
@@ -107,19 +115,19 @@ final class JsonArrayLazyImpl extends JsonArrayImpl implements JsonValueLazyImpl
             // Traversal starts on the opening bracket, or a comma
             int offset = docInfo.getOffset(currIndex) + 1;
 
-            // For obj/arr we need to walk the comma to get the correct starting index
+            // For obj/arr/str we need to walk the comma to get the correct starting index
             if (docInfo.isWalkableStartIndex(docInfo.charAtIndex(currIndex + 1))) {
                 currIndex++;
             }
 
+            // Get the value
             var value = JsonParser.parseValue(docInfo, offset, currIndex);
             v.add(value);
 
             offset = ((JsonValueImpl)value).getEndOffset();
             currIndex = ((JsonValueLazyImpl)value).getEndIndex();
 
-            // Check that there is only a single valid JsonValue
-            // Between the end of the value and the next index, there should only be WS
+            // Check there is no garbage after the JsonValue
             if (!JsonParser.checkWhitespaces(docInfo, offset, docInfo.getOffset(currIndex))) {
                 throw new JsonParseException(docInfo.composeParseExceptionMessage(
                         "Unexpected character(s) found after JsonValue: %s."
@@ -129,11 +137,8 @@ final class JsonArrayLazyImpl extends JsonArrayImpl implements JsonValueLazyImpl
             var c = docInfo.charAtIndex(currIndex);
             if (c == ',' || c == ']') {
                 if (searchIndex == theValues.size() - 1) {
-                    if (c == ']') {
-                        inflated = true;
-                        theValues = Collections.unmodifiableList(v);
-                    }
-                    return Optional.of(value);
+                    ret = Optional.of(value);
+                    return ret;
                 }
             } else {
                 throw new JsonParseException(docInfo.composeParseExceptionMessage(
@@ -144,11 +149,11 @@ final class JsonArrayLazyImpl extends JsonArrayImpl implements JsonValueLazyImpl
         // inflated, so make unmodifiable
         inflated = true;
         theValues = Collections.unmodifiableList(v);
-        return Optional.empty();
+        return ret;
     }
 
     @Override
     public int getEndIndex() {
-        return endIndex + 1;
+        return endIndex + 1;  // We are interested in the index after ']'
     }
 }
