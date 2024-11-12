@@ -26,7 +26,10 @@
 package jdk.internal.util.json;
 
 /**
- * Implementation methods common to JsonXXXLazyImpl classes
+ * Implementation methods common to JsonXXXLazyImpl classes.
+ * Lazy implementations only parse on-demand. Additionally, JSON values are not
+ * guaranteed to be fully validated. JsonValueLazyImpl classes are expected to use
+ * JsonLazyDocumentInfo which stores an array of key offsets.
  */
 sealed interface JsonValueLazyImpl permits JsonArrayLazyImpl, JsonBooleanLazyImpl, JsonNullLazyImpl, JsonNumberLazyImpl, JsonObjectLazyImpl, JsonStringLazyImpl {
     int getEndIndex();
