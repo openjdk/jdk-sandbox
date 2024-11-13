@@ -79,7 +79,11 @@ final class JsonLazyDocumentInfo extends JsonDocumentInfo {
         return indexCount;
     }
 
-    // Used by JsonObject and JsonArray to get the endIndex
+    // Used by JsonObject and JsonArray to get the endIndex. In other words, a
+    // Json Value where the next index is not +1.
+    // This method is not that costly, since we walk the indices, not the offsets.
+    // Tracking the end index during the offset array creation requires a stack
+    // which is generally costlier than calculating here.
     int getStructureLength(int startIdx, int startOff, char startToken, char endToken) {
         var index = startIdx + 1;
         int depth = 0;
