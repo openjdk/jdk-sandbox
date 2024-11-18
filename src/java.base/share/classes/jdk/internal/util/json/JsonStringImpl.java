@@ -81,15 +81,23 @@ sealed class JsonStringImpl implements JsonString, JsonValueImpl permits JsonStr
     }
 
     @Override
-    public String formatCompact() {
+    public String format(Option... options) {
+        for (var o : options) {
+            if (o == FormatOption.PRETTY_PRINT) {
+                return formatReadable();
+            }
+        }
+        return formatCompact();
+    }
+
+    String formatCompact() {
         if (source == null) {
             source = docInfo.substring(startOffset, endOffset);
         }
         return source;
     }
 
-    @Override
-    public String formatReadable() {
+    String formatReadable() {
         return formatReadable(0, false);
     }
 

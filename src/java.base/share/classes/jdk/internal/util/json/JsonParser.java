@@ -49,8 +49,7 @@ public class JsonParser {
 
     /**
      * Parses and creates the top level {@code JsonValue} in this JSON
-     * document. Parsing may return the top level {@code JsonValue}
-     * without a complete parsing of the entire input document.
+     * document.
      *
      * @param in the input JSON document as {@code String}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform
@@ -64,8 +63,28 @@ public class JsonParser {
 
     /**
      * Parses and creates the top level {@code JsonValue} in this JSON
-     * document. Parsing may return the top level {@code JsonValue}
-     * without a complete parsing of the entire input document.
+     * document.
+     *
+     * @param in the input JSON document as {@code String}. Non-null.
+     * @param options parsing options
+     * @throws JsonParseException if the input JSON document does not conform
+     *      to the JSON document format
+     * @return the top level {@code JsonValue}
+     */
+    public static JsonValue parse(String in, ParseOption... options) {
+        Objects.requireNonNull(in);
+
+        for (var o : options) {
+            if (o == ParseOption.EAGER_PARSING) {
+                return parseImpl(new JsonDocumentInfo(in));
+            }
+        }
+        return parseImpl(new JsonLazyDocumentInfo(in));
+    }
+
+    /**
+     * Parses and creates the top level {@code JsonValue} in this JSON
+     * document.
      *
      * @param in the input JSON document as {@code char[]}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform
@@ -79,30 +98,23 @@ public class JsonParser {
 
     /**
      * Parses and creates the top level {@code JsonValue} in this JSON
-     * document. Parsing must validate the entire input JSON document.
-     *
-     * @param in the input JSON document as {@code String}. Non-null.
-     * @throws JsonParseException if the input JSON document does not conform
-     *      to the JSON document format
-     * @return the top level {@code JsonValue}
-     */
-    public static JsonValue parseEagerly(String in) {
-        Objects.requireNonNull(in);
-        return parseImpl(new JsonDocumentInfo(in));
-    }
-
-    /**
-     * Parses and creates the top level {@code JsonValue} in this JSON
-     * document. Parsing must validate the entire input JSON document.
+     * document.
      *
      * @param in the input JSON document as {@code char[]}. Non-null.
+     * @param options parsing options
      * @throws JsonParseException if the input JSON document does not conform
      *      to the JSON document format
      * @return the top level {@code JsonValue}
      */
-    public static JsonValue parseEagerly(char[] in) {
+    public static JsonValue parse(char[] in, ParseOption... options) {
         Objects.requireNonNull(in);
-        return parseImpl(new JsonDocumentInfo(in));
+
+        for (var o : options) {
+            if (o == ParseOption.EAGER_PARSING) {
+                return parseImpl(new JsonDocumentInfo(in));
+            }
+        }
+        return parseImpl(new JsonLazyDocumentInfo(in));
     }
 
     // return the root value

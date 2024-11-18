@@ -98,12 +98,20 @@ sealed class JsonBooleanImpl implements JsonBoolean, JsonValueImpl permits JsonB
     }
 
     @Override
-    public String formatCompact() {
+    public String format(Option... options) {
+        for (var o : options) {
+            if (o == FormatOption.PRETTY_PRINT) {
+                return formatReadable();
+            }
+        }
+        return formatCompact();
+    }
+
+    String formatCompact() {
         return Boolean.valueOf(value()).toString();
     }
 
-    @Override
-    public String formatReadable() {
+    String formatReadable() {
         return formatReadable(0, false);
     }
 

@@ -42,12 +42,12 @@ import java.util.Map;
  *     var json = JsonValue.from(values);
  *     json.to().equals(values); // returns true
  * }
- * See {@link #formatCompact()} and {@link #formatReadable()} for converting a {@code JsonValue}
+ * See {@link #format(Option...)} for converting a {@code JsonValue}
  * to its corresponding JSON String. For example,
  * {@snippet lang=java:
  *     var values = Arrays.asList("foo", true, 25);
  *     var json = JsonValue.from(values);
- *     json.formatCompact(); // returns "[\"foo\",true,25]"
+ *     json.format(); // returns "[\"foo\",true,25]"
  * }
  */
 public sealed interface JsonValue
@@ -82,15 +82,8 @@ public sealed interface JsonValue
 
     /**
      * {@return the String representation of this {@code JsonValue} that conforms
-     * to the JSON syntax} The output String is compact, it does not contain any
-     * white spaces or line-breaks.
+     * to the JSON syntax}
+     * @param options formatting options
      */
-    String formatCompact();
-
-    /**
-     * {@return the String representation of this {@code JsonValue} that conforms
-     * to the JSON syntax} The output String is human-readable, it involves
-     * indentation, spacing, and line-breaks.
-     */
-    String formatReadable();
+    String format(Option... options);
 }

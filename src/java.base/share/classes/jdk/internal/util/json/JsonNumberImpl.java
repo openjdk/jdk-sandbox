@@ -197,12 +197,20 @@ sealed class JsonNumberImpl implements JsonNumber, JsonValueImpl permits JsonNum
     }
 
     @Override
-    public String formatCompact() {
+    public String format(Option... options) {
+        for (var o : options) {
+            if (o == FormatOption.PRETTY_PRINT) {
+                return formatReadable();
+            }
+        }
+        return formatCompact();
+    }
+
+    String formatCompact() {
         return numString;
     }
 
-    @Override
-    public String formatReadable() {
+    String formatReadable() {
         return formatReadable(0, false);
     }
 

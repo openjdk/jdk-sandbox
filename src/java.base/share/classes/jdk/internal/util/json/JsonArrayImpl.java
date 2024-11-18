@@ -140,7 +140,16 @@ sealed class JsonArrayImpl implements JsonArray, JsonValueImpl permits JsonArray
     }
 
     @Override
-    public String formatCompact() {
+    public String format(Option... options) {
+        for (var o : options) {
+            if (o == FormatOption.PRETTY_PRINT) {
+                return formatReadable();
+            }
+        }
+        return formatCompact();
+    }
+
+    String formatCompact() {
         var s = new StringBuilder("[");
         for (JsonValue v: values()) {
             s.append(v.toString()).append(",");
@@ -151,8 +160,7 @@ sealed class JsonArrayImpl implements JsonArray, JsonValueImpl permits JsonArray
         return s.append("]").toString();
     }
 
-    @Override
-    public String formatReadable() {
+    String formatReadable() {
         return formatReadable(0, false);
     }
 
