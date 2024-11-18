@@ -164,14 +164,7 @@ sealed class JsonNumberImpl implements JsonNumber, JsonValueImpl permits JsonNum
     }
 
     Number numToString(String numStr, boolean fp, int offset) {
-        if (fp) {
-            var num = Double.parseDouble(numStr);
-            if (Double.isInfinite(num)) { // don't need to check NaN, parsing forbids non int start
-                throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                        "Number cannot be infinite.", offset), offset);
-            }
-            return num;
-        } else {
+        if (!fp) {
             // integral numbers
             try {
                 return Integer.parseInt(numStr);
@@ -180,11 +173,17 @@ sealed class JsonNumberImpl implements JsonNumber, JsonValueImpl permits JsonNum
                 try {
                     return Long.parseLong(numStr);
                 } catch (NumberFormatException _) {
-                    // long overflow. convert to BigInteger
-                    return new BigInteger(numStr);
+                    // long overflow. convert to Double
                 }
             }
         }
+
+        var num = Double.parseDouble(numStr);
+        if (Double.isInfinite(num)) { // don't need to check NaN, parsing forbids non int start
+            throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                    "Number cannot be infinite.", offset), offset);
+        }
+        return num;
     }
 
     @Override

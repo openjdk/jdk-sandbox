@@ -28,12 +28,14 @@ package jdk.internal.util.json;
 import java.util.Objects;
 
 /**
- * The interface that represents JSON number
+ * The interface that represents JSON number.
  * <p>
  * A {@code JsonNumber} can be produced by a {@link JsonParser} parse.
  * <p> Alternatively, {@link #from(Number)} can be used to obtain a {@code JsonNumber}
  * from a {@code Number}. {@link #to()} is the inverse operation, producing a {@code Number} from a
  * {@code JsonNumber}. These methods are not guaranteed to produce a round-trip.
+ *
+ * @implNote This implementation allows IEEE 754 binary64 (double precision) numbers.
  */
 public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
     /**
@@ -53,16 +55,28 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      * {@return the {@code JsonNumber} created from the given
      * {@code Number} object}
      *
+     * @implNote If the given {@code Number} has too great a magnitude represent as a
+     * {@code double}, it will throw an {@code IllegalArgumentException}.
+     *
      * @param num the given {@code Number}. Non-null.
-     * @throws IllegalArgumentException if {@code num} is infinite or NaN.
+     * @throws IllegalArgumentException if the given {@code num} is out
+     *          of accepted range.
      */
     static JsonNumber from(Number num) {
         Objects.requireNonNull(num);
-        if (num instanceof Double d) {
-            if (Double.isNaN(d) || Double.isInfinite(d)) {
-                throw new IllegalArgumentException("Not a valid JSON number");
+        return switch (num) {
+            case Byte b -> new JsonNumberImpl(b);
+            case Short s -> new JsonNumberImpl(s);
+            case Integer i -> new JsonNumberImpl(i);
+            case Long l -> new JsonNumberImpl(l);
+            default -> {
+                // non-integral types
+                var d = num.doubleValue();
+                if (Double.isNaN(d) || Double.isInfinite(d)) {
+                    throw new IllegalArgumentException("Not a valid JSON number");
+                }
+                yield new JsonNumberImpl(d);
             }
-        }
-        return new JsonNumberImpl(num);
+        };
     }
 }
