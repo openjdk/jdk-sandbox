@@ -34,6 +34,7 @@ import jdk.internal.util.json.JsonNumber;
 import jdk.internal.util.json.JsonParser;
 import jdk.internal.util.json.JsonString;
 import jdk.internal.util.json.JsonValue;
+import jdk.internal.util.json.Option;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -76,7 +77,7 @@ public class TestEquality {
     );
 
     private static Stream<JsonValue> testArrayEquality() {
-        return Stream.of(JsonParser.parse(json), JsonParser.parseEagerly(json));
+        return Stream.of(JsonParser.parse(json), JsonParser.parse(json, Option.Parse.EAGER_PARSING));
     }
 
     @MethodSource

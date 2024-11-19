@@ -43,7 +43,7 @@ public class TestBadStructuralJson {
     @MethodSource
     public void badJsonParseTest(String badJson) {
         assertThrows(JsonParseException.class, () -> JsonParser.parse(badJson));
-        assertThrows(JsonParseException.class, () -> JsonParser.parseEagerly(badJson));
+        assertThrows(JsonParseException.class, () -> JsonParser.parse(badJson, Option.Parse.EAGER_PARSING));
     }
 
     // Fails during parse
@@ -63,7 +63,7 @@ public class TestBadStructuralJson {
         var j = JsonParser.parse(badJson);
         assertThrows(JsonParseException.class, j::toString);
         assertThrows(JsonParseException.class,
-                () -> JsonParser.parseEagerly(badJson));
+                () -> JsonParser.parse(badJson, Option.Parse.EAGER_PARSING));
     }
 
     // Fails during values()/keys()
@@ -91,6 +91,6 @@ public class TestBadStructuralJson {
         var j = JsonParser.parse("[\"Brian\", 5, null, \"foo\" 5]");
         assertThrows(JsonParseException.class, j::toString);
         assertThrows(JsonParseException.class,
-                () -> JsonParser.parseEagerly("[\"Brian\", 5, null, \"foo\" 5]"));
+                () -> JsonParser.parse("[\"Brian\", 5, null, \"foo\" 5]", Option.Parse.EAGER_PARSING));
     }
 }

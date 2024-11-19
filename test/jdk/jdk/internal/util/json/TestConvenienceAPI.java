@@ -34,6 +34,7 @@ import jdk.internal.util.json.JsonObject;
 import jdk.internal.util.json.JsonParser;
 import jdk.internal.util.json.JsonString;
 import jdk.internal.util.json.JsonValue;
+import jdk.internal.util.json.Option;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -68,7 +69,7 @@ public class TestConvenienceAPI {
             """;
 
     private static Stream<JsonValue> testGetOrDefault() {
-        return Stream.of(JsonParser.parse(basicObj), JsonParser.parseEagerly(basicObj));
+        return Stream.of(JsonParser.parse(basicObj), JsonParser.parse(basicObj, Option.Parse.EAGER_PARSING));
     }
 
     @MethodSource
@@ -82,7 +83,7 @@ public class TestConvenienceAPI {
     }
 
     private static Stream<JsonValue> testArrStream() {
-        return Stream.of(JsonParser.parse(arrWithNested), JsonParser.parseEagerly(arrWithNested));
+        return Stream.of(JsonParser.parse(arrWithNested), JsonParser.parse(arrWithNested, Option.Parse.EAGER_PARSING));
     }
 
     @MethodSource
@@ -93,7 +94,7 @@ public class TestConvenienceAPI {
     }
 
     private static Stream<JsonValue> testContainsKey() {
-        return Stream.of(JsonParser.parse(basicObj), JsonParser.parseEagerly(basicObj));
+        return Stream.of(JsonParser.parse(basicObj), JsonParser.parse(basicObj, Option.Parse.EAGER_PARSING));
     }
 
     @MethodSource
@@ -105,7 +106,7 @@ public class TestConvenienceAPI {
     }
 
     private static Stream<JsonValue> testSize() {
-        return Stream.of(JsonParser.parse(arrWithNested), JsonParser.parseEagerly(arrWithNested));
+        return Stream.of(JsonParser.parse(arrWithNested), JsonParser.parse(arrWithNested, Option.Parse.EAGER_PARSING));
     }
 
     @MethodSource

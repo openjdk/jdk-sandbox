@@ -31,6 +31,7 @@
 
 import jdk.internal.util.json.JsonParseException;
 import jdk.internal.util.json.JsonParser;
+import jdk.internal.util.json.Option;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -95,13 +96,13 @@ public class TestParse {
     @ParameterizedTest
     @MethodSource("validValues")
     public void validEagerParse(String value) {
-        JsonParser.parseEagerly(TEMPLATE.formatted(value));
+        JsonParser.parse(TEMPLATE.formatted(value), Option.Parse.EAGER_PARSING);
     }
 
     @ParameterizedTest
     @MethodSource("invalidValues")
     public void invalidEagerParse(String value) {
         assertThrows(JsonParseException.class, () ->
-            JsonParser.parseEagerly(TEMPLATE.formatted(value)));
+            JsonParser.parse(TEMPLATE.formatted(value), Option.Parse.EAGER_PARSING));
     }
 }

@@ -33,6 +33,7 @@ import jdk.internal.util.json.JsonNumber;
 import jdk.internal.util.json.JsonParseException;
 import jdk.internal.util.json.JsonParser;
 import jdk.internal.util.json.JsonValue;
+import jdk.internal.util.json.Option;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigInteger;
@@ -47,8 +48,8 @@ public class TestJsonNumber {
         assertThrows(IllegalArgumentException.class, () -> JsonNumber.from(Double.NEGATIVE_INFINITY));
         assertThrows(JsonParseException.class, () -> ((JsonNumber) JsonParser.parse("1e309")).value());
         assertThrows(JsonParseException.class, () -> ((JsonNumber) JsonParser.parse("-1e309")).value());
-        assertThrows(JsonParseException.class, () -> ((JsonNumber) JsonParser.parseEagerly("1e309")).value());
-        assertThrows(JsonParseException.class, () -> ((JsonNumber) JsonParser.parseEagerly("-1e309")).value());
+        assertThrows(JsonParseException.class, () -> ((JsonNumber) JsonParser.parse("1e309", Option.Parse.EAGER_PARSING)).value());
+        assertThrows(JsonParseException.class, () -> ((JsonNumber) JsonParser.parse("-1e309", Option.Parse.EAGER_PARSING)).value());
     }
 
     @Test
@@ -74,8 +75,7 @@ public class TestJsonNumber {
         var huge = "18446744073709551615";
         if (JsonParser.parse(huge) instanceof JsonNumber jn &&
             jn.value() instanceof Number val) {
-            assertInstanceOf(BigInteger.class, val);
-            assertEquals(huge, val.toString());
+            assertEquals(Double.valueOf(huge), val);
         } else {
             throw new RuntimeException("parse failed");
         }

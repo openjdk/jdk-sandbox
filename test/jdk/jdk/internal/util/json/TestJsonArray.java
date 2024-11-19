@@ -32,6 +32,7 @@
 import jdk.internal.util.json.JsonArray;
 import jdk.internal.util.json.JsonParser;
 import jdk.internal.util.json.JsonValue;
+import jdk.internal.util.json.Option;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -51,7 +52,7 @@ public class TestJsonArray {
     """;
 
     private static Stream<JsonValue> testVarargsFactory() {
-        return Stream.of(JsonParser.parse(ARRAY), JsonParser.parseEagerly(ARRAY));
+        return Stream.of(JsonParser.parse(ARRAY), JsonParser.parse(ARRAY, Option.Parse.EAGER_PARSING));
     }
 
     @MethodSource
