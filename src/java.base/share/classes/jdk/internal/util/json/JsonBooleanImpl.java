@@ -100,7 +100,7 @@ sealed class JsonBooleanImpl implements JsonBoolean, JsonValueImpl permits JsonB
     @Override
     public String format(Option... options) {
         for (var o : options) {
-            if (o == FormatOption.PRETTY_PRINT) {
+            if (o == Option.Format.PRETTY_PRINT) {
                 return formatReadable();
             }
         }

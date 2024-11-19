@@ -71,11 +71,11 @@ public class JsonParser {
      *      to the JSON document format
      * @return the top level {@code JsonValue}
      */
-    public static JsonValue parse(String in, ParseOption... options) {
+    public static JsonValue parse(String in, Option... options) {
         Objects.requireNonNull(in);
 
         for (var o : options) {
-            if (o == ParseOption.EAGER_PARSING) {
+            if (o == Option.Parse.EAGER_PARSING) {
                 return parseImpl(new JsonDocumentInfo(in));
             }
         }
@@ -106,11 +106,11 @@ public class JsonParser {
      *      to the JSON document format
      * @return the top level {@code JsonValue}
      */
-    public static JsonValue parse(char[] in, ParseOption... options) {
+    public static JsonValue parse(char[] in, Option... options) {
         Objects.requireNonNull(in);
 
         for (var o : options) {
-            if (o == ParseOption.EAGER_PARSING) {
+            if (o == Option.Parse.EAGER_PARSING) {
                 return parseImpl(new JsonDocumentInfo(in));
             }
         }

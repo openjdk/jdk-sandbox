@@ -85,7 +85,7 @@ sealed class JsonNullImpl implements JsonNull, JsonValueImpl permits JsonNullLaz
     @Override
     public String format(Option... options) {
         for (var o : options) {
-            if (o == FormatOption.PRETTY_PRINT) {
+            if (o == Option.Format.PRETTY_PRINT) {
                 return formatReadable();
             }
         }

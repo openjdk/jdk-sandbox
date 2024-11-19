@@ -28,5 +28,38 @@ package jdk.internal.util.json;
 /**
  * Binary options
  */
-public sealed interface Option permits ParseOption, FormatOption {
+public sealed interface Option permits Option.Parse, Option.Format {
+    /**
+     * Binary options for parsing JSON document
+     */
+    enum Parse implements Option {
+        /**
+         * Parsing must validate the entire input JSON document.
+         * Otherwise, Parsing may return the top level {@code JsonValue}
+         * without a complete parsing of the entire input document.
+         */
+        EAGER_PARSING,
+
+        /**
+         * TBD (may split into each JSON5 options, e.g, allow comments)
+         */
+        STRICT_JSON
+    }
+
+    /**
+     * Binary options for formatting JSON output
+     */
+    enum Format implements Option {
+        /**
+         * The output String is human-readable, it involves
+         * indentation, spacing, and line-breaks. Otherwise, it
+         * will be compact without those blanks.
+         */
+        PRETTY_PRINT,
+
+        /**
+         * TBD (may split into each JSON5 options, e.g, print NaN/Inf)
+         */
+        STRICT_JSON
+    }
 }
