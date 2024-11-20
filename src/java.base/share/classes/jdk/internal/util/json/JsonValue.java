@@ -86,4 +86,21 @@ public sealed interface JsonValue
      * @param options formatting options
      */
     String format(Option... options);
+
+    /**
+     * Indicates whether the given {@code obj} is "equal to" this {@code JsonValue}.
+     * The comparison is based on the original document if it was produced by
+     * parsing a JSON document.
+     */
+    @Override
+    boolean equals(Object obj);
+
+    // TBD: do we need this override?
+    /**
+     * {@return the hash code value of this {@code JsonValue}}
+     * The returned hash code is based on the original document if it was
+     * produced by parsing a JSON document.
+     */
+    @Override
+    int hashCode();
 }
