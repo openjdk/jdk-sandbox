@@ -68,16 +68,17 @@ public class ML_DSA_Test {
                             ja2.stream().forEach(c -> {
                                 if (c instanceof JsonObject jo2) {
                                     System.out.print(((JsonString)jo2.get("tcId")).value() + " ");
+                                    byte[] pk, sk;
                                     try {
                                         g.initialize(np, new FixedSecureRandom(toByteArray(((JsonString)jo2.get("seed")).value())));
                                         var kp = g.generateKeyPair();
-                                        var pk = f.getKeySpec(kp.getPublic(), EncodedKeySpec.class).getEncoded();
-                                        var sk = f.getKeySpec(kp.getPrivate(), EncodedKeySpec.class).getEncoded();
-                                        Asserts.assertEqualsByteArray(pk, toByteArray(((JsonString)jo2.get("pk")).value()));
-                                        Asserts.assertEqualsByteArray(sk, toByteArray(((JsonString)jo2.get("sk")).value()));
+                                        pk = f.getKeySpec(kp.getPublic(), EncodedKeySpec.class).getEncoded();
+                                        sk = f.getKeySpec(kp.getPrivate(), EncodedKeySpec.class).getEncoded();
                                     } catch (Exception e) {
                                         throw new RuntimeException(e);
                                     }
+                                    Asserts.assertEqualsByteArray(pk, toByteArray(((JsonString)jo2.get("pk")).value()));
+                                    Asserts.assertEqualsByteArray(sk, toByteArray(((JsonString)jo2.get("sk")).value()));
                                 }
                             });
                             System.out.println();
@@ -109,15 +110,16 @@ public class ML_DSA_Test {
                                     };
                                     var sr = new FixedSecureRandom(
                                             det ? new byte[32] : toByteArray(((JsonString)jo2.get("rnd")).value()));
+                                    byte[] sig;
                                     try {
                                         s.initSign(sk, sr);
                                         s.update(toByteArray(((JsonString)jo2.get("message")).value()));
-                                        var sig = s.sign();
-                                        Asserts.assertEqualsByteArray(
-                                                sig, toByteArray(((JsonString)jo2.get("signature")).value()));
+                                        sig = s.sign();
                                     } catch (Exception e) {
                                         throw new RuntimeException(e);
                                     }
+                                    Asserts.assertEqualsByteArray(
+                                            sig, toByteArray(((JsonString)jo2.get("signature")).value()));
                                 }
                             });
                             System.out.println();
