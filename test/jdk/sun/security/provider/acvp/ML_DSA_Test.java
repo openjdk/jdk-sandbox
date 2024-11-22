@@ -21,122 +21,145 @@
  * questions.
  */
 import jdk.test.lib.Asserts;
-import jdk.test.lib.json.JSONValue;
 import jdk.test.lib.security.FixedSecureRandom;
 import sun.security.provider.ML_DSA_Impls;
 
 import java.security.*;
 import java.security.spec.EncodedKeySpec;
 import java.security.spec.NamedParameterSpec;
+import jdk.internal.util.json.JsonArray;
+import jdk.internal.util.json.JsonBoolean;
+import jdk.internal.util.json.JsonObject;
+import jdk.internal.util.json.JsonString;
 
 import static jdk.test.lib.Utils.toByteArray;
 
 // JSON spec at https://pages.nist.gov/ACVP/draft-celi-acvp-ml-dsa.html
 public class ML_DSA_Test {
 
-    public static void run(JSONValue kat, Provider provider) throws Exception {
-
-        // We only have ML-DSA test for internal functions, which
-        // is equivalent to the FIP 204 draft.
-        ML_DSA_Impls.version = ML_DSA_Impls.Version.DRAFT;
-
-        var mode = kat.get("mode").asString();
-        switch (mode) {
-            case "keyGen" -> keyGenTest(kat, provider);
-            case "sigGen" -> sigGenTest(kat, provider);
-            case "sigVer" -> sigVerTest(kat, provider);
-            default -> throw new UnsupportedOperationException("Unknown mode: " + mode);
+    public static void run(JsonObject kat, Provider provider) throws Exception {
+        var mode = kat.get("mode");
+        if (kat.get("mode") instanceof JsonString m) {
+            switch (m.value()) {
+                case "keyGen" -> keyGenTest(kat, provider);
+                case "sigGen" -> sigGenTest(kat, provider);
+                case "sigVer" -> sigVerTest(kat, provider);
+                default -> throw new UnsupportedOperationException("Unknown mode: " + mode);
+            }
+        } else {
+            throw new UnsupportedOperationException("Unknown mode: " + mode);
         }
     }
 
-    static NamedParameterSpec genParams(String pname) {
-       return switch (pname) {
-            case "ML-DSA-44" -> NamedParameterSpec.ML_DSA_44;
-            case "ML-DSA-65" -> NamedParameterSpec.ML_DSA_65;
-            case "ML-DSA-87" -> NamedParameterSpec.ML_DSA_87;
-            default -> throw new RuntimeException("Unknown params: " + pname);
-
-        };
-    }
-
-    static void keyGenTest(JSONValue kat, Provider p) throws Exception {
+    static void keyGenTest(JsonObject kat, Provider p) throws Exception {
         var g = p == null
                 ? KeyPairGenerator.getInstance("ML-DSA")
                 : KeyPairGenerator.getInstance("ML-DSA", p);
         var f = p == null
                 ? KeyFactory.getInstance("ML-DSA")
                 : KeyFactory.getInstance("ML-DSA", p);
-        for (var t : kat.get("testGroups").asArray()) {
-            var pname = t.get("parameterSet").asString();
-            var np = genParams(pname);
-            System.out.println(">> " + pname);
-            for (var c : t.get("tests").asArray()) {
-                System.out.print(c.get("tcId").asString() + " ");
-                g.initialize(np, new FixedSecureRandom(toByteArray(c.get("seed").asString())));
-                var kp = g.generateKeyPair();
-                var pk = f.getKeySpec(kp.getPublic(), EncodedKeySpec.class).getEncoded();
-                var sk = f.getKeySpec(kp.getPrivate(), EncodedKeySpec.class).getEncoded();
-                Asserts.assertEqualsByteArray(toByteArray(c.get("pk").asString()), pk);
-                Asserts.assertEqualsByteArray(toByteArray(c.get("sk").asString()), sk);
-            }
-            System.out.println();
-        }
-    }
-
-    static void sigGenTest(JSONValue kat, Provider p) throws Exception {
-        var s = p == null
-                ? Signature.getInstance("ML-DSA")
-                : Signature.getInstance("ML-DSA", p);
-        for (var t : kat.get("testGroups").asArray()) {
-            var pname = t.get("parameterSet").asString();
-            var det = Boolean.parseBoolean(t.get("deterministic").asString());
-            System.out.println(">> " + pname + " sign");
-            for (var c : t.get("tests").asArray()) {
-                System.out.print(Integer.parseInt(c.get("tcId").asString()) + " ");
-                var sk = new PrivateKey() {
-                    public String getAlgorithm() { return pname; }
-                    public String getFormat() { return "RAW"; }
-                    public byte[] getEncoded() { return toByteArray(c.get("sk").asString()); }
-                };
-                var sr = new FixedSecureRandom(
-                        det ? new byte[32] : toByteArray(c.get("rnd").asString()));
-                s.initSign(sk, sr);
-                s.update(toByteArray(c.get("message").asString()));
-                var sig = s.sign();
-                Asserts.assertEqualsByteArray(
-                        toByteArray(c.get("signature").asString()), sig);
-            }
-            System.out.println();
-        }
-    }
-
-    static void sigVerTest(JSONValue kat, Provider p) throws Exception {
-        var s = p == null
-                ? Signature.getInstance("ML-DSA")
-                : Signature.getInstance("ML-DSA", p);
-        for (var t : kat.get("testGroups").asArray()) {
-            var pname = t.get("parameterSet").asString();
-            var pk = new PublicKey() {
-                public String getAlgorithm() { return pname; }
-                public String getFormat() { return "RAW"; }
-                public byte[] getEncoded() { return toByteArray(t.get("pk").asString()); }
-            };
-            System.out.println(">> " + pname + " verify");
-            for (var c : t.get("tests").asArray()) {
-                System.out.print(c.get("tcId").asString() + " ");
-                // Only ML-DSA sigVer has negative tests
-                var expected = Boolean.parseBoolean(c.get("testPassed").asString());
-                var actual = true;
-                try {
-                    s.initVerify(pk);
-                    s.update(toByteArray(c.get("message").asString()));
-                    actual = s.verify(toByteArray(c.get("signature").asString()));
-                } catch (InvalidKeyException | SignatureException e) {
-                    actual = false;
+        if (kat.get("testGroups") instanceof JsonArray ja) {
+            ja.stream().forEach(t -> {
+                if (t instanceof JsonObject jo) {
+                    if (jo.get("parameterSet") instanceof JsonString pname) {
+                        var np = new NamedParameterSpec(pname.value());
+                        System.out.println(">> " + pname.value());
+                        if (jo.get("tests") instanceof JsonArray ja2) {
+                            ja2.stream().forEach(c -> {
+                                if (c instanceof JsonObject jo2) {
+                                    System.out.print(((JsonString)jo2.get("tcId")).value() + " ");
+                                    try {
+                                        g.initialize(np, new FixedSecureRandom(toByteArray(((JsonString)jo2.get("seed")).value())));
+                                        var kp = g.generateKeyPair();
+                                        var pk = f.getKeySpec(kp.getPublic(), EncodedKeySpec.class).getEncoded();
+                                        var sk = f.getKeySpec(kp.getPrivate(), EncodedKeySpec.class).getEncoded();
+                                        Asserts.assertEqualsByteArray(pk, toByteArray(((JsonString)jo2.get("pk")).value()));
+                                        Asserts.assertEqualsByteArray(sk, toByteArray(((JsonString)jo2.get("sk")).value()));
+                                    } catch (Exception e) {
+                                        throw new RuntimeException(e);
+                                    }
+                                }
+                            });
+                            System.out.println();
+                        }
+                    }
                 }
-                Asserts.assertEQ(expected, actual);
-            }
-            System.out.println();
+            });
+        }
+    }
+
+    static void sigGenTest(JsonObject kat, Provider p) throws Exception {
+        var s = p == null
+                ? Signature.getInstance("ML-DSA")
+                : Signature.getInstance("ML-DSA", p);
+        if (kat.get("testGroups") instanceof JsonArray ja) {
+            ja.stream().forEach(t -> {
+                if (t instanceof JsonObject jo) {
+                    if (jo.get("parameterSet") instanceof JsonString pname) {
+                        var det = ((JsonBoolean)jo.get("deterministic")).value();
+                        System.out.println(">> " + pname.value() + " sign");
+                        if (jo.get("tests") instanceof JsonArray ja2) {
+                            ja2.stream().forEach(c -> {
+                                if (c instanceof JsonObject jo2) {
+                                    System.out.print(((JsonString)jo2.get("tcId")).value() + " ");
+                                    var sk = new PrivateKey() {
+                                        public String getAlgorithm() { return pname.value(); }
+                                        public String getFormat() { return "RAW"; }
+                                        public byte[] getEncoded() { return toByteArray(((JsonString)jo2.get("sk")).value()); }
+                                    };
+                                    var sr = new FixedSecureRandom(
+                                            det ? new byte[32] : toByteArray(((JsonString)jo2.get("rnd")).value()));
+                                    s.initSign(sk, sr);
+                                    s.update(toByteArray(((JsonString)jo2.get("message")).value()));
+                                    var sig = s.sign();
+                                    Asserts.assertEqualsByteArray(
+                                            sig, toByteArray(((JsonString)jo2.get("signature")).value()));
+                                }
+                            });
+                            System.out.println();
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    static void sigVerTest(JsonObject kat, Provider p) throws Exception {
+        var s = p == null
+                ? Signature.getInstance("ML-DSA")
+                : Signature.getInstance("ML-DSA", p);
+        if (kat.get("testGroups") instanceof JsonArray ja) {
+            ja.stream().forEach(t -> {
+                if (t instanceof JsonObject jo) {
+                    if (jo.get("parameterSet") instanceof JsonString pname) {
+                        var pk = new PublicKey() {
+                            public String getAlgorithm() { return pname.value(); }
+                            public String getFormat() { return "RAW"; }
+                            public byte[] getEncoded() { return toByteArray(((JsonString)jo.get("pk")).value()); }
+                        };
+                        System.out.println(">> " + pname.value() + " verify");
+                        if (jo.get("tests") instanceof JsonArray ja2) {
+                            ja2.stream().forEach(c -> {
+                                if (c instanceof JsonObject jo2) {
+                                    System.out.print(((JsonString) jo2.get("tcId")).value() + " ");
+                                    // Only ML-DSA sigVer has negative tests
+                                    var expected = ((JsonBoolean)jo2.get("testPassed")).value();
+                                    var actual = true;
+                                    try {
+                                        s.initVerify(pk);
+                                        s.update(toByteArray(((JsonString)jo2.get("message")).value()));
+                                        actual = s.verify(toByteArray(((JsonString)jo2.get("signature")).value()));
+                                    } catch (InvalidKeyException | SignatureException e) {
+                                        actual = false;
+                                    }
+                                    Asserts.assertEQ(expected, actual);
+                                }
+                            });
+                            System.out.println();
+                        }
+                    }
+                }
+            });
         }
     }
 }

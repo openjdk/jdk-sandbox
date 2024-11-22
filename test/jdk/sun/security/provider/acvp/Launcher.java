@@ -20,19 +20,22 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-import jdk.test.lib.json.JSONValue;
 import jtreg.SkippedException;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.Provider;
 import java.security.Security;
+import jdk.internal.util.json.JsonObject;
+import jdk.internal.util.json.JsonParser;
+import jdk.internal.util.json.JsonString;
 
 /*
  * @test
  * @bug 8342442 8345057
  * @library /test/lib
  * @modules java.base/sun.security.provider
+ *          java.base/jdk.internal.util.json
  */
 
 /// This test runs on `internalProjection.json`-style files generated
@@ -123,15 +126,21 @@ public class Launcher {
 
     static void run(Path test) {
         try {
-            JSONValue kat;
+            JsonObject kat;
             try {
-                kat = JSONValue.parse(Files.readString(test));
+                if (JsonParser.parse(Files.readString(test)) instanceof JsonObject jo) {
+                    kat = jo;
+                } else {
+                    System.out.println("Warning: cannot parse " + test + ". Skipped");
+                    invalidTest++;
+                    return;
+                }
             } catch (Exception e) {
                 System.out.println("Warning: cannot parse " + test + ". Skipped");
                 invalidTest++;
                 return;
             }
-            var alg = kat.get("algorithm").asString();
+            var alg = kat.get("algorithm") instanceof JsonString js ? js.value() : null;
             if (ONLY_ALG != null && !alg.equals(ONLY_ALG)) {
                 return;
             }
