@@ -109,11 +109,15 @@ public class ML_DSA_Test {
                                     };
                                     var sr = new FixedSecureRandom(
                                             det ? new byte[32] : toByteArray(((JsonString)jo2.get("rnd")).value()));
-                                    s.initSign(sk, sr);
-                                    s.update(toByteArray(((JsonString)jo2.get("message")).value()));
-                                    var sig = s.sign();
-                                    Asserts.assertEqualsByteArray(
-                                            sig, toByteArray(((JsonString)jo2.get("signature")).value()));
+                                    try {
+                                        s.initSign(sk, sr);
+                                        s.update(toByteArray(((JsonString)jo2.get("message")).value()));
+                                        var sig = s.sign();
+                                        Asserts.assertEqualsByteArray(
+                                                sig, toByteArray(((JsonString)jo2.get("signature")).value()));
+                                    } catch (Exception e) {
+                                        throw new RuntimeException(e);
+                                    }
                                 }
                             });
                             System.out.println();
