@@ -24,6 +24,7 @@ import jdk.test.lib.Asserts;
 import jdk.test.lib.security.FixedSecureRandom;
 
 import javax.crypto.KEM;
+import javax.crypto.SecretKey;
 import java.security.*;
 import java.security.spec.EncodedKeySpec;
 import java.security.spec.NamedParameterSpec;
@@ -66,11 +67,16 @@ public class ML_KEM_Test {
                             ja2.stream().forEach(c -> {
                                 if (c instanceof JsonObject jo2) {
                                     System.out.print(((JsonString)jo2.get("tcId")).value() + " ");
-                                    g.initialize(np, new FixedSecureRandom(
-                                            toByteArray(((JsonString)jo2.get("d")).value()), toByteArray(((JsonString)jo2.get("z")).value())));
-                                    var kp = g.generateKeyPair();
-                                    var pk = f.getKeySpec(kp.getPublic(), EncodedKeySpec.class).getEncoded();
-                                    var sk = f.getKeySpec(kp.getPrivate(), EncodedKeySpec.class).getEncoded();
+                                    byte[] pk, sk;
+                                    try {
+                                        g.initialize(np, new FixedSecureRandom(
+                                                toByteArray(((JsonString)jo2.get("d")).value()), toByteArray(((JsonString)jo2.get("z")).value())));
+                                        var kp = g.generateKeyPair();
+                                        pk = f.getKeySpec(kp.getPublic(), EncodedKeySpec.class).getEncoded();
+                                        sk = f.getKeySpec(kp.getPrivate(), EncodedKeySpec.class).getEncoded();
+                                    } catch (Exception e) {
+                                        throw new RuntimeException(e);
+                                    }
                                     Asserts.assertEqualsByteArray(pk, toByteArray(((JsonString)jo2.get("ek")).value()));
                                     Asserts.assertEqualsByteArray(sk, toByteArray(((JsonString)jo2.get("dk")).value()));
                                 }
@@ -103,9 +109,14 @@ public class ML_KEM_Test {
                                             public String getFormat() { return "RAW"; }
                                             public byte[] getEncoded() { return toByteArray(((JsonString)jo2.get("ek")).value()); }
                                         };
-                                        var e = g.newEncapsulator(
-                                                ek, new FixedSecureRandom(toByteArray(((JsonString)jo2.get("m")).value())));
-                                        var enc = e.encapsulate();
+                                        KEM.Encapsulated enc;
+                                        try {
+                                            var e = g.newEncapsulator(
+                                                    ek, new FixedSecureRandom(toByteArray(((JsonString)jo2.get("m")).value())));
+                                            enc = e.encapsulate();
+                                        } catch (Exception ex) {
+                                            throw new RuntimeException(ex);
+                                        }
                                         Asserts.assertEqualsByteArray(
                                                 enc.encapsulation(), toByteArray(((JsonString)jo2.get("c")).value()));
                                         Asserts.assertEqualsByteArray(
@@ -124,8 +135,13 @@ public class ML_KEM_Test {
                                             public String getFormat() { return "RAW"; }
                                             public byte[] getEncoded() { return toByteArray(((JsonString)jo2.get("dk")).value()); }
                                         };
-                                        var d = g.newDecapsulator(dk);
-                                        var k = d.decapsulate(toByteArray(((JsonString)jo2.get("c")).value()));
+                                        SecretKey k;
+                                        try {
+                                            var d = g.newDecapsulator(dk);
+                                            k = d.decapsulate(toByteArray(((JsonString)jo2.get("c")).value()));
+                                        } catch (Exception e) {
+                                            throw new RuntimeException(e);
+                                        }
                                         Asserts.assertEqualsByteArray(k.getEncoded(), toByteArray(((JsonString)jo2.get("k")).value()));
                                     }
                                 });
