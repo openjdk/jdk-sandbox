@@ -119,25 +119,6 @@ sealed class JsonObjectImpl implements JsonObject, JsonValueImpl permits JsonObj
     }
 
     @Override
-    public JsonValue get(String key) {
-        return theKeys.get(key);
-    }
-
-    @Override
-    public JsonValue getOrDefault(String key, JsonValue defaultValue) {
-        var val = get(key);
-        if (val == null) {
-            val = defaultValue;
-        }
-        return val;
-    }
-
-    @Override
-    public boolean contains(String key) {
-        return theKeys.containsKey(key);
-    }
-
-    @Override
     public int getEndOffset() {
         return endOffset;
     }
@@ -223,10 +204,5 @@ sealed class JsonObjectImpl implements JsonObject, JsonValueImpl permits JsonObj
             s.append("\n").append(prefix).append("}");
         }
         return s.toString();
-    }
-
-    @Override
-    public int size() {
-        return keys().size();
     }
 }

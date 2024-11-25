@@ -30,7 +30,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Stream;
 
 /**
  * JsonArray implementation class
@@ -98,16 +97,6 @@ sealed class JsonArrayImpl implements JsonArray, JsonValueImpl permits JsonArray
     @Override
     public List<JsonValue> values() {
         return theValues;
-    }
-
-    @Override
-    public Stream<JsonValue> stream() {
-        return values().stream();
-    }
-
-    @Override
-    public JsonValue get(int index) {
-        return theValues.get(index);
     }
 
     @Override
@@ -183,10 +172,5 @@ sealed class JsonArrayImpl implements JsonArray, JsonValueImpl permits JsonArray
             s.append("\n").append(prefix).append("]");
         }
         return s.toString();
-    }
-
-    @Override
-    public int size() {
-        return values().size();
     }
 }

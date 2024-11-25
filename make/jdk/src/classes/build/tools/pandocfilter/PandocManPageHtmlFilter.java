@@ -40,9 +40,9 @@ public class PandocManPageHtmlFilter extends PandocFilter {
 
     private JsonValue changeTitle(String type, JsonValue value) {
         if (type.equals("MetaInlines") && value instanceof JsonArray ja
-                && ja.get(0) instanceof JsonObject jo
-                && jo.get("t") instanceof JsonString t
-                && jo.get("c") instanceof JsonString c) {
+                && ja.values().get(0) instanceof JsonObject jo
+                && jo.keys().get("t") instanceof JsonString t
+                && jo.keys().get("c") instanceof JsonString c) {
             String subType = t.value();
             String subContent = c.value();
             if (subType.equals("Str")) {
@@ -68,11 +68,11 @@ public class PandocManPageHtmlFilter extends PandocFilter {
         if (json instanceof JsonObject jo) {
             JsonValue out = json;
             PandocManPageHtmlFilter filter = new PandocManPageHtmlFilter();
-            JsonValue meta = jo.get("meta");
+            JsonValue meta = jo.keys().get("meta");
             if (meta != null && meta instanceof JsonObject jobj) {
                 JsonObject.Builder bldr = new JsonObject.Builder(jo);
                 bldr.remove("date");
-                JsonValue title = jobj.get("title");
+                JsonValue title = jobj.keys().get("title");
                 if (title != null) {
                     bldr.put("title", filter.traverse(title, filter::changeTitle, true));
                 }

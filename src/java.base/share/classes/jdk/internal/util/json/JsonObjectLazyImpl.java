@@ -39,7 +39,6 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
     private final JsonLazyDocumentInfo docInfo;
     private int currIndex;
     private final int endIndex;
-    private boolean inflated;
 
     JsonObjectLazyImpl(JsonLazyDocumentInfo docInfo, int offset, int index) {
         this.docInfo = docInfo;
@@ -51,72 +50,23 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
 
     @Override
     public Map<String, JsonValue> keys() {
-        if (!inflated) {
-            inflateAll();
+        if (theKeys == null) {
+            inflate();
         }
         return theKeys;
     }
 
-    @Override
-    public JsonValue get(String key) {
-        Objects.requireNonNull(key); // RFC8259 does not permit null keys
-        Optional<JsonValue> val;
-        if (theKeys == null) {
-            val = inflateUntilMatch(key);
-        } else {
-            // Search for key in hashmap first, otherwise offsets
-            val = Optional.ofNullable(theKeys.get(key));
-            if (val.isEmpty()) {
-                if (!inflated) {
-                    val = inflateUntilMatch(key);
-                }
-            }
-        }
-        return val.orElse(null);
-    }
-
-    @Override
-    public boolean contains(String key) {
-        return get(key) != null;
-    }
-
-    // Inflate the entire map
-    void inflateAll() {
-        inflate(null);
-    }
-
-    // Upon match, return the key and defer the rest of inflation
-    // Otherwise, if no match, returns empty Optional
-    private Optional<JsonValue> inflateUntilMatch(String key) {
-        return inflate(key);
-    }
-
-    /*
-     * Inflates the JsonObject using the offsets array. Callers should not call
-     * this method if the JsonObject is already inflated.
-     *
-     * @param searchKey a String key to stop inflation on. Can be null as well to ensure
-     *        the full document is inflated.
-     * @throws JsonParseException if the JSON syntax is violated or there exists a
-     *         duplicate key
-     * @return an Optional<JsonValue> that contains a JsonValue if searchKey was found,
-     *         otherwise empty
-     */
-    private Optional<JsonValue> inflate(String searchKey) {
-
-        Optional<JsonValue> ret = Optional.empty();
-        if (theKeys == null) { // first time init
-            if (JsonParser.checkWhitespaces(docInfo, startOffset + 1, endOffset - 1)) {
-                theKeys = Collections.emptyMap();
-                inflated = true;
-                return ret;
-            }
-            theKeys = new HashMap<>();
+    // Inflates the JsonObject using the offsets array
+    private void inflate() {
+        if (JsonParser.checkWhitespaces(docInfo, startOffset + 1, endOffset - 1)) {
+            theKeys = Collections.emptyMap();
+            return;
         }
 
-        var k = theKeys;
+        var k = new HashMap<String, JsonValue>();
         while (currIndex < endIndex) {
             // Traversal starts on the opening bracket, or a comma
+
             // First, validate the key
             int offset = docInfo.getOffset(currIndex + 1);
 
@@ -174,21 +124,13 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
             }
 
             var c = docInfo.charAtIndex(currIndex);
-            if (c == ',' || c == '}') {
-                if (Objects.equals(searchKey, key)) {
-                    ret = Optional.of(value);
-                    return ret;
-                }
-            } else {
+            if (c != ',' && c != '}') {
                 throw new JsonParseException(docInfo.composeParseExceptionMessage(
                         "Unexpected character(s) found after JsonValue: %s, for key: \"%s\"."
                                 .formatted(value, key), offset), offset);
             }
         }
-        // inflated, so make unmodifiable
-        inflated = true;
         theKeys = Collections.unmodifiableMap(k);
-        return ret;
     }
 
     @Override

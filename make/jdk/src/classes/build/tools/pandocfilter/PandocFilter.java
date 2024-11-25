@@ -50,9 +50,9 @@ public class PandocFilter {
         if (jsonIn instanceof JsonArray ja) {
             List<JsonValue> processedArray = new ArrayList<>();
             for (JsonValue jv : ja.values()) {
-                if (jv instanceof JsonObject jo && jo.contains("t") && jo.get("t") instanceof JsonString type) {
+                if (jv instanceof JsonObject jo && jo.keys().containsKey("t") && jo.keys().get("t") instanceof JsonString type) {
                     JsonValue replacement = callback.invoke(
-                            type.value(), jo.contains("c") ? jo.get("c") : JsonParser.parse("[]"));
+                            type.value(), jo.keys().containsKey("c") ? jo.keys().get("c") : JsonParser.parse("[]"));
                     if (replacement == null) {
                         // no replacement object returned, use original value
                         processedArray.add(traverse(jv, callback, deep));
@@ -71,16 +71,16 @@ public class PandocFilter {
             }
             return JsonArray.ofValues(processedArray.toArray(new JsonValue[0]));
         } else if (jsonIn instanceof JsonObject jo) {
-            if (deep && jo.contains("t") && jo.get("t") instanceof JsonString type) {
+            if (deep && jo.keys().containsKey("t") && jo.keys().get("t") instanceof JsonString type) {
                 JsonValue replacement = callback.invoke(type.value(),
-                        jo.contains("c") ? jo.get("c") : JsonParser.parse("[]"));
+                        jo.keys().containsKey("c") ? jo.keys().get("c") : JsonParser.parse("[]"));
                 if (replacement != null) {
                     return replacement;
                 }
             }
             var processed_obj = new JsonObject.Builder();
             for (String key : jo.keys().keySet()) {
-                processed_obj.put(key, traverse(jo.get(key), callback, deep));
+                processed_obj.put(key, traverse(jo.keys().get(key), callback, deep));
             }
             return processed_obj.build();
         } else {

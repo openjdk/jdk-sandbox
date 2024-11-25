@@ -61,12 +61,12 @@ public class PandocManPageTroffFilter extends PandocFilter {
         // If it is a header, decrease the heading level by one, and
         // if it is a level 1 header, convert it to upper case.
         if (type.equals("Header")) {
-            if (value instanceof JsonArray ja && ja.get(0) instanceof JsonNumber jn) {
+            if (value instanceof JsonArray ja && ja.values().get(0) instanceof JsonNumber jn) {
                 int level = jn.value().intValue();
                 JsonValue[] arr = ja.values().toArray(new JsonValue[0]);
                 arr[0] = JsonValue.from(level - 1);
                 JsonArray array = JsonArray.ofValues(arr);
-                if (array.get(0) instanceof JsonNumber jn2 && jn2.value().intValue() == 1) {
+                if (array.values().get(0) instanceof JsonNumber jn2 && jn2.value().intValue() == 1) {
                     return createHeader(traverse(array, this::uppercase, false));
                 }
             } else {
@@ -85,13 +85,13 @@ public class PandocManPageTroffFilter extends PandocFilter {
         // (like "#next-heading"), or a relative link to another man page
         // (like "java.html"), so remove it for man pages.
         if (type.equals("Link")) {
-            if (value instanceof JsonArray ja && ja.get(2) instanceof JsonArray ja2 && ja2.get(0) instanceof JsonString js) {
+            if (value instanceof JsonArray ja && ja.values().get(2) instanceof JsonArray ja2 && ja2.values().get(0) instanceof JsonString js) {
                 String targetStr = js.value();
                 if (targetStr.startsWith("https:") || targetStr.startsWith("http:")) {
                     return JsonArray.ofValues(
-                            createStrong(ja.get(1)), createSpace(), createStr("[" + targetStr + "]"));
+                            createStrong(ja.values().get(1)), createSpace(), createStr("[" + targetStr + "]"));
                 } else {
-                    return createStrong(ja.get(1));
+                    return createStrong(ja.values().get(1));
                 }
             } else {
                 throw new RuntimeException("Json format incorrect");

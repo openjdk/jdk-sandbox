@@ -27,7 +27,6 @@ package jdk.internal.util.json;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Stream;
 
 /**
  * The interface that represents JSON array
@@ -45,25 +44,9 @@ public sealed interface JsonArray extends JsonValue permits JsonArrayImpl {
     List<JsonValue> values();
 
     /**
-     * {@return the stream of {@code JsonValue} elements in this JSON array}
-     */
-    Stream<JsonValue> stream();
-
-    /**
-     * {@return the {@code JsonValue} element in this JSON array}
-     * @param index the index of the element
-     */
-    JsonValue get(int index);
-
-    /**
      * {@return the list of {@code Object}s in this array}
      */
     List<Object> to();
-
-    /**
-     * {@return the size of this JSON array}.
-     */
-    int size();
 
     /**
      * {@return the {@code JsonArray} created from the given

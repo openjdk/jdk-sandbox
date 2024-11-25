@@ -47,39 +47,10 @@ public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
     Map<String, JsonValue> keys();
 
     /**
-     * {@return the {@code JsonValue} member in this JSON object}
-     * @param key the String key
-     * @throws NullPointerException if {@code key} is {@code null}
-     */
-    JsonValue get(String key);
-
-    /**
-     * {@return the {@code JsonValue} member, or {@code defaultValue} if this
-     * JSON object does not contain the key}
-     * @param key the String key
-     * @param defaultValue the default value for the key
-     * @throws NullPointerException if {@code key} is {@code null}
-     */
-    JsonValue getOrDefault(String key, JsonValue defaultValue);
-
-    /**
-     * {@return {@code true} if this JSON object contains a mapping for
-     * the specified key}
-     * @param key the String key
-     * @throws NullPointerException if {@code key} is {@code null}
-     */
-    boolean contains(String key);
-
-    /**
      * {@return the map of {@code String} to {@code Object} in this
      * JSON object}
      */
     Map<String, Object> to();
-
-    /**
-     * {@return the size of this JSON object}
-     */
-    int size();
 
     /**
      * {@return the {@code JsonObject} created from the given

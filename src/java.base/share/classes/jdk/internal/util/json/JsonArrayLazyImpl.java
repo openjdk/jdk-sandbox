@@ -28,7 +28,6 @@ package jdk.internal.util.json;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * JsonArray lazy implementation subclass
@@ -38,7 +37,6 @@ final class JsonArrayLazyImpl extends JsonArrayImpl implements JsonValueLazyImpl
     private final JsonLazyDocumentInfo docInfo;
     private final int endIndex;
     private int currIndex;
-    private boolean inflated;
 
     JsonArrayLazyImpl(JsonLazyDocumentInfo docInfo, int offset, int index) {
         this.docInfo = docInfo;
@@ -50,67 +48,20 @@ final class JsonArrayLazyImpl extends JsonArrayImpl implements JsonValueLazyImpl
 
     @Override
     public List<JsonValue> values() {
-        if (!inflated) {
-            inflateAll();
+        if (theValues == null) {
+            inflate();
         }
         return theValues;
     }
 
-    @Override
-    public JsonValue get(int index) {
-        JsonValue val;
-        // Search for key in list first, otherwise offsets
-        if (theValues != null && theValues.size() - 1 >= index) {
-            val = theValues.get(index);
-        } else if (inflated) {
-            throw new IndexOutOfBoundsException(
-                    String.format("Index %s is out of bounds for length %s", index, theValues.size()));
-        } else {
-            val = inflateUntilMatch(index);
-        }
-        return val;
-    }
-
-    // Inflate the entire list
-    private void inflateAll() {
-        inflate(-1);
-    }
-
-    // Inflate until the index is created in the array
-    // If no match, should throw IOOBE
-    private JsonValue inflateUntilMatch(int index) {
-        var val = inflate(index);
-        // empty returned on no match, fail
-        if (val.isEmpty()) {
-            throw new IndexOutOfBoundsException(
-                    String.format("Index %s is out of bounds for length %s", index, theValues.size()));
-        }
-        return val.get();
-    }
-
-    /*
-     * Inflates the JsonArray using the offsets array. Callers should not call
-     * this method if the JsonArray is already inflated.
-     *
-     * @param searchIndex an index to stop inflation on. Can be -1 as well to ensure
-     *        the full document is inflated.
-     * @throws JsonParseException if the JSON syntax is violated
-     * @return an Optional<JsonValue> that contains a JsonValue if searchIndex was found,
-     *         otherwise empty
-     */
-    private Optional<JsonValue> inflate(int searchIndex) {
-
-        Optional<JsonValue> ret = Optional.empty();
-        if (theValues == null) { // first time init
-            if (JsonParser.checkWhitespaces(docInfo, startOffset + 1, endOffset - 1)) {
-                theValues = Collections.emptyList();
-                inflated = true;
-                return ret;
-            }
-            theValues = new ArrayList<>();
+    // Inflate the JsonArray using the offsets array.
+    private void inflate() {
+        if (JsonParser.checkWhitespaces(docInfo, startOffset + 1, endOffset - 1)) {
+            theValues = Collections.emptyList();
+            return;
         }
 
-        var v = theValues;
+        var v = new ArrayList<JsonValue>();
         while (currIndex < endIndex) {
             // Traversal starts on the opening bracket, or a comma
             int offset = docInfo.getOffset(currIndex) + 1;
@@ -135,21 +86,13 @@ final class JsonArrayLazyImpl extends JsonArrayImpl implements JsonValueLazyImpl
             }
 
             var c = docInfo.charAtIndex(currIndex);
-            if (c == ',' || c == ']') {
-                if (searchIndex == theValues.size() - 1) {
-                    ret = Optional.of(value);
-                    return ret;
-                }
-            } else {
+            if (c != ',' && c != ']') {
                 throw new JsonParseException(docInfo.composeParseExceptionMessage(
                         "Unexpected character(s) found after JsonValue: %s."
                                 .formatted(value), offset), offset);
             }
         }
-        // inflated, so make unmodifiable
-        inflated = true;
         theValues = Collections.unmodifiableList(v);
-        return ret;
     }
 
     @Override
