@@ -48,6 +48,17 @@ public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
     Map<String, JsonValue> keys();
 
     /**
+     * {@return the {@code JsonObject} created from the given
+     * map of {@code String} to {@code JsonValue}s}
+     *
+     * @param map the map of {@code JsonValue}s. Non-null.
+     */
+    static JsonObject of(Map<String, JsonValue> map) {
+        Objects.requireNonNull(map);
+        return new JsonObjectImpl(map);
+    }
+
+    /**
      * {@code Builder} is used to build new instances of {@code JsonObject}.
      * For example,
      * {@snippet lang=java:

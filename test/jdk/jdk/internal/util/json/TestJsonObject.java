@@ -26,17 +26,19 @@
 /*
  * @test
  * @modules java.base/jdk.internal.util.json:+open
- * @run junit TestJsonObjectBuilder
+ * @run junit TestJsonObject
  */
 
 import jdk.internal.util.json.*;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.HashMap;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-// Test the API of JsonObject.Builder
-public class TestJsonObjectBuilder {
+// Test the API of JsonObject.Builder and JsonObject.of()
+public class TestJsonObject {
 
     private static final String jsonObjStr =
             """
@@ -85,5 +87,16 @@ public class TestJsonObjectBuilder {
         var builtJson = new JsonObject.Builder((JsonObject) sourceJson)
                 .clear().build();
         assertEquals(builtJson, expectedJson);
+    }
+
+    // Basic test to check of factory for JsonObject
+    @Test
+    public void ofFactoryTest() {
+        HashMap<String, JsonValue> map = new HashMap<>();
+        map.put("foo", Json.from(5));
+        map.put("bar", Json.from("value"));
+        map.put("baz", Json.from((Object) null));
+        assertEquals(JsonObject.of(map),
+                Json.parse("{ \"foo\" : 5, \"bar\" : \"value\", \"baz\" : null}"));
     }
 }
