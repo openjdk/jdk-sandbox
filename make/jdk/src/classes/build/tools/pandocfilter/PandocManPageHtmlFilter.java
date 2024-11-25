@@ -50,7 +50,7 @@ public class PandocManPageHtmlFilter extends PandocFilter {
                 Matcher matcher = pattern.matcher(subContent);
                 if (matcher.find()) {
                     String commandName = matcher.group(1).toLowerCase();
-                    return MetaInlines(JsonArray.ofValues(
+                    return MetaInlines(JsonArray.of(
                             createStr("The"), createSpace(),
                             createStr(commandName),
                             createSpace(), createStr("Command")));

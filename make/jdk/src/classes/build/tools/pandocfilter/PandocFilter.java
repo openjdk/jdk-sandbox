@@ -69,7 +69,7 @@ public class PandocFilter {
                     processedArray.add(traverse(jv, callback, deep));
                 }
             }
-            return JsonArray.ofValues(processedArray.toArray(new JsonValue[0]));
+            return JsonArray.of(processedArray.toArray(new JsonValue[0]));
         } else if (jsonIn instanceof JsonObject jo) {
             if (deep && jo.keys().containsKey("t") && jo.keys().get("t") instanceof JsonString type) {
                 JsonValue replacement = callback.invoke(type.value(),

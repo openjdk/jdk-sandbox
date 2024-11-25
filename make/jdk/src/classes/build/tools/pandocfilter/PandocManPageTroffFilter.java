@@ -65,7 +65,7 @@ public class PandocManPageTroffFilter extends PandocFilter {
                 int level = jn.value().intValue();
                 JsonValue[] arr = ja.values().toArray(new JsonValue[0]);
                 arr[0] = JsonValue.from(level - 1);
-                JsonArray array = JsonArray.ofValues(arr);
+                JsonArray array = JsonArray.of(arr);
                 if (array.values().get(0) instanceof JsonNumber jn2 && jn2.value().intValue() == 1) {
                     return createHeader(traverse(array, this::uppercase, false));
                 }
@@ -77,7 +77,7 @@ public class PandocManPageTroffFilter extends PandocFilter {
         // Man pages does not have superscript. We use it for footnotes, so
         // enclose in [...] for best representation.
         if (type.equals("Superscript")) {
-            return JsonArray.ofValues(createStr("["), value, createStr("]"));
+            return JsonArray.of(createStr("["), value, createStr("]"));
         }
 
         // If it is a link, put the link name in bold. If it is an external
@@ -88,7 +88,7 @@ public class PandocManPageTroffFilter extends PandocFilter {
             if (value instanceof JsonArray ja && ja.values().get(2) instanceof JsonArray ja2 && ja2.values().get(0) instanceof JsonString js) {
                 String targetStr = js.value();
                 if (targetStr.startsWith("https:") || targetStr.startsWith("http:")) {
-                    return JsonArray.ofValues(
+                    return JsonArray.of(
                             createStrong(ja.values().get(1)), createSpace(), createStr("[" + targetStr + "]"));
                 } else {
                     return createStrong(ja.values().get(1));
