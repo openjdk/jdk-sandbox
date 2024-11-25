@@ -25,7 +25,6 @@
 
 package jdk.internal.util.json;
 
-import java.math.BigInteger;
 import java.util.Objects;
 
 /**
@@ -186,8 +185,7 @@ sealed class JsonNumberImpl implements JsonNumber, JsonValueImpl permits JsonNum
         return num;
     }
 
-    @Override
-    public Number to() {
+    Number to() {
         return value();
     }
 

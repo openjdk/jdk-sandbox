@@ -25,15 +25,14 @@
 
 package jdk.internal.util.json;
 
-import java.util.Objects;
-
 /**
  * The interface that represents JSON string
  * <p>
- * A {@code JsonString} can be produced by a {@link JsonParser} parse.
- * <p> Alternatively, {@link #from(String)} can be used to obtain a {@code JsonString}
- * from a {@code String}. {@link #to()} is the inverse operation, producing a {@code String} from a
- * {@code JsonString}. These methods are not guaranteed to produce a round-trip.
+ * A {@code JsonString} can be produced by a {@link Json#parse(String)}.
+ * <p> Alternatively, {@link Json#from(String)} can be used to obtain a {@code JsonString}
+ * from a {@code String}. {@link Json#to(JsonNumber)} is the inverse
+ * operation, producing a {@code String} from a {@code JsonString}. These methods
+ * are not guaranteed to produce a round-trip.
  */
 public sealed interface JsonString extends JsonValue permits JsonStringImpl {
     /**
@@ -41,21 +40,4 @@ public sealed interface JsonString extends JsonValue permits JsonStringImpl {
      * {@code JsonString} value}
      */
     String value();
-
-    /**
-     * {@return the {@code String} value represented with this
-     * {@code JsonString} value}
-     */
-    String to();
-
-    /**
-     * {@return the {@code JsonString} created from the given
-     * {@code String} object}
-     *
-     * @param from the given {@code String}. Non-null.
-     */
-    static JsonString from(String from) {
-        Objects.requireNonNull(from);
-        return new JsonStringLazyImpl(from);
-    }
 }

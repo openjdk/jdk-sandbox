@@ -29,14 +29,9 @@
  * @run junit TestJsonNumber
  */
 
-import jdk.internal.util.json.JsonNumber;
-import jdk.internal.util.json.JsonParseException;
-import jdk.internal.util.json.JsonParser;
-import jdk.internal.util.json.JsonValue;
-import jdk.internal.util.json.Option;
-import org.junit.jupiter.api.Test;
+import jdk.internal.util.json.*;
 
-import java.math.BigInteger;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -44,36 +39,36 @@ public class TestJsonNumber {
 
     @Test
     void testInfinity() {
-        assertThrows(IllegalArgumentException.class, () -> JsonNumber.from(Double.POSITIVE_INFINITY));
-        assertThrows(IllegalArgumentException.class, () -> JsonNumber.from(Double.NEGATIVE_INFINITY));
-        assertThrows(JsonParseException.class, () -> ((JsonNumber) JsonParser.parse("1e309")).value());
-        assertThrows(JsonParseException.class, () -> ((JsonNumber) JsonParser.parse("-1e309")).value());
-        assertThrows(JsonParseException.class, () -> ((JsonNumber) JsonParser.parse("1e309", Option.Parse.EAGER_PARSING)).value());
-        assertThrows(JsonParseException.class, () -> ((JsonNumber) JsonParser.parse("-1e309", Option.Parse.EAGER_PARSING)).value());
+        assertThrows(IllegalArgumentException.class, () -> Json.from(Double.POSITIVE_INFINITY));
+        assertThrows(IllegalArgumentException.class, () -> Json.from(Double.NEGATIVE_INFINITY));
+        assertThrows(JsonParseException.class, () -> ((JsonNumber) Json.parse("1e309")).value());
+        assertThrows(JsonParseException.class, () -> ((JsonNumber) Json.parse("-1e309")).value());
+        assertThrows(JsonParseException.class, () -> ((JsonNumber) Json.parse("1e309", Option.Parse.EAGER_PARSING)).value());
+        assertThrows(JsonParseException.class, () -> ((JsonNumber) Json.parse("-1e309", Option.Parse.EAGER_PARSING)).value());
     }
 
     @Test
     void testNan() {
-        assertThrows(IllegalArgumentException.class, () -> JsonNumber.from(Double.NaN));
+        assertThrows(IllegalArgumentException.class, () -> Json.from(Double.NaN));
         // parse test not required for Nan, cannot parse "NaN"
     }
 
     @Test
     void testInteger() {
-        assertTrue(JsonValue.from(42) instanceof JsonNumber jn &&
+        assertTrue(Json.from(42) instanceof JsonNumber jn &&
                 jn.value() instanceof Integer);
     }
 
     @Test
     void testLong() {
-        assertTrue(JsonValue.from(4242424242424242L) instanceof JsonNumber jn &&
+        assertTrue(Json.from(4242424242424242L) instanceof JsonNumber jn &&
                 jn.value() instanceof Long);
     }
 
     @Test
     void testHugeIntegral() {
         var huge = "18446744073709551615";
-        if (JsonParser.parse(huge) instanceof JsonNumber jn &&
+        if (Json.parse(huge) instanceof JsonNumber jn &&
             jn.value() instanceof Number val) {
             assertEquals(Double.valueOf(huge), val);
         } else {
@@ -83,13 +78,13 @@ public class TestJsonNumber {
 
     @Test
     void testFraction() {
-        assertTrue(JsonValue.from(42.42) instanceof JsonNumber jn &&
+        assertTrue(Json.from(42.42) instanceof JsonNumber jn &&
                 jn.value() instanceof Double);
     }
 
     @Test
     void testExponent() {
-        assertTrue(JsonValue.from(42e42) instanceof JsonNumber jn &&
+        assertTrue(Json.from(42e42) instanceof JsonNumber jn &&
                 jn.value() instanceof Double);
     }
 }

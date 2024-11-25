@@ -30,9 +30,11 @@
  */
 
 import jdk.internal.util.json.*;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -42,8 +44,8 @@ public class TestBadStructuralJson {
     @ParameterizedTest
     @MethodSource
     public void badJsonParseTest(String badJson) {
-        assertThrows(JsonParseException.class, () -> JsonParser.parse(badJson));
-        assertThrows(JsonParseException.class, () -> JsonParser.parse(badJson, Option.Parse.EAGER_PARSING));
+        assertThrows(JsonParseException.class, () -> Json.parse(badJson));
+        assertThrows(JsonParseException.class, () -> Json.parse(badJson, Option.Parse.EAGER_PARSING));
     }
 
     // Fails during parse
@@ -60,10 +62,10 @@ public class TestBadStructuralJson {
     @ParameterizedTest
     @MethodSource
     public void badJsonKeysTest(String badJson) {
-        var j = JsonParser.parse(badJson);
+        var j = Json.parse(badJson);
         assertThrows(JsonParseException.class, j::toString);
         assertThrows(JsonParseException.class,
-                () -> JsonParser.parse(badJson, Option.Parse.EAGER_PARSING));
+                () -> Json.parse(badJson, Option.Parse.EAGER_PARSING));
     }
 
     // Fails during values()/keys()
@@ -88,9 +90,9 @@ public class TestBadStructuralJson {
 
     @Test
     public void badJsonValuesTest() {
-        var j = JsonParser.parse("[\"Brian\", 5, null, \"foo\" 5]");
+        var j = Json.parse("[\"Brian\", 5, null, \"foo\" 5]");
         assertThrows(JsonParseException.class, j::toString);
         assertThrows(JsonParseException.class,
-                () -> JsonParser.parse("[\"Brian\", 5, null, \"foo\" 5]", Option.Parse.EAGER_PARSING));
+                () -> Json.parse("[\"Brian\", 5, null, \"foo\" 5]", Option.Parse.EAGER_PARSING));
     }
 }

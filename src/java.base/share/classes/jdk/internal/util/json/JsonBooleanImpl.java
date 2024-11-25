@@ -87,8 +87,7 @@ sealed class JsonBooleanImpl implements JsonBoolean, JsonValueImpl permits JsonB
         return Objects.hash(value());
     }
 
-    @Override
-    public Boolean to() {
+    Boolean to() {
         return value();
     }
 

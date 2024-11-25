@@ -29,9 +29,8 @@
  * @run junit TestJsonObjectBuilder
  */
 
-import jdk.internal.util.json.JsonObject;
-import jdk.internal.util.json.JsonParser;
-import jdk.internal.util.json.JsonValue;
+import jdk.internal.util.json.*;
+
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -56,24 +55,24 @@ public class TestJsonObjectBuilder {
 
     @Test
     public void emptyBuildTest() {
-        var expectedJson = JsonParser.parse(jsonObjStr);
+        var expectedJson = Json.parse(jsonObjStr);
         var builtJson = new JsonObject.Builder()
-                .put("name", JsonValue.from("Brian"))
-                .put("shoeSize", JsonValue.from(10)).build();
+                .put("name", Json.from("Brian"))
+                .put("shoeSize", Json.from(10)).build();
         assertEquals(expectedJson, builtJson);
     }
 
     @Test
     public void existingBuildTest() {
-        var sourceJson = JsonParser.parse(jsonObjStr);
+        var sourceJson = Json.parse(jsonObjStr);
         var builtJson = new JsonObject.Builder((JsonObject) sourceJson).build();
         assertEquals(builtJson, sourceJson);
     }
 
     @Test
     public void removalTest() {
-        var expectedJson = JsonParser.parse(halfJsonObjStr);
-        var sourceJson = JsonParser.parse(jsonObjStr);
+        var expectedJson = Json.parse(halfJsonObjStr);
+        var sourceJson = Json.parse(jsonObjStr);
         var builtJson = new JsonObject.Builder((JsonObject) sourceJson)
                 .remove("name").build();
         assertEquals(builtJson, expectedJson);
@@ -81,8 +80,8 @@ public class TestJsonObjectBuilder {
 
     @Test
     public void clearTest() {
-        var expectedJson = JsonParser.parse(emptyJsonObjStr);
-        var sourceJson = JsonParser.parse(jsonObjStr);
+        var expectedJson = Json.parse(emptyJsonObjStr);
+        var sourceJson = Json.parse(jsonObjStr);
         var builtJson = new JsonObject.Builder((JsonObject) sourceJson)
                 .clear().build();
         assertEquals(builtJson, expectedJson);

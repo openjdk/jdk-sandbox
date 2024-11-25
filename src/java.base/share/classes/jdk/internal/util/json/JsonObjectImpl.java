@@ -57,7 +57,7 @@ sealed class JsonObjectImpl implements JsonObject, JsonValueImpl permits JsonObj
                         && entry.getValue() instanceof JsonValue jVal) {
                     m.put(strKey, jVal);
                 } else {
-                    m.put(strKey, JsonValue.from(entry.getValue()));
+                    m.put(strKey, Json.from(entry.getValue()));
                 }
             }
         }
@@ -135,11 +135,10 @@ sealed class JsonObjectImpl implements JsonObject, JsonValueImpl permits JsonObj
         return Objects.hash(keys());
     }
 
-    @Override
-    public Map<String, Object> to() {
+    Map<String, Object> to() {
         return keys().entrySet().stream()
             .collect(HashMap::new, // to allow `null` value
-                (m, e) -> m.put(e.getKey(), e.getValue().to()),
+                (m, e) -> m.put(e.getKey(), Json.to(e.getValue())),
                 HashMap::putAll);
     }
 

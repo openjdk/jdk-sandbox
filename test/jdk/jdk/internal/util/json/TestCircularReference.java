@@ -29,12 +29,12 @@
  * @run junit TestCircularReference
  */
 
-import jdk.internal.util.json.JsonArray;
-import jdk.internal.util.json.JsonObject;
-import org.junit.jupiter.api.Test;
+import jdk.internal.util.json.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+
+import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -46,13 +46,13 @@ public class TestCircularReference {
     public void arrayTest() {
         ArrayList<Object> arr = new ArrayList<>();
         arr.add(arr);
-        assertThrows(StackOverflowError.class, () -> JsonArray.from(arr));
+        assertThrows(StackOverflowError.class, () -> Json.from(arr));
     }
 
     @Test
     public void objectTest() {
         HashMap<String,Object> map = new HashMap<>();
         map.put("foo", map);
-        assertThrows(StackOverflowError.class, () -> JsonObject.from(map));
+        assertThrows(StackOverflowError.class, () -> Json.from(map));
     }
 }

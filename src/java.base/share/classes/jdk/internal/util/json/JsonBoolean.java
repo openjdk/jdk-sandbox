@@ -25,15 +25,13 @@
 
 package jdk.internal.util.json;
 
-import java.util.Objects;
-
 /**
  * The interface that represents JSON boolean.
  * <p>
- * A {@code JsonBoolean} can be produced by a {@link JsonParser} parse.
- * Alternatively, {@link #from(Boolean)} can be used to obtain a {@code JsonBoolean}
- * from a {@code Boolean}. {@link #to()} is the inverse operation, producing a {@code Boolean} from a
- * {@code JsonBoolean}.
+ * A {@code JsonBoolean} can be produced by {@link Json#parse(String)}.
+ * Alternatively, {@link Json#from(Boolean)} can be used to obtain a {@code JsonBoolean}
+ * from a {@code Boolean}. {@link Json#to(JsonBoolean)} is the inverse
+ * operation, producing a {@code Boolean} from a {@code JsonBoolean}.
  */
 public sealed interface JsonBoolean extends JsonValue permits JsonBooleanImpl {
 
@@ -42,21 +40,4 @@ public sealed interface JsonBoolean extends JsonValue permits JsonBooleanImpl {
      * {@code JsonBoolean} value}
      */
     boolean value();
-
-    /**
-     * {@return the {@code Boolean} value represented with this
-     * {@code JsonBoolean} value}
-     */
-    Boolean to();
-
-    /**
-     * {@return the {@code JsonBoolean} created from the given
-     * {@code Boolean} object}
-     *
-     * @param from the given {@code Boolean}. Non-null.
-     */
-    static JsonBoolean from(Boolean from) {
-        Objects.requireNonNull(from);
-        return from ? JsonBooleanImpl.TRUE : JsonBooleanImpl.FALSE;
-    }
 }

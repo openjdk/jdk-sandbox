@@ -30,6 +30,7 @@
  */
 
 import jdk.internal.util.json.*;
+
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -44,8 +45,8 @@ public class TestUniqueKeys {
     @Test
     public void testUniqueKeys() {
         // As lazy, checking is not done in parse
-        JsonObject json = (JsonObject) JsonParser.parse(sample);
+        JsonObject json = (JsonObject) Json.parse(sample);
         assertThrows(JsonParseException.class, json::keys);
-        assertThrows(JsonParseException.class, () -> JsonParser.parse(sample, Option.Parse.EAGER_PARSING));
+        assertThrows(JsonParseException.class, () -> Json.parse(sample, Option.Parse.EAGER_PARSING));
     }
 }

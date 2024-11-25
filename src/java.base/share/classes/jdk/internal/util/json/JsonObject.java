@@ -32,12 +32,13 @@ import java.util.Objects;
 /**
  * The interface that represents JSON object.
  * <p>
- * A {@code JsonObject} can be produced by a {@link JsonParser} parse.
- * <p> Alternatively, {@link #from(Map)} can be used to obtain a {@code JsonObject}
- * from a {@code Map}. {@link #to} is the inverse operation, producing a {@code Map} from a
- * {@code JsonObject}. These methods are not guaranteed to produce a round-trip.
- * Callers of {@link #from(Map)} should be aware that a {@code Map}
- * containing a circular reference will cause a {@code StackOverFlowError}.
+ * A {@code JsonObject} can be produced by a {@link Json#parse(String)}.
+ * <p> Alternatively, {@link Json#from(Map)} can be used to obtain a {@code JsonObject}
+ * from a {@code Map}. {@link Json#to(JsonObject)} is the inverse operation,
+ * producing a {@code Map} from a {@code JsonObject}. These methods are not
+ * guaranteed to produce a round-trip. Callers of {@link Json#from(Map)} should be
+ * aware that a {@code Map} containing a circular reference will cause a
+ * {@code StackOverFlowError}.
  */
 public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
     /**
@@ -45,26 +46,6 @@ public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
      * JSON object}
      */
     Map<String, JsonValue> keys();
-
-    /**
-     * {@return the map of {@code String} to {@code Object} in this
-     * JSON object}
-     */
-    Map<String, Object> to();
-
-    /**
-     * {@return the {@code JsonObject} created from the given
-     * Map of {@code Object}s} Keys should be strings, and values should be any
-     * value such that {@link #from(Object) JsonValue.from(value)} does not throw
-     * an exception.
-     *
-     * @param from the Map of {@code Object}s. Non-null.
-     * @throws StackOverflowError if {@code from} contains a circular reference
-     */
-    static JsonObject from(Map<?, ?> from) {
-        Objects.requireNonNull(from);
-        return new JsonObjectImpl(from);
-    }
 
     /**
      * {@code Builder} is used to build new instances of {@code JsonObject}.

@@ -29,10 +29,7 @@
  * @run junit TestJsonArray
  */
 
-import jdk.internal.util.json.JsonArray;
-import jdk.internal.util.json.JsonParser;
-import jdk.internal.util.json.JsonValue;
-import jdk.internal.util.json.Option;
+import jdk.internal.util.json.*;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -52,7 +49,7 @@ public class TestJsonArray {
     """;
 
     private static Stream<JsonValue> testVarargsFactory() {
-        return Stream.of(JsonParser.parse(ARRAY), JsonParser.parse(ARRAY, Option.Parse.EAGER_PARSING));
+        return Stream.of(Json.parse(ARRAY), Json.parse(ARRAY, Option.Parse.EAGER_PARSING));
     }
 
     @MethodSource
@@ -63,8 +60,8 @@ public class TestJsonArray {
             var newValues = new JsonValue[jsonValues.length * 2];
             System.arraycopy(jsonValues, 0, newValues, 0, jsonValues.length);
             System.arraycopy(jsonValues, 0, newValues, jsonValues.length, jsonValues.length);
-            var doubled = JsonArray.ofValues(newValues);
-            assertEquals(JsonParser.parse(DOUBLEDARRAY), doubled);
+            var doubled = JsonArray.of(newValues);
+            assertEquals(Json.parse(DOUBLEDARRAY), doubled);
         } else {
             throw new RuntimeException();
         };

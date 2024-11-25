@@ -29,12 +29,13 @@
  * @run junit TestSimple
  */
 
+import jdk.internal.util.json.*;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import jdk.internal.util.json.*;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -87,9 +88,9 @@ public class TestSimple {
     // returns the source
     @Test
     public void untypedStringTest() {
-        JsonParser.parse("[false]", Option.Parse.EAGER_PARSING);
-        var s = JsonString.from("\"afo\"");
-        var c = JsonString.from(new String(new char[]{'"', '\\', 'u', '0', '0', '6', '1', 'f', 'o', '"'}));
+        Json.parse("[false]", Option.Parse.EAGER_PARSING);
+        var s = Json.from("\"afo\"");
+        var c = Json.from(new String(new char[]{'"', '\\', 'u', '0', '0', '6', '1', 'f', 'o', '"'}));
         assertEquals(s.value(), c.value());
         assertNotEquals(s.toString(), c.toString());
     }
@@ -98,9 +99,9 @@ public class TestSimple {
     // on the underlying structure
     @Test
     public void testWhiteSpaceAllowed() {
-        var obj = JsonParser.parse(spacesSample);
+        var obj = Json.parse(spacesSample);
         var str = assertDoesNotThrow(obj::toString); // build the map/arr
-        var expStr = JsonParser.parse(sample2).toString();
+        var expStr = Json.parse(sample2).toString();
         // Ensure equivalent Json (besides white space) generates equivalent
         // toString values
         assertEquals(expStr, str);
@@ -108,27 +109,27 @@ public class TestSimple {
 
     @Test
     public void testBasicPrimitives() throws Exception {
-        JsonParser.parse("true", Option.Parse.EAGER_PARSING);
-        JsonParser.parse("[true]", Option.Parse.EAGER_PARSING);
-        JsonParser.parse("{\"a\":true}", Option.Parse.EAGER_PARSING);
-        JsonParser.parse("false", Option.Parse.EAGER_PARSING);
-        JsonParser.parse("[false]", Option.Parse.EAGER_PARSING);
-        JsonParser.parse("{\"a\":false}", Option.Parse.EAGER_PARSING);
-        JsonParser.parse("null", Option.Parse.EAGER_PARSING);
-        JsonParser.parse("[null]", Option.Parse.EAGER_PARSING);
-        JsonParser.parse("{\"a\":null}", Option.Parse.EAGER_PARSING);
+        Json.parse("true", Option.Parse.EAGER_PARSING);
+        Json.parse("[true]", Option.Parse.EAGER_PARSING);
+        Json.parse("{\"a\":true}", Option.Parse.EAGER_PARSING);
+        Json.parse("false", Option.Parse.EAGER_PARSING);
+        Json.parse("[false]", Option.Parse.EAGER_PARSING);
+        Json.parse("{\"a\":false}", Option.Parse.EAGER_PARSING);
+        Json.parse("null", Option.Parse.EAGER_PARSING);
+        Json.parse("[null]", Option.Parse.EAGER_PARSING);
+        Json.parse("{\"a\":null}", Option.Parse.EAGER_PARSING);
     }
 
     @Test
     public void testSimple1() throws Exception {
-        JsonValue doc = JsonParser.parse(sample4);
-        JsonParser.parse(sample4, Option.Parse.EAGER_PARSING);
+        JsonValue doc = Json.parse(sample4);
+        Json.parse(sample4, Option.Parse.EAGER_PARSING);
         System.out.println(doc.toString());
     }
 
     @Test
     public void testSimple2() {
-        var doc = JsonParser.parse(sample1);
+        var doc = Json.parse(sample1);
         if (doc instanceof JsonObject o && o.keys() instanceof Map<String, JsonValue> keys
                 && keys.get("name") instanceof JsonString js1 && js1.value() instanceof String name
                 && keys.get("shoeSize") instanceof JsonNumber js2 && js2.value() instanceof Number size) {
@@ -139,7 +140,7 @@ public class TestSimple {
 
     @Test
     public void testSimple3() {
-        var doc = JsonParser.parse(sample2);
+        var doc = Json.parse(sample2);
         if (doc instanceof JsonArray employees) {
             for (JsonValue v : employees.values()) {
                 if (v instanceof JsonObject o && o.keys() instanceof Map<String, JsonValue> keys
@@ -156,10 +157,10 @@ public class TestSimple {
 
     @Test
     public void testUntyped() {
-        var doc = JsonParser.parse(sample2);
-        var raw = doc.to();
+        var doc = Json.parse(sample2);
+        var raw = Json.to(doc);
         System.out.println(raw);
-        System.out.println(JsonValue.from(raw));
+        System.out.println(Json.from(raw));
 
         var m = HashMap.newHashMap(10);
         m.put("3", 3);
@@ -170,9 +171,9 @@ public class TestSimple {
         a.add(null);
         a.add("arrayElement");
         a.add(Boolean.FALSE);
-        System.out.println(JsonValue.from(a));
+        System.out.println(Json.from(a));
         try {
-            JsonValue.from(Map.of(1, 1));
+            Json.from(Map.of(1, 1));
             throw new RuntimeException("non string key was sneaked in");
         } catch (Exception _) {}
     }
