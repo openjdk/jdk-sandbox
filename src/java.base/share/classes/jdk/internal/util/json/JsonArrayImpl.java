@@ -125,20 +125,6 @@ sealed class JsonArrayImpl implements JsonArray, JsonValueImpl permits JsonArray
 
     @Override
     public String toString() {
-        return formatCompact();
-    }
-
-    @Override
-    public String format(Option... options) {
-        for (var o : options) {
-            if (o == Option.Format.PRETTY_PRINT) {
-                return formatReadable();
-            }
-        }
-        return formatCompact();
-    }
-
-    String formatCompact() {
         var s = new StringBuilder("[");
         for (JsonValue v: values()) {
             s.append(v.toString()).append(",");
@@ -149,12 +135,13 @@ sealed class JsonArrayImpl implements JsonArray, JsonValueImpl permits JsonArray
         return s.append("]").toString();
     }
 
-    String formatReadable() {
-        return formatReadable(0, false);
+    @Override
+    public String toDisplayString() {
+        return toDisplayString(0, false);
     }
 
     @Override
-    public String formatReadable(int indent, boolean isField) {
+    public String toDisplayString(int indent, boolean isField) {
         var prefix = " ".repeat(indent);
         var s = new StringBuilder(isField ? " " : prefix);
         if (values().isEmpty()) {
@@ -163,7 +150,7 @@ sealed class JsonArrayImpl implements JsonArray, JsonValueImpl permits JsonArray
             s.append("[\n");
             for (JsonValue v: values()) {
                 if (v instanceof JsonValueImpl impl) {
-                    s.append(impl.formatReadable(indent + INDENT, false)).append(",\n");
+                    s.append(impl.toDisplayString(indent + INDENT, false)).append(",\n");
                 } else {
                     throw new InternalError("type mismatch");
                 }

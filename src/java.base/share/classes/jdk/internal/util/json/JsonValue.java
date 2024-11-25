@@ -42,12 +42,12 @@ import java.util.Map;
  *     var json = JsonValue.from(values);
  *     json.to().equals(values); // returns true
  * }
- * See {@link #format(Option...)} for converting a {@code JsonValue}
+ * See {@link #toString()} for converting a {@code JsonValue}
  * to its corresponding JSON String. For example,
  * {@snippet lang=java:
  *     var values = Arrays.asList("foo", true, 25);
  *     var json = JsonValue.from(values);
- *     json.format(); // returns "[\"foo\",true,25]"
+ *     json.toString(); // returns "[\"foo\",true,25]"
  * }
  */
 public sealed interface JsonValue
@@ -82,10 +82,18 @@ public sealed interface JsonValue
 
     /**
      * {@return the String representation of this {@code JsonValue} that conforms
-     * to the JSON syntax}
-     * @param options formatting options
+     * to the JSON syntax} As opposed to {@link #toString()}, this method returns
+     * JSON string that is suitable for display.
      */
-    String format(Option... options);
+    String toDisplayString();
+
+    /**
+     * {@return the String representation of this {@code JsonValue} that conforms
+     * to the JSON syntax} The returned string do not contain any white spaces
+     * or newlines to produce a compact representation.
+     */
+    @Override
+    String toString();
 
     /**
      * Indicates whether the given {@code obj} is "equal to" this {@code JsonValue}.

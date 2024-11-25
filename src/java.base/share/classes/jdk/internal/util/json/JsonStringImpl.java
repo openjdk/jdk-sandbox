@@ -77,32 +77,19 @@ sealed class JsonStringImpl implements JsonString, JsonValueImpl permits JsonStr
     // toString should return the source input String
     @Override
     public String toString() {
-        return formatCompact();
-    }
-
-    @Override
-    public String format(Option... options) {
-        for (var o : options) {
-            if (o == Option.Format.PRETTY_PRINT) {
-                return formatReadable();
-            }
-        }
-        return formatCompact();
-    }
-
-    String formatCompact() {
         if (source == null) {
             source = docInfo.substring(startOffset, endOffset);
         }
         return source;
     }
 
-    String formatReadable() {
-        return formatReadable(0, false);
+    @Override
+    public String toDisplayString() {
+        return toDisplayString(0, false);
     }
 
     @Override
-    public String formatReadable(int indent, boolean isField) {
+    public String toDisplayString(int indent, boolean isField) {
         return " ".repeat(isField ? 1 : indent) + toString();
     }
 

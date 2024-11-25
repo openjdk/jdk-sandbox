@@ -83,25 +83,12 @@ sealed class JsonNullImpl implements JsonNull, JsonValueImpl permits JsonNullLaz
     }
 
     @Override
-    public String format(Option... options) {
-        for (var o : options) {
-            if (o == Option.Format.PRETTY_PRINT) {
-                return formatReadable();
-            }
-        }
-        return formatCompact();
-    }
-
-    String formatCompact() {
-        return VALUE;
-    }
-
-    String formatReadable() {
-        return formatReadable(0, false);
+    public String toDisplayString() {
+        return toDisplayString(0, false);
     }
 
     @Override
-    public String formatReadable(int indent, boolean isField) {
+    public String toDisplayString(int indent, boolean isField) {
         return " ".repeat(isField ? 1 : indent) + VALUE;
     }
 }

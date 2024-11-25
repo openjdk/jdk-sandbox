@@ -34,8 +34,9 @@ import jdk.internal.util.json.JsonString;
  * @test
  * @bug 8342442 8345057
  * @library /test/lib
- * @modules java.base/sun.security.provider
- *          java.base/jdk.internal.util.json
+ * @modules java.base/jdk.internal.util.json
+ * @build ML_DSA_Test SHA_Test ML_KEM_Test
+ * @run main Launcher
  */
 
 /// This test runs on `internalProjection.json`-style files generated

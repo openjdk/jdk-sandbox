@@ -34,5 +34,5 @@ package jdk.internal.util.json;
 sealed interface JsonValueImpl permits JsonArrayImpl, JsonBooleanImpl, JsonNullImpl, JsonNumberImpl, JsonObjectImpl, JsonStringImpl {
     int INDENT = 2;
     int getEndOffset();
-    String formatReadable(int index, boolean isField);
+    String toDisplayString(int index, boolean isField);
 }

@@ -141,7 +141,7 @@ final class JsonNumberLazyImpl extends JsonNumberImpl implements JsonValueLazyIm
     }
 
     @Override
-    public String formatCompact() {
+    public String toString() {
         value(); // ensure "numString" is set
         return numString;
     }

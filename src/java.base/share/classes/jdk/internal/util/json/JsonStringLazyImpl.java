@@ -104,9 +104,9 @@ final class JsonStringLazyImpl extends JsonStringImpl implements JsonValueLazyIm
     }
 
     @Override
-    public String formatCompact() {
+    public String toString() {
         value(); // Call to validate input
-        return super.formatCompact();
+        return super.toString();
     }
 
     @Override

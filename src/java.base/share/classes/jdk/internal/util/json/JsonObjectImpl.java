@@ -145,20 +145,6 @@ sealed class JsonObjectImpl implements JsonObject, JsonValueImpl permits JsonObj
 
     @Override
     public String toString() {
-        return formatCompact();
-    }
-
-    @Override
-    public String format(Option... options) {
-        for (var o : options) {
-            if (o == Option.Format.PRETTY_PRINT) {
-                return formatReadable();
-            }
-        }
-        return formatCompact();
-    }
-
-    String formatCompact() {
         var s = new StringBuilder("{");
         for (Map.Entry<String, JsonValue> kv: keys().entrySet()) {
             s.append("\"").append(kv.getKey()).append("\":")
@@ -171,12 +157,13 @@ sealed class JsonObjectImpl implements JsonObject, JsonValueImpl permits JsonObj
         return s.append("}").toString();
     }
 
-    String formatReadable() {
-        return formatReadable(0, false);
+    @Override
+    public String toDisplayString() {
+        return toDisplayString(0, false);
     }
 
     @Override
-    public String formatReadable(int indent, boolean isField) {
+    public String toDisplayString(int indent, boolean isField) {
         var prefix = " ".repeat(indent);
         var s = new StringBuilder(isField ? " " : prefix);
         if (keys().isEmpty()) {
@@ -194,7 +181,7 @@ sealed class JsonObjectImpl implements JsonObject, JsonValueImpl permits JsonObj
                                 .append("\"")
                                 .append(key)
                                 .append("\":")
-                                .append(val.formatReadable(indent + INDENT, true))
+                                .append(val.toDisplayString(indent + INDENT, true))
                                 .append(",\n");
                     } else {
                         throw new IllegalStateException("type mismatch");
