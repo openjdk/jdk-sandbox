@@ -32,7 +32,7 @@ import java.util.Objects;
 /**
  * The interface that represents JSON object.
  * <p>
- * A {@code JsonObject} can be produced by a {@link Json#parse(String)}.
+ * A {@code JsonObject} can be produced by a {@link JsonParser#parse(String)}.
  * <p> Alternatively, {@link Json#fromUntyped(Map)} can be used to obtain a {@code JsonObject}
  * from a {@code Map}. {@link Json#toUntyped(JsonObject)} is the inverse operation,
  * producing a {@code Map} from a {@code JsonObject}. These methods are not

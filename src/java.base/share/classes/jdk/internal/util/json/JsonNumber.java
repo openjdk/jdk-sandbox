@@ -28,7 +28,7 @@ package jdk.internal.util.json;
 /**
  * The interface that represents JSON number.
  * <p>
- * A {@code JsonNumber} can be produced by {@link Json#parse(String)}.
+ * A {@code JsonNumber} can be produced by {@link JsonParser#parse(String)}.
  * <p> Alternatively, {@link Json#fromUntyped(Number)} can be used to obtain a {@code JsonNumber}
  * from a {@code Number}. {@link Json#toUntyped(JsonNumber)} is the inverse
  * operation, producing a {@code Number} from a {@code JsonNumber}. These
