@@ -51,13 +51,6 @@ public sealed interface JsonValue
 
     /**
      * {@return the String representation of this {@code JsonValue} that conforms
-     * to the JSON syntax} As opposed to {@link #toString()}, this method returns
-     * JSON string that is suitable for display.
-     */
-    String toDisplayString();
-
-    /**
-     * {@return the String representation of this {@code JsonValue} that conforms
      * to the JSON syntax} The returned string do not contain any white spaces
      * or newlines to produce a compact representation.
      */

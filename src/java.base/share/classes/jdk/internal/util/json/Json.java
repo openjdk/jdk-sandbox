@@ -1,3 +1,27 @@
+/*
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ *
+ * This code is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 only, as
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
+ *
+ * This code is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * version 2 for more details (a copy is included in the LICENSE file that
+ * accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License version
+ * 2 along with this work; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
+ */
 package jdk.internal.util.json;
 
 import java.util.Arrays;
@@ -6,15 +30,20 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * This class is used to obtain a {@link JsonValue} by using {@link
- * #fromUntyped(Object)} and its overloads. Additionally, the underlying data
+ * Collection of static helper methods.
+ * <p>
+ * A pair of {@code fromUntyped()/toUntyped()} and their overloads provide conversion
+ * between JSON value and corresponding Java types that represent them.
+ * To obtain a {@link JsonValue}, Use {@link #fromUntyped(Object)} and its overloads.
+ * Additionally, the underlying data
  * value of the {@code JsonValue} can be produced by {@link #toUntyped(JsonValue)}
  * and its overloads. See {@link JsonParser} for producing {@code JsonValue}s by
  * parsing JSON strings.
+ * <p>
+ * {@code toDisplayString()} is a formatter that produces a human-readable representation
+ * of the JSON value.
  */
 public class Json {
-
-    private Json(){}
 
     /**
      * {@return a {@code JsonValue} that represents the data type of {@code from}}
@@ -174,4 +203,16 @@ public class Json {
     public static Object toUntyped(JsonNull from) {
         return ((JsonNullImpl) from).toUntyped();
     }
+
+    /**
+     * {@return the String representation of the given {@code JsonValue} that conforms
+     * to the JSON syntax} As opposed to {@link JsonValue#toString()}, this method returns
+     * JSON string that is suitable for display.
+     */
+    public static String toDisplayString(JsonValue jsonValue) {
+        return ((JsonValueImpl)jsonValue).toDisplayString();
+    }
+
+    // no instantiation is allowed for this class
+    private Json() {}
 }
