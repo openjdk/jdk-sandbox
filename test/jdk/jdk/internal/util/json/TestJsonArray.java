@@ -49,7 +49,7 @@ public class TestJsonArray {
     """;
 
     private static Stream<JsonValue> testVarargsFactory() {
-        return Stream.of(Json.parse(ARRAY), Json.parse(ARRAY, Option.Parse.EAGER_PARSING));
+        return Stream.of(JsonParser.parse(ARRAY), JsonParser.parse(ARRAY, Option.Parse.EAGER_PARSING));
     }
 
     @MethodSource
@@ -61,7 +61,7 @@ public class TestJsonArray {
             System.arraycopy(jsonValues, 0, newValues, 0, jsonValues.length);
             System.arraycopy(jsonValues, 0, newValues, jsonValues.length, jsonValues.length);
             var doubled = JsonArray.of(newValues);
-            assertEquals(Json.parse(DOUBLEDARRAY), doubled);
+            assertEquals(JsonParser.parse(DOUBLEDARRAY), doubled);
         } else {
             throw new RuntimeException();
         };

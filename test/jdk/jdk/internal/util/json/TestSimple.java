@@ -88,7 +88,7 @@ public class TestSimple {
     // returns the source
     @Test
     public void untypedStringTest() {
-        Json.parse("[false]", Option.Parse.EAGER_PARSING);
+        JsonParser.parse("[false]", Option.Parse.EAGER_PARSING);
         var s = Json.fromUntyped("\"afo\"");
         var c = Json.fromUntyped(new String(new char[]{'"', '\\', 'u', '0', '0', '6', '1', 'f', 'o', '"'}));
         assertEquals(s.value(), c.value());
@@ -99,9 +99,9 @@ public class TestSimple {
     // on the underlying structure
     @Test
     public void testWhiteSpaceAllowed() {
-        var obj = Json.parse(spacesSample);
+        var obj = JsonParser.parse(spacesSample);
         var str = assertDoesNotThrow(obj::toString); // build the map/arr
-        var expStr = Json.parse(sample2).toString();
+        var expStr = JsonParser.parse(sample2).toString();
         // Ensure equivalent Json (besides white space) generates equivalent
         // toString values
         assertEquals(expStr, str);
@@ -109,27 +109,27 @@ public class TestSimple {
 
     @Test
     public void testBasicPrimitives() throws Exception {
-        Json.parse("true", Option.Parse.EAGER_PARSING);
-        Json.parse("[true]", Option.Parse.EAGER_PARSING);
-        Json.parse("{\"a\":true}", Option.Parse.EAGER_PARSING);
-        Json.parse("false", Option.Parse.EAGER_PARSING);
-        Json.parse("[false]", Option.Parse.EAGER_PARSING);
-        Json.parse("{\"a\":false}", Option.Parse.EAGER_PARSING);
-        Json.parse("null", Option.Parse.EAGER_PARSING);
-        Json.parse("[null]", Option.Parse.EAGER_PARSING);
-        Json.parse("{\"a\":null}", Option.Parse.EAGER_PARSING);
+        JsonParser.parse("true", Option.Parse.EAGER_PARSING);
+        JsonParser.parse("[true]", Option.Parse.EAGER_PARSING);
+        JsonParser.parse("{\"a\":true}", Option.Parse.EAGER_PARSING);
+        JsonParser.parse("false", Option.Parse.EAGER_PARSING);
+        JsonParser.parse("[false]", Option.Parse.EAGER_PARSING);
+        JsonParser.parse("{\"a\":false}", Option.Parse.EAGER_PARSING);
+        JsonParser.parse("null", Option.Parse.EAGER_PARSING);
+        JsonParser.parse("[null]", Option.Parse.EAGER_PARSING);
+        JsonParser.parse("{\"a\":null}", Option.Parse.EAGER_PARSING);
     }
 
     @Test
     public void testSimple1() throws Exception {
-        JsonValue doc = Json.parse(sample4);
-        Json.parse(sample4, Option.Parse.EAGER_PARSING);
+        JsonValue doc = JsonParser.parse(sample4);
+        JsonParser.parse(sample4, Option.Parse.EAGER_PARSING);
         System.out.println(doc.toString());
     }
 
     @Test
     public void testSimple2() {
-        var doc = Json.parse(sample1);
+        var doc = JsonParser.parse(sample1);
         if (doc instanceof JsonObject o && o.keys() instanceof Map<String, JsonValue> keys
                 && keys.get("name") instanceof JsonString js1 && js1.value() instanceof String name
                 && keys.get("shoeSize") instanceof JsonNumber js2 && js2.value() instanceof Number size) {
@@ -140,7 +140,7 @@ public class TestSimple {
 
     @Test
     public void testSimple3() {
-        var doc = Json.parse(sample2);
+        var doc = JsonParser.parse(sample2);
         if (doc instanceof JsonArray employees) {
             for (JsonValue v : employees.values()) {
                 if (v instanceof JsonObject o && o.keys() instanceof Map<String, JsonValue> keys
@@ -157,7 +157,7 @@ public class TestSimple {
 
     @Test
     public void testUntyped() {
-        var doc = Json.parse(sample2);
+        var doc = JsonParser.parse(sample2);
         var raw = Json.toUntyped(doc);
         System.out.println(raw);
         System.out.println(Json.fromUntyped(raw));

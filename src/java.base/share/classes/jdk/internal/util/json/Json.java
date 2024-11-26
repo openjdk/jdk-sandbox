@@ -6,99 +6,15 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * This class is used to obtain a {@code JsonValue} by parsing data that
- * adheres to the JSON syntax defined in RFC 8259. For alternative ways to obtain
- * a {@code JsonValue}, see {@link #fromUntyped(Object)} and its overloads. Additionally,
- * the underlying data value of the {@code JsonValue} can be produced by {@link
- * #toUntyped(JsonValue)} and its overloads.
- *
- * <p>
- * This parser utilizes deconstructor pattern matching. For simple JSON data,
- * the underlying data of a {@code JsonValue} can be retrieved using pattern matching,
- * such as:
- * {@snippet lang=java :
- *     JsonValue doc = JsonParser.parse("{ \"name\" : \"John\", \"age\" : 40 }");
- *     if (doc instanceof JsonObject(var keys) &&
- *         keys.get("name") instanceof JsonString(var name) &&
- *         keys.get("age") instanceof JsonNumber(var age)) { ... }
- * }
- *
- * @spec https://datatracker.ietf.org/doc/html/rfc8259 RFC 8259: The JavaScript
- *          Object Notation (JSON) Data Interchange Format
+ * This class is used to obtain a {@link JsonValue} by using {@link
+ * #fromUntyped(Object)} and its overloads. Additionally, the underlying data
+ * value of the {@code JsonValue} can be produced by {@link #toUntyped(JsonValue)}
+ * and its overloads. See {@link JsonParser} for producing {@code JsonValue}s by
+ * parsing JSON strings.
  */
 public class Json {
 
     private Json(){}
-
-    /**
-     * Parses and creates the top level {@code JsonValue} in this JSON
-     * document.
-     *
-     * @param in the input JSON document as {@code String}. Non-null.
-     * @throws JsonParseException if the input JSON document does not conform
-     *      to the JSON document format
-     * @return the top level {@code JsonValue}
-     */
-    public static JsonValue parse(String in) {
-        Objects.requireNonNull(in);
-        return JsonParser.parseImpl(new JsonLazyDocumentInfo(in));
-    }
-
-    /**
-     * Parses and creates the top level {@code JsonValue} in this JSON
-     * document.
-     *
-     * @param in the input JSON document as {@code String}. Non-null.
-     * @param options parsing options
-     * @throws JsonParseException if the input JSON document does not conform
-     *      to the JSON document format
-     * @return the top level {@code JsonValue}
-     */
-    public static JsonValue parse(String in, Option... options) {
-        Objects.requireNonNull(in);
-
-        for (var o : options) {
-            if (o == Option.Parse.EAGER_PARSING) {
-                return JsonParser.parseImpl(new JsonDocumentInfo(in));
-            }
-        }
-        return JsonParser.parseImpl(new JsonLazyDocumentInfo(in));
-    }
-
-    /**
-     * Parses and creates the top level {@code JsonValue} in this JSON
-     * document.
-     *
-     * @param in the input JSON document as {@code char[]}. Non-null.
-     * @throws JsonParseException if the input JSON document does not conform
-     *      to the JSON document format
-     * @return the top level {@code JsonValue}
-     */
-    public static JsonValue parse(char[] in) {
-        Objects.requireNonNull(in);
-        return JsonParser.parseImpl(new JsonLazyDocumentInfo(in));
-    }
-
-    /**
-     * Parses and creates the top level {@code JsonValue} in this JSON
-     * document.
-     *
-     * @param in the input JSON document as {@code char[]}. Non-null.
-     * @param options parsing options
-     * @throws JsonParseException if the input JSON document does not conform
-     *      to the JSON document format
-     * @return the top level {@code JsonValue}
-     */
-    public static JsonValue parse(char[] in, Option... options) {
-        Objects.requireNonNull(in);
-
-        for (var o : options) {
-            if (o == Option.Parse.EAGER_PARSING) {
-                return JsonParser.parseImpl(new JsonDocumentInfo(in));
-            }
-        }
-        return JsonParser.parseImpl(new JsonLazyDocumentInfo(in));
-    }
 
     /**
      * {@return a {@code JsonValue} that represents the data type of {@code from}}

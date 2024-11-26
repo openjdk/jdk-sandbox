@@ -57,7 +57,7 @@ public class TestJsonObject {
 
     @Test
     public void emptyBuildTest() {
-        var expectedJson = Json.parse(jsonObjStr);
+        var expectedJson = JsonParser.parse(jsonObjStr);
         var builtJson = new JsonObject.Builder()
                 .put("name", Json.fromUntyped("Brian"))
                 .put("shoeSize", Json.fromUntyped(10)).build();
@@ -66,15 +66,15 @@ public class TestJsonObject {
 
     @Test
     public void existingBuildTest() {
-        var sourceJson = Json.parse(jsonObjStr);
+        var sourceJson = JsonParser.parse(jsonObjStr);
         var builtJson = new JsonObject.Builder((JsonObject) sourceJson).build();
         assertEquals(builtJson, sourceJson);
     }
 
     @Test
     public void removalTest() {
-        var expectedJson = Json.parse(halfJsonObjStr);
-        var sourceJson = Json.parse(jsonObjStr);
+        var expectedJson = JsonParser.parse(halfJsonObjStr);
+        var sourceJson = JsonParser.parse(jsonObjStr);
         var builtJson = new JsonObject.Builder((JsonObject) sourceJson)
                 .remove("name").build();
         assertEquals(builtJson, expectedJson);
@@ -82,8 +82,8 @@ public class TestJsonObject {
 
     @Test
     public void clearTest() {
-        var expectedJson = Json.parse(emptyJsonObjStr);
-        var sourceJson = Json.parse(jsonObjStr);
+        var expectedJson = JsonParser.parse(emptyJsonObjStr);
+        var sourceJson = JsonParser.parse(jsonObjStr);
         var builtJson = new JsonObject.Builder((JsonObject) sourceJson)
                 .clear().build();
         assertEquals(builtJson, expectedJson);
@@ -97,6 +97,6 @@ public class TestJsonObject {
         map.put("bar", Json.fromUntyped("value"));
         map.put("baz", Json.fromUntyped((Object) null));
         assertEquals(JsonObject.of(map),
-                Json.parse("{ \"foo\" : 5, \"bar\" : \"value\", \"baz\" : null}"));
+                JsonParser.parse("{ \"foo\" : 5, \"bar\" : \"value\", \"baz\" : null}"));
     }
 }

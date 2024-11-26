@@ -41,10 +41,10 @@ public class TestJsonNumber {
     void testInfinity() {
         assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(Double.POSITIVE_INFINITY));
         assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(Double.NEGATIVE_INFINITY));
-        assertThrows(JsonParseException.class, () -> ((JsonNumber) Json.parse("1e309")).value());
-        assertThrows(JsonParseException.class, () -> ((JsonNumber) Json.parse("-1e309")).value());
-        assertThrows(JsonParseException.class, () -> ((JsonNumber) Json.parse("1e309", Option.Parse.EAGER_PARSING)).value());
-        assertThrows(JsonParseException.class, () -> ((JsonNumber) Json.parse("-1e309", Option.Parse.EAGER_PARSING)).value());
+        assertThrows(JsonParseException.class, () -> ((JsonNumber) JsonParser.parse("1e309")).value());
+        assertThrows(JsonParseException.class, () -> ((JsonNumber) JsonParser.parse("-1e309")).value());
+        assertThrows(JsonParseException.class, () -> ((JsonNumber) JsonParser.parse("1e309", Option.Parse.EAGER_PARSING)).value());
+        assertThrows(JsonParseException.class, () -> ((JsonNumber) JsonParser.parse("-1e309", Option.Parse.EAGER_PARSING)).value());
     }
 
     @Test
@@ -68,7 +68,7 @@ public class TestJsonNumber {
     @Test
     void testHugeIntegral() {
         var huge = "18446744073709551615";
-        if (Json.parse(huge) instanceof JsonNumber jn &&
+        if (JsonParser.parse(huge) instanceof JsonNumber jn &&
             jn.value() instanceof Number val) {
             assertEquals(Double.valueOf(huge), val);
         } else {
