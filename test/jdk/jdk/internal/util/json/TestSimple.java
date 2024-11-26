@@ -89,8 +89,8 @@ public class TestSimple {
     @Test
     public void untypedStringTest() {
         Json.parse("[false]", Option.Parse.EAGER_PARSING);
-        var s = Json.from("\"afo\"");
-        var c = Json.from(new String(new char[]{'"', '\\', 'u', '0', '0', '6', '1', 'f', 'o', '"'}));
+        var s = Json.fromUntyped("\"afo\"");
+        var c = Json.fromUntyped(new String(new char[]{'"', '\\', 'u', '0', '0', '6', '1', 'f', 'o', '"'}));
         assertEquals(s.value(), c.value());
         assertNotEquals(s.toString(), c.toString());
     }
@@ -158,9 +158,9 @@ public class TestSimple {
     @Test
     public void testUntyped() {
         var doc = Json.parse(sample2);
-        var raw = Json.to(doc);
+        var raw = Json.toUntyped(doc);
         System.out.println(raw);
-        System.out.println(Json.from(raw));
+        System.out.println(Json.fromUntyped(raw));
 
         var m = HashMap.newHashMap(10);
         m.put("3", 3);
@@ -171,9 +171,9 @@ public class TestSimple {
         a.add(null);
         a.add("arrayElement");
         a.add(Boolean.FALSE);
-        System.out.println(Json.from(a));
+        System.out.println(Json.fromUntyped(a));
         try {
-            Json.from(Map.of(1, 1));
+            Json.fromUntyped(Map.of(1, 1));
             throw new RuntimeException("non string key was sneaked in");
         } catch (Exception _) {}
     }

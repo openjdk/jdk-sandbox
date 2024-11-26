@@ -69,7 +69,7 @@ sealed class JsonStringImpl implements JsonString, JsonValueImpl permits JsonStr
         return Objects.hash(toString());
     }
 
-    String to() {
+    String toUntyped() {
         return value();
     }
 

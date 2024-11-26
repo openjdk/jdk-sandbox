@@ -65,7 +65,7 @@ public class PandocManPageTroffFilter extends PandocFilter {
             if (value instanceof JsonArray ja && ja.values().get(0) instanceof JsonNumber jn) {
                 int level = jn.value().intValue();
                 JsonValue[] arr = ja.values().toArray(new JsonValue[0]);
-                arr[0] = Json.from(level - 1);
+                arr[0] = Json.fromUntyped(level - 1);
                 JsonArray array = JsonArray.of(arr);
                 if (array.values().get(0) instanceof JsonNumber jn2 && jn2.value().intValue() == 1) {
                     return createHeader(traverse(array, this::uppercase, false));

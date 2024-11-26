@@ -33,10 +33,10 @@ import java.util.Objects;
  * The interface that represents JSON object.
  * <p>
  * A {@code JsonObject} can be produced by a {@link Json#parse(String)}.
- * <p> Alternatively, {@link Json#from(Map)} can be used to obtain a {@code JsonObject}
- * from a {@code Map}. {@link Json#to(JsonObject)} is the inverse operation,
+ * <p> Alternatively, {@link Json#fromUntyped(Map)} can be used to obtain a {@code JsonObject}
+ * from a {@code Map}. {@link Json#toUntyped(JsonObject)} is the inverse operation,
  * producing a {@code Map} from a {@code JsonObject}. These methods are not
- * guaranteed to produce a round-trip. Callers of {@link Json#from(Map)} should be
+ * guaranteed to produce a round-trip. Callers of {@link Json#fromUntyped(Map)} should be
  * aware that a {@code Map} containing a circular reference will cause a
  * {@code StackOverFlowError}.
  */
@@ -64,7 +64,7 @@ public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
      * {@snippet lang=java:
      *     var original = JsonParser.parse("{ \"name\" : \"Foo\" }");
      *     if (original instanceof JsonObject json) {
-     *         var modified = new JsonObject.Builder(json).put("name", JsonString.from("Bar")).build();
+     *         var modified = new JsonObject.Builder(json).put("name", Json.from("Bar")).build();
      *     }
      * }
      *

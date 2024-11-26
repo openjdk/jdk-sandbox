@@ -32,8 +32,8 @@ import java.util.Objects;
  * The interface that represents JSON array
  * <p>
  * A {@code JsonArray} can be produced by {@link Json#parse(String)}.
- * <p> Alternatively, {@link Json#from(List)} can be used to obtain a {@code JsonArray}
- * from a {@code List}. {@link Json#to(JsonArray)} is the inverse operation, producing a {@code List} from a
+ * <p> Alternatively, {@link Json#fromUntyped(List)} can be used to obtain a {@code JsonArray}
+ * from a {@code List}. {@link Json#toUntyped(JsonArray)} is the inverse operation, producing a {@code List} from a
  * {@code JsonArray}. These methods are not guaranteed to produce a round-trip.
  */
 public sealed interface JsonArray extends JsonValue permits JsonArrayImpl {

@@ -46,13 +46,13 @@ public class TestCircularReference {
     public void arrayTest() {
         ArrayList<Object> arr = new ArrayList<>();
         arr.add(arr);
-        assertThrows(StackOverflowError.class, () -> Json.from(arr));
+        assertThrows(StackOverflowError.class, () -> Json.fromUntyped(arr));
     }
 
     @Test
     public void objectTest() {
         HashMap<String,Object> map = new HashMap<>();
         map.put("foo", map);
-        assertThrows(StackOverflowError.class, () -> Json.from(map));
+        assertThrows(StackOverflowError.class, () -> Json.fromUntyped(map));
     }
 }

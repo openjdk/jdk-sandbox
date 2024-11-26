@@ -185,7 +185,7 @@ sealed class JsonNumberImpl implements JsonNumber, JsonValueImpl permits JsonNum
         return num;
     }
 
-    Number to() {
+    Number toUntyped() {
         return value();
     }
 

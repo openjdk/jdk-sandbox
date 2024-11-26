@@ -56,7 +56,7 @@ sealed class JsonObjectImpl implements JsonObject, JsonValueImpl permits JsonObj
                 // because it would have the same erasure as this cstr. Check caller
                 // class, to decide if value should be JsonValue vs untyped
                 if (Json.class.equals(caller)) {
-                    m.put(strKey, Json.from(entry.getValue()));
+                    m.put(strKey, Json.fromUntyped(entry.getValue()));
                 } else {
                     m.put(strKey, (JsonValue)entry.getValue());
                 }
@@ -136,10 +136,10 @@ sealed class JsonObjectImpl implements JsonObject, JsonValueImpl permits JsonObj
         return Objects.hash(keys());
     }
 
-    Map<String, Object> to() {
+    Map<String, Object> toUntyped() {
         return keys().entrySet().stream()
             .collect(HashMap::new, // to allow `null` value
-                (m, e) -> m.put(e.getKey(), Json.to(e.getValue())),
+                (m, e) -> m.put(e.getKey(), Json.toUntyped(e.getValue())),
                 HashMap::putAll);
     }
 

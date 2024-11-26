@@ -31,18 +31,18 @@ package jdk.internal.util.json;
  * {@code JsonNumber}, {@code JsonObject}, {@code JsonArray}, {@code JsonBoolean},
  * or {@code JsonNull}.
  * <p>
- * See {@link Json#to(JsonValue)} and {@link Json#from(Object)} for converting
+ * See {@link Json#toUntyped(JsonValue)} and {@link Json#fromUntyped(Object)} for converting
  * between a {@code JsonValue} and its corresponding data type. For example,
  * {@snippet lang=java:
  *     var values = Arrays.asList("foo", true, 25);
- *     var json = Json.from(values);
- *     Json.to(json).equals(values); // returns true
+ *     var json = Json.fromUntyped(values);
+ *     Json.toUntyped(json).equals(values); // returns true
  * }
  * See {@link #toString()} for converting a {@code JsonValue}
  * to its corresponding JSON String. For example,
  * {@snippet lang=java:
  *     var values = Arrays.asList("foo", true, 25);
- *     var json = Json.from(values);
+ *     var json = Json.fromUntyped(values);
  *     json.toString(); // returns "[\"foo\",true,25]"
  * }
  */

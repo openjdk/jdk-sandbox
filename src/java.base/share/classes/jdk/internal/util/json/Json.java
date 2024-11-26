@@ -8,9 +8,9 @@ import java.util.Objects;
 /**
  * This class is used to obtain a {@code JsonValue} by parsing data that
  * adheres to the JSON syntax defined in RFC 8259. For alternative ways to obtain
- * a {@code JsonValue}, see {@link #from(Object)} and its overloads. Additionally,
+ * a {@code JsonValue}, see {@link #fromUntyped(Object)} and its overloads. Additionally,
  * the underlying data value of the {@code JsonValue} can be produced by {@link
- * #to(JsonValue)} and its overloads.
+ * #toUntyped(JsonValue)} and its overloads.
  *
  * <p>
  * This parser utilizes deconstructor pattern matching. For simple JSON data,
@@ -108,14 +108,14 @@ public class Json {
      * to any of the {@code JsonValue} subtypes.
      * @throws StackOverflowError if {@code from} contains a circular reference
      */
-    public static JsonValue from(Object from) {
+    public static JsonValue fromUntyped(Object from) {
         return switch (from) {
-            case String str -> from(str);
-            case Map<?, ?> map -> from(map);
-            case List<?> list-> from(list);
-            case Object[] array -> from(Arrays.asList(array));
-            case Boolean bool -> from(bool);
-            case Number num-> from(num);
+            case String str -> fromUntyped(str);
+            case Map<?, ?> map -> fromUntyped(map);
+            case List<?> list-> fromUntyped(list);
+            case Object[] array -> fromUntyped(Arrays.asList(array));
+            case Boolean bool -> fromUntyped(bool);
+            case Number num-> fromUntyped(num);
             case null -> JsonNull.ofNull();
             default -> throw new IllegalArgumentException("Type not recognized.");
         };
@@ -124,13 +124,13 @@ public class Json {
     /**
      * {@return the {@code JsonArray} created from the given
      * list of {@code Object}s} {@code Element}(s) in {@code from} should be any
-     * value such that {@link #from(Object) JsonValue.from(element)} does not throw
+     * value such that {@link #fromUntyped(Object) JsonValue.fromUntyped(element)} does not throw
      * an exception.
      *
      * @param from the list of {@code Object}s. Non-null.
      * @throws StackOverflowError if {@code from} contains a circular reference
      */
-    public static JsonArray from(List<?> from) {
+    public static JsonArray fromUntyped(List<?> from) {
         Objects.requireNonNull(from);
         return new JsonArrayImpl(from);
     }
@@ -141,7 +141,7 @@ public class Json {
      *
      * @param from the given {@code Boolean}. Non-null.
      */
-    public static JsonBoolean from(Boolean from) {
+    public static JsonBoolean fromUntyped(Boolean from) {
         Objects.requireNonNull(from);
         return from ? JsonBooleanImpl.TRUE : JsonBooleanImpl.FALSE;
     }
@@ -157,7 +157,7 @@ public class Json {
      * @throws IllegalArgumentException if the given {@code num} is out
      *          of accepted range.
      */
-    public static JsonNumber from(Number num) {
+    public static JsonNumber fromUntyped(Number num) {
         Objects.requireNonNull(num);
         return switch (num) {
             case Byte b -> new JsonNumberImpl(b);
@@ -178,13 +178,13 @@ public class Json {
     /**
      * {@return the {@code JsonObject} created from the given
      * Map of {@code Object}s} Keys should be strings, and values should be any
-     * value such that {@link #from(Object) JsonValue.from(value)} does not throw
+     * value such that {@link #fromUntyped(Object) JsonValue.fromUntyped(value)} does not throw
      * an exception.
      *
      * @param from the Map of {@code Object}s. Non-null.
      * @throws StackOverflowError if {@code from} contains a circular reference
      */
-    public static JsonObject from(Map<?, ?> from) {
+    public static JsonObject fromUntyped(Map<?, ?> from) {
         Objects.requireNonNull(from);
         return new JsonObjectImpl(from);
     }
@@ -195,7 +195,7 @@ public class Json {
      *
      * @param from the given {@code String}. Non-null.
      */
-    public static JsonString from(String from) {
+    public static JsonString fromUntyped(String from) {
         Objects.requireNonNull(from);
         return new JsonStringLazyImpl(from);
     }
@@ -204,58 +204,58 @@ public class Json {
      * {@return an {@code Object} that represents the data of the passed {@code
      * JsonValue}}. The return type depends on the subtype of {@code from}.
      */
-    public static Object to(JsonValue from) {
+    public static Object toUntyped(JsonValue from) {
         return switch (from) {
-            case JsonString jStr -> to(jStr);
-            case JsonObject jMap -> to(jMap);
-            case JsonArray jList-> to(jList);
-            case JsonBoolean jBool -> to(jBool);
-            case JsonNumber jNum-> to(jNum);
-            case JsonNull jNull -> to(jNull);
+            case JsonString jStr -> toUntyped(jStr);
+            case JsonObject jMap -> toUntyped(jMap);
+            case JsonArray jList-> toUntyped(jList);
+            case JsonBoolean jBool -> toUntyped(jBool);
+            case JsonNumber jNum-> toUntyped(jNum);
+            case JsonNull jNull -> toUntyped(jNull);
         };
     }
 
     /**
      * {@return the {@code String} value corresponding to {@code from}}
      */
-    public static String to(JsonString from) {
-        return ((JsonStringImpl) from).to();
+    public static String toUntyped(JsonString from) {
+        return ((JsonStringImpl) from).toUntyped();
     }
 
     /**
      * {@return the map composed of {@code String} to {@code Object} corresponding to
      * {@code from}}
      */
-    public static Map<String, Object> to(JsonObject from) {
-        return ((JsonObjectImpl) from).to();
+    public static Map<String, Object> toUntyped(JsonObject from) {
+        return ((JsonObjectImpl) from).toUntyped();
     }
 
     /**
      * {@return the list of {@code Object}s corresponding to {@code from}}
      */
-    public static List<Object> to(JsonArray from) {
-        return ((JsonArrayImpl) from).to();
+    public static List<Object> toUntyped(JsonArray from) {
+        return ((JsonArrayImpl) from).toUntyped();
     }
 
     /**
      * {@return the {@code Boolean} value corresponding to {@code from}}
      */
-    public static boolean to(JsonBoolean from) {
-        return ((JsonBooleanImpl) from).to();
+    public static boolean toUntyped(JsonBoolean from) {
+        return ((JsonBooleanImpl) from).toUntyped();
     }
 
     /**
      * {@return the {@code Number} value corresponding to {@code from}}.
      * The Number subtype depends on the number value in {@code from}.
      */
-    public static Number to(JsonNumber from) {
-        return ((JsonNumberImpl) from).to();
+    public static Number toUntyped(JsonNumber from) {
+        return ((JsonNumberImpl) from).toUntyped();
     }
 
     /**
      * {@return {@code null}}
      */
-    public static Object to(JsonNull from) {
-        return ((JsonNullImpl) from).to();
+    public static Object toUntyped(JsonNull from) {
+        return ((JsonNullImpl) from).toUntyped();
     }
 }

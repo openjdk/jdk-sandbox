@@ -72,7 +72,7 @@ sealed class JsonNullImpl implements JsonNull, JsonValueImpl permits JsonNullLaz
         return HASH;
     }
 
-    Object to() {
+    Object toUntyped() {
         return null;
     }
 

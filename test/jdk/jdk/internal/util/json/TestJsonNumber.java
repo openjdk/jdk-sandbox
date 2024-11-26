@@ -39,8 +39,8 @@ public class TestJsonNumber {
 
     @Test
     void testInfinity() {
-        assertThrows(IllegalArgumentException.class, () -> Json.from(Double.POSITIVE_INFINITY));
-        assertThrows(IllegalArgumentException.class, () -> Json.from(Double.NEGATIVE_INFINITY));
+        assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(Double.POSITIVE_INFINITY));
+        assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(Double.NEGATIVE_INFINITY));
         assertThrows(JsonParseException.class, () -> ((JsonNumber) Json.parse("1e309")).value());
         assertThrows(JsonParseException.class, () -> ((JsonNumber) Json.parse("-1e309")).value());
         assertThrows(JsonParseException.class, () -> ((JsonNumber) Json.parse("1e309", Option.Parse.EAGER_PARSING)).value());
@@ -49,19 +49,19 @@ public class TestJsonNumber {
 
     @Test
     void testNan() {
-        assertThrows(IllegalArgumentException.class, () -> Json.from(Double.NaN));
+        assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(Double.NaN));
         // parse test not required for Nan, cannot parse "NaN"
     }
 
     @Test
     void testInteger() {
-        assertTrue(Json.from(42) instanceof JsonNumber jn &&
+        assertTrue(Json.fromUntyped(42) instanceof JsonNumber jn &&
                 jn.value() instanceof Integer);
     }
 
     @Test
     void testLong() {
-        assertTrue(Json.from(4242424242424242L) instanceof JsonNumber jn &&
+        assertTrue(Json.fromUntyped(4242424242424242L) instanceof JsonNumber jn &&
                 jn.value() instanceof Long);
     }
 
@@ -78,13 +78,13 @@ public class TestJsonNumber {
 
     @Test
     void testFraction() {
-        assertTrue(Json.from(42.42) instanceof JsonNumber jn &&
+        assertTrue(Json.fromUntyped(42.42) instanceof JsonNumber jn &&
                 jn.value() instanceof Double);
     }
 
     @Test
     void testExponent() {
-        assertTrue(Json.from(42e42) instanceof JsonNumber jn &&
+        assertTrue(Json.fromUntyped(42e42) instanceof JsonNumber jn &&
                 jn.value() instanceof Double);
     }
 }

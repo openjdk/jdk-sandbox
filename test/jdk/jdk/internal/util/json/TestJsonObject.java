@@ -59,8 +59,8 @@ public class TestJsonObject {
     public void emptyBuildTest() {
         var expectedJson = Json.parse(jsonObjStr);
         var builtJson = new JsonObject.Builder()
-                .put("name", Json.from("Brian"))
-                .put("shoeSize", Json.from(10)).build();
+                .put("name", Json.fromUntyped("Brian"))
+                .put("shoeSize", Json.fromUntyped(10)).build();
         assertEquals(expectedJson, builtJson);
     }
 
@@ -93,9 +93,9 @@ public class TestJsonObject {
     @Test
     public void ofFactoryTest() {
         HashMap<String, JsonValue> map = new HashMap<>();
-        map.put("foo", Json.from(5));
-        map.put("bar", Json.from("value"));
-        map.put("baz", Json.from((Object) null));
+        map.put("foo", Json.fromUntyped(5));
+        map.put("bar", Json.fromUntyped("value"));
+        map.put("baz", Json.fromUntyped((Object) null));
         assertEquals(JsonObject.of(map),
                 Json.parse("{ \"foo\" : 5, \"bar\" : \"value\", \"baz\" : null}"));
     }

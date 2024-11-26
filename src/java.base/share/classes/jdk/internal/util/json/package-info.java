@@ -69,8 +69,8 @@
 ///
 ///Once a `JsonValue` is obtained, it can convert into a simple Java object (and vice versa) with these methods:
 ///```
-///Map<String, Object> map = someJsonObject.to(); // produces Map<String, Object>
-///JsonObject.from(map); // produces the JsonObject
+///Map<String, Object> map = Json.toUntyped(someJsonObject); // produces Map<String, Object>
+///Json.fromUntyped(map); // produces the JsonObject
 ///```
 ///Each Json value type has corresponding Java object type. Here is the mapping:
 ///```
@@ -81,8 +81,8 @@
 ///JsonBoolean: Boolean
 ///JsonNull: `null`
 ///```
-///Since the`JsonValue`may or may not retain the information of which the Json value is created, `from()
-///`/`to()` do not necessarily offer round-trip
+///Since the`JsonValue`may or may not retain the information of which the Json value is created, `fromUntyped()
+///`/`toUntyped()` do not necessarily offer round-trip
 ///
 ///#### Parsing
 ///

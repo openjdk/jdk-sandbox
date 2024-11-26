@@ -50,7 +50,7 @@ sealed class JsonArrayImpl implements JsonArray, JsonValueImpl permits JsonArray
         endOffset = 0;
         List<JsonValue> l = new ArrayList<>(from.size());
         for (Object o : from) {
-            l.add(Json.from(o));
+            l.add(Json.fromUntyped(o));
         }
         theValues = Collections.unmodifiableList(l);
     }
@@ -116,9 +116,9 @@ sealed class JsonArrayImpl implements JsonArray, JsonValueImpl permits JsonArray
         return Objects.hash(values());
     }
 
-    List<Object> to() {
+    List<Object> toUntyped() {
         return values().stream()
-                .map(Json::to)
+                .map(Json::toUntyped)
                 .toList();
     }
 

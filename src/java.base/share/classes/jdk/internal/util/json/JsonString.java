@@ -29,8 +29,8 @@ package jdk.internal.util.json;
  * The interface that represents JSON string
  * <p>
  * A {@code JsonString} can be produced by a {@link Json#parse(String)}.
- * <p> Alternatively, {@link Json#from(String)} can be used to obtain a {@code JsonString}
- * from a {@code String}. {@link Json#to(JsonNumber)} is the inverse
+ * <p> Alternatively, {@link Json#fromUntyped(String)} can be used to obtain a {@code JsonString}
+ * from a {@code String}. {@link Json#toUntyped(JsonNumber)} is the inverse
  * operation, producing a {@code String} from a {@code JsonString}. These methods
  * are not guaranteed to produce a round-trip.
  */

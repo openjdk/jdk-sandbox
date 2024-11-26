@@ -91,10 +91,10 @@ public class PandocFilter {
     public JsonValue createPandocNode(String type, JsonValue content) {
         if (content == null) {
             return new JsonObject.Builder()
-                    .put("t", Json.from(type)).build();
+                    .put("t", Json.fromUntyped(type)).build();
         } else {
             return new JsonObject.Builder()
-                    .put("t", Json.from(type))
+                    .put("t", Json.fromUntyped(type))
                     .put("c", content).build();
         }
     }
@@ -111,7 +111,7 @@ public class PandocFilter {
     }
 
     public JsonValue createStr(String string) {
-        return createPandocNode("Str", Json.from(string));
+        return createPandocNode("Str", Json.fromUntyped(string));
     }
 
     public static JsonValue loadJson(String[] args) throws FileNotFoundException {
