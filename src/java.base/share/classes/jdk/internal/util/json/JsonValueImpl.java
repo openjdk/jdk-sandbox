@@ -34,12 +34,6 @@ package jdk.internal.util.json;
 sealed interface JsonValueImpl permits JsonArrayImpl, JsonBooleanImpl, JsonNullImpl, JsonNumberImpl, JsonObjectImpl, JsonStringImpl {
     int INDENT = 2;
     int getEndOffset();
-
-    /**
-     * {@return the String representation of this {@code JsonValue} that conforms
-     * to the JSON syntax} As opposed to {@link JsonValue#toString()}, this method returns
-     * JSON string that is suitable for display.
-     */
     String toDisplayString();
     String toDisplayString(int index, boolean isField);
 }
