@@ -32,10 +32,15 @@
 import jdk.internal.util.json.*;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.HashMap;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 // Test the API of JsonObject.Builder and JsonObject.of()
 public class TestJsonObject {
@@ -98,5 +103,31 @@ public class TestJsonObject {
         map.put("baz", Json.fromUntyped((Object) null));
         assertEquals(JsonObject.of(map),
                 JsonParser.parse("{ \"foo\" : 5, \"bar\" : \"value\", \"baz\" : null}"));
+    }
+
+    // of(Objects...)
+    private static Stream<Arguments> of_vararg() {
+        return Stream.of(
+           Arguments.of(new Object[] {"key1", Json.fromUntyped(Boolean.TRUE), "key2", JsonNull.ofNull()},
+                   JsonParser.parse("{\"key1\": true, \"key2\": null}"))
+        );
+    }
+    @MethodSource
+    @ParameterizedTest
+    public void of_vararg(Object[] input, JsonValue expected) {
+        assertEquals(JsonObject.of(input), expected);
+    }
+
+    private static Stream<Arguments> of_illegal_vararg() {
+        return Stream.of(
+            // dummy is needed to fool jupiter for failing argument conversion
+            Arguments.of(new Object[] {"key1", Json.fromUntyped(Boolean.TRUE), "key2"}, 0),
+            Arguments.of(new Object[] {"key1", "val1", "key2", JsonNull.ofNull()}, 0)
+        );
+    }
+    @MethodSource
+    @ParameterizedTest
+    public void of_illegal_vararg(Object[] input, Object dummy) {
+        assertThrows(IllegalArgumentException.class, () -> JsonObject.of(input));
     }
 }

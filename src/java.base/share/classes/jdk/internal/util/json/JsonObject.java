@@ -59,6 +59,32 @@ public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
     }
 
     /**
+     * {@return the {@code JsonObject} created from the given
+     * varargs of {@code Object}s} The argument {@code objs} has
+     * consecutive pairs of a {@code String} key and a {@code JsonValue}.
+     *
+     * @param objs map of {@code JsonValue}s. Non-null.
+     * @throws IllegalArgumentException if {@code objs} does not consist of
+     * pairs of a {@code String} and a {@code JsonValue}.
+     */
+    static JsonObject of(Object... objs) {
+        Objects.requireNonNull(objs);
+        if (objs.length % 2 == 0) {
+            var b = new Builder();
+            for (int index = 0; index < objs.length; index += 2) {
+                if (objs[index] instanceof String key &&
+                    objs[index + 1] instanceof JsonValue jv) {
+                    b.put(key, jv);
+                } else {
+                    throw new IllegalArgumentException("objs does not consist of valid key/value pair at the index " + index);
+                }
+            }
+            return b.build();
+        }
+        throw new IllegalArgumentException("objs does not consist of valid key/value pairs. Odd number of objs");
+    }
+
+    /**
      * {@code Builder} is used to build new instances of {@code JsonObject}.
      * For example,
      * {@snippet lang=java:
