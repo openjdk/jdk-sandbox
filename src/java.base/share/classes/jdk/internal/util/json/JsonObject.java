@@ -60,10 +60,10 @@ public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
 
     /**
      * {@return the {@code JsonObject} created from the given
-     * varargs of {@code Object}s} The argument {@code objs} has
-     * consecutive pairs of a {@code String} key and a {@code JsonValue}.
+     * varargs of {@code Object}s}
      *
-     * @param objs map of {@code JsonValue}s. Non-null.
+     * @param objs varargs of {@code Object}s that consists of
+     * consecutive pairs of a {@code String} key and a {@code JsonValue}.
      * @throws IllegalArgumentException if {@code objs} does not consist of
      * pairs of a {@code String} and a {@code JsonValue}.
      */
