@@ -51,12 +51,7 @@ sealed class JsonObjectImpl implements JsonObject, JsonValueImpl permits JsonObj
             if (!(entry.getKey() instanceof String strKey)) {
                 throw new IllegalStateException("Key is not a String: " + entry.getKey());
             } else {
-                var val = entry.getValue();
-                if (val instanceof JsonValue jv) {
-                    m.put(strKey, jv);
-                } else {
-                    m.put(strKey, Json.fromUntyped(val));
-                }
+                m.put(strKey, Json.fromUntyped(entry.getValue()));
             }
         }
         theKeys = Collections.unmodifiableMap(m);
