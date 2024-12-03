@@ -62,7 +62,7 @@ public class TestJsonObject {
 
     @Test
     public void emptyBuildTest() {
-        var expectedJson = JsonParser.parse(jsonObjStr);
+        var expectedJson = Json.parse(jsonObjStr);
         var builtJson = new JsonObject.Builder()
                 .put("name", Json.fromUntyped("Brian"))
                 .put("shoeSize", Json.fromUntyped(10)).build();
@@ -71,15 +71,15 @@ public class TestJsonObject {
 
     @Test
     public void existingBuildTest() {
-        var sourceJson = JsonParser.parse(jsonObjStr);
+        var sourceJson = Json.parse(jsonObjStr);
         var builtJson = new JsonObject.Builder((JsonObject) sourceJson).build();
         assertEquals(builtJson, sourceJson);
     }
 
     @Test
     public void removalTest() {
-        var expectedJson = JsonParser.parse(halfJsonObjStr);
-        var sourceJson = JsonParser.parse(jsonObjStr);
+        var expectedJson = Json.parse(halfJsonObjStr);
+        var sourceJson = Json.parse(jsonObjStr);
         var builtJson = new JsonObject.Builder((JsonObject) sourceJson)
                 .remove("name").build();
         assertEquals(builtJson, expectedJson);
@@ -87,8 +87,8 @@ public class TestJsonObject {
 
     @Test
     public void clearTest() {
-        var expectedJson = JsonParser.parse(emptyJsonObjStr);
-        var sourceJson = JsonParser.parse(jsonObjStr);
+        var expectedJson = Json.parse(emptyJsonObjStr);
+        var sourceJson = Json.parse(jsonObjStr);
         var builtJson = new JsonObject.Builder((JsonObject) sourceJson)
                 .clear().build();
         assertEquals(builtJson, expectedJson);
@@ -102,32 +102,6 @@ public class TestJsonObject {
         map.put("bar", Json.fromUntyped("value"));
         map.put("baz", Json.fromUntyped((Object) null));
         assertEquals(JsonObject.of(map),
-                JsonParser.parse("{ \"foo\" : 5, \"bar\" : \"value\", \"baz\" : null}"));
-    }
-
-    // of(Objects...)
-    private static Stream<Arguments> of_vararg() {
-        return Stream.of(
-           Arguments.of(new Object[] {"key1", Json.fromUntyped(Boolean.TRUE), "key2", JsonNull.ofNull()},
-                   JsonParser.parse("{\"key1\": true, \"key2\": null}"))
-        );
-    }
-    @MethodSource
-    @ParameterizedTest
-    public void of_vararg(Object[] input, JsonValue expected) {
-        assertEquals(JsonObject.of(input), expected);
-    }
-
-    private static Stream<Arguments> of_illegal_vararg() {
-        return Stream.of(
-            // dummy is needed to fool jupiter for failing argument conversion
-            Arguments.of(new Object[] {"key1", Json.fromUntyped(Boolean.TRUE), "key2"}, 0),
-            Arguments.of(new Object[] {"key1", "val1", "key2", JsonNull.ofNull()}, 0)
-        );
-    }
-    @MethodSource
-    @ParameterizedTest
-    public void of_illegal_vararg(Object[] input, Object dummy) {
-        assertThrows(IllegalArgumentException.class, () -> JsonObject.of(input));
+                Json.parse("{ \"foo\" : 5, \"bar\" : \"value\", \"baz\" : null}"));
     }
 }

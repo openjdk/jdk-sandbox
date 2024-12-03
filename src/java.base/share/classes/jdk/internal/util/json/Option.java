@@ -26,9 +26,9 @@
 package jdk.internal.util.json;
 
 /**
- * Binary options
+ * TBD. Binary options
  */
-public sealed interface Option permits Option.Parse {
+sealed interface Option permits Option.Parse {
     /**
      * Binary options for parsing JSON document
      */

@@ -24,12 +24,7 @@
 package build.tools.pandocfilter;
 
 // Copied from internal.jdk.util.json by BUILD_TOOLS_JDK target
-import build.tools.json.Json;
-import build.tools.json.JsonArray;
-import build.tools.json.JsonObject;
-import build.tools.json.JsonParser;
-import build.tools.json.JsonString;
-import build.tools.json.JsonValue;
+import build.tools.json.*;
 
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
@@ -53,7 +48,7 @@ public class PandocFilter {
             for (JsonValue jv : ja.values()) {
                 if (jv instanceof JsonObject jo && jo.keys().containsKey("t") && jo.keys().get("t") instanceof JsonString type) {
                     JsonValue replacement = callback.invoke(
-                            type.value(), jo.keys().containsKey("c") ? jo.keys().get("c") : JsonParser.parse("[]"));
+                            type.value(), jo.keys().containsKey("c") ? jo.keys().get("c") : Json.parse("[]"));
                     if (replacement == null) {
                         // no replacement object returned, use original value
                         processedArray.add(traverse(jv, callback, deep));
@@ -74,7 +69,7 @@ public class PandocFilter {
         } else if (jsonIn instanceof JsonObject jo) {
             if (deep && jo.keys().containsKey("t") && jo.keys().get("t") instanceof JsonString type) {
                 JsonValue replacement = callback.invoke(type.value(),
-                        jo.keys().containsKey("c") ? jo.keys().get("c") : JsonParser.parse("[]"));
+                        jo.keys().containsKey("c") ? jo.keys().get("c") : Json.parse("[]"));
                 if (replacement != null) {
                     return replacement;
                 }
@@ -125,7 +120,7 @@ public class PandocFilter {
         }
         new BufferedReader(reader).lines().forEach(input::append);
 
-        return JsonParser.parse(input.toString());
+        return Json.parse(input.toString());
     }
 
     public interface Callback {

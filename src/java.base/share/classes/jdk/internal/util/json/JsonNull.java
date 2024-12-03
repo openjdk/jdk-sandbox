@@ -28,8 +28,8 @@ package jdk.internal.util.json;
 /**
  * The interface that represents JSON null.
  * <p>
- * A {@code JsonNull} can be produced by {@link JsonParser#parse(String)}.
- * Alternatively, {@link #ofNull()} can be used to obtain a {@code JsonNull}.
+ * A {@code JsonNull} can be produced by {@link Json#parse(String)}.
+ * <p> Alternatively, {@link #ofNull()} can be used to obtain a {@code JsonNull}.
  */
 public sealed interface JsonNull extends JsonValue permits JsonNullImpl {
 

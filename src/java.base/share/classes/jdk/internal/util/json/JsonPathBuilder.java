@@ -33,7 +33,7 @@ import java.util.function.Function;
 /**
  * A path-based accessor to a leaf JsonValue. For example:
  * {@snippet lang = java:
- *    JsonValue doc = JsonParser.parse(
+ *    JsonValue doc = Json.parse(
  *        """
  *        [
  *          { "name": "John", "age": 30, "city": "New York" },

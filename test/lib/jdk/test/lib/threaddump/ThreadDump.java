@@ -282,7 +282,7 @@ public final class ThreadDump {
      * Parses the given JSON text as a thread dump.
      */
     private ThreadDump(String json) {
-        JsonValue jsonRoot = JsonParser.parse(json);
+        JsonValue jsonRoot = Json.parse(json);
         if (jsonRoot instanceof JsonObject objRoot && objRoot.get("threadDump") instanceof JsonObject threadDumpObj
                 && threadDumpObj.get("threadContainers") instanceof JsonArray threadContainersObj) {
             // maps container name to ThreadContainer

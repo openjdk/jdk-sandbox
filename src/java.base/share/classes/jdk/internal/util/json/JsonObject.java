@@ -32,15 +32,11 @@ import java.util.Objects;
 /**
  * The interface that represents JSON object.
  * <p>
- * A {@code JsonObject} can be produced by a {@link JsonParser#parse(String)}.
- * <p> Alternatively, {@link Json#fromUntyped(Map)} can be used to obtain a {@code JsonObject}
- * from a {@code Map}. {@link Json#toUntyped(JsonObject)} is the inverse operation,
- * producing a {@code Map} from a {@code JsonObject}. These methods are not
- * guaranteed to produce a round-trip. Callers of {@link Json#fromUntyped(Map)} should be
- * aware that a {@code Map} containing a circular reference will cause a
- * {@code StackOverFlowError}.
+ * A {@code JsonObject} can be produced by a {@link Json#parse(String)}.
+ * <p> Alternatively, {@link #of(Map)} can be used to obtain a {@code JsonObject}.
  */
 public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
+
     /**
      * {@return the map of {@code String} to {@code JsonValue} members in this
      * JSON object}
@@ -53,42 +49,16 @@ public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
      *
      * @param map the map of {@code JsonValue}s. Non-null.
      */
-    static JsonObject of(Map<String, JsonValue> map) {
+    static JsonObject of(Map<String, ? extends JsonValue> map) {
         Objects.requireNonNull(map);
         return new JsonObjectImpl(map);
-    }
-
-    /**
-     * {@return the {@code JsonObject} created from the given
-     * varargs of {@code Object}s}
-     *
-     * @param objs varargs of {@code Object}s that consists of
-     * consecutive pairs of a {@code String} key and a {@code JsonValue}.
-     * @throws IllegalArgumentException if {@code objs} does not consist of
-     * pairs of a {@code String} and a {@code JsonValue}.
-     */
-    static JsonObject of(Object... objs) {
-        Objects.requireNonNull(objs);
-        if (objs.length % 2 == 0) {
-            var b = new Builder();
-            for (int index = 0; index < objs.length; index += 2) {
-                if (objs[index] instanceof String key &&
-                    objs[index + 1] instanceof JsonValue jv) {
-                    b.put(key, jv);
-                } else {
-                    throw new IllegalArgumentException("objs does not consist of valid key/value pair at the index " + index);
-                }
-            }
-            return b.build();
-        }
-        throw new IllegalArgumentException("objs does not consist of valid key/value pairs. Odd number of objs");
     }
 
     /**
      * {@code Builder} is used to build new instances of {@code JsonObject}.
      * For example,
      * {@snippet lang=java:
-     *     var original = JsonParser.parse("{ \"name\" : \"Foo\" }");
+     *     var original = Json.parse("{ \"name\" : \"Foo\" }");
      *     if (original instanceof JsonObject json) {
      *         var modified = new JsonObject.Builder(json).put("name", Json.from("Bar")).build();
      *     }

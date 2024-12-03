@@ -28,18 +28,47 @@ package jdk.internal.util.json;
 /**
  * The interface that represents JSON number.
  * <p>
- * A {@code JsonNumber} can be produced by {@link JsonParser#parse(String)}.
- * <p> Alternatively, {@link Json#fromUntyped(Number)} can be used to obtain a {@code JsonNumber}
- * from a {@code Number}. {@link Json#toUntyped(JsonNumber)} is the inverse
- * operation, producing a {@code Number} from a {@code JsonNumber}. These
- * methods are not guaranteed to produce a round-trip.
+ * A {@code JsonNumber} can be produced by {@link Json#parse(String)}.
+ * <p> Alternatively, {@link #of(double)} and its overload can be used to obtain
+ * a {@code JsonNumber} from a {@code Number}.
  *
- * @implNote This implementation allows IEEE 754 binary64 (double precision) numbers.
+ * @implNote This implementation supports IEEE 754 binary64 (double precision) numbers.
  */
 public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
+
     /**
      * {@return the {@code Number} value represented with this
      * {@code JsonNumber} value}
      */
     Number value();
+
+    /**
+     * {@return the {@code JsonNumber} created from the given
+     * {@code double}}
+     *
+     * @implNote If the given {@code double} is equivalent to {@code +/-infinity}
+     * or {@code NaN}, this method will throw an {@code IllegalArgumentException}.
+     *
+     * @param num the given {@code double}.
+     * @throws IllegalArgumentException if the given {@code num} is out
+     *          of the accepted range.
+     */
+    static JsonNumber of(double num) {
+        // non-integral types
+        if (Double.isNaN(num) || Double.isInfinite(num)) {
+            throw new IllegalArgumentException("Not a valid JSON number");
+        }
+        return new JsonNumberImpl(num);
+    }
+
+    /**
+     * {@return the {@code JsonNumber} created from the given
+     * {@code long}}
+     *
+     * @param num the given {@code long}.
+     */
+    static JsonNumber of(long num) {
+        // integral types
+        return new JsonNumberImpl(num);
+    }
 }

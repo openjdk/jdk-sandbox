@@ -27,7 +27,7 @@ package jdk.internal.util.json;
 
 /**
  * The interface that represents a JSON value. {@code JsonValue} is the type returned
- * by a {@link JsonParser#parse(String)}. Valid subtypes are either {@code JsonString},
+ * by a {@link Json#parse(String)}. Valid subtypes are either {@code JsonString},
  * {@code JsonNumber}, {@code JsonObject}, {@code JsonArray}, {@code JsonBoolean},
  * or {@code JsonNull}.
  * <p>

@@ -52,9 +52,6 @@ sealed class JsonObjectImpl implements JsonObject, JsonValueImpl permits JsonObj
             if (!(entry.getKey() instanceof String strKey)) {
                 throw new IllegalStateException("Key is not a String: " + entry.getKey());
             } else {
-                // We cannot support a strongly typed cstr for of() and Builder
-                // because it would have the same erasure as this cstr. Check caller
-                // class, to decide if value should be JsonValue vs untyped
                 if (Json.class.equals(caller)) {
                     m.put(strKey, Json.fromUntyped(entry.getValue()));
                 } else {

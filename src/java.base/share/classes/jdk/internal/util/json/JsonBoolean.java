@@ -28,10 +28,9 @@ package jdk.internal.util.json;
 /**
  * The interface that represents JSON boolean.
  * <p>
- * A {@code JsonBoolean} can be produced by {@link JsonParser#parse(String)}.
- * Alternatively, {@link Json#fromUntyped(Boolean)} can be used to obtain a {@code JsonBoolean}
- * from a {@code Boolean}. {@link Json#toUntyped(JsonBoolean)} is the inverse
- * operation, producing a {@code Boolean} from a {@code JsonBoolean}.
+ * A {@code JsonBoolean} can be produced by {@link Json#parse(String)}.
+ * <p> Alternatively, {@link #of(boolean)} can be used to
+ * obtain a {@code JsonBoolean}.
  */
 public sealed interface JsonBoolean extends JsonValue permits JsonBooleanImpl {
 
@@ -40,4 +39,14 @@ public sealed interface JsonBoolean extends JsonValue permits JsonBooleanImpl {
      * {@code JsonBoolean} value}
      */
     boolean value();
+
+    /**
+     * {@return the {@code JsonBoolean} created from the given
+     * {@code boolean}}
+     *
+     * @param src the given {@code boolean}.
+     */
+    static JsonBoolean of(boolean src) {
+        return src ? JsonBooleanImpl.TRUE : JsonBooleanImpl.FALSE;
+    }
 }

@@ -56,7 +56,7 @@
 ///```
 ///Then the leaf JSON value can be extracted in a single expression as follows:
 ///```
-///JsonValue doc = JsonParser.parse(inputString);
+///JsonValue doc = Json.parse(inputString);
 ///if (doc instanceof JsonObject o && o.keys() instanceof Map<String, JsonValue> keys
 ///    && keys.get("name") instanceof JsonString jstring && jstring.value() instanceof String name
 ///    && keys.get("age") instanceof JsonNumber number && jnumber.value() instanceof int age) {
@@ -89,7 +89,7 @@
 ///Parsing of a JSON document is done lazily. Initial parsing path only records the positions of those JSON value
 ///delimiting characters, such as `{}[]",:`. Then the parser constructs the top level JSON values only with the start
 ///and end positions, and the value itself is evaluated when the value is indeed to be realized. This way, the invocation
-///of `JsonParser.parse()` is lightweight and the parsing for the objective leaf can be minimized.
+///of `Json.parse()` is lightweight and the parsing for the objective leaf can be minimized.
 ///A simple comparison with Jackson shows that retrieving a leaf node text (using CLDR's time zone names JSON document)
 ///is 70% faster with this implementation.
 ///

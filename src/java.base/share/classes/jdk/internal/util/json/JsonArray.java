@@ -29,14 +29,14 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * The interface that represents JSON array
+ * The interface that represents JSON array.
  * <p>
- * A {@code JsonArray} can be produced by {@link JsonParser#parse(String)}.
- * <p> Alternatively, {@link Json#fromUntyped(List)} can be used to obtain a {@code JsonArray}
- * from a {@code List}. {@link Json#toUntyped(JsonArray)} is the inverse operation, producing a {@code List} from a
- * {@code JsonArray}. These methods are not guaranteed to produce a round-trip.
+ * A {@code JsonArray} can be produced by {@link Json#parse(String)}.
+ * <p> Alternatively, {@link #of(List)} and its overload can be used to
+ * obtain a {@code JsonArray}.
  */
 public sealed interface JsonArray extends JsonValue permits JsonArrayImpl {
+
     /**
      * {@return the list of {@code JsonValue} elements in this array
      * value}
@@ -52,5 +52,17 @@ public sealed interface JsonArray extends JsonValue permits JsonArrayImpl {
     static JsonArray of(JsonValue... values) {
         Objects.requireNonNull(values);
         return new JsonArrayImpl(values);
+    }
+
+    /**
+     * {@return the {@code JsonArray} created from the given
+     * list of {@code JsonValue}s}
+     *
+     * @param src the list of {@code Object}s. Non-null.
+     * @throws StackOverflowError if {@code src} contains a circular reference
+     */
+    static JsonArray of(List<? extends JsonValue> src) {
+        Objects.requireNonNull(src);
+        return new JsonArrayImpl(src);
     }
 }

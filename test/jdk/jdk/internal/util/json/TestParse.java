@@ -83,25 +83,12 @@ public class TestParse {
     @ParameterizedTest
     @MethodSource("validValues")
     public void validLazyParse(String value) {
-        JsonParser.parse(TEMPLATE.formatted(value));
+        Json.parse(TEMPLATE.formatted(value));
     }
 
     @ParameterizedTest
     @MethodSource("invalidValues")
     public void invalidLazyParse(String value) {
-        JsonParser.parse(TEMPLATE.formatted(value));
-    }
-
-    @ParameterizedTest
-    @MethodSource("validValues")
-    public void validEagerParse(String value) {
-        JsonParser.parse(TEMPLATE.formatted(value), Option.Parse.EAGER_PARSING);
-    }
-
-    @ParameterizedTest
-    @MethodSource("invalidValues")
-    public void invalidEagerParse(String value) {
-        assertThrows(JsonParseException.class, () ->
-            JsonParser.parse(TEMPLATE.formatted(value), Option.Parse.EAGER_PARSING));
+        Json.parse(TEMPLATE.formatted(value));
     }
 }

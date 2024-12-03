@@ -129,7 +129,7 @@ public class Launcher {
         try {
             JsonObject kat;
             try {
-                if (JsonParser.parse(Files.readString(test)) instanceof JsonObject jo) {
+                if (Json.parse(Files.readString(test)) instanceof JsonObject jo) {
                     kat = jo;
                 } else {
                     System.out.println("Warning: cannot parse " + test + ". Skipped");
