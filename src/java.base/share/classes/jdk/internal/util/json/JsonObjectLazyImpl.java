@@ -73,9 +73,9 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
             // Ensure no garbage before key
             if (!JsonParser.checkWhitespaces(docInfo,
                     docInfo.getOffset(currIndex)+1, docInfo.getOffset(currIndex+1))) {
-                throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                throw new JsonParseException(docInfo,
                         "Unexpected character(s) found instead of key.",
-                        docInfo.getOffset(currIndex)+1), docInfo.getOffset(currIndex)+1);
+                        docInfo.getOffset(currIndex)+1);
             }
 
             var key = new JsonStringLazyImpl(docInfo, offset, currIndex + 1).value();
@@ -83,21 +83,21 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
             // Ensure no garbage after key and before colon
             if (!JsonParser.checkWhitespaces(docInfo,
                     docInfo.getOffset(currIndex+2)+1, docInfo.getOffset(currIndex+3))) {
-                throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                throw new JsonParseException(docInfo,
                         "Unexpected character(s) found after key: \"%s\".".formatted(key),
-                        docInfo.getOffset(currIndex+2)+1), docInfo.getOffset(currIndex+2)+1);
+                        docInfo.getOffset(currIndex+2)+1);
             }
 
             // Check for the colon
             if (docInfo.charAtIndex(currIndex + 3) != ':') {
-                throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                        "Invalid key:value syntax.",offset), offset);
+                throw new JsonParseException(docInfo,
+                        "Invalid key:value syntax.", offset);
             }
 
             // Check for duplicate keys
             if (k.containsKey(key)) {
-                throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                        "Duplicate keys not allowed.", offset), offset);
+                throw new JsonParseException(docInfo,
+                        "Duplicate keys not allowed.", offset);
             }
 
             // Key is validated. Move offset and index to colon to get the value
@@ -118,16 +118,16 @@ final class JsonObjectLazyImpl extends JsonObjectImpl implements JsonValueLazyIm
 
             // Check there is no garbage after the JsonValue
             if (!JsonParser.checkWhitespaces(docInfo, offset, docInfo.getOffset(currIndex))) {
-                throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                throw new JsonParseException(docInfo,
                         "Unexpected character(s) found after JsonValue: %s, for key: \"%s\"."
-                                .formatted(value, key), offset), offset);
+                                .formatted(value, key), offset);
             }
 
             var c = docInfo.charAtIndex(currIndex);
             if (c != ',' && c != '}') {
-                throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                throw new JsonParseException(docInfo,
                         "Unexpected character(s) found after JsonValue: %s, for key: \"%s\"."
-                                .formatted(value, key), offset), offset);
+                                .formatted(value, key), offset);
             }
         }
         theKeys = Collections.unmodifiableMap(k);

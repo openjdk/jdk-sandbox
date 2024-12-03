@@ -40,8 +40,8 @@ final class JsonStringLazyImpl extends JsonStringImpl implements JsonValueLazyIm
         if (endIndex != -1 && docInfo.charAtIndex(endIndex) == '"') {
             endOffset = docInfo.getOffset(endIndex) + 1;
         } else {
-            throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                    "Dangling quote.", offset), offset);
+            throw new JsonParseException(docInfo,
+                    "Dangling quote.", offset);
         }
     }
 
@@ -74,20 +74,20 @@ final class JsonStringLazyImpl extends JsonStringImpl implements JsonValueLazyIm
                             c = codeUnit(offset + 1);
                             offset += 4;
                         } else {
-                            throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                                    "Illegal Unicode escape.", offset), offset);
+                            throw new JsonParseException(docInfo,
+                                    "Illegal Unicode escape.", offset);
                         }
                     }
-                    default -> throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                            "Illegal escape.", offset), offset);
+                    default -> throw new JsonParseException(docInfo,
+                            "Illegal escape.", offset);
                 }
                 escape = false;
             } else if (c == '\\') {
                 escape = true;
                 continue;
             } else if (c < ' ') {
-                throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                        "Unescaped control code.", offset), offset);
+                throw new JsonParseException(docInfo,
+                        "Unescaped control code.", offset);
             }
             sb.append(c);
         }

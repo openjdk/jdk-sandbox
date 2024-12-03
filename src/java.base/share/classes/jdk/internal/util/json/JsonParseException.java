@@ -32,6 +32,7 @@ import java.io.Serial;
  * JSON document.
  */
 public class JsonParseException extends RuntimeException {
+
     @Serial
     private static final long serialVersionUID = 7022545379651073390L;
 
@@ -45,8 +46,8 @@ public class JsonParseException extends RuntimeException {
      * @param message the detail message
      * @param errorPosition the offset of the error on parsing the document
      */
-    public JsonParseException(String message, int errorPosition) {
-        super(message);
+    JsonParseException(JsonDocumentInfo docInfo, String message, int errorPosition) {
+        super(docInfo.composeParseExceptionMessage(message, errorPosition));
         this.errorPosition = errorPosition;
     }
 

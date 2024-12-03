@@ -34,8 +34,7 @@ class JsonParser {
         // check the remainder is whitespace
         var offset = ((JsonValueImpl)jv).getEndOffset();
         if (!checkWhitespaces(docInfo, offset, docInfo.getEndOffset())) {
-            throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                    "Garbage characters at end.", offset), offset);
+            throw new JsonParseException(docInfo,"Garbage characters at end.", offset);
         }
         return jv;
     }
@@ -49,8 +48,8 @@ class JsonParser {
     static JsonValue parseValue(JsonDocumentInfo docInfo, int offset, int index) {
         offset = skipWhitespaces(docInfo, offset);
         if (offset >= docInfo.getEndOffset()) {
-            throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                    "Value not recognized.", offset), offset);
+            throw new JsonParseException(docInfo,
+                    "Value not recognized.", offset);
         }
         return switch (docInfo.charAt(offset)) {
             case '{' -> parseObject(docInfo, offset, index);
@@ -59,8 +58,8 @@ class JsonParser {
             case 't', 'f' -> parseBoolean(docInfo, offset, index);
             case 'n' -> parseNull(docInfo, offset, index);
             case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-' -> parseNumber(docInfo, offset, index);
-            default -> throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                    "Invalid value.", offset), offset);
+            default -> throw new JsonParseException(docInfo,
+                    "Invalid value.", offset);
         };
     }
 

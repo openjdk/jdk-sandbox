@@ -52,8 +52,8 @@ sealed class JsonNullImpl implements JsonNull, JsonValueImpl permits JsonNullLaz
 
     void validate() {
         if (!VALUE.equals(docInfo.substring(startOffset, endOffset).trim())) {
-            throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                    "'null' expected.", startOffset), startOffset);
+            throw new JsonParseException(docInfo,
+                    "'null' expected.", startOffset);
         }
     }
 

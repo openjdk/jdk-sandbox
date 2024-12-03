@@ -80,16 +80,16 @@ final class JsonArrayLazyImpl extends JsonArrayImpl implements JsonValueLazyImpl
 
             // Check there is no garbage after the JsonValue
             if (!JsonParser.checkWhitespaces(docInfo, offset, docInfo.getOffset(currIndex))) {
-                throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                throw new JsonParseException(docInfo,
                         "Unexpected character(s) found after JsonValue: %s."
-                                .formatted(value), offset), offset);
+                                .formatted(value), offset);
             }
 
             var c = docInfo.charAtIndex(currIndex);
             if (c != ',' && c != ']') {
-                throw new JsonParseException(docInfo.composeParseExceptionMessage(
+                throw new JsonParseException(docInfo,
                         "Unexpected character(s) found after JsonValue: %s."
-                                .formatted(value), offset), offset);
+                                .formatted(value), offset);
             }
         }
         theValues = Collections.unmodifiableList(v);

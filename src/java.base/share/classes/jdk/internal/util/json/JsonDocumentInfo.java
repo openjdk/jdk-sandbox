@@ -62,12 +62,6 @@ sealed class JsonDocumentInfo permits JsonLazyDocumentInfo {
                 .formatted(offset, substring(offset, Math.min(offset + 8, endOffset)));
     }
 
-    // Utility method to compose parse exception messages that include offsets/chars
-    public String composeParseExceptionMessage2(String message, int offset) {
-        return message + " Offset: %d (%s)"
-                .formatted(offset, substring(offset, Math.min(offset + 8, endOffset)));
-    }
-
     /**
      * encapsulates the access to the document underneath, either
      * a String or a char array.

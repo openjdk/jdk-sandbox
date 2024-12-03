@@ -114,12 +114,12 @@ sealed class JsonStringImpl implements JsonString, JsonValueImpl permits JsonStr
                             c = codeUnit(offset + 1);
                             offset += 4;
                         } else {
-                            throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                                    "Illegal Unicode escape.", offset), offset);
+                            throw new JsonParseException(docInfo,
+                                    "Illegal Unicode escape.", offset);
                         }
                     }
-                    default -> throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                            "Illegal escape.", offset), offset);
+                    default -> throw new JsonParseException(docInfo,
+                            "Illegal escape.", offset);
                 }
                 escape = false;
             } else if (c == '\\') {
@@ -129,14 +129,14 @@ sealed class JsonStringImpl implements JsonString, JsonValueImpl permits JsonStr
                 closeQuote = true;
                 break;
             } else if (c < ' ') {
-                throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                        "Unescaped control code.", offset), offset);
+                throw new JsonParseException(docInfo,
+                        "Unescaped control code.", offset);
             }
             sb.append(c);
         }
         if (!closeQuote) { // Eager fails if closing quote not found by end
-            throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                    "JsonString missing closing quote.", offset), offset);
+            throw new JsonParseException(docInfo,
+                    "JsonString missing closing quote.", offset);
         }
         // Eager needs to set endOffset, +1 for the closing quote
         this.endOffset = ++offset;
@@ -153,8 +153,8 @@ sealed class JsonStringImpl implements JsonString, JsonValueImpl permits JsonStr
                     case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> c - '0';
                     case 'a', 'b', 'c', 'd', 'e', 'f' -> c - 'a' + 10;
                     case 'A', 'B', 'C', 'D', 'E', 'F' -> c - 'A' + 10;
-                    default -> throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                            "Invalid Unicode escape.", offset), offset);
+                    default -> throw new JsonParseException(docInfo,
+                            "Invalid Unicode escape.", offset);
                 } );
         }
         return val;

@@ -49,7 +49,6 @@ sealed class JsonArrayImpl implements JsonArray, JsonValueImpl permits JsonArray
         startOffset = 0;
         endOffset = 0;
         List<JsonValue> l = new ArrayList<>(from.size());
-        var caller = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE).getCallerClass();
         for (Object o : from) {
             l.add(Json.fromUntyped(o));
         }
@@ -80,8 +79,8 @@ sealed class JsonArrayImpl implements JsonArray, JsonValueImpl permits JsonArray
                 offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
             } else if (c != ']') {
                 // fail
-                throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                        "Unexpected character(s) found after JsonValue: %s.".formatted(val), offset), offset);
+                throw new JsonParseException(docInfo,
+                        "Unexpected character(s) found after JsonValue: %s.".formatted(val), offset);
             }
         }
         theValues = Collections.unmodifiableList(vals);

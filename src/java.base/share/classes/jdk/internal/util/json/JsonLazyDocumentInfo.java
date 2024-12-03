@@ -100,8 +100,8 @@ final class JsonLazyDocumentInfo extends JsonDocumentInfo {
             index++;
         }
         if (index >= indexCount) {
-            throw new JsonParseException(composeParseExceptionMessage(
-                    "Braces or brackets do not match.", startOff), startOff);
+            throw new JsonParseException(this,
+                    "Braces or brackets do not match.", startOff);
         }
         return index;
     }

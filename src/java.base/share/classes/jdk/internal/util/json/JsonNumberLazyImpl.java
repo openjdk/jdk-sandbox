@@ -62,14 +62,14 @@ final class JsonNumberLazyImpl extends JsonNumberImpl implements JsonValueLazyIm
             switch (docInfo.charAt(offset)) {
                 case '-' -> {
                     if (offset != start && !sawExponent) {
-                        throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                                "Minus sign in the middle.", offset), offset);
+                        throw new JsonParseException(docInfo,
+                                "Minus sign in the middle.", offset);
                     }
                 }
                 case '+' -> {
                     if (!sawExponent || havePart) {
-                        throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                                "Plus sign appears in a wrong place.", offset), offset);
+                        throw new JsonParseException(docInfo,
+                                "Plus sign appears in a wrong place.", offset);
                     }
                 }
                 case '0' -> {
@@ -80,19 +80,19 @@ final class JsonNumberLazyImpl extends JsonNumberImpl implements JsonValueLazyIm
                 }
                 case '1', '2', '3', '4', '5', '6', '7', '8', '9' -> {
                     if (!sawDecimal && !sawExponent && sawZero) {
-                        throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                                "Zero not allowed here.", offset), offset);
+                        throw new JsonParseException(docInfo,
+                                "Zero not allowed here.", offset);
                     }
                     havePart = true;
                 }
                 case '.' -> {
                     if (sawDecimal) {
-                        throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                                "More than one decimal point.", offset), offset);
+                        throw new JsonParseException(docInfo,
+                                "More than one decimal point.", offset);
                     } else {
                         if (!havePart) {
-                            throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                                    "No integer part.", offset), offset);
+                            throw new JsonParseException(docInfo,
+                                    "No integer part.", offset);
                         }
                         sawDecimal = true;
                         havePart = false;
@@ -100,12 +100,12 @@ final class JsonNumberLazyImpl extends JsonNumberImpl implements JsonValueLazyIm
                 }
                 case 'e', 'E' -> {
                     if (sawExponent) {
-                        throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                                "More than one exponent symbol.", offset), offset);
+                        throw new JsonParseException(docInfo,
+                                "More than one exponent symbol.", offset);
                     } else {
                         if (!havePart) {
-                            throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                                    "No integer or fraction part.", offset), offset);
+                            throw new JsonParseException(docInfo,
+                                    "No integer or fraction part.", offset);
                         }
                         sawExponent = true;
                         havePart = false;
@@ -115,20 +115,20 @@ final class JsonNumberLazyImpl extends JsonNumberImpl implements JsonValueLazyIm
                     sawWhitespace = true;
                     offset --;
                 }
-                default -> throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                                "Number not recognized.", offset), offset);
+                default -> throw new JsonParseException(docInfo,
+                                "Number not recognized.", offset);
             }
         }
 
         if (!JsonParser.checkWhitespaces(docInfo, offset, endOffset)) {
-            throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                    "Garbage after the number.", offset), offset);
+            throw new JsonParseException(docInfo,
+                    "Garbage after the number.", offset);
         }
 
 
         if (!havePart) {
-            throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                    "Dangling decimal point or exponent symbol.", offset), offset);
+            throw new JsonParseException(docInfo,
+                    "Dangling decimal point or exponent symbol.", offset);
         }
 
         numString = docInfo.substring(start, offset);

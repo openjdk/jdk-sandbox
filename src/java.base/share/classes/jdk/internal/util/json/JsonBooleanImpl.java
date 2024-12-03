@@ -63,8 +63,8 @@ sealed class JsonBooleanImpl implements JsonBoolean, JsonValueImpl permits JsonB
             var strVal = docInfo.substring(startOffset, endOffset).trim();
             theBoolean = switch (strVal) {
                 case "true", "false" -> Boolean.parseBoolean(strVal);
-                default -> throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                    "Not a boolean.", startOffset), startOffset);
+                default -> throw new JsonParseException(docInfo,
+                    "Not a boolean.", startOffset);
             };
         }
         return theBoolean;

@@ -76,15 +76,15 @@ sealed class JsonObjectImpl implements JsonObject, JsonValueImpl permits JsonObj
             var keyString = key.value();
             // Check for duplicate keys
             if (keys.containsKey(keyString)) {
-                throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                        "Duplicate keys not allowed.", offset), offset);
+                throw new JsonParseException(docInfo,
+                        "Duplicate keys not allowed.", offset);
             }
             // Move from key to ':'
             offset = JsonParser.skipWhitespaces(docInfo, key.getEndOffset());
             c = docInfo.charAt(offset);
             if (c != ':') {
-                throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                        "Unexpected character(s) found after key: %s.".formatted(key), offset), offset);
+                throw new JsonParseException(docInfo,
+                        "Unexpected character(s) found after key: %s.".formatted(key), offset);
             }
             // Move from ':' to JsonValue
             offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
@@ -98,8 +98,8 @@ sealed class JsonObjectImpl implements JsonObject, JsonValueImpl permits JsonObj
                 offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
             } else if (c != '}') {
                 // fail
-                throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                        "Unexpected character(s) found after JsonValue: %s.".formatted(val), offset), offset);
+                throw new JsonParseException(docInfo,
+                        "Unexpected character(s) found after JsonValue: %s.".formatted(val), offset);
             }
         }
         theKeys = Collections.unmodifiableMap(keys);

@@ -93,14 +93,14 @@ sealed class JsonNumberImpl implements JsonNumber, JsonValueImpl permits JsonNum
             switch (docInfo.charAt(offset)) {
                 case '-' -> {
                     if (offset != start && !sawExponent) {
-                        throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                                "Minus sign in the middle.", offset), offset);
+                        throw new JsonParseException(docInfo,
+                                "Minus sign in the middle.", offset);
                     }
                 }
                 case '+' -> {
                     if (!sawExponent || havePart) {
-                        throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                                "Plus sign appears in a wrong place.", offset), offset);
+                        throw new JsonParseException(docInfo,
+                                "Plus sign appears in a wrong place.", offset);
                     }
                 }
                 case '0' -> {
@@ -111,19 +111,19 @@ sealed class JsonNumberImpl implements JsonNumber, JsonValueImpl permits JsonNum
                 }
                 case '1', '2', '3', '4', '5', '6', '7', '8', '9' -> {
                     if (!sawDecimal && !sawExponent && sawZero) {
-                        throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                                "Zero not allowed here.", offset), offset);
+                        throw new JsonParseException(docInfo,
+                                "Zero not allowed here.", offset);
                     }
                     havePart = true;
                 }
                 case '.' -> {
                     if (sawDecimal) {
-                        throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                                "More than one decimal point.", offset), offset);
+                        throw new JsonParseException(docInfo,
+                                "More than one decimal point.", offset);
                     } else {
                         if (!havePart) {
-                            throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                                    "No integer part.", offset), offset);
+                            throw new JsonParseException(docInfo,
+                                    "No integer part.", offset);
                         }
                         sawDecimal = true;
                         havePart = false;
@@ -131,12 +131,12 @@ sealed class JsonNumberImpl implements JsonNumber, JsonValueImpl permits JsonNum
                 }
                 case 'e', 'E' -> {
                     if (sawExponent) {
-                        throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                                "More than one exponent symbol.", offset), offset);
+                        throw new JsonParseException(docInfo,
+                                "More than one exponent symbol.", offset);
                     } else {
                         if (!havePart) {
-                            throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                                    "No integer or fraction part.", offset), offset);
+                            throw new JsonParseException(docInfo,
+                                    "No integer or fraction part.", offset);
                         }
                         sawExponent = true;
                         havePart = false;
@@ -154,8 +154,8 @@ sealed class JsonNumberImpl implements JsonNumber, JsonValueImpl permits JsonNum
         }
 
         if (!havePart) {
-            throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                    "Dangling decimal point or exponent symbol.", offset), offset);
+            throw new JsonParseException(docInfo,
+                    "Dangling decimal point or exponent symbol.", offset);
         }
         numString = docInfo.substring(start, offset);
         this.endOffset = this.startOffset + (offset - start);
@@ -179,8 +179,8 @@ sealed class JsonNumberImpl implements JsonNumber, JsonValueImpl permits JsonNum
 
         var num = Double.parseDouble(numStr);
         if (Double.isInfinite(num)) { // don't need to check NaN, parsing forbids non int start
-            throw new JsonParseException(docInfo.composeParseExceptionMessage(
-                    "Number cannot be infinite.", offset), offset);
+            throw new JsonParseException(docInfo,
+                    "Number cannot be infinite.", offset);
         }
         return num;
     }
