@@ -31,9 +31,13 @@
 
 import jdk.internal.util.json.*;
 
+import org.junit.jupiter.api.Test;
+
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -65,5 +69,15 @@ public class TestJsonArray {
         } else {
             throw new RuntimeException();
         };
+    }
+
+    // Test that the Json::fromUntyped and JsonArray::of factories
+    // take the expected element types
+    @Test
+    void testFromUntyped() {
+        var untyped = new Object[]{1, null, false, "test"};
+        var typed = new JsonValue[]{JsonNumber.of(1), JsonNull.ofNull(),
+                JsonBoolean.of(false), JsonString.of("test")};
+        assertEquals(Json.fromUntyped(untyped), JsonArray.of(List.of(typed)));
     }
 }
