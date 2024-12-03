@@ -65,8 +65,6 @@
 ///```
 ///The above expression can be further simplified with the deconstructor pattern match.
 ///
-///// TBD: nested pattern-match with deconstructor
-///
 ///Once a `JsonValue` is obtained, it can convert into a simple Java object (and vice versa) with these methods:
 ///```
 ///Map<String, Object> map = Json.toUntyped(someJsonObject); // produces Map<String, Object>
@@ -81,7 +79,7 @@
 ///JsonBoolean: Boolean
 ///JsonNull: `null`
 ///```
-///Since the`JsonValue`may or may not retain the information of which the Json value is created, `fromUntyped()
+///Since the `JsonValue` may or may not retain the information of which the Json value is created, `fromUntyped()
 ///`/`toUntyped()` do not necessarily offer round-trip
 ///
 ///#### Parsing
@@ -95,10 +93,10 @@
 ///
 ///#### Formatting
 ///
-///Formatting of a JSON value is done with either `formatCompact()` or `formatReadable()` methods.
-///These methods produce formatted String representation of a JSON value. `formatCompact()` produces the most compact
+///Formatting of a JSON value is done with either `JsonValue.toString()` or `Json.toDisplayString(JsonValue)` methods.
+///These methods produce formatted String representation of a JSON value. `toString()` produces the most compact
 ///representation which does not include extra whitespaces, line-breaks, suitable for network transaction, while
-///`formatReadable()` produces the text representation that is human friendly.
+///`toDisplayString(JsonValue)` produces the text representation that is human friendly.
 ///
 ///### Issues
 ///   - Since the parser is implemented lazily, it may not necessarily fail on calling `parse()`. Parse exception may be
