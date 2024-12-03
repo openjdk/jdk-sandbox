@@ -99,7 +99,7 @@
 ///`toDisplayString(JsonValue)` produces the text representation that is human friendly.
 ///
 ///### Issues
-///   - Since the parser is implemented lazily, it may not necessarily fail on calling `parse()`. Parse exception may be
+///   - Since the parser implements lazy-parsing, it may not necessarily fail on calling `parse()`. Parse exception may be
 ///delayed until actually accessing the malformed JSON values.
 ///
 ///### TBD
