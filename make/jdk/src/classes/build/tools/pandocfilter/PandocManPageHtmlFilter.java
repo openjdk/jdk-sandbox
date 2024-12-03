@@ -29,6 +29,8 @@ import build.tools.json.JsonString;
 import build.tools.json.JsonValue;
 
 import java.io.FileNotFoundException;
+import java.util.HashMap;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -51,9 +53,10 @@ public class PandocManPageHtmlFilter extends PandocFilter {
                 if (matcher.find()) {
                     String commandName = matcher.group(1).toLowerCase();
                     return MetaInlines(JsonArray.of(
+                            List.of(
                             createStr("The"), createSpace(),
                             createStr(commandName),
-                            createSpace(), createStr("Command")));
+                            createSpace(), createStr("Command"))));
                 }
             }
         }
@@ -70,13 +73,13 @@ public class PandocManPageHtmlFilter extends PandocFilter {
             PandocManPageHtmlFilter filter = new PandocManPageHtmlFilter();
             JsonValue meta = jo.keys().get("meta");
             if (meta != null && meta instanceof JsonObject jobj) {
-                JsonObject.Builder bldr = new JsonObject.Builder(jo);
+                var bldr = new HashMap<>(jo.keys());
                 bldr.remove("date");
                 JsonValue title = jobj.keys().get("title");
                 if (title != null) {
                     bldr.put("title", filter.traverse(title, filter::changeTitle, true));
                 }
-                out = bldr.build();
+                out = JsonObject.of(bldr);
             }
             System.out.println(out);
         } else {

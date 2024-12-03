@@ -45,17 +45,6 @@ public sealed interface JsonArray extends JsonValue permits JsonArrayImpl {
 
     /**
      * {@return the {@code JsonArray} created from the given
-     * varargs of {@code JsonValue}s}
-     *
-     * @param values the varargs of {@code JsonValue}s. Non-null.
-     */
-    static JsonArray of(JsonValue... values) {
-        Objects.requireNonNull(values);
-        return new JsonArrayImpl(values);
-    }
-
-    /**
-     * {@return the {@code JsonArray} created from the given
      * list of {@code JsonValue}s}
      *
      * @param src the list of {@code Object}s. Non-null.

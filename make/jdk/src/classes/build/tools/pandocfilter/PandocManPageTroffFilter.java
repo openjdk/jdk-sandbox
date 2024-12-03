@@ -30,6 +30,8 @@ import build.tools.json.JsonString;
 import build.tools.json.JsonValue;
 
 import java.io.FileNotFoundException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class PandocManPageTroffFilter extends PandocFilter {
 
@@ -64,8 +66,8 @@ public class PandocManPageTroffFilter extends PandocFilter {
         if (type.equals("Header")) {
             if (value instanceof JsonArray ja && ja.values().get(0) instanceof JsonNumber jn) {
                 int level = jn.value().intValue();
-                JsonValue[] arr = ja.values().toArray(new JsonValue[0]);
-                arr[0] = Json.fromUntyped(level - 1);
+                var arr = new ArrayList<>(ja.values());
+                arr.set(0, Json.fromUntyped(level - 1));
                 JsonArray array = JsonArray.of(arr);
                 if (array.values().get(0) instanceof JsonNumber jn2 && jn2.value().intValue() == 1) {
                     return createHeader(traverse(array, this::uppercase, false));
@@ -78,7 +80,7 @@ public class PandocManPageTroffFilter extends PandocFilter {
         // Man pages does not have superscript. We use it for footnotes, so
         // enclose in [...] for best representation.
         if (type.equals("Superscript")) {
-            return JsonArray.of(createStr("["), value, createStr("]"));
+            return JsonArray.of(List.of(createStr("["), value, createStr("]")));
         }
 
         // If it is a link, put the link name in bold. If it is an external
@@ -90,7 +92,8 @@ public class PandocManPageTroffFilter extends PandocFilter {
                 String targetStr = js.value();
                 if (targetStr.startsWith("https:") || targetStr.startsWith("http:")) {
                     return JsonArray.of(
-                            createStrong(ja.values().get(1)), createSpace(), createStr("[" + targetStr + "]"));
+                            List.of(
+                            createStrong(ja.values().get(1)), createSpace(), createStr("[" + targetStr + "]")));
                 } else {
                     return createStrong(ja.values().get(1));
                 }

@@ -51,20 +51,13 @@ sealed class JsonArrayImpl implements JsonArray, JsonValueImpl permits JsonArray
         List<JsonValue> l = new ArrayList<>(from.size());
         var caller = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE).getCallerClass();
         for (Object o : from) {
-            if (Json.class.equals(caller)) {
-                l.add(Json.fromUntyped(o)); // fromUntyped expects untyped
+            if (o instanceof JsonValue jv) {
+                l.add(jv);
             } else {
-                l.add((JsonValue) o); // of expects typed
+                l.add(Json.fromUntyped(o));
             }
         }
         theValues = Collections.unmodifiableList(l);
-    }
-
-    JsonArrayImpl(JsonValue... values) {
-        docInfo = null;
-        startOffset = 0;
-        endOffset = 0;
-        theValues = Arrays.asList(values);
     }
 
     JsonArrayImpl(JsonDocumentInfo docInfo, int offset) {

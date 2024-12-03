@@ -31,6 +31,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -65,7 +66,7 @@ public class PandocFilter {
                     processedArray.add(traverse(jv, callback, deep));
                 }
             }
-            return JsonArray.of(processedArray.toArray(new JsonValue[0]));
+            return JsonArray.of(processedArray);
         } else if (jsonIn instanceof JsonObject jo) {
             if (deep && jo.keys().containsKey("t") && jo.keys().get("t") instanceof JsonString type) {
                 JsonValue replacement = callback.invoke(type.value(),
@@ -74,11 +75,11 @@ public class PandocFilter {
                     return replacement;
                 }
             }
-            var processed_obj = new JsonObject.Builder();
+            var processed_obj = new HashMap<String, JsonValue>();
             for (String key : jo.keys().keySet()) {
                 processed_obj.put(key, traverse(jo.keys().get(key), callback, deep));
             }
-            return processed_obj.build();
+            return JsonObject.of(processed_obj);
         } else {
             return jsonIn;
         }
@@ -86,12 +87,9 @@ public class PandocFilter {
 
     public JsonValue createPandocNode(String type, JsonValue content) {
         if (content == null) {
-            return new JsonObject.Builder()
-                    .put("t", Json.fromUntyped(type)).build();
+            return JsonObject.of(Map.of("t", Json.fromUntyped(type)));
         } else {
-            return new JsonObject.Builder()
-                    .put("t", Json.fromUntyped(type))
-                    .put("c", content).build();
+            return JsonObject.of(Map.of("t", Json.fromUntyped(type), "c", content));
         }
     }
 

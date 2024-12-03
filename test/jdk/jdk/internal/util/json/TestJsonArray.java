@@ -37,6 +37,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -52,19 +53,17 @@ public class TestJsonArray {
        1, "two", false, null, {"key": 42}]
     """;
 
-    private static Stream<JsonValue> testVarargsFactory() {
+    private static Stream<JsonValue> testFactory() {
         return Stream.of(Json.parse(ARRAY));
     }
 
     @MethodSource
     @ParameterizedTest
-    void testVarargsFactory(JsonValue doc) {
+    void testFactory(JsonValue doc) {
         if (doc instanceof JsonArray ja) {
-            var jsonValues = ja.values().toArray(new JsonValue[0]);
-            var newValues = new JsonValue[jsonValues.length * 2];
-            System.arraycopy(jsonValues, 0, newValues, 0, jsonValues.length);
-            System.arraycopy(jsonValues, 0, newValues, jsonValues.length, jsonValues.length);
-            var doubled = JsonArray.of(newValues);
+            var jsonValues = ja.values();
+            var doubled = JsonArray.of(
+                    Stream.concat(jsonValues.stream(), jsonValues.stream()).toList());
             assertEquals(Json.parse(DOUBLEDARRAY), doubled);
         } else {
             throw new RuntimeException();
@@ -75,9 +74,9 @@ public class TestJsonArray {
     // take the expected element types
     @Test
     void testFromUntyped() {
-        var untyped = new Object[]{1, null, false, "test"};
-        var typed = new JsonValue[]{JsonNumber.of(1), JsonNull.ofNull(),
-                JsonBoolean.of(false), JsonString.of("test")};
-        assertEquals(Json.fromUntyped(untyped), JsonArray.of(List.of(typed)));
+        var untyped = Arrays.asList(new Object[]{1, null, false, "test"});
+        var typed = List.of(JsonNumber.of(1), JsonNull.of(),
+                JsonBoolean.of(false), JsonString.of("test"));
+        assertEquals(Json.fromUntyped(untyped), JsonArray.of(typed));
     }
 }

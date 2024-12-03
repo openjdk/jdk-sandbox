@@ -47,15 +47,15 @@ sealed class JsonObjectImpl implements JsonObject, JsonValueImpl permits JsonObj
         startOffset = 0;
         endOffset = 0;
         HashMap<String, JsonValue> m = HashMap.newHashMap(map.size());
-        var caller = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE).getCallerClass();
         for (Map.Entry<?, ?> entry : map.entrySet()) {
             if (!(entry.getKey() instanceof String strKey)) {
                 throw new IllegalStateException("Key is not a String: " + entry.getKey());
             } else {
-                if (Json.class.equals(caller)) {
-                    m.put(strKey, Json.fromUntyped(entry.getValue()));
+                var val = entry.getValue();
+                if (val instanceof JsonValue jv) {
+                    m.put(strKey, jv);
                 } else {
-                    m.put(strKey, (JsonValue)entry.getValue());
+                    m.put(strKey, Json.fromUntyped(val));
                 }
             }
         }

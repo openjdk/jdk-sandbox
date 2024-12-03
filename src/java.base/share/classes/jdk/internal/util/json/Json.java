@@ -87,14 +87,14 @@ public class Json {
             case String str -> new JsonStringLazyImpl(str);
             case Map<?, ?> map -> new JsonObjectImpl(map);
             case List<?> list-> new JsonArrayImpl(list);
-            case Object[] array -> new JsonArrayImpl(Arrays.asList(array));
             case Boolean bool -> new JsonBooleanImpl(bool);
             // Use constructor for Float/Integer to prevent type from being promoted
             case Float f -> new JsonNumberImpl(f);
             case Integer i -> new JsonNumberImpl(i);
             case Double db -> JsonNumber.of(db);
             case Long lg -> JsonNumber.of(lg);
-            case null -> JsonNull.ofNull();
+            case JsonValue jv -> jv;
+            case null -> JsonNull.of();
             default -> throw new IllegalArgumentException("Type not recognized.");
         };
     }

@@ -37,12 +37,13 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.HashMap;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-// Test the API of JsonObject.Builder and JsonObject.of()
+// Test the API of JsonObject.of()
 public class TestJsonObject {
 
     private static final String jsonObjStr =
@@ -63,16 +64,16 @@ public class TestJsonObject {
     @Test
     public void emptyBuildTest() {
         var expectedJson = Json.parse(jsonObjStr);
-        var builtJson = new JsonObject.Builder()
-                .put("name", Json.fromUntyped("Brian"))
-                .put("shoeSize", Json.fromUntyped(10)).build();
-        assertEquals(expectedJson, builtJson);
+        var builtJson = new HashMap<String, JsonValue>();
+        builtJson.put("name", Json.fromUntyped("Brian"));
+        builtJson.put("shoeSize", Json.fromUntyped(10));
+        assertEquals(expectedJson, JsonObject.of(builtJson));
     }
 
     @Test
     public void existingBuildTest() {
         var sourceJson = Json.parse(jsonObjStr);
-        var builtJson = new JsonObject.Builder((JsonObject) sourceJson).build();
+        var builtJson = JsonObject.of(((JsonObject)sourceJson).keys());
         assertEquals(builtJson, sourceJson);
     }
 
@@ -80,17 +81,15 @@ public class TestJsonObject {
     public void removalTest() {
         var expectedJson = Json.parse(halfJsonObjStr);
         var sourceJson = Json.parse(jsonObjStr);
-        var builtJson = new JsonObject.Builder((JsonObject) sourceJson)
-                .remove("name").build();
-        assertEquals(builtJson, expectedJson);
+        var builtJson = new HashMap<>(((JsonObject) sourceJson).keys());
+        builtJson.remove("name");
+        assertEquals(JsonObject.of(builtJson), expectedJson);
     }
 
     @Test
     public void clearTest() {
         var expectedJson = Json.parse(emptyJsonObjStr);
-        var sourceJson = Json.parse(jsonObjStr);
-        var builtJson = new JsonObject.Builder((JsonObject) sourceJson)
-                .clear().build();
+        var builtJson = JsonObject.of(Map.of());
         assertEquals(builtJson, expectedJson);
     }
 
