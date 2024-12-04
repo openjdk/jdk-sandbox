@@ -30,39 +30,43 @@ import java.util.Objects;
 /**
  * JsonNumber implementation class
  */
-sealed class JsonNumberImpl implements JsonNumber, JsonValueImpl permits JsonNumberLazyImpl {
+final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
     JsonDocumentInfo docInfo;
     int startOffset;
     int endOffset;
+    int endIndex;
     Number theNumber;
     String numString;
 
-    // For use by subclasses
-    JsonNumberImpl() {}
-
     JsonNumberImpl(Number num) {
-        docInfo = null;
-        startOffset = 0;
-        endOffset = 0;
         theNumber = num;
         numString = num.toString();
     }
 
-    JsonNumberImpl(JsonDocumentInfo docInfo, int offset) {
+    JsonNumberImpl(JsonDocumentInfo docInfo, int offset, int index) {
         this.docInfo = docInfo;
         startOffset = offset;
-        theNumber = parseNumber(docInfo.getEndOffset()); // Sets "endOffset", "numString"
+        endIndex = docInfo.nextIndex(index);
+        endOffset = endIndex != -1 ? docInfo.getOffset(endIndex) : docInfo.getEndOffset();
     }
 
     @Override
     public Number value() {
+        if (theNumber == null) {
+            theNumber = parseNumber(endOffset);
+        }
         return theNumber;
     }
 
     @Override
     public int getEndOffset() {
         return endOffset;
+    }
+
+    @Override
+    public int getEndIndex() {
+        return endIndex;
     }
 
     @Override
@@ -77,19 +81,16 @@ sealed class JsonNumberImpl implements JsonNumber, JsonValueImpl permits JsonNum
         return Objects.hash(toString());
     }
 
-    // Eager must parse until non-numerical, since the end offset is not known
-    // However, it should not fail, since the non-numerical can be a ',', ']', '}'
     Number parseNumber(int endOffset) {
         boolean sawDecimal = false;
         boolean sawExponent = false;
         boolean sawZero = false;
         boolean sawWhitespace = false;
         boolean havePart = false;
-        boolean sawInvalid = false;
         int start = JsonParser.skipWhitespaces(docInfo, startOffset);
         int offset = start;
 
-        for (; offset < endOffset && !sawWhitespace && !sawInvalid; offset++) {
+        for (; offset < endOffset && !sawWhitespace; offset++) {
             switch (docInfo.charAt(offset)) {
                 case '-' -> {
                     if (offset != start && !sawExponent) {
@@ -146,19 +147,23 @@ sealed class JsonNumberImpl implements JsonNumber, JsonValueImpl permits JsonNum
                     sawWhitespace = true;
                     offset --;
                 }
-                default -> {
-                    offset--;
-                    sawInvalid = true;
-                }
+                default -> throw new JsonParseException(docInfo,
+                        "Number not recognized.", offset);
             }
         }
+
+        if (!JsonParser.checkWhitespaces(docInfo, offset, endOffset)) {
+            throw new JsonParseException(docInfo,
+                    "Garbage after the number.", offset);
+        }
+
 
         if (!havePart) {
             throw new JsonParseException(docInfo,
                     "Dangling decimal point or exponent symbol.", offset);
         }
+
         numString = docInfo.substring(start, offset);
-        this.endOffset = this.startOffset + (offset - start);
         return numToString(numString, sawDecimal || sawExponent, offset);
     }
 
@@ -191,6 +196,7 @@ sealed class JsonNumberImpl implements JsonNumber, JsonValueImpl permits JsonNum
 
     @Override
     public String toString() {
+        value(); // ensure "numString" is set
         return numString;
     }
 

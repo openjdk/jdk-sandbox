@@ -39,11 +39,6 @@ final class JsonParser {
         return jv;
     }
 
-    // eager parsing
-    static JsonValue parseValue(JsonDocumentInfo docInfo, int offset) {
-        return parseValue(docInfo, offset, -1);
-    }
-
     // lazy parsing
     static JsonValue parseValue(JsonDocumentInfo docInfo, int offset, int index) {
         offset = skipWhitespaces(docInfo, offset);
@@ -64,45 +59,27 @@ final class JsonParser {
     }
 
     static JsonObject parseObject(JsonDocumentInfo docInfo, int offset, int index) {
-        return switch (docInfo) {
-            case JsonLazyDocumentInfo li -> new JsonObjectLazyImpl(li, offset, index);
-            default ->  new JsonObjectImpl(docInfo, offset);
-        };
+        return new JsonObjectImpl(docInfo, offset, index);
     }
 
     static JsonArray parseArray(JsonDocumentInfo docInfo, int offset, int index) {
-        return switch (docInfo) {
-            case JsonLazyDocumentInfo li -> new JsonArrayLazyImpl(li, offset, index);
-            default -> new JsonArrayImpl(docInfo, offset);
-        };
+        return new JsonArrayImpl(docInfo, offset, index);
     }
 
     static JsonString parseString(JsonDocumentInfo docInfo, int offset, int index) {
-        return switch (docInfo) {
-            case JsonLazyDocumentInfo li -> new JsonStringLazyImpl(li, offset, index);
-            default -> new JsonStringImpl(docInfo, offset);
-        };
+        return new JsonStringImpl(docInfo, offset, index);
     }
 
     static JsonBoolean parseBoolean(JsonDocumentInfo docInfo, int offset, int index) {
-        return switch (docInfo) {
-            case JsonLazyDocumentInfo li -> new JsonBooleanLazyImpl(li, offset, index);
-            default -> new JsonBooleanImpl(docInfo, offset);
-        };
+        return new JsonBooleanImpl(docInfo, offset, index);
     }
 
     static JsonNull parseNull(JsonDocumentInfo docInfo, int offset, int index) {
-        return switch (docInfo) {
-            case JsonLazyDocumentInfo li -> new JsonNullLazyImpl(li, offset, index);
-            default -> new JsonNullImpl(docInfo, offset);
-        };
+        return new JsonNullImpl(docInfo, offset, index);
     }
 
     static JsonNumber parseNumber(JsonDocumentInfo docInfo, int offset, int index) {
-        return switch (docInfo) {
-            case JsonLazyDocumentInfo li -> new JsonNumberLazyImpl(li, offset, index);
-            default -> new JsonNumberImpl(docInfo, offset);
-        };
+        return new JsonNumberImpl(docInfo, offset, index);
     }
 
     // Utility functions

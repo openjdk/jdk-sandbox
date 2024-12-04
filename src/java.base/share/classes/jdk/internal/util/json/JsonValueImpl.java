@@ -26,14 +26,12 @@
 package jdk.internal.util.json;
 
 /**
- * Implementation methods common to JsonXXXImpl classes.
- * Eager implementations simply parse all possible JSON values at will and do not
- * defer validation nor create lazy JSON values. As such, there is no need for an offsets
- * array.
+ * Implementation methods common to JsonXXXImpl classes
  */
 sealed interface JsonValueImpl permits JsonArrayImpl, JsonBooleanImpl, JsonNullImpl, JsonNumberImpl, JsonObjectImpl, JsonStringImpl {
     int INDENT = 2;
     int getEndOffset();
+    int getEndIndex();
     String toDisplayString();
     String toDisplayString(int index, boolean isField);
 }

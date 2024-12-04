@@ -30,31 +30,52 @@ import java.util.Objects;
 /**
  * JsonString implementation class
  */
-sealed class JsonStringImpl implements JsonString, JsonValueImpl permits JsonStringLazyImpl {
+final class JsonStringImpl implements JsonString, JsonValueImpl {
 
     JsonDocumentInfo docInfo;
     int startOffset;
     int endOffset;
+    int endIndex;
     String theString;
     String source;
 
-    // For use by subclasses
-    JsonStringImpl() {}
-
-    JsonStringImpl(JsonDocumentInfo docInfo, int offset) {
+    JsonStringImpl(String str) {
+        docInfo = new JsonDocumentInfo("\"" + str + "\"");
+        startOffset = 0;
+        endOffset = docInfo.getEndOffset();
+        theString = unescape(startOffset + 1, endOffset - 1);
+    }
+    
+    JsonStringImpl(JsonDocumentInfo docInfo, int offset, int index) {
         this.docInfo = docInfo;
         startOffset = offset;
-        theString = unescape(offset + 1, docInfo.getEndOffset()); // sets "endOffset"
+        endIndex = docInfo.nextIndex(index);
+        // First quote is already implicitly matched during parse
+        if (endIndex != -1 && docInfo.charAtIndex(endIndex) == '"') {
+            endOffset = docInfo.getOffset(endIndex) + 1;
+        } else {
+            throw new JsonParseException(docInfo,
+                    "Dangling quote.", offset);
+        }
     }
 
     @Override
     public String value() {
+        // Ensure the input is validated
+        if (theString == null) {
+            theString = unescape(startOffset + 1, endOffset - 1);
+        }
         return theString;
     }
 
     @Override
     public int getEndOffset() {
         return endOffset;
+    }
+
+    @Override
+    public int getEndIndex() {
+        return endIndex + 1; // We are interested in the index after '"'
     }
 
     @Override
@@ -73,9 +94,9 @@ sealed class JsonStringImpl implements JsonString, JsonValueImpl permits JsonStr
         return value();
     }
 
-    // toString should return the source input String
     @Override
     public String toString() {
+        value(); // Call to validate input
         if (source == null) {
             source = docInfo.substring(startOffset, endOffset);
         }
@@ -92,13 +113,11 @@ sealed class JsonStringImpl implements JsonString, JsonValueImpl permits JsonStr
         return " ".repeat(isField ? 1 : indent) + toString();
     }
 
-    // gets the substring at the specified start/end offsets in the input with decoding
-    // escape sequences. Eager implementations must find the closing quote.
+    // Validates the JsonString, while also un-escaping for value()
     String unescape(int startOffset, int endOffset) {
         var sb = new StringBuilder();
         var escape = false;
         int offset = startOffset;
-        boolean closeQuote = false;
         for (; offset < endOffset; offset++) {
             var c = docInfo.charAt(offset);
             if (escape) {
@@ -125,21 +144,12 @@ sealed class JsonStringImpl implements JsonString, JsonValueImpl permits JsonStr
             } else if (c == '\\') {
                 escape = true;
                 continue;
-            } else if (c == '\"') {
-                closeQuote = true;
-                break;
             } else if (c < ' ') {
                 throw new JsonParseException(docInfo,
                         "Unescaped control code.", offset);
             }
             sb.append(c);
         }
-        if (!closeQuote) { // Eager fails if closing quote not found by end
-            throw new JsonParseException(docInfo,
-                    "JsonString missing closing quote.", offset);
-        }
-        // Eager needs to set endOffset, +1 for the closing quote
-        this.endOffset = ++offset;
         return sb.toString();
     }
 

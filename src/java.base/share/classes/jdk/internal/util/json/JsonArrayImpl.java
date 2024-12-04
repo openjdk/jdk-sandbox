@@ -33,20 +33,16 @@ import java.util.Objects;
 /**
  * JsonArray implementation class
  */
-sealed class JsonArrayImpl implements JsonArray, JsonValueImpl permits JsonArrayLazyImpl {
+final class JsonArrayImpl implements JsonArray, JsonValueImpl {
 
     private JsonDocumentInfo docInfo;
+    int endIndex;
+    int currIndex;
     int startOffset;
     int endOffset; // exclusive
     List<JsonValue> theValues;
 
-    // For use by subclasses
-    JsonArrayImpl() {}
-
     JsonArrayImpl(List<?> from) {
-        docInfo = null;
-        startOffset = 0;
-        endOffset = 0;
         List<JsonValue> l = new ArrayList<>(from.size());
         for (Object o : from) {
             l.add(Json.fromUntyped(o));
@@ -54,41 +50,66 @@ sealed class JsonArrayImpl implements JsonArray, JsonValueImpl permits JsonArray
         theValues = Collections.unmodifiableList(l);
     }
 
-    JsonArrayImpl(JsonDocumentInfo docInfo, int offset) {
+    JsonArrayImpl(JsonDocumentInfo docInfo, int offset, int index) {
         this.docInfo = docInfo;
         startOffset = offset;
-        endOffset = parseArray(startOffset); // Sets "theValues"
-    }
-
-    // Used by the default (eager) implementation
-    // Finds valid JsonValues and inserts until closing bracket encountered
-    private int parseArray(int offset) {
-        var vals = new ArrayList<JsonValue>();
-        // Walk initial '['
-        offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
-        var c = docInfo.charAt(offset);
-        while (c != ']') {
-            // Get the JsonValue
-            var val = JsonParser.parseValue(docInfo, offset);
-            vals.add(val);
-            // Walk to either ',' or ']'
-            offset = JsonParser.skipWhitespaces(docInfo, ((JsonValueImpl)val).getEndOffset());
-            c = docInfo.charAt(offset);
-            if (c == ',') {
-                offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
-            } else if (c != ']') {
-                // fail
-                throw new JsonParseException(docInfo,
-                        "Unexpected character(s) found after JsonValue: %s.".formatted(val), offset);
-            }
-        }
-        theValues = Collections.unmodifiableList(vals);
-        return ++offset;
+        currIndex = index;
+        endIndex = docInfo.getStructureLength(index, offset, '[', ']');
+        endOffset = docInfo.getOffset(endIndex) + 1;
     }
 
     @Override
     public List<JsonValue> values() {
+        if (theValues == null) {
+            inflate();
+        }
         return theValues;
+    }
+
+    // Inflate the JsonArray using the offsets array.
+    private void inflate() {
+        if (JsonParser.checkWhitespaces(docInfo, startOffset + 1, endOffset - 1)) {
+            theValues = Collections.emptyList();
+            return;
+        }
+
+        var v = new ArrayList<JsonValue>();
+        while (currIndex < endIndex) {
+            // Traversal starts on the opening bracket, or a comma
+            int offset = docInfo.getOffset(currIndex) + 1;
+
+            // For obj/arr/str we need to walk the comma to get the correct starting index
+            if (docInfo.isWalkableStartIndex(docInfo.charAtIndex(currIndex + 1))) {
+                currIndex++;
+            }
+
+            // Get the value
+            var value = JsonParser.parseValue(docInfo, offset, currIndex);
+            v.add(value);
+
+            offset = ((JsonValueImpl)value).getEndOffset();
+            currIndex = ((JsonValueImpl)value).getEndIndex();
+
+            // Check there is no garbage after the JsonValue
+            if (!JsonParser.checkWhitespaces(docInfo, offset, docInfo.getOffset(currIndex))) {
+                throw new JsonParseException(docInfo,
+                        "Unexpected character(s) found after JsonValue: %s."
+                                .formatted(value), offset);
+            }
+
+            var c = docInfo.charAtIndex(currIndex);
+            if (c != ',' && c != ']') {
+                throw new JsonParseException(docInfo,
+                        "Unexpected character(s) found after JsonValue: %s."
+                                .formatted(value), offset);
+            }
+        }
+        theValues = Collections.unmodifiableList(v);
+    }
+
+    @Override
+    public int getEndIndex() {
+        return endIndex + 1;  // We are interested in the index after ']'
     }
 
     @Override

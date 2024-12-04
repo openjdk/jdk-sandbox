@@ -30,23 +30,24 @@ import java.util.Objects;
 /**
  * JsonNull implementation class
  */
-sealed class JsonNullImpl implements JsonNull, JsonValueImpl permits JsonNullLazyImpl {
+final class JsonNullImpl implements JsonNull, JsonValueImpl {
 
     JsonDocumentInfo docInfo;
     int startOffset;
     int endOffset;
+    int endIndex;
 
     static final JsonNullImpl NULL = new JsonNullImpl();
     static final String VALUE = "null";
     static final int HASH = Objects.hash(VALUE);
 
-    // For use by subclasses
     JsonNullImpl() {}
 
-    JsonNullImpl(JsonDocumentInfo docInfo, int offset) {
+    JsonNullImpl(JsonDocumentInfo docInfo, int offset, int index) {
         this.docInfo = docInfo;
         startOffset = offset;
-        endOffset = offset + 4;
+        endIndex = docInfo.nextIndex(index);
+        endOffset = endIndex != -1 ? docInfo.getOffset(endIndex) : docInfo.getEndOffset();
         validate();
     }
 
@@ -60,6 +61,11 @@ sealed class JsonNullImpl implements JsonNull, JsonValueImpl permits JsonNullLaz
     @Override
     public int getEndOffset() {
         return endOffset;
+    }
+
+    @Override
+    public int getEndIndex() {
+        return endIndex;
     }
 
     @Override

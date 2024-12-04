@@ -33,19 +33,17 @@ import java.util.Objects;
 /**
  * JsonObject implementation class
  */
-sealed class JsonObjectImpl implements JsonObject, JsonValueImpl permits JsonObjectLazyImpl {
+final class JsonObjectImpl implements JsonObject, JsonValueImpl {
 
     private JsonDocumentInfo docInfo;
-    int startOffset, endOffset;
+    int startOffset;
+    int endOffset;
+    int currIndex;
+    int endIndex;
     Map<String, JsonValue> theKeys;
 
-    // For use by subclasses
-    JsonObjectImpl() {}
 
     JsonObjectImpl(Map<?, ?> map) {
-        docInfo = null;
-        startOffset = 0;
-        endOffset = 0;
         HashMap<String, JsonValue> m = HashMap.newHashMap(map.size());
         for (Map.Entry<?, ?> entry : map.entrySet()) {
             if (!(entry.getKey() instanceof String strKey)) {
@@ -57,58 +55,102 @@ sealed class JsonObjectImpl implements JsonObject, JsonValueImpl permits JsonObj
         theKeys = Collections.unmodifiableMap(m);
     }
 
-    public JsonObjectImpl(JsonDocumentInfo docInfo, int offset) {
+    JsonObjectImpl(JsonDocumentInfo docInfo, int offset, int index) {
         this.docInfo = docInfo;
         startOffset = offset;
-        endOffset = parseObject(startOffset); // Sets "theKeys"
-    }
-
-    // Used by the default (eager) implementation
-    // Finds valid keys and JsonValues and inserts until closing bracket encountered
-    private int parseObject(int offset) {
-        var keys = new HashMap<String, JsonValue>();
-        // Walk past the '{'
-        offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
-        var c = docInfo.charAt(offset);
-        while (c != '}') {
-            // Get the key, which should be a JsonString
-            var key = (JsonStringImpl) JsonParser.parseValue(docInfo, offset);
-            var keyString = key.value();
-            // Check for duplicate keys
-            if (keys.containsKey(keyString)) {
-                throw new JsonParseException(docInfo,
-                        "Duplicate keys not allowed.", offset);
-            }
-            // Move from key to ':'
-            offset = JsonParser.skipWhitespaces(docInfo, key.getEndOffset());
-            c = docInfo.charAt(offset);
-            if (c != ':') {
-                throw new JsonParseException(docInfo,
-                        "Unexpected character(s) found after key: %s.".formatted(key), offset);
-            }
-            // Move from ':' to JsonValue
-            offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
-            var val = JsonParser.parseValue(docInfo, offset);
-            keys.put(keyString, val);
-
-            // Walk to either ',' or '}'
-            offset = JsonParser.skipWhitespaces(docInfo, ((JsonValueImpl)val).getEndOffset());
-            c = docInfo.charAt(offset);
-            if (c == ',') {
-                offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
-            } else if (c != '}') {
-                // fail
-                throw new JsonParseException(docInfo,
-                        "Unexpected character(s) found after JsonValue: %s.".formatted(val), offset);
-            }
-        }
-        theKeys = Collections.unmodifiableMap(keys);
-        return ++offset;
+        currIndex = index;
+        endIndex = docInfo.getStructureLength(index, offset, '{', '}');
+        endOffset = docInfo.getOffset(endIndex) + 1;
     }
 
     @Override
     public Map<String, JsonValue> keys() {
+        if (theKeys == null) {
+            inflate();
+        }
         return theKeys;
+    }
+
+    // Inflates the JsonObject using the offsets array
+    private void inflate() {
+        if (JsonParser.checkWhitespaces(docInfo, startOffset + 1, endOffset - 1)) {
+            theKeys = Collections.emptyMap();
+            return;
+        }
+
+        var k = new HashMap<String, JsonValue>();
+        while (currIndex < endIndex) {
+            // Traversal starts on the opening bracket, or a comma
+
+            // First, validate the key
+            int offset = docInfo.getOffset(currIndex + 1);
+
+            // Ensure no garbage before key
+            if (!JsonParser.checkWhitespaces(docInfo,
+                    docInfo.getOffset(currIndex)+1, docInfo.getOffset(currIndex+1))) {
+                throw new JsonParseException(docInfo,
+                        "Unexpected character(s) found instead of key.",
+                        docInfo.getOffset(currIndex)+1);
+            }
+
+            var key = new JsonStringImpl(docInfo, offset, currIndex + 1).value();
+
+            // Ensure no garbage after key and before colon
+            if (!JsonParser.checkWhitespaces(docInfo,
+                    docInfo.getOffset(currIndex+2)+1, docInfo.getOffset(currIndex+3))) {
+                throw new JsonParseException(docInfo,
+                        "Unexpected character(s) found after key: \"%s\".".formatted(key),
+                        docInfo.getOffset(currIndex+2)+1);
+            }
+
+            // Check for the colon
+            if (docInfo.charAtIndex(currIndex + 3) != ':') {
+                throw new JsonParseException(docInfo,
+                        "Invalid key:value syntax.", offset);
+            }
+
+            // Check for duplicate keys
+            if (k.containsKey(key)) {
+                throw new JsonParseException(docInfo,
+                        "Duplicate keys not allowed.", offset);
+            }
+
+            // Key is validated. Move offset and index to colon to get the value
+            currIndex = currIndex + 3;
+            offset = docInfo.getOffset(currIndex) + 1;
+
+            // For obj/arr/str we need to walk the colon to get the correct starting index
+            if (docInfo.isWalkableStartIndex(docInfo.charAtIndex(currIndex + 1))) {
+                currIndex++;
+            }
+
+            // Get the value
+            var value = JsonParser.parseValue(docInfo, offset, currIndex);
+            k.put(key, value);
+
+            offset = ((JsonValueImpl)value).getEndOffset();
+            currIndex = ((JsonValueImpl)value).getEndIndex();
+
+            // Check there is no garbage after the JsonValue
+            if (!JsonParser.checkWhitespaces(docInfo, offset, docInfo.getOffset(currIndex))) {
+                throw new JsonParseException(docInfo,
+                        "Unexpected character(s) found after JsonValue: %s, for key: \"%s\"."
+                                .formatted(value, key), offset);
+            }
+
+            var c = docInfo.charAtIndex(currIndex);
+            if (c != ',' && c != '}') {
+                throw new JsonParseException(docInfo,
+                        "Unexpected character(s) found after JsonValue: %s, for key: \"%s\"."
+                                .formatted(value, key), offset);
+            }
+        }
+        theKeys = Collections.unmodifiableMap(k);
+    }
+
+    @Override
+    public int getEndIndex() {
+        return endIndex + 1; // We are interested in the index after '}'
     }
 
     @Override

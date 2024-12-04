@@ -30,31 +30,26 @@ import java.util.Objects;
 /**
  * JsonBoolean implementation class
  */
-sealed class JsonBooleanImpl implements JsonBoolean, JsonValueImpl permits JsonBooleanLazyImpl {
+final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
 
     JsonDocumentInfo docInfo;
     int startOffset;
     int endOffset;
+    int endIndex;
     Boolean theBoolean;
 
     static final JsonBooleanImpl TRUE = new JsonBooleanImpl(true);
     static final JsonBooleanImpl FALSE = new JsonBooleanImpl(false);
 
-    // For use by subclasses
-    JsonBooleanImpl() {}
-
     JsonBooleanImpl(Boolean bool) {
-        docInfo = null;
-        startOffset = 0;
-        endOffset = 0;
         theBoolean = bool;
     }
 
-    JsonBooleanImpl(JsonDocumentInfo docInfo, int offset) {
+    JsonBooleanImpl(JsonDocumentInfo docInfo, int offset, int index) {
         this.docInfo = docInfo;
         startOffset = offset;
-        endOffset = docInfo.charAt(startOffset) == 't' ? offset + 4 : offset + 5;
-        value(); // validates input and sets "theBoolean"
+        endIndex = docInfo.nextIndex(index);
+        endOffset = endIndex != -1 ? docInfo.getOffset(endIndex) : docInfo.getEndOffset();
     }
 
     @Override
@@ -68,6 +63,11 @@ sealed class JsonBooleanImpl implements JsonBoolean, JsonValueImpl permits JsonB
             };
         }
         return theBoolean;
+    }
+
+    @Override
+    public int getEndIndex() {
+        return endIndex;
     }
 
     @Override

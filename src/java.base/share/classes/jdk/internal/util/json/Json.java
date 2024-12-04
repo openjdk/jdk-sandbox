@@ -56,7 +56,7 @@ public final class Json {
      */
     public static JsonValue parse(String in) {
         Objects.requireNonNull(in);
-        return JsonParser.parseImpl(new JsonLazyDocumentInfo(in));
+        return JsonParser.parseImpl(new JsonDocumentInfo(in));
     }
 
     /**
@@ -70,7 +70,7 @@ public final class Json {
      */
     public static JsonValue parse(char[] in) {
         Objects.requireNonNull(in);
-        return JsonParser.parseImpl(new JsonLazyDocumentInfo(in));
+        return JsonParser.parseImpl(new JsonDocumentInfo(in));
     }
 
     /**
@@ -83,7 +83,7 @@ public final class Json {
      */
     public static JsonValue fromUntyped(Object src) {
         return switch (src) {
-            case String str -> new JsonStringLazyImpl(str);
+            case String str -> new JsonStringImpl(str);
             case Map<?, ?> map -> new JsonObjectImpl(map);
             case List<?> list-> new JsonArrayImpl(list);
             case Boolean bool -> new JsonBooleanImpl(bool);

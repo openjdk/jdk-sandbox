@@ -50,6 +50,6 @@ public sealed interface JsonString extends JsonValue permits JsonStringImpl {
      */
     static JsonString of(String src) {
         Objects.requireNonNull(src);
-        return new JsonStringLazyImpl(src);
+        return new JsonStringImpl(src);
     }
 }
