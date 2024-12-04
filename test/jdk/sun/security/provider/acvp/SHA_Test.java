@@ -36,27 +36,27 @@ import static jdk.test.lib.Utils.toByteArray;
 public class SHA_Test {
 
     public static void run(JsonObject kat, Provider provider) throws Exception {
-        if (kat.get("algorithm") instanceof JsonString js) {
+        if (kat.keys().get("algorithm") instanceof JsonString js) {
             var algorithm = js.value();
             final var alg = algorithm.startsWith("SHA2-") ? "SHA-" + algorithm.substring(5) : algorithm;
             var md = provider == null ? MessageDigest.getInstance(alg)
                     : MessageDigest.getInstance(alg, provider);
-            if (kat.get("testGroups") instanceof JsonArray ja) {
-                ja.stream().forEach(t -> {
+            if (kat.keys().get("testGroups") instanceof JsonArray ja) {
+                ja.values().forEach(t -> {
                     if (t instanceof JsonObject jo) {
-                        var testType = ((JsonString)jo.get("testType")).value();
+                        var testType = ((JsonString)jo.keys().get("testType")).value();
 
                         switch (testType) {
                             case "AFT" -> {
-                                if (jo.get("tests") instanceof JsonArray ja2) {
-                                    ja2.stream().forEach(c -> {
+                                if (jo.keys().get("tests") instanceof JsonArray ja2) {
+                                    ja2.values().forEach(c -> {
                                         if (c instanceof JsonObject jo2) {
-                                            System.out.print(((JsonString)jo2.get("tcId")).value() + " ");
-                                            var msg = toByteArray(((JsonString)jo2.get("msg")).value());
-                                            var len = Integer.parseInt(((JsonString)jo2.get("len")).value());
+                                            System.out.print(((JsonString)jo2.keys().get("tcId")).value() + " ");
+                                            var msg = toByteArray(((JsonString)jo2.keys().get("msg")).value());
+                                            var len = Integer.parseInt(((JsonString)jo2.keys().get("len")).value());
                                             if (msg.length * 8 == len) {
                                                 Asserts.assertEqualsByteArray(md.digest(msg),
-                                                        toByteArray(((JsonString)jo2.get("md")).value()));
+                                                        toByteArray(((JsonString)jo2.keys().get("md")).value()));
                                             } else {
                                                 System.out.print("bits ");
                                             }
@@ -65,17 +65,17 @@ public class SHA_Test {
                                 }
                             }
                             case "MCT" -> {
-                                var mctVersion = ((JsonString)jo.get("mctVersion")).value();
+                                var mctVersion = ((JsonString)jo.keys().get("mctVersion")).value();
                                 var trunc = mctVersion.equals("alternate");
-                                if (jo.get("tests") instanceof JsonArray ja2) {
-                                    ja2.stream().forEach(c -> {
+                                if (jo.keys().get("tests") instanceof JsonArray ja2) {
+                                    ja2.values().forEach(c -> {
                                         if (c instanceof JsonObject jo2) {
-                                            System.out.print(((JsonString)jo2.get("tcId")).value() + " ");
-                                            final byte[][] SEED = {toByteArray(((JsonString) jo2.get("msg")).value())};
-                                            var INITIAL_SEED_LENGTH = Integer.parseInt(((JsonString)jo2.get("len")).value());
+                                            System.out.print(((JsonString)jo2.keys().get("tcId")).value() + " ");
+                                            final byte[][] SEED = {toByteArray(((JsonString) jo2.keys().get("msg")).value())};
+                                            var INITIAL_SEED_LENGTH = Integer.parseInt(((JsonString)jo2.keys().get("len")).value());
                                             if (SEED[0].length * 8 == INITIAL_SEED_LENGTH) {
-                                                if (jo2.get("resultsArray") instanceof JsonArray ja3) {
-                                                    ja3.stream().forEach(r -> {
+                                                if (jo2.keys().get("resultsArray") instanceof JsonArray ja3) {
+                                                    ja3.values().forEach(r -> {
                                                         if (r instanceof JsonObject jo3) {
                                                             if (alg.startsWith("SHA3-")) {
                                                                 var MD = SEED[0];
@@ -86,7 +86,7 @@ public class SHA_Test {
                                                                     MD = md.digest(MD);
                                                                 }
                                                                 Asserts.assertEqualsByteArray(MD,
-                                                                        toByteArray(((JsonString)jo3.get("md")).value()));
+                                                                        toByteArray(((JsonString)jo3.keys().get("md")).value()));
                                                                 SEED[0] = MD;
                                                             } else {
                                                                 var A = SEED[0];
@@ -104,7 +104,7 @@ public class SHA_Test {
                                                                     C = MD;
                                                                 }
                                                                 Asserts.assertEqualsByteArray(MD,
-                                                                        toByteArray(((JsonString)jo3.get("md")).value()));
+                                                                        toByteArray(((JsonString)jo3.keys().get("md")).value()));
                                                                 SEED[0] = MD;
                                                             }
                                                         }
@@ -118,22 +118,22 @@ public class SHA_Test {
                                 }
                             }
                             case "LDT" -> {
-                                if (jo.get("tests") instanceof JsonArray ja2) {
-                                    ja2.stream().forEach(c -> {
+                                if (jo.keys().get("tests") instanceof JsonArray ja2) {
+                                    ja2.values().forEach(c -> {
                                         if (c instanceof JsonObject jo2) {
-                                            System.out.print(((JsonString)jo2.get("tcId")).value() + " ");
+                                            System.out.print(((JsonString)jo2.keys().get("tcId")).value() + " ");
 
-                                            if (jo2.get("largeMsg") instanceof JsonObject lm) {
-                                                var ct = toByteArray(((JsonString)lm.get("content")).value());
-                                                var flen = ((JsonNumber)lm.get("fullLength")).value().longValue();
-                                                var clen = ((JsonNumber)lm.get("contentLength")).value().longValue();
+                                            if (jo2.keys().get("largeMsg") instanceof JsonObject lm) {
+                                                var ct = toByteArray(((JsonString)lm.keys().get("content")).value());
+                                                var flen = ((JsonNumber)lm.keys().get("fullLength")).value().longValue();
+                                                var clen = ((JsonNumber)lm.keys().get("contentLength")).value().longValue();
                                                 var cc = 0L;
                                                 while (cc < flen) {
                                                     md.update(ct);
                                                     cc += clen;
                                                 }
                                                 Asserts.assertEqualsByteArray(md.digest(),
-                                                        toByteArray(((JsonString)jo2.get("md")).value()));
+                                                        toByteArray(((JsonString)jo2.keys().get("md")).value()));
                                             }
                                         }
                                     });

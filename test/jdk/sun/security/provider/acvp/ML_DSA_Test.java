@@ -38,8 +38,8 @@ import static jdk.test.lib.Utils.toByteArray;
 public class ML_DSA_Test {
 
     public static void run(JsonObject kat, Provider provider) throws Exception {
-        var mode = kat.get("mode");
-        if (kat.get("mode") instanceof JsonString m) {
+        var mode = kat.keys().get("mode");
+        if (kat.keys().get("mode") instanceof JsonString m) {
             switch (m.value()) {
                 case "keyGen" -> keyGenTest(kat, provider);
                 case "sigGen" -> sigGenTest(kat, provider);
@@ -58,27 +58,27 @@ public class ML_DSA_Test {
         var f = p == null
                 ? KeyFactory.getInstance("ML-DSA")
                 : KeyFactory.getInstance("ML-DSA", p);
-        if (kat.get("testGroups") instanceof JsonArray ja) {
-            ja.stream().forEach(t -> {
+        if (kat.keys().get("testGroups") instanceof JsonArray ja) {
+            ja.values().forEach(t -> {
                 if (t instanceof JsonObject jo) {
-                    if (jo.get("parameterSet") instanceof JsonString pname) {
+                    if (jo.keys().get("parameterSet") instanceof JsonString pname) {
                         var np = new NamedParameterSpec(pname.value());
                         System.out.println(">> " + pname.value());
-                        if (jo.get("tests") instanceof JsonArray ja2) {
-                            ja2.stream().forEach(c -> {
+                        if (jo.keys().get("tests") instanceof JsonArray ja2) {
+                            ja2.values().forEach(c -> {
                                 if (c instanceof JsonObject jo2) {
-                                    System.out.print(((JsonString)jo2.get("tcId")).value() + " ");
+                                    System.out.print(((JsonString)jo2.keys().get("tcId")).value() + " ");
                                     byte[] pk, sk;
                                     try {
-                                        g.initialize(np, new FixedSecureRandom(toByteArray(((JsonString)jo2.get("seed")).value())));
+                                        g.initialize(np, new FixedSecureRandom(toByteArray(((JsonString)jo2.keys().get("seed")).value())));
                                         var kp = g.generateKeyPair();
                                         pk = f.getKeySpec(kp.getPublic(), EncodedKeySpec.class).getEncoded();
                                         sk = f.getKeySpec(kp.getPrivate(), EncodedKeySpec.class).getEncoded();
                                     } catch (Exception e) {
                                         throw new RuntimeException(e);
                                     }
-                                    Asserts.assertEqualsByteArray(pk, toByteArray(((JsonString)jo2.get("pk")).value()));
-                                    Asserts.assertEqualsByteArray(sk, toByteArray(((JsonString)jo2.get("sk")).value()));
+                                    Asserts.assertEqualsByteArray(pk, toByteArray(((JsonString)jo2.keys().get("pk")).value()));
+                                    Asserts.assertEqualsByteArray(sk, toByteArray(((JsonString)jo2.keys().get("sk")).value()));
                                 }
                             });
                             System.out.println();
@@ -93,33 +93,33 @@ public class ML_DSA_Test {
         var s = p == null
                 ? Signature.getInstance("ML-DSA")
                 : Signature.getInstance("ML-DSA", p);
-        if (kat.get("testGroups") instanceof JsonArray ja) {
-            ja.stream().forEach(t -> {
+        if (kat.keys().get("testGroups") instanceof JsonArray ja) {
+            ja.values().forEach(t -> {
                 if (t instanceof JsonObject jo) {
-                    if (jo.get("parameterSet") instanceof JsonString pname) {
-                        var det = ((JsonBoolean)jo.get("deterministic")).value();
+                    if (jo.keys().get("parameterSet") instanceof JsonString pname) {
+                        var det = ((JsonBoolean)jo.keys().get("deterministic")).value();
                         System.out.println(">> " + pname.value() + " sign");
-                        if (jo.get("tests") instanceof JsonArray ja2) {
-                            ja2.stream().forEach(c -> {
+                        if (jo.keys().get("tests") instanceof JsonArray ja2) {
+                            ja2.values().forEach(c -> {
                                 if (c instanceof JsonObject jo2) {
-                                    System.out.print(((JsonString)jo2.get("tcId")).value() + " ");
+                                    System.out.print(((JsonString)jo2.keys().get("tcId")).value() + " ");
                                     var sk = new PrivateKey() {
                                         public String getAlgorithm() { return pname.value(); }
                                         public String getFormat() { return "RAW"; }
-                                        public byte[] getEncoded() { return toByteArray(((JsonString)jo2.get("sk")).value()); }
+                                        public byte[] getEncoded() { return toByteArray(((JsonString)jo2.keys().get("sk")).value()); }
                                     };
                                     var sr = new FixedSecureRandom(
-                                            det ? new byte[32] : toByteArray(((JsonString)jo2.get("rnd")).value()));
+                                            det ? new byte[32] : toByteArray(((JsonString)jo2.keys().get("rnd")).value()));
                                     byte[] sig;
                                     try {
                                         s.initSign(sk, sr);
-                                        s.update(toByteArray(((JsonString)jo2.get("message")).value()));
+                                        s.update(toByteArray(((JsonString)jo2.keys().get("message")).value()));
                                         sig = s.sign();
                                     } catch (Exception e) {
                                         throw new RuntimeException(e);
                                     }
                                     Asserts.assertEqualsByteArray(
-                                            sig, toByteArray(((JsonString)jo2.get("signature")).value()));
+                                            sig, toByteArray(((JsonString)jo2.keys().get("signature")).value()));
                                 }
                             });
                             System.out.println();
@@ -134,27 +134,27 @@ public class ML_DSA_Test {
         var s = p == null
                 ? Signature.getInstance("ML-DSA")
                 : Signature.getInstance("ML-DSA", p);
-        if (kat.get("testGroups") instanceof JsonArray ja) {
-            ja.stream().forEach(t -> {
+        if (kat.keys().get("testGroups") instanceof JsonArray ja) {
+            ja.values().forEach(t -> {
                 if (t instanceof JsonObject jo) {
-                    if (jo.get("parameterSet") instanceof JsonString pname) {
+                    if (jo.keys().get("parameterSet") instanceof JsonString pname) {
                         var pk = new PublicKey() {
                             public String getAlgorithm() { return pname.value(); }
                             public String getFormat() { return "RAW"; }
-                            public byte[] getEncoded() { return toByteArray(((JsonString)jo.get("pk")).value()); }
+                            public byte[] getEncoded() { return toByteArray(((JsonString)jo.keys().get("pk")).value()); }
                         };
                         System.out.println(">> " + pname.value() + " verify");
-                        if (jo.get("tests") instanceof JsonArray ja2) {
-                            ja2.stream().forEach(c -> {
+                        if (jo.keys().get("tests") instanceof JsonArray ja2) {
+                            ja2.values().forEach(c -> {
                                 if (c instanceof JsonObject jo2) {
-                                    System.out.print(((JsonString) jo2.get("tcId")).value() + " ");
+                                    System.out.print(((JsonString) jo2.keys().get("tcId")).value() + " ");
                                     // Only ML-DSA sigVer has negative tests
-                                    var expected = ((JsonBoolean)jo2.get("testPassed")).value();
+                                    var expected = ((JsonBoolean)jo2.keys().get("testPassed")).value();
                                     var actual = true;
                                     try {
                                         s.initVerify(pk);
-                                        s.update(toByteArray(((JsonString)jo2.get("message")).value()));
-                                        actual = s.verify(toByteArray(((JsonString)jo2.get("signature")).value()));
+                                        s.update(toByteArray(((JsonString)jo2.keys().get("message")).value()));
+                                        actual = s.verify(toByteArray(((JsonString)jo2.keys().get("signature")).value()));
                                     } catch (InvalidKeyException | SignatureException e) {
                                         actual = false;
                                     }

@@ -26,8 +26,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.Provider;
 import java.security.Security;
+import jdk.internal.util.json.Json;
 import jdk.internal.util.json.JsonObject;
-import jdk.internal.util.json.JsonParser;
 import jdk.internal.util.json.JsonString;
 
 /*
@@ -141,7 +141,7 @@ public class Launcher {
                 invalidTest++;
                 return;
             }
-            var alg = kat.get("algorithm") instanceof JsonString js ? js.value() : null;
+            var alg = kat.keys().get("algorithm") instanceof JsonString js ? js.value() : null;
             if (ONLY_ALG != null && !alg.equals(ONLY_ALG)) {
                 return;
             }
