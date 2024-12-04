@@ -28,8 +28,6 @@ package jdk.internal.util.json;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
 
 /**
  * JsonObject lazy implementation subclass

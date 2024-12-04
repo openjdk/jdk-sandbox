@@ -25,7 +25,6 @@
 
 package jdk.internal.util.json;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 

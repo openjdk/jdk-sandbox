@@ -25,7 +25,7 @@
 
 package jdk.internal.util.json;
 
-class JsonParser {
+final class JsonParser {
 
     // return the root value
     static JsonValue parseImpl(JsonDocumentInfo docInfo) {

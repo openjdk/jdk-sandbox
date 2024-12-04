@@ -24,7 +24,6 @@
  */
 package jdk.internal.util.json;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -44,7 +43,7 @@ import java.util.Objects;
  * @spec https://datatracker.ietf.org/doc/html/rfc8259 RFC 8259: The JavaScript
  *          Object Notation (JSON) Data Interchange Format
  */
-public class Json {
+public final class Json {
 
     /**
      * Parses and creates the top level {@code JsonValue} in this JSON
