@@ -29,9 +29,9 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
+import jdk.internal.util.json.Json;
 import jdk.internal.util.json.JsonArray;
 import jdk.internal.util.json.JsonObject;
-import jdk.internal.util.json.JsonParser;
 import jdk.internal.util.json.JsonString;
 import jdk.internal.util.json.JsonValue;
 import jdk.jfr.Timespan;
@@ -71,20 +71,20 @@ public class TestPrintJSON {
         Iterator<RecordedEvent> it = events.iterator();
 
         // Verify events are equal
-        if (out instanceof JsonObject jsonObj && jsonObj.get("recording") instanceof JsonObject recordings
-                && recordings.get("events") instanceof JsonArray jsonEvents) {
+        if (out instanceof JsonObject jsonObj && jsonObj.keys().get("recording") instanceof JsonObject recordings
+                && recordings.keys().get("events") instanceof JsonArray jsonEvents) {
             for (JsonValue jsonEvent : jsonEvents.values()) {
                 RecordedEvent recordedEvent = it.next();
                 String typeName = recordedEvent.getEventType().getName();
                 if (jsonEvent instanceof JsonObject joEvent
-                        && joEvent.get("type") instanceof JsonString type) {
+                        && joEvent.keys().get("type") instanceof JsonString type) {
                     Asserts.assertEquals(typeName, type.value());
                     assertEquals(jsonEvent, recordedEvent);
                 } else {
                     jsonFail(JsonString.class);
                 }
             }
-            Asserts.assertFalse(events.size() != jsonEvents.size(), "Incorrect number of events");
+            Asserts.assertFalse(events.size() != jsonEvents.values().size(), "Incorrect number of events");
         } else {
             jsonFail(JsonArray.class);
         }
@@ -94,11 +94,11 @@ public class TestPrintJSON {
         // Check object
         if (jfrObject instanceof RecordedObject) {
             RecordedObject recObject = (RecordedObject) jfrObject;
-            if (jsonObject instanceof JsonObject jo && jo.get("values") instanceof JsonObject values) {
-                Asserts.assertEquals(values.size(), recObject.getFields().size());
+            if (jsonObject instanceof JsonObject jo && jo.keys().get("values") instanceof JsonObject values) {
+                Asserts.assertEquals(values.keys().size(), recObject.getFields().size());
                 for (ValueDescriptor v : recObject.getFields()) {
                     String name = v.getName();
-                    Object jsonValue = values.get(name);
+                    Object jsonValue = values.keys().get(name);
                     Object expectedValue = recObject.getValue(name);
                     if (v.getAnnotation(Timestamp.class) != null) {
                         // Make instant of OffsetDateTime
@@ -120,7 +120,7 @@ public class TestPrintJSON {
             Object[] jfrArray = (Object[]) jfrObject;
             if (jsonObject instanceof JsonArray jsArray) {
                 for (int i = 0; i < jfrArray.length; i++) {
-                    assertEquals(jsArray.get(i), jfrArray[i]);
+                    assertEquals(jsArray.values().get(i), jfrArray[i]);
                 }
             }
             return;
