@@ -35,12 +35,12 @@ import java.util.Objects;
  */
 final class JsonObjectImpl implements JsonObject, JsonValueImpl {
 
-    private JsonDocumentInfo docInfo;
-    int startOffset;
-    int endOffset;
-    int currIndex;
-    int endIndex;
-    Map<String, JsonValue> theKeys;
+    private final JsonDocumentInfo docInfo;
+    private final int startOffset;
+    private final int endOffset;
+    private final int startIndex;
+    private final int endIndex;
+    private Map<String, JsonValue> theKeys;
 
 
     JsonObjectImpl(Map<?, ?> map) {
@@ -53,12 +53,17 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
             }
         }
         theKeys = Collections.unmodifiableMap(m);
+        docInfo = null;
+        startOffset = 0;
+        endOffset = 0;
+        startIndex = 0;
+        endIndex = 0;
     }
 
-    JsonObjectImpl(JsonDocumentInfo docInfo, int offset, int index) {
-        this.docInfo = docInfo;
+    JsonObjectImpl(JsonDocumentInfo doc, int offset, int index) {
+        docInfo = doc;
         startOffset = offset;
-        currIndex = index;
+        startIndex = index;
         endIndex = docInfo.getStructureLength(index, offset, '{', '}');
         endOffset = docInfo.getOffset(endIndex) + 1;
     }
@@ -71,7 +76,7 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
         return theKeys;
     }
 
-    // Inflates the JsonObject using the offsets array
+    // Inflates the JsonObject using the tokens array
     private void inflate() {
         if (JsonParser.checkWhitespaces(docInfo, startOffset + 1, endOffset - 1)) {
             theKeys = Collections.emptyMap();
@@ -79,32 +84,33 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
         }
 
         var k = new HashMap<String, JsonValue>();
-        while (currIndex < endIndex) {
+        var index = startIndex;
+        while (index < endIndex) {
             // Traversal starts on the opening bracket, or a comma
 
             // First, validate the key
-            int offset = docInfo.getOffset(currIndex + 1);
+            int offset = docInfo.getOffset(index + 1);
 
             // Ensure no garbage before key
             if (!JsonParser.checkWhitespaces(docInfo,
-                    docInfo.getOffset(currIndex)+1, docInfo.getOffset(currIndex+1))) {
+                    docInfo.getOffset(index)+1, docInfo.getOffset(index+1))) {
                 throw new JsonParseException(docInfo,
                         "Unexpected character(s) found instead of key.",
-                        docInfo.getOffset(currIndex)+1);
+                        docInfo.getOffset(index)+1);
             }
 
-            var key = new JsonStringImpl(docInfo, offset, currIndex + 1).value();
+            var key = new JsonStringImpl(docInfo, offset, index + 1).value();
 
             // Ensure no garbage after key and before colon
             if (!JsonParser.checkWhitespaces(docInfo,
-                    docInfo.getOffset(currIndex+2)+1, docInfo.getOffset(currIndex+3))) {
+                    docInfo.getOffset(index+2)+1, docInfo.getOffset(index+3))) {
                 throw new JsonParseException(docInfo,
                         "Unexpected character(s) found after key: \"%s\".".formatted(key),
-                        docInfo.getOffset(currIndex+2)+1);
+                        docInfo.getOffset(index+2)+1);
             }
 
             // Check for the colon
-            if (docInfo.charAtIndex(currIndex + 3) != ':') {
+            if (docInfo.charAtIndex(index + 3) != ':') {
                 throw new JsonParseException(docInfo,
                         "Invalid key:value syntax.", offset);
             }
@@ -116,29 +122,29 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
             }
 
             // Key is validated. Move offset and index to colon to get the value
-            currIndex = currIndex + 3;
-            offset = docInfo.getOffset(currIndex) + 1;
+            index = index + 3;
+            offset = docInfo.getOffset(index) + 1;
 
             // For obj/arr/str we need to walk the colon to get the correct starting index
-            if (docInfo.isWalkableStartIndex(docInfo.charAtIndex(currIndex + 1))) {
-                currIndex++;
+            if (docInfo.isWalkableStartIndex(docInfo.charAtIndex(index + 1))) {
+                index++;
             }
 
             // Get the value
-            var value = JsonParser.parseValue(docInfo, offset, currIndex);
+            var value = JsonParser.parseValue(docInfo, offset, index);
             k.put(key, value);
 
             offset = ((JsonValueImpl)value).getEndOffset();
-            currIndex = ((JsonValueImpl)value).getEndIndex();
+            index = ((JsonValueImpl)value).getEndIndex();
 
             // Check there is no garbage after the JsonValue
-            if (!JsonParser.checkWhitespaces(docInfo, offset, docInfo.getOffset(currIndex))) {
+            if (!JsonParser.checkWhitespaces(docInfo, offset, docInfo.getOffset(index))) {
                 throw new JsonParseException(docInfo,
                         "Unexpected character(s) found after JsonValue: %s, for key: \"%s\"."
                                 .formatted(value, key), offset);
             }
 
-            var c = docInfo.charAtIndex(currIndex);
+            var c = docInfo.charAtIndex(index);
             if (c != ',' && c != '}') {
                 throw new JsonParseException(docInfo,
                         "Unexpected character(s) found after JsonValue: %s, for key: \"%s\"."

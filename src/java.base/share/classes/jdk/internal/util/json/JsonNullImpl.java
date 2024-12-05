@@ -32,19 +32,24 @@ import java.util.Objects;
  */
 final class JsonNullImpl implements JsonNull, JsonValueImpl {
 
-    JsonDocumentInfo docInfo;
-    int startOffset;
-    int endOffset;
-    int endIndex;
+    private final JsonDocumentInfo docInfo;
+    private final int startOffset;
+    private final int endOffset;
+    private final int endIndex;
 
     static final JsonNullImpl NULL = new JsonNullImpl();
     static final String VALUE = "null";
     static final int HASH = Objects.hash(VALUE);
 
-    JsonNullImpl() {}
+    JsonNullImpl() {
+        startOffset = 0;
+        endOffset = 0;
+        endIndex = 0;
+        docInfo = null;
+    }
 
-    JsonNullImpl(JsonDocumentInfo docInfo, int offset, int index) {
-        this.docInfo = docInfo;
+    JsonNullImpl(JsonDocumentInfo doc, int offset, int index) {
+        docInfo = doc;
         startOffset = offset;
         endIndex = docInfo.nextIndex(index);
         endOffset = endIndex != -1 ? docInfo.getOffset(endIndex) : docInfo.getEndOffset();

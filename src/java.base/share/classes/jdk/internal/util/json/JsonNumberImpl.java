@@ -32,20 +32,24 @@ import java.util.Objects;
  */
 final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
-    JsonDocumentInfo docInfo;
-    int startOffset;
-    int endOffset;
-    int endIndex;
-    Number theNumber;
-    String numString;
+    private final JsonDocumentInfo docInfo;
+    private final int startOffset;
+    private final int endOffset;
+    private final int endIndex;
+    private Number theNumber;
+    private String numString;
 
     JsonNumberImpl(Number num) {
         theNumber = num;
         numString = num.toString();
+        startOffset = 0;
+        endOffset = 0;
+        endIndex = 0;
+        docInfo = null;
     }
 
-    JsonNumberImpl(JsonDocumentInfo docInfo, int offset, int index) {
-        this.docInfo = docInfo;
+    JsonNumberImpl(JsonDocumentInfo doc, int offset, int index) {
+        docInfo = doc;
         startOffset = offset;
         endIndex = docInfo.nextIndex(index);
         endOffset = endIndex != -1 ? docInfo.getOffset(endIndex) : docInfo.getEndOffset();

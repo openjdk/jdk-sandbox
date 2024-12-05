@@ -35,12 +35,12 @@ import java.util.Objects;
  */
 final class JsonArrayImpl implements JsonArray, JsonValueImpl {
 
-    private JsonDocumentInfo docInfo;
-    int endIndex;
-    int currIndex;
-    int startOffset;
-    int endOffset; // exclusive
-    List<JsonValue> theValues;
+    private final JsonDocumentInfo docInfo;
+    private final int endIndex;
+    private final int startIndex;
+    private final int startOffset;
+    private final int endOffset; // exclusive
+    private List<JsonValue> theValues;
 
     JsonArrayImpl(List<?> from) {
         List<JsonValue> l = new ArrayList<>(from.size());
@@ -48,12 +48,17 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
             l.add(Json.fromUntyped(o));
         }
         theValues = Collections.unmodifiableList(l);
+        this.endIndex = 0;
+        this.startIndex = 0;
+        this.startOffset = 0;
+        this.endOffset = 0;
+        docInfo = null;
     }
 
-    JsonArrayImpl(JsonDocumentInfo docInfo, int offset, int index) {
-        this.docInfo = docInfo;
+    JsonArrayImpl(JsonDocumentInfo doc, int offset, int index) {
+        docInfo = doc;
         startOffset = offset;
-        currIndex = index;
+        startIndex = index;
         endIndex = docInfo.getStructureLength(index, offset, '[', ']');
         endOffset = docInfo.getOffset(endIndex) + 1;
     }
@@ -66,7 +71,7 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
         return theValues;
     }
 
-    // Inflate the JsonArray using the offsets array.
+    // Inflate the JsonArray using the tokens array.
     private void inflate() {
         if (JsonParser.checkWhitespaces(docInfo, startOffset + 1, endOffset - 1)) {
             theValues = Collections.emptyList();
@@ -74,30 +79,31 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
         }
 
         var v = new ArrayList<JsonValue>();
-        while (currIndex < endIndex) {
+        var index = startIndex;
+        while (index < endIndex) {
             // Traversal starts on the opening bracket, or a comma
-            int offset = docInfo.getOffset(currIndex) + 1;
+            int offset = docInfo.getOffset(index) + 1;
 
             // For obj/arr/str we need to walk the comma to get the correct starting index
-            if (docInfo.isWalkableStartIndex(docInfo.charAtIndex(currIndex + 1))) {
-                currIndex++;
+            if (docInfo.isWalkableStartIndex(docInfo.charAtIndex(index + 1))) {
+                index++;
             }
 
             // Get the value
-            var value = JsonParser.parseValue(docInfo, offset, currIndex);
+            var value = JsonParser.parseValue(docInfo, offset, index);
             v.add(value);
 
             offset = ((JsonValueImpl)value).getEndOffset();
-            currIndex = ((JsonValueImpl)value).getEndIndex();
+            index = ((JsonValueImpl)value).getEndIndex();
 
             // Check there is no garbage after the JsonValue
-            if (!JsonParser.checkWhitespaces(docInfo, offset, docInfo.getOffset(currIndex))) {
+            if (!JsonParser.checkWhitespaces(docInfo, offset, docInfo.getOffset(index))) {
                 throw new JsonParseException(docInfo,
                         "Unexpected character(s) found after JsonValue: %s."
                                 .formatted(value), offset);
             }
 
-            var c = docInfo.charAtIndex(currIndex);
+            var c = docInfo.charAtIndex(index);
             if (c != ',' && c != ']') {
                 throw new JsonParseException(docInfo,
                         "Unexpected character(s) found after JsonValue: %s."

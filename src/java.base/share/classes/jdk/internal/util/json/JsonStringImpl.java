@@ -32,22 +32,23 @@ import java.util.Objects;
  */
 final class JsonStringImpl implements JsonString, JsonValueImpl {
 
-    JsonDocumentInfo docInfo;
-    int startOffset;
-    int endOffset;
-    int endIndex;
-    String theString;
-    String source;
+    private final JsonDocumentInfo docInfo;
+    private final int startOffset;
+    private final int endOffset;
+    private final int endIndex;
+    private String theString;
+    private String source;
 
     JsonStringImpl(String str) {
         docInfo = new JsonDocumentInfo("\"" + str + "\"");
         startOffset = 0;
         endOffset = docInfo.getEndOffset();
         theString = unescape(startOffset + 1, endOffset - 1);
+        endIndex = 0;
     }
     
-    JsonStringImpl(JsonDocumentInfo docInfo, int offset, int index) {
-        this.docInfo = docInfo;
+    JsonStringImpl(JsonDocumentInfo doc, int offset, int index) {
+        docInfo = doc;
         startOffset = offset;
         endIndex = docInfo.nextIndex(index);
         // First quote is already implicitly matched during parse

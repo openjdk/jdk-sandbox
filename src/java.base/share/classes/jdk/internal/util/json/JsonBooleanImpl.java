@@ -32,21 +32,25 @@ import java.util.Objects;
  */
 final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
 
-    JsonDocumentInfo docInfo;
-    int startOffset;
-    int endOffset;
-    int endIndex;
-    Boolean theBoolean;
+    private final JsonDocumentInfo docInfo;
+    private final int startOffset;
+    private final int endOffset;
+    private final int endIndex;
+    private Boolean theBoolean;
 
     static final JsonBooleanImpl TRUE = new JsonBooleanImpl(true);
     static final JsonBooleanImpl FALSE = new JsonBooleanImpl(false);
 
     JsonBooleanImpl(Boolean bool) {
         theBoolean = bool;
+        startOffset = 0;
+        endOffset = 0;
+        endIndex = 0;
+        docInfo = null;
     }
 
-    JsonBooleanImpl(JsonDocumentInfo docInfo, int offset, int index) {
-        this.docInfo = docInfo;
+    JsonBooleanImpl(JsonDocumentInfo doc, int offset, int index) {
+        docInfo = doc;
         startOffset = offset;
         endIndex = docInfo.nextIndex(index);
         endOffset = endIndex != -1 ? docInfo.getOffset(endIndex) : docInfo.getEndOffset();
