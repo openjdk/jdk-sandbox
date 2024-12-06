@@ -34,9 +34,16 @@ final class JsonDocumentInfo  {
     private final int[] tokenOffsets;
     private final int indexCount;
 
-    JsonDocumentInfo(CharSequence in) {
+    JsonDocumentInfo(String in) {
         doc = new RawDocument(in);
         endOffset = in.length();
+        tokenOffsets = new int[endOffset];
+        indexCount = createTokensArray();
+    }
+
+    JsonDocumentInfo(char[] in) {
+        doc = new RawDocument(in);
+        endOffset = doc.length();
         tokenOffsets = new int[endOffset];
         indexCount = createTokensArray();
     }
@@ -162,22 +169,26 @@ final class JsonDocumentInfo  {
      */
     private static class RawDocument {
 
-        final CharSequence doc;
+        final char[] inChArray;
 
-        RawDocument(CharSequence in) {
-            doc = in;
+        RawDocument(String in) {
+            inChArray = in.toCharArray();
+        }
+
+        RawDocument(char[] in) {
+            inChArray = in;
         }
 
         int length() {
-            return doc.length();
+            return inChArray.length;
         }
 
         char charAt(int index) {
-            return doc.charAt(index);
+            return inChArray[index];
         }
 
         String substring(int start, int end) {
-            return doc.subSequence(start, end).toString();
+            return new String(inChArray, start, end - start);
         }
     }
 }

@@ -102,9 +102,9 @@ public class TestEquality {
     @MethodSource("dataEqualityByOriginalText")
     public void testEqualityByOriginalText(Object arg1, Object arg2, boolean expected) {
         var jv1 = arg1 instanceof String s ? Json.parse(s) :
-                arg1 instanceof char[] ca ? Json.parse(new String(ca)) : null;
+                arg1 instanceof char[] ca ? Json.parse(ca) : null;
         var jv2 = arg2 instanceof String s ? Json.parse(s) :
-                arg2 instanceof char[] ca ? Json.parse(new String(ca)) : null;
+                arg2 instanceof char[] ca ? Json.parse(ca) : null;
         var val1 = jv1 instanceof JsonNumber jn ? jn.value() :
                 jv1 instanceof JsonString js ? js.value() : null;
         var val2 = jv2 instanceof JsonNumber jn ? jn.value() :
