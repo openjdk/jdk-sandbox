@@ -31,7 +31,7 @@ import java.util.Objects;
 /**
  * This class provides static methods that produce a {@link JsonValue}.
  * <p>
- * Use {@link #parse(String)} and its overload to parse data which adheres to the
+ * Use {@link #parse(CharSequence)} and its overload to parse data which adheres to the
  * JSON syntax defined in RFC 8259.
  * <p>
  * {@link #fromUntyped(Object)} and {@link #toUntyped(JsonValue)} provide a conversion
@@ -49,26 +49,12 @@ public final class Json {
      * Parses and creates the top level {@code JsonValue} in this JSON
      * document.
      *
-     * @param in the input JSON document as {@code String}. Non-null.
+     * @param in the input JSON document as {@code CharSequence}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform
      *      to the JSON document format
      * @return the top level {@code JsonValue}
      */
-    public static JsonValue parse(String in) {
-        Objects.requireNonNull(in);
-        return JsonParser.parseImpl(new JsonDocumentInfo(in));
-    }
-
-    /**
-     * Parses and creates the top level {@code JsonValue} in this JSON
-     * document.
-     *
-     * @param in the input JSON document as {@code char[]}. Non-null.
-     * @throws JsonParseException if the input JSON document does not conform
-     *      to the JSON document format
-     * @return the top level {@code JsonValue}
-     */
-    public static JsonValue parse(char[] in) {
+    public static JsonValue parse(CharSequence in) {
         Objects.requireNonNull(in);
         return JsonParser.parseImpl(new JsonDocumentInfo(in));
     }
