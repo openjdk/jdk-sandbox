@@ -29,21 +29,21 @@ import java.util.Objects;
 
 final class JsonDocumentInfo  {
 
-    final RawDocument doc;
+    final char[] doc;
     final int endOffset;
     private final int[] tokenOffsets;
     private final int indexCount;
 
     JsonDocumentInfo(String in) {
-        doc = new RawDocument(in);
-        endOffset = in.length();
+        doc = in.toCharArray();
+        endOffset = doc.length;
         tokenOffsets = new int[endOffset];
         indexCount = createTokensArray();
     }
 
     JsonDocumentInfo(char[] in) {
-        doc = new RawDocument(in);
-        endOffset = doc.length();
+        doc = in;
+        endOffset = doc.length;
         tokenOffsets = new int[endOffset];
         indexCount = createTokensArray();
     }
@@ -75,7 +75,7 @@ final class JsonDocumentInfo  {
 
     // for convenience
     char charAtIndex(int index) {
-        return doc.charAt(getOffset(index));
+        return doc[getOffset(index)];
     }
 
     int getIndexCount() {
@@ -113,15 +113,15 @@ final class JsonDocumentInfo  {
         int index = 0;
         boolean inQuote = false;
 
-        for (int offset = 0; offset < doc.length(); offset++) {
-            char c = doc.charAt(offset);
+        for (int offset = 0; offset < doc.length; offset++) {
+            char c = doc[offset];
             switch (c) {
                 case '{', '}', '[', ']', '"', ':', ',' -> {
                     if (c == '"') {
                         if (inQuote) {
                             // check prepending backslash
                             int lookback = offset - 1;
-                            while (lookback >= 0 && doc.charAt(lookback) == '\\') {
+                            while (lookback >= 0 && doc[lookback] == '\\') {
                                 lookback --;
                             }
                             if ((offset - lookback) % 2 != 0) {
@@ -149,46 +149,17 @@ final class JsonDocumentInfo  {
 
     // gets the char at the specified offset in the input
     char charAt(int offset) {
-        return doc.charAt(offset);
+        return doc[offset];
     }
 
     // gets the substring at the specified start/end offsets in the input
     String substring(int startOffset, int endOffset) {
-        return doc.substring(startOffset, endOffset);
+        return new String(doc, startOffset, endOffset - startOffset);
     }
 
     // Utility method to compose parse exception messages that include offsets/chars
     String composeParseExceptionMessage(String message, int offset) {
         return message + " Offset: %d (%s)"
                 .formatted(offset, substring(offset, Math.min(offset + 8, endOffset)));
-    }
-
-    /**
-     * encapsulates the access to the document underneath, either
-     * a String or a char array.
-     */
-    private static class RawDocument {
-
-        final char[] inChArray;
-
-        RawDocument(String in) {
-            inChArray = in.toCharArray();
-        }
-
-        RawDocument(char[] in) {
-            inChArray = in;
-        }
-
-        int length() {
-            return inChArray.length;
-        }
-
-        char charAt(int index) {
-            return inChArray[index];
-        }
-
-        String substring(int start, int end) {
-            return new String(inChArray, start, end - start);
-        }
     }
 }
