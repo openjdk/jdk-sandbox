@@ -59,7 +59,8 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
         docInfo = doc;
         startOffset = offset;
         startIndex = index;
-        endIndex = docInfo.getStructureLength(index, offset, '[', ']');
+        endIndex = startIndex == 0 ? docInfo.getIndexCount() - 1
+                : docInfo.getStructureLength(index, startOffset, '[', ']');
         endOffset = docInfo.getOffset(endIndex) + 1;
     }
 
