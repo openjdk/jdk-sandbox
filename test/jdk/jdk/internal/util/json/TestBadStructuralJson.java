@@ -47,27 +47,13 @@ public class TestBadStructuralJson {
         assertThrows(JsonParseException.class, () -> Json.parse(badJson));
     }
 
-    // Fails during parse
     private static Stream<String> badJsonParseTest() {
         return Stream.of(
                 "{ :name\": \"Brian\"}",
                 "{ \"name:: \"Brian\"}",
                 "{ \"name\": :Brian\"}",
                 "{ \"name\": \"Brian:}",
-                "{ \"name\": ,Brian\"}"
-                );
-    }
-
-    @ParameterizedTest
-    @MethodSource
-    public void badJsonKeysTest(String badJson) {
-        var j = Json.parse(badJson);
-        assertThrows(JsonParseException.class, () -> j.toString());
-    }
-
-    // Fails during values()/keys()
-    private static Stream<String> badJsonKeysTest() {
-        return Stream.of(
+                "{ \"name\": ,Brian\"}",
                 "{ foo \"name\": \"Brian\"}", // Garbage before key
                 "{ \"name\" foo : \"Brian\"}", // Garbage after key, but before colon
                 // Garbage in second key/val
@@ -83,11 +69,5 @@ public class TestBadStructuralJson {
                 "{ \"name\": \"Brian\" [\"another String\"] }",
                 "{ \"name\": \"Brian\" \"another String\"}"
         );
-    }
-
-    @Test
-    public void badJsonValuesTest() {
-        var j = Json.parse("[\"Brian\", 5, null, \"foo\" 5]");
-        assertThrows(JsonParseException.class, () -> j.toString());
     }
 }

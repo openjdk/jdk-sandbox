@@ -89,6 +89,6 @@ public class TestParse {
     @ParameterizedTest
     @MethodSource("invalidValues")
     public void invalidLazyParse(String value) {
-        Json.parse(TEMPLATE.formatted(value));
+        assertThrows(JsonParseException.class, () -> Json.parse(TEMPLATE.formatted(value)));
     }
 }

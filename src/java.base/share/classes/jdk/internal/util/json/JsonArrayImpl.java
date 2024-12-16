@@ -59,7 +59,7 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
         docInfo = doc;
         startOffset = offset;
         startIndex = index;
-        endIndex = startIndex == 0 ? docInfo.getIndexCount() - 1
+        endIndex = startIndex == 0 ? docInfo.getIndexCount() - 1 // For root
                 : docInfo.getStructureLength(index, startOffset, '[', ']');
         endOffset = docInfo.getOffset(endIndex) + 1;
     }
@@ -67,56 +67,34 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
     @Override
     public List<JsonValue> values() {
         if (theValues == null) {
-            inflate();
+            theValues = inflate();
         }
         return theValues;
     }
 
     // Inflate the JsonArray using the tokens array.
-    private void inflate() {
+    private List<JsonValue> inflate() {
         if (JsonParser.checkWhitespaces(docInfo, startOffset + 1, endOffset - 1)) {
-            theValues = Collections.emptyList();
-            return;
+            return Collections.emptyList();
         }
-
         var v = new ArrayList<JsonValue>();
         var index = startIndex;
-        while (index < endIndex) {
-            // Traversal starts on the opening bracket, or a comma
+        while (index < endIndex) { // start on comma or opening bracket
+            // Get Val
             int offset = docInfo.getOffset(index) + 1;
-
-            // For obj/arr/str we need to walk the comma to get the correct starting index
-            if (docInfo.isWalkableStartIndex(docInfo.charAtIndex(index + 1))) {
+            if (docInfo.shouldWalkToken(docInfo.charAtIndex(index + 1))) {
                 index++;
             }
-
-            // Get the value
-            var value = JsonParser.parseValue(docInfo, offset, index);
+            var value = JsonGenerator.createValue(docInfo, offset, index);
             v.add(value);
-
-            offset = ((JsonValueImpl)value).getEndOffset();
-            index = ((JsonValueImpl)value).getEndIndex();
-
-            // Check there is no garbage after the JsonValue
-            if (!JsonParser.checkWhitespaces(docInfo, offset, docInfo.getOffset(index))) {
-                throw new JsonParseException(docInfo,
-                        "Unexpected character(s) found after JsonValue: %s."
-                                .formatted(value), offset);
-            }
-
-            var c = docInfo.charAtIndex(index);
-            if (c != ',' && c != ']') {
-                throw new JsonParseException(docInfo,
-                        "Unexpected character(s) found after JsonValue: %s."
-                                .formatted(value), offset);
-            }
+            index = ((JsonValueImpl)value).getEndIndex(); // Move to comma or closing
         }
-        theValues = Collections.unmodifiableList(v);
+        return Collections.unmodifiableList(v);
     }
 
     @Override
     public int getEndIndex() {
-        return endIndex + 1;  // We are interested in the index after ']'
+        return endIndex + 1;  // We are always interested in the index after ']'
     }
 
     @Override

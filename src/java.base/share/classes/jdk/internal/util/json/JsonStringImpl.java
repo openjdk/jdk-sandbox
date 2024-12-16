@@ -40,7 +40,7 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
     private String source;
 
     JsonStringImpl(String str) {
-        docInfo = new JsonDocumentInfo("\"" + str + "\"");
+        docInfo = new JsonDocumentInfo(("\"" + str + "\"").toCharArray());
         startOffset = 0;
         endOffset = docInfo.getEndOffset();
         theString = unescape(startOffset + 1, endOffset - 1);
@@ -51,18 +51,11 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
         docInfo = doc;
         startOffset = offset;
         endIndex = docInfo.nextIndex(index);
-        // First quote is already implicitly matched during parse
-        if (endIndex != -1 && docInfo.charAtIndex(endIndex) == '"') {
-            endOffset = docInfo.getOffset(endIndex) + 1;
-        } else {
-            throw new JsonParseException(docInfo,
-                    "Dangling quote.", offset);
-        }
+        endOffset = docInfo.getOffset(endIndex) + 1;
     }
 
     @Override
     public String value() {
-        // Ensure the input is validated
         if (theString == null) {
             theString = unescape(startOffset + 1, endOffset - 1);
         }
@@ -97,7 +90,6 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
 
     @Override
     public String toString() {
-        value(); // Call to validate input
         if (source == null) {
             source = docInfo.substring(startOffset, endOffset);
         }
@@ -114,7 +106,6 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
         return " ".repeat(isField ? 1 : indent) + toString();
     }
 
-    // Validates the JsonString, while also un-escaping for value()
     String unescape(int startOffset, int endOffset) {
         var sb = new StringBuilder();
         var escape = false;
@@ -130,24 +121,15 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
                     case 'r' -> c = '\r';
                     case 't' -> c = '\t';
                     case 'u' -> {
-                        if (offset + 4 < endOffset) {
-                            c = codeUnit(offset + 1);
-                            offset += 4;
-                        } else {
-                            throw new JsonParseException(docInfo,
-                                    "Illegal Unicode escape.", offset);
-                        }
+                        c = codeUnit(offset + 1);
+                        offset += 4;
                     }
-                    default -> throw new JsonParseException(docInfo,
-                            "Illegal escape.", offset);
+                    default -> throw new InternalError();
                 }
                 escape = false;
             } else if (c == '\\') {
                 escape = true;
                 continue;
-            } else if (c < ' ') {
-                throw new JsonParseException(docInfo,
-                        "Unescaped control code.", offset);
             }
             sb.append(c);
         }
@@ -164,9 +146,8 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
                     case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> c - '0';
                     case 'a', 'b', 'c', 'd', 'e', 'f' -> c - 'a' + 10;
                     case 'A', 'B', 'C', 'D', 'E', 'F' -> c - 'A' + 10;
-                    default -> throw new JsonParseException(docInfo,
-                            "Invalid Unicode escape.", offset);
-                } );
+                    default -> throw new InternalError();
+                });
         }
         return val;
     }

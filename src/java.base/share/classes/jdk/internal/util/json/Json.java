@@ -56,7 +56,8 @@ public final class Json {
      */
     public static JsonValue parse(String in) {
         Objects.requireNonNull(in);
-        return JsonParser.parseImpl(new JsonDocumentInfo(in));
+        return JsonGenerator.createValue(JsonParser.parseRoot(
+                new JsonDocumentInfo(in.toCharArray())), 0, 0);
     }
 
     /**
@@ -70,7 +71,8 @@ public final class Json {
      */
     public static JsonValue parse(char[] in) {
         Objects.requireNonNull(in);
-        return JsonParser.parseImpl(new JsonDocumentInfo(in));
+        return JsonGenerator.createValue(JsonParser.parseRoot(
+                new JsonDocumentInfo(in)), 0, 0);
     }
 
     /**

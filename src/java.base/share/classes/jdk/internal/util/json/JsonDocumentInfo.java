@@ -22,7 +22,6 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-
 package jdk.internal.util.json;
 
 import java.util.Objects;
@@ -31,27 +30,21 @@ final class JsonDocumentInfo  {
 
     final char[] doc;
     final int endOffset;
-    private final int[] tokenOffsets;
-    private final int indexCount;
-
-    JsonDocumentInfo(String in) {
-        doc = in.toCharArray();
-        endOffset = doc.length;
-        tokenOffsets = new int[endOffset];
-        indexCount = createTokensArray();
-    }
+    final int[] tokens;
+    int index;
+    int row = 0;
+    int prevRowOff = 0;
 
     JsonDocumentInfo(char[] in) {
         doc = in;
         endOffset = doc.length;
-        tokenOffsets = new int[endOffset];
-        indexCount = createTokensArray();
+        tokens = new int[endOffset];
+        index = 0;
     }
 
-    // Convenience to skip an index when inflating a JsonObject/Array
-    boolean isWalkableStartIndex(char c) {
+    // Convenience to walk a token during inflation
+    boolean shouldWalkToken(char c) {
         return switch (c) {
-            // Order is important, with String being most common JsonType
             case '"', '{', '['  -> true;
             default -> false;
         };
@@ -59,14 +52,15 @@ final class JsonDocumentInfo  {
 
     // gets offset in the input from the array index
     int getOffset(int index) {
-        Objects.checkIndex(index, indexCount);
-        return tokenOffsets[index];
+        Objects.checkIndex(index, this.index);
+        return tokens[index];
     }
 
     // Used by Json String, Boolean, Null, and Number to get the endIndex
     // Returns -1, if the next index is not within bounds of indexCount
+    // Which should only happen when it is the root
     int nextIndex(int index) {
-        if (index + 1 < indexCount) {
+        if (index + 1 < this.index) {
             return index + 1;
         } else {
             return -1;
@@ -79,7 +73,7 @@ final class JsonDocumentInfo  {
     }
 
     int getIndexCount() {
-        return indexCount;
+        return index;
     }
 
     // Used by JsonObject and JsonArray to get the endIndex. In other words, a
@@ -90,7 +84,7 @@ final class JsonDocumentInfo  {
     int getStructureLength(int startIdx, int startOff, char startToken, char endToken) {
         var index = startIdx + 1;
         int depth = 0;
-        while (index < indexCount) {
+        while (index < this.index) {
             var c = charAtIndex(index);
             if (c == startToken) {
                 depth++;
@@ -102,43 +96,9 @@ final class JsonDocumentInfo  {
             }
             index++;
         }
-        if (index >= indexCount) {
-            throw new JsonParseException(this,
+        if (index >= this.index) {
+            throw JsonParser.buildJPE(this,
                     "Braces or brackets do not match.", startOff);
-        }
-        return index;
-    }
-
-    private int createTokensArray() {
-        int index = 0;
-        boolean inQuote = false;
-
-        for (int offset = 0; offset < doc.length; offset++) {
-            char c = doc[offset];
-            switch (c) {
-                case '{', '}', '[', ']', '"', ':', ',' -> {
-                    if (c == '"') {
-                        if (inQuote) {
-                            // check prepending backslash
-                            int lookback = offset - 1;
-                            while (lookback >= 0 && doc[lookback] == '\\') {
-                                lookback --;
-                            }
-                            if ((offset - lookback) % 2 != 0) {
-                                inQuote = false;
-                                tokenOffsets[index++] = offset;
-                            }
-                        } else {
-                            tokenOffsets[index++] = offset;
-                            inQuote = true;
-                        }
-                    } else {
-                        if (!inQuote) {
-                            tokenOffsets[index++] = offset;
-                        }
-                    }
-                }
-            }
         }
         return index;
     }
@@ -157,9 +117,9 @@ final class JsonDocumentInfo  {
         return new String(doc, startOffset, endOffset - startOffset);
     }
 
-    // Utility method to compose parse exception messages that include offsets/chars
-    String composeParseExceptionMessage(String message, int offset) {
-        return message + " Offset: %d (%s)"
-                .formatted(offset, substring(offset, Math.min(offset + 8, endOffset)));
+    // Utility method to compose parse exception message
+    String composeParseExceptionMessage(String message, int row, int prevOff, int offset) {
+        return message + ": (%s) at Row %d, Col %d."
+                .formatted(substring(offset, Math.min(offset + 8, endOffset)), row, offset - prevOff);
     }
 }

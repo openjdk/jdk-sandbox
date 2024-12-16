@@ -58,9 +58,16 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     @Override
     public Number value() {
         if (theNumber == null) {
-            theNumber = parseNumber(endOffset);
+            theNumber = toNum(string());
         }
         return theNumber;
+    }
+
+    private String string() {
+        if (numString == null) { // Trim back only
+            numString = docInfo.substring(startOffset, endOffset).stripTrailing();
+        }
+        return numString;
     }
 
     @Override
@@ -85,93 +92,17 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
         return Objects.hash(toString());
     }
 
-    Number parseNumber(int endOffset) {
-        boolean sawDecimal = false;
-        boolean sawExponent = false;
-        boolean sawZero = false;
-        boolean sawWhitespace = false;
-        boolean havePart = false;
-        int start = JsonParser.skipWhitespaces(docInfo, startOffset);
-        int offset = start;
-
-        for (; offset < endOffset && !sawWhitespace; offset++) {
-            switch (docInfo.charAt(offset)) {
-                case '-' -> {
-                    if (offset != start && !sawExponent) {
-                        throw new JsonParseException(docInfo,
-                                "Minus sign in the middle.", offset);
-                    }
-                }
-                case '+' -> {
-                    if (!sawExponent || havePart) {
-                        throw new JsonParseException(docInfo,
-                                "Plus sign appears in a wrong place.", offset);
-                    }
-                }
-                case '0' -> {
-                    if (!havePart) {
-                        sawZero = true;
-                    }
-                    havePart = true;
-                }
-                case '1', '2', '3', '4', '5', '6', '7', '8', '9' -> {
-                    if (!sawDecimal && !sawExponent && sawZero) {
-                        throw new JsonParseException(docInfo,
-                                "Zero not allowed here.", offset);
-                    }
-                    havePart = true;
-                }
-                case '.' -> {
-                    if (sawDecimal) {
-                        throw new JsonParseException(docInfo,
-                                "More than one decimal point.", offset);
-                    } else {
-                        if (!havePart) {
-                            throw new JsonParseException(docInfo,
-                                    "No integer part.", offset);
-                        }
-                        sawDecimal = true;
-                        havePart = false;
-                    }
-                }
-                case 'e', 'E' -> {
-                    if (sawExponent) {
-                        throw new JsonParseException(docInfo,
-                                "More than one exponent symbol.", offset);
-                    } else {
-                        if (!havePart) {
-                            throw new JsonParseException(docInfo,
-                                    "No integer or fraction part.", offset);
-                        }
-                        sawExponent = true;
-                        havePart = false;
-                    }
-                }
-                case ' ', '\t', '\r', '\n' -> {
-                    sawWhitespace = true;
-                    offset --;
-                }
-                default -> throw new JsonParseException(docInfo,
-                        "Number not recognized.", offset);
+    Number toNum(String numStr) {
+        // Determine if fp
+        boolean fp = false;
+        for (char c : numStr.toCharArray()) {
+            if (c == 'e' || c == 'E' || c =='.') {
+                fp = true;
+                break;
             }
         }
 
-        if (!JsonParser.checkWhitespaces(docInfo, offset, endOffset)) {
-            throw new JsonParseException(docInfo,
-                    "Garbage after the number.", offset);
-        }
-
-
-        if (!havePart) {
-            throw new JsonParseException(docInfo,
-                    "Dangling decimal point or exponent symbol.", offset);
-        }
-
-        numString = docInfo.substring(start, offset);
-        return numToString(numString, sawDecimal || sawExponent, offset);
-    }
-
-    Number numToString(String numStr, boolean fp, int offset) {
+        // Make conversion
         if (!fp) {
             // integral numbers
             try {
@@ -185,13 +116,7 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
                 }
             }
         }
-
-        var num = Double.parseDouble(numStr);
-        if (Double.isInfinite(num)) { // don't need to check NaN, parsing forbids non int start
-            throw new JsonParseException(docInfo,
-                    "Number cannot be infinite.", offset);
-        }
-        return num;
+        return Double.parseDouble(numStr);
     }
 
     Number toUntyped() {
@@ -200,8 +125,7 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
     @Override
     public String toString() {
-        value(); // ensure "numString" is set
-        return numString;
+        return string();
     }
 
     @Override

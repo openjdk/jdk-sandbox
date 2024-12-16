@@ -59,12 +59,7 @@ final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
     @Override
     public boolean value() {
         if (theBoolean == null) {
-            var strVal = docInfo.substring(startOffset, endOffset).trim();
-            theBoolean = switch (strVal) {
-                case "true", "false" -> Boolean.parseBoolean(strVal);
-                default -> throw new JsonParseException(docInfo,
-                    "Not a boolean.", startOffset);
-            };
+            theBoolean = docInfo.charAt(startOffset) == 't';
         }
         return theBoolean;
     }
