@@ -26,15 +26,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.Provider;
 import java.security.Security;
-import jdk.internal.util.json.Json;
-import jdk.internal.util.json.JsonObject;
-import jdk.internal.util.json.JsonString;
+import java.util.json.Json;
+import java.util.json.JsonObject;
+import java.util.json.JsonString;
 
 /*
  * @test
  * @bug 8342442 8345057
  * @library /test/lib
- * @modules java.base/jdk.internal.util.json
+ * @enablePreview
  * @build ML_DSA_Test SHA_Test ML_KEM_Test
  * @run main Launcher
  */

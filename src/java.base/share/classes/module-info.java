@@ -118,6 +118,7 @@ module java.base {
     exports java.util.concurrent.locks;
     exports java.util.function;
     exports java.util.jar;
+    exports java.util.json;
     exports java.util.random;
     exports java.util.regex;
     exports java.util.spi;

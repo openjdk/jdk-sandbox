@@ -32,14 +32,15 @@ include CopyFiles.gmk
 
 ################################################################################
 
-### Pandoc AST filters require Json library from java.base/jdk.internal.util.json
+### Pandoc AST filters require Json library from java.base/java.util.json
 
-JSON_DIR := $(TOPDIR)/src/java.base/share/classes/jdk/internal/util/json
+JSON_DIR := $(TOPDIR)/src/java.base/share/classes/java/util/json
 
 define json_copyfiles
 	$(call MakeTargetDir)
 	$(RM) '$@'
-	$(SED) -e "s/package jdk.internal.util.json/package build.tools.json/" \
+	$(SED) -e "s/package java.util.json/package build.tools.json/" \
+	       -e "s/.*PreviewFeature.*//" \
         < $(<) > $@
 endef
 

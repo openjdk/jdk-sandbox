@@ -28,9 +28,9 @@ import javax.crypto.SecretKey;
 import java.security.*;
 import java.security.spec.EncodedKeySpec;
 import java.security.spec.NamedParameterSpec;
-import jdk.internal.util.json.JsonArray;
-import jdk.internal.util.json.JsonObject;
-import jdk.internal.util.json.JsonString;
+import java.util.json.JsonArray;
+import java.util.json.JsonObject;
+import java.util.json.JsonString;
 
 import static jdk.test.lib.Utils.toByteArray;
 

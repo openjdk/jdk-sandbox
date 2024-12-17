@@ -29,11 +29,11 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
-import jdk.internal.util.json.Json;
-import jdk.internal.util.json.JsonArray;
-import jdk.internal.util.json.JsonObject;
-import jdk.internal.util.json.JsonString;
-import jdk.internal.util.json.JsonValue;
+import java.util.json.Json;
+import java.util.json.JsonArray;
+import java.util.json.JsonObject;
+import java.util.json.JsonString;
+import java.util.json.JsonValue;
 import jdk.jfr.Timespan;
 import jdk.jfr.Timestamp;
 import jdk.jfr.ValueDescriptor;
@@ -51,8 +51,7 @@ import jdk.test.lib.process.OutputAnalyzer;
  *
  * @library /test/lib /test/jdk
  * @modules jdk.jfr
- *         java.base/jdk.internal.util.json
- *
+ * @enablePreview
  * @run main/othervm jdk.jfr.tool.TestPrintJSON
  */
 public class TestPrintJSON {

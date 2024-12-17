@@ -33,12 +33,12 @@ import java.util.OptionalLong;
 import java.util.Set;
 import java.util.stream.Stream;
 
-import jdk.internal.util.json.Json;
-import jdk.internal.util.json.JsonArray;
-import jdk.internal.util.json.JsonNull;
-import jdk.internal.util.json.JsonObject;
-import jdk.internal.util.json.JsonString;
-import jdk.internal.util.json.JsonValue;
+import java.util.json.Json;
+import java.util.json.JsonArray;
+import java.util.json.JsonNull;
+import java.util.json.JsonObject;
+import java.util.json.JsonString;
+import java.util.json.JsonValue;
 
 /**
  * Represents a thread dump that is obtained by parsing JSON text. A thread dump in JSON

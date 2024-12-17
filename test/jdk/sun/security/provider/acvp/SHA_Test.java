@@ -24,10 +24,10 @@ import jdk.test.lib.Asserts;
 
 import java.security.*;
 import java.util.Arrays;
-import jdk.internal.util.json.JsonArray;
-import jdk.internal.util.json.JsonNumber;
-import jdk.internal.util.json.JsonObject;
-import jdk.internal.util.json.JsonString;
+import java.util.json.JsonArray;
+import java.util.json.JsonNumber;
+import java.util.json.JsonObject;
+import java.util.json.JsonString;
 
 import static jdk.test.lib.Utils.toByteArray;
 

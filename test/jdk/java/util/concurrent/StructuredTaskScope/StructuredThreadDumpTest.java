@@ -26,7 +26,6 @@
  * @bug 8284199 8296779 8306647
  * @summary Test thread dumps with StructuredTaskScope
  * @enablePreview
- * @modules java.base/jdk.internal.util.json
  * @library /test/lib
  * @run junit/othervm StructuredThreadDumpTest
  */
