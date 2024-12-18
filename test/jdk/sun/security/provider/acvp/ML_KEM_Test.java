@@ -29,6 +29,7 @@ import java.security.*;
 import java.security.spec.EncodedKeySpec;
 import java.security.spec.NamedParameterSpec;
 import java.util.json.JsonArray;
+import java.util.json.JsonNumber;
 import java.util.json.JsonObject;
 import java.util.json.JsonString;
 
@@ -66,7 +67,7 @@ public class ML_KEM_Test {
                         if (jo.keys().get("tests") instanceof JsonArray ja2) {
                             ja2.values().forEach(c -> {
                                 if (c instanceof JsonObject jo2) {
-                                    System.out.print(((JsonString)jo2.keys().get("tcId")).value() + " ");
+                                    System.out.print(((JsonNumber)jo2.keys().get("tcId")).value() + " ");
                                     byte[] pk, sk;
                                     try {
                                         g.initialize(np, new FixedSecureRandom(
@@ -103,7 +104,7 @@ public class ML_KEM_Test {
                             if (jo.keys().get("tests") instanceof JsonArray ja2) {
                                 ja2.values().forEach(c -> {
                                     if (c instanceof JsonObject jo2) {
-                                        System.out.print(((JsonString)jo2.keys().get("tcId")).value() + " ");
+                                        System.out.print(((JsonNumber)jo2.keys().get("tcId")).value() + " ");
                                         var ek = new PublicKey() {
                                             public String getAlgorithm() { return pname.value(); }
                                             public String getFormat() { return "RAW"; }
@@ -129,11 +130,11 @@ public class ML_KEM_Test {
                             if (jo.keys().get("tests") instanceof JsonArray ja2) {
                                 ja2.values().forEach(c -> {
                                     if (c instanceof JsonObject jo2) {
-                                        System.out.print(((JsonString)jo2.keys().get("tcId")).value() + " ");
+                                        System.out.print(((JsonNumber)jo2.keys().get("tcId")).value() + " ");
                                         var dk = new PrivateKey() {
                                             public String getAlgorithm() { return pname.value(); }
                                             public String getFormat() { return "RAW"; }
-                                            public byte[] getEncoded() { return toByteArray(((JsonString)jo2.keys().get("dk")).value()); }
+                                            public byte[] getEncoded() { return toByteArray(((JsonString)jo.keys().get("dk")).value()); }
                                         };
                                         SecretKey k;
                                         try {

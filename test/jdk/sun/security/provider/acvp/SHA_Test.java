@@ -51,7 +51,7 @@ public class SHA_Test {
                                 if (jo.keys().get("tests") instanceof JsonArray ja2) {
                                     ja2.values().forEach(c -> {
                                         if (c instanceof JsonObject jo2) {
-                                            System.out.print(((JsonString)jo2.keys().get("tcId")).value() + " ");
+                                            System.out.print(((JsonNumber)jo2.keys().get("tcId")).value() + " ");
                                             var msg = toByteArray(((JsonString)jo2.keys().get("msg")).value());
                                             var len = Integer.parseInt(((JsonString)jo2.keys().get("len")).value());
                                             if (msg.length * 8 == len) {
@@ -70,7 +70,7 @@ public class SHA_Test {
                                 if (jo.keys().get("tests") instanceof JsonArray ja2) {
                                     ja2.values().forEach(c -> {
                                         if (c instanceof JsonObject jo2) {
-                                            System.out.print(((JsonString)jo2.keys().get("tcId")).value() + " ");
+                                            System.out.print(((JsonNumber)jo2.keys().get("tcId")).value() + " ");
                                             final byte[][] SEED = {toByteArray(((JsonString) jo2.keys().get("msg")).value())};
                                             var INITIAL_SEED_LENGTH = Integer.parseInt(((JsonString)jo2.keys().get("len")).value());
                                             if (SEED[0].length * 8 == INITIAL_SEED_LENGTH) {
@@ -121,7 +121,7 @@ public class SHA_Test {
                                 if (jo.keys().get("tests") instanceof JsonArray ja2) {
                                     ja2.values().forEach(c -> {
                                         if (c instanceof JsonObject jo2) {
-                                            System.out.print(((JsonString)jo2.keys().get("tcId")).value() + " ");
+                                            System.out.print(((JsonNumber)jo2.keys().get("tcId")).value() + " ");
 
                                             if (jo2.keys().get("largeMsg") instanceof JsonObject lm) {
                                                 var ct = toByteArray(((JsonString)lm.keys().get("content")).value());

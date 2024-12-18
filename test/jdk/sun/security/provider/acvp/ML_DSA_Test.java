@@ -29,6 +29,7 @@ import java.security.spec.EncodedKeySpec;
 import java.security.spec.NamedParameterSpec;
 import java.util.json.JsonArray;
 import java.util.json.JsonBoolean;
+import java.util.json.JsonNumber;
 import java.util.json.JsonObject;
 import java.util.json.JsonString;
 
@@ -67,7 +68,7 @@ public class ML_DSA_Test {
                         if (jo.keys().get("tests") instanceof JsonArray ja2) {
                             ja2.values().forEach(c -> {
                                 if (c instanceof JsonObject jo2) {
-                                    System.out.print(((JsonString)jo2.keys().get("tcId")).value() + " ");
+                                    System.out.print(((JsonNumber)jo2.keys().get("tcId")).value() + " ");
                                     byte[] pk, sk;
                                     try {
                                         g.initialize(np, new FixedSecureRandom(toByteArray(((JsonString)jo2.keys().get("seed")).value())));
@@ -102,7 +103,7 @@ public class ML_DSA_Test {
                         if (jo.keys().get("tests") instanceof JsonArray ja2) {
                             ja2.values().forEach(c -> {
                                 if (c instanceof JsonObject jo2) {
-                                    System.out.print(((JsonString)jo2.keys().get("tcId")).value() + " ");
+                                    System.out.print(((JsonNumber)jo2.keys().get("tcId")).value() + " ");
                                     var sk = new PrivateKey() {
                                         public String getAlgorithm() { return pname.value(); }
                                         public String getFormat() { return "RAW"; }
@@ -147,7 +148,7 @@ public class ML_DSA_Test {
                         if (jo.keys().get("tests") instanceof JsonArray ja2) {
                             ja2.values().forEach(c -> {
                                 if (c instanceof JsonObject jo2) {
-                                    System.out.print(((JsonString) jo2.keys().get("tcId")).value() + " ");
+                                    System.out.print(((JsonNumber) jo2.keys().get("tcId")).value() + " ");
                                     // Only ML-DSA sigVer has negative tests
                                     var expected = ((JsonBoolean)jo2.keys().get("testPassed")).value();
                                     var actual = true;
