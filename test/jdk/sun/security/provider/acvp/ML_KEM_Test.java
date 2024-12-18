@@ -123,9 +123,9 @@ public class ML_KEM_Test {
                                         Asserts.assertEqualsByteArray(
                                                 enc.key().getEncoded(), toByteArray(((JsonString)jo2.keys().get("k")).value()));
                                     }
-                                    System.out.println();
                                 });
                             }
+                            System.out.println();
                         } else if (function.value().equals("decapsulation")) {
                             if (jo.keys().get("tests") instanceof JsonArray ja2) {
                                 ja2.values().forEach(c -> {
