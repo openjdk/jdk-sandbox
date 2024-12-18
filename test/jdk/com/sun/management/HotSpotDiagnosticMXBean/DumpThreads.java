@@ -28,6 +28,7 @@
  * @requires vm.continuations
  * @library /test/lib
  * @modules jdk.management
+ * @enablePreview
  * @run junit/othervm DumpThreads
  * @run junit/othervm -Djdk.trackAllThreads DumpThreads
  * @run junit/othervm -Djdk.trackAllThreads=true DumpThreads
