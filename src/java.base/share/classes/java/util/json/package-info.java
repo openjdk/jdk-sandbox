@@ -26,5 +26,64 @@
 ///Contains APIs for parsing JSON documents, creating JSON structures, or
 ///offering mappings between JSON structure and corresponding Java structure.
 ///
-///@since 25
+///The JSON API exploits the idea of Algebraic Data Type. Each JSON value is represented as a sealed `JsonValue`
+///sum type, which is pattern-matched into one of product types; `JsonObject`, `JsonArray`, `JsonString`, `JsonNumber`,
+///`JsonBoolean`, or `JsonNull`.
+///```
+///public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, JsonArray, JsonBoolean, JsonNull
+///```
+///Each JSON value type is also defined as a sealed interface that allows a flexible implementation of the
+///type. For example, `JsonArray` type is defined as follows:
+///```
+///public sealed interface JsonArray extends JsonValue permits (JsonArray implementation classes)
+///```
+///Then the leaf JSON value can be extracted in a single expression as follows:
+///```
+///JsonValue doc = Json.parse(inputString);
+///if (doc instanceof JsonObject o && o.keys() instanceof Map<String, JsonValue> keys
+///    && keys.get("name") instanceof JsonString jstring && jstring.value() instanceof String name
+///    && keys.get("age") instanceof JsonNumber number && jnumber.value() instanceof int age) {
+///        // use "name" and "age"
+///}
+///```
+///The above expression can be further simplified with the deconstructor pattern match.
+///
+///Once a `JsonValue` is obtained, it can convert into a simple Java object (and vice versa) with these methods:
+///```
+///Object map = Json.toUntyped(someJsonObject); // produces Map<String, Object>
+///Json.fromUntyped(map); // produces the JsonObject
+///```
+///Each Json value type has corresponding Java object type. Here is the mapping:
+///```
+///JsonArray : List<Object>
+///JsonObject: Map<String, Object>
+///JsonString: String
+///JsonNumber: Number
+///JsonBoolean: Boolean
+///JsonNull: `null`
+///```
+///Since the `JsonValue` may or may not retain the information of which the `JsonValue` is created, `fromUntyped()
+///`/`toUntyped()` do not necessarily offer round-trip
+///
+///#### Parsing
+///
+///Parsing of a JSON document is done lazily. Initial parsing path only records the positions of those JSON value
+///delimiting characters, such as `{}[]",:`. Then the parser constructs the top level JSON values only with the start
+///and end positions, and the value itself is evaluated when the value is indeed to be realized. This way, the invocation
+///of `Json.parse()` is lightweight and the parsing for the objective leaf can be minimized.
+///A simple comparison with Jackson shows that retrieving a leaf node text (using CLDR's time zone names JSON document)
+///is 70% faster with this implementation.
+///
+///#### Formatting
+///
+///Formatting of a JSON value is done with either `JsonValue.toString()` or `Json.toDisplayString(JsonValue)` methods.
+///These methods produce formatted String representation of a JSON value. `toString()` produces the most compact
+///representation which does not include extra whitespaces, line-breaks, suitable for network transaction, while
+///`toDisplayString(JsonValue)` produces the text representation that is human friendly.
+///
+/// @since 25
+
+@PreviewFeature(feature = PreviewFeature.Feature.JSON)
 package java.util.json;
+
+import jdk.internal.javac.PreviewFeature;
