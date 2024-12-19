@@ -31,19 +31,20 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * This class provides static methods that produce a {@link JsonValue}.
+ * This class provides static methods that produce/manipulate a {@link JsonValue}.
  * <p>
  * Use {@link #parse(String)} and its overload to parse data which adheres to the
  * JSON syntax defined in RFC 8259.
  * <p>
  * {@link #fromUntyped(Object)} and {@link #toUntyped(JsonValue)} provide a conversion
- * between {@code JsonValue} and an untyped Java value.
+ * between {@code JsonValue} and an untyped object.
  * <p>
- * {@link #toDisplayString(JsonValue)} is a formatter that produces a human-readable
- * representation of the JSON value.
+ * {@link #toDisplayString(JsonValue)} is a formatter that produces a
+ * representation of the JSON value suitable for display.
  *
  * @spec https://datatracker.ietf.org/doc/html/rfc8259 RFC 8259: The JavaScript
  *          Object Notation (JSON) Data Interchange Format
+ * @since 25
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)
 public final class Json {
@@ -80,6 +81,15 @@ public final class Json {
 
     /**
      * {@return a {@code JsonValue} that represents the data type of {@code src}}
+     * The {@code src} may be one of these types:
+     * <ul>
+     * <li>{@code List<Object>} for {@code JsonArray}</li>
+     * <li>{@code Boolean} for {@code JsonBoolean}</li>
+     * <li>{@code `null`} for {@code JsonNull}</li>
+     * <li>{@code Number} for {@code JsonNumber}</li>
+     * <li>{@code Map<String, Object>} for {@code JsonObject}</li>
+     * <li>{@code String} for {@code JsonString}</li>
+     * </ul>
      *
      * @param src the data to produce the {@code JsonValue} from. May be null.
      * @throws IllegalArgumentException if {@code src} cannot be converted
@@ -106,6 +116,15 @@ public final class Json {
     /**
      * {@return an {@code Object} that represents the data of the passed {@code
      * JsonValue}}
+     * The returned {@code Object} is one of these types, depending on the {@code src}:
+     * <ul>
+     * <li>{@code List<Object>} for {@code JsonArray}</li>
+     * <li>{@code Boolean} for {@code JsonBoolean}</li>
+     * <li>{@code `null`} for {@code JsonNull}</li>
+     * <li>{@code Number} for {@code JsonNumber}</li>
+     * <li>{@code Map<String, Object>} for {@code JsonObject}</li>
+     * <li>{@code String} for {@code JsonString}</li>
+     * </ul>
      *
      * @param src the {@code JsonValue} to convert to untyped. Non-null.
      */

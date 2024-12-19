@@ -30,11 +30,13 @@ import jdk.internal.javac.PreviewFeature;
 import java.util.Objects;
 
 /**
- * The interface that represents JSON string
+ * The interface that represents JSON string.
  * <p>
  * A {@code JsonString} can be produced by a {@link Json#parse(String)}.
  * <p> Alternatively, {@link #of(String)} can be used to obtain a {@code JsonString}
  * from a {@code String}.
+ *
+ * @since 25
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)
 public sealed interface JsonString extends JsonValue permits JsonStringImpl {

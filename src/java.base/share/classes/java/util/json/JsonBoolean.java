@@ -33,6 +33,8 @@ import jdk.internal.javac.PreviewFeature;
  * A {@code JsonBoolean} can be produced by {@link Json#parse(String)}.
  * <p> Alternatively, {@link #of(boolean)} can be used to
  * obtain a {@code JsonBoolean}.
+ *
+ * @since 25
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)
 public sealed interface JsonBoolean extends JsonValue permits JsonBooleanImpl {

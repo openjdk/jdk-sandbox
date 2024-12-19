@@ -35,6 +35,8 @@ import java.util.Objects;
  * <p>
  * A {@code JsonObject} can be produced by a {@link Json#parse(String)}.
  * <p> Alternatively, {@link #of(Map)} can be used to obtain a {@code JsonObject}.
+ *
+ * @since 25
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)
 public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {

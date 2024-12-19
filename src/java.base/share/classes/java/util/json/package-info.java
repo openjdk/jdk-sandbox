@@ -81,6 +81,8 @@
 ///representation which does not include extra whitespaces, line-breaks, suitable for network transaction, while
 ///`toDisplayString(JsonValue)` produces the text representation that is human friendly.
 ///
+/// @spec https://datatracker.ietf.org/doc/html/rfc8259 RFC 8259: The JavaScript
+///     Object Notation (JSON) Data Interchange Format
 /// @since 25
 
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)

@@ -36,6 +36,8 @@ import java.util.Objects;
  * A {@code JsonArray} can be produced by {@link Json#parse(String)}.
  * <p> Alternatively, {@link #of(List)} and its overload can be used to
  * obtain a {@code JsonArray}.
+ *
+ * @since 25
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)
 public sealed interface JsonArray extends JsonValue permits JsonArrayImpl {

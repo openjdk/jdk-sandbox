@@ -35,6 +35,8 @@ import jdk.internal.javac.PreviewFeature;
  * a {@code JsonNumber} from a {@code Number}.
  *
  * @implNote This implementation supports IEEE 754 binary64 (double precision) numbers.
+ *
+ * @since 25
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)
 public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {

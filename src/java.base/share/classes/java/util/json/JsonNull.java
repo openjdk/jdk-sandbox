@@ -32,6 +32,8 @@ import jdk.internal.javac.PreviewFeature;
  * <p>
  * A {@code JsonNull} can be produced by {@link Json#parse(String)}.
  * <p> Alternatively, {@link #of()} can be used to obtain a {@code JsonNull}.
+ *
+ * @since 25
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)
 public sealed interface JsonNull extends JsonValue permits JsonNullImpl {

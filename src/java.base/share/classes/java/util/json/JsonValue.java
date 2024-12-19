@@ -47,6 +47,8 @@ import jdk.internal.javac.PreviewFeature;
  *     var json = Json.fromUntyped(values);
  *     json.toString(); // returns "[\"foo\",true,25]"
  * }
+ *
+ * @since 25
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)
 public sealed interface JsonValue
