@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,8 @@
 /**
  * Contains the collections framework, some internationalization support classes,
  * a service loader, properties, random number generation, string parsing
- * and scanning classes, base64 encoding and decoding, a bit array, and
- * several miscellaneous utility classes. This package also contains
+ * and scanning classes, base64 encoding and decoding, a bit array, JSON support,
+ * and several miscellaneous utility classes. This package also contains
  * legacy collection classes and legacy date and time classes.
  *
  * <h2><a id="CollectionsFramework"></a>{@index "Java Collections Framework"}</h2>
