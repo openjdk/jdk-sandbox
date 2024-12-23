@@ -23,7 +23,7 @@
  * questions.
  */
 
-///Contains APIs for parsing JSON Strings, creating `JsonValue`s, and
+///Contains APIs for parsing JSON Documents, creating `JsonValue`s, and
 ///offering a mapping between a `JsonValue` and its corresponding Java Object.
 ///
 ///#### Design
@@ -53,8 +53,8 @@
 ///
 ///#### Parsing
 ///
-///Parsing of a JSON String is performed lazily. Parsing simultaneously
-///validates that the JSON String is syntactically correct, while storing the
+///Parsing of a JSON Document is performed lazily. Parsing validates that the
+///JSON Document is syntactically correct, while simultaneously storing the
 ///positions of key JSON tokens (such as `{}[]",:`). The parse is finalized
 ///by constructing the root JSON value with its start and end positions. The
 ///underlying value(s) are evaluated and allocated on-demand. Such an approach
