@@ -98,11 +98,6 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
     }
 
     @Override
-    public int getEndOffset() {
-        return endOffset;
-    }
-
-    @Override
     public boolean equals(Object o) {
         return this == o ||
             o instanceof JsonArrayImpl ojai &&

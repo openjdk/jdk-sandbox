@@ -63,11 +63,6 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
     }
 
     @Override
-    public int getEndOffset() {
-        return endOffset;
-    }
-
-    @Override
     public int getEndIndex() {
         return endIndex + 1; // We are interested in the index after '"'
     }

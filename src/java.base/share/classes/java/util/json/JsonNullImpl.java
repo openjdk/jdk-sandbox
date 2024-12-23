@@ -53,11 +53,6 @@ final class JsonNullImpl implements JsonNull, JsonValueImpl {
     }
 
     @Override
-    public int getEndOffset() {
-        return endOffset;
-    }
-
-    @Override
     public int getEndIndex() {
         return endIndex;
     }

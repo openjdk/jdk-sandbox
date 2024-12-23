@@ -71,11 +71,6 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     }
 
     @Override
-    public int getEndOffset() {
-        return endOffset;
-    }
-
-    @Override
     public int getEndIndex() {
         return endIndex;
     }

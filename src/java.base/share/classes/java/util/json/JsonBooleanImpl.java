@@ -70,11 +70,6 @@ final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
     }
 
     @Override
-    public int getEndOffset() {
-        return endOffset;
-    }
-
-    @Override
     public boolean equals(Object o) {
         return this == o ||
             o instanceof JsonBooleanImpl ojbi &&

@@ -107,11 +107,6 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
     }
 
     @Override
-    public int getEndOffset() {
-        return endOffset;
-    }
-
-    @Override
     public boolean equals(Object o) {
         return this == o ||
             o instanceof JsonObjectImpl ojoi &&

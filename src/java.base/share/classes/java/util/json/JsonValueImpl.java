@@ -30,7 +30,6 @@ package java.util.json;
  */
 sealed interface JsonValueImpl permits JsonArrayImpl, JsonBooleanImpl, JsonNullImpl, JsonNumberImpl, JsonObjectImpl, JsonStringImpl {
     int INDENT = 2;
-    int getEndOffset();
     int getEndIndex();
     String toDisplayString();
     String toDisplayString(int index, boolean isField);
