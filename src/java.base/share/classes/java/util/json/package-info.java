@@ -23,21 +23,23 @@
  * questions.
  */
 
-///Contains APIs for parsing JSON documents, creating JSON structures, or
-///offering mappings between JSON structure and corresponding Java structure.
+///Contains APIs for parsing JSON Strings, creating `JsonValue`s, and
+///offering a mapping between a `JsonValue` and its corresponding Java Object.
 ///
-///The JSON API exploits the idea of Algebraic Data Type. Each JSON value is represented as a sealed `JsonValue`
-///sum type, which is pattern-matched into one of product types; `JsonObject`, `JsonArray`, `JsonString`, `JsonNumber`,
-///`JsonBoolean`, or `JsonNull`.
-///```
-///public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, JsonArray, JsonBoolean, JsonNull
-///```
-///Each JSON value type is also defined as a sealed interface that allows a flexible implementation of the
+///#### Design
+///
+///This API is designed around the concept of Algebraic Data Types (ADTs). Each
+///JSON value is represented as a sealed `JsonValue` sum type, which can be
+///pattern-matched into one of the following product types: `JsonObject`, `JsonArray`, `JsonString`, `JsonNumber`,
+///`JsonBoolean`,`JsonNull`.
+///
+///Each JSON value subtype is also defined as a sealed interface that allows for flexible implementation(s) of the
 ///type. For example, `JsonArray` type is defined as follows:
 ///```
 ///public sealed interface JsonArray extends JsonValue permits (JsonArray implementation classes)
 ///```
-///Then the leaf JSON value can be extracted in a single expression as follows:
+///
+///This design allows for the extraction of a JSON Value in a single and class safe expression as follows:
 ///```
 ///JsonValue doc = Json.parse(inputString);
 ///if (doc instanceof JsonObject o && o.keys() instanceof Map<String, JsonValue> keys
@@ -48,12 +50,26 @@
 ///```
 ///The above expression can be further simplified with the deconstructor pattern match.
 ///
-///Once a `JsonValue` is obtained, it can convert into a simple Java object (and vice versa) with these methods:
+///
+///#### Parsing
+///
+///Parsing of a JSON String is performed lazily. Parsing simultaneously
+///validates that the JSON String is syntactically correct, while storing the
+///positions of key JSON tokens (such as `{}[]",:`). The parse is finalized
+///by constructing the root JSON value with its start and end positions. The
+///underlying value(s) are evaluated and allocated on-demand. Such an approach
+///allows for a lightweight parse that scales the memory usage efficiently.
+///A simple comparison against Jackson shows that retrieving the text of an arbitrary
+///leaf node (using CLDR's time zone names JSON document) is 30% faster with this implementation.
+///
+///#### Mapping
+///
+///Once a `JsonValue` is obtained, it can be converted into a simple Java object (and vice versa) as seen below:
 ///```
 ///Object map = Json.toUntyped(someJsonObject); // produces Map<String, Object>
 ///Json.fromUntyped(map); // produces the JsonObject
 ///```
-///Each Json value type has corresponding Java object type. Here is the mapping:
+///Each Json value type has a corresponding Java object type. This mapping is defined below:
 ///```
 ///JsonArray : List<Object>
 ///JsonObject: Map<String, Object>
@@ -62,24 +78,17 @@
 ///JsonBoolean: Boolean
 ///JsonNull: `null`
 ///```
-///Since the `JsonValue` may or may not retain the information of which the `JsonValue` is created, `fromUntyped()
-///`/`toUntyped()` do not necessarily offer round-trip
-///
-///#### Parsing
-///
-///Parsing of a JSON document is done lazily. Initial parsing path only records the positions of those JSON value
-///delimiting characters, such as `{}[]",:`. Then the parser constructs the top level JSON values only with the start
-///and end positions, and the value itself is evaluated when the value is indeed to be realized. This way, the invocation
-///of `Json.parse()` is lightweight and the parsing for the objective leaf can be minimized.
-///A simple comparison with Jackson shows that retrieving a leaf node text (using CLDR's time zone names JSON document)
-///is 70% faster with this implementation.
+///Since a `JsonValue` may or may not retain the original information from which
+///it was created with, `fromUntyped()`/`toUntyped()` may not offer a round-trip
+///which produces equivalent Objects.
 ///
 ///#### Formatting
 ///
-///Formatting of a JSON value is done with either `JsonValue.toString()` or `Json.toDisplayString(JsonValue)` methods.
-///These methods produce formatted String representation of a JSON value. `toString()` produces the most compact
-///representation which does not include extra whitespaces, line-breaks, suitable for network transaction, while
-///`toDisplayString(JsonValue)` produces the text representation that is human friendly.
+///Formatting of a `JsonValue` is performed with either `JsonValue.toString()` or `Json.toDisplayString(JsonValue)`.
+///These methods produce formatted String representations of a `JsonValue`. `toString()` produces the most compact
+///representation which does not include extra whitespaces or line-breaks, suitable for network transaction.
+///`toDisplayString(JsonValue)` produces a text representation that is human friendly,
+///suitable for debugging or logging needs.
 ///
 /// @spec https://datatracker.ietf.org/doc/html/rfc8259 RFC 8259: The JavaScript
 ///     Object Notation (JSON) Data Interchange Format
