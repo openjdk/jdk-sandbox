@@ -37,7 +37,6 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
 
     private final JsonDocumentInfo docInfo;
     private final int startOffset;
-    private final int endOffset;
     private final int startIndex;
     private final int endIndex;
     private Map<String, JsonValue> theKeys;
@@ -55,7 +54,6 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
         theKeys = Collections.unmodifiableMap(m);
         docInfo = null;
         startOffset = 0;
-        endOffset = 0;
         startIndex = 0;
         endIndex = 0;
     }
@@ -66,7 +64,6 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
         startIndex = index;
         endIndex = startIndex == 0 ? docInfo.getIndexCount() - 1 // For root
                 : docInfo.getStructureLength(index, startOffset, '{', '}');
-        endOffset = docInfo.getOffset(endIndex) + 1;
     }
 
     @Override

@@ -33,7 +33,6 @@ import java.util.Objects;
 final class JsonNullImpl implements JsonNull, JsonValueImpl {
 
     private final JsonDocumentInfo docInfo;
-    private final int endOffset;
     private final int endIndex;
 
     static final JsonNullImpl NULL = new JsonNullImpl();
@@ -41,7 +40,6 @@ final class JsonNullImpl implements JsonNull, JsonValueImpl {
     static final int HASH = Objects.hash(VALUE);
 
     JsonNullImpl() {
-        endOffset = 0;
         endIndex = 0;
         docInfo = null;
     }
@@ -49,7 +47,6 @@ final class JsonNullImpl implements JsonNull, JsonValueImpl {
     JsonNullImpl(JsonDocumentInfo doc, int offset, int index) {
         docInfo = doc;
         endIndex = docInfo.nextIndex(index);
-        endOffset = endIndex != -1 ? docInfo.getOffset(endIndex) : docInfo.getEndOffset();
     }
 
     @Override
