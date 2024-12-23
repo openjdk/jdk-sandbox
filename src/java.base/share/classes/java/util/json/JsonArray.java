@@ -34,8 +34,7 @@ import java.util.Objects;
  * The interface that represents JSON array.
  * <p>
  * A {@code JsonArray} can be produced by {@link Json#parse(String)}.
- * <p> Alternatively, {@link #of(List)} and its overload can be used to
- * obtain a {@code JsonArray}.
+ * <p> Alternatively, {@link #of(List)} can be used to obtain a {@code JsonArray}.
  *
  * @since 25
  */
