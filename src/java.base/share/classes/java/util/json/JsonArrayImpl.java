@@ -39,7 +39,6 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
     private final int endIndex;
     private final int startIndex;
     private final int startOffset;
-    private final int endOffset; // exclusive
     private List<JsonValue> theValues;
 
     JsonArrayImpl(List<?> from) {
@@ -51,7 +50,6 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
         this.endIndex = 0;
         this.startIndex = 0;
         this.startOffset = 0;
-        this.endOffset = 0;
         docInfo = null;
     }
 
@@ -61,7 +59,6 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
         startIndex = index;
         endIndex = startIndex == 0 ? docInfo.getIndexCount() - 1 // For root
                 : docInfo.getStructureLength(index, startOffset, '[', ']');
-        endOffset = docInfo.getOffset(endIndex) + 1;
     }
 
     @Override
@@ -74,7 +71,7 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
 
     // Inflate the JsonArray using the tokens array.
     private List<JsonValue> inflate() {
-        if (JsonParser.checkWhitespaces(docInfo, startOffset + 1, endOffset - 1)) {
+        if (docInfo.charAt(JsonParser.skipWhitespaces(docInfo, startOffset + 1)) == ']') {
             return Collections.emptyList();
         }
         var v = new ArrayList<JsonValue>();
