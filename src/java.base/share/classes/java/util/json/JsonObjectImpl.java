@@ -63,7 +63,7 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
         startOffset = offset;
         startIndex = index;
         endIndex = startIndex == 0 ? docInfo.getIndexCount() - 1 // For root
-                : docInfo.getStructureLength(index, startOffset, '{', '}');
+                : docInfo.nextIndex(index, '{', '}');
     }
 
     @Override

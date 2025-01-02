@@ -56,9 +56,8 @@ final class JsonDocumentInfo  {
         return tokens[index];
     }
 
-    // Used by Json String, Boolean, Null, and Number to get the endIndex
-    // Returns -1, if the next index is not within bounds of indexCount
-    // Which should only happen when it is the root
+    // Json Boolean, Null, and Number have an end index that is 1 greater
+    // If the root is a primitive JSON value, -1 is returned as there are no indices
     int nextIndex(int index) {
         if (index + 1 < this.index) {
             return index + 1;
@@ -67,21 +66,8 @@ final class JsonDocumentInfo  {
         }
     }
 
-    // for convenience
-    char charAtIndex(int index) {
-        return doc[getOffset(index)];
-    }
-
-    int getIndexCount() {
-        return index;
-    }
-
-    // Used by JsonObject and JsonArray to get the endIndex. In other words, a
-    // Json Value where the next index is not +1.
-    // This method is not that costly, since we walk the indices, not the offsets.
-    // Tracking the end index during the offset array creation requires a stack
-    // which is generally costlier than calculating here.
-    int getStructureLength(int startIdx, int startOff, char startToken, char endToken) {
+    // Json Array and Object have an end index that corresponds to the closing bracket
+    int nextIndex(int startIdx, char startToken, char endToken) {
         var index = startIdx + 1;
         int depth = 0;
         while (index < this.index) {
@@ -96,6 +82,15 @@ final class JsonDocumentInfo  {
             }
             index++;
         }
+        return index;
+    }
+
+    // for convenience
+    char charAtIndex(int index) {
+        return doc[getOffset(index)];
+    }
+
+    int getIndexCount() {
         return index;
     }
 

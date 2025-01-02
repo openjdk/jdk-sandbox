@@ -50,7 +50,7 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
     JsonStringImpl(JsonDocumentInfo doc, int offset, int index) {
         docInfo = doc;
         startOffset = offset;
-        endIndex = docInfo.nextIndex(index);
+        endIndex = index + 1;
         endOffset = docInfo.getOffset(endIndex) + 1;
     }
 
