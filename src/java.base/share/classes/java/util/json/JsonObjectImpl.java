@@ -79,21 +79,21 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
         var k = new HashMap<String, JsonValue>();
         var index = startIndex + 1;
         while (index < endIndex) {
-            // Get Key
-            var key = new JsonStringImpl(docInfo, docInfo.getOffset(index), index).value();
+            // Get key
+            var key = docInfo.substring(docInfo.getOffset(index) + 1, docInfo.getOffset(index + 1));
             index = index + 2;
 
-            // Get Val
+            // Get value
             int offset = docInfo.getOffset(index) + 1;
             if (docInfo.shouldWalkToken(docInfo.charAtIndex(index + 1))) {
                 index++;
             }
             var value = JsonGenerator.createValue(docInfo, offset, index);
 
-            // Store Key/Val
+            // Store key and value
             k.put(key, value);
-            index = ((JsonValueImpl)value).getEndIndex();
-            index++; // Move from comma to next Key/Closing
+            // Move to the next key
+            index = ((JsonValueImpl)value).getEndIndex() + 1;
         }
         return Collections.unmodifiableMap(k);
     }
