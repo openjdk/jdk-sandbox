@@ -96,10 +96,6 @@ final class JsonDocumentInfo  {
             }
             index++;
         }
-        if (index >= this.index) {
-            throw JsonParser.buildJPE(this,
-                    "Braces or brackets do not match.", startOff);
-        }
         return index;
     }
 
