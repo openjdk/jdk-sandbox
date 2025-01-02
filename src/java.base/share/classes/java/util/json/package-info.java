@@ -48,8 +48,6 @@
 ///        // use "name" and "age"
 ///}
 ///```
-///The above expression can be further simplified with the deconstructor pattern match.
-///
 ///
 ///#### Parsing
 ///
@@ -59,8 +57,6 @@
 ///by constructing the root JSON value with its start and end positions. The
 ///underlying value(s) are evaluated and allocated on-demand. Such an approach
 ///allows for a lightweight parse that scales the memory usage efficiently.
-///A simple comparison against Jackson shows that retrieving the text of an arbitrary
-///leaf node (using CLDR's time zone names JSON document) is 30% faster with this implementation.
 ///
 ///#### Mapping
 ///
