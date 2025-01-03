@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,9 @@ import java.util.Objects;
  * <p>
  * A {@code JsonObject} can be produced by a {@link Json#parse(String)}.
  * <p> Alternatively, {@link #of(Map)} can be used to obtain a {@code JsonObject}.
+ * @implNote Since {@code JsonObject} is backed by {@link Map}, duplicated keys may
+ * not be allowed. If duplicated keys appear during parsing the JSON object text,
+ * this implementation uses the last duplicated key.
  *
  * @since 25
  */
