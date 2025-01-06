@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,7 @@ final class JsonGenerator {
             case '[' -> createArray(docInfo, offset, index);
             case '"' -> createString(docInfo, offset, index);
             case 't', 'f' -> createBoolean(docInfo, offset, index);
-            case 'n' -> createNull(docInfo, offset, index);
+            case 'n' -> createNull(docInfo, index);
             case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-'
                     -> createNumber(docInfo, offset, index);
             default -> throw new InternalError();
@@ -58,8 +58,8 @@ final class JsonGenerator {
         return new JsonBooleanImpl(docInfo, offset, index);
     }
 
-    static JsonNull createNull(JsonDocumentInfo docInfo, int offset, int index) {
-        return new JsonNullImpl(docInfo, offset, index);
+    static JsonNull createNull(JsonDocumentInfo docInfo, int index) {
+        return new JsonNullImpl(docInfo, index);
     }
 
     static JsonNumber createNumber(JsonDocumentInfo docInfo, int offset, int index) {
