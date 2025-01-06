@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -77,7 +77,7 @@ final class JsonParser {
                         "Duplicate key previously parsed at row " + keys.get(keyString),
                         offset);
             }
-            keys.put(keyString, docInfo.row);
+            keys.put(keyString, docInfo.line);
 
             // Move from key to ':'
             offset = JsonParser.skipWhitespaces(docInfo, keyOffset);
@@ -316,8 +316,8 @@ final class JsonParser {
         return switch (docInfo.charAt(offset)) {
             case ' ', '\t','\r' -> true;
             case '\n' -> {
-                docInfo.row+=1;
-                docInfo.prevRowOff = offset + 1;
+                docInfo.line+=1;
+                docInfo.lineStart = offset + 1;
                 yield true;
             }
             default -> false;
@@ -326,8 +326,8 @@ final class JsonParser {
 
     static JsonParseException buildJPE(JsonDocumentInfo docInfo, String message, int offset) {
         var errMsg = docInfo.composeParseExceptionMessage(
-                message, docInfo.row, docInfo.prevRowOff, offset);
-        return new JsonParseException(errMsg, docInfo.row, offset - docInfo.prevRowOff);
+                message, docInfo.line, docInfo.lineStart, offset);
+        return new JsonParseException(errMsg, docInfo.line, offset - docInfo.lineStart);
     }
 
     // no instantiation of this parser

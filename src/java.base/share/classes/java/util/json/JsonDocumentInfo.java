@@ -31,8 +31,8 @@ final class JsonDocumentInfo  {
     final char[] doc;
     final int[] tokens;
     int index;
-    int row = 0;
-    int prevRowOff = 0;
+    int line = 0;
+    int lineStart = 0;
 
     JsonDocumentInfo(char[] in) {
         doc = in;
@@ -107,8 +107,8 @@ final class JsonDocumentInfo  {
     }
 
     // Utility method to compose parse exception message
-    String composeParseExceptionMessage(String message, int row, int prevOff, int offset) {
+    String composeParseExceptionMessage(String message, int line, int lineStart, int offset) {
         return message + ": (%s) at Row %d, Col %d."
-                .formatted(substring(offset, Math.min(offset + 8, doc.length)), row, offset - prevOff);
+                .formatted(substring(offset, Math.min(offset + 8, doc.length)), line, offset - lineStart);
     }
 }
