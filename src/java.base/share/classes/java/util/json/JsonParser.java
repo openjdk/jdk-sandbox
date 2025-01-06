@@ -28,7 +28,7 @@ package java.util.json;
 import java.util.HashMap;
 
 // Responsible for parsing the Json document which validates the contents
-// and builds the tokens array, used for lazy inflation
+// and builds the tokens array in JsonDocumentInfo which is used for lazy inflation
 final class JsonParser {
 
     // Parse the JSON and return the built DocumentInfo w/ tokens array

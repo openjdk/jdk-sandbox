@@ -28,9 +28,12 @@ import java.util.Objects;
 
 final class JsonDocumentInfo  {
 
+    // Access to the underlying JSON contents
     final char[] doc;
+    // tokens array/index are finalized by JsonParser::parse
     final int[] tokens;
     int index;
+    // For exception message on failure
     int line = 0;
     int lineStart = 0;
 
