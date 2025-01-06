@@ -53,6 +53,10 @@ public final class Json {
      * Parses and creates the top level {@code JsonValue} in this JSON
      * document.
      *
+     * @implNote The reference implementation throws a {@code JsonParseException}
+     * if a parsed JSON number is equivalent to Infinity or a JSON Object contains
+     * a duplicate key.
+     *
      * @param in the input JSON document as {@code String}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform
      *      to the JSON document format
@@ -67,6 +71,10 @@ public final class Json {
     /**
      * Parses and creates the top level {@code JsonValue} in this JSON
      * document.
+     *
+     * @implNote The reference implementation throws a {@code JsonParseException}
+     * if a parsed JSON number is equivalent to Infinity or a JSON Object contains
+     * a duplicate key.
      *
      * @param in the input JSON document as {@code char[]}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform
