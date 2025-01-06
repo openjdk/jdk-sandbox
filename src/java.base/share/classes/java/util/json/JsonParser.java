@@ -293,7 +293,7 @@ final class JsonParser {
     // Utility functions
     static int skipWhitespaces(JsonDocumentInfo docInfo, int offset) {
         while (offset < docInfo.getEndOffset()) {
-            if (!isWhitespace(docInfo, offset)) {
+            if (notWhitespace(docInfo, offset)) {
                 break;
             }
             offset ++;
@@ -304,12 +304,16 @@ final class JsonParser {
     static boolean checkWhitespaces(JsonDocumentInfo docInfo, int offset, int endOffset) {
         int end = Math.min(endOffset, docInfo.getEndOffset());
         while (offset < end) {
-            if (!isWhitespace(docInfo, offset)) {
+            if (notWhitespace(docInfo, offset)) {
                 return false;
             }
             offset ++;
         }
         return true;
+    }
+
+    static boolean notWhitespace(JsonDocumentInfo docInfo, int offset) {
+        return !isWhitespace(docInfo, offset);
     }
 
     static boolean isWhitespace(JsonDocumentInfo docInfo, int offset) {
