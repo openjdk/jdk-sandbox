@@ -31,7 +31,7 @@ final class JsonGenerator {
     static JsonValue createValue(JsonDocumentInfo docInfo, int offset, int index) {
         offset = JsonParser.skipWhitespaces(docInfo, offset);
         return switch (docInfo.charAt(offset)) {
-            case '{' -> createObject(docInfo, offset, index);
+            case '{' -> createObject(docInfo, index);
             case '[' -> createArray(docInfo, offset, index);
             case '"' -> createString(docInfo, offset, index);
             case 't', 'f' -> createBoolean(docInfo, offset, index);
@@ -42,8 +42,8 @@ final class JsonGenerator {
         };
     }
 
-    static JsonObject createObject(JsonDocumentInfo docInfo, int offset, int index) {
-        return new JsonObjectImpl(docInfo, offset, index);
+    static JsonObject createObject(JsonDocumentInfo docInfo, int index) {
+        return new JsonObjectImpl(docInfo, index);
     }
 
     static JsonArray createArray(JsonDocumentInfo docInfo, int offset, int index) {

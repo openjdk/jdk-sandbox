@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,6 @@ import java.util.Objects;
 final class JsonObjectImpl implements JsonObject, JsonValueImpl {
 
     private final JsonDocumentInfo docInfo;
-    private final int startOffset;
     private final int startIndex;
     private final int endIndex;
     private Map<String, JsonValue> theKeys;
@@ -53,14 +52,12 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
         }
         theKeys = Collections.unmodifiableMap(m);
         docInfo = null;
-        startOffset = 0;
         startIndex = 0;
         endIndex = 0;
     }
 
-    JsonObjectImpl(JsonDocumentInfo doc, int offset, int index) {
+    JsonObjectImpl(JsonDocumentInfo doc, int index) {
         docInfo = doc;
-        startOffset = offset;
         startIndex = index;
         endIndex = startIndex == 0 ? docInfo.getIndexCount() - 1 // For root
                 : docInfo.nextIndex(index, '{', '}');
@@ -78,6 +75,7 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
     private Map<String, JsonValue> inflate() {
         var k = new HashMap<String, JsonValue>();
         var index = startIndex + 1;
+        // Empty case automatically checked by index increment. {} is 2 tokens
         while (index < endIndex) {
             // Get key
             var key = docInfo.substring(docInfo.getOffset(index) + 1, docInfo.getOffset(index + 1));
