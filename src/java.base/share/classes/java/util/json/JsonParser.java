@@ -283,7 +283,6 @@ final class JsonParser {
             throw buildJPE(docInfo,
                     "Input expected after '[.|e|E]'", offset);
         }
-        // Todo: This can be more efficient! As it stands, we are essentially parsing the number twice
         if (Double.isInfinite(Double.parseDouble(docInfo.substring(start, offset)))) {
             throw buildJPE(docInfo, "Number can not be infinity", offset);
         }
