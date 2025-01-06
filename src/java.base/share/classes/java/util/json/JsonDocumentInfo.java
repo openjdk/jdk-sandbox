@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,6 @@ import java.util.Objects;
 final class JsonDocumentInfo  {
 
     final char[] doc;
-    final int endOffset;
     final int[] tokens;
     int index;
     int row = 0;
@@ -37,8 +36,7 @@ final class JsonDocumentInfo  {
 
     JsonDocumentInfo(char[] in) {
         doc = in;
-        endOffset = doc.length;
-        tokens = new int[endOffset];
+        tokens = new int[doc.length];
         index = 0;
     }
 
@@ -95,7 +93,7 @@ final class JsonDocumentInfo  {
     }
 
     int getEndOffset() {
-        return endOffset;
+        return doc.length;
     }
 
     // gets the char at the specified offset in the input
@@ -111,6 +109,6 @@ final class JsonDocumentInfo  {
     // Utility method to compose parse exception message
     String composeParseExceptionMessage(String message, int row, int prevOff, int offset) {
         return message + ": (%s) at Row %d, Col %d."
-                .formatted(substring(offset, Math.min(offset + 8, endOffset)), row, offset - prevOff);
+                .formatted(substring(offset, Math.min(offset + 8, doc.length)), row, offset - prevOff);
     }
 }
