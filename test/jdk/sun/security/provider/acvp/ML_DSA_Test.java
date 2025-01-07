@@ -39,6 +39,11 @@ import static jdk.test.lib.Utils.toByteArray;
 public class ML_DSA_Test {
 
     public static void run(JsonObject kat, Provider provider) throws Exception {
+
+        // We only have ML-DSA test for internal functions, which
+        // is equivalent to the FIP 204 draft.
+        ML_DSA_Impls.version = ML_DSA_Impls.Version.DRAFT;
+
         var mode = kat.keys().get("mode");
         if (kat.keys().get("mode") instanceof JsonString m) {
             switch (m.value()) {
@@ -52,6 +57,16 @@ public class ML_DSA_Test {
         }
     }
 
+    static NamedParameterSpec genParams(String pname) {
+       return switch (pname) {
+            case "ML-DSA-44" -> NamedParameterSpec.ML_DSA_44;
+            case "ML-DSA-65" -> NamedParameterSpec.ML_DSA_65;
+            case "ML-DSA-87" -> NamedParameterSpec.ML_DSA_87;
+            default -> throw new RuntimeException("Unknown params: " + pname);
+
+        };
+    }
+
     static void keyGenTest(JsonObject kat, Provider p) throws Exception {
         var g = p == null
                 ? KeyPairGenerator.getInstance("ML-DSA")
@@ -63,7 +78,7 @@ public class ML_DSA_Test {
             ja.values().forEach(t -> {
                 if (t instanceof JsonObject jo) {
                     if (jo.keys().get("parameterSet") instanceof JsonString pname) {
-                        var np = new NamedParameterSpec(pname.value());
+                        var np = genParams(pname.value());
                         System.out.println(">> " + pname.value());
                         if (jo.keys().get("tests") instanceof JsonArray ja2) {
                             ja2.values().forEach(c -> {

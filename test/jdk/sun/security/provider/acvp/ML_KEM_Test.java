@@ -51,6 +51,15 @@ public class ML_KEM_Test {
         }
     }
 
+    static NamedParameterSpec genParams(String pname) {
+       return switch (pname) {
+            case "ML-KEM-512" -> NamedParameterSpec.ML_KEM_512;
+            case "ML-KEM-768" -> NamedParameterSpec.ML_KEM_768;
+            case "ML-KEM-1024" -> NamedParameterSpec.ML_KEM_1024;
+            default -> throw new RuntimeException("Unknown params: " + pname);
+        };
+    }
+
     static void keyGenTest(JsonObject kat, Provider p) throws Exception {
         var g = p == null
                 ? KeyPairGenerator.getInstance("ML-KEM")
@@ -62,7 +71,7 @@ public class ML_KEM_Test {
             ja.values().forEach(t -> {
                 if (t instanceof JsonObject jo) {
                     if (jo.keys().get("parameterSet") instanceof JsonString pname) {
-                        var np = new NamedParameterSpec(pname.value());
+                        var np = genParams(pname.value());
                         System.out.println(">> " + pname.value());
                         if (jo.keys().get("tests") instanceof JsonArray ja2) {
                             ja2.values().forEach(c -> {
