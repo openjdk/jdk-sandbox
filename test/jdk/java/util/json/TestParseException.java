@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -73,7 +73,6 @@ public class TestParseException {
         assertThrows(JsonParseException.class, () -> Json.parse("fals"));
         assertThrows(JsonParseException.class, () -> Json.parse("tru"));
         assertThrows(JsonParseException.class, () -> Json.parse("nul"));
-
     }
 
     @Test
@@ -92,11 +91,5 @@ public class TestParseException {
     public void testStructuralWithNested() {
         Exception e = assertThrows(JsonParseException.class, () -> Json.parse(structuralWithNested));
         assertEquals("Unexpected character(s): (foobarba) at Row 4, Col 14.", e.getMessage());
-    }
-
-    @Test
-    public void testDuplicateKey() {
-        Exception e = assertThrows(JsonParseException.class, () -> Json.parse(duplicate));
-        assertEquals("Duplicate key previously parsed at row 1: (\"baz\" : ) at Row 3, Col 4.", e.getMessage());
     }
 }

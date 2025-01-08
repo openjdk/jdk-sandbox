@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,24 +26,32 @@
 /*
  * @test
  * @enablePreview
- * @run junit TestUniqueKeys
+ * @run junit TestDuplicateKeys
  */
 
 import java.util.json.*;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class TestUniqueKeys {
+public class TestDuplicateKeys {
 
     private static final String sample =
             """
-            { "clone": "bob", "clone": "bob" }
+            { "clone": "bob", "clone": "foo" }
             """;
 
     @Test
-    public void testUniqueKeys() {
-        assertThrows(JsonParseException.class, () -> Json.parse(sample));
+    public void testDuplicateKeys() {
+        var doc = Json.parse(sample);
+        if (doc instanceof JsonObject jo && jo.keys().get("clone") instanceof JsonString js) {
+            // Only one key should be accepted
+            assertEquals(jo.keys().size(), 1);
+            // Only the latter value should be accepted
+            assertEquals(js.value(), "foo");
+        } else {
+            throw new RuntimeException("Test data incorrect");
+        }
     }
 }

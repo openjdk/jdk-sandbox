@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,10 +53,6 @@ public final class Json {
      * Parses and creates the top level {@code JsonValue} in this JSON
      * document.
      *
-     * @implNote The reference implementation throws a {@code JsonParseException}
-     * if a parsed JSON number is equivalent to Infinity or a JSON Object contains
-     * a duplicate key.
-     *
      * @param in the input JSON document as {@code String}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform
      *      to the JSON document format
@@ -71,10 +67,6 @@ public final class Json {
     /**
      * Parses and creates the top level {@code JsonValue} in this JSON
      * document.
-     *
-     * @implNote The reference implementation throws a {@code JsonParseException}
-     * if a parsed JSON number is equivalent to Infinity or a JSON Object contains
-     * a duplicate key.
      *
      * @param in the input JSON document as {@code char[]}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform

@@ -25,8 +25,6 @@
 
 package java.util.json;
 
-import java.util.HashMap;
-
 // Responsible for parsing the Json document which validates the contents
 // and builds the tokens array in JsonDocumentInfo which is used for lazy inflation
 final class JsonParser {
@@ -58,7 +56,7 @@ final class JsonParser {
 
     static int parseObject(JsonDocumentInfo docInfo, int offset, int depth) {
         checkDepth(docInfo, offset, depth);
-        var keys = new HashMap<String, Integer>();
+
         docInfo.tokens[docInfo.index++] = offset;
         // Walk past the '{'
         offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
@@ -73,14 +71,6 @@ final class JsonParser {
                 throw buildJPE(docInfo, "Invalid key", offset);
             }
             var keyOffset = JsonParser.parseString(docInfo, offset);
-            var keyString = docInfo.substring(offset + 1, keyOffset -1);
-            // Check for duplicates
-            if (keys.containsKey(keyString)) {
-                throw buildJPE(docInfo,
-                        "Duplicate key previously parsed at row " + keys.get(keyString),
-                        offset);
-            }
-            keys.put(keyString, docInfo.line);
 
             // Move from key to ':'
             offset = JsonParser.skipWhitespaces(docInfo, keyOffset);
