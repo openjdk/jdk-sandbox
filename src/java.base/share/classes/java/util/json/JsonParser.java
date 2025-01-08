@@ -35,7 +35,7 @@ final class JsonParser {
     static JsonDocumentInfo parseRoot(JsonDocumentInfo docInfo) {
         int end = parseValue(docInfo, 0, 0);
         if (!checkWhitespaces(docInfo, end, docInfo.getEndOffset())) {
-            throw buildJPE(docInfo,"Unexpected character(s)", end);
+            throw failure(docInfo,"Unexpected character(s)", end);
         }
         return docInfo;
     }
@@ -50,7 +50,7 @@ final class JsonParser {
             case 't', 'f' -> parseBoolean(docInfo, offset);
             case 'n' -> parseNull(docInfo, offset);
             case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-' -> parseNumber(docInfo, offset);
-            default -> throw buildJPE(docInfo, "Unexpected character(s)", offset);
+            default -> throw failure(docInfo, "Unexpected character(s)", offset);
         };
     }
 
@@ -68,7 +68,7 @@ final class JsonParser {
         while (offset < docInfo.getEndOffset()) {
             // Get the key
             if (docInfo.charAt(offset) != '"') {
-                throw buildJPE(docInfo, "Invalid key", offset);
+                throw failure(docInfo, "Invalid key", offset);
             }
             var keyOffset = JsonParser.parseString(docInfo, offset);
 
@@ -76,7 +76,7 @@ final class JsonParser {
             offset = JsonParser.skipWhitespaces(docInfo, keyOffset);
             docInfo.tokens[docInfo.index++] = offset;
             if (docInfo.charAt(offset) != ':') {
-                throw buildJPE(docInfo,
+                throw failure(docInfo,
                         "Unexpected character(s) found after key", offset);
             }
 
@@ -98,7 +98,7 @@ final class JsonParser {
             docInfo.tokens[docInfo.index++] = offset;
             offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
         }
-        throw buildJPE(docInfo,
+        throw failure(docInfo,
                 "Unexpected character(s) found after value", offset);
     }
 
@@ -130,7 +130,7 @@ final class JsonParser {
             docInfo.tokens[docInfo.index++] = offset;
             offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
         }
-        throw buildJPE(docInfo,
+        throw failure(docInfo,
                 "Unexpected character(s) found after value", offset);
     }
 
@@ -149,11 +149,11 @@ final class JsonParser {
                             checkEscapeSequence(docInfo, offset + 1);
                             offset += 4;
                         } else {
-                            throw buildJPE(docInfo,
+                            throw failure(docInfo,
                                     "Illegal Unicode escape sequence", offset);
                         }
                     }
-                    default -> throw buildJPE(docInfo,
+                    default -> throw failure(docInfo,
                             "Illegal escape", offset);
                 }
                 escape = false;
@@ -163,11 +163,11 @@ final class JsonParser {
                 docInfo.tokens[docInfo.index++] = offset;
                 return ++offset;
             } else if (c < ' ') {
-                throw buildJPE(docInfo,
+                throw failure(docInfo,
                         "Unescaped control code", offset);
             }
         }
-        throw buildJPE(docInfo, "Closing quote missing", offset);
+        throw failure(docInfo, "Closing quote missing", offset);
     }
 
     // Throws an exception if the 4 chars after the '\\u' are invalid
@@ -175,7 +175,7 @@ final class JsonParser {
         for (int index = 0; index < 4; index++) {
             char c = docInfo.charAt(offset + index);
             if ((c < 'a' || c > 'f') && (c < 'A' || c > 'F') && (c < '0' || c > '9')) {
-                throw buildJPE(docInfo, "Invalid Unicode escape", offset);
+                throw failure(docInfo, "Invalid Unicode escape", offset);
             }
         }
     }
@@ -184,12 +184,12 @@ final class JsonParser {
         var start = docInfo.charAt(offset);
         if (start == 't') {
             if (offset + 3 >= docInfo.getEndOffset() || !docInfo.substring(offset + 1, offset + 4).equals("rue")) {
-                throw buildJPE(docInfo, "Unexpected character(s)", offset);
+                throw failure(docInfo, "Unexpected character(s)", offset);
             }
             return offset + 4;
         } else {
             if (offset + 4 >= docInfo.getEndOffset() || !docInfo.substring(offset + 1, offset + 5).equals("alse")) {
-                throw buildJPE(docInfo, "Unexpected character(s)", offset);
+                throw failure(docInfo, "Unexpected character(s)", offset);
             }
             return offset + 5;
         }
@@ -197,7 +197,7 @@ final class JsonParser {
 
     static int parseNull(JsonDocumentInfo docInfo, int offset) {
         if (offset + 3 >= docInfo.getEndOffset() || !docInfo.substring(offset + 1, offset + 4).equals("ull")) {
-            throw buildJPE(docInfo, "Unexpected character(s)", offset);
+            throw failure(docInfo, "Unexpected character(s)", offset);
         }
         return offset + 4;
     }
@@ -214,13 +214,13 @@ final class JsonParser {
             switch (docInfo.charAt(offset)) {
                 case '-' -> {
                     if (offset != start && !sawExponent) {
-                        throw buildJPE(docInfo,
+                        throw failure(docInfo,
                                 "Invalid '-' position", offset);
                     }
                 }
                 case '+' -> {
                     if (!sawExponent || havePart) {
-                        throw buildJPE(docInfo,
+                        throw failure(docInfo,
                                 "Invalid '+' position", offset);
                     }
                 }
@@ -232,18 +232,18 @@ final class JsonParser {
                 }
                 case '1', '2', '3', '4', '5', '6', '7', '8', '9' -> {
                     if (!sawDecimal && !sawExponent && sawZero) {
-                        throw buildJPE(docInfo,
+                        throw failure(docInfo,
                                 "Invalid '0' position", offset);
                     }
                     havePart = true;
                 }
                 case '.' -> {
                     if (sawDecimal) {
-                        throw buildJPE(docInfo,
+                        throw failure(docInfo,
                                 "Invalid '.' position", offset);
                     } else {
                         if (!havePart) {
-                            throw buildJPE(docInfo,
+                            throw failure(docInfo,
                                     "Invalid '.' position", offset);
                         }
                         sawDecimal = true;
@@ -252,11 +252,11 @@ final class JsonParser {
                 }
                 case 'e', 'E' -> {
                     if (sawExponent) {
-                        throw buildJPE(docInfo,
+                        throw failure(docInfo,
                                 "Invalid '[e|E]' position", offset);
                     } else {
                         if (!havePart) {
-                            throw buildJPE(docInfo,
+                            throw failure(docInfo,
                                     "Invalid '[e|E]' position", offset);
                         }
                         sawExponent = true;
@@ -274,11 +274,11 @@ final class JsonParser {
             }
         }
         if (!havePart) {
-            throw buildJPE(docInfo,
+            throw failure(docInfo,
                     "Input expected after '[.|e|E]'", offset);
         }
         if (Double.isInfinite(Double.parseDouble(docInfo.substring(start, offset)))) {
-            throw buildJPE(docInfo, "Number can not be infinity", offset);
+            throw failure(docInfo, "Number can not be infinity", offset);
         }
         return offset;
     }
@@ -321,7 +321,7 @@ final class JsonParser {
         };
     }
 
-    static JsonParseException buildJPE(JsonDocumentInfo docInfo, String message, int offset) {
+    static JsonParseException failure(JsonDocumentInfo docInfo, String message, int offset) {
         var errMsg = docInfo.composeParseExceptionMessage(
                 message, docInfo.line, docInfo.lineStart, offset);
         return new JsonParseException(errMsg, docInfo.line, offset - docInfo.lineStart);
@@ -329,7 +329,7 @@ final class JsonParser {
 
     private static void checkDepth(JsonDocumentInfo docInfo, int offset, int depth) {
         if (depth >= MAX_DEPTH) {
-            throw buildJPE(docInfo, "Max depth exceeded", offset);
+            throw failure(docInfo, "Max depth exceeded", offset);
         }
     }
 
