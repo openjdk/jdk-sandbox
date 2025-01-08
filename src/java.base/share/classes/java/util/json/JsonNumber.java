@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,8 +33,6 @@ import jdk.internal.javac.PreviewFeature;
  * A {@code JsonNumber} can be produced by {@link Json#parse(String)}.
  * <p> Alternatively, {@link #of(double)} and its overload can be used to obtain
  * a {@code JsonNumber} from a {@code Number}.
- *
- * @implNote This implementation supports IEEE 754 binary64 (double precision) numbers.
  *
  * @since 25
  */
