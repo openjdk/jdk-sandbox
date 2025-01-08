@@ -31,21 +31,23 @@ import java.util.HashMap;
 // and builds the tokens array in JsonDocumentInfo which is used for lazy inflation
 final class JsonParser {
 
+    private static final int MAX_DEPTH = 32;
+
     // Parse the JSON and return the built DocumentInfo w/ tokens array
     static JsonDocumentInfo parseRoot(JsonDocumentInfo docInfo) {
-        int end = parseValue(docInfo, 0);
+        int end = parseValue(docInfo, 0, 0);
         if (!checkWhitespaces(docInfo, end, docInfo.getEndOffset())) {
             throw buildJPE(docInfo,"Unexpected character(s)", end);
         }
         return docInfo;
     }
 
-    static int parseValue(JsonDocumentInfo docInfo, int offset) {
+    static int parseValue(JsonDocumentInfo docInfo, int offset, int depth) {
         offset = skipWhitespaces(docInfo, offset);
 
         return switch (docInfo.charAt(offset)) {
-            case '{' -> parseObject(docInfo, offset);
-            case '[' -> parseArray(docInfo, offset);
+            case '{' -> parseObject(docInfo, offset, depth + 1);
+            case '[' -> parseArray(docInfo, offset, depth + 1);
             case '"' -> parseString(docInfo, offset);
             case 't', 'f' -> parseBoolean(docInfo, offset);
             case 'n' -> parseNull(docInfo, offset);
@@ -54,7 +56,8 @@ final class JsonParser {
         };
     }
 
-    static int parseObject(JsonDocumentInfo docInfo, int offset) {
+    static int parseObject(JsonDocumentInfo docInfo, int offset, int depth) {
+        checkDepth(docInfo, offset, depth);
         var keys = new HashMap<String, Integer>();
         docInfo.tokens[docInfo.index++] = offset;
         // Walk past the '{'
@@ -89,7 +92,7 @@ final class JsonParser {
 
             // Move from ':' to JsonValue
             offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
-            offset = JsonParser.parseValue(docInfo, offset);
+            offset = JsonParser.parseValue(docInfo, offset, depth);
 
             // Walk to either ',' or '}'
             offset = JsonParser.skipWhitespaces(docInfo, offset);
@@ -109,7 +112,8 @@ final class JsonParser {
                 "Unexpected character(s) found after value", offset);
     }
 
-    static int parseArray(JsonDocumentInfo docInfo, int offset) {
+    static int parseArray(JsonDocumentInfo docInfo, int offset, int depth) {
+        checkDepth(docInfo, offset, depth);
         docInfo.tokens[docInfo.index++] = offset;
         // Walk past the '['
         offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
@@ -121,7 +125,7 @@ final class JsonParser {
 
         while (offset < docInfo.getEndOffset()) {
             // Get the JsonValue
-            offset = JsonParser.parseValue(docInfo, offset);
+            offset = JsonParser.parseValue(docInfo, offset, depth);
             // Walk to either ',' or ']'
             offset = JsonParser.skipWhitespaces(docInfo, offset);
             var c = docInfo.charAt(offset);
@@ -331,6 +335,12 @@ final class JsonParser {
         var errMsg = docInfo.composeParseExceptionMessage(
                 message, docInfo.line, docInfo.lineStart, offset);
         return new JsonParseException(errMsg, docInfo.line, offset - docInfo.lineStart);
+    }
+
+    private static void checkDepth(JsonDocumentInfo docInfo, int offset, int depth) {
+        if (depth >= MAX_DEPTH) {
+            throw buildJPE(docInfo, "Max depth exceeded", offset);
+        }
     }
 
     // no instantiation of this parser
