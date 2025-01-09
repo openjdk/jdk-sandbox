@@ -103,7 +103,7 @@ public final class Json {
      * @param src the data to produce the {@code JsonValue} from. May be null.
      * @throws IllegalArgumentException if {@code src} cannot be converted
      * to any of the {@code JsonValue} subtypes, or is not already of type
-     * {@JsonValue}.
+     * {@code JsonValue}.
      */
     public static JsonValue fromUntyped(Object src) {
         try {
