@@ -102,6 +102,8 @@ public final class Json {
      * @param src the data to produce the {@code JsonValue} from. May be null.
      * @throws IllegalArgumentException if {@code src} cannot be converted
      * to any of the {@code JsonValue} subtypes.
+     * @throws IllegalStateException if {@code src} contains a {@code Map} where
+     * the key is not of type {@code String}
      * @throws StackOverflowError if {@code src} contains a circular reference
      */
     public static JsonValue fromUntyped(Object src) {
