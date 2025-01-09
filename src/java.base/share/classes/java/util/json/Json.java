@@ -89,7 +89,8 @@ public final class Json {
 
     /**
      * {@return a {@code JsonValue} that represents the data type of {@code src}}
-     * The {@code src} may be one of these types:
+     * If {@code src} is a {@code JsonValue} it is returned as is. Otherwise,
+     * {@code src} may be one of the following types:
      * <ul>
      * <li>{@code List<Object>} for {@code JsonArray}</li>
      * <li>{@code Boolean} for {@code JsonBoolean}</li>
@@ -101,7 +102,8 @@ public final class Json {
      *
      * @param src the data to produce the {@code JsonValue} from. May be null.
      * @throws IllegalArgumentException if {@code src} cannot be converted
-     * to any of the {@code JsonValue} subtypes.
+     * to any of the {@code JsonValue} subtypes, or is not already of type
+     * {@JsonValue}.
      */
     public static JsonValue fromUntyped(Object src) {
         try {
