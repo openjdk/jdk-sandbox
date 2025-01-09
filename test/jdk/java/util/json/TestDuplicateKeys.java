@@ -37,14 +37,32 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class TestDuplicateKeys {
 
-    private static final String sample =
-            """
-            { "clone": "bob", "clone": "foo" }
-            """;
-
     @Test
     public void testDuplicateKeys() {
-        var doc = Json.parse(sample);
+        var json =
+                """
+                { "clone": "bob", "clone": "foo" }
+                """;
+        var doc = Json.parse(json);
+        if (doc instanceof JsonObject jo && jo.keys().get("clone") instanceof JsonString js) {
+            // Only one key should be accepted
+            assertEquals(jo.keys().size(), 1);
+            // Only the latter value should be accepted
+            assertEquals(js.value(), "foo");
+        } else {
+            throw new RuntimeException("Test data incorrect");
+        }
+    }
+
+    // https://datatracker.ietf.org/doc/html/rfc8259#section-8.3
+    // Check for equality via unescaped value
+    @Test
+    public void testDuplicateKeyEquality() {
+        var json =
+                """
+                { "clone": "bob", "clon\\u0065": "foo" }
+                """;
+        var doc = Json.parse(json);
         if (doc instanceof JsonObject jo && jo.keys().get("clone") instanceof JsonString js) {
             // Only one key should be accepted
             assertEquals(jo.keys().size(), 1);
