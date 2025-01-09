@@ -45,7 +45,7 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
         HashMap<String, JsonValue> m = HashMap.newHashMap(map.size());
         for (Map.Entry<?, ?> entry : map.entrySet()) {
             if (!(entry.getKey() instanceof String strKey)) {
-                throw new IllegalStateException("Key is not a String: " + entry.getKey());
+                throw new IllegalArgumentException("Key is not a String: " + entry.getKey());
             } else {
                 m.put(strKey, Json.fromUntyped(entry.getValue()));
             }

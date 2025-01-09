@@ -102,25 +102,26 @@ public final class Json {
      * @param src the data to produce the {@code JsonValue} from. May be null.
      * @throws IllegalArgumentException if {@code src} cannot be converted
      * to any of the {@code JsonValue} subtypes.
-     * @throws IllegalStateException if {@code src} contains a {@code Map} where
-     * the key is not of type {@code String}
-     * @throws StackOverflowError if {@code src} contains a circular reference
      */
     public static JsonValue fromUntyped(Object src) {
-        return switch (src) {
-            case String str -> new JsonStringImpl(str);
-            case Map<?, ?> map -> new JsonObjectImpl(map);
-            case List<?> list-> new JsonArrayImpl(list);
-            case Boolean bool -> new JsonBooleanImpl(bool);
-            // Use constructor for Float/Integer to prevent type from being promoted
-            case Float f -> new JsonNumberImpl(f);
-            case Integer i -> new JsonNumberImpl(i);
-            case Double db -> JsonNumber.of(db);
-            case Long lg -> JsonNumber.of(lg);
-            case JsonValue jv -> jv;
-            case null -> JsonNull.of();
-            default -> throw new IllegalArgumentException("Type not recognized.");
-        };
+        try {
+            return switch (src) {
+                case String str -> new JsonStringImpl(str);
+                case Map<?, ?> map -> new JsonObjectImpl(map);
+                case List<?> list-> new JsonArrayImpl(list);
+                case Boolean bool -> new JsonBooleanImpl(bool);
+                // Use constructor for Float/Integer to prevent type from being promoted
+                case Float f -> new JsonNumberImpl(f);
+                case Integer i -> new JsonNumberImpl(i);
+                case Double db -> JsonNumber.of(db);
+                case Long lg -> JsonNumber.of(lg);
+                case JsonValue jv -> jv;
+                case null -> JsonNull.of();
+                default -> throw new IllegalArgumentException("Type not recognized.");
+            };
+        } catch (StackOverflowError _) {
+            throw new IllegalArgumentException("Depth limit reached");
+        }
     }
 
     /**

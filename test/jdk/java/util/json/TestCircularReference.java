@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,21 +37,19 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-// Either handled via a depth limit that that prevents StackOverflow
-// Or clearly documented to avoid circular references. For now, the latter
 public class TestCircularReference {
 
     @Test
     public void arrayTest() {
         ArrayList<Object> arr = new ArrayList<>();
         arr.add(arr);
-        assertThrows(StackOverflowError.class, () -> Json.fromUntyped(arr));
+        assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(arr));
     }
 
     @Test
     public void objectTest() {
         HashMap<String,Object> map = new HashMap<>();
         map.put("foo", map);
-        assertThrows(StackOverflowError.class, () -> Json.fromUntyped(map));
+        assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(map));
     }
 }
