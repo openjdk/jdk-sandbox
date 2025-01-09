@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,7 +52,6 @@ public sealed interface JsonArray extends JsonValue permits JsonArrayImpl {
      * list of {@code JsonValue}s}
      *
      * @param src the list of {@code Object}s. Non-null.
-     * @throws StackOverflowError if {@code src} contains a circular reference
      */
     static JsonArray of(List<? extends JsonValue> src) {
         Objects.requireNonNull(src);
