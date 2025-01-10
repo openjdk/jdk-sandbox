@@ -100,7 +100,6 @@ public final class Json {
      * <li>{@code String} for {@code JsonString}</li>
      * </ul>
      *
-     * @implNote The reference implementation does not support circular references.
      * If {@code src} contains a circular reference, {@code IllegalArgumentException}
      * will be thrown. For example, the following code throws an exception,
      * {@snippet lang=java:
@@ -112,7 +111,7 @@ public final class Json {
      *
      * @param src the data to produce the {@code JsonValue} from. May be null.
      * @throws IllegalArgumentException if {@code src} cannot be converted
-     * to any of the {@code JsonValue} subtypes.
+     * to any of the {@code JsonValue} subtypes, or contains a circular reference.
      */
     public static JsonValue fromUntyped(Object src) {
         return JsonGenerator.untypedToJson(src,
