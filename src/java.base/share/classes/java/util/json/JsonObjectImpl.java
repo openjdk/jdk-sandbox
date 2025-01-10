@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * JsonObject implementation class
@@ -40,14 +41,22 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
     private final int endIndex;
     private Map<String, JsonValue> theKeys;
 
+    // Via of factory
+    JsonObjectImpl(Map<String, ? extends JsonValue> map) {
+        theKeys = Collections.unmodifiableMap(map);
+        docInfo = null;
+        startIndex = 0;
+        endIndex = 0;
+    }
 
-    JsonObjectImpl(Map<?, ?> map) {
+    // Via untyped
+    JsonObjectImpl(Map<?, ?> map, Set<Object> seen) {
         HashMap<String, JsonValue> m = HashMap.newHashMap(map.size());
         for (Map.Entry<?, ?> entry : map.entrySet()) {
             if (!(entry.getKey() instanceof String strKey)) {
                 throw new IllegalArgumentException("Key is not a String: " + entry.getKey());
             } else {
-                m.put(strKey, Json.fromUntyped(entry.getValue()));
+                m.put(strKey, JsonGenerator.untypedToJson(entry.getValue(), seen));
             }
         }
         theKeys = Collections.unmodifiableMap(m);

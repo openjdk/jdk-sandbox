@@ -29,6 +29,7 @@
  * @run junit TestCircularReference
  */
 
+import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.json.*;
@@ -39,6 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class TestCircularReference {
 
+    // Basic single depth circular reference
     @Test
     public void arrayTest() {
         ArrayList<Object> arr = new ArrayList<>();
@@ -46,10 +48,27 @@ public class TestCircularReference {
         assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(arr));
     }
 
+    // Basic single depth circular reference
     @Test
     public void objectTest() {
         HashMap<String,Object> map = new HashMap<>();
         map.put("foo", map);
         assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(map));
+    }
+
+    // Deeper nest circular reference
+    @Test
+    public void multiDepthCircularReferenceTest() {
+        HashMap<String,Object> mapRoot = new HashMap<>();
+        List<Object> listNode = new ArrayList<>();
+        List<Object> lowerListNode = new ArrayList<>();
+        HashMap<String, Object> mapNode = new HashMap<>();
+
+        mapRoot.put("foo", listNode);
+        listNode.add(lowerListNode);
+        lowerListNode.add(mapNode);
+        mapNode.put("bar", mapRoot);
+
+        assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(mapRoot));
     }
 }

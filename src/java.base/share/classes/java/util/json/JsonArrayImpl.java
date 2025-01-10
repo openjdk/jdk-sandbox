@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * JsonArray implementation class
@@ -41,10 +42,20 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
     private final int startOffset;
     private List<JsonValue> theValues;
 
-    JsonArrayImpl(List<?> from) {
+    // Via of factory
+    JsonArrayImpl(List<? extends JsonValue> from) {
+        theValues = Collections.unmodifiableList(from);
+        this.endIndex = 0;
+        this.startIndex = 0;
+        this.startOffset = 0;
+        docInfo = null;
+    }
+
+    // Via untyped
+    JsonArrayImpl(List<?> from, Set<Object> seen) {
         List<JsonValue> l = new ArrayList<>(from.size());
         for (Object o : from) {
-            l.add(Json.fromUntyped(o));
+            l.add(JsonGenerator.untypedToJson(o, seen));
         }
         theValues = Collections.unmodifiableList(l);
         this.endIndex = 0;

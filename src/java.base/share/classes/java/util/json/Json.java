@@ -26,8 +26,8 @@ package java.util.json;
 
 import jdk.internal.javac.PreviewFeature;
 
-import java.util.List;
-import java.util.Map;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.Objects;
 
 /**
@@ -89,8 +89,8 @@ public final class Json {
 
     /**
      * {@return a {@code JsonValue} that represents the data type of {@code src}}
-     * If {@code src} is a {@code JsonValue} it is returned as is. Otherwise,
-     * {@code src} may be one of the following types:
+     * If {@code src} or an underlying element is a {@code JsonValue} it is
+     * returned as is. Otherwise, a conversion is applied as follows:
      * <ul>
      * <li>{@code List<Object>} for {@code JsonArray}</li>
      * <li>{@code Boolean} for {@code JsonBoolean}</li>
@@ -100,30 +100,17 @@ public final class Json {
      * <li>{@code String} for {@code JsonString}</li>
      * </ul>
      *
+     * @implNote The reference implementation does not support circular references.
+     * If {@code src} contains a circular reference, {@code IllegalArgumentException}
+     * will be thrown.
+     *
      * @param src the data to produce the {@code JsonValue} from. May be null.
      * @throws IllegalArgumentException if {@code src} cannot be converted
-     * to any of the {@code JsonValue} subtypes, or is not already of type
-     * {@code JsonValue}.
+     * to any of the {@code JsonValue} subtypes.
      */
     public static JsonValue fromUntyped(Object src) {
-        try {
-            return switch (src) {
-                case String str -> new JsonStringImpl(str);
-                case Map<?, ?> map -> new JsonObjectImpl(map);
-                case List<?> list-> new JsonArrayImpl(list);
-                case Boolean bool -> new JsonBooleanImpl(bool);
-                // Use constructor for Float/Integer to prevent type from being promoted
-                case Float f -> new JsonNumberImpl(f);
-                case Integer i -> new JsonNumberImpl(i);
-                case Double db -> JsonNumber.of(db);
-                case Long lg -> JsonNumber.of(lg);
-                case JsonValue jv -> jv;
-                case null -> JsonNull.of();
-                default -> throw new IllegalArgumentException("Type not recognized.");
-            };
-        } catch (StackOverflowError _) {
-            throw new IllegalArgumentException("Depth limit reached");
-        }
+        return JsonGenerator.untypedToJson(src,
+                Collections.newSetFromMap(new IdentityHashMap<>()));
     }
 
     /**

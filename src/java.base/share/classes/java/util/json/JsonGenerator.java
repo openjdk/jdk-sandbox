@@ -25,6 +25,10 @@
 
 package java.util.json;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 // Responsible for creating "lazy" state JsonValue(s) using the tokens array
 final class JsonGenerator {
 
@@ -64,6 +68,33 @@ final class JsonGenerator {
 
     static JsonNumber createNumber(JsonDocumentInfo docInfo, int offset, int index) {
         return new JsonNumberImpl(docInfo, offset, index);
+    }
+
+    static JsonValue untypedToJson(Object src, Set<Object> seen) {
+        return switch (src) {
+            case String str -> new JsonStringImpl(str);
+            case Map<?, ?> map -> {
+                if (!seen.add(map)) {
+                    throw new IllegalArgumentException("Circular reference detected");
+                }
+                yield new JsonObjectImpl(map, seen);
+            }
+            case List<?> list-> {
+                if (!seen.add(list)) {
+                    throw new IllegalArgumentException("Circular reference detected");
+                }
+                yield new JsonArrayImpl(list, seen);
+            }
+            case Boolean bool -> new JsonBooleanImpl(bool);
+            // Use constructor for Float/Integer to prevent type from being promoted
+            case Float f -> new JsonNumberImpl(f);
+            case Integer i -> new JsonNumberImpl(i);
+            case Double db -> JsonNumber.of(db);
+            case Long lg -> JsonNumber.of(lg);
+            case JsonValue jv -> jv;
+            case null -> JsonNull.of();
+            default -> throw new IllegalArgumentException("Type not recognized.");
+        };
     }
 
     // no instantiation of this generator
