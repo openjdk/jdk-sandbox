@@ -70,20 +70,22 @@ final class JsonGenerator {
         return new JsonNumberImpl(docInfo, offset, index);
     }
 
-    static JsonValue untypedToJson(Object src, Set<Object> seen) {
+    // untypedObjs is an identity hash set that serves to identify if a circular
+    // reference exists
+    static JsonValue untypedToJson(Object src, Set<Object> untypedObjs) {
         return switch (src) {
             case String str -> new JsonStringImpl(str);
             case Map<?, ?> map -> {
-                if (!seen.add(map)) {
+                if (!untypedObjs.add(map)) {
                     throw new IllegalArgumentException("Circular reference detected");
                 }
-                yield new JsonObjectImpl(map, seen);
+                yield new JsonObjectImpl(map, untypedObjs);
             }
             case List<?> list-> {
-                if (!seen.add(list)) {
+                if (!untypedObjs.add(list)) {
                     throw new IllegalArgumentException("Circular reference detected");
                 }
-                yield new JsonArrayImpl(list, seen);
+                yield new JsonArrayImpl(list, untypedObjs);
             }
             case Boolean bool -> new JsonBooleanImpl(bool);
             // Use constructor for Float/Integer to prevent type from being promoted

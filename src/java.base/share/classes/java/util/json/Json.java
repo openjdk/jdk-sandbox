@@ -102,7 +102,13 @@ public final class Json {
      *
      * @implNote The reference implementation does not support circular references.
      * If {@code src} contains a circular reference, {@code IllegalArgumentException}
-     * will be thrown.
+     * will be thrown. For example, the following code throws an exception,
+     * {@snippet lang=java:
+     *     var map = new HashMap<String, Object>();
+     *     map.put("foo", false);
+     *     map.put("bar", map);
+     *     Json.fromUntyped(map);
+     * }
      *
      * @param src the data to produce the {@code JsonValue} from. May be null.
      * @throws IllegalArgumentException if {@code src} cannot be converted
