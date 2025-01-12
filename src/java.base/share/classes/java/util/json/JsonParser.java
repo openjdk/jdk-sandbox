@@ -27,9 +27,7 @@ package java.util.json;
 
 // Responsible for parsing the Json document which validates the contents
 // and builds the tokens array in JsonDocumentInfo which is used for lazy inflation
-final class JsonParser {
-
-    private static final int MAX_DEPTH = 32;
+final class JsonParser { ;
 
     // Parse the JSON and return the built DocumentInfo w/ tokens array
     static JsonDocumentInfo parseRoot(JsonDocumentInfo docInfo) {
@@ -328,7 +326,7 @@ final class JsonParser {
     }
 
     private static void checkDepth(JsonDocumentInfo docInfo, int offset, int depth) {
-        if (depth >= MAX_DEPTH) {
+        if (depth > Json.MAX_DEPTH) {
             throw failure(docInfo, "Max depth exceeded", offset);
         }
     }

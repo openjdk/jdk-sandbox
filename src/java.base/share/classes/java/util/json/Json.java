@@ -49,6 +49,9 @@ import java.util.Objects;
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)
 public final class Json {
 
+    // Depth limit used by Parser and Generator
+    static final int MAX_DEPTH = 32;
+
     /**
      * Parses and creates the top level {@code JsonValue} in this JSON
      * document.
@@ -109,13 +112,21 @@ public final class Json {
      *     Json.fromUntyped(map);
      * }
      *
+     * @implNote The reference implementation defines a nesting limit of 32.
+     * If {@code src} exceeds this limit, an {@code IllegalArgumentException} is
+     * thrown.
+     *
      * @param src the data to produce the {@code JsonValue} from. May be null.
      * @throws IllegalArgumentException if {@code src} cannot be converted
      * to any of the {@code JsonValue} subtypes, or contains a circular reference.
      */
     public static JsonValue fromUntyped(Object src) {
-        return JsonGenerator.untypedToJson(src,
-                Collections.newSetFromMap(new IdentityHashMap<>()));
+        if (src instanceof JsonValue jv) {
+            return jv; // If root is JV, no need to check depth
+        } else {
+            return JsonGenerator.untypedToJson(
+                    src, Collections.newSetFromMap(new IdentityHashMap<>()), 0);
+        }
     }
 
     /**

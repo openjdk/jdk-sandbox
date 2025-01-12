@@ -52,10 +52,10 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
     }
 
     // Via untyped
-    JsonArrayImpl(List<?> from, Set<Object> untypedObjs) {
+    JsonArrayImpl(List<?> from, Set<Object> untypedObjs, int depth) {
         List<JsonValue> l = new ArrayList<>(from.size());
         for (Object o : from) {
-            l.add(JsonGenerator.untypedToJson(o, untypedObjs));
+            l.add(JsonGenerator.untypedToJson(o, untypedObjs, depth));
         }
         theValues = Collections.unmodifiableList(l);
         this.endIndex = 0;

@@ -26,7 +26,7 @@
 /*
  * @test
  * @enablePreview
- * @run junit TestCircularReference
+ * @run junit TestFromUntyped
  */
 
 import java.util.List;
@@ -38,11 +38,11 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-public class TestCircularReference {
+public class TestFromUntyped {
 
     // Basic single depth circular reference
     @Test
-    public void arrayTest() {
+    public void arrayCycleTest() {
         ArrayList<Object> arr = new ArrayList<>();
         arr.add(arr);
         assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(arr));
@@ -50,7 +50,7 @@ public class TestCircularReference {
 
     // Basic single depth circular reference
     @Test
-    public void objectTest() {
+    public void objectCycleTest() {
         HashMap<String,Object> map = new HashMap<>();
         map.put("foo", map);
         assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(map));
@@ -58,7 +58,7 @@ public class TestCircularReference {
 
     // Deeper nest circular reference
     @Test
-    public void multiDepthCircularReferenceTest() {
+    public void multiDepthCycleTest() {
         HashMap<String,Object> mapRoot = new HashMap<>();
         List<Object> listNode = new ArrayList<>();
         List<Object> lowerListNode = new ArrayList<>();
@@ -70,5 +70,42 @@ public class TestCircularReference {
         mapNode.put("bar", mapRoot);
 
         assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(mapRoot));
+    }
+
+    @Test
+    void depthLimitTest() {
+        var root = new ArrayList<>();
+        var node = root;
+        for (int i = 0; i < 40; i++) {
+            var childNode = new ArrayList<>();
+            node.add(childNode);
+            node = childNode;
+        }
+        assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(root));
+    }
+
+    // Combo of JsonValue and Object
+    @Test
+    void untypedAndJsonDepthLimitTest() {
+        // Make a JsonValue with nest of 20
+        var root = new ArrayList<>();
+        var node = root;
+        for (int i = 0; i < 20; i++) {
+            var childNode = new ArrayList<>();
+            node.add(childNode);
+            node = childNode;
+        }
+        JsonValue jv = Json.fromUntyped(root);
+
+        // Make untyped with nest of 20, whose bottom node contains 20 nest JV
+        var highestRoot = new ArrayList<>();
+        node = highestRoot;
+        for (int i = 0; i < 20; i++) {
+            var childNode = new ArrayList<>();
+            node.add(childNode);
+            node = childNode;
+        }
+        node.add(jv);
+        assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(highestRoot));
     }
 }

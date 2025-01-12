@@ -72,31 +72,54 @@ final class JsonGenerator {
 
     // untypedObjs is an identity hash set that serves to identify if a circular
     // reference exists
-    static JsonValue untypedToJson(Object src, Set<Object> untypedObjs) {
+    static JsonValue untypedToJson(Object src, Set<Object> untypedObjs, int depth) {
         return switch (src) {
-            case String str -> new JsonStringImpl(str);
+            // Structural JSON: Object, Array
             case Map<?, ?> map -> {
                 if (!untypedObjs.add(map)) {
                     throw new IllegalArgumentException("Circular reference detected");
                 }
-                yield new JsonObjectImpl(map, untypedObjs);
+                if (depth + 1 > Json.MAX_DEPTH) {
+                    throw new IllegalArgumentException("Max depth exceeded");
+                }
+                yield new JsonObjectImpl(map, untypedObjs, depth + 1);
             }
             case List<?> list-> {
                 if (!untypedObjs.add(list)) {
                     throw new IllegalArgumentException("Circular reference detected");
                 }
-                yield new JsonArrayImpl(list, untypedObjs);
+                if (depth + 1 > Json.MAX_DEPTH) {
+                    throw new IllegalArgumentException("Max depth exceeded");
+                }
+                yield new JsonArrayImpl(list, untypedObjs, depth + 1);
             }
+            // JsonPrimitives
+            case String str -> new JsonStringImpl(str);
             case Boolean bool -> new JsonBooleanImpl(bool);
+            case null -> JsonNull.of();
             // Use constructor for Float/Integer to prevent type from being promoted
             case Float f -> new JsonNumberImpl(f);
             case Integer i -> new JsonNumberImpl(i);
             case Double db -> JsonNumber.of(db);
             case Long lg -> JsonNumber.of(lg);
-            case JsonValue jv -> jv;
-            case null -> JsonNull.of();
+            // JsonValue
+            case JsonValue jv -> {
+                checkDepth(jv, depth + 1);
+                yield jv;
+            }
             default -> throw new IllegalArgumentException("Type not recognized.");
         };
+    }
+
+    static void checkDepth(JsonValue val, int depth) {
+        if (depth > Json.MAX_DEPTH) {
+            throw new IllegalArgumentException("Max depth exceeded");
+        }
+        switch (val) {
+            case JsonObject jo -> jo.keys().forEach((_, jV) -> checkDepth(jV, depth + 1));
+            case JsonArray ja -> ja.values().forEach(jV -> checkDepth(jV, depth + 1));
+            default -> {} // Primitive JSON can not nest
+        }
     }
 
     // no instantiation of this generator
