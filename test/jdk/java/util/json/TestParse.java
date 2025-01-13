@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,16 +29,25 @@
  * @run junit TestParse
  */
 
+import org.junit.jupiter.api.Test;
+
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.util.Map;
 import java.util.json.*;
 import java.util.stream.Stream;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class TestParse {
+
+    private static final String basicJson =
+            """
+            { "name": "Brian", "shoeSize": 10 }
+            """;
 
     private static final String TEMPLATE =
         """
@@ -89,5 +98,36 @@ public class TestParse {
     @MethodSource("invalidValues")
     public void invalidLazyParse(String value) {
         assertThrows(JsonParseException.class, () -> Json.parse(TEMPLATE.formatted(value)));
+    }
+
+    @Test
+    public void testBasicPrimitiveParse() throws Exception {
+        Json.parse("true");
+        Json.parse("[true]");
+        Json.parse("{\"a\":true}");
+        Json.parse("false");
+        Json.parse("[false]");
+        Json.parse("{\"a\":false}");
+        Json.parse("null");
+        Json.parse("[null]");
+        Json.parse("{\"a\":null}");
+    }
+
+    @Test
+    public void testBasicParse() {
+        Json.parse(basicJson);
+    }
+
+    @Test
+    public void testBasicParseAndMatch() {
+        var doc = Json.parse(basicJson);
+        if (doc instanceof JsonObject o && o.keys() instanceof Map<String, JsonValue> keys
+                && keys.get("name") instanceof JsonString js1 && js1.value() instanceof String name
+                && keys.get("shoeSize") instanceof JsonNumber js2 && js2.value() instanceof Number size) {
+            assertEquals("Brian", name);
+            assertEquals(10, size);
+        } else {
+            throw new RuntimeException("Test data incorrect");
+        }
     }
 }

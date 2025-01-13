@@ -32,6 +32,7 @@
 import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.json.*;
 
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,43 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class TestFromUntyped {
+
+    private static final String json =
+            """
+            [
+                { "name": "John", "age": 30, "city": "New York" },
+                { "name": "Jane", "age": 20, "city": "Boston" },
+                true,
+                false,
+                null,
+                [ "array", "inside", {"inner obj": true, "top-level": false}],
+                "foo",
+                42
+            ]
+            """;
+
+    @Test
+    public void testUntyped() {
+        var doc = Json.parse(json);
+        var raw = Json.toUntyped(doc);
+        System.out.println(raw);
+        System.out.println(Json.fromUntyped(raw));
+
+        var m = HashMap.newHashMap(10);
+        m.put("3", 3);
+        m.put("4", Boolean.TRUE);
+        m.put("5", null);
+        var a = new ArrayList();
+        a.add(m);
+        a.add(null);
+        a.add("arrayElement");
+        a.add(Boolean.FALSE);
+        System.out.println(Json.fromUntyped(a));
+        try {
+            Json.fromUntyped(Map.of(1, 1));
+            throw new RuntimeException("non string key was sneaked in");
+        } catch (Exception _) {}
+    }
 
     // Basic single depth circular reference
     @Test

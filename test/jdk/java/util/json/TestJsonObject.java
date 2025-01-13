@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,16 +31,16 @@
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.json.*;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-// Test the API of JsonObject.of()
 public class TestJsonObject {
 
     private static final String jsonObjStr =
@@ -99,5 +99,71 @@ public class TestJsonObject {
         map.put("baz", Json.fromUntyped((Object) null));
         assertEquals(JsonObject.of(map),
                 Json.parse("{ \"foo\" : 5, \"bar\" : \"value\", \"baz\" : null}"));
+    }
+
+    @Test
+    public void testDuplicateKeys() {
+        var json =
+                """
+                { "clone": "bob", "clone": "foo" }
+                """;
+        var doc = Json.parse(json);
+        if (doc instanceof JsonObject jo && jo.keys().get("clone") instanceof JsonString js) {
+            // Only one key should be accepted
+            assertEquals(jo.keys().size(), 1);
+            // Only the latter value should be accepted
+            assertEquals(js.value(), "foo");
+        } else {
+            throw new RuntimeException("Test data incorrect");
+        }
+    }
+
+    // https://datatracker.ietf.org/doc/html/rfc8259#section-8.3
+    // Check for equality via unescaped value
+    @Test
+    public void testDuplicateKeyEquality() {
+        var json =
+                """
+                { "clone": "bob", "clon\\u0065": "foo" }
+                """;
+        var doc = Json.parse(json);
+        if (doc instanceof JsonObject jo && jo.keys().get("clone") instanceof JsonString js) {
+            // Only one key should be accepted
+            assertEquals(jo.keys().size(), 1);
+            // Only the latter value should be accepted
+            assertEquals(js.value(), "foo");
+        } else {
+            throw new RuntimeException("Test data incorrect");
+        }
+    }
+
+    private static Stream<String> malformedObjectParseTest() {
+        return Stream.of(
+                "{ :name\": \"Brian\"}",
+                "{ \"name:: \"Brian\"}",
+                "{ \"name\": :Brian\"}",
+                "{ \"name\": \"Brian:}",
+                "{ \"name\": ,Brian\"}",
+                "{ foo \"name\": \"Brian\"}", // Garbage before key
+                "{ \"name\" foo : \"Brian\"}", // Garbage after key, but before colon
+                // Garbage in second key/val
+                "{ \"name\": \"Brian\" , \"name2\": \"Brian\" 5}",
+                "{ \"name\": \"Brian\" 5}", // Garbage next to closing bracket
+                "{ \"name\": \"Brian\"5   }", // Garbage next to value
+                "{ \"name\": \"Brian\" 5 }", // Garbage with ws
+                // Other cases, where non index based JsonValue occurs first
+                "{ \"name\": 5 \"Brian\"  }",
+                "{ \"name\": 5  null  }",
+                // Garbage after JsonValue in the form of index based JsonValue
+                "{ \"name\": \"Brian\" { \"name2\": \"another String\"} }",
+                "{ \"name\": \"Brian\" [\"another String\"] }",
+                "{ \"name\": \"Brian\" \"another String\"}"
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    public void malformedObjectParseTest(String badJson) {
+        assertThrows(JsonParseException.class, () -> Json.parse(badJson));
     }
 }

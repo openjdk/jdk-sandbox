@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,8 @@
  * @run junit TestEquality
  */
 
+import org.junit.jupiter.api.Test;
+
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -39,9 +41,11 @@ import java.util.Map;
 import java.util.json.*;
 import java.util.stream.Stream;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class TestEquality {
+
     private static final String json =
             """
             [
@@ -68,6 +72,49 @@ public class TestEquality {
             Boolean.FALSE,
             null
     );
+
+    private static final String jsonWithSpaces =
+            """
+            [
+                { "name": "John", "age": 30, "city": "New York" },
+                { "name": "Jane", "age": 20, "city": "Boston" },
+                true,
+                false,
+                null,
+                [ "array", "inside", {"inner obj": true, "top-level": false}],
+                "foo",
+                42
+            ]
+            """;
+
+    private static final String jsonExtraSpaces =
+            """
+            [
+           \s
+                { "name"    : "John",    "age"  : 30, "city": "New York" },
+                {  "name": "Jane"  , "age": 20, "city": "Boston" },
+                \s
+               \s
+                true,   \s
+                false   ,
+                null, \s
+                [    "array"  , "inside", {"inner obj": true, "top-level" : false  } ] ,\s
+                "foo",\s
+                42
+              ]
+           \s""";
+
+    // White space is allowed but should have no effect
+    // on the underlying structure, and should not play a role during equality
+    @Test
+    public void testWhiteSpaceEquality() {
+        var obj = Json.parse(jsonExtraSpaces);
+        var str = assertDoesNotThrow(() -> obj.toString()); // build the map/arr
+        var expStr = Json.parse(jsonWithSpaces).toString();
+        // Ensure equivalent Json (besides white space) generates equivalent
+        // toString values
+        assertEquals(expStr, str);
+    }
 
     private static Stream<JsonValue> testArrayEquality() {
         return Stream.of(Json.parse(json));
