@@ -43,7 +43,11 @@ public sealed interface JsonString extends JsonValue permits JsonStringImpl {
 
     /**
      * {@return the {@code String} value represented with this
-     * {@code JsonString} value}
+     * {@code JsonString} value} This value is an unescaped version of the
+     * underlying {@code String} value. For example,
+     * {@snippet lang=java:
+     *     JsonString.of("fo\\u006f").value(); // returns "foo"
+     * }
      */
     String value();
 
