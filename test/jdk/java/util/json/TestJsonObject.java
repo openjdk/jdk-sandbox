@@ -33,6 +33,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.json.*;
@@ -165,5 +166,22 @@ public class TestJsonObject {
     @MethodSource
     public void malformedObjectParseTest(String badJson) {
         assertThrows(JsonParseException.class, () -> Json.parse(badJson));
+    }
+
+    // Enforce nest limit in of factory
+    @Test
+    void ofFactoryNestTest() {
+        // Make a max value nested JV
+        var root = new ArrayList<>();
+        var node = root;
+        for (int i = 0; i < 31; i++) {
+            var childNode = new ArrayList<>();
+            node.add(childNode);
+            node = childNode;
+        }
+        var jv = Json.fromUntyped(root);
+        // Try to sneak into of factory, to create nest past limit
+        assertThrows(IllegalArgumentException.class,
+                () -> JsonObject.of(Map.of("foo", jv)));
     }
 }

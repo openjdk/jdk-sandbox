@@ -35,6 +35,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.json.*;
@@ -77,5 +78,21 @@ public class TestJsonArray {
         var typed = List.of(JsonNumber.of(1), JsonNull.of(),
                 JsonBoolean.of(false), JsonString.of("test"));
         assertEquals(Json.fromUntyped(untyped), JsonArray.of(typed));
+    }
+
+    // Enforce nest limit in of factory
+    @Test
+    void ofFactoryNestTest() {
+        // Make a max value nested JV
+        var root = new ArrayList<>();
+        var node = root;
+        for (int i = 0; i < 31; i++) {
+            var childNode = new ArrayList<>();
+            node.add(childNode);
+            node = childNode;
+        }
+        var jv = Json.fromUntyped(root);
+        // Try to sneak into of factory, to create nest past limit
+        assertThrows(IllegalArgumentException.class, () -> JsonArray.of(List.of(jv)));
     }
 }
