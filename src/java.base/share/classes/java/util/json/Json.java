@@ -56,10 +56,6 @@ public final class Json {
      * Parses and creates the top level {@code JsonValue} in this JSON
      * document.
      *
-     * @implNote The reference implementation defines a nesting limit of 32.
-     * Parsing a JSON document that exceeds this limit will throw a {@code
-     * JsonParseException}.
-     *
      * @param in the input JSON document as {@code String}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform
      *      to the JSON document format
@@ -74,10 +70,6 @@ public final class Json {
     /**
      * Parses and creates the top level {@code JsonValue} in this JSON
      * document.
-     *
-     * @implNote The reference implementation defines a nesting limit of 32.
-     * Parsing a JSON document that exceeds this limit will throw a {@code
-     * JsonParseException}.
      *
      * @param in the input JSON document as {@code char[]}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform
@@ -102,8 +94,7 @@ public final class Json {
      * <li>{@code Map<String, Object>} for {@code JsonObject}</li>
      * <li>{@code String} for {@code JsonString}</li>
      * </ul>
-     *
-     * If {@code src} contains a circular reference, {@code IllegalArgumentException}
+     * <p>If {@code src} contains a circular reference, {@code IllegalArgumentException}
      * will be thrown. For example, the following code throws an exception,
      * {@snippet lang=java:
      *     var map = new HashMap<String, Object>();
@@ -111,10 +102,6 @@ public final class Json {
      *     map.put("bar", map);
      *     Json.fromUntyped(map);
      * }
-     *
-     * @implNote The reference implementation defines a nesting limit of 32.
-     * If {@code src} exceeds this limit, an {@code IllegalArgumentException} is
-     * thrown.
      *
      * @param src the data to produce the {@code JsonValue} from. May be null.
      * @throws IllegalArgumentException if {@code src} cannot be converted

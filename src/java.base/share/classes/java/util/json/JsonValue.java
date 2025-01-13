@@ -48,6 +48,10 @@ import jdk.internal.javac.PreviewFeature;
  *     json.toString(); // returns "[\"foo\",true,25]"
  * }
  *
+ * @implNote The reference implementation defines a nesting depth limit of 32
+ * for {@code JsonValue}. Attempting to construct a {@code JsonValue} that exceeds
+ * this limit will throw an {@code IllegalArgumentException}.
+ *
  * @since 25
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)
