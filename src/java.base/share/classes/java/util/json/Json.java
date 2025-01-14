@@ -54,14 +54,13 @@ public final class Json {
 
     /**
      * Parses and creates the top level {@code JsonValue} in this JSON
-     * document.
-     *
-     * @implNote The reference implementation throws a {@code JsonParseException}
-     * if a JSON Object contains a duplicate key.
+     * document. If the document contains any JSON Object that has
+     * duplicate keys, a {@code JsonParseException} is thrown.
      *
      * @param in the input JSON document as {@code String}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform
-     *      to the JSON document format
+     *      to the JSON document format, or a JSON object containing
+     *      duplicate keys is encountered.
      * @return the top level {@code JsonValue}
      */
     public static JsonValue parse(String in) {
@@ -72,14 +71,13 @@ public final class Json {
 
     /**
      * Parses and creates the top level {@code JsonValue} in this JSON
-     * document.
-     *
-     * @implNote The reference implementation throws a {@code JsonParseException}
-     * if a JSON Object contains a duplicate key.
+     * document. If the document contains any JSON Object that has
+     * duplicate keys, a {@code JsonParseException} is thrown.
      *
      * @param in the input JSON document as {@code char[]}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform
-     *      to the JSON document format
+     *      to the JSON document format, or a JSON object containing
+     *      duplicate keys is encountered.
      * @return the top level {@code JsonValue}
      */
     public static JsonValue parse(char[] in) {
