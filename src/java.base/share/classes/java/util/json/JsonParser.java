@@ -71,7 +71,11 @@ final class JsonParser { ;
                 throw failure(docInfo, "Invalid key", offset);
             }
             var keyOffset = JsonParser.parseString(docInfo, offset);
-            var keyString = docInfo.substring(offset + 1, keyOffset -1);
+            // Member equality done via unescaped
+            // see https://datatracker.ietf.org/doc/html/rfc8259#section-8.3
+            var keyString =
+                    new JsonStringImpl(docInfo.substring(offset + 1, keyOffset -1)).value();
+
             // Check for duplicates
             if (keys.contains(keyString)) {
                 throw failure(docInfo,

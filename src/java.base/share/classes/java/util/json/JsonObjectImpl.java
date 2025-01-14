@@ -86,9 +86,10 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
         var index = startIndex + 1;
         // Empty case automatically checked by index increment. {} is 2 tokens
         while (index < endIndex) {
-            // Member name equality done via the unescaped value,
-            // see https://datatracker.ietf.org/doc/html/rfc8259#section-8.3
-            var key = new JsonStringImpl(docInfo, docInfo.getOffset(index), index).value();
+            // Member name should be source string, not unescaped
+            // Member equality is done via unescaped in JsonParser
+            var key = docInfo.substring(
+                    docInfo.getOffset(index) + 1, docInfo.getOffset(index + 1));
             index = index + 2;
 
             // Get value
