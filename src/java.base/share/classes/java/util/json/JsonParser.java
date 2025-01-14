@@ -70,18 +70,18 @@ final class JsonParser { ;
             if (docInfo.charAt(offset) != '"') {
                 throw failure(docInfo, "Invalid key", offset);
             }
-            var keyOffset = JsonParser.parseString(docInfo, offset);
-            // Member equality done via unescaped
+            // Member equality done via unescaped String
             // see https://datatracker.ietf.org/doc/html/rfc8259#section-8.3
-            var keyString =
-                    new JsonStringImpl(docInfo.substring(offset + 1, keyOffset -1)).value();
+            var sb = new StringBuilder();
+            var keyOffset = parseKey(docInfo, offset, sb);
+            var keyStr = sb.toString();
 
             // Check for duplicates
-            if (keys.contains(keyString)) {
+            if (keys.contains(keyStr)) {
                 throw failure(docInfo,
-                        "The duplicate key: %s was already previously parsed".formatted(keyString), offset);
+                        "The duplicate key: '%s' was already parsed".formatted(keyStr), offset);
             }
-            keys.add(keyString);
+            keys.add(keyStr);
 
             // Move from key to ':'
             offset = JsonParser.skipWhitespaces(docInfo, keyOffset);
@@ -145,6 +145,51 @@ final class JsonParser { ;
                 "Unexpected character(s) found after value", offset);
     }
 
+    // Similar to parseString, but accepts a StringBuilder which can record
+    // the unescaped String
+    static int parseKey(JsonDocumentInfo docInfo, int offset, StringBuilder sb) {
+        docInfo.tokens[docInfo.index++] = offset++; // Move past the starting quote
+        var escape = false;
+
+        for (; offset < docInfo.getEndOffset(); offset++) {
+            var c = docInfo.charAt(offset);
+            if (escape) {
+                switch (c) {
+                    // Allowed JSON escapes
+                    case '"', '\\', '/' -> {}
+                    case 'b' -> c = '\b';
+                    case 'f' -> c = '\f';
+                    case 'n' -> c = '\n';
+                    case 'r' -> c = '\r';
+                    case 't' -> c = '\t';
+                    case 'u' -> {
+                        if (offset + 4 < docInfo.getEndOffset()) {
+                            c = codeUnit(docInfo, offset + 1);
+                            offset += 4;
+                        } else {
+                            throw failure(docInfo,
+                                    "Illegal Unicode escape sequence", offset);
+                        }
+                    }
+                    default -> throw failure(docInfo,
+                            "Illegal escape", offset);
+                }
+                escape = false;
+            } else if (c == '\\') {
+                escape = true;
+                continue;
+            } else if (c == '\"') {
+                docInfo.tokens[docInfo.index++] = offset;
+                return ++offset;
+            } else if (c < ' ') {
+                throw failure(docInfo,
+                        "Unescaped control code", offset);
+            }
+            sb.append(c);
+        }
+        throw failure(docInfo, "Closing quote missing", offset);
+    }
+
     static int parseString(JsonDocumentInfo docInfo, int offset) {
         docInfo.tokens[docInfo.index++] = offset++; // Move past the starting quote
         var escape = false;
@@ -181,7 +226,7 @@ final class JsonParser { ;
         throw failure(docInfo, "Closing quote missing", offset);
     }
 
-    // Throws an exception if the 4 chars after the '\\u' are invalid
+    // Validate unicode escape sequence
     static void checkEscapeSequence(JsonDocumentInfo docInfo, int offset) {
         for (int index = 0; index < 4; index++) {
             char c = docInfo.charAt(offset + index);
@@ -189,6 +234,23 @@ final class JsonParser { ;
                 throw failure(docInfo, "Invalid Unicode escape", offset);
             }
         }
+    }
+
+    // Validate and construct corresponding value of unicode escape sequence
+    static char codeUnit(JsonDocumentInfo docInfo, int offset) {
+        char val = 0;
+        for (int index = 0; index < 4; index ++) {
+            char c = docInfo.charAt(offset + index);
+            val <<= 4;
+            val += (char) (
+                    switch (c) {
+                        case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> c - '0';
+                        case 'a', 'b', 'c', 'd', 'e', 'f' -> c - 'a' + 10;
+                        case 'A', 'B', 'C', 'D', 'E', 'F' -> c - 'A' + 10;
+                        default -> throw new InternalError();
+                    });
+        }
+        return val;
     }
 
     static int parseBoolean(JsonDocumentInfo docInfo, int offset) {

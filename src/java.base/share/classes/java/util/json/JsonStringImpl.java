@@ -116,7 +116,7 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
                     case 'r' -> c = '\r';
                     case 't' -> c = '\t';
                     case 'u' -> {
-                        c = codeUnit(offset + 1);
+                        c = JsonParser.codeUnit(docInfo, offset + 1);
                         offset += 4;
                     }
                     default -> throw new InternalError();
@@ -129,21 +129,5 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
             sb.append(c);
         }
         return sb.toString();
-    }
-
-    char codeUnit(int offset) {
-        char val = 0;
-        for (int index = 0; index < 4; index ++) {
-            char c = docInfo.charAt(offset + index);
-            val <<= 4;
-            val += (char) (
-                switch (c) {
-                    case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> c - '0';
-                    case 'a', 'b', 'c', 'd', 'e', 'f' -> c - 'a' + 10;
-                    case 'A', 'B', 'C', 'D', 'E', 'F' -> c - 'A' + 10;
-                    default -> throw new InternalError();
-                });
-        }
-        return val;
     }
 }
