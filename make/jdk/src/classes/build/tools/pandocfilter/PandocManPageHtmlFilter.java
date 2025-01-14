@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,40 +23,33 @@
 
 package build.tools.pandocfilter;
 
-import build.tools.json.JsonArray;
-import build.tools.json.JsonObject;
-import build.tools.json.JsonString;
-import build.tools.json.JsonValue;
+import build.tools.pandocfilter.json.JSONArray;
+import build.tools.pandocfilter.json.JSONObject;
+import build.tools.pandocfilter.json.JSONValue;
 
 import java.io.FileNotFoundException;
-import java.util.HashMap;
-import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class PandocManPageHtmlFilter extends PandocFilter {
 
-    private JsonValue MetaInlines(JsonValue value) {
+    private JSONValue MetaInlines(JSONValue value) {
         return createPandocNode("MetaInlines", value);
     }
 
-    private JsonValue changeTitle(String type, JsonValue value) {
-        if (type.equals("MetaInlines") && value instanceof JsonArray ja
-                && ja.values().get(0) instanceof JsonObject jo
-                && jo.keys().get("t") instanceof JsonString t
-                && jo.keys().get("c") instanceof JsonString c) {
-            String subType = t.value();
-            String subContent = c.value();
+    private JSONValue changeTitle(String type, JSONValue value) {
+        if (type.equals("MetaInlines")) {
+            String subType = value.get(0).get("t").asString();
+            String subContent = value.get(0).get("c").asString();
             if (subType.equals("Str")) {
                 Pattern pattern = Pattern.compile("^([A-Z0-9]+)\\([0-9]+\\)$");
                 Matcher matcher = pattern.matcher(subContent);
                 if (matcher.find()) {
                     String commandName = matcher.group(1).toLowerCase();
-                    return MetaInlines(JsonArray.of(
-                            List.of(
+                    return MetaInlines(new JSONArray(
                             createStr("The"), createSpace(),
                             createStr(commandName),
-                            createSpace(), createStr("Command"))));
+                            createSpace(), createStr("Command")));
                 }
             }
         }
@@ -67,23 +60,20 @@ public class PandocManPageHtmlFilter extends PandocFilter {
      * Main function
      */
     public static void main(String[] args) throws FileNotFoundException {
-        JsonValue json = loadJson(args);
-        if (json instanceof JsonObject jo) {
-            JsonValue out = json;
-            PandocManPageHtmlFilter filter = new PandocManPageHtmlFilter();
-            JsonValue meta = jo.keys().get("meta");
-            if (meta != null && meta instanceof JsonObject jobj) {
-                var bldr = new HashMap<>(jo.keys());
-                bldr.remove("date");
-                JsonValue title = jobj.keys().get("title");
-                if (title != null) {
-                    bldr.put("title", filter.traverse(title, filter::changeTitle, true));
-                }
-                out = JsonObject.of(bldr);
+        JSONValue json = loadJson(args);
+
+        PandocManPageHtmlFilter filter = new PandocManPageHtmlFilter();
+
+        JSONValue meta = json.get("meta");
+        if (meta != null && meta instanceof JSONObject) {
+            JSONObject metaobj = (JSONObject) meta;
+            metaobj.remove("date");
+            JSONValue title = meta.get("title");
+            if (title != null) {
+                metaobj.put("title", filter.traverse(title, filter::changeTitle, true));
             }
-            System.out.println(out);
-        } else {
-            throw new RuntimeException("Json format incorrect");
         }
+
+        System.out.println(json);
     }
 }

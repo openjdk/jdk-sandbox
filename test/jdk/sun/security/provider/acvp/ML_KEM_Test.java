@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,33 +21,25 @@
  * questions.
  */
 import jdk.test.lib.Asserts;
+import jdk.test.lib.json.JSONValue;
 import jdk.test.lib.security.FixedSecureRandom;
 
 import javax.crypto.KEM;
-import javax.crypto.SecretKey;
 import java.security.*;
 import java.security.spec.EncodedKeySpec;
 import java.security.spec.NamedParameterSpec;
-import java.util.json.JsonArray;
-import java.util.json.JsonNumber;
-import java.util.json.JsonObject;
-import java.util.json.JsonString;
 
 import static jdk.test.lib.Utils.toByteArray;
 
 // JSON spec at https://pages.nist.gov/ACVP/draft-celi-acvp-ml-kem.html
 public class ML_KEM_Test {
 
-    public static void run(JsonObject kat, Provider provider) throws Exception {
-        var mode = kat.keys().get("mode");
-        if (kat.keys().get("mode") instanceof JsonString m) {
-            switch (m.value()) {
-                case "keyGen" -> keyGenTest(kat, provider);
-                case "encapDecap" -> encapDecapTest(kat, provider);
-                default -> throw new UnsupportedOperationException("Unknown mode: " + mode);
-            }
-        } else {
-            throw new UnsupportedOperationException("Unknown mode: " + mode);
+    public static void run(JSONValue kat, Provider provider) throws Exception {
+        var mode = kat.get("mode").asString();
+        switch (mode) {
+            case "keyGen" -> keyGenTest(kat, provider);
+            case "encapDecap" -> encapDecapTest(kat, provider);
+            default -> throw new UnsupportedOperationException("Unknown mode: " + mode);
         }
     }
 
@@ -60,107 +52,70 @@ public class ML_KEM_Test {
         };
     }
 
-    static void keyGenTest(JsonObject kat, Provider p) throws Exception {
+    static void keyGenTest(JSONValue kat, Provider p) throws Exception {
         var g = p == null
                 ? KeyPairGenerator.getInstance("ML-KEM")
                 : KeyPairGenerator.getInstance("ML-KEM", p);
         var f = p == null
                 ? KeyFactory.getInstance("ML-KEM")
                 : KeyFactory.getInstance("ML-KEM", p);
-        if (kat.keys().get("testGroups") instanceof JsonArray ja) {
-            ja.values().forEach(t -> {
-                if (t instanceof JsonObject jo) {
-                    if (jo.keys().get("parameterSet") instanceof JsonString pname) {
-                        var np = genParams(pname.value());
-                        System.out.println(">> " + pname.value());
-                        if (jo.keys().get("tests") instanceof JsonArray ja2) {
-                            ja2.values().forEach(c -> {
-                                if (c instanceof JsonObject jo2) {
-                                    System.out.print(((JsonNumber)jo2.keys().get("tcId")).value() + " ");
-                                    byte[] pk, sk;
-                                    try {
-                                        g.initialize(np, new FixedSecureRandom(
-                                                toByteArray(((JsonString)jo2.keys().get("d")).value()), toByteArray(((JsonString)jo2.keys().get("z")).value())));
-                                        var kp = g.generateKeyPair();
-                                        pk = f.getKeySpec(kp.getPublic(), EncodedKeySpec.class).getEncoded();
-                                        sk = f.getKeySpec(kp.getPrivate(), EncodedKeySpec.class).getEncoded();
-                                    } catch (Exception e) {
-                                        throw new RuntimeException(e);
-                                    }
-                                    Asserts.assertEqualsByteArray(pk, toByteArray(((JsonString)jo2.keys().get("ek")).value()));
-                                    Asserts.assertEqualsByteArray(sk, toByteArray(((JsonString)jo2.keys().get("dk")).value()));
-                                }
-                            });
-                            System.out.println();
-                        }
-                    }
-                }
-            });
+        for (var t : kat.get("testGroups").asArray()) {
+            var pname = t.get("parameterSet").asString();
+            var np = genParams(pname);
+            System.out.println(">> " + pname);
+            for (var c : t.get("tests").asArray()) {
+                System.out.print(c.get("tcId").asString() + " ");
+                g.initialize(np, new FixedSecureRandom(
+                        toByteArray(c.get("d").asString()), toByteArray(c.get("z").asString())));
+                var kp = g.generateKeyPair();
+                var pk = f.getKeySpec(kp.getPublic(), EncodedKeySpec.class).getEncoded();
+                var sk = f.getKeySpec(kp.getPrivate(), EncodedKeySpec.class).getEncoded();
+                Asserts.assertEqualsByteArray(toByteArray(c.get("ek").asString()), pk);
+                Asserts.assertEqualsByteArray(toByteArray(c.get("dk").asString()), sk);
+            }
+            System.out.println();
         }
     }
 
-    static void encapDecapTest(JsonObject kat, Provider p) throws Exception {
+    static void encapDecapTest(JSONValue kat, Provider p) throws Exception {
         var g = p == null
                 ? KEM.getInstance("ML-KEM")
                 : KEM.getInstance("ML-KEM", p);
-        if (kat.keys().get("testGroups") instanceof JsonArray ja) {
-            ja.values().forEach(t -> {
-                if (t instanceof JsonObject jo) {
-                    if (jo.keys().get("parameterSet") instanceof JsonString pname &&
-                        jo.keys().get("function") instanceof JsonString function) {
-                        System.out.println(">> " + pname.value() + " " + function.value());
-                        if (function.value().equals("encapsulation")) {
-                            if (jo.keys().get("tests") instanceof JsonArray ja2) {
-                                ja2.values().forEach(c -> {
-                                    if (c instanceof JsonObject jo2) {
-                                        System.out.print(((JsonNumber)jo2.keys().get("tcId")).value() + " ");
-                                        var ek = new PublicKey() {
-                                            public String getAlgorithm() { return pname.value(); }
-                                            public String getFormat() { return "RAW"; }
-                                            public byte[] getEncoded() { return toByteArray(((JsonString)jo2.keys().get("ek")).value()); }
-                                        };
-                                        KEM.Encapsulated enc;
-                                        try {
-                                            var e = g.newEncapsulator(
-                                                    ek, new FixedSecureRandom(toByteArray(((JsonString)jo2.keys().get("m")).value())));
-                                            enc = e.encapsulate();
-                                        } catch (Exception ex) {
-                                            throw new RuntimeException(ex);
-                                        }
-                                        Asserts.assertEqualsByteArray(
-                                                enc.encapsulation(), toByteArray(((JsonString)jo2.keys().get("c")).value()));
-                                        Asserts.assertEqualsByteArray(
-                                                enc.key().getEncoded(), toByteArray(((JsonString)jo2.keys().get("k")).value()));
-                                    }
-                                });
-                            }
-                            System.out.println();
-                        } else if (function.value().equals("decapsulation")) {
-                            if (jo.keys().get("tests") instanceof JsonArray ja2) {
-                                ja2.values().forEach(c -> {
-                                    if (c instanceof JsonObject jo2) {
-                                        System.out.print(((JsonNumber)jo2.keys().get("tcId")).value() + " ");
-                                        var dk = new PrivateKey() {
-                                            public String getAlgorithm() { return pname.value(); }
-                                            public String getFormat() { return "RAW"; }
-                                            public byte[] getEncoded() { return toByteArray(((JsonString)jo.keys().get("dk")).value()); }
-                                        };
-                                        SecretKey k;
-                                        try {
-                                            var d = g.newDecapsulator(dk);
-                                            k = d.decapsulate(toByteArray(((JsonString)jo2.keys().get("c")).value()));
-                                        } catch (Exception e) {
-                                            throw new RuntimeException(e);
-                                        }
-                                        Asserts.assertEqualsByteArray(k.getEncoded(), toByteArray(((JsonString)jo2.keys().get("k")).value()));
-                                    }
-                                });
-                            }
-                            System.out.println();
-                        }
-                    }
+        for (var t : kat.get("testGroups").asArray()) {
+            var pname = t.get("parameterSet").asString();
+            var function = t.get("function").asString();
+            System.out.println(">> " + pname + " " + function);
+            if (function.equals("encapsulation")) {
+                for (var c : t.get("tests").asArray()) {
+                    System.out.print(c.get("tcId").asString() + " ");
+                    var ek = new PublicKey() {
+                        public String getAlgorithm() { return pname; }
+                        public String getFormat() { return "RAW"; }
+                        public byte[] getEncoded() { return toByteArray(c.get("ek").asString()); }
+                    };
+                    var e = g.newEncapsulator(
+                            ek, new FixedSecureRandom(toByteArray(c.get("m").asString())));
+                    var enc = e.encapsulate();
+                    Asserts.assertEqualsByteArray(
+                            toByteArray(c.get("c").asString()), enc.encapsulation());
+                    Asserts.assertEqualsByteArray(
+                            toByteArray(c.get("k").asString()), enc.key().getEncoded());
                 }
-            });
+                System.out.println();
+            } else if (function.equals("decapsulation")) {
+                var dk = new PrivateKey() {
+                    public String getAlgorithm() { return pname; }
+                    public String getFormat() { return "RAW"; }
+                    public byte[] getEncoded() { return toByteArray(t.get("dk").asString()); }
+                };
+                for (var c : t.get("tests").asArray()) {
+                    System.out.print(c.get("tcId").asString() + " ");
+                    var d = g.newDecapsulator(dk);
+                    var k = d.decapsulate(toByteArray(c.get("c").asString()));
+                    Asserts.assertEqualsByteArray(toByteArray(c.get("k").asString()), k.getEncoded());
+                }
+                System.out.println();
+            }
         }
     }
 }

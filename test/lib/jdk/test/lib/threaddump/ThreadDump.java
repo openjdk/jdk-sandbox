@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,13 +32,7 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.stream.Stream;
-
-import java.util.json.Json;
-import java.util.json.JsonArray;
-import java.util.json.JsonNull;
-import java.util.json.JsonObject;
-import java.util.json.JsonString;
-import java.util.json.JsonValue;
+import jdk.test.lib.json.JSONValue;
 
 /**
  * Represents a thread dump that is obtained by parsing JSON text. A thread dump in JSON
@@ -282,93 +276,51 @@ public final class ThreadDump {
      * Parses the given JSON text as a thread dump.
      */
     private ThreadDump(String json) {
-        JsonValue jsonRoot = Json.parse(json);
-        if (jsonRoot instanceof JsonObject objRoot && objRoot.keys().get("threadDump") instanceof JsonObject threadDumpObj
-                && threadDumpObj.keys().get("threadContainers") instanceof JsonArray threadContainersObj) {
-            // maps container name to ThreadContainer
-            Map<String, ThreadContainer> map = new HashMap<>();
-            // threadContainers array
-            for (JsonValue containerObj : threadContainersObj.values()) {
-                String parentName;
-                String owner;
-                if (containerObj instanceof JsonObject containerJson
-                        && containerJson.keys().get("container") instanceof JsonString jsContainer
-                        && containerJson.keys().get("threads") instanceof JsonArray jaThreads) {
-                    String name = jsContainer.value();
-                    if (containerJson.keys().get("parent") instanceof JsonString jsParent) {
-                        parentName = jsParent.value();
-                    } else if (containerJson.keys().get("parent") instanceof JsonNull) {
-                        parentName = null;
-                    } else {
-                        throw new RuntimeException(
-                                "Json for 'parent' was neither a String nor null\n" + json);
-                    }
-                    if (containerJson.keys().get("owner") instanceof JsonString jsOwner) {
-                        owner = jsOwner.value();
-                    } else if (containerJson.keys().get("owner") instanceof JsonNull) {
-                        owner = null;
-                    } else {
-                        throw new RuntimeException(
-                                "Json for 'owner' was neither a String nor null\n" + json);
-                    }
-                    // threads array
-                    Set<ThreadInfo> threadInfos = new HashSet<>();
-                    for (JsonValue threadObj : jaThreads.values()) {
-                        if (threadObj instanceof JsonObject joThread
-                                && joThread.keys().get("tid") instanceof JsonString jsTid
-                                && joThread.keys().get("name") instanceof JsonString jsName
-                                && joThread.keys().get("stack") instanceof JsonArray jsStack ) {
-                            long tid = Long.parseLong(jsTid.value());
-                            String threadName = jsName.value();
-                            List<String> stack = new ArrayList<>();
-                            for (JsonValue steObject : jsStack.values()) {
-                                if (steObject instanceof JsonString jsSte) {
-                                    stack.add(jsSte.value());
-                                } else {
-                                    throw new RuntimeException(
-                                            "Json for 'stack' does not contain strings");
-                                }
-                            }
-                            threadInfos.add(new ThreadInfo(tid, threadName, stack));
-                        } else {
-                            throw new RuntimeException(
-                                    "Json for 'tid', 'name' or 'stack' contains incorrect format\n" + json);
-                        }
-                    }
+        JSONValue threadDumpObj = JSONValue.parse(json).get("threadDump");
 
-                    // add to map if not already encountered
-                    var container = map.computeIfAbsent(name, k -> new ThreadContainer(name));
-                    if (owner != null)
-                        container.owner = Long.parseLong(owner);
-                    container.threads = threadInfos;
+        // maps container name to ThreadContainer
+        Map<String, ThreadContainer> map = new HashMap<>();
 
-                    if (parentName == null) {
-                        rootThreadContainer = container;
-                    } else {
-                        // add parent to map if not already encountered and add to its set of children
-                        var parent = map.computeIfAbsent(parentName, k -> new ThreadContainer(parentName));
-                        container.parent = parent;
-                        parent.children.add(container);
-                    }
-                } else {
-                    throw new RuntimeException(
-                            "Json for 'container' or 'threads' contains incorrect format\n" + json);
+        // threadContainers array
+        JSONValue threadContainersObj = threadDumpObj.get("threadContainers");
+        for (JSONValue containerObj : threadContainersObj.asArray()) {
+            String name = containerObj.get("container").asString();
+            String parentName = containerObj.get("parent").asString();
+            String owner = containerObj.get("owner").asString();
+            JSONValue.JSONArray threadsObj = containerObj.get("threads").asArray();
+
+            // threads array
+            Set<ThreadInfo> threadInfos = new HashSet<>();
+            for (JSONValue threadObj : threadsObj) {
+                long tid = Long.parseLong(threadObj.get("tid").asString());
+                String threadName = threadObj.get("name").asString();
+                JSONValue.JSONArray stackObj = threadObj.get("stack").asArray();
+                List<String> stack = new ArrayList<>();
+                for (JSONValue steObject : stackObj) {
+                    stack.add(steObject.asString());
                 }
+                threadInfos.add(new ThreadInfo(tid, threadName, stack));
             }
-            if (threadDumpObj.keys().get("processId") instanceof JsonString jsProcId
-                    && threadDumpObj.keys().get("time") instanceof JsonString jsTime
-                    && threadDumpObj.keys().get("runtimeVersion") instanceof JsonString jsRtV) {
-                this.processId = Long.parseLong(jsProcId.value());
-                this.time = jsTime.value();
-                this.runtimeVersion = jsRtV.value();
+
+            // add to map if not already encountered
+            var container = map.computeIfAbsent(name, k -> new ThreadContainer(name));
+            if (owner != null)
+                container.owner = Long.parseLong(owner);
+            container.threads = threadInfos;
+
+            if (parentName == null) {
+                rootThreadContainer = container;
             } else {
-                throw new RuntimeException(
-                        "Json for 'processId', 'time', or 'runtimeVersion' contains incorrect format\n" + json);
+                // add parent to map if not already encountered and add to its set of children
+                var parent = map.computeIfAbsent(parentName, k -> new ThreadContainer(parentName));
+                container.parent = parent;
+                parent.children.add(container);
             }
-        } else {
-            throw new RuntimeException(
-                    "Json for 'threadDump' or 'threadContainers' contains incorrect format\n" + json);
         }
+
+        this.processId = Long.parseLong(threadDumpObj.get("processId").asString());
+        this.time = threadDumpObj.get("time").asString();
+        this.runtimeVersion = threadDumpObj.get("runtimeVersion").asString();
     }
 
     /**

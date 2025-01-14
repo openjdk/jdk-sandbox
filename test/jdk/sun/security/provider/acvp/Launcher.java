@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,22 +20,19 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+import jdk.test.lib.json.JSONValue;
 import jtreg.SkippedException;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.Provider;
 import java.security.Security;
-import java.util.json.Json;
-import java.util.json.JsonObject;
-import java.util.json.JsonString;
 
 /*
  * @test
  * @bug 8342442 8345057
  * @library /test/lib
  * @modules java.base/sun.security.provider
- * @enablePreview
  */
 
 /// This test runs on `internalProjection.json`-style files generated
@@ -126,21 +123,15 @@ public class Launcher {
 
     static void run(Path test) {
         try {
-            JsonObject kat;
+            JSONValue kat;
             try {
-                if (Json.parse(Files.readString(test)) instanceof JsonObject jo) {
-                    kat = jo;
-                } else {
-                    System.out.println("Warning: cannot parse " + test + ". Skipped");
-                    invalidTest++;
-                    return;
-                }
+                kat = JSONValue.parse(Files.readString(test));
             } catch (Exception e) {
                 System.out.println("Warning: cannot parse " + test + ". Skipped");
                 invalidTest++;
                 return;
             }
-            var alg = kat.keys().get("algorithm") instanceof JsonString js ? js.value() : null;
+            var alg = kat.get("algorithm").asString();
             if (ONLY_ALG != null && !alg.equals(ONLY_ALG)) {
                 return;
             }
