@@ -108,15 +108,7 @@ public class TestJsonObject {
                 """
                 { "clone": "bob", "clone": "foo" }
                 """;
-        var doc = Json.parse(json);
-        if (doc instanceof JsonObject jo && jo.keys().get("clone") instanceof JsonString js) {
-            // Only one key should be accepted
-            assertEquals(jo.keys().size(), 1);
-            // Only the latter value should be accepted
-            assertEquals(js.value(), "foo");
-        } else {
-            throw new RuntimeException("Test data incorrect");
-        }
+        assertThrows(JsonParseException.class, () -> Json.parse(json));
     }
 
     // https://datatracker.ietf.org/doc/html/rfc8259#section-8.3

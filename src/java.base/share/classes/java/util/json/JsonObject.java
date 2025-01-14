@@ -37,7 +37,7 @@ import java.util.Objects;
  * <p> Alternatively, {@link #of(Map)} can be used to obtain a {@code JsonObject}.
  * @implNote Since {@code JsonObject} is backed by {@link Map}, duplicate keys
  * may not be allowed. If duplicate keys appear during a {@link Json#parse(String)},
- * this implementation uses the value of the last parsed key.
+ * this implementation throws a {@code JsonParseException}.
  *
  * @since 25
  */
