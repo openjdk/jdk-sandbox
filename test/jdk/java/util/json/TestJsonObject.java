@@ -123,6 +123,15 @@ public class TestJsonObject {
         assertThrows(JsonParseException.class, () -> Json.parse(json));
     }
 
+    @Test
+    public void testDuplicateKeyEqualityUnescapedVariant() {
+        var json =
+                """
+                { "c\\b": "bob", "c\b": "foo" }
+                """;
+        assertThrows(JsonParseException.class, () -> Json.parse(json));
+    }
+
     private static Stream<String> malformedObjectParseTest() {
         return Stream.of(
                 "{ :name\": \"Brian\"}",
