@@ -105,8 +105,8 @@ final class JsonParser { ;
                     if (!useBldr) {
                         useBldr = true;
                         sb = new StringBuilder(docInfo.substring(start, offset - 1));
-                        offset+=length;
                     }
+                    offset+=length;
                     escape = false;
                 } else if (c == '\\') {
                     escape = true;

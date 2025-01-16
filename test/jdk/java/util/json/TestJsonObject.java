@@ -124,6 +124,15 @@ public class TestJsonObject {
     }
 
     @Test
+    public void testDuplicateKeyEqualityMultipleUnescaped() {
+        var json =
+                """
+                { "clonee": "bob", "clon\\u0065\\u0065": "foo" }
+                """;
+        assertThrows(JsonParseException.class, () -> Json.parse(json));
+    }
+
+    @Test
     public void testDuplicateKeyEqualityUnescapedVariant() {
         var json =
                 """
