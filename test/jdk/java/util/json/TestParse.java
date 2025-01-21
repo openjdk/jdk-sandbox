@@ -35,6 +35,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.json.*;
 import java.util.stream.Stream;
@@ -128,6 +129,25 @@ public class TestParse {
             assertEquals(10, size);
         } else {
             throw new RuntimeException("Test data incorrect");
+        }
+    }
+
+    // Ensure modifying input char array has no impact on JsonValue
+    @Test
+    public void testDefensiveCopy() {
+        char[] in = basicJson.toCharArray();
+        var doc = Json.parse(in);
+
+        // Mutate original char array with nonsense
+        Arrays.fill(in, 'A');
+
+        if (doc instanceof JsonObject o
+                && o.keys().get("name") instanceof JsonString name
+                && o.keys().get("shoeSize") instanceof JsonNumber size) {
+            assertEquals("Brian", name.value());
+            assertEquals(10, size.value());
+        } else {
+            throw new RuntimeException("JsonValue corrupted by input array");
         }
     }
 }

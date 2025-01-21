@@ -26,6 +26,7 @@ package java.util.json;
 
 import jdk.internal.javac.PreviewFeature;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Objects;
@@ -83,7 +84,7 @@ public final class Json {
     public static JsonValue parse(char[] in) {
         Objects.requireNonNull(in);
         return JsonGenerator.createValue(JsonParser.parseRoot(
-                new JsonDocumentInfo(in)), 0, 0);
+                new JsonDocumentInfo(Arrays.copyOf(in, in.length))), 0, 0);
     }
 
     /**
