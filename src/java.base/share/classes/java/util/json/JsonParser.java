@@ -290,20 +290,23 @@ final class JsonParser { ;
         boolean sawWhitespace = false;
         boolean havePart = false;
         boolean sawInvalid = false;
+        boolean sawSign = false;
         var start = offset;
         for (; offset < docInfo.getEndOffset() && !sawWhitespace && !sawInvalid; offset++) {
             switch (docInfo.charAt(offset)) {
                 case '-' -> {
-                    if (offset != start && !sawExponent) {
+                    if (offset != start && !sawExponent || sawSign) {
                         throw failure(docInfo,
                                 "Invalid '-' position", offset);
                     }
+                    sawSign = true;
                 }
                 case '+' -> {
-                    if (!sawExponent || havePart) {
+                    if (!sawExponent || havePart || sawSign) {
                         throw failure(docInfo,
                                 "Invalid '+' position", offset);
                     }
+                    sawSign = true;
                 }
                 case '0' -> {
                     if (!havePart) {
@@ -342,6 +345,7 @@ final class JsonParser { ;
                         }
                         sawExponent = true;
                         havePart = false;
+                        sawSign = false;
                     }
                 }
                 case ' ', '\t', '\r', '\n' -> {
