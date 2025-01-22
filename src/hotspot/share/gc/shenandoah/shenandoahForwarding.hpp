@@ -29,6 +29,9 @@
 #include "utilities/globalDefinitions.hpp"
 
 class ShenandoahForwarding {
+private:
+  static const uintptr_t FWDED_HASH_TRANSITION = 0b111;
+
 public:
   /* Gets forwardee from the given object.
    */
@@ -51,6 +54,7 @@ public:
    * Returns true if the object is forwarded, false otherwise.
    */
   static inline bool is_forwarded(oop obj);
+  static inline bool is_forwarded(markWord m);
 
   /* Tries to atomically update forwardee in $holder object to $update.
    * Assumes $holder points at itself.

@@ -133,6 +133,11 @@ public:
   // NOTE: It may cause monitor inflation
   static intptr_t FastHashCode(Thread* current, oop obj);
 
+  // NOTE: May not cause monitor inflation
+  static uint32_t get_hash(markWord mark, oop obj);
+  // For CDS path.
+  static uint32_t get_hash(markWord mark, oop obj, Klass* klass);
+
   // java.lang.Thread support
   static bool current_thread_holds_lock(JavaThread* current, Handle h_obj);
 
@@ -192,6 +197,8 @@ public:
                                int* error_cnt_p);
   static void do_final_audit_and_print_stats();
   static void log_in_use_monitor_details(outputStream* out, bool log_all);
+
+  static intptr_t get_next_hash(Thread* current, oop obj);
 
  private:
   friend class SynchronizerTest;

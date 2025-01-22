@@ -308,6 +308,10 @@ public:
   }
   GrowableArray<ciInstanceKlass*>* transitive_interfaces() const;
 
+  int hash_offset_in_bytes() const {
+    return get_instanceKlass()->hash_offset_in_bytes(nullptr);
+  }
+
   // Replay support
 
   // Dump the current state of this klass for compilation replay.

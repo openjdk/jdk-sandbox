@@ -210,6 +210,23 @@ void FieldLayout::add(GrowableArray<LayoutRawBlock*>* list, LayoutRawBlock* star
   }
 }
 
+// Finds a slot for the identity hash-code.
+// Same basic algorithm as above add() method, but simplified
+// and does not actually insert the field.
+int FieldLayout::find_hash_offset() {
+  LayoutRawBlock* start = this->_start;
+  LayoutRawBlock* last = last_block();
+  LayoutRawBlock* cursor = start;
+  while (cursor != last) {
+    assert(cursor != nullptr, "Sanity check");
+    if (cursor->kind() == LayoutRawBlock::EMPTY && cursor->fit(4, 1)) {
+      break;
+    }
+    cursor = cursor->next_block();
+  }
+  return cursor->offset();
+}
+
 // Used for classes with hard coded field offsets, insert a field at the specified offset */
 void FieldLayout::add_field_at_offset(LayoutRawBlock* block, int offset, LayoutRawBlock* start) {
   assert(block != nullptr, "Sanity check");
@@ -697,6 +714,9 @@ void FieldLayoutBuilder::epilogue() {
 
   _info->oop_map_blocks = nonstatic_oop_maps;
   _info->_instance_size = align_object_size(instance_end / wordSize);
+  if (UseCompactObjectHeaders) {
+    _info->_hash_offset   = _layout->find_hash_offset();
+  }
   _info->_static_field_size = static_fields_size;
   _info->_nonstatic_field_size = (nonstatic_field_end - instanceOopDesc::base_offset_in_bytes()) / heapOopSize;
   _info->_has_nonstatic_fields = _has_nonstatic_fields;

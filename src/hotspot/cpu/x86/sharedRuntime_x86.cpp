@@ -57,6 +57,11 @@ void SharedRuntime::inline_check_hashcode_from_object_header(MacroAssembler* mas
     __ bind(Continue);
   }
 
+  if (UseCompactObjectHeaders) {
+    // Don't generate anything else and always take the slow-path for now.
+    return;
+  }
+
   __ movptr(result, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
 
   if (!UseObjectMonitorTable) {

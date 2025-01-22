@@ -126,6 +126,23 @@ bool oopDesc::is_oop(oop obj) {
   return Universe::heap()->is_oop(obj);
 }
 
+markWord oopDesc::initialize_hash_if_necessary(oop obj, Klass* k, markWord m) {
+  assert(UseCompactObjectHeaders, "only with compact object headers");
+  assert(!m.has_displaced_mark_helper(), "must not be displaced header");
+  assert(m.is_hashed_not_expanded(), "must be hashed but not moved");
+  assert(!m.is_hashed_expanded(), "must not be moved: " INTPTR_FORMAT, m.value());
+  uint32_t hash = static_cast<uint32_t>(ObjectSynchronizer::get_next_hash(nullptr, obj));
+  int offset = k->hash_offset_in_bytes(cast_to_oop(this));
+  assert(offset >= 8, "hash offset must not be in header");
+  log_develop_trace(gc)("Initializing hash for " PTR_FORMAT ", old: " PTR_FORMAT ", hash: %d, offset: %d, is_mirror: %s", p2i(this), p2i(obj), hash, offset, BOOL_TO_STR(k->is_mirror_instance_klass()));
+  int_field_put(offset, (jint) hash);
+  m = m.set_hashed_expanded();
+  assert(static_cast<uint32_t>(ObjectSynchronizer::get_hash(m, cast_to_oop(this), k)) == hash,
+         "hash must remain the same");
+  assert(m.narrow_klass() != 0, "must not be null");
+  return m;
+}
+
 // used only for asserts and guarantees
 bool oopDesc::is_oop_or_null(oop obj) {
   return obj == nullptr ? true : is_oop(obj);

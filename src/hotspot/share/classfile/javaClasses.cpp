@@ -1082,7 +1082,7 @@ void java_lang_Class::allocate_fixup_lists() {
 void java_lang_Class::allocate_mirror(Klass* k, bool is_scratch, Handle protection_domain, Handle classData,
                                       Handle& mirror, Handle& comp_mirror, TRAPS) {
   // Allocate mirror (java.lang.Class instance)
-  oop mirror_oop = InstanceMirrorKlass::cast(vmClasses::Class_klass())->allocate_instance(k, CHECK);
+  oop mirror_oop = InstanceMirrorKlass::cast(vmClasses::Class_klass())->allocate_instance(k, is_scratch, CHECK);
   mirror = Handle(THREAD, mirror_oop);
 
   // Setup indirection from mirror->klass
@@ -1383,9 +1383,9 @@ void java_lang_Class::set_is_primitive(oop java_class) {
 }
 
 
-oop java_lang_Class::create_basic_type_mirror(const char* basic_type_name, BasicType type, TRAPS) {
+oop java_lang_Class::create_basic_type_mirror(const char* basic_type_name, BasicType type, bool is_scratch, TRAPS) {
   // Mirrors for basic types have a null klass field, which makes them special.
-  oop java_class = InstanceMirrorKlass::cast(vmClasses::Class_klass())->allocate_instance(nullptr, CHECK_NULL);
+  oop java_class = InstanceMirrorKlass::cast(vmClasses::Class_klass())->allocate_instance(nullptr, is_scratch, CHECK_NULL);
   if (type != T_VOID) {
     Klass* aklass = Universe::typeArrayKlass(type);
     assert(aklass != nullptr, "correct bootstrap");

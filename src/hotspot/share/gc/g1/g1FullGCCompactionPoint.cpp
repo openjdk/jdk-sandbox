@@ -96,9 +96,14 @@ void G1FullGCCompactionPoint::switch_region() {
 void G1FullGCCompactionPoint::forward(oop object, size_t size) {
   assert(_current_region != nullptr, "Must have been initialized");
 
+  size_t old_size = size;
+  size_t new_size = object->copy_size(old_size, object->mark());
+  size = cast_from_oop<HeapWord*>(object) != _compaction_top ? new_size : old_size;
+
   // Ensure the object fit in the current region.
   while (!object_will_fit(size)) {
     switch_region();
+    size = cast_from_oop<HeapWord*>(object) != _compaction_top ? new_size : old_size;
   }
 
   // Store a forwarding pointer if the object should be moved.
@@ -153,8 +158,9 @@ void G1FullGCCompactionPoint::forward_humongous(G1HeapRegion* hr) {
   assert(hr->is_starts_humongous(), "Sanity!");
 
   oop obj = cast_to_oop(hr->bottom());
-  size_t obj_size = obj->size();
-  uint num_regions = (uint)G1CollectedHeap::humongous_obj_size_in_regions(obj_size);
+  size_t old_size = obj->size();
+  size_t new_size = obj->copy_size(old_size, obj->mark());
+  uint num_regions = (uint)G1CollectedHeap::humongous_obj_size_in_regions(new_size);
 
   if (!has_regions()) {
     return;
@@ -172,6 +178,7 @@ void G1FullGCCompactionPoint::forward_humongous(G1HeapRegion* hr) {
   preserved_stack()->push_if_necessary(obj, obj->mark());
 
   G1HeapRegion* dest_hr = _compaction_regions->at(range_begin);
+  assert(hr->bottom() != dest_hr->bottom(), "assuming actual humongous move");
   FullGCForwarding::forward_to(obj, cast_to_oop(dest_hr->bottom()));
   assert(FullGCForwarding::is_forwarded(obj), "Object must be forwarded!");
 

@@ -388,7 +388,7 @@ bool TenuredGeneration::promotion_attempt_is_safe(size_t max_promotion_in_bytes)
 }
 
 oop TenuredGeneration::allocate_for_promotion(oop obj, size_t obj_size) {
-  assert(obj_size == obj->size(), "bad obj_size passed in");
+  assert(obj_size == obj->size() || UseCompactObjectHeaders, "bad obj_size passed in");
 
 #ifndef PRODUCT
   if (SerialHeap::heap()->promotion_should_fail()) {

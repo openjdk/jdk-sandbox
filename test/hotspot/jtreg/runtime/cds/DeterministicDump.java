@@ -74,6 +74,8 @@ public class DeterministicDump {
             // This option is available only on 64-bit.
             String sign = (compressed) ?  "+" : "-";
             baseArgs.add("-XX:" + sign + "UseCompressedOops");
+            baseArgs.add("-XX:+UnlockExperimentalVMOptions");
+            baseArgs.add("-XX:-UseCompactObjectHeaders");
         }
 
         String baseArchive = dump(baseArgs);

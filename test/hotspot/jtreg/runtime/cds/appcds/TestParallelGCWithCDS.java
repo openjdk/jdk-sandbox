@@ -27,6 +27,7 @@
  * @requires vm.cds
  * @requires vm.gc.Parallel
  * @requires vm.gc.G1
+ * @requires vm.opt.final.UseCompactObjectHeaders == false
  *
  * @comment don't run this test if any -XX::+Use???GC options are specified, since they will
  *          interfere with the test.
@@ -48,6 +49,7 @@
  * @requires vm.gc.Parallel
  * @requires vm.gc.G1
  * @requires vm.bits == "64"
+ * @requires vm.opt.final.UseCompactObjectHeaders == false
  *
  * @comment don't run this test if any -XX::+Use???GC options are specified, since they will
  *          interfere with the test.

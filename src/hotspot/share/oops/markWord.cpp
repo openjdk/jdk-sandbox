@@ -73,6 +73,9 @@ void markWord::print_on(outputStream* st, bool print_monitor_info) const {
       st->print("is_unlocked");
       if (has_no_hash()) {
         st->print(" no_hash");
+      } else if (UseCompactObjectHeaders) {
+        st->print(" hash is-hashed=%s is-copied=%s", BOOL_TO_STR(is_hashed_not_expanded()), BOOL_TO_STR(
+                is_hashed_expanded()));
       } else {
         st->print(" hash=" INTPTR_FORMAT, hash());
       }

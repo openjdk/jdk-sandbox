@@ -3803,6 +3803,9 @@ void Arguments::set_compact_headers_flags() {
   if (UseCompactObjectHeaders && !UseCompressedClassPointers) {
     FLAG_SET_DEFAULT(UseCompressedClassPointers, true);
   }
+  if (UseCompactObjectHeaders && FLAG_IS_DEFAULT(hashCode)) {
+    hashCode = 6;
+  }
 #endif
 }
 

@@ -242,14 +242,15 @@ void ShenandoahPrepareForGenerationalCompactionObjectClosure::do_object(oop p) {
   assert(_heap->global_generation()->complete_marking_context()->is_marked(p), "must be marked");
   assert(!_heap->global_generation()->complete_marking_context()->allocated_after_mark_start(p), "must be truly marked");
 
-  size_t obj_size = p->size();
+  size_t old_size = p->size();
+  size_t new_size = p->copy_size(old_size, p->mark());
   uint from_region_age = _from_region->age();
   uint object_age = p->age();
 
   bool promote_object = false;
   if ((_from_affiliation == ShenandoahAffiliation::YOUNG_GENERATION) &&
       _heap->age_census()->is_tenurable(from_region_age + object_age)) {
-    if ((_old_to_region != nullptr) && (_old_compact_point + obj_size > _old_to_region->end())) {
+    if ((_old_to_region != nullptr) && (_old_compact_point + new_size > _old_to_region->end())) {
       finish_old_region();
       _old_to_region = nullptr;
     }
@@ -271,6 +272,7 @@ void ShenandoahPrepareForGenerationalCompactionObjectClosure::do_object(oop p) {
 
   if (promote_object || (_from_affiliation == ShenandoahAffiliation::OLD_GENERATION)) {
     assert(_old_to_region != nullptr, "_old_to_region should not be nullptr when evacuating to OLD region");
+    size_t obj_size = _old_compact_point == cast_from_oop<HeapWord*>(p) ? old_size : new_size;
     if (_old_compact_point + obj_size > _old_to_region->end()) {
       ShenandoahHeapRegion* new_to_region;
 
@@ -295,6 +297,7 @@ void ShenandoahPrepareForGenerationalCompactionObjectClosure::do_object(oop p) {
       assert(new_to_region != nullptr, "must not be nullptr");
       _old_to_region = new_to_region;
       _old_compact_point = _old_to_region->bottom();
+      obj_size = _old_compact_point == cast_from_oop<HeapWord*>(p) ? old_size : new_size;
     }
 
     // Object fits into current region, record new location, if object does not move:
@@ -318,6 +321,7 @@ void ShenandoahPrepareForGenerationalCompactionObjectClosure::do_object(oop p) {
       ShenandoahHeap::increase_object_age(p, from_region_age);
     }
 
+    size_t obj_size = _young_compact_point == cast_from_oop<HeapWord*>(p) ? old_size : new_size;
     if (_young_compact_point + obj_size > _young_to_region->end()) {
       ShenandoahHeapRegion* new_to_region;
 
@@ -341,6 +345,7 @@ void ShenandoahPrepareForGenerationalCompactionObjectClosure::do_object(oop p) {
       assert(new_to_region != _young_to_region, "must not reuse same OLD to-region");
       assert(new_to_region != nullptr, "must not be nullptr");
       _young_to_region = new_to_region;
+      obj_size = _young_compact_point == cast_from_oop<HeapWord*>(p) ? old_size : new_size;
       _young_compact_point = _young_to_region->bottom();
     }
 

@@ -1317,7 +1317,13 @@ oop ShenandoahHeap::try_evacuate_object(oop p, Thread* thread, ShenandoahHeapReg
   assert(from_region->is_young(), "Only expect evacuations from young in this mode");
   bool alloc_from_lab = true;
   HeapWord* copy = nullptr;
-  size_t size = ShenandoahForwarding::size(p);
+
+  markWord mark = p->mark();
+  if (ShenandoahForwarding::is_forwarded(mark)) {
+    return ShenandoahForwarding::get_forwardee(p);
+  }
+  size_t old_size = ShenandoahForwarding::size(p);
+  size_t size = p->copy_size(old_size, mark);
 
 #ifdef ASSERT
   if (ShenandoahOOMDuringEvacALot &&
@@ -1351,10 +1357,20 @@ oop ShenandoahHeap::try_evacuate_object(oop p, Thread* thread, ShenandoahHeapReg
   }
 
   // Copy the object:
-  Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(p), copy, size);
+  Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(p), copy, old_size);
+  oop copy_val = cast_to_oop(copy);
+
+  // Initialize the identity hash on the copy before installing the forwarding
+  // pointer, using the mark word we captured earlier. We must do this before
+  // the CAS so that the copy is fully initialized when it becomes visible to
+  // other threads. Using the captured mark (rather than re-reading the copy's
+  // mark) avoids races with other threads that may have evacuated p and
+  // installed a forwarding pointer in the meantime.
+  if (UseCompactObjectHeaders && mark.is_hashed_not_expanded()) {
+    copy_val->set_mark(copy_val->initialize_hash_if_necessary(p, mark.klass(), mark));
+  }
 
   // Try to install the new forwarding pointer.
-  oop copy_val = cast_to_oop(copy);
   oop result = ShenandoahForwarding::try_update_forwardee(p, copy_val);
   if (result == copy_val) {
     // Successfully evacuated. Our copy is now the public one!

@@ -26,8 +26,10 @@
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaThread.hpp"
 #include "runtime/mutexLocker.hpp"
+#include "runtime/objectMonitor.inline.hpp"
 #include "runtime/objectMonitorTable.hpp"
 #include "runtime/safepoint.hpp"
+#include "runtime/synchronizer.hpp"
 #include "runtime/thread.hpp"
 #include "runtime/timerTrace.hpp"
 #include "runtime/trimNativeHeap.hpp"
@@ -117,6 +119,21 @@
 // The grow load factor is set to 12.5%, which satisfies the above
 // requirements. Don't change it for fun, it might backfire.
 // -----------------------------------------------------------------------------
+
+// Get the identity hash from an oop, handling both compact and legacy headers.
+// Returns 0 if the object has not been hashed yet (meaning no monitor exists
+// for it in the table).
+static intptr_t object_hash(oop obj) {
+  markWord mark = obj->mark();
+  if (UseCompactObjectHeaders) {
+    if (!mark.is_hashed()) {
+      return 0;
+    }
+    return static_cast<intptr_t>(ObjectSynchronizer::get_hash(mark, obj));
+  } else {
+    return mark.hash();
+  }
+}
 
 Atomic<ObjectMonitorTable::Table*> ObjectMonitorTable::_curr;
 
@@ -402,7 +419,7 @@ public:
   }
 
   void reinsert(oop obj, Entry new_monitor) {
-    intptr_t hash = obj->mark().hash();
+    intptr_t hash = as_monitor(new_monitor)->hash();
 
     const size_t start_index = size_t(hash) & _capacity_mask;
     size_t index = start_index;
@@ -518,7 +535,8 @@ void ObjectMonitorTable::create() {
 }
 
 ObjectMonitor* ObjectMonitorTable::monitor_get(oop obj) {
-  const intptr_t hash = obj->mark().hash();
+  const intptr_t hash = object_hash(obj);
+  if (hash == 0) return nullptr;
   Table* curr = _curr.load_acquire();
   ObjectMonitor* monitor = curr->get(obj, hash);
   return monitor;
@@ -565,7 +583,7 @@ ObjectMonitorTable::Table* ObjectMonitorTable::grow_table(Table* curr) {
 }
 
 ObjectMonitor* ObjectMonitorTable::monitor_put_get(ObjectMonitor* monitor, oop obj) {
-  const intptr_t hash = obj->mark().hash();
+  const intptr_t hash = monitor->hash();
   Table* curr =  _curr.load_acquire();
 
   for (;;) {
@@ -585,7 +603,7 @@ void ObjectMonitorTable::remove_monitor_entry(ObjectMonitor* monitor) {
     // Defer removal until subsequent rebuilding.
     return;
   }
-  const intptr_t hash = obj->mark().hash();
+  const intptr_t hash = monitor->hash();
   Table* curr =  _curr.load_acquire();
   curr->remove(obj, curr->as_entry(monitor), hash);
   assert(monitor_get(obj) != monitor, "should have been removed");

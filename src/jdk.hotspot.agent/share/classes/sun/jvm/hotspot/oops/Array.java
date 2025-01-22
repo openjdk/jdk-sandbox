@@ -104,6 +104,13 @@ public class Array extends Oop {
     // object size.
     long s = getLength() << klass.getLog2ElementSize();
     s += klass.getArrayHeaderInBytes();
+    if (VM.getVM().isCompactObjectHeadersEnabled()) {
+      Mark mark = getMark();
+      if (mark.isExpanded()) {
+        // Needs extra 4 bytes for identity hash-code.
+        s += 4;
+      }
+    }
     s = Oop.alignObjectSize(s);
     return s;
   }

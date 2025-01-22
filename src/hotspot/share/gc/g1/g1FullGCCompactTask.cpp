@@ -59,10 +59,12 @@ void G1FullGCCompactTask::copy_object_to_new_location(oop obj) {
   // Copy object and reinit its mark.
   HeapWord* obj_addr = cast_from_oop<HeapWord*>(obj);
   HeapWord* destination = cast_from_oop<HeapWord*>(FullGCForwarding::forwardee(obj));
+  assert(obj_addr != destination, "only copy actually-moving objects");
   Copy::aligned_conjoint_words(obj_addr, destination, size);
 
   // There is no need to transform stack chunks - marking already did that.
-  cast_to_oop(destination)->init_mark();
+  cast_to_oop(destination)->reinit_mark();
+  cast_to_oop(destination)->initialize_hash_if_necessary(obj);
   assert(cast_to_oop(destination)->klass() != nullptr, "should have a class");
 }
 

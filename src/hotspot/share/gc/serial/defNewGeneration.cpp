@@ -661,13 +661,7 @@ void DefNewGeneration::remove_forwarding_pointers() {
   // starts. (The mark word is overloaded: `is_marked()` == `is_forwarded()`.)
   struct ResetForwardedMarkWord : ObjectClosure {
     void do_object(oop obj) override {
-      if (obj->is_self_forwarded()) {
-        obj->unset_self_forwarded();
-      } else if (obj->is_forwarded()) {
-        // To restore the klass-bits in the header.
-        // Needed for object iteration to work properly.
-        obj->set_mark(obj->forwardee()->prototype_mark());
-      }
+      obj->reset_forwarded();
     }
   } cl;
   eden()->object_iterate(&cl);
@@ -698,7 +692,9 @@ void DefNewGeneration::handle_promotion_failure(oop old) {
 oop DefNewGeneration::copy_to_survivor_space(oop old) {
   assert(is_in_reserved(old) && !old->is_forwarded(),
          "shouldn't be scavenging this oop");
-  size_t s = old->size();
+  size_t old_size = old->size();
+  size_t s = old->copy_size(old_size, old->mark());
+
   oop obj = nullptr;
 
   // Try allocating obj in to-space (unless too old)
@@ -723,7 +719,7 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
   Prefetch::write(obj, interval);
 
   // Copy obj
-  Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(old), cast_from_oop<HeapWord*>(obj), s);
+  Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(old), cast_from_oop<HeapWord*>(obj), old_size);
 
   ContinuationGCSupport::transform_stack_chunk(obj);
 
@@ -732,6 +728,8 @@ oop DefNewGeneration::copy_to_survivor_space(oop old) {
     obj->incr_age();
     age_table()->add(obj, s);
   }
+
+  obj->initialize_hash_if_necessary(old);
 
   // Done, insert forward pointer to obj in this header
   old->forward_to(obj);
