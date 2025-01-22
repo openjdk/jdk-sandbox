@@ -97,9 +97,8 @@ final class JsonGenerator {
             case String str -> new JsonStringImpl(str);
             case Boolean bool -> new JsonBooleanImpl(bool);
             case null -> JsonNull.of();
-            // Use constructor for Float/Integer to prevent type from being promoted
-            case Float f -> new JsonNumberImpl(f);
-            case Integer i -> new JsonNumberImpl(i);
+            case Float f -> JsonNumber.of(f); // promote Float to Double
+            case Integer i -> new JsonNumberImpl(i); // preserve Integer via ctr
             case Double db -> JsonNumber.of(db);
             case Long lg -> JsonNumber.of(lg);
             // JsonValue
