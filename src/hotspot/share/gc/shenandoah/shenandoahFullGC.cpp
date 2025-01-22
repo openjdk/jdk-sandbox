@@ -366,7 +366,9 @@ public:
     assert(_heap->marking_context()->is_marked(p), "must be marked");
     assert(!_heap->marking_context()->allocated_after_mark_start(p), "must be truly marked");
 
-    size_t obj_size = p->size();
+    size_t old_size = p->size();
+    size_t new_size = p->copy_size(old_size, p->mark());
+    size_t obj_size = _compact_point == cast_from_oop<HeapWord*>(p) ? old_size : new_size;
     if (_compact_point + obj_size > _to_region->end()) {
       finish();
 
@@ -384,6 +386,7 @@ public:
       assert(new_to_region != nullptr, "must not be null");
       _to_region = new_to_region;
       _compact_point = _to_region->bottom();
+      obj_size = _compact_point == cast_from_oop<HeapWord*>(p) ? old_size : new_size;
     }
 
     // Object fits into current region, record new location, if object does not move:
@@ -896,7 +899,8 @@ public:
       // Restore the mark word before relativizing the stack chunk. The copy's
       // mark word contains the full GC forwarding encoding, which would cause
       // is_stackChunk() to read garbage (especially with compact headers).
-      new_obj->init_mark();
+      new_obj->reinit_mark();
+      new_obj->initialize_hash_if_necessary(p);
       ContinuationGCSupport::relativize_stack_chunk(new_obj);
     }
   }
@@ -1031,7 +1035,7 @@ void ShenandoahFullGC::compact_humongous_objects() {
       ContinuationGCSupport::relativize_stack_chunk(cast_to_oop<HeapWord*>(r->bottom()));
 
       oop new_obj = cast_to_oop(heap->get_region(new_start)->bottom());
-      new_obj->init_mark();
+      new_obj->reinit_mark();
 
       {
         ShenandoahAffiliation original_affiliation = r->affiliation();

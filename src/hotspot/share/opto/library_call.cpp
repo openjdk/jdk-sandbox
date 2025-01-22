@@ -4674,7 +4674,7 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
   assert(is_static == callee()->is_static(), "correct intrinsic selection");
   assert(!(is_virtual && is_static), "either virtual, special, or static");
 
-  enum { _slow_path = 1, _fast_path, _null_path, PATH_LIMIT };
+  enum { _slow_path = 1, _null_path, _fast_path, _fast_path2, PATH_LIMIT };
 
   RegionNode* result_reg = new RegionNode(PATH_LIMIT);
   PhiNode*    result_val = new PhiNode(result_reg, TypeInt::INT);
@@ -4722,55 +4722,201 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
     generate_virtual_guard(obj_klass, slow_region);
   }
 
-  // Get the header out of the object, use LoadMarkNode when available
-  Node* header_addr = basic_plus_adr(obj, oopDesc::mark_offset_in_bytes());
-  // The control of the load must be null. Otherwise, the load can move before
-  // the null check after castPP removal.
-  Node* no_ctrl = nullptr;
-  Node* header = make_load(no_ctrl, header_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
+  if (UseCompactObjectHeaders) {
+    // Get the header out of the object.
+    Node* header_addr = basic_plus_adr(obj, oopDesc::mark_offset_in_bytes());
+    // The control of the load must be null. Otherwise, the load can move before
+    // the null check after castPP removal.
+    Node* no_ctrl = nullptr;
+    Node* header = make_load(no_ctrl, header_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
 
-  if (!UseObjectMonitorTable) {
-    // Test the header to see if it is safe to read w.r.t. locking.
-    Node *lock_mask      = _gvn.MakeConX(markWord::lock_mask_in_place);
-    Node *lmasked_header = _gvn.transform(new AndXNode(header, lock_mask));
-    Node *monitor_val   = _gvn.MakeConX(markWord::monitor_value);
-    Node *chk_monitor   = _gvn.transform(new CmpXNode(lmasked_header, monitor_val));
-    Node *test_monitor  = _gvn.transform(new BoolNode(chk_monitor, BoolTest::eq));
+    // Test the header to see if the object is in hashed or copied state.
+    Node* hashctrl_mask  = _gvn.MakeConX(markWord::hashctrl_mask_in_place);
+    Node* masked_header  = _gvn.transform(new AndXNode(header, hashctrl_mask));
 
-    generate_slow_guard(test_monitor, slow_region);
+    // Take slow-path when the object has not been hashed.
+    Node* not_hashed_val = _gvn.MakeConX(0);
+    Node* chk_hashed     = _gvn.transform(new CmpXNode(masked_header, not_hashed_val));
+    Node* test_hashed    = _gvn.transform(new BoolNode(chk_hashed, BoolTest::eq));
+
+    generate_slow_guard(test_hashed, slow_region);
+
+    // Test whether the object is hashed or hashed&copied.
+    Node* hashed_copied = _gvn.MakeConX(markWord::hashctrl_expanded_mask_in_place | markWord::hashctrl_hashed_mask_in_place);
+    Node* chk_copied    = _gvn.transform(new CmpXNode(masked_header, hashed_copied));
+    // If true, then object has been hashed&copied, otherwise it's only hashed.
+    Node* test_copied   = _gvn.transform(new BoolNode(chk_copied, BoolTest::eq));
+    IfNode* if_copied   = create_and_map_if(control(), test_copied, PROB_FAIR, COUNT_UNKNOWN);
+    Node* if_true = _gvn.transform(new IfTrueNode(if_copied));
+    Node* if_false = _gvn.transform(new IfFalseNode(if_copied));
+
+    // Hashed&Copied path: read hash-code out of the object.
+    set_control(if_true);
+    // result_val->del_req(_fast_path2);
+    // result_reg->del_req(_fast_path2);
+    // result_io->del_req(_fast_path2);
+    // result_mem->del_req(_fast_path2);
+
+    Node* obj_klass = load_object_klass(obj);
+    Node* hash_addr;
+    const TypeKlassPtr* klass_t = _gvn.type(obj_klass)->isa_klassptr();
+    bool load_offset_runtime = true;
+
+    if (klass_t != nullptr) {
+      if (klass_t->klass_is_exact()  && klass_t->isa_instklassptr()) {
+        ciInstanceKlass* ciKlass = reinterpret_cast<ciInstanceKlass*>(klass_t->is_instklassptr()->exact_klass());
+        if (!ciKlass->is_mirror_instance_klass() && !ciKlass->is_reference_instance_klass()) {
+          // We know the InstanceKlass, load hash_offset from there at compile-time.
+          int hash_offset = ciKlass->hash_offset_in_bytes();
+          hash_addr = basic_plus_adr(obj, hash_offset);
+          Node* loaded_hash = make_load(control(), hash_addr, TypeInt::INT, T_INT, MemNode::unordered);
+          result_val->init_req(_fast_path2, loaded_hash);
+          result_reg->init_req(_fast_path2, control());
+          load_offset_runtime = false;
+        }
+      }
+    }
+
+    //tty->print_cr("Load hash-offset at runtime: %s", BOOL_TO_STR(load_offset_runtime));
+
+    if (load_offset_runtime) {
+      // We don't know if it is an array or an exact type, figure it out at run-time.
+      // If not an ordinary instance, then we need to take slow-path.
+      Node* kind_addr = basic_plus_adr(top(), obj_klass, Klass::kind_offset_in_bytes());
+      Node* kind = make_load(control(), kind_addr, TypeInt::INT, T_INT, MemNode::unordered);
+      Node* instance_val = _gvn.intcon(Klass::InstanceKlassKind);
+      Node* chk_inst     = _gvn.transform(new CmpINode(kind, instance_val));
+      Node* test_inst    = _gvn.transform(new BoolNode(chk_inst, BoolTest::ne));
+      generate_slow_guard(test_inst, slow_region);
+
+      // Otherwise it's an instance and we can read the hash_offset from the InstanceKlass.
+      Node* hash_offset_addr = basic_plus_adr(top(), obj_klass, InstanceKlass::hash_offset_offset_in_bytes());
+      Node* hash_offset = make_load(control(), hash_offset_addr, TypeInt::INT, T_INT, MemNode::unordered);
+      // hash_offset->dump();
+      Node* hash_addr = basic_plus_adr(obj, ConvI2X(hash_offset));
+      Compile::current()->set_has_unsafe_access(true);
+      Node* loaded_hash = make_load(control(), hash_addr, TypeInt::INT, T_INT, MemNode::unordered);
+      result_val->init_req(_fast_path2, loaded_hash);
+      result_reg->init_req(_fast_path2, control());
+    }
+
+    // Hashed-only path: recompute hash-code from object address.
+    set_control(if_false);
+    if (hashCode == 6) {
+      // Our constants.
+      Node* M = _gvn.intcon(0x337954D5);
+      Node* A = _gvn.intcon(0xAAAAAAAA);
+      // Split object address into lo and hi 32 bits.
+      Node* obj_addr = _gvn.transform(new CastP2XNode(nullptr, obj));
+      Node* x = _gvn.transform(new ConvL2INode(obj_addr));
+      Node* upper_addr = _gvn.transform(new URShiftLNode(obj_addr, _gvn.intcon(32)));
+      Node* y = _gvn.transform(new ConvL2INode(upper_addr));
+
+      Node* H0 = _gvn.transform(new XorINode(x, y));
+      Node* L0 = _gvn.transform(new XorINode(x, A));
+
+      // Full multiplication of two 32 bit values L0 and M into a hi/lo result in two 32 bit values V0 and U0.
+      Node* L0_64 = _gvn.transform(new ConvI2LNode(L0));
+      L0_64 = _gvn.transform(new AndLNode(L0_64, _gvn.longcon(0xFFFFFFFF)));
+      Node* M_64 = _gvn.transform(new ConvI2LNode(M));
+      // M_64 = _gvn.transform(new AndLNode(M_64, _gvn.longcon(0xFFFFFFFF)));
+      Node* prod64 = _gvn.transform(new MulLNode(L0_64, M_64));
+      Node* V0 = _gvn.transform(new ConvL2INode(prod64));
+      Node* prod_upper = _gvn.transform(new URShiftLNode(prod64, _gvn.intcon(32)));
+      Node* U0 = _gvn.transform(new ConvL2INode(prod_upper));
+
+      Node* Q0 = _gvn.transform(new MulINode(H0, M));
+      Node* L1 = _gvn.transform(new XorINode(Q0, U0));
+
+      // Full multiplication of two 32 bit values L1 and M into a hi/lo result in two 32 bit values V1 and U1.
+      Node* L1_64 = _gvn.transform(new ConvI2LNode(L1));
+      L1_64 = _gvn.transform(new AndLNode(L1_64, _gvn.longcon(0xFFFFFFFF)));
+      prod64 = _gvn.transform(new MulLNode(L1_64, M_64));
+      Node* V1 = _gvn.transform(new ConvL2INode(prod64));
+      prod_upper = _gvn.transform(new URShiftLNode(prod64, _gvn.intcon(32)));
+      Node* U1 = _gvn.transform(new ConvL2INode(prod_upper));
+
+      Node* P1 = _gvn.transform(new XorINode(V0, M));
+
+      // Right rotate P1 by distance L1.
+      Node* distance = _gvn.transform(new AndINode(L1, _gvn.intcon(32 - 1)));
+      Node* inverse_distance = _gvn.transform(new SubINode(_gvn.intcon(32), distance));
+      Node* ror_part1 = _gvn.transform(new URShiftINode(P1, distance));
+      Node* ror_part2 = _gvn.transform(new LShiftINode(P1, inverse_distance));
+      Node* Q1 = _gvn.transform(new OrINode(ror_part1, ror_part2));
+
+      Node* L2 = _gvn.transform(new XorINode(Q1, U1));
+      Node* hash = _gvn.transform(new XorINode(V1, L2));
+      Node* hash_truncated = _gvn.transform(new AndINode(hash, _gvn.intcon(markWord::hash_mask)));
+
+      result_val->init_req(_fast_path, hash_truncated);
+    } else if (hashCode == 2) {
+      result_val->init_req(_fast_path, _gvn.intcon(1));
+    }
+  } else {
+    // Get the header out of the object, use LoadMarkNode when available
+    Node* header_addr = basic_plus_adr(obj, oopDesc::mark_offset_in_bytes());
+    // The control of the load must be null. Otherwise, the load can move before
+    // the null check after castPP removal.
+    Node* no_ctrl = nullptr;
+    Node* header = make_load(no_ctrl, header_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
+
+    if (!UseObjectMonitorTable) {
+      // Test the header to see if it is safe to read w.r.t. locking.
+      Node *lock_mask      = _gvn.MakeConX(markWord::lock_mask_in_place);
+      Node *lmasked_header = _gvn.transform(new AndXNode(header, lock_mask));
+      Node *monitor_val   = _gvn.MakeConX(markWord::monitor_value);
+      Node *chk_monitor   = _gvn.transform(new CmpXNode(lmasked_header, monitor_val));
+      Node *test_monitor  = _gvn.transform(new BoolNode(chk_monitor, BoolTest::eq));
+
+      generate_slow_guard(test_monitor, slow_region);
+    }
+
+    // Get the hash value and check to see that it has been properly assigned.
+    // We depend on hash_mask being at most 32 bits and avoid the use of
+    // hash_mask_in_place because it could be larger than 32 bits in a 64-bit
+    // vm: see markWord.hpp.
+    Node *hash_mask      = _gvn.intcon(markWord::hash_mask);
+    Node *hash_shift     = _gvn.intcon(markWord::hash_shift);
+    Node *hshifted_header= _gvn.transform(new URShiftXNode(header, hash_shift));
+    // This hack lets the hash bits live anywhere in the mark object now, as long
+    // as the shift drops the relevant bits into the low 32 bits.  Note that
+    // Java spec says that HashCode is an int so there's no point in capturing
+    // an 'X'-sized hashcode (32 in 32-bit build or 64 in 64-bit build).
+    hshifted_header      = ConvX2I(hshifted_header);
+    Node *hash_val       = _gvn.transform(new AndINode(hshifted_header, hash_mask));
+
+    Node *no_hash_val    = _gvn.intcon(markWord::no_hash);
+    Node *chk_assigned   = _gvn.transform(new CmpINode( hash_val, no_hash_val));
+    Node *test_assigned  = _gvn.transform(new BoolNode( chk_assigned, BoolTest::eq));
+
+    generate_slow_guard(test_assigned, slow_region);
+
+    result_val->init_req(_fast_path, hash_val);
+
+    // _fast_path2 is not used here.
+    result_val->del_req(_fast_path2);
+    result_reg->del_req(_fast_path2);
+    result_io->del_req(_fast_path2);
+    result_mem->del_req(_fast_path2);
   }
-
-  // Get the hash value and check to see that it has been properly assigned.
-  // We depend on hash_mask being at most 32 bits and avoid the use of
-  // hash_mask_in_place because it could be larger than 32 bits in a 64-bit
-  // vm: see markWord.hpp.
-  Node *hash_mask      = _gvn.intcon(markWord::hash_mask);
-  Node *hash_shift     = _gvn.intcon(markWord::hash_shift);
-  Node *hshifted_header= _gvn.transform(new URShiftXNode(header, hash_shift));
-  // This hack lets the hash bits live anywhere in the mark object now, as long
-  // as the shift drops the relevant bits into the low 32 bits.  Note that
-  // Java spec says that HashCode is an int so there's no point in capturing
-  // an 'X'-sized hashcode (32 in 32-bit build or 64 in 64-bit build).
-  hshifted_header      = ConvX2I(hshifted_header);
-  Node *hash_val       = _gvn.transform(new AndINode(hshifted_header, hash_mask));
-
-  Node *no_hash_val    = _gvn.intcon(markWord::no_hash);
-  Node *chk_assigned   = _gvn.transform(new CmpINode( hash_val, no_hash_val));
-  Node *test_assigned  = _gvn.transform(new BoolNode( chk_assigned, BoolTest::eq));
-
-  generate_slow_guard(test_assigned, slow_region);
 
   Node* init_mem = reset_memory();
   // fill in the rest of the null path:
   result_io ->init_req(_null_path, i_o());
   result_mem->init_req(_null_path, init_mem);
 
-  result_val->init_req(_fast_path, hash_val);
   result_reg->init_req(_fast_path, control());
   result_io ->init_req(_fast_path, i_o());
   result_mem->init_req(_fast_path, init_mem);
 
+  if (UseCompactObjectHeaders) {
+    result_io->init_req(_fast_path2, i_o());
+    result_mem->init_req(_fast_path2, init_mem);
+  }
+
   // Generate code for the slow case.  We make a call to hashCode().
+  assert(slow_region != nullptr, "must have slow_region");
   set_control(_gvn.transform(slow_region));
   if (!stopped()) {
     // No need for PreserveJVMState, because we're using up the present state.

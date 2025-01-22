@@ -193,7 +193,7 @@ public:
 };
 
 #ifdef _LP64
-using FullGCForwarding = FullGCForwardingImpl<markWord::klass_shift>;
+using FullGCForwarding = FullGCForwardingImpl<markWord::hashctrl_shift>;
 #else
 // On 32 bit, the BITS template argument is not used, but we still need
 // to pass a value.

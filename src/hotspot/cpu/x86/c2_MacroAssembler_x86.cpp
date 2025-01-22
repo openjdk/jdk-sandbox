@@ -22,6 +22,7 @@
  *
  */
 
+#include "../../share/runtime/globals.hpp"
 #include "asm/assembler.hpp"
 #include "asm/assembler.inline.hpp"
 #include "gc/shared/barrierSet.hpp"
@@ -313,33 +314,39 @@ void C2_MacroAssembler::fast_lock(Register obj, Register box, Register rax_reg,
         cache_offset = cache_offset + OMCache::oop_to_oop_difference();
       }
 
-      // Look for the monitor in the table.
+      if (UseCompactObjectHeaders) {
+        // TODO: The fast-path table lookup currently doesn't work with Lilliput's
+        // compact identity-hashcode implementation.
+        // See: https://bugs.openjdk.org/browse/JDK-8380981
+        jmp(slow_path);
+      } else {
+        // Look for the monitor in the table.
 
-      // Get the hash code.
-      movptr(hash, Address(obj, oopDesc::mark_offset_in_bytes()));
-      shrq(hash, markWord::hash_shift);
-      andq(hash, markWord::hash_mask);
+        // Get the hash code.
+        movptr(hash, Address(obj, oopDesc::mark_offset_in_bytes()));
+        shrq(hash, markWord::hash_shift);
+        andq(hash, markWord::hash_mask);
 
-      // Get the table and calculate the bucket's address.
-      lea(rax_reg, ExternalAddress(ObjectMonitorTable::current_table_address()));
-      movptr(rax_reg, Address(rax_reg));
-      andq(hash, Address(rax_reg, ObjectMonitorTable::table_capacity_mask_offset()));
-      movptr(rax_reg, Address(rax_reg, ObjectMonitorTable::table_buckets_offset()));
+        // Get the table and calculate the bucket's address.
+        lea(rax_reg, ExternalAddress(ObjectMonitorTable::current_table_address()));
+        movptr(rax_reg, Address(rax_reg));
+        andq(hash, Address(rax_reg, ObjectMonitorTable::table_capacity_mask_offset()));
+        movptr(rax_reg, Address(rax_reg, ObjectMonitorTable::table_buckets_offset()));
 
-      // Read the monitor from the bucket.
-      movptr(monitor, Address(rax_reg, hash, Address::times_ptr));
+        // Read the monitor from the bucket.
+        movptr(monitor, Address(rax_reg, hash, Address::times_ptr));
 
-      // Check if the monitor in the bucket is special (empty, tombstone or removed)
-      cmpptr(monitor, ObjectMonitorTable::SpecialPointerValues::below_is_special);
-      jcc(Assembler::below, slow_path);
+        // Check if the monitor in the bucket is special (empty, tombstone or removed)
+        cmpptr(monitor, ObjectMonitorTable::SpecialPointerValues::below_is_special);
+        jcc(Assembler::below, slow_path);
 
-      // Check if object matches.
-      movptr(rax_reg, Address(monitor, ObjectMonitor::object_offset()));
-      BarrierSetAssembler* bs_asm = BarrierSet::barrier_set()->barrier_set_assembler();
-      bs_asm->try_peek_weak_handle_in_nmethod(this, rax_reg, rax_reg, slow_path);
-      cmpptr(rax_reg, obj);
-      jcc(Assembler::notEqual, slow_path);
-
+        // Check if object matches.
+        movptr(rax_reg, Address(monitor, ObjectMonitor::object_offset()));
+        BarrierSetAssembler* bs_asm = BarrierSet::barrier_set()->barrier_set_assembler();
+        bs_asm->try_peek_weak_handle_in_nmethod(this, rax_reg, rax_reg, slow_path);
+        cmpptr(rax_reg, obj);
+        jcc(Assembler::notEqual, slow_path);
+      }
       bind(monitor_found);
     }
     const ByteSize monitor_tag = in_ByteSize(UseObjectMonitorTable ? 0 : checked_cast<int>(markWord::monitor_value));

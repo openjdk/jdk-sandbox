@@ -43,8 +43,8 @@ inline oop CollectedHeap::array_allocate(Klass* klass, size_t size, int length, 
   return allocator.allocate();
 }
 
-inline oop CollectedHeap::class_allocate(Klass* klass, size_t size, TRAPS) {
-  ClassAllocator allocator(klass, size, THREAD);
+inline oop CollectedHeap::class_allocate(Klass* klass, size_t size, size_t base_size, TRAPS) {
+  ClassAllocator allocator(klass, size, base_size, THREAD);
   return allocator.allocate();
 }
 

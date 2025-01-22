@@ -246,7 +246,8 @@ inline oop PSPromotionManager::copy_unmarked_to_survivor_space(oop o,
       ? test_mark.klass()
       : o->klass();
 
-  size_t new_obj_size = o->size_given_klass(klass);
+  size_t old_obj_size = o->size_given_mark_and_klass(test_mark, klass);
+  size_t new_obj_size = o->copy_size(old_obj_size, test_mark);
 
   // Find the objects age, MT safe.
   uint age = (test_mark.has_displaced_mark_helper() /* o->has_displaced_mark() */) ?
@@ -271,7 +272,7 @@ inline oop PSPromotionManager::copy_unmarked_to_survivor_space(oop o,
   assert(new_obj_addr != nullptr, "allocation should have succeeded");
 
   // Copy obj
-  Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(o), new_obj_addr, new_obj_size);
+  Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(o), new_obj_addr, old_obj_size);
 
   // Now we have to CAS in the header.
   // Because the forwarding is done with memory_order_relaxed there is no
@@ -291,6 +292,8 @@ inline oop PSPromotionManager::copy_unmarked_to_survivor_space(oop o,
       new_obj->incr_age();
       assert(young_space()->contains(new_obj), "Attempt to push non-promoted obj");
     }
+
+    new_obj->initialize_hash_if_necessary(o);
 
     ContinuationGCSupport::transform_stack_chunk(new_obj, klass);
 

@@ -3527,6 +3527,9 @@ void Arguments::set_compact_headers_flags() {
       FLAG_SET_DEFAULT(UseObjectMonitorTable, true);
     }
   }
+  if (UseCompactObjectHeaders && FLAG_IS_DEFAULT(hashCode)) {
+    hashCode = 6;
+  }
 #endif
 }
 

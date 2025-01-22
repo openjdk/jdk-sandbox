@@ -108,9 +108,11 @@ public:
 };
 
 class ClassAllocator: public MemAllocator {
+  size_t _base_size;
 public:
-  ClassAllocator(Klass* klass, size_t word_size, Thread* thread = Thread::current())
-    : MemAllocator(klass, word_size, thread) {}
+  ClassAllocator(Klass* klass, size_t word_size, size_t base_size, Thread* thread = Thread::current())
+    : MemAllocator(klass, word_size, thread),
+    _base_size(base_size) {}
 
   virtual oop initialize(HeapWord* mem) const;
 };

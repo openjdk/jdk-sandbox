@@ -243,32 +243,38 @@ void C2_MacroAssembler::fast_lock(Register obj, Register box, Register t1,
         cache_offset = cache_offset + OMCache::oop_to_oop_difference();
       }
 
-      // Look for the monitor in the table.
+      if (UseCompactObjectHeaders) {
+        // TODO: The fast-path table lookup currently doesn't work with Lilliput's
+        // compact identity-hashcode implementation.
+        // See: https://bugs.openjdk.org/browse/JDK-8380981
+        b(slow_path);
+      } else {
+        // Look for the monitor in the table.
 
-      // Get the hash code.
-      ubfx(t1_hash, t3, markWord::hash_shift, markWord::hash_bits);
+        // Get the hash code.
+        ubfx(t1_hash, t3, markWord::hash_shift, markWord::hash_bits);
 
-      // Get the table and calculate the bucket's address
-      lea(t3, ExternalAddress(ObjectMonitorTable::current_table_address()));
-      ldr(t3, Address(t3));
-      ldr(t2, Address(t3, ObjectMonitorTable::table_capacity_mask_offset()));
-      ands(t1_hash, t1_hash, t2);
-      ldr(t3, Address(t3, ObjectMonitorTable::table_buckets_offset()));
+        // Get the table and calculate the bucket's address
+        lea(t3, ExternalAddress(ObjectMonitorTable::current_table_address()));
+        ldr(t3, Address(t3));
+        ldr(t2, Address(t3, ObjectMonitorTable::table_capacity_mask_offset()));
+        ands(t1_hash, t1_hash, t2);
+        ldr(t3, Address(t3, ObjectMonitorTable::table_buckets_offset()));
 
-      // Read the monitor from the bucket.
-      ldr(t1_monitor, Address(t3, t1_hash, Address::lsl(LogBytesPerWord)));
+        // Read the monitor from the bucket.
+        ldr(t1_monitor, Address(t3, t1_hash, Address::lsl(LogBytesPerWord)));
 
-      // Check if the monitor in the bucket is special (empty, tombstone or removed).
-      cmp(t1_monitor, (unsigned char)ObjectMonitorTable::SpecialPointerValues::below_is_special);
-      br(Assembler::LO, slow_path);
+        // Check if the monitor in the bucket is special (empty, tombstone or removed).
+        cmp(t1_monitor, (unsigned char)ObjectMonitorTable::SpecialPointerValues::below_is_special);
+        br(Assembler::LO, slow_path);
 
-      // Check if object matches.
-      ldr(t3, Address(t1_monitor, ObjectMonitor::object_offset()));
-      BarrierSetAssembler* bs_asm = BarrierSet::barrier_set()->barrier_set_assembler();
-      bs_asm->try_peek_weak_handle_in_nmethod(this, t3, t3, t2, slow_path);
-      cmp(t3, obj);
-      br(Assembler::NE, slow_path);
-
+        // Check if object matches.
+        ldr(t3, Address(t1_monitor, ObjectMonitor::object_offset()));
+        BarrierSetAssembler* bs_asm = BarrierSet::barrier_set()->barrier_set_assembler();
+        bs_asm->try_peek_weak_handle_in_nmethod(this, t3, t3, t2, slow_path);
+        cmp(t3, obj);
+        br(Assembler::NE, slow_path);
+      }
       bind(monitor_found);
     }
 

@@ -715,7 +715,7 @@ void HeapShared::init_scratch_objects_for_basic_type_mirrors(TRAPS) {
   for (int i = T_BOOLEAN; i < T_VOID+1; i++) {
     BasicType bt = (BasicType)i;
     if (!is_reference_type(bt)) {
-      oop m = java_lang_Class::create_basic_type_mirror(type2name(bt), bt, CHECK);
+      oop m = java_lang_Class::create_basic_type_mirror(type2name(bt), bt, true, CHECK);
       _scratch_basic_type_mirrors[i] = OopHandle(Universe::vm_global(), m);
     }
   }
@@ -886,18 +886,34 @@ void HeapShared::copy_and_rescan_aot_inited_mirror(InstanceKlass* ik) {
 void HeapShared::copy_java_mirror(oop orig_mirror, oop scratch_m) {
   // We need to retain the identity_hash, because it may have been used by some hashtables
   // in the shared heap.
+  assert(!UseCompactObjectHeaders || scratch_m->mark().is_not_hashed_expanded(), "scratch mirror must have not-hashed-expanded state");
   if (!orig_mirror->fast_no_hash_check()) {
+    intptr_t orig_mark = orig_mirror->mark().value();
     intptr_t src_hash = orig_mirror->identity_hash();
     if (UseCompactObjectHeaders) {
-      narrowKlass nk = CompressedKlassPointers::encode(orig_mirror->klass());
-      scratch_m->set_mark(markWord::prototype().set_narrow_klass(nk).copy_set_hash(src_hash));
+      // We leave the cases not_hashed/not_hashed_expanded as they are.
+      assert(orig_mirror->mark().is_hashed_not_expanded() || orig_mirror->mark().is_hashed_expanded(), "must be hashed");
+      Klass* orig_klass = orig_mirror->klass();
+      narrowKlass nk = CompressedKlassPointers::encode(orig_klass);
+      markWord mark = markWord::prototype().set_narrow_klass(nk);
+      mark = mark.copy_hashctrl_from(orig_mirror->mark());
+      if (mark.is_hashed_not_expanded()) {
+        scratch_m->set_mark(scratch_m->initialize_hash_if_necessary(orig_mirror, orig_klass, mark));
+      } else {
+        assert(mark.is_hashed_expanded(), "must be hashed & moved");
+        int offset = orig_klass->hash_offset_in_bytes(orig_mirror);
+        assert(offset >= 8, "hash offset must not be in header");
+        scratch_m->int_field_put(offset, (jint) src_hash);
+        scratch_m->set_mark(mark);
+      }
+      assert(scratch_m->mark().is_hashed_expanded(), "must be hashed & moved");
+      assert(scratch_m->mark().is_not_hashed_expanded() || scratch_m->mark().is_hashed_expanded(), "must be not hashed and expanded");
     } else {
       scratch_m->set_mark(markWord::prototype().copy_set_hash(src_hash));
+      DEBUG_ONLY(intptr_t archived_hash = scratch_m->identity_hash());
+      assert(src_hash == archived_hash, "Different hash codes: original " INTPTR_FORMAT ", archived " INTPTR_FORMAT, src_hash, archived_hash);
     }
     assert(scratch_m->mark().is_unlocked(), "sanity");
-
-    DEBUG_ONLY(intptr_t archived_hash = scratch_m->identity_hash());
-    assert(src_hash == archived_hash, "Different hash codes: original " INTPTR_FORMAT ", archived " INTPTR_FORMAT, src_hash, archived_hash);
   }
 
   if (CDSConfig::is_dumping_aot_linked_classes()) {

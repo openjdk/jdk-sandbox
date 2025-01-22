@@ -78,9 +78,21 @@ class oopDesc {
   // Returns the prototype mark that should be used for this object.
   inline markWord prototype_mark() const;
 
-  // Used only to re-initialize the mark word (e.g., of promoted
-  // objects during a GC) -- requires a valid klass pointer
+  // Initializes the mark word of an object (typically an object copy)
+  // to the prototype mark -- requires a valid klass pointer.
+  // This completely resets the mark-word, except for the
+  // Klass bits.
+  // This is typically used by clone() routines, where the copy of
+  // the object is a new object identity.
   inline void init_mark();
+
+  // Re-initializes the mark word of an object (typically an object copy)
+  // to the prototype mark -- requires a valid klass pointer.
+  // This completely resets the mark-word, except for the
+  // Klass bits and the hashcode, which are preserved.
+  // This is typically used by GCs when they copy object to new locations,
+  // where the copy of the object preserves the previous identity.
+  inline void reinit_mark();
 
   inline Klass* klass() const;
   inline Klass* klass_or_null() const;
@@ -111,9 +123,36 @@ class oopDesc {
   // Returns the actual oop size of the object in machine words
   inline size_t size();
 
+  // Returns the size that a copy of this object requires, in machine words.
+  // It can be 1 word larger than its current size to accomodate
+  // an additional 4-byte-field for the identity hash-code.
+  //
+  // size: the current size of this object, we're passing this here for performance
+  //       reasons, because all callers compute this anyway, and we want to avoid
+  //       recomputing it.
+  // mark: the mark-word of this object. Some callers (e.g. G1ParScanThreadState::do_copy_to_survivor_space())
+  //       need to use a known markWord because of racing GC threads that can change
+  //       the markWord at any time.
+  inline size_t copy_size(size_t size, markWord mark) const;
+  // Special version to deal with scratch classes in CDS. There we allocate
+  // temporary scratch classes (which are skeleton versions of InstanceMirrorKlass,
+  // which represent java.lang.Class objects in the CDS archive). At that point, we
+  // don't know whether or not the final archived version will be hashed or expanded,
+  // and therefore we allocate them in the special state not-hashed-but-expanded.
+  // When creating the final copy of those objects, we either populate the hidden hash
+  // field and make the object 'expanded', or we turn it back to 'not-hashed'
+  // and reduce the object's size. We do this by providing a separate method for CDS
+  // so that we don't affect GC performance.
+  inline size_t copy_size_cds(size_t size, markWord mark) const;
+
   // Sometimes (for complicated concurrency-related reasons), it is useful
   // to be able to figure out the size of an object knowing its klass.
-  inline size_t size_given_klass(Klass* klass);
+  inline size_t base_size_given_klass(const Klass* klass);
+  inline size_t size_given_mark_and_klass(markWord mrk, const Klass* kls);
+
+  // Returns the size of a forwarded object in its original (source) space.
+  // Only valid for scavenge-style forwarding (oopDesc::forward_to(/_atomic)).
+  inline size_t size_forwarded();
 
   // type test operations (inlined in oop.inline.hpp)
   inline bool is_instance()    const;
@@ -281,6 +320,7 @@ class oopDesc {
   inline oop forwardee(markWord header) const;
 
   inline void unset_self_forwarded();
+  inline void reset_forwarded();
 
   // Age of object during scavenge
   inline uint age() const;
@@ -310,6 +350,12 @@ class oopDesc {
   inline intptr_t identity_hash();
   intptr_t slow_identity_hash();
   inline bool fast_no_hash_check();
+
+  // Initialize identity hash code in hash word of object copy from original object.
+  // Returns true if the object has been expanded, false otherwise.
+  inline void initialize_hash_if_necessary(oop obj);
+  // For CDS only.
+  markWord initialize_hash_if_necessary(oop obj, Klass* k, markWord m);
 
   // marks are forwarded to stack when object is locked
   inline bool     has_displaced_mark() const;

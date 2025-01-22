@@ -480,7 +480,8 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
       ? old_mark.klass()
       : old->klass();
 
-  const size_t word_sz = old->size_given_klass(klass);
+  const size_t old_size = old->size_given_mark_and_klass(old_mark, klass);
+  const size_t word_sz = old->copy_size(old_size, old_mark);
 
   // JNI only allows pinning of typeArrays, so we only need to keep those in place.
   if (region_attr.is_pinned() && klass->is_typeArray_klass()) {
@@ -518,7 +519,7 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
 
   // We're going to allocate linearly, so might as well prefetch ahead.
   Prefetch::write(obj_ptr, PrefetchCopyIntervalInBytes);
-  Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(old), obj_ptr, word_sz);
+  Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(old), obj_ptr, old_size);
 
   const oop obj = cast_to_oop(obj_ptr);
   // Because the forwarding is done with memory_order_relaxed there is no
@@ -534,6 +535,8 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
              (!from_region->is_young() && young_index == 0), "invariant" );
       _surviving_young_words[young_index] += word_sz;
     }
+
+    obj->initialize_hash_if_necessary(old);
 
     if (dest_attr.is_young()) {
       if (age < markWord::max_age) {

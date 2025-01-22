@@ -159,7 +159,9 @@ void AOTMappedHeapWriter::write(GrowableArrayCHeap<oop, mtClassShared>* roots,
 }
 
 bool AOTMappedHeapWriter::is_too_large_to_archive(oop o) {
-  return is_too_large_to_archive(o->size());
+  size_t size = o->size();
+  size = o->copy_size_cds(size, o->mark());
+  return is_too_large_to_archive(size);
 }
 
 bool AOTMappedHeapWriter::is_string_too_large_to_archive(oop string) {
@@ -227,6 +229,18 @@ Klass* AOTMappedHeapWriter::real_klass_of_buffered_oop(address buffered_addr) {
 size_t AOTMappedHeapWriter::size_of_buffered_oop(address buffered_addr) {
   oop p = buffered_addr_to_source_obj(buffered_addr);
   if (p != nullptr) {
+    if (UseCompactObjectHeaders) {
+      // Use the buffered object's mark word to determine size, not the source
+      // object's.  The source object's mark word may have changed after the
+      // buffer was written (e.g., it may have been hashed by
+      // make_archived_object_cache_gc_safe), which would cause copy_size_cds
+      // to return a different size than what was actually allocated.
+      // The buffered copy's mark word was set by update_header_for_requested_obj
+      // and correctly reflects the allocated size via its expanded/hash state.
+      oop buffered_oop = cast_to_oop(buffered_addr);
+      markWord buffered_mark = buffered_oop->mark();
+      return buffered_oop->size_given_mark_and_klass(buffered_mark, p->klass());
+    }
     return p->size();
   }
 
@@ -533,7 +547,9 @@ size_t AOTMappedHeapWriter::copy_one_source_obj_to_buffer(oop src_obj) {
   update_stats(src_obj);
 
   assert(!is_too_large_to_archive(src_obj), "already checked");
-  size_t byte_size = src_obj->size() * HeapWordSize;
+  size_t old_size = src_obj->size();
+  size_t new_size = src_obj->copy_size_cds(old_size, src_obj->mark());
+  size_t byte_size = new_size * HeapWordSize;
   assert(byte_size > 0, "no zero-size objects");
 
   // For region-based collectors such as G1, the archive heap may be mapped into
@@ -554,7 +570,7 @@ size_t AOTMappedHeapWriter::copy_one_source_obj_to_buffer(oop src_obj) {
   address to = offset_to_buffered_address<address>(_buffer_used);
   assert(is_object_aligned(_buffer_used), "sanity");
   assert(is_object_aligned(byte_size), "sanity");
-  memcpy(to, from, byte_size);
+  memcpy(to, from, MIN2(new_size, old_size) * HeapWordSize);
 
   // These native pointers will be restored explicitly at run time.
   if (java_lang_Module::is_instance(src_obj)) {
@@ -729,6 +745,7 @@ void AOTMappedHeapWriter::update_header_for_requested_obj(oop requested_obj, oop
   oop fake_oop = cast_to_oop(buffered_addr);
   if (UseCompactObjectHeaders) {
     fake_oop->set_mark(markWord::prototype().set_narrow_klass(nk));
+    assert(fake_oop->mark().narrow_klass() != 0, "must not be null");
   } else {
     fake_oop->set_narrow_klass(nk);
   }
@@ -741,14 +758,21 @@ void AOTMappedHeapWriter::update_header_for_requested_obj(oop requested_obj, oop
   if (!src_obj->fast_no_hash_check()) {
     intptr_t src_hash = src_obj->identity_hash();
     if (UseCompactObjectHeaders) {
-      fake_oop->set_mark(markWord::prototype().set_narrow_klass(nk).copy_set_hash(src_hash));
+      markWord m = markWord::prototype().set_narrow_klass(nk);
+      m = m.copy_hashctrl_from(src_obj->mark());
+      fake_oop->set_mark(m);
+      if (m.is_hashed_not_expanded()) {
+        fake_oop->set_mark(fake_oop->initialize_hash_if_necessary(src_obj, src_klass, m));
+      } else if (m.is_not_hashed_expanded()) {
+        fake_oop->set_mark(m.set_not_hashed_not_expanded());
+      }
+      assert(!fake_oop->mark().is_not_hashed_expanded() && !fake_oop->mark().is_hashed_not_expanded(), "must not be not-hashed-moved and not be hashed-not-moved");
     } else {
       fake_oop->set_mark(markWord::prototype().copy_set_hash(src_hash));
+      DEBUG_ONLY(intptr_t archived_hash = fake_oop->identity_hash());
+      assert(src_hash == archived_hash, "Different hash codes: original " INTPTR_FORMAT ", archived " INTPTR_FORMAT, src_hash, archived_hash);
     }
     assert(fake_oop->mark().is_unlocked(), "sanity");
-
-    DEBUG_ONLY(intptr_t archived_hash = fake_oop->identity_hash());
-    assert(src_hash == archived_hash, "Different hash codes: original " INTPTR_FORMAT ", archived " INTPTR_FORMAT, src_hash, archived_hash);
   }
   // Strip age bits.
   fake_oop->set_mark(fake_oop->mark().set_age(0));

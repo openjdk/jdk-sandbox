@@ -573,7 +573,7 @@ void Universe::initialize_basic_type_mirrors(TRAPS) {
     for (int i = T_BOOLEAN; i < T_VOID+1; i++) {
       BasicType bt = (BasicType)i;
       if (!is_reference_type(bt)) {
-        oop m = java_lang_Class::create_basic_type_mirror(type2name(bt), bt, CHECK);
+        oop m = java_lang_Class::create_basic_type_mirror(type2name(bt), bt, false, CHECK);
         _basic_type_mirrors[i] = OopHandle(vm_global(), m);
       }
       CDS_JAVA_HEAP_ONLY(_archived_basic_type_mirror_indices[i] = -1);

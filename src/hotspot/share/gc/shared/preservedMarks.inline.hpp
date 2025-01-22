@@ -57,7 +57,7 @@ inline PreservedMarks::PreservedMarks()
              0 /* max_cache_size */) { }
 
 void PreservedMark::set_mark() const {
-  _o->set_mark(_m);
+  _o->set_mark(_m.copy_hashctrl_from(_o->mark()));
 }
 
 #endif // SHARE_GC_SHARED_PRESERVEDMARKS_INLINE_HPP

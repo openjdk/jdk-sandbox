@@ -441,8 +441,8 @@ oop ClassAllocator::initialize(HeapWord* mem) const {
   // Set oop_size field before setting the _klass field because a
   // non-null _klass field indicates that the object is parsable by
   // concurrent GC.
-  assert(_word_size > 0, "oop_size must be positive.");
+  assert(_base_size > 0, "oop_size must be positive.");
   mem_clear(mem);
-  java_lang_Class::set_oop_size(mem, _word_size);
+  java_lang_Class::set_oop_size(mem, _base_size);
   return finish(mem);
 }

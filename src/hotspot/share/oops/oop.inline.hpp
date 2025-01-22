@@ -94,6 +94,16 @@ void oopDesc::init_mark() {
   set_mark(prototype_mark());
 }
 
+void oopDesc::reinit_mark() {
+  if (UseCompactObjectHeaders) {
+    markWord m = prototype_mark().copy_hashctrl_from(mark());
+    assert(m.is_neutral(), "must be neutral");
+    set_mark(m);
+  } else {
+    set_mark(prototype_mark());
+  }
+}
+
 Klass* oopDesc::klass() const {
   switch (ObjLayout::klass_mode()) {
     case ObjLayout::Compact:
@@ -173,11 +183,70 @@ bool oopDesc::is_a(Klass* k) const {
   return klass()->is_subtype_of(k);
 }
 
-size_t oopDesc::size()  {
-  return size_given_klass(klass());
+size_t oopDesc::size_given_mark_and_klass(markWord mrk, const Klass* kls) {
+  size_t sz = base_size_given_klass(kls);
+  if (UseCompactObjectHeaders) {
+    assert(!mrk.has_displaced_mark_helper(), "must not be displaced");
+    if (mrk.is_expanded() && kls->expand_for_hash(cast_to_oop(this))) {
+      sz = align_object_size(sz + 1);
+    }
+  }
+  return sz;
 }
 
-size_t oopDesc::size_given_klass(Klass* klass)  {
+size_t oopDesc::size_forwarded() {
+  assert(is_forwarded(), "must be forwarded");
+  markWord m = mark();
+  oop fwd = forwardee(m);
+  if (!UseCompactObjectHeaders) {
+    return fwd->size();
+  }
+  markWord fm = fwd->mark();
+  Klass* klass = fm.klass();
+  if (m.is_forward_expanded()) {
+    // Forwardee was expanded during copy but the original was not.
+    // Original must have base size.
+    return fwd->base_size_given_klass(klass);
+  }
+  // Original and copy have same size (whether expanded or not).
+  return fwd->size_given_mark_and_klass(fm, klass);
+}
+
+size_t oopDesc::copy_size(size_t size, markWord mark) const {
+  if (UseCompactObjectHeaders) {
+    assert(!mark.has_displaced_mark_helper(), "must not be displaced");
+    Klass* klass = mark.klass();
+    if (mark.is_hashed_not_expanded() && klass->expand_for_hash(cast_to_oop(this))) {
+      size = align_object_size(size + 1);
+    }
+  }
+  assert(is_object_aligned(size), "Oop size is not properly aligned: %zu", size);
+  return size;
+}
+
+size_t oopDesc::copy_size_cds(size_t size, markWord mark) const {
+  if (UseCompactObjectHeaders) {
+    assert(!mark.has_displaced_mark_helper(), "must not be displaced");
+    Klass* klass = mark.klass();
+    if (mark.is_not_hashed_expanded()) {
+      assert(klass->expand_for_hash(cast_to_oop(this)), "must be?");
+    }
+    if (mark.is_hashed_not_expanded() && klass->expand_for_hash(cast_to_oop(this))) {
+      size = align_object_size(size + 1);
+    }
+    if (mark.is_not_hashed_expanded() && klass->expand_for_hash(cast_to_oop(this))) {
+      size = align_object_size(size - ObjectAlignmentInBytes / HeapWordSize);
+    }
+  }
+  assert(is_object_aligned(size), "Oop size is not properly aligned: %zu", size);
+  return size;
+}
+
+size_t oopDesc::size()  {
+  return size_given_mark_and_klass(mark(), klass());
+}
+
+size_t oopDesc::base_size_given_klass(const Klass* klass)  {
   int lh = klass->layout_helper();
   size_t s;
 
@@ -300,12 +369,31 @@ void oopDesc::forward_to(oop p) {
   assert(cast_from_oop<oopDesc*>(p) != this,
          "must not be used for self-forwarding, use forward_to_self() instead");
   markWord m = markWord::encode_pointer_as_mark(p);
+  if (UseCompactObjectHeaders && p->mark().is_expanded() && !mark().is_expanded()) {
+    m = m.set_forward_expanded();
+  }
   assert(m.decode_pointer() == p, "encoding must be reversible");
   set_mark(m);
 }
 
 void oopDesc::forward_to_self() {
   set_mark(mark().set_self_forwarded());
+}
+
+void oopDesc::reset_forwarded() {
+  markWord m = mark();
+  if (m.is_self_forwarded()) {
+    unset_self_forwarded();
+  } else if (m.is_forwarded()) {
+    // Restore Klass* and hash-bits in the header,
+    // for correct iteration.
+    markWord fwd_mark = forwardee()->mark();
+    if (m.is_forward_expanded()) {
+      // Un-expand original object.
+      fwd_mark = fwd_mark.set_hashed_not_expanded();
+    }
+    set_mark(fwd_mark);
+  }
 }
 
 oop oopDesc::cas_set_forwardee(markWord new_mark, markWord compare, atomic_memory_order order) {
@@ -322,6 +410,9 @@ oop oopDesc::forward_to_atomic(oop p, markWord compare, atomic_memory_order orde
   assert(cast_from_oop<oopDesc*>(p) != this,
          "must not be used for self-forwarding, use forward_to_self_atomic() instead");
   markWord m = markWord::encode_pointer_as_mark(p);
+  if (UseCompactObjectHeaders && compare.is_hashed_not_expanded()) {
+    m = m.set_forward_expanded();
+  }
   assert(forwardee(m) == p, "encoding must be reversible");
   return cas_set_forwardee(m, compare, order);
 }
@@ -386,7 +477,7 @@ void oopDesc::oop_iterate(OopClosureType* cl, MemRegion mr) {
 template <typename OopClosureType>
 size_t oopDesc::oop_iterate_size(OopClosureType* cl) {
   Klass* k = klass();
-  size_t size = size_given_klass(k);
+  size_t size = size_given_mark_and_klass(mark(), k);
   OopIteratorClosureDispatch::oop_oop_iterate(cl, this, k);
   return size;
 }
@@ -394,7 +485,7 @@ size_t oopDesc::oop_iterate_size(OopClosureType* cl) {
 template <typename OopClosureType>
 size_t oopDesc::oop_iterate_size(OopClosureType* cl, MemRegion mr) {
   Klass* k = klass();
-  size_t size = size_given_klass(k);
+  size_t size = size_given_mark_and_klass(mark(), k);
   OopIteratorClosureDispatch::oop_oop_iterate(cl, this, k, mr);
   return size;
 }
@@ -418,14 +509,23 @@ bool oopDesc::is_instanceof_or_null(oop obj, Klass* klass) {
 intptr_t oopDesc::identity_hash() {
   // Fast case; if the object is unlocked and the hash value is set, no locking is needed
   // Note: The mark must be read into local variable to avoid concurrent updates.
-  markWord mrk = mark();
-  if (mrk.is_unlocked() && !mrk.has_no_hash()) {
-    return mrk.hash();
-  } else if (mrk.is_marked()) {
-    return mrk.hash();
+  if (UseCompactObjectHeaders) {
+    markWord mrk = mark();
+    if (mrk.is_hashed_expanded()) {
+      Klass* klass = mrk.klass();
+      return int_field(klass->hash_offset_in_bytes(cast_to_oop(this)));
+    }
+    // Fall-through to slow-case.
   } else {
-    return slow_identity_hash();
+    markWord mrk = mark();
+    if (mrk.is_unlocked() && !mrk.has_no_hash()) {
+      return mrk.hash();
+    } else if (mrk.is_marked()) {
+      return mrk.hash();
+    }
+    // Fall-through to slow-case.
   }
+  return slow_identity_hash();
 }
 
 // This checks fast simple case of whether the oop has_no_hash,
@@ -433,7 +533,7 @@ intptr_t oopDesc::identity_hash() {
 bool oopDesc::fast_no_hash_check() {
   markWord mrk = mark_acquire();
   assert(!mrk.is_marked(), "should never be marked");
-  return mrk.is_unlocked() && mrk.has_no_hash();
+  return (UseCompactObjectHeaders || mrk.is_unlocked()) && mrk.has_no_hash();
 }
 
 bool oopDesc::has_displaced_mark() const {
@@ -455,5 +555,17 @@ bool oopDesc::mark_must_be_preserved() const {
 bool oopDesc::mark_must_be_preserved(markWord m) const {
   return m.must_be_preserved();
 }
+
+inline void oopDesc::initialize_hash_if_necessary(oop obj) {
+  if (!UseCompactObjectHeaders) {
+    return;
+  }
+  markWord m = mark();
+  assert(!m.has_displaced_mark_helper(), "must not be displaced header");
+  if (m.is_hashed_not_expanded()) {
+    set_mark(initialize_hash_if_necessary(obj, m.klass(), m));
+  }
+}
+
 
 #endif // SHARE_OOPS_OOP_INLINE_HPP

@@ -62,6 +62,15 @@ inline size_t ZUtils::object_size(zaddress addr) {
   return words_to_bytes(to_oop(addr)->size());
 }
 
+inline size_t ZUtils::copy_size(zaddress addr, size_t old_size) {
+  oop obj = to_oop(addr);
+  return words_to_bytes(obj->copy_size(bytes_to_words(old_size), obj->mark()));
+}
+
+inline void ZUtils::initialize_hash_if_necessary(zaddress to_addr, zaddress from_addr) {
+  to_oop(to_addr)->initialize_hash_if_necessary(to_oop(from_addr));
+}
+
 inline void ZUtils::object_copy_disjoint(zaddress from, zaddress to, size_t size) {
   Copy::aligned_disjoint_words((HeapWord*)untype(from), (HeapWord*)untype(to), bytes_to_words(size));
 }

@@ -1343,3 +1343,9 @@ void Klass::on_secondary_supers_verification_failure(Klass* super, Klass* sub, b
   fatal("%s: %s implements %s: linear_search: %d; table_lookup: %d",
         msg, sub->external_name(), super->external_name(), linear_result, table_result);
 }
+
+bool Klass::expand_for_hash(oop obj) const {
+  assert(UseCompactObjectHeaders, "only with compact i-hash");
+  assert((size_t)hash_offset_in_bytes(obj) <= (obj->base_size_given_klass(this) * HeapWordSize), "hash offset must be eq or lt base size: hash offset: %d, base size: %zu", hash_offset_in_bytes(obj), obj->base_size_given_klass(this) * HeapWordSize);
+  return obj->base_size_given_klass(this) * HeapWordSize - hash_offset_in_bytes(obj) < (int)sizeof(uint32_t);
+}

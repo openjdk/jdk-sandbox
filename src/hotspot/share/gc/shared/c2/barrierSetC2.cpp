@@ -707,8 +707,10 @@ int BarrierSetC2::arraycopy_payload_base_offset(bool is_array) {
       // Exclude length to copy by 8 bytes words.
       base_off += sizeof(int);
     } else {
-      // Include klass to copy by 8 bytes words.
-      base_off = instanceOopDesc::klass_offset_in_bytes();
+      if (!UseCompactObjectHeaders) {
+        // Include klass to copy by 8 bytes words.
+        base_off = instanceOopDesc::klass_offset_in_bytes();
+      }
     }
     assert(base_off % BytesPerLong == 0, "expect 8 bytes alignment");
   }
@@ -717,6 +719,46 @@ int BarrierSetC2::arraycopy_payload_base_offset(bool is_array) {
 
 void BarrierSetC2::clone(GraphKit* kit, Node* src_base, Node* dst_base, Node* size, bool is_array) const {
   int base_off = arraycopy_payload_base_offset(is_array);
+  if (UseCompactObjectHeaders && !is_aligned(base_off, BytesPerLong) &&
+      !kit->gvn().type(src_base)->isa_aryptr()) {
+    guarantee(is_aligned(base_off, BytesPerInt), "must be 4-bytes aligned");
+    // The optimized copy routine only copies 8-byte words. For this reason, we must
+    // copy the 4 bytes at offset 4 separately.
+    // Use the correct field-specific alias derived from the typed address, matching
+    // the pattern in PhaseMacroExpand::generate_arraycopy (macroArrayCopy.cpp).
+    // Using AliasIdxRaw would create a mismatch between the typed address and the
+    // raw memory chain, causing an escape analysis assertion failure.
+    //
+    // Skip this when src_base has an array type. With StressReflectiveCode, the
+    // instance path of the clone can be live in the IR even when the type system
+    // knows src_base is an array. The pre-copy is unnecessary on such paths (they
+    // are unreachable at runtime), and creating a LoadNode at the array length
+    // offset would assert (LoadRangeNode required).
+    Node* sptr = kit->basic_plus_adr(src_base, base_off);
+    Node* dptr = kit->basic_plus_adr(dst_base, base_off);
+    const TypePtr* s_adr_type = kit->gvn().type(sptr)->is_ptr();
+    const TypePtr* d_adr_type = kit->gvn().type(dptr)->is_ptr();
+    uint s_alias_idx = Compile::current()->get_alias_index(s_adr_type);
+    uint d_alias_idx = Compile::current()->get_alias_index(d_adr_type);
+    // This copies the first 4 bytes after the compact header (hash field
+    // or first instance field) as a raw int.  The actual field at this
+    // offset may be a narrowOop, so the load/store must be marked as
+    // mismatched to avoid StoreN-vs-StoreI assertion failures during IGVN.
+    Node* first = kit->gvn().transform(LoadNode::make(kit->gvn(), kit->control(), kit->memory(s_alias_idx),
+                                       sptr, s_adr_type, TypeInt::INT, T_INT,
+                                       MemNode::unordered, LoadNode::DependsOnlyOnTest,
+                                       false /*require_atomic_access*/, false /*unaligned*/,
+                                       true /*mismatched*/));
+    Node* st = kit->gvn().transform(StoreNode::make(kit->gvn(), kit->control(), kit->memory(d_alias_idx),
+                                                    dptr, d_adr_type,
+                                                    first, T_INT, MemNode::unordered));
+    st->as_Store()->set_mismatched_access();
+    kit->set_memory(st, d_alias_idx);
+    kit->record_for_igvn(st);
+    base_off += sizeof(jint);
+    guarantee(is_aligned(base_off, BytesPerLong), "must be 8-bytes aligned");
+  }
+
   Node* payload_size = size;
   Node* offset = kit->MakeConX(base_off);
   payload_size = kit->gvn().transform(new SubXNode(payload_size, offset));
@@ -848,7 +890,10 @@ void BarrierSetC2::clone_in_runtime(PhaseMacroExpand* phase, ArrayCopyNode* ac,
 
   // The native clone we are calling here expects the object size in words.
   // Add header/offset size to payload size to get object size.
-  Node* const base_offset = phase->MakeConX(arraycopy_payload_base_offset(ac->is_clone_array()) >> LogBytesPerLong);
+  // Use the actual offset stored in the ArrayCopyNode (in bytes), not
+  // arraycopy_payload_base_offset(), because clone() may have bumped the
+  // offset past a 4-byte pre-copy for compact object headers.
+  Node* const base_offset = phase->transform_later(new URShiftXNode(ac->in(ArrayCopyNode::SrcPos), phase->intcon(LogBytesPerLong)));
   Node* const full_size = phase->transform_later(new AddXNode(size, base_offset));
   // HeapAccess<>::clone expects size in heap words.
   // For 64-bits platforms, this is a no-operation.

@@ -293,13 +293,15 @@ static bool needs_explicit_size(oop src_obj) {
 }
 
 size_t AOTStreamedHeapWriter::copy_one_source_obj_to_buffer(oop src_obj) {
+  size_t old_size = src_obj->size();
+  size_t size = src_obj->copy_size_cds(old_size, src_obj->mark());
   if (needs_explicit_size(src_obj)) {
     // Explicitly write object size for more complex objects, to avoid having to
     // pretend the buffer objects are objects when loading the objects, in order
     // to read the size. Most of the time, the layout helper of the class is enough.
-    write<size_t>(src_obj->size());
+    write<size_t>(size);
   }
-  size_t byte_size = src_obj->size() * HeapWordSize;
+  size_t byte_size = size * HeapWordSize;
   assert(byte_size > 0, "no zero-size objects");
 
   size_t new_used = _buffer_used + byte_size;
@@ -317,7 +319,7 @@ size_t AOTStreamedHeapWriter::copy_one_source_obj_to_buffer(oop src_obj) {
   address to = offset_to_buffered_address<address>(_buffer_used);
   assert(is_object_aligned(_buffer_used), "sanity");
   assert(is_object_aligned(byte_size), "sanity");
-  memcpy(to, from, byte_size);
+  memcpy(to, from, MIN2(size, old_size) * HeapWordSize);
 
   if (java_lang_Module::is_instance(src_obj)) {
     // These native pointers will be restored explicitly at run time.
@@ -374,13 +376,30 @@ void AOTStreamedHeapWriter::update_header_for_buffered_addr(address buffered_add
   markWord mw = markWord::prototype();
   oopDesc* fake_oop = (oopDesc*)buffered_addr;
 
+  if (UseCompactObjectHeaders) {
+    mw = mw.set_narrow_klass(nk);
+  } else {
+    fake_oop->set_narrow_klass(nk);
+  }
+
   // We need to retain the identity_hash, because it may have been used by some hashtables
   // in the shared heap. This also has the side effect of pre-initializing the
   // identity_hash for all shared objects, so they are less likely to be written
   // into during run time, increasing the potential of memory sharing.
   if (src_obj != nullptr) {
-    intptr_t src_hash = src_obj->identity_hash();
-    mw = mw.copy_set_hash(src_hash);
+    if (UseCompactObjectHeaders) {
+      mw = mw.copy_hashctrl_from(src_obj->mark());
+      if (mw.is_hashed_not_expanded()) {
+        mw = fake_oop->initialize_hash_if_necessary(src_obj, src_klass, mw);
+      } else if (mw.is_not_hashed_expanded()) {
+        // If a scratch mirror class has not been hashed until now, then reset its
+        // hash bits to initial state.
+        mw = mw.set_not_hashed_not_expanded();
+      }
+    } else {
+      intptr_t src_hash = src_obj->identity_hash();
+      mw = mw.copy_set_hash(src_hash);
+    }
   }
 
   if (HeapShared::is_interned_string(src_obj)) {
@@ -389,12 +408,7 @@ void AOTStreamedHeapWriter::update_header_for_buffered_addr(address buffered_add
     mw = mw.set_marked();
   }
 
-  if (UseCompactObjectHeaders) {
-    fake_oop->set_mark(mw.set_narrow_klass(nk));
-  } else {
-    fake_oop->set_mark(mw);
-    fake_oop->set_narrow_klass(nk);
-  }
+  fake_oop->set_mark(mw);
 }
 
 class AOTStreamedHeapWriter::EmbeddedOopMapper: public BasicOopIterateClosure {

@@ -933,12 +933,15 @@ void PSParallelCompactNew::forward_to_new_addr() {
         assert(_mark_bitmap.is_marked(current), "must be marked");
         oop obj = cast_to_oop(current);
         assert(region->contains(obj), "object must not cross region boundary: obj: " PTR_FORMAT ", obj_end: " PTR_FORMAT ", region start: " PTR_FORMAT ", region end: " PTR_FORMAT, p2i(obj), p2i(cast_from_oop<HeapWord*>(obj) + obj->size()), p2i(region->bottom()), p2i(region->end()));
-        size_t size = obj->size();
+        size_t old_size = obj->size();
+        size_t new_size = obj->copy_size(old_size, obj->mark());
+        size_t size = (current == _compaction_point) ? old_size : new_size;
         while (size > available()) {
           _compaction_region->set_new_top(_compaction_point);
           _compaction_region = _compaction_region->local_next();
           assert(_compaction_region != nullptr, "must find a compaction region");
           _compaction_point = _compaction_region->bottom();
+          size = (current == _compaction_point) ? old_size : new_size;
         }
         //log_develop_trace(gc, compaction)("Forwarding obj: " PTR_FORMAT ", to: " PTR_FORMAT, p2i(obj), p2i(_compaction_point));
         if (current != _compaction_point) {
@@ -947,7 +950,7 @@ void PSParallelCompactNew::forward_to_new_addr() {
         }
         _compaction_point += size;
         assert(_compaction_point <= _compaction_region->end(), "object must fit in region");
-        current += size;
+        current += old_size;
         assert(current <= end, "object must not cross region boundary");
         current = _mark_bitmap.find_obj_beg(current, end);
       }
@@ -1015,11 +1018,13 @@ void PSParallelCompactNew::compact() {
           ObjectStartArray* sa = start_array(space_id(dst));
           if (sa != nullptr) {
             assert(dst != current, "expect moving object");
-            sa->update_for_block(dst, dst + size);
+            size_t new_words = obj->copy_size(size, obj->mark());
+            sa->update_for_block(dst, dst + new_words);
           }
 
           Copy::aligned_conjoint_words(current, dst, size);
-          fwd->init_mark();
+          fwd->reinit_mark();
+          fwd->initialize_hash_if_necessary(obj);
         } else {
           // The start_array must be updated even if the object is not moving.
           ObjectStartArray* sa = start_array(space_id(current));

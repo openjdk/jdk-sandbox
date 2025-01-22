@@ -289,7 +289,7 @@ class java_lang_Class : AllStatic {
   static void create_mirror(Klass* k, Handle class_loader, Handle module,
                             Handle protection_domain, Handle classData, TRAPS);
   static void fixup_mirror(Klass* k, TRAPS);
-  static oop  create_basic_type_mirror(const char* basic_type_name, BasicType type, TRAPS);
+  static oop  create_basic_type_mirror(const char* basic_type_name, BasicType type, bool is_scratch, TRAPS);
 
   // Archiving
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;

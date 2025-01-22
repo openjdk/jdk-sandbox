@@ -680,7 +680,12 @@ JVM_ENTRY(jobject, JVM_Clone(JNIEnv* env, jobject handle))
   }
 
   // Make shallow object copy
-  const size_t size = obj->size();
+  // With compact object headers, the original might have been expanded by GC
+  // for the identity hash. The clone must be allocated at the base size, since
+  // it will get a fresh (not-hashed, not-expanded) mark word.
+  const size_t size = UseCompactObjectHeaders
+    ? obj->base_size_given_klass(klass)
+    : obj->size();
   oop new_obj_oop = nullptr;
   if (obj->is_array()) {
     const int length = ((arrayOop)obj())->length();

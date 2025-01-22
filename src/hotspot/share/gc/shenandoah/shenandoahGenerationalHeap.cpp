@@ -239,7 +239,14 @@ oop ShenandoahGenerationalHeap::try_evacuate_object(oop p, Thread* thread, uint 
   bool alloc_from_lab = true;
   bool has_plab = false;
   HeapWord* copy = nullptr;
-  size_t size = ShenandoahForwarding::size(p);
+
+  markWord mark = p->mark();
+  if (ShenandoahForwarding::is_forwarded(mark)) {
+    return ShenandoahForwarding::get_forwardee(p);
+  }
+  size_t old_size = ShenandoahForwarding::size(p);
+  size_t size = p->copy_size(old_size, mark);
+
   constexpr bool is_promotion = (TO_GENERATION == OLD_GENERATION) && (FROM_GENERATION == YOUNG_GENERATION);
 
 #ifdef ASSERT
@@ -346,8 +353,18 @@ oop ShenandoahGenerationalHeap::try_evacuate_object(oop p, Thread* thread, uint 
   }
 
   // Copy the object:
-  Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(p), copy, size);
+  Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(p), copy, old_size);
   oop copy_val = cast_to_oop(copy);
+
+  // Initialize the identity hash on the copy before installing the forwarding
+  // pointer, using the mark word we captured earlier. We must do this before
+  // the CAS so that the copy is fully initialized when it becomes visible to
+  // other threads. Using the captured mark (rather than re-reading the copy's
+  // mark) avoids races with other threads that may have evacuated p and
+  // installed a forwarding pointer in the meantime.
+  if (UseCompactObjectHeaders && mark.is_hashed_not_expanded()) {
+    copy_val->set_mark(copy_val->initialize_hash_if_necessary(p, mark.klass(), mark));
+  }
 
   // Update the age of the evacuated object
   if (TO_GENERATION == YOUNG_GENERATION && is_aging_cycle()) {

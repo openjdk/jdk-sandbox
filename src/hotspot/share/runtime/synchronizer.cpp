@@ -63,6 +63,7 @@
 #include "utilities/concurrentHashTableTasks.inline.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
+#include "utilities/fastHash.hpp"
 #include "utilities/globalCounter.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/linkedlist.hpp"
@@ -599,7 +600,7 @@ static SharedGlobals GVars;
 //   There are simple ways to "diffuse" the middle address bits over the
 //   generated hashCode values:
 
-static intptr_t get_next_hash(Thread* current, oop obj) {
+intptr_t ObjectSynchronizer::get_next_hash(Thread* current, oop obj) {
   intptr_t value = 0;
   if (hashCode == 0) {
     // This form uses global Park-Miller RNG.
@@ -618,7 +619,7 @@ static intptr_t get_next_hash(Thread* current, oop obj) {
     value = ++GVars.hc_sequence;
   } else if (hashCode == 4) {
     value = cast_from_oop<intptr_t>(obj);
-  } else {
+  } else if (hashCode == 5) {
     // Marsaglia's xor-shift scheme with thread-specific state
     // This is probably the best overall implementation -- we'll
     // likely make this the default in future releases.
@@ -631,11 +632,21 @@ static intptr_t get_next_hash(Thread* current, oop obj) {
     v = (v ^ (v >> 19)) ^ (t ^ (t >> 8));
     current->_hashStateW = v;
     value = v;
+  } else {
+    assert(UseCompactObjectHeaders, "Only with compact i-hash");
+#ifdef _LP64
+    uint64_t val = cast_from_oop<uint64_t>(obj);
+    uint32_t hash = FastHash::get_hash32((uint32_t)val, (uint32_t)(val >> 32));
+#else
+    uint32_t val = cast_from_oop<uint32_t>(obj);
+    uint32_t hash = FastHash::get_hash32(val, UCONST64(0xAAAAAAAA));
+#endif
+    value= static_cast<intptr_t>(hash);
   }
 
   value &= markWord::hash_mask;
-  if (value == 0) value = 0xBAD;
-  assert(value != markWord::no_hash, "invariant");
+  if (hashCode != 6 && value == 0) value = 0xBAD;
+  assert(value != markWord::no_hash || hashCode == 6, "invariant");
   return value;
 }
 
@@ -645,9 +656,28 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
     markWord temp, test;
     intptr_t hash;
     markWord mark = obj->mark_acquire();
-    // If UseObjectMonitorTable is set the hash can simply be installed in the
-    // object header, since the monitor isn't in the object header.
-    if (UseObjectMonitorTable || !mark.has_monitor()) {
+    if (UseCompactObjectHeaders) {
+      if (mark.is_hashed()) {
+        return get_hash(mark, obj);
+      }
+      intptr_t hash = get_next_hash(current, obj);  // get a new hash
+      markWord new_mark;
+      if (mark.is_not_hashed_expanded()) {
+        new_mark = mark.set_hashed_expanded();
+        int offset = mark.klass()->hash_offset_in_bytes(obj);
+        obj->int_field_put(offset, (jint) hash);
+      } else {
+        new_mark = mark.set_hashed_not_expanded();
+      }
+      markWord old_mark = obj->cas_set_mark(new_mark, mark);
+      if (old_mark == mark) {
+        return hash;
+      }
+      // CAS failed, retry.
+      continue;
+    } else if (UseObjectMonitorTable || !mark.has_monitor()) {
+      // If UseObjectMonitorTable is set the hash can simply be installed in the
+      // object header, since the monitor isn't in the object header.
       hash = mark.hash();
       if (hash != 0) {                     // if it has a hash, just return it
         return hash;
@@ -734,6 +764,25 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
     // We finally get the hash.
     return hash;
   }
+}
+
+
+uint32_t ObjectSynchronizer::get_hash(markWord mark, oop obj, Klass* klass) {
+  assert(UseCompactObjectHeaders, "Only with compact i-hash");
+  //assert(mark.is_neutral() | mark.is_fast_locked(), "only from neutral or fast-locked mark: " INTPTR_FORMAT, mark.value());
+  assert(mark.is_hashed(), "only from hashed or copied object");
+  if (mark.is_hashed_expanded()) {
+    return obj->int_field(klass->hash_offset_in_bytes(obj));
+  } else {
+    assert(mark.is_hashed_not_expanded(), "must be hashed");
+    assert(hashCode == 6 || hashCode == 2, "must have idempotent hashCode");
+    // Already marked as hashed, but not yet copied. Recompute hash and return it.
+    return ObjectSynchronizer::get_next_hash(nullptr, obj); // recompute hash
+  }
+}
+
+uint32_t ObjectSynchronizer::get_hash(markWord mark, oop obj) {
+  return get_hash(mark, obj, mark.klass());
 }
 
 bool ObjectSynchronizer::current_thread_holds_lock(JavaThread* current,
@@ -1545,7 +1594,13 @@ ObjectMonitor* ObjectSynchronizer::add_monitor(ObjectMonitor* monitor, oop obj) 
   assert(UseObjectMonitorTable, "must be");
   assert(obj == monitor->object(), "must be");
 
-  intptr_t hash = obj->mark().hash();
+  markWord mark = obj->mark();
+  intptr_t hash;
+  if (UseCompactObjectHeaders) {
+    hash = static_cast<intptr_t>(get_hash(mark, obj));
+  } else {
+    hash = mark.hash();
+  }
   assert(hash != 0, "must be set when claiming the object monitor");
   monitor->set_hash(hash);
 

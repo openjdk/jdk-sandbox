@@ -42,6 +42,9 @@ public:
 
   // Object
   static size_t object_size(zaddress addr);
+  static size_t copy_size(zaddress addr, size_t size);
+  static void initialize_hash_if_necessary(zaddress to_addr, zaddress from_addr);
+
   static void object_copy_disjoint(zaddress from, zaddress to, size_t size);
   static void object_copy_conjoint(zaddress from, zaddress to, size_t size);
 
