@@ -345,7 +345,6 @@ final class JsonParser { ;
                         }
                         sawExponent = true;
                         havePart = false;
-                        sawSign = false;
                     }
                 }
                 case ' ', '\t', '\r', '\n' -> {
