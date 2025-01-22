@@ -111,7 +111,11 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
                 }
             }
         }
-        return Double.parseDouble(numStr);
+        var num = Double.parseDouble(numStr);
+        if (Double.isInfinite(num)) {
+            throw new NumberFormatException("The number is infinitely large in magnitude");
+        }
+        return num;
     }
 
     Number toUntyped() {

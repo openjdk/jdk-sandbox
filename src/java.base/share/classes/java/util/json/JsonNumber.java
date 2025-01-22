@@ -31,8 +31,11 @@ import jdk.internal.javac.PreviewFeature;
  * The interface that represents JSON number.
  * <p>
  * A {@code JsonNumber} can be produced by {@link Json#parse(String)}.
- * <p> Alternatively, {@link #of(double)} and its overload can be used to obtain
+ * Alternatively, {@link #of(double)} and its overload can be used to obtain
  * a {@code JsonNumber} from a {@code Number}.
+ * When a JSON number is parsed, a {@code JsonNumber} object is created
+ * regardless of its precision as long as the syntax is valid.
+ * The parsed string representation is retrieved from {@link #toString()}.
  *
  * @since 25
  */
@@ -41,7 +44,16 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
 
     /**
      * {@return the {@code Number} value represented with this
-     * {@code JsonNumber} value}
+     * {@code JsonNumber}}
+     *
+     * @implNote The returned type defaults to {@code Integer}, {@code Long},
+     * or {@code Double} for whole numbers, and {@code Double} for decimal or
+     * floating point numbers. The value is derived from its {@code parseXXX()}
+     * method. If the number cannot be represented with either of those types,
+     * this method throws a {@code NumberFormatException}.
+     *
+     * @throws NumberFormatException if the string representation of this
+     *          {@code JsonNumber} cannot be converted to a {@code Number}.
      */
     Number value();
 

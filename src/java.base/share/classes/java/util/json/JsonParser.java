@@ -358,9 +358,6 @@ final class JsonParser { ;
             throw failure(docInfo,
                     "Input expected after '[.|e|E]'", offset);
         }
-        if (Double.isInfinite(Double.parseDouble(docInfo.substring(start, offset)))) {
-            throw failure(docInfo, "Number can not be infinity", offset);
-        }
         return offset;
     }
 

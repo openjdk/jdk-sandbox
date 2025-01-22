@@ -41,8 +41,12 @@ public class TestJsonNumber {
     void testInfinity() {
         assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(Double.POSITIVE_INFINITY));
         assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(Double.NEGATIVE_INFINITY));
-        assertThrows(JsonParseException.class, () -> ((JsonNumber) Json.parse("1e309")).value());
-        assertThrows(JsonParseException.class, () -> ((JsonNumber) Json.parse("-1e309")).value());
+        final var jn1 = (JsonNumber)Json.parse("1e309");
+        assertEquals("1e309", jn1.toString());
+        assertThrows(NumberFormatException.class, () -> jn1.value());
+        final var jn2 = (JsonNumber)Json.parse("-1e309");
+        assertEquals("-1e309", jn2.toString());
+        assertThrows(NumberFormatException.class, () -> jn2.value());
     }
 
     @Test
