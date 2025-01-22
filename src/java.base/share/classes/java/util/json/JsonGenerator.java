@@ -72,7 +72,7 @@ final class JsonGenerator {
 
     // untypedObjs is an identity hash set that serves to identify if a circular
     // reference exists
-    static JsonValue untypedToJson(Object src, Set<Object> untypedObjs, int depth) {
+    static JsonValue fromUntyped(Object src, Set<Object> untypedObjs, int depth) {
         return switch (src) {
             // Structural JSON: Object, Array
             case Map<?, ?> map -> {

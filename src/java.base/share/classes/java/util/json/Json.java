@@ -116,7 +116,7 @@ public final class Json {
         if (src instanceof JsonValue jv) {
             return jv; // If root is JV, no need to check depth
         } else {
-            return JsonGenerator.untypedToJson(
+            return JsonGenerator.fromUntyped(
                     src, Collections.newSetFromMap(new IdentityHashMap<>()), 0);
         }
     }

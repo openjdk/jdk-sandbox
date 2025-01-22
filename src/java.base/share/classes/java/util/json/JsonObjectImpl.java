@@ -56,7 +56,7 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
             if (!(entry.getKey() instanceof String strKey)) {
                 throw new IllegalArgumentException("Key is not a String: " + entry.getKey());
             } else {
-                m.put(strKey, JsonGenerator.untypedToJson(entry.getValue(), untypedObjs, depth));
+                m.put(strKey, JsonGenerator.fromUntyped(entry.getValue(), untypedObjs, depth));
             }
         }
         theKeys = Collections.unmodifiableMap(m);
