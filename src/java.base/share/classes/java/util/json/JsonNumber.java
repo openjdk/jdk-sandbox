@@ -34,7 +34,7 @@ import jdk.internal.javac.PreviewFeature;
  * Alternatively, {@link #of(double)} and its overload can be used to obtain
  * a {@code JsonNumber} from a {@code Number}.
  * When a JSON number is parsed, a {@code JsonNumber} object is created
- * regardless of its precision as long as the syntax is valid.
+ * regardless of its precision or magnitude as long as the syntax is valid.
  * The parsed string representation is retrieved from {@link #toString()}.
  *
  * @since 25
@@ -49,7 +49,7 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      * @implNote The returned value's type is {@code Double} for
      * decimal or floating point numbers. For integer numbers, it is
      * either {@code Integer}, {@code Long}, or {@code Double}.
-     * The value is derived from their {@code parseXXX()} method from the
+     * The value is derived from their {@code valueOf()} method, given the
      * string representation ({@link #toString()}) of this {@code JsonNumber}.
      *
      * @throws NumberFormatException if the string representation of this

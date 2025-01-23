@@ -101,17 +101,17 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
         if (!fp) {
             // integral numbers
             try {
-                return Integer.parseInt(numStr);
+                return Integer.valueOf(numStr);
             } catch (NumberFormatException _) {
                 // int overflow. try long
                 try {
-                    return Long.parseLong(numStr);
+                    return Long.valueOf(numStr);
                 } catch (NumberFormatException _) {
                     // long overflow. convert to Double
                 }
             }
         }
-        var num = Double.parseDouble(numStr);
+        var num = Double.valueOf(numStr);
         if (Double.isInfinite(num)) {
             throw new NumberFormatException("The number is infinitely large in magnitude");
         }
