@@ -87,6 +87,9 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
         return Objects.hash(toString());
     }
 
+    // guaranteed to convert to double in non-lossy way
+    private static final long MAX_SAFE_LONG = 2L << 52L;
+    private static final long MIN_SAFE_LONG = -2L << 52L;
     Number toNum(String numStr) {
         // Determine if fp
         boolean fp = false;
@@ -105,7 +108,11 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
             } catch (NumberFormatException _) {
                 // int overflow. try long
                 try {
-                    return Long.parseLong(numStr);
+                    var longNum = Long.parseLong(numStr);
+                    if (longNum >= MIN_SAFE_LONG && longNum <= MAX_SAFE_LONG) {
+                        return longNum;
+                    }
+                    // convert to Double
                 } catch (NumberFormatException _) {
                     // long overflow. convert to Double
                 }

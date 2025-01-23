@@ -49,8 +49,8 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      * @implNote The returned type defaults to {@code Integer}, {@code Long},
      * or {@code Double} for whole numbers, and {@code Double} for decimal or
      * floating point numbers. The value is derived from its {@code parseXXX()}
-     * method. If the number cannot be represented with either of those types,
-     * this method throws a {@code NumberFormatException}.
+     * method from the string representation ({@link #toString()}) of this
+     * {@code JsonNumber}.
      *
      * @throws NumberFormatException if the string representation of this
      *          {@code JsonNumber} cannot be converted to a {@code Number}.
