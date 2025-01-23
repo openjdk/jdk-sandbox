@@ -46,8 +46,8 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      * {@return the {@code Number} value represented with this
      * {@code JsonNumber}}
      *
-     * @implNote The returned value's type defaults to {@code Double} for
-     * decimal or floating point numbers. For integral numbers, it is
+     * @implNote The returned value's type is {@code Double} for
+     * decimal or floating point numbers. For integer numbers, it is
      * either {@code Integer}, {@code Long}, or {@code Double}.
      * The value is derived from their {@code parseXXX()} method from the
      * string representation ({@link #toString()}) of this {@code JsonNumber}.
