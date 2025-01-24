@@ -45,11 +45,12 @@ narrowKlass CompressedKlassPointers::_highest_valid_narrow_klass_id = (narrowKla
 size_t CompressedKlassPointers::_protection_zone_size = 0;
 
 size_t CompressedKlassPointers::max_klass_range_size() {
-#ifdef _LP64
-  const size_t encoding_allows = nth_bit(narrow_klass_pointer_bits() + max_shift());
-  constexpr size_t cap = 4 * G;
-  return MIN2(encoding_allows, cap);
-#else
+ #ifdef _LP64
+   const size_t encoding_allows = nth_bit(narrow_klass_pointer_bits() + max_shift());
+   assert(!UseCompactObjectHeaders || max_klass_range_size_coh == encoding_allows, "Sanity");
+   constexpr size_t cap = 4 * G;
+   return MIN2(encoding_allows, cap);
+ #else
   // 32-bit: only 32-bit "narrow" Klass pointers allowed. If we ever support smaller narrow
   // Klass pointers here, coding needs to be revised.
   // We keep one page safety zone free to guard against size_t overflows on 32-bit. In practice
@@ -84,6 +85,10 @@ void CompressedKlassPointers::sanity_check_after_initialization() {
                        p2i(_base), _shift, _lowest_valid_narrow_klass_id, _highest_valid_narrow_klass_id);
 #define ASSERT_HERE(cond) assert(cond, " (%s)", tmp);
 #define ASSERT_HERE_2(cond, msg) assert(cond, msg " (%s)", tmp);
+
+  // There is no technical reason preventing us from using other klass pointer bit lengths,
+  // but it should be a deliberate choice
+  ASSERT_HERE(_narrow_klass_pointer_bits == 32 || _narrow_klass_pointer_bits == 19);
 
   // All values must be inited
   ASSERT_HERE(_max_shift != -1);
@@ -238,7 +243,12 @@ void CompressedKlassPointers::initialize(address addr, size_t len) {
 
   if (UseCompactObjectHeaders) {
 
-    // In compact object header mode, with 22-bit narrowKlass, we don't attempt for
+    // This handles the case that we - experimentally - reduce the number of
+    // class pointer bits further, such that (shift + num bits) < 32.
+    assert(len <= (size_t)nth_bit(narrow_klass_pointer_bits() + max_shift()),
+           "klass range size exceeds encoding, len: %zu, narrow_klass_pointer_bits: %d, max_shift: %d", len, narrow_klass_pointer_bits(), max_shift());
+
+    // In compact object header mode, with 19-bit narrowKlass, we don't attempt for
     // zero-based mode. Instead, we set the base to the start of the klass range and
     // then try for the smallest shift possible that still covers the whole range.
     // The reason is that we want to avoid, if possible, shifts larger than

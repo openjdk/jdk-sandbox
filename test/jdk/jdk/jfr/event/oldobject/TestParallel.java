@@ -37,6 +37,7 @@ import jdk.test.lib.jfr.Events;
  * @requires vm.flagless
  * @requires vm.hasJFR
  * @requires vm.gc.Parallel
+ * @requires vm.opt.final.UseCompactObjectHeaders == false
  * @summary Test leak profiler with Parallel GC
  * @library /test/lib /test/jdk
  * @modules jdk.jfr/jdk.jfr.internal.test

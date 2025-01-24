@@ -31,8 +31,12 @@
 #include "oops/arrayOop.hpp"
 #include "oops/oop.inline.hpp"
 
+size_t typeArrayOopDesc::object_size(const TypeArrayKlass* tk, int length) const {
+  return object_size(tk->layout_helper(), length);
+}
+
 size_t typeArrayOopDesc::object_size(const TypeArrayKlass* tk) const {
-  return object_size(tk->layout_helper(), length());
+  return object_size(tk, length());
 }
 
 inline jchar*    typeArrayOopDesc::char_base()   const { return (jchar*)   base(T_CHAR); }

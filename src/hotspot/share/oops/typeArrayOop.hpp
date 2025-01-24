@@ -133,6 +133,7 @@ private:
 
  public:
   inline size_t object_size(const TypeArrayKlass* tk) const;
+  inline size_t object_size(const TypeArrayKlass* tk, int length) const;
 };
 
 // See similar requirement for oopDesc.

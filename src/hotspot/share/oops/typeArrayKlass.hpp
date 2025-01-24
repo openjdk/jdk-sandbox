@@ -68,7 +68,7 @@ class TypeArrayKlass : public ArrayKlass {
     return create_klass(type, external_name(type), THREAD);
   }
 
-  size_t oop_size(oop obj) const override;
+  size_t oop_size(oop obj, markWord mark) const override;
 
   // Allocation
   oop multi_allocate(int rank, jint* sizes, TRAPS) override;

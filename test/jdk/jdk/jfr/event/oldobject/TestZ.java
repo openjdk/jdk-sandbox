@@ -34,8 +34,9 @@ import jdk.test.lib.jfr.Events;
 
 /**
  * @test
- * @requires vm.hasJFR & vm.gc.Z
  * @requires vm.flagless
+ * @requires vm.hasJFR & vm.gc.Z
+ * @requires vm.opt.final.UseCompactObjectHeaders == false
  * @summary Test leak profiler with ZGC
  * @library /test/lib /test/jdk
  * @modules jdk.jfr/jdk.jfr.internal.test

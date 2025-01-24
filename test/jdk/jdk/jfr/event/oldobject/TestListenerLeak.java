@@ -36,6 +36,7 @@ import jdk.test.lib.jfr.Events;
  * @test
  * @requires vm.flagless
  * @requires vm.hasJFR
+ * @requires !(vm.opt.final.UseCompactObjectHeaders == true | vm.opt.final.UseShenandoahGC == true)
  * @library /test/lib /test/jdk
  * @modules jdk.jfr/jdk.jfr.internal.test
  * @run main/othervm -XX:TLABSize=2k jdk.jfr.event.oldobject.TestListenerLeak

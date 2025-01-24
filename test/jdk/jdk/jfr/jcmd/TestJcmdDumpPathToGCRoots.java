@@ -41,11 +41,12 @@ import jdk.test.lib.jfr.EventNames;
 
 /**
  * @test
- * @summary Start a recording with or without path-to-gc-roots
+ * @requires vm.flagless
  * @requires vm.hasJFR
+ * @requires !(vm.opt.final.UseCompactObjectHeaders == true | vm.opt.final.UseShenandoahGC == true)
+ * @summary Start a recording with or without path-to-gc-roots
  * @modules jdk.jfr/jdk.jfr.internal.test
  * @library /test/lib /test/jdk
- * @requires vm.flagless
  *
  * @run main/othervm -XX:TLABSize=2k jdk.jfr.jcmd.TestJcmdDumpPathToGCRoots
  */

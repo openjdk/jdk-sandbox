@@ -175,4 +175,8 @@ inline bool Klass::search_secondary_supers(Klass *k) const {
   return result;
 }
 
+inline size_t Klass::oop_size(oop obj) const {
+  return oop_size(obj, obj->mark());
+}
+
 #endif // SHARE_OOPS_KLASS_INLINE_HPP

@@ -97,6 +97,7 @@ class outputStream;
   LOG_TAG(heapdump) \
   NOT_PRODUCT(LOG_TAG(heapsampling)) \
   LOG_TAG(humongous) \
+  NOT_PRODUCT(LOG_TAG(ihash)) \
   LOG_TAG(ihop) \
   LOG_TAG(iklass) \
   LOG_TAG(indy) \

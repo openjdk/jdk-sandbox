@@ -63,7 +63,6 @@ public class TestVectorizationNotRun {
 
     @Test
     @IR(counts = { IRNode.LOAD_VECTOR_L, ">=1", IRNode.STORE_VECTOR, ">=1" },
-        applyIfOr = { "UseCompactObjectHeaders", "false", "AlignVector", "false" },
         applyIfPlatform = {"64-bit", "true"},
         applyIfCPUFeatureOr = {"sse4.1", "true", "asimd", "true", "rvv", "true"})
     public static void test(byte[] dest, long[] src) {
@@ -72,10 +71,6 @@ public class TestVectorizationNotRun {
                 throw new IndexOutOfBoundsException();
             }
             UNSAFE.putLongUnaligned(dest, UNSAFE.ARRAY_BYTE_BASE_OFFSET + i * 8, src[i]);
-            // For UseCompactObjectHeaders and AlignVector, we must 8-byte align all vector loads/stores.
-            // But the long-stores to the byte-array are never aligned:
-            // adr = base + UNSAFE.ARRAY_BYTE_BASE_OFFSET + 8*iter
-            //              = 16 (or 12 if UseCompactObjectHeaders=true)
         }
     }
 

@@ -108,7 +108,7 @@ class CompressedKlassPointers : public AllStatic {
 
   // Narrow klass pointer bits for an unshifted narrow Klass pointer.
   static constexpr int narrow_klass_pointer_bits_noncoh = 32;
-  static constexpr int narrow_klass_pointer_bits_coh = 22;
+  static constexpr int narrow_klass_pointer_bits_coh = 19;
 
   // Bit size of a narrowKlass
   static int _narrow_klass_pointer_bits;
@@ -188,8 +188,13 @@ public:
   // The maximum possible shift; the actual shift employed later can be smaller (see initialize())
   static int max_shift()                 { check_init(_max_shift); return _max_shift; }
 
-  // Returns the maximum allowed klass range size. It is calculated from the length of the encoding range
-  // resulting from the current encoding settings (base, shift), capped to a certain max. value.
+  // Returns the maximum encoding range, given the current geometry (narrow klass bit size and shift)
+  static size_t max_encoding_range_size() { return nth_bit(narrow_klass_pointer_bits() + max_shift()); }
+
+  // For use before pre-initialization
+  static constexpr size_t max_klass_range_size_coh = nth_bit(narrow_klass_pointer_bits_coh + max_shift_coh);
+
+  // Returns the maximum allowed klass range size.
   static size_t max_klass_range_size();
 
   // On 64-bit, we need the class space to confine Klass structures to the encoding range, which is determined

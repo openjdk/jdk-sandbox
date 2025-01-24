@@ -34,9 +34,12 @@
 #include "runtime/vmThread.hpp"
 
 bool LeakProfiler::is_supported() {
-  if (UseShenandoahGC) {
-    // Leak Profiler uses mark words in the ways that might interfere
-    // with concurrent GC uses of them. This affects Shenandoah.
+  if (UseCompactObjectHeaders || UseShenandoahGC) {
+    // 1. With a 32-bit mark word in Lilliput2, we don't have enough unused
+    //    bits to store edge index information in the mark word
+    // 2. Even without compressed object headers, with Shenandoah, we don't
+    //    have enough free bits in the mark word because of needing that
+    //    space for forwarding pointers in the evacuation & update refs phase.
     return false;
   }
   return true;

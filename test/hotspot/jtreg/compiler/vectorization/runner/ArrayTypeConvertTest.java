@@ -62,7 +62,7 @@ import compiler.lib.ir_framework.*;
 
 // Explanation about AlignVector: we require 8-byte alignment of all addresses.
 // But the array base offset changes with UseCompactObjectHeaders.
-// This means it affects the alignment constraints.
+// It should, however, not affect the alignment constraints.
 
 public class ArrayTypeConvertTest extends VectorizationTestRunner {
 
@@ -254,19 +254,11 @@ public class ArrayTypeConvertTest extends VectorizationTestRunner {
     // ---------------- Convert Subword-I to F/D ----------------
     @Test
     @IR(applyIfCPUFeatureOr = {"asimd", "true", "avx2", "true", "rvv", "true"},
-        applyIfOr = {"AlignVector", "false", "UseCompactObjectHeaders", "false"},
         counts = {IRNode.VECTOR_CAST_S2F, IRNode.VECTOR_SIZE + "min(max_short, max_float)", ">0"})
     public float[] convertShortToFloat() {
         float[] res = new float[SIZE];
         for (int i = 0; i < SIZE; i++) {
             res[i] = (float) shorts[i];
-            // AlignVector=true requires that all vector load/store are 8-byte aligned.
-            // F_adr = base + UNSAFE.ARRAY_FLOAT_BASE_OFFSET + 4*i
-            //                = 16 (UseCompactObjectHeaders=false)    -> i % 2 = 0
-            //                = 12 (UseCompactObjectHeaders=true )    -> i % 2 = 1
-            // S_adr = base + UNSAFE.ARRAY_SHORT_BASE_OFFSET + 2*i
-            //                = 16 (UseCompactObjectHeaders=false)    -> i % 4 = 0  -> can align both
-            //                = 12 (UseCompactObjectHeaders=true )    -> i % 4 = 2  -> cannot align both
         }
         return res;
     }
@@ -376,50 +368,36 @@ public class ArrayTypeConvertTest extends VectorizationTestRunner {
     // ---------------- Convert F/D to Subword-I ----------------
     @Test
     @IR(applyIfCPUFeatureOr = {"asimd", "true", "avx2", "true", "avx10_2", "true", "rvv", "true"},
-        applyIfOr = {"AlignVector", "false", "UseCompactObjectHeaders", "false"},
+        applyIf = {"AlignVector", "false"},
         counts = {IRNode.VECTOR_CAST_F2S, IRNode.VECTOR_SIZE + "min(max_float, max_short)", "> 0"})
     @IR(counts = {IRNode.X86_VCAST_F2X, "> 0"},
-        applyIfOr = {"AlignVector", "false", "UseCompactObjectHeaders", "false"},
+        applyIf = {"AlignVector", "false"},
         applyIfCPUFeatureAnd = {"avx2", "true", "avx10_2", "false"})
     @IR(counts = {IRNode.X86_VCAST_F2X_AVX10_2, "> 0"},
-        applyIfOr = {"AlignVector", "false", "UseCompactObjectHeaders", "false"},
+        applyIf = {"AlignVector", "false"},
         applyIfCPUFeature = {"avx10_2", "true"})
     public short[] convertFloatToShort() {
         short[] res = new short[SIZE];
         for (int i = 0; i < SIZE; i++) {
             res[i] = (short) floats[i];
-            // AlignVector=true requires that all vector load/store are 8-byte aligned.
-            // F_adr = base + UNSAFE.ARRAY_FLOAT_BASE_OFFSET + 4*i
-            //                = 16 (UseCompactObjectHeaders=false)    -> i % 2 = 0
-            //                = 12 (UseCompactObjectHeaders=true )    -> i % 2 = 1
-            // S_adr = base + UNSAFE.ARRAY_SHORT_BASE_OFFSET + 2*i
-            //                = 16 (UseCompactObjectHeaders=false)    -> i % 4 = 0  -> can align both
-            //                = 12 (UseCompactObjectHeaders=true )    -> i % 4 = 2  -> cannot align both
         }
         return res;
     }
 
     @Test
     @IR(applyIfCPUFeatureOr = {"asimd", "true", "avx2", "true", "avx10_2", "true", "rvv", "true"},
-        applyIfOr = {"AlignVector", "false", "UseCompactObjectHeaders", "false"},
+        applyIf = {"AlignVector", "false"},
         counts = {IRNode.VECTOR_CAST_F2S, IRNode.VECTOR_SIZE + "min(max_float, max_char)", "> 0"})
     @IR(counts = {IRNode.X86_VCAST_F2X, "> 0"},
-        applyIfOr = {"AlignVector", "false", "UseCompactObjectHeaders", "false"},
+        applyIf = {"AlignVector", "false"},
         applyIfCPUFeatureAnd = {"avx2", "true", "avx10_2", "false"})
     @IR(counts = {IRNode.X86_VCAST_F2X_AVX10_2, "> 0"},
-        applyIfOr = {"AlignVector", "false", "UseCompactObjectHeaders", "false"},
+        applyIf = {"AlignVector", "false"},
         applyIfCPUFeature = {"avx10_2", "true"})
     public char[] convertFloatToChar() {
         char[] res = new char[SIZE];
         for (int i = 0; i < SIZE; i++) {
             res[i] = (char) floats[i];
-            // AlignVector=true requires that all vector load/store are 8-byte aligned.
-            // F_adr = base + UNSAFE.ARRAY_FLOAT_BASE_OFFSET + 4*i
-            //                = 16 (UseCompactObjectHeaders=false)    -> i % 2 = 0
-            //                = 12 (UseCompactObjectHeaders=true )    -> i % 2 = 1
-            // S_adr = base + UNSAFE.ARRAY_SHORT_BASE_OFFSET + 2*i
-            //                = 16 (UseCompactObjectHeaders=false)    -> i % 4 = 0  -> can align both
-            //                = 12 (UseCompactObjectHeaders=true )    -> i % 4 = 2  -> cannot align both
         }
         return res;
     }
