@@ -32,7 +32,7 @@
 narrowKlass markWord::narrow_klass() const {
 #ifdef _LP64
   assert(UseCompactObjectHeaders, "only used with compact object headers");
-  return narrowKlass(value() >> klass_shift);
+  return narrowKlass(value32() >> klass_shift);
 #else
   ShouldNotReachHere();
   return 0;

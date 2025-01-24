@@ -34,15 +34,17 @@
 #include "runtime/vmThread.hpp"
 
 bool LeakProfiler::is_supported() {
-  if (UseShenandoahGC || UseZGC) {
-    // Leak Profiler uses mark words in the ways that might interfere
-    // with concurrent GC uses of them. This affects Shenandoah.
-    //
-    // Generational ZGC only does weak reference processing in the old generation.
-    // All objects that would usually die, because we are sampling stuff
-    // that immediately becomes garbage, will be artificially kept alive
-    // until an old-generation collection. This incurs a significant
-    // performance hit by causing allocation stalls.
+  if (UseCompactObjectHeaders || UseShenandoahGC || UseZGC) {
+    // 1. With a 32-bit mark word in Lilliput2, we don't have enough unused
+    //    bits to store edge index information in the mark word
+    // 2. Even without compressed object headers, with Shenandoah, we don't
+    //    have enough free bits in the mark word because of needing that
+    //    space for forwarding pointers in the evacuation & update refs phase.
+    // 3. Generational ZGC only does weak reference processing in the old generation.
+    //    All objects that would usually die, because we are sampling stuff
+    //    that immediately becomes garbage, will be artificially kept alive
+    //    until an old-generation collection. This incurs a significant
+    //    performance hit by causing allocation stalls.
     return false;
   }
   return true;

@@ -34,11 +34,12 @@ import jdk.test.lib.jfr.Events;
 
 /**
  * @test
- * @summary Test -XX:FlightRecorderOptions:old-object-queue-size
+ * @requires vm.flagless
  * @requires vm.hasJFR
+ * @requires !(vm.opt.final.UseCompactObjectHeaders == true | vm.opt.final.UseShenandoahGC == true)
+ * @summary Test -XX:FlightRecorderOptions:old-object-queue-size
  * @modules jdk.jfr/jdk.jfr.internal.test
  * @library /test/lib
- * @requires vm.flagless
  *
  * @run main/othervm -XX:TLABSize=2k -XX:FlightRecorderOptions:old-object-queue-size=0 jdk.jfr.startupargs.TestOldObjectQueueSize off
  * @run main/othervm -XX:TLABSize=2k -Xlog:gc+tlab=trace -XX:FlightRecorderOptions:old-object-queue-size=10000 jdk.jfr.startupargs.TestOldObjectQueueSize many

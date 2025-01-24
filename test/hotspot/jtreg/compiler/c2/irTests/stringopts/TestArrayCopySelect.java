@@ -61,8 +61,7 @@ public class TestArrayCopySelect {
 
     @Test
     @Warmup(10000)
-    @IR(applyIf = {"UseCompactObjectHeaders", "false"},
-        counts = {IRNode.CALL_OF, "arrayof_jshort_disjoint_arraycopy", ">0"})
+    @IR(counts = {IRNode.CALL_OF, "arrayof_jshort_disjoint_arraycopy", ">0"})
     static void testSBToStringAligned() {
         // Exercise the StringBuilder.toString API
         StringBuilder sb = new StringBuilder(input_strU);
@@ -71,18 +70,7 @@ public class TestArrayCopySelect {
 
     @Test
     @Warmup(10000)
-    @IR(applyIf = {"UseCompactObjectHeaders", "true"},
-        counts = {IRNode.CALL_OF, "arrayof_jshort_disjoint_arraycopy", "0"})
-    static void testSBToStringUnAligned() {
-        // Exercise the StringBuilder.toString API
-        StringBuilder sb = new StringBuilder(input_strU);
-        output_strU = sb.append(input_strU).toString();
-    }
-
-    @Test
-    @Warmup(10000)
-    @IR(applyIf = {"UseCompactObjectHeaders", "false"},
-        counts = {IRNode.CALL_OF, "arrayof_jshort_disjoint_arraycopy", ">0"})
+    @IR(counts = {IRNode.CALL_OF, "arrayof_jshort_disjoint_arraycopy", ">0"})
     static void testStrUGetCharsAligned() {
         // Exercise the StringUTF16.getChars API
         output_arrU = input_strU.toCharArray();
@@ -90,27 +78,8 @@ public class TestArrayCopySelect {
 
     @Test
     @Warmup(10000)
-    @IR(applyIf = {"UseCompactObjectHeaders", "true"},
-        counts = {IRNode.CALL_OF, "arrayof_jshort_disjoint_arraycopy", "0"})
-    static void testStrUGetCharsUnAligned() {
-        // Exercise the StringUTF16.getChars API
-        output_arrU = input_strU.toCharArray();
-    }
-
-    @Test
-    @Warmup(10000)
-    @IR(applyIf = {"UseCompactObjectHeaders", "false"},
-        counts = {IRNode.CALL_OF, "arrayof_jshort_disjoint_arraycopy", ">0"})
+    @IR(counts = {IRNode.CALL_OF, "arrayof_jshort_disjoint_arraycopy", ">0"})
     static void testStrUtoBytesAligned() {
-        // Exercise the StringUTF16.toBytes API
-        output_strU = String.valueOf(input_arrU);
-    }
-
-    @Test
-    @Warmup(10000)
-    @IR(applyIf = {"UseCompactObjectHeaders", "true"},
-        counts = {IRNode.CALL_OF, "arrayof_jshort_disjoint_arraycopy", "0"})
-    static void testStrUtoBytesUnAligned() {
         // Exercise the StringUTF16.toBytes API
         output_strU = String.valueOf(input_arrU);
     }

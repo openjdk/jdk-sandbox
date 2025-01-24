@@ -127,7 +127,7 @@ public:
   static inline size_t gc_data_size(size_t stack_size_in_words); // In words
 
   // Returns the size of the instance including the stack data.
-  virtual size_t oop_size(oop obj) const override;
+  size_t oop_size(oop obj, markWord mark) const override;
 
   static void serialize_offsets(class SerializeClosure* f) NOT_CDS_RETURN;
 

@@ -138,8 +138,7 @@ public class TestAlignVector {
 
         // Add all tests to list
         tests.put("test0",       () -> { return test0(aB.clone(), bB.clone(), mB); });
-        tests.put("test1a",      () -> { return test1a(aB.clone(), bB.clone(), mB); });
-        tests.put("test1b",      () -> { return test1b(aB.clone(), bB.clone(), mB); });
+        tests.put("test1",       () -> { return test1(aB.clone(), bB.clone(), mB); });
         tests.put("test2",       () -> { return test2(aB.clone(), bB.clone(), mB); });
         tests.put("test3",       () -> { return test3(aB.clone(), bB.clone(), mB); });
         tests.put("test4",       () -> { return test4(aB.clone(), bB.clone(), mB); });
@@ -154,7 +153,6 @@ public class TestAlignVector {
         tests.put("test10b",     () -> { return test10b(aB.clone(), bB.clone(), mB); });
         tests.put("test10c",     () -> { return test10c(aS.clone(), bS.clone(), mS); });
         tests.put("test10d",     () -> { return test10d(aS.clone(), bS.clone(), mS); });
-        tests.put("test10e",     () -> { return test10e(aS.clone(), bS.clone(), mS); });
 
         tests.put("test11aB",    () -> { return test11aB(aB.clone(), bB.clone(), mB); });
         tests.put("test11aS",    () -> { return test11aS(aS.clone(), bS.clone(), mS); });
@@ -224,8 +222,7 @@ public class TestAlignVector {
 
     @Warmup(100)
     @Run(test = {"test0",
-                 "test1a",
-                 "test1b",
+                 "test1",
                  "test2",
                  "test3",
                  "test4",
@@ -238,7 +235,6 @@ public class TestAlignVector {
                  "test10b",
                  "test10c",
                  "test10d",
-                 "test10e",
                  "test11aB",
                  "test11aS",
                  "test11aI",
@@ -429,37 +425,11 @@ public class TestAlignVector {
     @IR(counts = {IRNode.LOAD_VECTOR_B, "> 0",
                   IRNode.AND_VB, "> 0",
                   IRNode.STORE_VECTOR, "> 0"},
-        applyIfOr = {"UseCompactObjectHeaders", "false", "AlignVector", "false"},
-        // UNSAFE.ARRAY_BYTE_BASE_OFFSET = 16, but with compact object headers UNSAFE.ARRAY_BYTE_BASE_OFFSET=12.
-        // If AlignVector=true, we need the offset to be 8-byte aligned, else the vectors are filtered out.
         applyIfPlatform = {"64-bit", "true"},
         applyIfCPUFeatureOr = {"avx2", "true", "asimd", "true", "rvv", "true"})
-    static Object[] test1a(byte[] a, byte[] b, byte mask) {
+    static Object[] test1(byte[] a, byte[] b, byte mask) {
         for (int i = 0; i < RANGE; i+=8) {
             b[i+0] = (byte)(a[i+0] & mask); // adr = base + UNSAFE.ARRAY_BYTE_BASE_OFFSET + 0 + iter*8
-            b[i+1] = (byte)(a[i+1] & mask);
-            b[i+2] = (byte)(a[i+2] & mask);
-            b[i+3] = (byte)(a[i+3] & mask);
-            b[i+4] = (byte)(a[i+4] & mask);
-            b[i+5] = (byte)(a[i+5] & mask);
-            b[i+6] = (byte)(a[i+6] & mask);
-            b[i+7] = (byte)(a[i+7] & mask);
-        }
-        return new Object[]{ a, b };
-    }
-
-    @Test
-    @IR(counts = {IRNode.LOAD_VECTOR_B, "> 0",
-                  IRNode.AND_VB, "> 0",
-                  IRNode.STORE_VECTOR, "> 0"},
-        applyIfOr = {"UseCompactObjectHeaders", "true", "AlignVector", "false"},
-        // UNSAFE.ARRAY_BYTE_BASE_OFFSET = 16, but with compact object headers UNSAFE.ARRAY_BYTE_BASE_OFFSET=12.
-        // If AlignVector=true, we need the offset to be 8-byte aligned, else the vectors are filtered out.
-        applyIfPlatform = {"64-bit", "true"},
-        applyIfCPUFeatureOr = {"avx2", "true", "asimd", "true", "rvv", "true"})
-    static Object[] test1b(byte[] a, byte[] b, byte mask) {
-        for (int i = 4; i < RANGE-8; i+=8) {
-            b[i+0] = (byte)(a[i+0] & mask); // adr = base + UNSAFE.ARRAY_BYTE_BASE_OFFSET + 4 + iter*8
             b[i+1] = (byte)(a[i+1] & mask);
             b[i+2] = (byte)(a[i+2] & mask);
             b[i+3] = (byte)(a[i+3] & mask);
@@ -762,34 +732,12 @@ public class TestAlignVector {
     @IR(counts = {IRNode.LOAD_VECTOR_S, IRNode.VECTOR_SIZE_4, "> 0",
                   IRNode.AND_VS,        IRNode.VECTOR_SIZE_4, "> 0",
                   IRNode.STORE_VECTOR, "> 0"},
-        applyIfAnd = {"MaxVectorSize", ">=16", "UseCompactObjectHeaders", "false"},
-        // UNSAFE.ARRAY_BYTE_BASE_OFFSET = 16, but with compact object headers UNSAFE.ARRAY_BYTE_BASE_OFFSET=12.
-        // If AlignVector=true, we need the offset to be 8-byte aligned, else the vectors are filtered out.
+        applyIf = {"MaxVectorSize", ">=16"},
         applyIfPlatform = {"64-bit", "true"},
         applyIfCPUFeatureOr = {"avx2", "true", "asimd", "true", "rvv", "true"})
     static Object[] test10d(short[] a, short[] b, short mask) {
         for (int i = 13; i < RANGE-16; i+=8) {
             // adr = base + UNSAFE.ARRAY_SHORT_BASE_OFFSET + 2*(3 + 13) + iter*16
-            b[i+0+3] = (short)(a[i+0+3] & mask);
-            b[i+1+3] = (short)(a[i+1+3] & mask);
-            b[i+2+3] = (short)(a[i+2+3] & mask);
-            b[i+3+3] = (short)(a[i+3+3] & mask);
-        }
-        return new Object[]{ a, b };
-    }
-
-    @Test
-    @IR(counts = {IRNode.LOAD_VECTOR_S, IRNode.VECTOR_SIZE_4, "> 0",
-                  IRNode.AND_VS,        IRNode.VECTOR_SIZE_4, "> 0",
-                  IRNode.STORE_VECTOR, "> 0"},
-        applyIfAnd = {"MaxVectorSize", ">=16", "UseCompactObjectHeaders", "true"},
-        // UNSAFE.ARRAY_BYTE_BASE_OFFSET = 16, but with compact object headers UNSAFE.ARRAY_BYTE_BASE_OFFSET=12.
-        // If AlignVector=true, we need the offset to be 8-byte aligned, else the vectors are filtered out.
-        applyIfPlatform = {"64-bit", "true"},
-        applyIfCPUFeatureOr = {"avx2", "true", "asimd", "true", "rvv", "true"})
-    static Object[] test10e(short[] a, short[] b, short mask) {
-        for (int i = 11; i < RANGE-16; i+=8) {
-            // adr = base + UNSAFE.ARRAY_SHORT_BASE_OFFSET + 2*(3 + 11) + iter*16
             b[i+0+3] = (short)(a[i+0+3] & mask);
             b[i+1+3] = (short)(a[i+1+3] & mask);
             b[i+2+3] = (short)(a[i+2+3] & mask);
@@ -1088,26 +1036,12 @@ public class TestAlignVector {
                   IRNode.ADD_VB, "> 0",
                   IRNode.ADD_VI, "> 0",
                   IRNode.STORE_VECTOR, "> 0"},
-        applyIfOr = {"UseCompactObjectHeaders", "false", "AlignVector", "false"},
         applyIfPlatform = {"64-bit", "true"},
         applyIfCPUFeatureOr = {"avx2", "true", "asimd", "true", "rvv", "true"})
     static Object[] test13aIB(int[] a, byte[] b) {
         for (int i = 0; i < RANGE; i++) {
-            // adr = base + UNSAFE.ARRAY_BYTE_BASE_OFFSET + 1*iter
-            //              = 16 (or 12 if UseCompactObjectHeaders=true)
             a[i]++;
-            // adr = base + UNSAFE.ARRAY_INT_BASE_OFFSET  + 4*iter
-            //              = 16 (or 12 if UseCompactObjectHeaders=true)
             b[i]++;
-            // For AlignVector, all adr must be 8-byte aligned. Let's see for which iteration this can hold:
-            // If UseCompactObjectHeaders=false:
-            //   a: 0, 8, 16, 24, 32, ...
-            //   b: 0, 2,  4,  6,  8, ...
-            //   -> Ok, aligns every 8th iteration.
-            // If UseCompactObjectHeaders=true:
-            //   a: 4, 12, 20, 28, 36, ...
-            //   b: 1,  3,  5,  7,  9, ...
-            //   -> we can never align both vectors!
         }
         return new Object[]{ a, b };
     }
@@ -1118,26 +1052,12 @@ public class TestAlignVector {
                   IRNode.ADD_VI, "> 0",
                   IRNode.ADD_VS, "> 0",
                   IRNode.STORE_VECTOR, "> 0"},
-        applyIfOr = {"UseCompactObjectHeaders", "false", "AlignVector", "false"},
         applyIfPlatform = {"64-bit", "true"},
         applyIfCPUFeatureOr = {"avx2", "true", "asimd", "true", "rvv", "true"})
     static Object[] test13aIS(int[] a, short[] b) {
         for (int i = 0; i < RANGE; i++) {
-            // adr = base + UNSAFE.ARRAY_BYTE_BASE_OFFSET + 4*iter
-            //              = 16 (or 12 if UseCompactObjectHeaders=true)
             a[i]++;
-            // adr = base + UNSAFE.ARRAY_SHORT_BASE_OFFSET + 2*iter
-            //              = 16 (or 12 if UseCompactObjectHeaders=true)
             b[i]++;
-            // For AlignVector, all adr must be 8-byte aligned. Let's see for which iteration this can hold:
-            // If UseCompactObjectHeaders=false:
-            //   a: iter % 2 == 0
-            //   b: iter % 4 == 0
-            //   -> Ok, aligns every 4th iteration.
-            // If UseCompactObjectHeaders=true:
-            //   a: iter % 2 = 1
-            //   b: iter % 4 = 2
-            //   -> we can never align both vectors!
         }
         return new Object[]{ a, b };
     }
@@ -1152,27 +1072,14 @@ public class TestAlignVector {
                   IRNode.ADD_VI, "> 0",
                   IRNode.ADD_VL, "> 0",
                   IRNode.STORE_VECTOR, "> 0"},
-        applyIfOr = {"UseCompactObjectHeaders", "false", "AlignVector", "false"},
         applyIfPlatform = {"64-bit", "true"},
         applyIfCPUFeatureOr = {"avx2", "true", "asimd", "true", "rvv", "true"})
     static Object[] test13aBSIL(byte[] a, short[] b, int[] c, long[] d) {
         for (int i = 0; i < RANGE; i++) {
-            // adr = base + UNSAFE.ARRAY_BYTE_BASE_OFFSET + 1*iter
-            //              = 16 (or 12 if UseCompactObjectHeaders=true)
             a[i]++;
-            // adr = base + UNSAFE.ARRAY_SHORT_BASE_OFFSET + 2*iter
-            //              = 16 (or 12 if UseCompactObjectHeaders=true)
             b[i]++;
-            // adr = base + UNSAFE.ARRAY_INT_BASE_OFFSET + 4*iter
-            //              = 16 (or 12 if UseCompactObjectHeaders=true)
             c[i]++;
-            // adr = base + UNSAFE.ARRAY_LONG_BASE_OFFSET + 8*iter
-            //              = 16 (always)
             d[i]++;
-            // If AlignVector and UseCompactObjectHeaders, and we want all adr 8-byte aligned:
-            //   a: iter % 8 = 4
-            //   c: iter % 2 = 1
-            //   -> can never align both vectors!
         }
         return new Object[]{ a, b, c, d };
     }
@@ -1208,21 +1115,12 @@ public class TestAlignVector {
                   IRNode.ADD_VB, "> 0",
                   IRNode.ADD_VI, "> 0",
                   IRNode.STORE_VECTOR, "> 0"},
-        applyIfOr = {"UseCompactObjectHeaders", "false", "AlignVector", "false"},
         applyIfPlatform = {"64-bit", "true"},
         applyIfCPUFeatureOr = {"avx2", "true", "asimd", "true", "rvv", "true"})
     static Object[] test13bIB(int[] a, byte[] b) {
         for (int i = 1; i < RANGE; i++) {
-            // adr = base + UNSAFE.ARRAY_INT_BASE_OFFSET + 4 + 4*iter
-            //              = 16 (or 12 if UseCompactObjectHeaders=true)
             a[i]++;
-            // adr = base + UNSAFE.ARRAY_BYTE_BASE_OFFSET + 1 + 1*iter
-            //              = 16 (or 12 if UseCompactObjectHeaders=true)
             b[i]++;
-            // If AlignVector and UseCompactObjectHeaders, and we want all adr 8-byte aligned:
-            //   a: iter % 2 = 0
-            //   b: iter % 8 = 3
-            //   -> can never align both vectors!
         }
         return new Object[]{ a, b };
     }
@@ -1233,21 +1131,12 @@ public class TestAlignVector {
                   IRNode.ADD_VI, "> 0",
                   IRNode.ADD_VS, "> 0",
                   IRNode.STORE_VECTOR, "> 0"},
-        applyIfOr = {"UseCompactObjectHeaders", "false", "AlignVector", "false"},
         applyIfPlatform = {"64-bit", "true"},
         applyIfCPUFeatureOr = {"avx2", "true", "asimd", "true", "rvv", "true"})
     static Object[] test13bIS(int[] a, short[] b) {
         for (int i = 1; i < RANGE; i++) {
-            // adr = base + UNSAFE.ARRAY_INT_BASE_OFFSET + 4 + 4*iter
-            //              = 16 (or 12 if UseCompactObjectHeaders=true)
             a[i]++;
-            // adr = base + UNSAFE.ARRAY_SHORT_BASE_OFFSET + 2 + 2*iter
-            //              = 16 (or 12 if UseCompactObjectHeaders=true)
             b[i]++;
-            // If AlignVector and UseCompactObjectHeaders, and we want all adr 8-byte aligned:
-            //   a: iter % 2 = 0
-            //   b: iter % 4 = 1
-            //   -> can never align both vectors!
         }
         return new Object[]{ a, b };
     }
@@ -1262,27 +1151,14 @@ public class TestAlignVector {
                   IRNode.ADD_VI, "> 0",
                   IRNode.ADD_VL, "> 0",
                   IRNode.STORE_VECTOR, "> 0"},
-        applyIfOr = {"UseCompactObjectHeaders", "false", "AlignVector", "false"},
         applyIfPlatform = {"64-bit", "true"},
         applyIfCPUFeatureOr = {"avx2", "true", "asimd", "true", "rvv", "true"})
     static Object[] test13bBSIL(byte[] a, short[] b, int[] c, long[] d) {
         for (int i = 1; i < RANGE; i++) {
-            // adr = base + UNSAFE.ARRAY_BYTE_BASE_OFFSET + 1 + 1*iter
-            //              = 16 (or 12 if UseCompactObjectHeaders=true)
             a[i]++;
-            // adr = base + UNSAFE.ARRAY_SHORT_BASE_OFFSET + 2 + 2*iter
-            //              = 16 (or 12 if UseCompactObjectHeaders=true)
             b[i]++;
-            // adr = base + UNSAFE.ARRAY_INT_BASE_OFFSET + 4 + 4*iter
-            //              = 16 (or 12 if UseCompactObjectHeaders=true)
             c[i]++;
-            // adr = base + UNSAFE.ARRAY_LONG_BASE_OFFSET + 8 + 8*iter
-            //              = 16 (always)
             d[i]++;
-            // If AlignVector and UseCompactObjectHeaders, and we want all adr 8-byte aligned:
-            //   a: iter % 8 = 3
-            //   c: iter % 2 = 0
-            //   -> can never align both vectors!
         }
         return new Object[]{ a, b, c, d };
     }

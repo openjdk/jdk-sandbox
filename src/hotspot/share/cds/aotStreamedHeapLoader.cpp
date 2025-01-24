@@ -171,7 +171,7 @@ public:
 
 static bool archive_expand_for_hash(Klass* klass, oopDesc* archive_object) {
   CHECK_UNHANDLED_OOPS_ONLY(SuspendCheckOopFunction suspend;)
-  return klass->expand_for_hash(archive_object);
+    return klass->expand_for_hash(archive_object, archive_object->mark());
 }
 
 static size_t archive_object_size(oopDesc* archive_object) {
@@ -345,11 +345,17 @@ void AOTStreamedHeapLoader::copy_object_impl(oopDesc* archive_object,
   if (!_allow_gc) {
     // Without concurrent GC running, we can copy incorrect object references
     // and metadata references into the heap object and then fix them up in-place.
-    size_t payload_size = size - 1;
-    HeapWord* archive_start = ((HeapWord*)archive_object) + 1;
-    HeapWord* heap_start = cast_from_oop<HeapWord*>(heap_object) + 1;
+    size_t offset = 1;
+    size_t payload_size = size - offset;
+    HeapWord* archive_start = ((HeapWord*)archive_object);
+    HeapWord* heap_start = cast_from_oop<HeapWord*>(heap_object);
 
-    Copy::disjoint_words(archive_start, heap_start, payload_size);
+    Copy::disjoint_words(archive_start + offset, heap_start + offset, payload_size);
+
+    if (UseCompactObjectHeaders) {
+      // The copying might have missed the first 4 bytes of payload/arraylength, copy that also.
+      *(reinterpret_cast<jint*>(heap_start) + 1) = *(reinterpret_cast<jint*>(archive_start) + 1);
+    }
 
     // In-place linking fixes up object indices from references of the heap object,
     // and patches them up to refer to objects. This can be done because we just copied
@@ -369,7 +375,7 @@ void AOTStreamedHeapLoader::copy_object_impl(oopDesc* archive_object,
   using RawElementT = std::conditional_t<use_coops, int32_t, int64_t>;
 
   // Skip the markWord; it is set at allocation time
-  size_t header_size = word_scale;
+  size_t header_size = (UseCompactObjectHeaders && use_coops) ? 1 : word_scale;
 
   size_t buffer_offset = buffer_offset_for_archive_object(archive_object);
   const BitMap::idx_t header_bit = obj_bit_idx_for_buffer_offset<use_coops>(buffer_offset);
@@ -377,6 +383,13 @@ void AOTStreamedHeapLoader::copy_object_impl(oopDesc* archive_object,
   const BitMap::idx_t end_bit = header_bit + size * word_scale;
 
   BitMap::idx_t curr_bit = start_bit;
+
+  if (UseCompactObjectHeaders && !use_coops) {
+    // Copy first 4 primitive bytes.
+    jint* archive_start = reinterpret_cast<jint*>(archive_object);
+    HeapWord* heap_start = cast_from_oop<HeapWord*>(heap_object);
+    *(reinterpret_cast<jint*>(heap_start) + 1) = *(archive_start + 1);
+  }
 
   // We are a bit paranoid about GC or other safepointing operations observing
   // shady metadata fields from the archive that do not point at real metadata.

@@ -63,7 +63,7 @@ InstanceStackChunkKlass::InstanceStackChunkKlass(const ClassFileParser& parser)
   set_layout_helper(lh);
 }
 
-size_t InstanceStackChunkKlass::oop_size(oop obj) const {
+size_t InstanceStackChunkKlass::oop_size(oop obj, markWord mark) const {
   return instance_size(jdk_internal_vm_StackChunk::size(obj));
 }
 

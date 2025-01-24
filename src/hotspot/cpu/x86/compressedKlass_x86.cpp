@@ -1,4 +1,4 @@
-/*
+ /*
  * Copyright (c) 2023, 2025, Red Hat, Inc. All rights reserved.
  * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -32,7 +32,7 @@ char* CompressedKlassPointers::reserve_address_space_for_compressed_classes(size
   char* result = nullptr;
 
   assert(CompressedKlassPointers::narrow_klass_pointer_bits() == 32 ||
-         CompressedKlassPointers::narrow_klass_pointer_bits() == 22, "Rethink if we ever use different nKlass bit sizes");
+         CompressedKlassPointers::narrow_klass_pointer_bits() == 19, "Rethink if we ever use different nKlass bit sizes");
 
   // Unconditionally attempting to reserve in lower 4G first makes always sense:
   // -CDS -COH: Try to get unscaled mode (zero base, zero shift)

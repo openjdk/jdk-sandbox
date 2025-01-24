@@ -664,7 +664,7 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
       markWord new_mark;
       if (mark.is_not_hashed_expanded()) {
         new_mark = mark.set_hashed_expanded();
-        int offset = mark.klass()->hash_offset_in_bytes(obj);
+        int offset = mark.klass()->hash_offset_in_bytes(obj, mark);
         obj->int_field_put(offset, (jint) hash);
       } else {
         new_mark = mark.set_hashed_not_expanded();
@@ -772,7 +772,7 @@ uint32_t ObjectSynchronizer::get_hash(markWord mark, oop obj, Klass* klass) {
   //assert(mark.is_neutral() | mark.is_fast_locked(), "only from neutral or fast-locked mark: " INTPTR_FORMAT, mark.value());
   assert(mark.is_hashed(), "only from hashed or copied object");
   if (mark.is_hashed_expanded()) {
-    return obj->int_field(klass->hash_offset_in_bytes(obj));
+    return obj->int_field(klass->hash_offset_in_bytes(obj, mark));
   } else {
     assert(mark.is_hashed_not_expanded(), "must be hashed");
     assert(hashCode == 6 || hashCode == 2, "must have idempotent hashCode");

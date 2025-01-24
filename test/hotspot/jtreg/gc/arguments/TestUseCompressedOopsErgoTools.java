@@ -125,7 +125,7 @@ class TestUseCompressedOopsErgoTools {
     checkUseCompressedOops(join(gcflags, "-XX:ObjectAlignmentInBytes=16"), maxHeapForCompressedOops + 1, false);
 
     // use a different CompressedClassSpaceSize
-    String compressedClassSpaceSizeArg = "-XX:CompressedClassSpaceSize=" + 2 * getCompressedClassSpaceSize();
+    String compressedClassSpaceSizeArg = "-XX:CompressedClassSpaceSize=" + getCompressedClassSpaceSize() / 2;
     maxHeapForCompressedOops = getMaxHeapForCompressedOops(join(gcflags, compressedClassSpaceSizeArg));
 
     checkUseCompressedOops(join(gcflags, compressedClassSpaceSizeArg), maxHeapForCompressedOops, true);

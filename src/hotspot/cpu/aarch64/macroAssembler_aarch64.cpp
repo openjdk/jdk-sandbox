@@ -5094,8 +5094,8 @@ void MacroAssembler::load_method_holder(Register holder, Register method) {
 // dst - output narrow klass.
 void MacroAssembler::load_narrow_klass_compact(Register dst, Register src) {
   assert(UseCompactObjectHeaders, "expects UseCompactObjectHeaders");
-  ldr(dst, Address(src, oopDesc::mark_offset_in_bytes()));
-  lsr(dst, dst, markWord::klass_shift);
+  ldrw(dst, Address(src, oopDesc::mark_offset_in_bytes()));
+  lsrw(dst, dst, markWord::klass_shift);
 }
 
 void MacroAssembler::load_klass(Register dst, Register src) {
@@ -5914,6 +5914,7 @@ address MacroAssembler::arrays_equals(Register a1, Register a2, Register tmp3,
   Label DONE, SAME;
   Register tmp1 = rscratch1;
   Register tmp2 = rscratch2;
+  Register cnt2 = tmp2;  // cnt2 only used in array length compare
   int elem_per_word = wordSize/elem_size;
   int log_elem_size = exact_log2(elem_size);
   int klass_offset  = arrayOopDesc::klass_offset_in_bytes();
@@ -5924,11 +5925,17 @@ address MacroAssembler::arrays_equals(Register a1, Register a2, Register tmp3,
   // then we align it down. This is valid because the new
   // offset will always be the klass which is the same
   // for type arrays.
-  int start_offset = align_down(length_offset, BytesPerWord);
+  // With 4-byte headers, we need to start at the base-offset, and check
+  // the length field explicitly.
+  int start_offset = UseCompactObjectHeaders ? base_offset : align_down(length_offset, BytesPerWord);
   int extra_length = base_offset - start_offset;
-  assert(start_offset == length_offset || start_offset == klass_offset,
-         "start offset must be 8-byte-aligned or be the klass offset");
-  assert(base_offset != start_offset, "must include the length field");
+  if (UseCompactObjectHeaders) {
+    assert(base_offset == start_offset, "must start at base-offset");
+  } else {
+    assert(start_offset == length_offset || start_offset == klass_offset,
+           "start offset must be 8-byte-aligned or be the klass offset");
+    assert(base_offset != start_offset, "must include the length field");
+  }
   extra_length = extra_length / elem_size; // We count in elements, not bytes.
   int stubBytesThreshold = 3 * 64 + (UseSIMDForArrayEquals ? 0 : 16);
 

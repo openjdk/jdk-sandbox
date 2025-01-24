@@ -405,7 +405,7 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_nozero_C(Klass* array_type, int len
   if ((len > 0) && (result != nullptr) &&
       is_deoptimized_caller_frame(current)) {
     // Zero array here if the caller is deoptimized.
-    const size_t size = TypeArrayKlass::cast(array_type)->oop_size(result);
+    const size_t size = TypeArrayKlass::cast(array_type)->oop_size(result, result->mark());
     BasicType elem_type = TypeArrayKlass::cast(array_type)->element_type();
     size_t hs_bytes = arrayOopDesc::base_offset_in_bytes(elem_type);
     assert(is_aligned(hs_bytes, BytesPerInt), "must be 4 byte aligned");

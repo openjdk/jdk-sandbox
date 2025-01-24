@@ -24,7 +24,7 @@
 
 
 #include "gc/shenandoah/shenandoahAsserts.hpp"
-#include "gc/shenandoah/shenandoahForwarding.hpp"
+#include "gc/shenandoah/shenandoahForwarding.inline.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahHeapRegionSet.inline.hpp"
 #include "gc/shenandoah/shenandoahMarkingContext.inline.hpp"
@@ -562,7 +562,7 @@ bool ShenandoahAsserts::extract_klass_safely(oop obj, narrowKlass& nk, const Kla
 
   if (UseCompactObjectHeaders) { // look in forwardee
     markWord mark = obj->mark();
-    if (mark.is_marked()) {
+    if (ShenandoahForwarding::has_forwardee(mark)) {
       oop fwd = cast_to_oop(mark.clear_lock_bits().to_pointer());
       if (!os::is_readable_pointer(fwd)) {
         return false;

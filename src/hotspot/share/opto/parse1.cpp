@@ -2174,7 +2174,7 @@ void Parse::call_register_finalizer() {
   // Insert a dynamic test for whether the instance needs
   // finalization.  In general this will fold up since the concrete
   // class is often visible so the access flags are constant.
-  Node* klass_addr = basic_plus_adr( receiver, receiver, oopDesc::klass_offset_in_bytes() );
+  Node* klass_addr = basic_plus_adr( receiver, receiver, Type::klass_offset() );
   Node* klass = _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), klass_addr, TypeInstPtr::KLASS));
 
   Node* access_flags_addr = off_heap_plus_addr(klass, in_bytes(Klass::misc_flags_offset()));

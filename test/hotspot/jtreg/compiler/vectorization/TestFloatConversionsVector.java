@@ -56,17 +56,11 @@ public class TestFloatConversionsVector {
 
     @Test
     @IR(counts = {IRNode.VECTOR_CAST_F2HF, IRNode.VECTOR_SIZE + "min(max_float, max_short)", "> 0"},
-        applyIfOr = {"UseCompactObjectHeaders", "false", "AlignVector", "false"},
         applyIfPlatformOr = {"x64", "true", "aarch64", "true", "riscv64", "true"},
         applyIfCPUFeatureOr = {"f16c", "true", "avx512f", "true", "zvfh", "true", "asimd", "true", "sve", "true"})
     public void test_float_float16(short[] sout, float[] finp) {
         for (int i = 0; i < finp.length; i++) {
             sout[i] = Float.floatToFloat16(finp[i]);
-            // With AlignVector, we need 8-byte alignment of vector loads/stores.
-            // UseCompactObjectHeaders=false                 UseCompactObjectHeaders=true
-            // F_adr = base + 16 + 4*i   ->  i % 2 = 0       F_adr = base + 12 + 4*i   ->  i % 2 = 1
-            // S_adr = base + 16 + 2*i   ->  i % 4 = 0       S_adr = base + 12 + 2*i   ->  i % 4 = 2
-            // -> vectorize                                  -> no vectorization
         }
     }
 
@@ -129,17 +123,11 @@ public class TestFloatConversionsVector {
 
     @Test
     @IR(counts = {IRNode.VECTOR_CAST_HF2F, IRNode.VECTOR_SIZE + "min(max_float, max_short)", "> 0"},
-        applyIfOr = {"UseCompactObjectHeaders", "false", "AlignVector", "false"},
         applyIfPlatformOr = {"x64", "true", "aarch64", "true", "riscv64", "true"},
         applyIfCPUFeatureOr = {"f16c", "true", "avx512f", "true", "zvfh", "true", "asimd", "true", "sve", "true"})
     public void test_float16_float(float[] fout, short[] sinp) {
         for (int i = 0; i < sinp.length; i++) {
             fout[i] = Float.float16ToFloat(sinp[i]);
-            // With AlignVector, we need 8-byte alignment of vector loads/stores.
-            // UseCompactObjectHeaders=false                 UseCompactObjectHeaders=true
-            // F_adr = base + 16 + 4*i   ->  i % 2 = 0       F_adr = base + 12 + 4*i   ->  i % 2 = 1
-            // S_adr = base + 16 + 2*i   ->  i % 4 = 0       S_adr = base + 12 + 2*i   ->  i % 4 = 2
-            // -> vectorize                                  -> no vectorization
         }
     }
 

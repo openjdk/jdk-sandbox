@@ -3522,7 +3522,7 @@ bool ConnectionGraph::is_oop_field(Node* n, int offset, bool* unsafe) {
         bt = T_OBJECT;
       }
     }
-  } else if (offset != oopDesc::klass_offset_in_bytes()) {
+  } else if (offset != Type::klass_offset()) {
     if (adr_type->isa_instptr()) {
       ciField* field = _compile->alias_type(adr_type->isa_instptr())->field();
       if (field != nullptr) {
@@ -4530,7 +4530,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
       // the header emitted during macro expansion wouldn't have
       // correct memory state otherwise.
       _compile->get_alias_index(tinst->add_offset(oopDesc::mark_offset_in_bytes()));
-      _compile->get_alias_index(tinst->add_offset(oopDesc::klass_offset_in_bytes()));
+      _compile->get_alias_index(tinst->add_offset(Type::klass_offset()));
       if (alloc->is_Allocate() && (t->isa_instptr() || t->isa_aryptr())) {
         // Add a new NarrowMem projection for each existing NarrowMem projection with new adr type
         InitializeNode* init = alloc->as_Allocate()->initialization();

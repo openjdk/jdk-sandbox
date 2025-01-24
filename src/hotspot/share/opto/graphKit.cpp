@@ -1271,7 +1271,7 @@ Node* GraphKit::load_object_klass(Node* obj) {
   // Special-case a fresh allocation to avoid building nodes:
   Node* akls = AllocateNode::Ideal_klass(obj, &_gvn);
   if (akls != nullptr)  return akls;
-  Node* k_adr = basic_plus_adr(obj, oopDesc::klass_offset_in_bytes());
+  Node* k_adr = basic_plus_adr(obj, Type::klass_offset());
   return _gvn.transform(LoadKlassNode::make(_gvn, immutable_memory(), k_adr, TypeInstPtr::KLASS));
 }
 
@@ -3742,7 +3742,7 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
     // Use one NarrowMemProjNode per slice to properly record the adr type of each slice. The Initialize node will have
     // multiple projections as a result.
     set_memory(_gvn.transform(new NarrowMemProjNode(init, C->get_adr_type(mark_idx))), mark_idx);
-    int klass_idx = C->get_alias_index(oop_type->add_offset(oopDesc::klass_offset_in_bytes()));
+    int klass_idx = C->get_alias_index(oop_type->add_offset(Type::klass_offset()));
     set_memory(_gvn.transform(new NarrowMemProjNode(init, C->get_adr_type(klass_idx))), klass_idx);
     if (oop_type->isa_aryptr()) {
       const TypePtr* telemref = oop_type->add_offset(Type::OffsetBot);

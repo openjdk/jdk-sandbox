@@ -55,7 +55,9 @@ public class TestObjectAllocationSampleEventThrottling {
     // 64-bit  COH: MW8 +      L4 + End Alignment = 16
     // 64-bit -COH: MW8 + K4 + L4                 = 16
     // 32-bit     : MW4 + K4 + L4 + End Alignment = 16
-    private static final int BYTE_ARRAY_OVERHEAD = 16;
+    private static final Boolean COMPACT_HEADERS = WhiteBox.getWhiteBox().getBooleanVMFlag("UseCompactObjectHeaders");
+
+    private static final int BYTE_ARRAY_OVERHEAD = COMPACT_HEADERS ? 12 : 16;
     private static final int OBJECT_SIZE = 128 * 1024;
 
     private static final int OBJECTS_TO_ALLOCATE = 100;

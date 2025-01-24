@@ -530,6 +530,7 @@ AOTMapLogger::OopDataIterator* AOTStreamedHeapWriter::oop_iterator(AOTStreamedHe
       oopDesc* raw_oop = (oopDesc*)buffered_addr;
       Klass* klass = src_obj->klass();
       size_t size = src_obj->size();
+      size = src_obj->copy_size_cds(size, src_obj->mark());
 
       intptr_t target_location = (intptr_t)buffered_offset;
       uint32_t narrow_location = checked_cast<uint32_t>(dfs_index);

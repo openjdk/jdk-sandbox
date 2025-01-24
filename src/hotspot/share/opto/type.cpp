@@ -580,7 +580,7 @@ void Type::Initialize_shared(Compile* current) {
   TypeInstPtr::MARK    = TypeInstPtr::make(TypePtr::BotPTR,  current->env()->Object_klass(),
                                            false, nullptr, oopDesc::mark_offset_in_bytes());
   TypeInstPtr::KLASS   = TypeInstPtr::make(TypePtr::BotPTR,  current->env()->Object_klass(),
-                                           false, nullptr, oopDesc::klass_offset_in_bytes());
+                                           false, nullptr, Type::klass_offset());
   TypeOopPtr::BOTTOM  = TypeOopPtr::make(TypePtr::BotPTR, OffsetBot, TypeOopPtr::InstanceBot);
 
   TypeMetadataPtr::BOTTOM = TypeMetadataPtr::make(TypePtr::BotPTR, nullptr, OffsetBot);
@@ -3488,7 +3488,7 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, const TypeInterfaces* inter
   }
 #ifdef _LP64
   if (_offset > 0 || _offset == Type::OffsetTop || _offset == Type::OffsetBot) {
-    if (_offset == oopDesc::klass_offset_in_bytes()) {
+    if (_offset == Type::klass_offset()) {
       _is_ptr_to_narrowklass = true;
     } else if (klass() == nullptr) {
       // Array with unknown body type

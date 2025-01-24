@@ -452,7 +452,7 @@ C2V_VMENTRY_NULL(jobject, getResolvedJavaType0, (JNIEnv* env, jobject, jobject b
 
   const char* base_desc = nullptr;
   JVMCIKlassHandle klass(THREAD);
-  if (offset == oopDesc::klass_offset_in_bytes()) {
+  if (offset == 1 /*oopDesc::klass_offset_in_bytes()*/) {
     if (JVMCIENV->isa_HotSpotObjectConstantImpl(base_object)) {
       Handle base_oop = JVMCIENV->asConstant(base_object, JVMCI_CHECK_NULL);
       klass = base_oop->klass();

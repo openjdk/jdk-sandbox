@@ -3579,8 +3579,7 @@ void TemplateTable::_new() {
     // The object is initialized before the header.  If the object size is
     // zero, go directly to the header initialization.
     if (UseCompactObjectHeaders) {
-      assert(is_aligned(oopDesc::base_offset_in_bytes(), BytesPerLong), "oop base offset must be 8-byte-aligned");
-      __ decrement(rdx, oopDesc::base_offset_in_bytes());
+      __ decrement(rdx, align_up(oopDesc::base_offset_in_bytes(), BytesPerLong));
     } else {
       __ decrement(rdx, sizeof(oopDesc));
     }

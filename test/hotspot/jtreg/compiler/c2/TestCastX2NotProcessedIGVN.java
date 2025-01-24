@@ -76,7 +76,6 @@ public class TestCastX2NotProcessedIGVN {
 
     @Test
     @IR(counts = {IRNode.LOAD_VECTOR_I, "> 1"},
-        applyIfOr = {"UseCompactObjectHeaders", "false", "AlignVector", "false"},
         applyIfPlatformOr = {"x64", "true", "aarch64", "true", "ppc", "true"})
     public static int test2(int stop, int[] array) {
         int v = 0;
@@ -84,11 +83,6 @@ public class TestCastX2NotProcessedIGVN {
         for (int i = 0; i < stop; i++) {
             long offset = ((long)i) * 4;
             array[i] = UNSAFE.getInt(null, offset + base);
-            // With AlignVector, we need 8-byte alignment of vector loads/stores.
-            // UseCompactObjectHeaders=false                  UseCompactObjectHeaders=true
-            // I_adr = base + 16 + 4*i  ->  i % 2 = 0         B_adr = base + 12 + 4*i  ->  i % 2 = 1
-            // N_adr = base      + 4*i  ->  i % 2 = 0         N_adr = base      + 4*i  ->  i % 2 = 0
-            // -> vectorize                                   -> no vectorization
         }
         return v;
     }

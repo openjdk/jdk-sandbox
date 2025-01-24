@@ -200,6 +200,17 @@ protected:
 
 public:
 
+  // This is used as a marker to identify narrow Klass* loads, which
+  // are really extracted from the mark-word, but we still want to
+  // distinguish it.
+  static int klass_offset() {
+    if (UseCompactObjectHeaders) {
+      return 1;
+    } else {
+      return oopDesc::klass_offset_in_bytes();
+    }
+  }
+
   inline void* operator new( size_t x ) throw() {
     Compile* compile = Compile::current();
     compile->set_type_last_size(x);
@@ -1651,7 +1662,7 @@ class TypeAryPtr : public TypeOopPtr {
 
     if (UseCompressedOops && (elem()->make_oopptr() != nullptr && !top_or_bottom) &&
         _offset != 0 && _offset != arrayOopDesc::length_offset_in_bytes() &&
-        _offset != arrayOopDesc::klass_offset_in_bytes()) {
+        _offset != Type::klass_offset()) {
       _is_ptr_to_narrowoop = true;
     }
 

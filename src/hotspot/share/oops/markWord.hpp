@@ -45,7 +45,9 @@
 //
 //  64 bits (with compact headers):
 //  -------------------------------
-//  klass:22  unused_gap:29 hash:2 -->| unused_gap:4  age:4  self-fwd:1  lock:2 (normal object)
+//  unused:32 klass:19 hashctrl:2 -->| unused_gap:4  age:4  self-fwd:1  lock:2 (normal object)
+//
+//  Note: klass occupies bits 13-31 (19 bits), hashctrl occupies bits 11-12 (2 bits)
 //
 //  - hash contains the identity hash value: largest value is
 //    31 bits, see os::random().  Also, 64-bit vm's require
@@ -109,6 +111,7 @@ class markWord {
 
   // Conversion
   uintptr_t value() const { return _value; }
+  uint32_t value32() const { return (uint32_t)_value; }
 
   // Constants
   static const int age_bits                       = 4;
@@ -140,13 +143,23 @@ class markWord {
 
 #ifdef _LP64
   // Used only with compact headers:
-  // We store the (narrow) Klass* in the bits 43 to 64.
+  // With UseCompactObjectHeaders: We store the (narrow) Klass* in bits 13-31 (19 bits total).
+  // Without UseCompactObjectHeaders: Klass* is stored separately in object header, not in markword.
 
-  // These are for bit-precise extraction of the narrow Klass* from the 64-bit Markword
-  static constexpr int klass_offset_in_bytes      = 4;
-  static constexpr int klass_shift                = hash_shift + hash_bits;
-  static constexpr int klass_shift_at_offset      = klass_shift - klass_offset_in_bytes * BitsPerByte;
-  static constexpr int klass_bits                 = 22;
+  // These are for bit-precise extraction of the narrow Klass* from the markword (UseCompactObjectHeaders only)
+  //
+  // Bit position summary for UseCompactObjectHeaders:
+  // Bits  0- 1: lock (2 bits)
+  // Bit   2   : self-fwd (1 bit)
+  // Bits  3- 6: age (4 bits)
+  // Bits  7-10: unused_gap (4 bits)
+  // Bits 11-12: hashctrl (2 bits) - hash control state
+  // Bits 13-31: klass (19 bits) - narrow klass pointer
+  // Bits 32-63: unused (32 bits)
+  //
+  // Without UseCompactObjectHeaders, klass is stored separately in object header
+  static constexpr int klass_shift                = hashctrl_shift + hashctrl_bits;
+  static constexpr int klass_bits                 = 19;
   static constexpr uintptr_t klass_mask           = right_n_bits(klass_bits);
   static constexpr uintptr_t klass_mask_in_place  = klass_mask << klass_shift;
 #endif
@@ -334,6 +347,10 @@ class markWord {
   inline Klass* klass_without_asserts() const;
   inline narrowKlass narrow_klass() const;
   inline markWord set_narrow_klass(narrowKlass narrow_klass) const;
+
+#ifdef _LP64
+  inline int array_length() { return checked_cast<int>(value() >> 32); }
+#endif
 
   // Prototype mark for initialization
   static markWord prototype() {

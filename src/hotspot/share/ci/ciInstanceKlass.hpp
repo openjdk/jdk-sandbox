@@ -309,7 +309,7 @@ public:
   GrowableArray<ciInstanceKlass*>* transitive_interfaces() const;
 
   int hash_offset_in_bytes() const {
-    return get_instanceKlass()->hash_offset_in_bytes(nullptr);
+    return get_instanceKlass()->hash_offset_in_bytes(nullptr, markWord(0));
   }
 
   // Replay support

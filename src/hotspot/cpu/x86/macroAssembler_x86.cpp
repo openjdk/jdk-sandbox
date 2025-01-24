@@ -5415,8 +5415,8 @@ void MacroAssembler::load_method_holder(Register holder, Register method) {
 
 void MacroAssembler::load_narrow_klass_compact(Register dst, Register src) {
   assert(UseCompactObjectHeaders, "expect compact object headers");
-  movq(dst, Address(src, oopDesc::mark_offset_in_bytes()));
-  shrq(dst, markWord::klass_shift);
+  movl(dst, Address(src, oopDesc::mark_offset_in_bytes()));
+  shrl(dst, markWord::klass_shift);
 }
 
 void MacroAssembler::load_klass(Register dst, Register src, Register tmp) {

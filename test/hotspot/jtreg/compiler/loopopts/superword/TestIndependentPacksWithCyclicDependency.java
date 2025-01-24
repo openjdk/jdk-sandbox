@@ -130,7 +130,6 @@ public class TestIndependentPacksWithCyclicDependency {
 
     @Test
     @IR(counts = {IRNode.ADD_VI, "> 0", IRNode.MUL_VF, "> 0"},
-        applyIfOr = {"UseCompactObjectHeaders", "false", "AlignVector", "false"},
         applyIfPlatform = {"64-bit", "true"},
         applyIfCPUFeatureOr = {"sse4.1", "true", "asimd", "true", "rvv", "true"})
     static void test0(int[] dataIa, int[] dataIb, float[] dataFa, float[] dataFb) {
@@ -140,10 +139,6 @@ public class TestIndependentPacksWithCyclicDependency {
             dataIb[i+1] = dataIa[i+1] + 3;
             dataFb[i+0] = dataFa[i+0] * 1.3f;
             dataFb[i+1] = dataFa[i+1] * 1.3f;
-            // With AlignVector, we need 8-byte alignment of vector loads/stores.
-            // UseCompactObjectHeaders=false                 UseCompactObjectHeaders=true
-            // adr = base + 16 + 8*i   ->  always            adr = base + 12 + 8*i   ->  never
-            // -> vectorize                                  -> no vectorization
         }
     }
 
@@ -160,7 +155,6 @@ public class TestIndependentPacksWithCyclicDependency {
 
     @Test
     @IR(counts = {IRNode.ADD_VI, "> 0", IRNode.MUL_VF, "> 0", IRNode.VECTOR_CAST_F2I, "> 0", IRNode.VECTOR_CAST_I2F, "> 0"},
-        applyIfOr = {"UseCompactObjectHeaders", "false", "AlignVector", "false"},
         applyIfPlatform = {"64-bit", "true"},
         applyIfCPUFeatureOr = {"avx2", "true", "asimd", "true", "rvv", "true"})
     static void test1(int[] dataIa, int[] dataIb, float[] dataFa, float[] dataFb) {
@@ -170,10 +164,6 @@ public class TestIndependentPacksWithCyclicDependency {
             dataFa[i+1] = dataIa[i+1] + 3;
             dataIb[i+0] = (int)(dataFb[i+0] * 1.3f);
             dataIb[i+1] = (int)(dataFb[i+1] * 1.3f);
-            // With AlignVector, we need 8-byte alignment of vector loads/stores.
-            // UseCompactObjectHeaders=false                 UseCompactObjectHeaders=true
-            // adr = base + 16 + 8*i   ->  always            adr = base + 12 + 8*i   ->  never
-            // -> vectorize                                  -> no vectorization
         }
     }
 
@@ -189,7 +179,6 @@ public class TestIndependentPacksWithCyclicDependency {
 
     @Test
     @IR(counts = {IRNode.ADD_VI, "> 0", IRNode.MUL_VI, "> 0"},
-        applyIfOr = {"UseCompactObjectHeaders", "false", "AlignVector", "false"},
         applyIfPlatform = {"64-bit", "true"},
         applyIfCPUFeatureOr = {"sse4.1", "true", "asimd", "true", "rvv", "true"})
     static void test2(int[] dataIa, int[] dataIb, float[] dataFa, float[] dataFb) {
@@ -199,10 +188,6 @@ public class TestIndependentPacksWithCyclicDependency {
             unsafe.putInt(dataFa, unsafe.ARRAY_FLOAT_BASE_OFFSET + 4L * i + 4, dataIa[i+1] + 1);
             dataIb[i+0] = 11 * unsafe.getInt(dataFb, unsafe.ARRAY_INT_BASE_OFFSET + 4L * i + 0);
             dataIb[i+1] = 11 * unsafe.getInt(dataFb, unsafe.ARRAY_INT_BASE_OFFSET + 4L * i + 4);
-            // With AlignVector, we need 8-byte alignment of vector loads/stores.
-            // UseCompactObjectHeaders=false                 UseCompactObjectHeaders=true
-            // adr = base + 16 + 8*i   ->  always            adr = base + 12 + 8*i   ->  never
-            // -> vectorize                                  -> no vectorization
         }
     }
 
@@ -219,7 +204,6 @@ public class TestIndependentPacksWithCyclicDependency {
 
     @Test
     @IR(counts = {IRNode.ADD_VI, "> 0", IRNode.MUL_VF, "> 0"},
-        applyIfOr = {"UseCompactObjectHeaders", "false", "AlignVector", "false"},
         applyIfPlatform = {"64-bit", "true"},
         applyIfCPUFeatureOr = {"sse4.1", "true", "asimd", "true", "rvv", "true"})
     static void test3(int[] dataIa, int[] dataIb, float[] dataFa, float[] dataFb) {
@@ -231,10 +215,6 @@ public class TestIndependentPacksWithCyclicDependency {
             dataFb[i+1] = dataFa[i+1] * 1.3f;
             dataFb[i+0] = dataFa[i+0] * 1.3f;
             dataIb[i+1] = dataIa[i+1] + 3;
-            // With AlignVector, we need 8-byte alignment of vector loads/stores.
-            // UseCompactObjectHeaders=false                 UseCompactObjectHeaders=true
-            // adr = base + 16 + 8*i   ->  always            adr = base + 12 + 8*i   ->  never
-            // -> vectorize                                  -> no vectorization
         }
     }
 
@@ -301,7 +281,6 @@ public class TestIndependentPacksWithCyclicDependency {
 
     @Test
     @IR(counts = {IRNode.ADD_VI, "> 0", IRNode.MUL_VI, "> 0", IRNode.ADD_VF, "> 0"},
-        applyIfOr = {"UseCompactObjectHeaders", "false", "AlignVector", "false"},
         applyIfPlatform = {"64-bit", "true"},
         applyIfCPUFeatureOr = {"sse4.1", "true", "asimd", "true", "rvv", "true"})
     static void test6(int[] dataIa, int[] dataIb, float[] dataFa, float[] dataFb,
@@ -320,10 +299,6 @@ public class TestIndependentPacksWithCyclicDependency {
             float v21 = unsafe.getFloat(dataLb, unsafe.ARRAY_LONG_BASE_OFFSET + 4L * i + 4) + 0.55f;
             unsafe.putFloat(dataIb, unsafe.ARRAY_INT_BASE_OFFSET + 4L * i + 0, v20);
             unsafe.putFloat(dataIb, unsafe.ARRAY_INT_BASE_OFFSET + 4L * i + 4, v21);
-            // With AlignVector, we need 8-byte alignment of vector loads/stores.
-            // UseCompactObjectHeaders=false                 UseCompactObjectHeaders=true
-            // adr = base + 16 + 8*i   ->  always            adr = base + 12 + 8*i   ->  never
-            // -> vectorize                                  -> no vectorization
         }
     }
 

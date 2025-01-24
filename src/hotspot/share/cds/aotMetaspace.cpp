@@ -1953,8 +1953,9 @@ char* AOTMetaspace::reserve_address_space_for_archives(FileMapInfo* static_mapin
   const size_t ccs_begin_offset = align_up(archive_space_size, class_space_alignment);
   const size_t gap_size = ccs_begin_offset - archive_space_size;
 
-  // Reduce class space size if it would not fit into the Klass encoding range
-  constexpr size_t max_encoding_range_size = 4 * G;
+  // Reduce class space size if it would not fit into the maximum possible Klass encoding range. That
+  // range is defined by the narrowKlass size.
+  const size_t max_encoding_range_size = CompressedKlassPointers::max_klass_range_size();
   guarantee(archive_space_size < max_encoding_range_size - class_space_alignment, "Archive too large");
   if ((archive_space_size + gap_size + class_space_size) > max_encoding_range_size) {
     class_space_size = align_down(max_encoding_range_size - archive_space_size - gap_size, class_space_alignment);

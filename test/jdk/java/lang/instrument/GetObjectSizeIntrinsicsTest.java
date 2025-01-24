@@ -317,6 +317,7 @@ public class GetObjectSizeIntrinsicsTest extends ASimpleInstrumentationTestCase 
     // 64-bit: 8mw-4ccp-4len
     // 32-bit: 4mw-4ccp-4len-4gap
     static final int ARRAY_HEADER_SIZE = 16;
+    static final int ARRAY_HEADER_SIZE = COMPACT_HEADERS ? 8 : 16;
 
     final String mode;
 

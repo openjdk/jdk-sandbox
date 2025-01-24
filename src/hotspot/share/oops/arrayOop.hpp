@@ -75,6 +75,7 @@ private:
     if (arrayoopdesc_hs == 0) arrayoopdesc_hs = hs;
     assert(arrayoopdesc_hs == hs, "header size can't change");
 #endif // ASSERT
+    assert(!UseCompactObjectHeaders || hs == 8, "array header must be 8 bytes");
     return (int)hs;
   }
 
@@ -82,6 +83,7 @@ private:
   // mark-word when using compact headers (+UseCompactObjectHeaders), otherwise
   // after the compressed Klass*.
   static int length_offset_in_bytes() {
+    assert(!UseCompactObjectHeaders || oopDesc::base_offset_in_bytes() == 4, "array length must be at 4 bytes");
     return oopDesc::base_offset_in_bytes();
   }
 

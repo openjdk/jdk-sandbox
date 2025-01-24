@@ -887,6 +887,7 @@ void HeapShared::copy_java_mirror(oop orig_mirror, oop scratch_m) {
   // We need to retain the identity_hash, because it may have been used by some hashtables
   // in the shared heap.
   assert(!UseCompactObjectHeaders || scratch_m->mark().is_not_hashed_expanded(), "scratch mirror must have not-hashed-expanded state");
+  assert(!UseCompactObjectHeaders || !orig_mirror->mark().is_not_hashed_expanded(), "must not be not-hashed-expanded");
   if (!orig_mirror->fast_no_hash_check()) {
     intptr_t orig_mark = orig_mirror->mark().value();
     intptr_t src_hash = orig_mirror->identity_hash();
@@ -901,8 +902,8 @@ void HeapShared::copy_java_mirror(oop orig_mirror, oop scratch_m) {
         scratch_m->set_mark(scratch_m->initialize_hash_if_necessary(orig_mirror, orig_klass, mark));
       } else {
         assert(mark.is_hashed_expanded(), "must be hashed & moved");
-        int offset = orig_klass->hash_offset_in_bytes(orig_mirror);
-        assert(offset >= 8, "hash offset must not be in header");
+        int offset = orig_klass->hash_offset_in_bytes(orig_mirror, mark);
+        assert(offset >= 4, "hash offset must not be in header");
         scratch_m->int_field_put(offset, (jint) src_hash);
         scratch_m->set_mark(mark);
       }

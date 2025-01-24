@@ -5838,6 +5838,9 @@ opclass memory(indirect, indIndexScaled, indIndexScaledI2L, indIndexI2L, indInde
                indOffI1, indOffL1, indOffI2, indOffL2, indOffI4, indOffL4, indOffI8, indOffL8,
                indirectN, indIndexScaledN, indIndexScaledI2LN, indIndexI2LN, indIndexN, indOffIN, indOffLN, indirectX2P, indOffX2P);
 
+opclass memory_noindex(indirect,
+                       indOffI1, indOffL1,indOffI2, indOffL2, indOffI4, indOffL4, indOffI8, indOffL8,
+                       indirectN, indOffIN, indOffLN, indirectX2P, indOffX2P);
 
 // iRegIorL2I is used for src inputs in rules for 32 bit int (I)
 // operations. it allows the src to be either an iRegI or a (ConvL2I
@@ -6772,7 +6775,7 @@ instruct loadNKlass(iRegNNoSp dst, memory4 mem)
   ins_pipe(iload_reg_mem);
 %}
 
-instruct loadNKlassCompactHeaders(iRegNNoSp dst, memory4 mem)
+instruct loadNKlassCompactHeaders(iRegNNoSp dst, memory_noindex mem)
 %{
   match(Set dst (LoadNKlass mem));
   predicate(!needs_acquiring_load(n) && UseCompactObjectHeaders);
@@ -6780,13 +6783,14 @@ instruct loadNKlassCompactHeaders(iRegNNoSp dst, memory4 mem)
   ins_cost(4 * INSN_COST);
   format %{
     "ldrw  $dst, $mem\t# compressed class ptr, shifted\n\t"
-    "lsrw  $dst, $dst, markWord::klass_shift_at_offset"
+    "lsrw  $dst, $dst, markWord::klass_shift"
   %}
   ins_encode %{
-    // inlined aarch64_enc_ldrw
-    loadStore(masm, &MacroAssembler::ldrw, $dst$$Register, $mem->opcode(),
-              as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp, 4);
-    __ lsrw($dst$$Register, $dst$$Register, markWord::klass_shift_at_offset);
+    assert($mem$$index$$Register == noreg, "must not have indexed address");
+    // The incoming address is pointing into obj-start + klass_offset_in_bytes. We need to extract
+    // obj-start, so that we can load from the object's mark-word instead.
+    __ ldrw($dst$$Register, Address($mem$$base$$Register, $mem$$disp - Type::klass_offset()));
+    __ lsrw($dst$$Register, $dst$$Register, markWord::klass_shift);
   %}
   ins_pipe(iload_reg_mem);
 %}

@@ -47,8 +47,7 @@ public class Oop {
     Type type  = db.lookupType("oopDesc");
     mark       = new CIntField(type.getCIntegerField("_mark"), 0);
     if (VM.getVM().isCompactObjectHeadersEnabled()) {
-      Type markType = db.lookupType("markWord");
-      headerSize = markType.getSize();
+      headerSize = 4;
     } else {
       headerSize = type.getSize();
       compressedKlass  = new NarrowKlassField(type.getAddressField("_compressed_klass"), 0);

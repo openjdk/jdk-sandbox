@@ -63,6 +63,18 @@ public:
   static inline bool is_forwarded(markWord m);
 
   /**
+   * Returns true iff the mark word's lock bits are marked_value (0b11),
+   * i.e. the upper bits encode a real forwardee pointer. This covers both
+   * normal-forwarded (0b011) and forward-expanded (0b111) states, and
+   * excludes self-forwarded states (0b100, 0b101, 0b110) whose upper bits
+   * still hold the original klass/hash/age metadata.
+   *
+   * Do NOT use markWord::is_marked() for this purpose -- it also returns
+   * true for self-forwarded objects.
+   */
+  static inline bool has_forwardee(markWord m);
+
+  /**
    * Returns true iff obj has been self-forwarded (i.e. evacuation has
    * failed for this object in the current cycle).
    */

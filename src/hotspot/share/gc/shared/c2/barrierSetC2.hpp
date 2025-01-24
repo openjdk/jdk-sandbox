@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -318,6 +318,8 @@ public:
 
   virtual bool array_copy_requires_gc_barriers(bool tightly_coupled_alloc, BasicType type, bool is_clone, bool is_clone_instance, ArrayCopyPhase phase) const { return false; }
   virtual void clone_at_expansion(PhaseMacroExpand* phase, ArrayCopyNode* ac) const;
+  bool should_copy_int_prefix(PhaseMacroExpand* phase, ArrayCopyNode* ac) const;
+  MergeMemNode* arraycopy_copy_int_prefix(PhaseMacroExpand* phase, Node* ctrl, Node* mem, Node* src, Node* dst) const;
 
   // Support for GC barriers emitted during parsing
   virtual bool has_load_barrier_nodes() const { return false; }

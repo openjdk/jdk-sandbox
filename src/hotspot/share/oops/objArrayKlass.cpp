@@ -142,12 +142,13 @@ ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name) : ArrayK
   assert(is_objArray_klass(), "sanity");
 }
 
-size_t ObjArrayKlass::oop_size(oop obj) const {
+size_t ObjArrayKlass::oop_size(oop obj, markWord mark) const {
   // In this assert, we cannot safely access the Klass* with compact headers,
   // because size_given_klass() calls oop_size() on objects that might be
   // concurrently forwarded, which would overwrite the Klass*.
   assert(UseCompactObjectHeaders || obj->is_objArray(), "must be object array");
-  return objArrayOop(obj)->object_size();
+  int length = LP64_ONLY(UseCompactObjectHeaders ? mark.array_length() :) objArrayOop(obj)->length();
+  return objArrayOop(obj)->object_size(length);
 }
 
 objArrayOop ObjArrayKlass::allocate_instance(int length, TRAPS) {

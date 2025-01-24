@@ -5689,7 +5689,7 @@ void LibraryCallKit::arraycopy_move_allocation_here(AllocateArrayNode* alloc, No
     // Need to properly move every memory projection for the Initialize
 #ifdef ASSERT
     int mark_idx = C->get_alias_index(ary_type->add_offset(oopDesc::mark_offset_in_bytes()));
-    int klass_idx = C->get_alias_index(ary_type->add_offset(oopDesc::klass_offset_in_bytes()));
+    int klass_idx = C->get_alias_index(ary_type->add_offset(Type::klass_offset()));
 #endif
     auto move_proj = [&](ProjNode* proj) {
       int alias_idx = C->get_alias_index(proj->adr_type());

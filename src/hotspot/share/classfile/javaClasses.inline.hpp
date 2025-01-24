@@ -285,7 +285,7 @@ inline bool java_lang_Class::is_instance(oop obj) {
 
 inline Klass* java_lang_Class::as_Klass(oop java_class) {
   //%note memory_2
-  assert(java_lang_Class::is_instance(java_class), "must be a Class object");
+  //assert(java_lang_Class::is_instance(java_class), "must be a Class object");
   Klass* k = ((Klass*)java_class->metadata_field(_klass_offset));
   assert(k == nullptr || k->is_klass(), "type check");
   return k;

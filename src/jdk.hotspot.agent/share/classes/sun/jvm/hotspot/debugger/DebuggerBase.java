@@ -401,7 +401,7 @@ public abstract class DebuggerBase implements Debugger {
     if (VM.getVM().isCompactObjectHeadersEnabled()) {
       // With compact headers, the compressed Klass* is currently read from the mark
       // word. We need to load the whole mark, and shift the upper parts.
-      value = readCInteger(address, machDesc.getAddressSize(), true);
+      value = readCInteger(address, jintSize, true);
       value = value >>> Mark.getKlassShift();
     } else {
       value = readCInteger(address, getKlassPtrSize(), true);

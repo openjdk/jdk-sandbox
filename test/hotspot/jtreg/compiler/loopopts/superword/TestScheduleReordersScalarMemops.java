@@ -91,7 +91,6 @@ public class TestScheduleReordersScalarMemops {
 
     @Test
     @IR(counts = {IRNode.MUL_VI, "> 0"},
-        applyIfOr = {"UseCompactObjectHeaders", "false", "AlignVector", "false"},
         applyIfCPUFeatureOr = {"avx2", "true", "asimd", "true"})
     static void test0(int[] dataIa, int[] dataIb, float[] dataFa, float[] dataFb) {
         for (int i = 0; i < RANGE; i+=2) {
@@ -116,10 +115,6 @@ public class TestScheduleReordersScalarMemops {
             dataIb[i + 0] = (int)dataFb[i + 0] * 11;  // X *11
             dataIb[i + 1] = (int)dataFb[i + 1] * 11;  // Y *11
             dataFa[i + 1] = dataIa[i + 1] + 1.2f;     // B +1.2
-            // With AlignVector, we need 8-byte alignment of vector loads/stores.
-            // UseCompactObjectHeaders=false                 UseCompactObjectHeaders=true
-            // adr = base + 16 + 8*i   ->  always            adr = base + 12 + 8*i   ->  never
-            // -> vectorize                                  -> no vectorization
         }
     }
 
@@ -136,7 +131,6 @@ public class TestScheduleReordersScalarMemops {
 
     @Test
     @IR(counts = {IRNode.MUL_VI, "> 0"},
-        applyIfOr = {"UseCompactObjectHeaders", "false", "AlignVector", "false"},
         applyIfCPUFeatureOr = {"avx2", "true", "asimd", "true"})
     static void test1(int[] dataIa, int[] dataIb, float[] dataFa, float[] dataFb) {
         for (int i = 0; i < RANGE; i+=2) {
@@ -146,10 +140,6 @@ public class TestScheduleReordersScalarMemops {
             dataIb[i+0] = 11 * unsafe.getInt(dataFb, unsafe.ARRAY_INT_BASE_OFFSET + 4L * i + 0);  // X
             dataIb[i+1] = 11 * unsafe.getInt(dataFb, unsafe.ARRAY_INT_BASE_OFFSET + 4L * i + 4);  // Y
             unsafe.putInt(dataFa, unsafe.ARRAY_FLOAT_BASE_OFFSET + 4L * i + 4, dataIa[i+1] * 11); // B *11
-            // With AlignVector, we need 8-byte alignment of vector loads/stores.
-            // UseCompactObjectHeaders=false                 UseCompactObjectHeaders=true
-            // adr = base + 16 + 8*i   ->  always            adr = base + 12 + 8*i   ->  never
-            // -> vectorize                                  -> no vectorization
         }
     }
 

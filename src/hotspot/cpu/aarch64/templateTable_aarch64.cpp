@@ -3655,7 +3655,6 @@ void TemplateTable::_new() {
     // The object is initialized before the header.  If the object size is
     // zero, go directly to the header initialization.
     int header_size = oopDesc::header_size() * HeapWordSize;
-    assert(is_aligned(header_size, BytesPerLong), "oop header size must be 8-byte-aligned");
     __ sub(r3, r3, header_size);
     __ cbz(r3, initialize_header);
 

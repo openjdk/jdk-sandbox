@@ -40,13 +40,21 @@ inline oop ShenandoahForwarding::get_forwardee_raw(oop obj) {
 static HeapWord* to_forwardee(markWord mark) {
   return reinterpret_cast<HeapWord*>(mark.value() & ~(markWord::lock_mask_in_place | markWord::self_fwd_mask_in_place));
 }
+
+inline bool ShenandoahForwarding::has_forwardee(markWord m) {
+  // Lock bits == marked_value (0b11): the upper bits encode a forwardee
+  // pointer. Matches normal-forwarded (0b011) and forward-expanded (0b111);
+  // excludes self-forwarded (0b100, 0b101, 0b110).
+  return (m.value() & markWord::lock_mask_in_place) == markWord::marked_value;
+}
+
 inline oop ShenandoahForwarding::get_forwardee_raw_unchecked(oop obj) {
   // JVMTI and JFR code use mark words for marking objects for their needs.
   // On this path, we can encounter the "marked" object, but with null
   // fwdptr. That object is still not forwarded, and we need to return
   // the object itself.
   markWord mark = obj->mark();
-  if (mark.is_marked()) {
+  if (has_forwardee(mark)) {
     HeapWord* fwdptr = to_forwardee(mark);
     if (fwdptr != nullptr) {
       return cast_to_oop(fwdptr);
@@ -63,7 +71,7 @@ inline oop ShenandoahForwarding::get_forwardee_mutator(oop obj) {
   assert(Thread::current()->is_Java_thread(), "Must be a mutator thread");
 
   markWord mark = obj->mark();
-  if (mark.is_marked()) {
+  if (has_forwardee(mark)) {
     HeapWord* fwdptr = to_forwardee(mark);
     assert(fwdptr != nullptr, "Forwarding pointer is never null here");
     return cast_to_oop(fwdptr);
@@ -91,7 +99,7 @@ inline bool ShenandoahForwarding::is_self_forwarded(oop obj) {
 
 inline oop ShenandoahForwarding::try_update_forwardee(oop obj, oop update) {
   markWord old_mark = obj->mark();
-  if (is_forwarded(old_mark)) {
+  if (has_forwardee(old_mark)) {
     return cast_to_oop(to_forwardee(old_mark));
   }
   if (old_mark.is_self_forwarded()) {
@@ -114,8 +122,8 @@ inline oop ShenandoahForwarding::try_update_forwardee(oop obj, oop update) {
   // So the only possible failure modes are a regular forwardee (marked) or
   // a self-forward (possibly with mutator lock/hash mods layered on top
   // after the self-forward became visible).
-  if (prev_mark.is_marked()) {
-    return cast_to_oop(prev_mark.clear_lock_bits().to_pointer());
+  if (has_forwardee(prev_mark)) {
+    return cast_to_oop(to_forwardee(prev_mark));
   }
   assert(prev_mark.is_self_forwarded(),
          "concurrent writers on cset objects must install forwarding: prev=" INTPTR_FORMAT,
@@ -134,8 +142,8 @@ inline oop ShenandoahForwarding::try_forward_to_self(oop obj, markWord old_mark)
   }
   // Same invariant as in try_update_forwardee: the only races on a
   // cset object's mark come from other evac threads installing forwarding.
-  if (prev_mark.is_marked()) {
-    return cast_to_oop(prev_mark.clear_lock_bits().to_pointer());
+  if (has_forwardee(prev_mark)) {
+    return cast_to_oop(to_forwardee(prev_mark));
   }
   assert(prev_mark.is_self_forwarded(),
          "concurrent writers on cset objects must install forwarding: prev=" INTPTR_FORMAT,
@@ -146,7 +154,7 @@ inline oop ShenandoahForwarding::try_forward_to_self(oop obj, markWord old_mark)
 inline Klass* ShenandoahForwarding::klass(oop obj) {
   if (UseCompactObjectHeaders) {
     markWord mark = obj->mark();
-    if (mark.is_marked()) {
+    if (has_forwardee(mark)) {
       oop fwd = cast_to_oop(to_forwardee(mark));
       mark = fwd->mark();
     }
@@ -158,14 +166,14 @@ inline Klass* ShenandoahForwarding::klass(oop obj) {
 
 inline size_t ShenandoahForwarding::size(oop obj) {
   markWord mark = obj->mark();
-  if (is_forwarded(mark)) {
+  if (has_forwardee(mark)) {
     oop fwd = cast_to_oop(to_forwardee(mark));
     markWord fwd_mark = fwd->mark();
     Klass* klass = UseCompactObjectHeaders ? fwd_mark.klass() : fwd->klass();
-    size_t size = fwd->base_size_given_klass(klass);
+    size_t size = fwd->base_size_given_klass(fwd_mark, klass);
     if (UseCompactObjectHeaders) {
       if ((mark.value() & FWDED_HASH_TRANSITION) != FWDED_HASH_TRANSITION) {
-        if (fwd_mark.is_expanded() && klass->expand_for_hash(fwd)) {
+        if (fwd_mark.is_expanded() && klass->expand_for_hash(fwd, fwd_mark)) {
           size = align_object_size(size + 1);
         }
       }
