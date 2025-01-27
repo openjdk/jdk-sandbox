@@ -56,7 +56,7 @@ public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
      *
      * @param map the map of {@code JsonValue}s. Non-null.
      * @throws IllegalArgumentException if the conversion of {@code map} to a
-     * {@code JsonObject} violates an implementation nest limit.
+     * {@code JsonObject} exceeds a nest limit.
      */
     static JsonObject of(Map<String, ? extends JsonValue> map) {
         var jo = new JsonObjectImpl(Objects.requireNonNull(map));

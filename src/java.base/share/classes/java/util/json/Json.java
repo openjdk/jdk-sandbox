@@ -32,16 +32,20 @@ import java.util.IdentityHashMap;
 import java.util.Objects;
 
 /**
- * This class provides static methods that produce/manipulate a {@link JsonValue}.
+ * This class provides static methods for producing and manipulating a {@link JsonValue}.
  * <p>
- * Use {@link #parse(String)} and its overload to parse data which adheres to the
- * JSON syntax defined in RFC 8259.
+ * {@link #parse(String)} and {@link #parse(char[])} produce a {@code JsonValue}
+ * by parsing data adhering to the JSON syntax defined in RFC 8259.
  * <p>
  * {@link #fromUntyped(Object)} and {@link #toUntyped(JsonValue)} provide a conversion
  * between {@code JsonValue} and an untyped object.
  * <p>
  * {@link #toDisplayString(JsonValue)} is a formatter that produces a
  * representation of the JSON value suitable for display.
+ *
+ * @implSpec The reference implementation defines a {@code JsonValue} nesting
+ * depth limit of 32. Attempting to construct a {@code JsonValue} that exceeds this limit
+ * will throw an {@code IllegalArgumentException}.
  *
  * @spec https://datatracker.ietf.org/doc/html/rfc8259 RFC 8259: The JavaScript
  *          Object Notation (JSON) Data Interchange Format
@@ -60,8 +64,8 @@ public final class Json {
      *
      * @param in the input JSON document as {@code String}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform
-     *      to the JSON document format, or a JSON object containing
-     *      duplicate keys is encountered.
+     *      to the JSON document format, a JSON object containing
+     *      duplicate keys is encountered, or a nest limit is exceeded.
      * @return the top level {@code JsonValue}
      */
     public static JsonValue parse(String in) {
@@ -77,8 +81,8 @@ public final class Json {
      *
      * @param in the input JSON document as {@code char[]}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform
-     *      to the JSON document format, or a JSON object containing
-     *      duplicate keys is encountered.
+     *      to the JSON document format, a JSON object containing
+     *      duplicate keys is encountered, or a nest limit is exceeded.
      * @return the top level {@code JsonValue}
      */
     public static JsonValue parse(char[] in) {
@@ -89,8 +93,8 @@ public final class Json {
 
     /**
      * {@return a {@code JsonValue} that represents the data type of {@code src}}
-     * If {@code src} or an underlying element is a {@code JsonValue} it is
-     * returned as is. Otherwise, a conversion is applied as follows:
+     * While converting {@code src}, if an underlying element is a {@code JsonValue}
+     * it is used as is. Otherwise, a conversion is applied as follows:
      * <ul>
      * <li>{@code List<Object>} for {@code JsonArray}</li>
      * <li>{@code Boolean} for {@code JsonBoolean}</li>
@@ -110,7 +114,7 @@ public final class Json {
      *
      * @param src the data to produce the {@code JsonValue} from. May be null.
      * @throws IllegalArgumentException if {@code src} cannot be converted
-     * to any of the {@code JsonValue} subtypes, or contains a circular reference.
+     *      to {@code JsonValue}, contains a circular reference, or exceeds a nesting limit.
      */
     public static JsonValue fromUntyped(Object src) {
         if (src instanceof JsonValue jv) {
@@ -151,7 +155,7 @@ public final class Json {
     /**
      * {@return the String representation of the given {@code JsonValue} that conforms
      * to the JSON syntax} As opposed to {@link JsonValue#toString()}, this method returns
-     * JSON string that is suitable for display.
+     * a JSON string that is suitable for display.
      *
      * @param value the {@code JsonValue} to create the display string from. Non-null.
      */

@@ -40,7 +40,7 @@ import jdk.internal.javac.PreviewFeature;
 public sealed interface JsonBoolean extends JsonValue permits JsonBooleanImpl {
 
     /**
-     * {@return the {@code boolean} value represented with this
+     * {@return the {@code boolean} value represented by this
      * {@code JsonBoolean} value}
      */
     boolean value();

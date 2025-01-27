@@ -43,7 +43,7 @@ import jdk.internal.javac.PreviewFeature;
 public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
 
     /**
-     * {@return the {@code Number} value represented with this
+     * {@return the {@code Number} value represented by this
      * {@code JsonNumber}}
      *
      * @implNote The returned value's type is {@code Double} for

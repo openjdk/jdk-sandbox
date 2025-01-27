@@ -39,7 +39,7 @@ import jdk.internal.javac.PreviewFeature;
 public sealed interface JsonNull extends JsonValue permits JsonNullImpl {
 
     /**
-     * {@return the {@code JsonNull} that represents "null" JSON value}
+     * {@return the {@code JsonNull} that represents a "null" JSON value}
      */
     static JsonNull of() {
         return JsonNullImpl.NULL;

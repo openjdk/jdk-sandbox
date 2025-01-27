@@ -42,7 +42,7 @@ import java.util.Objects;
 public sealed interface JsonString extends JsonValue permits JsonStringImpl {
 
     /**
-     * {@return the {@code String} value represented with this
+     * {@return the {@code String} value represented by this
      * {@code JsonString} value} This value is an unescaped version of the
      * underlying {@code String} value. For example,
      * {@snippet lang=java:
