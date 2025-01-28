@@ -46,14 +46,18 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      * {@return the {@code Number} value represented by this
      * {@code JsonNumber}}
      *
-     * @implNote The returned value's type is {@code Double} for
-     * decimal or floating point numbers. For integer numbers, it is
-     * either {@code Integer}, {@code Long}, or {@code Double}.
-     * The value is derived from their {@code valueOf()} method, given the
-     * string representation ({@link #toString()}) of this {@code JsonNumber}.
+     * @apiNote When no loss of precision is required, it is recommended to use
+     * the {@link #toString()} value. See {@link Double##decimalToBinaryConversion
+     * Decimal &harr; Binary Conversion Issues} for further details.
+     * @implNote The returned value's type is {@code Double} for floating point
+     * numbers. For integer numbers, it is either {@code Integer}, {@code Long},
+     * or {@code Double}, attempted in that order. The return value is derived
+     * from the respective {@code Number} subclass {@code valueOf(String)} methods,
+     * where the input corresponds to the {@link #toString()} of this {@code JsonNumber}.
      *
      * @throws NumberFormatException if the string representation of this
      *          {@code JsonNumber} cannot be converted to a {@code Number}.
+     * @see Double##decimalToBinaryConversion Decimal &harr; Binary Conversion Issues
      */
     Number value();
 
