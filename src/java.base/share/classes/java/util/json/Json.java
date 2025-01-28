@@ -37,11 +37,47 @@ import java.util.Objects;
  * {@link #parse(String)} and {@link #parse(char[])} produce a {@code JsonValue}
  * by parsing data adhering to the JSON syntax defined in RFC 8259.
  * <p>
- * {@link #fromUntyped(Object)} and {@link #toUntyped(JsonValue)} provide a conversion
- * between {@code JsonValue} and an untyped object.
- * <p>
  * {@link #toDisplayString(JsonValue)} is a formatter that produces a
  * representation of the JSON value suitable for display.
+ * <p>
+ * {@link #fromUntyped(Object)} and {@link #toUntyped(JsonValue)} provide a conversion
+ * between {@code JsonValue} and an untyped object.
+ *
+ * <table id="mapping-table" class="striped">
+ * <caption>Mapping Table</caption>
+ * <thead>
+ *    <tr>
+ *       <th scope="col" class="TableHeadingColor">JsonValue</th>
+ *       <th scope="col" class="TableHeadingColor">Untyped Object</th>
+ *    </tr>
+ * </thead>
+ * <tbody>
+     * <tr>
+     *     <th>{@code List<Object>}</th>
+     *     <th> {@code JsonArray}</th>
+     * </tr>
+     * <tr>
+     *     <th>{@code Boolean}</th>
+     *     <th>{@code JsonBoolean}</th>
+     * </tr>
+     * <tr>
+     *     <th>{@code `null`}</th>
+     *     <th> {@code JsonNull}</th>
+     * </tr>
+     * <tr>
+     *     <th>{@code Number}</th>
+     *     <th>{@code JsonNumber}</th>
+     * </tr>
+     * <tr>
+     *     <th>{@code Map<String, Object>}</th>
+     *     <th> {@code JsonObject}</th>
+     * </tr>
+     * <tr>
+     *     <th>{@code String}</th>
+     *     <th>{@code JsonString}</th>
+     * </tr>
+ * </tbody>
+ * </table>
  *
  * @implSpec The reference implementation defines a {@code JsonValue} nesting
  * depth limit of 32. Attempting to construct a {@code JsonValue} that exceeds this limit
@@ -92,17 +128,9 @@ public final class Json {
     }
 
     /**
-     * {@return a {@code JsonValue} that represents the data type of {@code src}}
-     * While converting {@code src}, if an underlying element is a {@code JsonValue}
-     * it is used as is. Otherwise, a conversion is applied as follows:
-     * <ul>
-     * <li>{@code List<Object>} for {@code JsonArray}</li>
-     * <li>{@code Boolean} for {@code JsonBoolean}</li>
-     * <li>{@code `null`} for {@code JsonNull}</li>
-     * <li>{@code Number} for {@code JsonNumber}</li>
-     * <li>{@code Map<String, Object>} for {@code JsonObject}</li>
-     * <li>{@code String} for {@code JsonString}</li>
-     * </ul>
+     * {@return a {@code JsonValue} corresponding to {@code src}}
+     * See the {@link ##mapping-table Mapping Table} for conversion details.
+     *
      * <p>If {@code src} contains a circular reference, {@code IllegalArgumentException}
      * will be thrown. For example, the following code throws an exception,
      * {@snippet lang=java:
@@ -115,6 +143,8 @@ public final class Json {
      * @param src the data to produce the {@code JsonValue} from. May be null.
      * @throws IllegalArgumentException if {@code src} cannot be converted
      *      to {@code JsonValue}, contains a circular reference, or exceeds a nesting limit.
+     * @see ##mapping-table Mapping Table
+     * @see #toUntyped(JsonValue)
      */
     public static JsonValue fromUntyped(Object src) {
         if (src instanceof JsonValue jv) {
@@ -126,19 +156,12 @@ public final class Json {
     }
 
     /**
-     * {@return an {@code Object} that represents the data of the passed {@code
-     * JsonValue}}
-     * The returned {@code Object} is one of these types, depending on the {@code src}:
-     * <ul>
-     * <li>{@code List<Object>} for {@code JsonArray}</li>
-     * <li>{@code Boolean} for {@code JsonBoolean}</li>
-     * <li>{@code `null`} for {@code JsonNull}</li>
-     * <li>{@code Number} for {@code JsonNumber}</li>
-     * <li>{@code Map<String, Object>} for {@code JsonObject}</li>
-     * <li>{@code String} for {@code JsonString}</li>
-     * </ul>
+     * {@return an {@code Object} corresponding to {@code src}}
+     * See the {@link ##mapping-table Mapping Table} for conversion details.
      *
      * @param src the {@code JsonValue} to convert to untyped. Non-null.
+     * @see ##mapping-table Mapping Table
+     * @see #fromUntyped(Object)
      */
     public static Object toUntyped(JsonValue src) {
         Objects.requireNonNull(src);
