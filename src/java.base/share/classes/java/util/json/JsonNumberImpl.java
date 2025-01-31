@@ -79,12 +79,12 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     public boolean equals(Object o) {
         return this == o ||
             o instanceof JsonNumberImpl ojni &&
-            Objects.equals(toString(), ojni.toString());
+            Objects.equals(string(), ojni.string());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(toString());
+        return Objects.hash(string());
     }
 
     Number toNum(String numStr) {
@@ -135,6 +135,6 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
     @Override
     public String toDisplayString(int indent, boolean isField) {
-        return " ".repeat(isField ? 1 : indent) + toString();
+        return " ".repeat(isField ? 1 : indent) + string();
     }
 }
