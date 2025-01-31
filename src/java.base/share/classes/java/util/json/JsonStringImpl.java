@@ -79,7 +79,8 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
         return Objects.hash(toString());
     }
 
-    String toUntyped() {
+    @Override
+    public String toUntyped() {
         return value();
     }
 

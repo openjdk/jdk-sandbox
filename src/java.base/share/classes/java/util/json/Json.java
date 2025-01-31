@@ -165,14 +165,7 @@ public final class Json {
      */
     public static Object toUntyped(JsonValue src) {
         Objects.requireNonNull(src);
-        return switch (src) {
-            case JsonString jStr -> ((JsonStringImpl) jStr).toUntyped();
-            case JsonObject jMap -> ((JsonObjectImpl) jMap).toUntyped();
-            case JsonArray jList-> ((JsonArrayImpl) jList).toUntyped();
-            case JsonBoolean jBool -> ((JsonBooleanImpl) jBool).toUntyped();
-            case JsonNumber jNum-> ((JsonNumberImpl) jNum).toUntyped();
-            case JsonNull jNull -> ((JsonNullImpl) jNull).toUntyped();
-        };
+        return ((JsonValueImpl)src).toUntyped();
     }
 
     /**

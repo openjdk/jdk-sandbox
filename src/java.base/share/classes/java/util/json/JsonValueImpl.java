@@ -33,4 +33,5 @@ sealed interface JsonValueImpl permits JsonArrayImpl, JsonBooleanImpl, JsonNullI
     int getEndIndex();
     String toDisplayString();
     String toDisplayString(int index, boolean isField);
+    Object toUntyped();
 }

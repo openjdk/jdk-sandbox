@@ -124,7 +124,8 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
         return Objects.hash(keys());
     }
 
-    Map<String, Object> toUntyped() {
+    @Override
+    public Map<String, Object> toUntyped() {
         return keys().entrySet().stream()
             .collect(HashMap::new, // to allow `null` value
                 (m, e) -> m.put(e.getKey(), Json.toUntyped(e.getValue())),

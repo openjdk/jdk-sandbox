@@ -78,7 +78,8 @@ final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
         return Objects.hash(value());
     }
 
-    Boolean toUntyped() {
+    @Override
+    public Boolean toUntyped() {
         return value();
     }
 

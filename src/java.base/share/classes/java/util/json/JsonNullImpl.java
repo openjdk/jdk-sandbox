@@ -64,7 +64,8 @@ final class JsonNullImpl implements JsonNull, JsonValueImpl {
         return HASH;
     }
 
-    Object toUntyped() {
+    @Override
+    public Object toUntyped() {
         return null;
     }
 

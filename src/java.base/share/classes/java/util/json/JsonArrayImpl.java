@@ -117,7 +117,8 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
         return Objects.hash(values());
     }
 
-    List<Object> toUntyped() {
+    @Override
+    public List<Object> toUntyped() {
         return values().stream()
                 .map(Json::toUntyped)
                 .toList();
