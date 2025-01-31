@@ -92,16 +92,6 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
         return source;
     }
 
-    @Override
-    public String toDisplayString() {
-        return toDisplayString(0, false);
-    }
-
-    @Override
-    public String toDisplayString(int indent, boolean isField) {
-        return " ".repeat(isField ? 1 : indent) + toString();
-    }
-
     String unescape(int startOffset, int endOffset) {
         var sb = new StringBuilder();
         var escape = false;

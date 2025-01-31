@@ -137,11 +137,6 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
     }
 
     @Override
-    public String toDisplayString() {
-        return toDisplayString(0, false);
-    }
-
-    @Override
     public String toDisplayString(int indent, boolean isField) {
         var prefix = " ".repeat(indent);
         var s = new StringBuilder(isField ? " " : prefix);

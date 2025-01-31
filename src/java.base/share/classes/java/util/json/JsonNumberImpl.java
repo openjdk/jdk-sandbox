@@ -127,14 +127,4 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     public String toString() {
         return string();
     }
-
-    @Override
-    public String toDisplayString() {
-        return toDisplayString(0, false);
-    }
-
-    @Override
-    public String toDisplayString(int indent, boolean isField) {
-        return " ".repeat(isField ? 1 : indent) + string();
-    }
 }

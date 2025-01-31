@@ -87,14 +87,4 @@ final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
     public String toString() {
         return String.valueOf(value());
     }
-
-    @Override
-    public String toDisplayString() {
-        return toDisplayString(0, false);
-    }
-
-    @Override
-    public String toDisplayString(int indent, boolean isField) {
-        return " ".repeat(isField ? 1 : indent) + toString();
-    }
 }
