@@ -35,6 +35,7 @@ import java.util.json.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class TestJsonString {
 
@@ -46,5 +47,11 @@ public class TestJsonString {
         var c = Json.fromUntyped(new String(new char[]{'"', '\\', 'u', '0', '0', '6', '1', 'f', 'o', '"'}));
         assertEquals(Json.toUntyped(s), Json.toUntyped(c));
         assertNotEquals(s.toString(), c.toString());
+    }
+
+    @Test
+    public void illegalEscapeTest() {
+        // RE for now
+        assertThrows(RuntimeException.class, () -> Json.fromUntyped("\"a\\afo\""));
     }
 }

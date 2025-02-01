@@ -110,7 +110,8 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
                         c = JsonParser.codeUnit(docInfo, offset + 1);
                         offset += 4;
                     }
-                    default -> throw new InternalError();
+                    // TBD: should be replaced with appropriate runtime exception
+                    default -> throw new RuntimeException("Illegal escape sequence");
                 }
                 escape = false;
             } else if (c == '\\') {
