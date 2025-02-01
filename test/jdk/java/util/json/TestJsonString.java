@@ -29,9 +29,13 @@
  * @run junit TestJsonString
  */
 
-import org.junit.jupiter.api.Test;
-
 import java.util.json.*;
+import java.util.stream.Stream;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -53,5 +57,25 @@ public class TestJsonString {
     public void illegalEscapeTest() {
         // RE for now
         assertThrows(RuntimeException.class, () -> Json.fromUntyped("\"a\\afo\""));
+    }
+
+    // Escape sequence tests
+    @ParameterizedTest
+    @MethodSource
+    public void escapeTest(String src, String expected) {
+        assertEquals(((JsonString)Json.parse(src)).value(), expected);
+    }
+    private static Stream<Arguments> escapeTest() {
+        return Stream.of(
+                Arguments.of("\"\\\"\"", "\""),
+                Arguments.of("\"\\\\\"", "\\"),
+                Arguments.of("\"\\/\"", "/"),
+                Arguments.of("\"\\b\"", "\b"),
+                Arguments.of("\"\\f\"", "\f"),
+                Arguments.of("\"\\n\"", "\n"),
+                Arguments.of("\"\\r\"", "\r"),
+                Arguments.of("\"\\t\"", "\t"),
+                Arguments.of("\"\\uD834\\uDD1E\"", "\uD834\uDD1E")
+        );
     }
 }
