@@ -41,6 +41,8 @@ public class TestJsonNumber {
     void testInfinity() {
         assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(Double.POSITIVE_INFINITY));
         assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(Double.NEGATIVE_INFINITY));
+        assertThrows(IllegalArgumentException.class, () -> JsonNumber.of(Double.POSITIVE_INFINITY));
+        assertThrows(IllegalArgumentException.class, () -> JsonNumber.of(Double.NEGATIVE_INFINITY));
         final var jn1 = (JsonNumber)Json.parse("1e309");
         assertEquals("1e309", jn1.toString());
         assertThrows(IllegalStateException.class, () -> jn1.value());
@@ -52,6 +54,7 @@ public class TestJsonNumber {
     @Test
     void testNan() {
         assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(Double.NaN));
+        assertThrows(IllegalArgumentException.class, () -> JsonNumber.of(Double.NaN));
         // parse test not required for Nan, cannot parse "NaN"
     }
 
