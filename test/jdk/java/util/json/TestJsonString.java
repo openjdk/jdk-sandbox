@@ -55,8 +55,8 @@ public class TestJsonString {
 
     @Test
     public void illegalEscapeTest() {
-        // RE for now
-        assertThrows(RuntimeException.class, () -> Json.fromUntyped("\"a\\afo\""));
+        // ISE for now
+        assertThrows(IllegalStateException.class, () -> Json.fromUntyped("\"a\\afo\""));
     }
 
     // Escape sequence tests
