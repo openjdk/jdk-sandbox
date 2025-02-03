@@ -43,10 +43,10 @@ public class TestJsonNumber {
         assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(Double.NEGATIVE_INFINITY));
         final var jn1 = (JsonNumber)Json.parse("1e309");
         assertEquals("1e309", jn1.toString());
-        assertThrows(NumberFormatException.class, () -> jn1.value());
+        assertThrows(IllegalStateException.class, () -> jn1.value());
         final var jn2 = (JsonNumber)Json.parse("-1e309");
         assertEquals("-1e309", jn2.toString());
-        assertThrows(NumberFormatException.class, () -> jn2.value());
+        assertThrows(IllegalStateException.class, () -> jn2.value());
     }
 
     @Test

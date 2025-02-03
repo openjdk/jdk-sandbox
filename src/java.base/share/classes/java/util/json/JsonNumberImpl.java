@@ -113,7 +113,7 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
         }
         var num = Double.valueOf(numStr);
         if (Double.isInfinite(num)) {
-            throw new NumberFormatException("The number is infinitely large in magnitude");
+            throw new IllegalStateException("The number is infinitely large in magnitude");
         }
         return num;
     }
