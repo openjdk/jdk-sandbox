@@ -70,28 +70,37 @@ final class JsonGenerator {
         return new JsonNumberImpl(docInfo, offset, index);
     }
 
-    // untypedObjs is an identity hash set that serves to identify if a circular
-    // reference exists
-    static JsonValue fromUntyped(Object src, Set<Object> untypedObjs, int depth) {
+    /**
+     * Makes a conversion from an untyped Object to the corresponding JsonValue.
+     *
+     * @param src the untyped Object to convert.
+     * @param identitySet an identity hash set that has seen all untyped Objects
+     *        encountered thus far.
+     * @param depth the current depth reached, only incremented by structural JSON.
+     * @throws IllegalArgumentException if src is not an accepted type, a circular
+     *         reference is detected, or an implementation depth limit is exceeded.
+     * @return the converted untyped Object -> JsonValue.
+     */
+    static JsonValue fromUntyped(Object src, Set<Object> identitySet, int depth) {
         return switch (src) {
             // Structural JSON: Object, Array
             case Map<?, ?> map -> {
-                if (!untypedObjs.add(map)) {
+                if (!identitySet.add(map)) {
                     throw new IllegalArgumentException("Circular reference detected");
                 }
                 if (depth + 1 > Json.MAX_DEPTH) {
                     throw new IllegalArgumentException("Max depth exceeded");
                 }
-                yield new JsonObjectImpl(map, untypedObjs, depth + 1);
+                yield new JsonObjectImpl(map, identitySet, depth + 1);
             }
             case List<?> list-> {
-                if (!untypedObjs.add(list)) {
+                if (!identitySet.add(list)) {
                     throw new IllegalArgumentException("Circular reference detected");
                 }
                 if (depth + 1 > Json.MAX_DEPTH) {
                     throw new IllegalArgumentException("Max depth exceeded");
                 }
-                yield new JsonArrayImpl(list, untypedObjs, depth + 1);
+                yield new JsonArrayImpl(list, identitySet, depth + 1);
             }
             // JsonPrimitives
             case String str -> new JsonStringImpl(str);

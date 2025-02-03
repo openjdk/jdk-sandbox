@@ -50,13 +50,13 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
     }
 
     // Via untyped
-    JsonObjectImpl(Map<?, ?> map, Set<Object> untypedObjs, int depth) {
+    JsonObjectImpl(Map<?, ?> map, Set<Object> identitySet, int depth) {
         HashMap<String, JsonValue> m = HashMap.newHashMap(map.size());
         for (Map.Entry<?, ?> entry : map.entrySet()) {
             if (!(entry.getKey() instanceof String strKey)) {
                 throw new IllegalArgumentException("Key is not a String: " + entry.getKey());
             } else {
-                m.put(strKey, JsonGenerator.fromUntyped(entry.getValue(), untypedObjs, depth));
+                m.put(strKey, JsonGenerator.fromUntyped(entry.getValue(), identitySet, depth));
             }
         }
         theKeys = Collections.unmodifiableMap(m);
