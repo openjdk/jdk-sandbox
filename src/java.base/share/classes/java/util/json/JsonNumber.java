@@ -52,7 +52,7 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      * {@code Number} subclass {@code valueOf(String)} methods, where the {@code String}
      * corresponds to the {@link #toString()} of this {@code JsonNumber}.
      *
-     * @throws NumberFormatException if the string representation of this
+     * @throws IllegalStateException if the string representation of this
      *          {@code JsonNumber} cannot be converted to a {@code Number}.
      * @see Double##decimalToBinaryConversion Decimal &harr; Binary Conversion Issues
      */
