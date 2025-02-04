@@ -102,6 +102,7 @@ public final class Json {
      * @throws JsonParseException if the input JSON document does not conform
      *      to the JSON document format, a JSON object containing
      *      duplicate keys is encountered, or a nest limit is exceeded.
+     * @throws NullPointerException if {@code in} is {@code null}
      * @return the top level {@code JsonValue}
      */
     public static JsonValue parse(String in) {
@@ -119,6 +120,7 @@ public final class Json {
      * @throws JsonParseException if the input JSON document does not conform
      *      to the JSON document format, a JSON object containing
      *      duplicate keys is encountered, or a nest limit is exceeded.
+     * @throws NullPointerException if {@code in} is {@code null}
      * @return the top level {@code JsonValue}
      */
     public static JsonValue parse(char[] in) {
@@ -160,6 +162,7 @@ public final class Json {
      * See the {@link ##mapping-table Mapping Table} for conversion details.
      *
      * @param src the {@code JsonValue} to convert to untyped. Non-null.
+     * @throws NullPointerException if {@code src} is {@code null}
      * @see ##mapping-table Mapping Table
      * @see #fromUntyped(Object)
      */
@@ -174,6 +177,7 @@ public final class Json {
      * a JSON string that is suitable for display.
      *
      * @param value the {@code JsonValue} to create the display string from. Non-null.
+     * @throws NullPointerException if {@code value} is {@code null}
      */
     public static String toDisplayString(JsonValue value) {
         Objects.requireNonNull(value);

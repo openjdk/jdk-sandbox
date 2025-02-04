@@ -60,6 +60,7 @@ public sealed interface JsonString extends JsonValue permits JsonStringImpl {
      * @param src the given {@code String}. Non-null.
      * @throws IllegalArgumentException if the given {@code src} is
      *          not a valid JSON string.
+     * @throws NullPointerException if {@code src} is {@code null}
      */
     static JsonString of(String src) {
         Objects.requireNonNull(src);

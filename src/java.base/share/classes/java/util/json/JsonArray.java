@@ -54,6 +54,7 @@ public sealed interface JsonArray extends JsonValue permits JsonArrayImpl {
      * @param src the list of {@code Object}s. Non-null.
      * @throws IllegalArgumentException if the conversion of {@code src} to a
      * {@code JsonArray} exceeds a nest limit.
+     * @throws NullPointerException if {@code src} is {@code null}
      */
     static JsonArray of(List<? extends JsonValue> src) {
         var ja = new JsonArrayImpl(Objects.requireNonNull(src));
