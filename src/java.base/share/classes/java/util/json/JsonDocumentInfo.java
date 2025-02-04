@@ -111,7 +111,8 @@ final class JsonDocumentInfo  {
 
     // Utility method to compose parse exception message
     String composeParseExceptionMessage(String message, int line, int lineStart, int offset) {
-        return message + ": (%s) at Row %d, Col %d."
-                .formatted(substring(offset, Math.min(offset + 8, doc.length)), line, offset - lineStart);
+        return "%s: (%s) at Row %d, Col %d."
+                .formatted(message, substring(offset, Math.min(offset + 8, doc.length)),
+                        line, offset - lineStart);
     }
 }
