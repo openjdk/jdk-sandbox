@@ -28,23 +28,16 @@ package java.util.json;
 import jdk.internal.javac.PreviewFeature;
 
 /**
- * The interface that represents a JSON value. {@code JsonValue} is the type returned
- * by a {@link Json#parse(String)}. Valid subtypes are either {@code JsonString},
+ * The interface that represents a JSON value. Valid subtypes are either {@code JsonString},
  * {@code JsonNumber}, {@code JsonObject}, {@code JsonArray}, {@code JsonBoolean},
  * or {@code JsonNull}.
  * <p>
- * See {@link Json#toUntyped(JsonValue)} and {@link Json#fromUntyped(Object)} for converting
- * between a {@code JsonValue} and its corresponding data type. For example,
+ * A {@code JsonValue} can be produced by {@link Json#parse(String)} or {@link
+ * Json#fromUntyped(Object)}. See {@link #toString()}  for converting a {@code
+ * JsonValue} to its corresponding JSON String. For example,
  * {@snippet lang=java:
- *     var values = Arrays.asList("foo", true, 25);
- *     var json = Json.fromUntyped(values);
- *     Json.toUntyped(json).equals(values); // returns true
- * }
- * See {@link #toString()} for converting a {@code JsonValue}
- * to its corresponding JSON String. For example,
- * {@snippet lang=java:
- *     var values = Arrays.asList("foo", true, 25);
- *     var json = Json.fromUntyped(values);
+ *     List<Object> values = Arrays.asList("foo", true, 25);
+ *     JsonValue json = Json.fromUntyped(values);
  *     json.toString(); // returns "[\"foo\",true,25]"
  * }
  *
