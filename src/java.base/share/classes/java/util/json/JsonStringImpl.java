@@ -57,7 +57,11 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
     @Override
     public String value() {
         if (theString == null) {
-            theString = unescape(startOffset + 1, endOffset - 1);
+            try {
+                theString = unescape(startOffset + 1, endOffset - 1);
+            } catch (IllegalArgumentException iae) {
+                throw new IllegalStateException(iae);
+            }
         }
         return theString;
     }
@@ -110,7 +114,7 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
                         c = JsonParser.codeUnit(docInfo, offset + 1);
                         offset += 4;
                     }
-                    default -> throw new IllegalStateException("Illegal escape sequence");
+                    default -> throw new IllegalArgumentException("Illegal escape sequence");
                 }
                 escape = false;
             } else if (c == '\\') {

@@ -48,6 +48,8 @@ public sealed interface JsonString extends JsonValue permits JsonStringImpl {
      * {@snippet lang=java:
      *     JsonString.of("fo\\u006f").value(); // returns "foo"
      * }
+     * @throws IllegalStateException if underlying {@code String} value cannot
+     *          be unescaped.
      */
     String value();
 
@@ -56,6 +58,8 @@ public sealed interface JsonString extends JsonValue permits JsonStringImpl {
      * {@code String}}
      *
      * @param src the given {@code String}. Non-null.
+     * @throws IllegalArgumentException if the given {@code src} is
+     *          not a valid JSON string.
      */
     static JsonString of(String src) {
         Objects.requireNonNull(src);
