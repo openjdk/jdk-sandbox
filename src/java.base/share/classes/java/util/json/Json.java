@@ -95,8 +95,11 @@ public final class Json {
 
     /**
      * Parses and creates the top level {@code JsonValue} in this JSON
-     * document. If the document contains any JSON Object that has
-     * duplicate keys, a {@code JsonParseException} is thrown.
+     * document. If parsing succeeds, it guarantees that the input document
+     * conforms to the JSON syntax. However, it does not necessarily guarantee
+     * if every leaf level JSON element gets converted to a {@code JsonValue}.
+     * If the document contains any JSON Object that has duplicate keys, a
+     * {@code JsonParseException} is thrown.
      *
      * @param in the input JSON document as {@code String}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform
@@ -113,8 +116,11 @@ public final class Json {
 
     /**
      * Parses and creates the top level {@code JsonValue} in this JSON
-     * document. If the document contains any JSON Object that has
-     * duplicate keys, a {@code JsonParseException} is thrown.
+     * document. If parsing succeeds, it guarantees that the input document
+     * conforms to the JSON syntax. However, it does not necessarily guarantee
+     * if every leaf level JSON element gets converted to a {@code JsonValue}.
+     * If the document contains any JSON Object that has duplicate keys, a
+     * {@code JsonParseException} is thrown.
      *
      * @param in the input JSON document as {@code char[]}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform
