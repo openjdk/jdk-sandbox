@@ -47,8 +47,8 @@ import java.util.Objects;
  * <caption>Mapping Table</caption>
  * <thead>
  *    <tr>
- *       <th scope="col" class="TableHeadingColor">JsonValue</th>
  *       <th scope="col" class="TableHeadingColor">Untyped Object</th>
+ *       <th scope="col" class="TableHeadingColor">JsonValue</th>
  *    </tr>
  * </thead>
  * <tbody>
