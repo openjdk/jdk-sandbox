@@ -28,9 +28,7 @@ package java.util.json;
 import jdk.internal.javac.PreviewFeature;
 
 /**
- * The interface that represents a JSON value. Valid subtypes are either {@code JsonString},
- * {@code JsonNumber}, {@code JsonObject}, {@code JsonArray}, {@code JsonBoolean},
- * or {@code JsonNull}.
+ * The interface that represents a JSON value.
  * <p>
  * A {@code JsonValue} can be produced by {@link Json#parse(String)} or {@link
  * Json#fromUntyped(Object)}. See {@link #toString()}  for converting a {@code
