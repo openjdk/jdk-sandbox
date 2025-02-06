@@ -179,8 +179,9 @@ public final class Json {
 
     /**
      * {@return the String representation of the given {@code JsonValue} that conforms
-     * to the JSON syntax} As opposed to {@link JsonValue#toString()}, this method returns
-     * a JSON string that is suitable for display.
+     * to the JSON syntax} As opposed to the compact output returned by {@link
+     * JsonValue#toString()}, this method returns a JSON string that is better
+     * suited for display.
      *
      * @param value the {@code JsonValue} to create the display string from. Non-null.
      * @throws NullPointerException if {@code value} is {@code null}
