@@ -57,12 +57,12 @@ final class JsonParser { ;
     static int parseObject(JsonDocumentInfo docInfo, int offset, int depth) {
         checkDepth(docInfo, offset, depth);
         var keys = new HashSet<String>();
-        docInfo.tokens[docInfo.index++] = offset;
+        docInfo.addToken(offset);
         // Walk past the '{'
         offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
         // Check for empty case
         if (docInfo.charAt(offset) == '}') {
-            docInfo.tokens[docInfo.index++] = offset;
+            docInfo.addToken(offset);
             return ++offset;
         }
         while (offset < docInfo.getEndOffset()) {
@@ -72,7 +72,7 @@ final class JsonParser { ;
             }
             // Member equality done via unescaped String
             // see https://datatracker.ietf.org/doc/html/rfc8259#section-8.3
-            docInfo.tokens[docInfo.index++] = offset++; // Move past the starting quote
+            docInfo.addToken(offset++); // Move past the starting quote
             var escape = false;
             boolean useBldr = false;
             var start = offset;
@@ -112,7 +112,7 @@ final class JsonParser { ;
                     escape = true;
                     continue;
                 } else if (c == '\"') {
-                    docInfo.tokens[docInfo.index++] = offset++;
+                    docInfo.addToken(offset++);
                     foundClosing = true;
                     break;
                 } else if (c < ' ') {
@@ -138,7 +138,7 @@ final class JsonParser { ;
 
             // Move from key to ':'
             offset = JsonParser.skipWhitespaces(docInfo, offset);
-            docInfo.tokens[docInfo.index++] = offset;
+            docInfo.addToken(offset);
             if (docInfo.charAt(offset) != ':') {
                 throw failure(docInfo,
                         "Unexpected character(s) found after key", offset);
@@ -152,14 +152,14 @@ final class JsonParser { ;
             offset = JsonParser.skipWhitespaces(docInfo, offset);
             var c = docInfo.charAt(offset);
             if (c == '}') {
-                docInfo.tokens[docInfo.index++] = offset;
+                docInfo.addToken(offset);
                 return ++offset;
             } else if (docInfo.charAt(offset) != ',') {
                 break;
             }
 
             // Add the comma, and move to the next key
-            docInfo.tokens[docInfo.index++] = offset;
+            docInfo.addToken(offset);
             offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
         }
         throw failure(docInfo,
@@ -168,12 +168,12 @@ final class JsonParser { ;
 
     static int parseArray(JsonDocumentInfo docInfo, int offset, int depth) {
         checkDepth(docInfo, offset, depth);
-        docInfo.tokens[docInfo.index++] = offset;
+        docInfo.addToken(offset);
         // Walk past the '['
         offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
         // Check for empty case
         if (docInfo.charAt(offset) == ']') {
-            docInfo.tokens[docInfo.index++] = offset;
+            docInfo.addToken(offset);
             return ++offset;
         }
 
@@ -184,14 +184,14 @@ final class JsonParser { ;
             offset = JsonParser.skipWhitespaces(docInfo, offset);
             var c = docInfo.charAt(offset);
             if (c == ']') {
-                docInfo.tokens[docInfo.index++] = offset;
+                docInfo.addToken(offset);
                 return ++offset;
             } else if (c != ',') {
                 break;
             }
 
             // Add the comma, and move to the next value
-            docInfo.tokens[docInfo.index++] = offset;
+            docInfo.addToken(offset);
             offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
         }
         throw failure(docInfo,
@@ -199,7 +199,7 @@ final class JsonParser { ;
     }
 
     static int parseString(JsonDocumentInfo docInfo, int offset) {
-        docInfo.tokens[docInfo.index++] = offset++; // Move past the starting quote
+        docInfo.addToken(offset++); // Move past the starting quote
         var escape = false;
 
         for (; offset < docInfo.getEndOffset(); offset++) {
@@ -224,7 +224,7 @@ final class JsonParser { ;
             } else if (c == '\\') {
                 escape = true;
             } else if (c == '\"') {
-                docInfo.tokens[docInfo.index++] = offset;
+                docInfo.addToken(offset);
                 return ++offset;
             } else if (c < ' ') {
                 throw failure(docInfo,
@@ -395,8 +395,7 @@ final class JsonParser { ;
         return switch (docInfo.charAt(offset)) {
             case ' ', '\t','\r' -> true;
             case '\n' -> {
-                docInfo.line+=1;
-                docInfo.lineStart = offset + 1;
+                docInfo.updatePosition(offset + 1);
                 yield true;
             }
             default -> false;
@@ -405,8 +404,8 @@ final class JsonParser { ;
 
     static JsonParseException failure(JsonDocumentInfo docInfo, String message, int offset) {
         var errMsg = docInfo.composeParseExceptionMessage(
-                message, docInfo.line, docInfo.lineStart, offset);
-        return new JsonParseException(errMsg, docInfo.line, offset - docInfo.lineStart);
+                message, docInfo.getLine(), docInfo.getLineStart(), offset);
+        return new JsonParseException(errMsg, docInfo.getLine(), offset - docInfo.getLineStart());
     }
 
     private static void checkDepth(JsonDocumentInfo docInfo, int offset, int depth) {

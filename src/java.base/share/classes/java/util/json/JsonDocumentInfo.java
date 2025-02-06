@@ -29,18 +29,23 @@ import java.util.Objects;
 final class JsonDocumentInfo  {
 
     // Access to the underlying JSON contents
-    final char[] doc;
+    private final char[] doc;
     // tokens array/index are finalized by JsonParser::parse
-    final int[] tokens;
-    int index;
+    private final int[] tokens;
+    private int index;
     // For exception message on failure
-    int line = 0;
-    int lineStart = 0;
+    private int line = 0;
+    private int lineStart = 0;
 
     JsonDocumentInfo(char[] in) {
         doc = in;
         tokens = new int[doc.length];
         index = 0;
+    }
+
+    // Add the offset of the token to token array
+    void addToken(int offset) {
+        tokens[index++] = offset;
     }
 
     // Convenience to walk a token during inflation
@@ -107,6 +112,20 @@ final class JsonDocumentInfo  {
     // gets the substring at the specified start/end offsets in the input
     String substring(int startOffset, int endOffset) {
         return new String(doc, startOffset, endOffset - startOffset);
+    }
+
+    // Increments the row and col
+    void updatePosition(int offset) {
+        line+=1;
+        lineStart = offset;
+    }
+
+    int getLine() {
+        return line;
+    }
+
+    int getLineStart() {
+        return lineStart;
     }
 
     // Utility method to compose parse exception message
