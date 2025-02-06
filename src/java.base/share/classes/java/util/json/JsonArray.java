@@ -42,8 +42,7 @@ import java.util.Objects;
 public sealed interface JsonArray extends JsonValue permits JsonArrayImpl {
 
     /**
-     * {@return the list of {@code JsonValue} elements in this array
-     * value}
+     * {@return the list of {@code JsonValue} elements in this {@code JsonArray}}
      */
     List<JsonValue> values();
 
