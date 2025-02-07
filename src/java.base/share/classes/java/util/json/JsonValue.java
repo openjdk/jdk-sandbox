@@ -38,6 +38,9 @@ import jdk.internal.javac.PreviewFeature;
  *     JsonValue json = Json.fromUntyped(values);
  *     json.toString(); // returns "[\"foo\",true,25]"
  * }
+ * <p>
+ * Instances of {@code JsonValue} are immutable. The data contained in the instances,
+ * once created, cannot be modified.
  *
  * @since 25
  */
