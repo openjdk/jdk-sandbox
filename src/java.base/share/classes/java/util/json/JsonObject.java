@@ -45,8 +45,8 @@ import java.util.Objects;
 public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
 
     /**
-     * {@return the map of {@code String} to {@code JsonValue} members in this
-     * {@code JsonObject}}
+     * {@return an unmodifiable map of the {@code String} to {@code JsonValue}
+     * members in this {@code JsonObject}}
      */
     Map<String, JsonValue> keys();
 
