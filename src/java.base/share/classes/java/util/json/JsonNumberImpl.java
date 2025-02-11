@@ -64,8 +64,13 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     }
 
     private String string() {
-        if (numString == null) { // Trim back only
-            numString = docInfo.substring(startOffset, endOffset).stripTrailing();
+        if (numString == null) {
+            // Strip any trailing white space from the number
+            var offset = endOffset - 1;
+            while (JsonParser.isWhitespace(docInfo, offset)) {
+                offset--;
+            }
+            numString = docInfo.substring(startOffset, offset + 1);
         }
         return numString;
     }
