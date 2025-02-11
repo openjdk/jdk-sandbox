@@ -97,12 +97,14 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
     }
 
     String unescape(int startOffset, int endOffset) {
-        var sb = new StringBuilder();
+        StringBuilder sb = null; // Only use if required
         var escape = false;
         int offset = startOffset;
+        boolean useBldr = false;
         for (; offset < endOffset; offset++) {
             var c = docInfo.charAt(offset);
             if (escape) {
+                var length = 0;
                 switch (c) {
                     case '"', '\\', '/' -> {}
                     case 'b' -> c = '\b';
@@ -112,17 +114,30 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
                     case 't' -> c = '\t';
                     case 'u' -> {
                         c = JsonParser.codeUnit(docInfo, offset + 1);
-                        offset += 4;
+                        length = 4;
                     }
                     default -> throw new IllegalArgumentException("Illegal escape sequence");
                 }
+                if (!useBldr) {
+                    useBldr = true;
+                    sb = new StringBuilder(docInfo.substring(startOffset, offset - 1));
+                }
+                offset+=length;
                 escape = false;
             } else if (c == '\\') {
                 escape = true;
                 continue;
             }
-            sb.append(c);
+            if (useBldr) {
+                sb.append(c);
+            }
         }
-        return sb.toString();
+        if (useBldr) {
+            return sb.toString();
+        } else {
+            var ret = toString();
+            // unescape() does not include the quotes
+            return ret.substring(1, ret.length() - 1);
+        }
     }
 }
