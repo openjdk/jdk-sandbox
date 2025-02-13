@@ -59,6 +59,17 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
     Number value();
 
     /**
+     * {@return the String representation of this {@code JsonNumber}}
+     * In case this {@code JsonNumber} is created by parsing a JSON document,
+     * it preserves the text representation of the JSON number regardless of its
+     * precision or range. For example, if the JSON number in the document is
+     * {@code 3.141592653589793238462643383279}, it is returned as it is from
+     * this method.
+     */
+    @Override
+    String toString();
+
+    /**
      * {@return the {@code JsonNumber} created from the given
      * {@code double}}
      *
