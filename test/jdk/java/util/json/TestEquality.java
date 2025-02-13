@@ -140,7 +140,7 @@ public class TestEquality {
                 Arguments.of("3.0", "3.0", true),
                 Arguments.of("\"afo\"", "\"afo\"", true),
                 Arguments.of("\"afo\"", new char[]{'"', 'a', 'f', 'o', '"'}, true),
-                Arguments.of("\"afo\"", new char[]{'"', '\\', 'u', '0', '0', '6', '1', 'f', 'o', '"'}, false)
+                Arguments.of("\"afo\"", new char[]{'"', '\\', 'u', '0', '0', '6', '1', 'f', 'o', '"'}, true)
         );
     }
 
@@ -162,7 +162,8 @@ public class TestEquality {
         assertEquals(arg1 instanceof char[] ca ? new String(ca) : arg1, jv1.toString());
         assertEquals(arg2 instanceof char[] ca ? new String(ca) : arg2, jv2.toString());
 
-        // equality should be decided by their original text
+        // equality should be decided by the string for number
+        // but the unescaped value for string
         assertEquals(expected, jv1.equals(jv2),
                 "jv1: %s, jv2: %s (jv1.value(): %s, jv2.value(): %s)".formatted(jv1, jv2, val1, val2));
     }
