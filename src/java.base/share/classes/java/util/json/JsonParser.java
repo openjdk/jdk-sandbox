@@ -65,6 +65,8 @@ final class JsonParser { ;
             docInfo.addToken(offset);
             return ++offset;
         }
+
+        StringBuilder sb = null; // only init if we need to use for escapes
         while (offset < docInfo.getEndOffset()) {
             // Get the key
             if (docInfo.charAt(offset) != '"') {
@@ -76,7 +78,6 @@ final class JsonParser { ;
             var escape = false;
             boolean useBldr = false;
             var start = offset;
-            StringBuilder sb = null; // only init if we need to use for escapes
             boolean foundClosing = false;
             for (; offset < docInfo.getEndOffset(); offset++) {
                 var c = docInfo.charAt(offset);
@@ -103,8 +104,12 @@ final class JsonParser { ;
                                 "Illegal escape", offset);
                     }
                     if (!useBldr) {
+                        if (sb == null) {
+                            sb = new StringBuilder(docInfo.substring(start, offset - 1));
+                        } else {
+                            sb.append(docInfo.substring(start, offset - 1));
+                        }
                         useBldr = true;
-                        sb = new StringBuilder(docInfo.substring(start, offset - 1));
                     }
                     offset+=length;
                     escape = false;
@@ -126,8 +131,14 @@ final class JsonParser { ;
             if (!foundClosing) {
                 throw failure(docInfo, "Closing quote missing", offset);
             }
-            var keyStr = useBldr ? sb.toString() :
-                    docInfo.substring(start, offset - 1);
+
+            String keyStr;
+            if (useBldr) {
+                keyStr = sb.toString();
+                sb.setLength(0);
+            } else {
+                keyStr = docInfo.substring(start, offset - 1);
+            }
 
             // Check for duplicates
             if (keys.contains(keyStr)) {
