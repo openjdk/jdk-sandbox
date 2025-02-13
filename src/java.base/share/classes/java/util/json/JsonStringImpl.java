@@ -120,7 +120,8 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
                 }
                 if (!useBldr) {
                     useBldr = true;
-                    sb = new StringBuilder(docInfo.substring(startOffset, offset - 1));
+                    sb = new StringBuilder()
+                            .append(docInfo.getDoc(), startOffset, offset - 1 - startOffset);
                 }
                 offset+=length;
                 escape = false;

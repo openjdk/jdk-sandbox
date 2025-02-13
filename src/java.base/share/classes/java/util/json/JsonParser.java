@@ -105,10 +105,9 @@ final class JsonParser { ;
                     }
                     if (!useBldr) {
                         if (sb == null) {
-                            sb = new StringBuilder(docInfo.substring(start, offset - 1));
-                        } else {
-                            sb.append(docInfo.substring(start, offset - 1));
+                            sb = new StringBuilder();
                         }
+                        sb.append(docInfo.getDoc(), start, offset - 1 - start);
                         useBldr = true;
                     }
                     offset+=length;

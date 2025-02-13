@@ -43,6 +43,10 @@ final class JsonDocumentInfo  {
         index = 0;
     }
 
+    char[] getDoc() {
+        return doc;
+    }
+
     // Add the offset of the token to token array
     void addToken(int offset) {
         tokens[index++] = offset;
