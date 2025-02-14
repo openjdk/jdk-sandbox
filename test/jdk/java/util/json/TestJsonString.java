@@ -47,16 +47,16 @@ public class TestJsonString {
     // returns the source
     @Test
     public void untypedStringTest() {
-        var s = Json.fromUntyped("\"afo\"");
-        var c = Json.fromUntyped(new String(new char[]{'"', '\\', 'u', '0', '0', '6', '1', 'f', 'o', '"'}));
+        var s = Json.fromUntyped("afo");
+        var c = Json.fromUntyped(new String(new char[]{'\\', 'u', '0', '0', '6', '1', 'f', 'o'}));
         assertEquals(Json.toUntyped(s), Json.toUntyped(c));
         assertNotEquals(s.toString(), c.toString());
     }
 
     @Test
     public void illegalEscapeTest() {
-        assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped("\"a\\afo\""));
-        assertThrows(IllegalArgumentException.class, () -> JsonString.of("\"a\\afo\""));
+        assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped("a\\afo"));
+        assertThrows(IllegalArgumentException.class, () -> JsonString.of("a\\afo"));
     }
 
     // Escape sequence tests
