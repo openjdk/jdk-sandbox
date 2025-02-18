@@ -66,4 +66,13 @@ public sealed interface JsonString extends JsonValue permits JsonStringImpl {
         Objects.requireNonNull(src);
         return new JsonStringImpl(src);
     }
+
+    /**
+     * {@return true if the given {@code obj} is equal to this {@code JsonString}}
+     * The comparison is based on the original document if this {@code JsonString} was
+     * produced by parsing a JSON document, except that escaped characters and their
+     * corresponding unescaped characters are considered equal.
+     */
+    @Override
+    boolean equals(Object obj);
 }
