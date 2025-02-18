@@ -61,4 +61,22 @@ public sealed interface JsonArray extends JsonValue permits JsonArrayImpl {
         JsonGenerator.checkDepth(ja, 1);
         return ja;
     }
+
+    /**
+     * {@return {@code true} if and only if the specified object is also a
+     * {@code JsonArray}, both {@code JsonArray}s have the same size, and
+     * all corresponding pairs of elements in the two {@code JsonArray}s
+     * are equal}
+     */
+    boolean equals(Object obj);
+
+    /**
+     * {@return the hash code value for this {@code JsonArray}} The hash code of a
+     * {@code JsonArray} is calculated by {@code Objects.hash(JsonArray.values()}.
+     * This ensures that {@code ja1.equals(ja2)} implies that
+     * {@code ja1.hashCode()==ja2.hashCode()} for any two {@code JsonArray}s,
+     * {@code ja1} and {@code ja2}, as required by the general contract
+     * of {@link Object#hashCode}.
+     */
+    int hashCode();
 }
