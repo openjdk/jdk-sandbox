@@ -136,8 +136,14 @@ public class TestEquality {
 
     private static Stream<Arguments> dataEqualityByOriginalText() {
         return Stream.of(
-                Arguments.of("3.0", "3.000", false),
+                // JsonNumber
+                Arguments.of("3", "3", true),
                 Arguments.of("3.0", "3.0", true),
+                Arguments.of("3.141592653589793238462643383279", "3.141592653589793238462643383279", true),
+                Arguments.of("3.0", "3.000", false),
+                Arguments.of("3.141592653589793238462643383279", "3.141592653589793238462643383278", false),
+
+                // JsonString
                 Arguments.of("\"afo\"", "\"afo\"", true),
                 Arguments.of("\"afo\"", new char[]{'"', 'a', 'f', 'o', '"'}, true),
                 Arguments.of("\"afo\"", new char[]{'"', '\\', 'u', '0', '0', '6', '1', 'f', 'o', '"'}, true)
