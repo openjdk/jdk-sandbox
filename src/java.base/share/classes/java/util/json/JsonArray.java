@@ -51,7 +51,7 @@ public sealed interface JsonArray extends JsonValue permits JsonArrayImpl {
      * {@return the {@code JsonArray} created from the given
      * list of {@code JsonValue}s}
      *
-     * @param src the list of {@code Object}s. Non-null.
+     * @param src the list of {@code JsonValue}s. Non-null.
      * @throws IllegalArgumentException if the conversion of {@code src} to a
      * {@code JsonArray} exceeds a nest limit.
      * @throws NullPointerException if {@code src} is {@code null}
