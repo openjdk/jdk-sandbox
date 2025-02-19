@@ -53,6 +53,5 @@ public sealed interface JsonValue
      * to the JSON syntax} The returned string does not contain any white spaces
      * or newlines to produce a compact representation.
      */
-    @Override
     String toString();
 }

@@ -66,7 +66,6 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      * {@code 3.141592653589793238462643383279}, it is returned as it is from
      * this method.
      */
-    @Override
     String toString();
 
     /**
