@@ -41,7 +41,7 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
     JsonNumberImpl(Number num) {
         numString = num.toString();
-        theNumber = num instanceof BigDecimal bd ? bd : new BigDecimal(num.toString());
+        theNumber = num instanceof BigDecimal bd ? bd : new BigDecimal(numString);
         startOffset = 0;
         endOffset = 0;
         endIndex = 0;
