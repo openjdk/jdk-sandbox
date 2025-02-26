@@ -25,7 +25,7 @@
 
 package java.util.json;
 
-import java.util.Objects;
+import java.math.BigDecimal;
 
 /**
  * JsonNumber implementation class
@@ -36,12 +36,12 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     private final int startOffset;
     private final int endOffset;
     private final int endIndex;
-    private Number theNumber;
+    private BigDecimal theNumber;
     private String numString;
 
     JsonNumberImpl(Number num) {
-        theNumber = num;
         numString = num.toString();
+        theNumber = num instanceof BigDecimal bd ? bd : new BigDecimal(num.toString());
         startOffset = 0;
         endOffset = 0;
         endIndex = 0;
@@ -56,9 +56,9 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     }
 
     @Override
-    public Number value() {
+    public BigDecimal toBigDecimal() {
         if (theNumber == null) {
-            theNumber = toNum(string());
+            theNumber = new BigDecimal(string());
         }
         return theNumber;
     }
@@ -84,48 +84,17 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     public boolean equals(Object o) {
         return this == o ||
             o instanceof JsonNumberImpl ojni &&
-            Objects.equals(string(), ojni.string());
+            toBigDecimal().compareTo(ojni.toBigDecimal()) == 0;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(string());
-    }
-
-    Number toNum(String numStr) {
-        // Determine if fp
-        boolean fp = false;
-        for (char c : numStr.toCharArray()) {
-            if (c == 'e' || c == 'E' || c =='.') {
-                fp = true;
-                break;
-            }
-        }
-
-        // Make conversion
-        if (!fp) {
-            // integral numbers
-            try {
-                return Integer.valueOf(numStr);
-            } catch (NumberFormatException _) {
-                // int overflow. try long
-                try {
-                    return Long.valueOf(numStr);
-                } catch (NumberFormatException _) {
-                    // long overflow. convert to Double
-                }
-            }
-        }
-        var num = Double.valueOf(numStr);
-        if (Double.isInfinite(num)) {
-            throw new IllegalStateException("The number is infinitely large in magnitude");
-        }
-        return num;
+        return toBigDecimal().stripTrailingZeros().hashCode();
     }
 
     @Override
     public Number toUntyped() {
-        return value();
+        return toBigDecimal();
     }
 
     @Override

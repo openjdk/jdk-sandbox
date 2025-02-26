@@ -27,6 +27,8 @@ package java.util.json;
 
 import jdk.internal.javac.PreviewFeature;
 
+import java.math.BigDecimal;
+
 /**
  * The interface that represents JSON number.
  * <p>
@@ -43,22 +45,6 @@ import jdk.internal.javac.PreviewFeature;
 public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
 
     /**
-     * {@return the {@code Number} value represented by this
-     * {@code JsonNumber}}
-     *
-     * @implNote The returned value's type is {@code Double} for floating point
-     * numbers. For integer numbers, it is either {@code Integer}, {@code Long},
-     * or {@code Double}. The return value is derived from the respective
-     * {@code Number} subclass {@code valueOf(String)} methods, where the {@code String}
-     * corresponds to the {@link #toString()} of this {@code JsonNumber}.
-     *
-     * @throws IllegalStateException if the string representation of this
-     *          {@code JsonNumber} cannot be converted to a {@code Number}.
-     * @see Double##decimalToBinaryConversion Decimal &harr; Binary Conversion Issues
-     */
-    Number value();
-
-    /**
      * {@return the String representation of this {@code JsonNumber}}
      * In case this {@code JsonNumber} is created by parsing a JSON document,
      * it preserves the text representation of the JSON number regardless of its
@@ -67,6 +53,12 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      * this method.
      */
     String toString();
+
+    /**
+     * {@return the {@code BigDecimal} value represented by this
+     * {@code JsonNumber}}
+     */
+    BigDecimal toBigDecimal();
 
     /**
      * {@return the {@code JsonNumber} created from the given
