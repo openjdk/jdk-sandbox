@@ -51,7 +51,7 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
             case Float f -> new BigDecimal(f);
             case Double d -> new BigDecimal(d);
             case BigInteger bi -> new BigDecimal(bi);
-            case Number n -> new BigDecimal(n.toString());
+            case Number n -> new BigDecimal(numString);
         };
         startOffset = 0;
         endOffset = 0;
