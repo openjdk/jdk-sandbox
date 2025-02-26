@@ -105,11 +105,8 @@ final class JsonGenerator {
             // JsonPrimitives
             case String str -> new JsonStringImpl(str);
             case Boolean bool -> new JsonBooleanImpl(bool);
+            case Number n -> new JsonNumberImpl(n);
             case null -> JsonNull.of();
-            case Float f -> JsonNumber.of(f); // promote Float to Double
-            case Integer i -> new JsonNumberImpl(i); // preserve Integer via ctr
-            case Double db -> JsonNumber.of(db);
-            case Long lg -> JsonNumber.of(lg);
             // JsonValue
             case JsonValue jv -> {
                 checkDepth(jv, depth + 1);

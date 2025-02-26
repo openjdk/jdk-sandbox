@@ -26,6 +26,7 @@
 package java.util.json;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 
 /**
  * JsonNumber implementation class
@@ -41,7 +42,17 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
     JsonNumberImpl(Number num) {
         numString = num.toString();
-        theNumber = num instanceof BigDecimal bd ? bd : new BigDecimal(numString);
+        theNumber = switch (num) {
+            case BigDecimal bd -> bd;
+            case Byte b -> new BigDecimal(b);
+            case Short s -> new BigDecimal(s);
+            case Integer i -> new BigDecimal(i);
+            case Long l -> new BigDecimal(l);
+            case Float f -> new BigDecimal(f);
+            case Double d -> new BigDecimal(d);
+            case BigInteger bi -> new BigDecimal(bi);
+            case Number n -> new BigDecimal(n.toString());
+        };
         startOffset = 0;
         endOffset = 0;
         endIndex = 0;
