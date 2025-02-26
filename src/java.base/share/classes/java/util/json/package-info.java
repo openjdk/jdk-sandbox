@@ -43,8 +43,8 @@
 ///```
 ///JsonValue doc = Json.parse(inputString);
 ///if (doc instanceof JsonObject o && o.keys() instanceof Map<String, JsonValue> keys
-///    && keys.get("name") instanceof JsonString jstring && jstring.value() instanceof String name
-///    && keys.get("age") instanceof JsonNumber number && jnumber.value() instanceof int age) {
+///    && keys.get("name") instanceof JsonString js && js.value() instanceof String name
+///    && keys.get("age") instanceof JsonNumber jn && jn.toBigDecimal().intValue() instanceof int age) {
 ///        // use "name" and "age"
 ///}
 ///```
