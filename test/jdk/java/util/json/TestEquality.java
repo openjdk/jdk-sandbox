@@ -134,16 +134,8 @@ public class TestEquality {
         }
     }
 
-    private static Stream<Arguments> dataEqualityByOriginalText() {
+    private static Stream<Arguments> testStringEquality() {
         return Stream.of(
-                // JsonNumber
-                Arguments.of("3", "3", true),
-                Arguments.of("3.0", "3.0", true),
-                Arguments.of("3.141592653589793238462643383279", "3.141592653589793238462643383279", true),
-                Arguments.of("3.0", "3.000", false),
-                Arguments.of("3.141592653589793238462643383279", "3.141592653589793238462643383278", false),
-
-                // JsonString
                 Arguments.of("\"afo\"", "\"afo\"", true),
                 Arguments.of("\"afo\"", new char[]{'"', 'a', 'f', 'o', '"'}, true),
                 Arguments.of("\"afo\"", new char[]{'"', '\\', 'u', '0', '0', '6', '1', 'f', 'o', '"'}, true)
@@ -151,16 +143,15 @@ public class TestEquality {
     }
 
     @ParameterizedTest
-    @MethodSource("dataEqualityByOriginalText")
-    public void testEqualityByOriginalText(Object arg1, Object arg2, boolean expected) {
+    @MethodSource
+    public void testStringEquality(Object arg1, Object arg2, boolean expected) {
         var jv1 = arg1 instanceof String s ? Json.parse(s) :
                 arg1 instanceof char[] ca ? Json.parse(ca) : null;
         var jv2 = arg2 instanceof String s ? Json.parse(s) :
                 arg2 instanceof char[] ca ? Json.parse(ca) : null;
-        var val1 = jv1 instanceof JsonNumber jn ? jn.value() :
-                jv1 instanceof JsonString js ? js.value() : null;
-        var val2 = jv2 instanceof JsonNumber jn ? jn.value() :
-                jv2 instanceof JsonString js ? js.value() : null;
+        var val1 = jv1 instanceof JsonString js ? js.value() : null;
+        var val2 = jv2 instanceof JsonString js ? js.value() : null;
+
         // two JsonValue arguments should have the same value()
         assertEquals(val1, val2);
 
@@ -168,8 +159,41 @@ public class TestEquality {
         assertEquals(arg1 instanceof char[] ca ? new String(ca) : arg1, jv1.toString());
         assertEquals(arg2 instanceof char[] ca ? new String(ca) : arg2, jv2.toString());
 
-        // equality should be decided by the string for number
-        // but the unescaped value for string
+        // equality should be decided by the unescaped value for string
+        assertEquals(expected, jv1.equals(jv2),
+                "jv1: %s, jv2: %s (jv1.value(): %s, jv2.value(): %s)".formatted(jv1, jv2, val1, val2));
+    }
+
+    private static Stream<Arguments> testNumberEquality() {
+        return Stream.of(
+                Arguments.of("3", "3", true),
+                Arguments.of("3.0", "3.0", true),
+                Arguments.of("3", "3.0", true),
+                Arguments.of("3.0", "3.000", true),
+                Arguments.of("3", "3e0", true),
+                Arguments.of("3.141592653589793238462643383279", "3.141592653589793238462643383279", true),
+                Arguments.of("3", "4", false),
+                Arguments.of("3.0", "3.1", false),
+                Arguments.of("3", "3.1", false),
+                Arguments.of("3.0", "3.001", false),
+                Arguments.of("3", "3e1", false),
+                Arguments.of("3.141592653589793238462643383279", "3.141592653589793238462643383278", false)
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    public void testNumberEquality(String arg1, String arg2, boolean expected) {
+        var jv1 = Json.parse(arg1);
+        var jv2 = Json.parse(arg2);
+        var val1 = jv1 instanceof JsonNumber jn ? jn.toBigDecimal() : null;
+        var val2 = jv2 instanceof JsonNumber jn ? jn.toBigDecimal() : null;
+
+        // assert their toString() returns the original text
+        assertEquals(arg1, jv1.toString());
+        assertEquals(arg2, jv2.toString());
+
+        // equality should be decided by the equality for BigDecimal (sans trailing zeros)
         assertEquals(expected, jv1.equals(jv2),
                 "jv1: %s, jv2: %s (jv1.value(): %s, jv2.value(): %s)".formatted(jv1, jv2, val1, val2));
     }

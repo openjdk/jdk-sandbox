@@ -29,6 +29,7 @@
  * @run junit TestJsonNumber
  */
 
+import java.math.BigDecimal;
 import java.util.json.*;
 
 import org.junit.jupiter.api.Test;
@@ -43,12 +44,6 @@ public class TestJsonNumber {
         assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(Double.NEGATIVE_INFINITY));
         assertThrows(IllegalArgumentException.class, () -> JsonNumber.of(Double.POSITIVE_INFINITY));
         assertThrows(IllegalArgumentException.class, () -> JsonNumber.of(Double.NEGATIVE_INFINITY));
-        final var jn1 = (JsonNumber)Json.parse("1e309");
-        assertEquals("1e309", jn1.toString());
-        assertThrows(IllegalStateException.class, () -> jn1.value());
-        final var jn2 = (JsonNumber)Json.parse("-1e309");
-        assertEquals("-1e309", jn2.toString());
-        assertThrows(IllegalStateException.class, () -> jn2.value());
     }
 
     @Test
@@ -59,37 +54,22 @@ public class TestJsonNumber {
     }
 
     @Test
-    void testInteger() {
+    void testBigDecimal() {
         assertTrue(Json.fromUntyped(42) instanceof JsonNumber jn &&
-                jn.value() instanceof Integer); // expects Integer not Long
-    }
-
-    @Test
-    void testLong() {
+                jn.toBigDecimal() instanceof BigDecimal bd &&
+                bd.intValue() == 42);
         assertTrue(Json.fromUntyped(4242424242424242L) instanceof JsonNumber jn &&
-                jn.value() instanceof Long);
-    }
-
-    @Test
-    void testHugeIntegral() {
-        var huge = "18446744073709551615";
-        if (Json.parse(huge) instanceof JsonNumber jn &&
-            jn.value() instanceof Number val) {
-            assertEquals(Double.valueOf(huge), val);
-        } else {
-            throw new RuntimeException("parse failed");
-        }
-    }
-
-    @Test
-    void testFraction() {
+                jn.toBigDecimal() instanceof BigDecimal bd &&
+                bd.longValue() == 4242424242424242L);
         assertTrue(Json.fromUntyped(42.42) instanceof JsonNumber jn &&
-                jn.value() instanceof Double);
-    }
-
-    @Test
-    void testExponent() {
+                jn.toBigDecimal() instanceof BigDecimal bd &&
+                bd.doubleValue() == 42.42);
         assertTrue(Json.fromUntyped(42e42) instanceof JsonNumber jn &&
-                jn.value() instanceof Double);
+                jn.toBigDecimal() instanceof BigDecimal bd &&
+                bd.doubleValue() == 42e42);
+        var huge = "18446744073709551615";
+        assertTrue(Json.parse(huge) instanceof JsonNumber jn &&
+                jn.toBigDecimal() instanceof BigDecimal bd &&
+                bd.equals(new BigDecimal(huge)));
     }
 }
