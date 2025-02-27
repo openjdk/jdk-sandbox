@@ -171,6 +171,7 @@ public class TestEquality {
                 Arguments.of("3", "3.0", true),
                 Arguments.of("3.0", "3.000", true),
                 Arguments.of("3", "3e0", true),
+                Arguments.of("0.0", "-0.0", true),
                 Arguments.of("3.141592653589793238462643383279", "3.141592653589793238462643383279", true),
                 Arguments.of("3", "4", false),
                 Arguments.of("3.0", "3.1", false),

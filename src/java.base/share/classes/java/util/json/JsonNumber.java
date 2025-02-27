@@ -30,14 +30,17 @@ import jdk.internal.javac.PreviewFeature;
 import java.math.BigDecimal;
 
 /**
- * The interface that represents JSON number.
+ * The interface that represents JSON number. The model presented by
+ * {@code JsonNumber} is an arbitrary-precision decimal number.
  * <p>
  * A {@code JsonNumber} can be produced by {@link Json#parse(String)}.
  * Alternatively, {@link #of(double)} and its overload can be used to obtain
  * a {@code JsonNumber} from a {@code Number}.
  * When a JSON number is parsed, a {@code JsonNumber} object is created
- * regardless of its precision or magnitude as long as the syntax is valid.
- * The parsed string representation is retrieved from {@link #toString()}.
+ * as long as the syntax is valid. The value of the {@code JsonNumber}
+ * can be retrieved from {@link #toString()} as the {@code String} representation
+ * from which the JSON number is originally parsed, or with
+ * {@link #toBigDecimal()} in non-lossy way.
  *
  * @since 25
  */
