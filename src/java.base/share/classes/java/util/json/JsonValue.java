@@ -50,8 +50,10 @@ public sealed interface JsonValue
 
     /**
      * {@return the String representation of this {@code JsonValue} that conforms
-     * to the JSON syntax} The returned string does not contain any white spaces
-     * or newlines to produce a compact representation.
+     * to the JSON syntax} If this {@code JsonValue} is created by parsing a
+     * JSON document, it preserves the text representation of the corresponding
+     * JSON element, except that the returned string does not contain any white
+     * spaces or newlines to produce a compact representation.
      */
     String toString();
 }

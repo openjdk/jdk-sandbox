@@ -43,9 +43,10 @@ public sealed interface JsonString extends JsonValue permits JsonStringImpl {
 
     /**
      * {@return the {@code String} value represented by this
-     * {@code JsonString}} All characters in the returned
-     * {@code String} value are converted to unescaped characters,
-     * if there are any escaped characters in the source JSON string.
+     * {@code JsonString}} Any escaped characters in the original
+     * JSON string are converted to their unescaped form in the
+     * returned {@code String}. This is different from {@link #toString()},
+     * which keeps the escaped characters as they are.
      * For example,
      * {@snippet lang=java:
      *     JsonString.of("fo\\u006f").value(); // returns "foo"
@@ -84,4 +85,16 @@ public sealed interface JsonString extends JsonValue permits JsonStringImpl {
      * characters are considered equal.
      */
     int hashCode();
+
+    /**
+     * {@return the String representation of this {@code JsonString}}
+     * If this {@code JsonString} is created by parsing a JSON document,
+     * it preserves the original text representation, including any escaped
+     * characters.
+     * For example,
+     * {@snippet lang=java:
+     *     JsonString.of("fo\\u006f").toString(); // returns "\"fo\\u006f\""
+     * }
+     */
+    String toString();
 }
