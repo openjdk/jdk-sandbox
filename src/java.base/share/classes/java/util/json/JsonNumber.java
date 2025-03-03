@@ -54,6 +54,10 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      * precision or range. For example, a JSON number like
      * {@code 3.141592653589793238462643383279} in the JSON document will be
      * returned exactly as it appears.
+     * If this {@code JsonNumber} is created via one of the factory methods,
+     * such as {@link JsonNumber#of(double)}, the resulting String has the
+     * same decimal digits that would result from converting the double value
+     * to String as if by {@link Double#toString(double)}.
      */
     String toString();
 

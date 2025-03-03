@@ -43,11 +43,13 @@ public class JsonParseException extends RuntimeException {
 
     /**
      * Position of the error row in the document
+     * @serial
      */
     private final int row;
 
     /**
      * Position of the error column in the document
+     * @serial
      */
     private final int col;
 
