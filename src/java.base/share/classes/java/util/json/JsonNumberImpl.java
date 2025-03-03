@@ -41,18 +41,14 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     private String numString;
 
     JsonNumberImpl(Number num) {
-        numString = num.toString();
         theNumber = switch (num) {
-            case BigDecimal bd -> bd;
-            case Byte b -> new BigDecimal(b);
-            case Short s -> new BigDecimal(s);
-            case Integer i -> new BigDecimal(i);
-            case Long l -> new BigDecimal(l);
-            case Float f -> new BigDecimal(f);
-            case Double d -> new BigDecimal(d);
+            case Long l -> BigDecimal.valueOf(l);
+            case Double d -> BigDecimal.valueOf(d);
             case BigInteger bi -> new BigDecimal(bi);
-            default -> new BigDecimal(numString);
+            case BigDecimal bd -> bd;
+            default -> new BigDecimal(num.toString());
         };
+        numString = theNumber.toString();
         startOffset = 0;
         endOffset = 0;
         endIndex = 0;
