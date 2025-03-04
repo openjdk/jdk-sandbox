@@ -71,5 +71,24 @@ public class TestJsonNumber {
         assertTrue(Json.parse(huge) instanceof JsonNumber jn &&
                 jn.toBigDecimal() instanceof BigDecimal bd &&
                 bd.equals(new BigDecimal(huge)));
+
+        // factories
+        assertEquals(JsonNumber.of((byte)42).toBigDecimal(), BigDecimal.valueOf(42));
+        assertEquals(JsonNumber.of((short)42).toBigDecimal(), BigDecimal.valueOf(42));
+        assertEquals(JsonNumber.of(42).toBigDecimal(), BigDecimal.valueOf(42));
+        assertEquals(JsonNumber.of(42L).toBigDecimal(), BigDecimal.valueOf(42));
+        assertEquals(JsonNumber.of(0.1f).toBigDecimal(), BigDecimal.valueOf(0.10000000149011612f)); // TBD
+        assertEquals(JsonNumber.of(0.1d).toBigDecimal(), BigDecimal.valueOf(0.1d));
+    }
+
+
+    @Test
+    void testToString() {
+        assertEquals(JsonNumber.of((byte)42).toString(), "42");
+        assertEquals(JsonNumber.of((short)42).toString(), "42");
+        assertEquals(JsonNumber.of(42).toString(), "42");
+        assertEquals(JsonNumber.of(42L).toString(), "42");
+        assertEquals(JsonNumber.of(0.1f).toString(), "0.10000000149011612"); // TBD
+        assertEquals(JsonNumber.of(0.1d).toString(), "0.1");
     }
 }
