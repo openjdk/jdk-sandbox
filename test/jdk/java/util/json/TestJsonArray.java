@@ -95,4 +95,26 @@ public class TestJsonArray {
         // Try to sneak into of factory, to create nest past limit
         assertThrows(IllegalArgumentException.class, () -> JsonArray.of(List.of(jv)));
     }
+
+    @Test
+    void immutabilityOfTest() {
+        var list = new ArrayList<JsonValue>();
+        list.add(JsonString.of("foo"));
+        var ja = JsonArray.of(list);
+        assertEquals(1, ja.values().size());
+        // Modifications to backed list should not change JsonObject
+        list.add(JsonString.of("foo"));
+        assertEquals(1, ja.values().size());
+    }
+
+    @Test
+    void immutabilityUntypedTest() {
+        var list = new ArrayList<String>();
+        list.add("foo");
+        var ja = (JsonArray) Json.fromUntyped(list);
+        assertEquals(1, ja.values().size());
+        // Modifications to backed list should not change JsonObject
+        list.add("foo");
+        assertEquals(1, ja.values().size());
+    }
 }

@@ -43,7 +43,7 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
 
     // Via of factory
     JsonObjectImpl(Map<String, ? extends JsonValue> map) {
-        theKeys = Collections.unmodifiableMap(map);
+        theKeys = Map.copyOf(map);
         docInfo = null;
         startIndex = 0;
         endIndex = 0;

@@ -187,4 +187,26 @@ public class TestJsonObject {
         assertThrows(IllegalArgumentException.class,
                 () -> JsonObject.of(Map.of("foo", jv)));
     }
+
+    @Test
+    void immutabilityTest() {
+        var map = new HashMap<String, JsonValue>();
+        map.put("foo", JsonString.of("foo"));
+        var jo = JsonObject.of(map);
+        assertEquals(1, jo.keys().size());
+        // Modifications to backed map should not change JsonObject
+        map.put("bar", JsonString.of("foo"));
+        assertEquals(1, jo.keys().size());
+    }
+
+    @Test
+    void immutabilityUntypedTest() {
+        var map = new HashMap<String, String>();
+        map.put("foo", "foo");
+        var jo = (JsonObject) Json.fromUntyped(map);
+        assertEquals(1, jo.keys().size());
+        // Modifications to backed map should not change JsonObject
+        map.put("bar", "foo");
+        assertEquals(1, jo.keys().size());
+    }
 }
