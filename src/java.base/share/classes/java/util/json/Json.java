@@ -91,6 +91,9 @@ import java.util.Objects;
 public final class Json {
 
     // Depth limit used by Parser and Generator
+    // Note, this is a TBD value. We are option-less, so once we pick a limit, we have
+    // to stick with it. Note that we can always increase this value, but we will
+    // never be able to decrease it.
     static final int MAX_DEPTH = 32;
 
     /**
