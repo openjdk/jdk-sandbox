@@ -100,14 +100,14 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
     /**
      * {@return true if the given {@code obj} is equal to this {@code JsonNumber}}
      * The comparison is based on the {@link #toBigDecimal() BigDecimal}
-     * value of this {@code JsonNumber}.
+     * value, without trailing zeros, of this {@code JsonNumber}.
      */
     boolean equals(Object obj);
 
     /**
      * {@return the hash code value of this {@code JsonNumber}} The returned hash code
      * is calculated based on the {@link #toBigDecimal() BigDecimal}
-     * value of this {@code JsonNumber}.
+     * value, without trailing zeros, of this {@code JsonNumber}.
      */
     int hashCode();
 }

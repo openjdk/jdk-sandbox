@@ -35,6 +35,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -166,19 +167,35 @@ public class TestEquality {
 
     private static Stream<Arguments> testNumberEquality() {
         return Stream.of(
-                Arguments.of("3", "3", true),
-                Arguments.of("3.0", "3.0", true),
-                Arguments.of("3", "3.0", true),
-                Arguments.of("3.0", "3.000", true),
-                Arguments.of("3", "3e0", true),
-                Arguments.of("0.0", "-0.0", true),
-                Arguments.of("3.141592653589793238462643383279", "3.141592653589793238462643383279", true),
-                Arguments.of("3", "4", false),
-                Arguments.of("3.0", "3.1", false),
-                Arguments.of("3", "3.1", false),
-                Arguments.of("3.0", "3.001", false),
-                Arguments.of("3", "3e1", false),
-                Arguments.of("3.141592653589793238462643383279", "3.141592653589793238462643383278", false)
+                // true
+                Arguments.of("3", "3",
+                        bdZeroStripped("3").equals(bdZeroStripped("3"))),
+                Arguments.of("3.0", "3.0",
+                        bdZeroStripped("3.0").equals(bdZeroStripped("3.0"))),
+                Arguments.of("3", "3.0",
+                        bdZeroStripped("3").equals(bdZeroStripped("3.0"))),
+                Arguments.of("3.0", "3.000",
+                        bdZeroStripped("3.0").equals(bdZeroStripped("3.000"))),
+                Arguments.of("3", "3e0",
+                        bdZeroStripped("3").equals(bdZeroStripped("3e0"))),
+                Arguments.of("0.0", "-0.0",
+                        bdZeroStripped("0.0").equals(bdZeroStripped("-0.0"))),
+                Arguments.of("3.141592653589793238462643383279", "3.141592653589793238462643383279",
+                        bdZeroStripped("3.141592653589793238462643383279").equals(bdZeroStripped("3.141592653589793238462643383279"))),
+
+                // false
+                Arguments.of("3", "4",
+                        bdZeroStripped("3").equals(bdZeroStripped("4"))),
+                Arguments.of("3.0", "3.1",
+                        bdZeroStripped("3.0").equals(bdZeroStripped("3.1"))),
+                Arguments.of("3", "3.1",
+                        bdZeroStripped("3").equals(bdZeroStripped("3.1"))),
+                Arguments.of("3.0", "3.001",
+                        bdZeroStripped("3.0").equals(bdZeroStripped("3.001"))),
+                Arguments.of("3", "3e1",
+                        bdZeroStripped("3").equals(bdZeroStripped("3e1"))),
+                Arguments.of("3.141592653589793238462643383279", "3.141592653589793238462643383278",
+                        bdZeroStripped("3.141592653589793238462643383279").equals(bdZeroStripped("3.141592653589793238462643383278")))
         );
     }
 
@@ -197,5 +214,9 @@ public class TestEquality {
         // equality should be decided by the equality for BigDecimal (sans trailing zeros)
         assertEquals(expected, jv1.equals(jv2),
                 "jv1: %s, jv2: %s (jv1.value(): %s, jv2.value(): %s)".formatted(jv1, jv2, val1, val2));
+    }
+
+    private static BigDecimal bdZeroStripped(String s) {
+        return new BigDecimal(s).stripTrailingZeros();
     }
 }
