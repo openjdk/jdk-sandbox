@@ -80,9 +80,6 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      */
     static JsonNumber of(double num) {
         // non-integral types
-        if (Double.isNaN(num) || Double.isInfinite(num)) {
-            throw new IllegalArgumentException("Not a valid JSON number");
-        }
         return new JsonNumberImpl(num);
     }
 
@@ -100,14 +97,14 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
     /**
      * {@return true if the given {@code obj} is equal to this {@code JsonNumber}}
      * The comparison is based on the {@link #toBigDecimal() BigDecimal}
-     * value, without trailing zeros, of this {@code JsonNumber}.
+     * value of this {@code JsonNumber}, using its {@link BigDecimal#compareTo(BigDecimal)}.
      */
     boolean equals(Object obj);
 
     /**
      * {@return the hash code value of this {@code JsonNumber}} The returned hash code
      * is calculated based on the {@link #toBigDecimal() BigDecimal}
-     * value, without trailing zeros, of this {@code JsonNumber}.
+     * value of this {@code JsonNumber}, without trailing zeros.
      */
     int hashCode();
 }

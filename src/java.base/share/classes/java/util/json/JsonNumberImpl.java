@@ -37,18 +37,17 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     private final int startOffset;
     private final int endOffset;
     private final int endIndex;
-    private BigDecimal theNumber;
+    private Number theNumber;
     private String numString;
+    private BigDecimal cachedBD;
 
     JsonNumberImpl(Number num) {
-        theNumber = switch (num) {
-            case Long l -> BigDecimal.valueOf(l);
-            case Double d -> BigDecimal.valueOf(d);
-            case BigInteger bi -> new BigDecimal(bi);
-            case BigDecimal bd -> bd;
-            default -> new BigDecimal(num.toString());
-        };
-        numString = theNumber.toString();
+        if (num == null ||
+            num instanceof Double d && (d.isNaN() || d.isInfinite())) {
+            throw new IllegalArgumentException("Not a valid JSON number");
+        }
+        theNumber = num;
+        numString = num.toString();
         startOffset = 0;
         endOffset = 0;
         endIndex = 0;
@@ -64,10 +63,21 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
     @Override
     public BigDecimal toBigDecimal() {
-        if (theNumber == null) {
-            theNumber = new BigDecimal(string());
+        if (cachedBD == null) {
+            if (theNumber == null) {
+                cachedBD = new BigDecimal(string());
+                theNumber = cachedBD;
+            } else {
+                cachedBD = switch (theNumber) {
+                    case Long l -> BigDecimal.valueOf(l);
+                    case Double d -> BigDecimal.valueOf(d);
+                    case BigInteger bi -> new BigDecimal(bi);
+                    case BigDecimal bd -> bd;
+                    default -> new BigDecimal(numString);
+                };
+            }
         }
-        return theNumber;
+        return cachedBD;
     }
 
     private String string() {
