@@ -69,26 +69,26 @@ public class TestParseException {
 
     // Ensure that JPE is thrown, not SIIOBE
     @Test
-    public void testBasicNonStructural() {
+    void testBasicNonStructural() {
         assertThrows(JsonParseException.class, () -> Json.parse("fals"));
         assertThrows(JsonParseException.class, () -> Json.parse("tru"));
         assertThrows(JsonParseException.class, () -> Json.parse("nul"));
     }
 
     @Test
-    public void testBasic() {
+    void testBasic() {
         Exception e = assertThrows(JsonParseException.class, () -> Json.parse(basic));
         assertEquals("Unexpected character(s): (foobarba) at Row 0, Col 0.", e.getMessage());
     }
 
     @Test
-    public void testStructural() {
+    void testStructural() {
         Exception e = assertThrows(JsonParseException.class, () -> Json.parse(structural));
         assertEquals("Unexpected character(s): (foobarba) at Row 1, Col 10.", e.getMessage());
     }
 
     @Test
-    public void testStructuralWithNested() {
+    void testStructuralWithNested() {
         Exception e = assertThrows(JsonParseException.class, () -> Json.parse(structuralWithNested));
         assertEquals("Unexpected character(s): (foobarba) at Row 4, Col 14.", e.getMessage());
     }

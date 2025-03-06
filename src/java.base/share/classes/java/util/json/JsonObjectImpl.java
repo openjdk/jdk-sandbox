@@ -113,18 +113,6 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
     }
 
     @Override
-    public boolean equals(Object o) {
-        return this == o ||
-            o instanceof JsonObjectImpl ojoi &&
-            Objects.equals(keys(), ojoi.keys());
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(keys());
-    }
-
-    @Override
     public Map<String, Object> toUntyped() {
         return keys().entrySet().stream()
             .collect(HashMap::new, // to allow `null` value

@@ -98,18 +98,6 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     }
 
     @Override
-    public boolean equals(Object o) {
-        return this == o ||
-            o instanceof JsonNumberImpl ojni &&
-            toBigDecimal().compareTo(ojni.toBigDecimal()) == 0;
-    }
-
-    @Override
-    public int hashCode() {
-        return toBigDecimal().stripTrailingZeros().hashCode();
-    }
-
-    @Override
     public Number toUntyped() {
         return toBigDecimal();
     }

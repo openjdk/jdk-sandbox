@@ -56,7 +56,7 @@ public class TestFromUntyped {
             """;
 
     @Test
-    public void testUntyped() {
+    void testUntyped() {
         var doc = Json.parse(json);
         var raw = Json.toUntyped(doc);
         System.out.println(raw);
@@ -80,7 +80,7 @@ public class TestFromUntyped {
 
     // Basic single depth circular reference
     @Test
-    public void arrayCycleTest() {
+    void arrayCycleTest() {
         ArrayList<Object> arr = new ArrayList<>();
         arr.add(arr);
         assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(arr));
@@ -88,7 +88,7 @@ public class TestFromUntyped {
 
     // Basic single depth circular reference
     @Test
-    public void objectCycleTest() {
+    void objectCycleTest() {
         HashMap<String,Object> map = new HashMap<>();
         map.put("foo", map);
         assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(map));
@@ -96,7 +96,7 @@ public class TestFromUntyped {
 
     // Deeper nest circular reference
     @Test
-    public void multiDepthCycleTest() {
+    void multiDepthCycleTest() {
         HashMap<String,Object> mapRoot = new HashMap<>();
         List<Object> listNode = new ArrayList<>();
         List<Object> lowerListNode = new ArrayList<>();

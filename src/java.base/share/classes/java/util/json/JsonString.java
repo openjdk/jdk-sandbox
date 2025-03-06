@@ -71,22 +71,6 @@ public sealed interface JsonString extends JsonValue permits JsonStringImpl {
     }
 
     /**
-     * {@return true if the given {@code obj} is equal to this {@code JsonString}}
-     * The comparison is based on the original document if this {@code JsonString} was
-     * produced by parsing a JSON document, except that escaped characters and their
-     * corresponding unescaped characters are considered equal.
-     */
-    boolean equals(Object obj);
-
-    /**
-     * {@return the hash code value of this {@code JsonString}} The returned hash code
-     * is calculated based on the original document if it was produced by parsing a
-     * JSON document, except that escaped characters and their corresponding unescaped
-     * characters are considered equal.
-     */
-    int hashCode();
-
-    /**
      * {@return the String representation of this {@code JsonString}}
      * If this {@code JsonString} is created by parsing a JSON document,
      * it preserves the original text representation, including any escaped

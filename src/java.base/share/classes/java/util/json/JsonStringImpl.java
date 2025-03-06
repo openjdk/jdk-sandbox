@@ -72,18 +72,6 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
     }
 
     @Override
-    public boolean equals(Object o) {
-        return this == o ||
-            o instanceof JsonStringImpl ojsi &&
-            Objects.equals(value(), ojsi.value());
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(value());
-    }
-
-    @Override
     public String toUntyped() {
         return value();
     }

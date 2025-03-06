@@ -43,6 +43,6 @@ sealed interface JsonValueImpl permits JsonArrayImpl, JsonBooleanImpl, JsonNullI
         return toDisplayString(0, false);
     }
     default String toDisplayString(int indent, boolean isField) {
-        return " ".repeat(isField ? 1 : indent) + toString();
+        return " ".repeat(isField ? 1 : indent) + this;
     }
 }

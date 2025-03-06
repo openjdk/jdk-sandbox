@@ -32,52 +32,59 @@
 
 import org.junit.jupiter.api.Test;
 
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.json.*;
-import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestJsonArray {
 
-    private static final String ARRAY = """
-      [1, "two", false, null, {"key": 42}]
-    """;
-    private static final String DOUBLEDARRAY = """
-      [1, "two", false, null, {"key": 42},
-       1, "two", false, null, {"key": 42}]
-    """;
-
-    private static Stream<JsonValue> testFactory() {
-        return Stream.of(Json.parse(ARRAY));
-    }
-
-    @MethodSource
-    @ParameterizedTest
-    void testFactory(JsonValue doc) {
+    @Test
+    void testFactory() {
+        var doc = Json.parse("""
+            [1, "two", false, null, {"key": 42}, [1]]
+        """);
+        var expected = JsonArray.of(
+            List.of(
+                JsonNumber.of(1),
+                JsonString.of("two"),
+                JsonBoolean.of(Boolean.FALSE),
+                JsonNull.of(),
+                JsonObject.of(Map.of("key", JsonNumber.of(42))),
+                JsonArray.of(List.of(JsonNumber.of(1)))
+            )
+        ).values();
         if (doc instanceof JsonArray ja) {
-            var jsonValues = ja.values();
-            var doubled = JsonArray.of(
-                    Stream.concat(jsonValues.stream(), jsonValues.stream()).toList());
-            assertEquals(Json.parse(DOUBLEDARRAY), doubled);
+            //only compare types
+            compareTypes(expected, ja.values());
         } else {
-            throw new RuntimeException();
-        };
+            throw new RuntimeException("JsonArray expected");
+        }
     }
 
     // Test that the Json::fromUntyped and JsonArray::of factories
     // take the expected element types
     @Test
     void testFromUntyped() {
-        var untyped = Arrays.asList(new Object[]{1, null, false, "test"});
-        var typed = List.of(JsonNumber.of(1), JsonNull.of(),
-                JsonBoolean.of(false), JsonString.of("test"));
-        assertEquals(Json.fromUntyped(untyped), JsonArray.of(typed));
+        var untyped = Json.fromUntyped(Arrays.asList(new Object[]{1, null, false, "test"}));
+        var typed = JsonArray.of(List.of(JsonNumber.of(1), JsonNull.of(),
+                JsonBoolean.of(false), JsonString.of("test"))).values();
+        if (untyped instanceof JsonArray ja) {
+            //only compare types
+            compareTypes(typed, ja.values());
+        } else {
+            throw new RuntimeException("JsonArray expected");
+        }
+    }
+
+    private static void compareTypes(List<JsonValue> expected, List<JsonValue> actual) {
+        assertEquals(expected.size(), actual.size());
+        for (int index = 0; index < expected.size(); index++) {
+            assertEquals(expected.get(index).getClass(), actual.get(index).getClass());
+        }
     }
 
     // Enforce nest limit in of factory

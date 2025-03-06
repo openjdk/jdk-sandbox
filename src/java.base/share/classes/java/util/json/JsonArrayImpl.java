@@ -106,18 +106,6 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
     }
 
     @Override
-    public boolean equals(Object o) {
-        return this == o ||
-            o instanceof JsonArrayImpl ojai &&
-            Objects.equals(values(), ojai.values());
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(values());
-    }
-
-    @Override
     public List<Object> toUntyped() {
         return values().stream()
                 .map(Json::toUntyped)

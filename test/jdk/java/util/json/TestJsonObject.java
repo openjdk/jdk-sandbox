@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.json.*;
 import java.util.stream.Stream;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -60,51 +61,58 @@ public class TestJsonObject {
             """;
 
     @Test
-    public void emptyBuildTest() {
+    void emptyBuildTest() {
         var expectedJson = Json.parse(jsonObjStr);
         var builtJson = new HashMap<String, JsonValue>();
         builtJson.put("name", Json.fromUntyped("Brian"));
         builtJson.put("shoeSize", Json.fromUntyped(10));
-        assertEquals(expectedJson, JsonObject.of(builtJson));
+        compareValueTypes(((JsonObject)expectedJson).keys(), JsonObject.of(builtJson).keys());
     }
 
     @Test
-    public void existingBuildTest() {
+    void existingBuildTest() {
         var sourceJson = Json.parse(jsonObjStr);
         var builtJson = JsonObject.of(((JsonObject)sourceJson).keys());
-        assertEquals(builtJson, sourceJson);
+        compareValueTypes(((JsonObject)sourceJson).keys(), builtJson.keys());
     }
 
     @Test
-    public void removalTest() {
+    void removalTest() {
         var expectedJson = Json.parse(halfJsonObjStr);
         var sourceJson = Json.parse(jsonObjStr);
         var builtJson = new HashMap<>(((JsonObject) sourceJson).keys());
         builtJson.remove("name");
-        assertEquals(JsonObject.of(builtJson), expectedJson);
+        compareValueTypes(((JsonObject)expectedJson).keys(), builtJson);
     }
 
     @Test
-    public void clearTest() {
+    void clearTest() {
         var expectedJson = Json.parse(emptyJsonObjStr);
         var builtJson = JsonObject.of(Map.of());
-        assertEquals(builtJson, expectedJson);
+        compareValueTypes(((JsonObject)expectedJson).keys(), builtJson.keys());
     }
 
     // Basic test to check of factory for JsonObject
     @Test
-    public void ofFactoryTest() {
+    void ofFactoryTest() {
         HashMap<String, JsonValue> map = new HashMap<>();
         map.put("foo", Json.fromUntyped(5));
         map.put("bar", Json.fromUntyped("value"));
         map.put("baz", Json.fromUntyped((Object) null));
-        assertEquals(JsonObject.of(map),
-                Json.parse("{ \"foo\" : 5, \"bar\" : \"value\", \"baz\" : null}"));
+        compareValueTypes(JsonObject.of(map).keys(),
+                ((JsonObject)Json.parse("{ \"foo\" : 5, \"bar\" : \"value\", \"baz\" : null}")).keys());
+    }
+
+    private static void compareValueTypes(Map<String, JsonValue> expected, Map<String, JsonValue> actual) {
+        assertEquals(expected.size(), actual.size());
+        for (var entry : expected.entrySet()) {
+            assertEquals(entry.getValue().getClass(), actual.get(entry.getKey()).getClass());
+        }
     }
 
     // Check for basic duplicate key
     @Test
-    public void testDuplicateKeys() {
+    void testDuplicateKeys() {
         var json =
                 """
                 { "clone": "bob", "clone": "foo" }
@@ -115,7 +123,7 @@ public class TestJsonObject {
     // https://datatracker.ietf.org/doc/html/rfc8259#section-8.3
     // Check for equality via unescaped value
     @Test
-    public void testDuplicateKeyEqualityUnescaped() {
+    void testDuplicateKeyEqualityUnescaped() {
         var json =
                 """
                 { "clone": "bob", "clon\\u0065": "foo" }
@@ -124,7 +132,7 @@ public class TestJsonObject {
     }
 
     @Test
-    public void testDuplicateKeyEqualityMultipleUnescaped() {
+    void testDuplicateKeyEqualityMultipleUnescaped() {
         var json =
                 """
                 { "clonee": "bob", "clon\\u0065\\u0065": "foo" }
@@ -133,7 +141,7 @@ public class TestJsonObject {
     }
 
     @Test
-    public void testDuplicateKeyEqualityUnescapedVariant() {
+    void testDuplicateKeyEqualityUnescapedVariant() {
         var json =
                 """
                 { "c\\b": "bob", "c\b": "foo" }
@@ -167,7 +175,7 @@ public class TestJsonObject {
 
     @ParameterizedTest
     @MethodSource
-    public void malformedObjectParseTest(String badJson) {
+    void malformedObjectParseTest(String badJson) {
         assertThrows(JsonParseException.class, () -> Json.parse(badJson));
     }
 
@@ -208,5 +216,48 @@ public class TestJsonObject {
         // Modifications to backed map should not change JsonObject
         map.put("bar", "foo");
         assertEquals(1, jo.keys().size());
+    }
+
+    private static final String jsonWithSpaces =
+            """
+            [
+                { "name": "John", "age": 30, "city": "New York" },
+                { "name": "Jane", "age": 20, "city": "Boston" },
+                true,
+                false,
+                null,
+                [ "array", "inside", {"inner obj": true, "top-level": false}],
+                "foo",
+                42
+            ]
+            """;
+
+    private static final String jsonExtraSpaces =
+            """
+            [
+           \s
+                { "name"    : "John",    "age"  : 30, "city": "New York" },
+                {  "name": "Jane"  , "age": 20, "city": "Boston" },
+                \s
+               \s
+                true,   \s
+                false   ,
+                null, \s
+                [    "array"  , "inside", {"inner obj": true, "top-level" : false  } ] ,\s
+                "foo",\s
+                42
+              ]
+           \s""";
+
+    // White space is allowed but should have no effect
+    // on the underlying structure, and should not play a role during equality
+    @Test
+    public void testWhiteSpaceEquality() {
+        var obj = Json.parse(jsonExtraSpaces);
+        var str = assertDoesNotThrow(() -> obj.toString()); // build the map/arr
+        var expStr = Json.parse(jsonWithSpaces).toString();
+        // Ensure equivalent Json (besides white space) generates equivalent
+        // toString values
+        assertEquals(expStr, str);
     }
 }

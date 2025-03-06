@@ -67,18 +67,6 @@ final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
     }
 
     @Override
-    public boolean equals(Object o) {
-        return this == o ||
-            o instanceof JsonBooleanImpl ojbi &&
-            Objects.equals(value(), ojbi.value());
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(value());
-    }
-
-    @Override
     public Boolean toUntyped() {
         return value();
     }

@@ -92,18 +92,18 @@ public class TestParse {
 
     @ParameterizedTest
     @MethodSource("validValues")
-    public void validLazyParse(String value) {
+    void validLazyParse(String value) {
         Json.parse(TEMPLATE.formatted(value));
     }
 
     @ParameterizedTest
     @MethodSource("invalidValues")
-    public void invalidLazyParse(String value) {
+    void invalidLazyParse(String value) {
         assertThrows(JsonParseException.class, () -> Json.parse(TEMPLATE.formatted(value)));
     }
 
     @Test
-    public void testBasicPrimitiveParse() throws Exception {
+    void testBasicPrimitiveParse() throws Exception {
         Json.parse("true");
         Json.parse("[true]");
         Json.parse("{\"a\":true}");
@@ -116,12 +116,12 @@ public class TestParse {
     }
 
     @Test
-    public void testBasicParse() {
+    void testBasicParse() {
         Json.parse(basicJson);
     }
 
     @Test
-    public void testBasicParseAndMatch() {
+    void testBasicParseAndMatch() {
         var doc = Json.parse(basicJson);
         if (doc instanceof JsonObject o && o.keys() instanceof Map<String, JsonValue> keys
                 && keys.get("name") instanceof JsonString js && js.value() instanceof String name
@@ -135,7 +135,7 @@ public class TestParse {
 
     // Ensure modifying input char array has no impact on JsonValue
     @Test
-    public void testDefensiveCopy() {
+    void testDefensiveCopy() {
         char[] in = basicJson.toCharArray();
         var doc = Json.parse(in);
 

@@ -93,18 +93,4 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
         // integral types
         return new JsonNumberImpl(num);
     }
-
-    /**
-     * {@return true if the given {@code obj} is equal to this {@code JsonNumber}}
-     * The comparison is based on the {@link #toBigDecimal() BigDecimal}
-     * value of this {@code JsonNumber}, using its {@link BigDecimal#compareTo(BigDecimal)}.
-     */
-    boolean equals(Object obj);
-
-    /**
-     * {@return the hash code value of this {@code JsonNumber}} The returned hash code
-     * is calculated based on the {@link #toBigDecimal() BigDecimal}
-     * value of this {@code JsonNumber}, without trailing zeros.
-     */
-    int hashCode();
 }
