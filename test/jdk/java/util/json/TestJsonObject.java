@@ -256,7 +256,7 @@ public class TestJsonObject {
     // White space is allowed but should have no effect
     // on the underlying structure, and should not play a role during equality
     @Test
-    public void testWhiteSpaceEquality() {
+    void testWhiteSpaceEquality() {
         var obj = Json.parse(jsonExtraSpaces);
         var str = assertDoesNotThrow(() -> obj.toString()); // build the map/arr
         var expStr = Json.parse(jsonWithSpaces).toString();
@@ -266,19 +266,31 @@ public class TestJsonObject {
     }
 
     @Test
-    public void orderingParseTest() {
+    void orderingParseTest() {
         assertEquals(json, Json.parse(jsonWithSpaces).toString());
     }
 
     @Test
-    public void orderingUntypedTest() {
+    void orderingUntypedTest() {
         var jsonFromUntyped = Json.toUntyped(Json.parse(jsonWithSpaces));
         assertEquals(json, Json.fromUntyped(jsonFromUntyped).toString());
     }
 
     @Test
-    public void orderingOfTest() {
+    void orderingOfTest() {
         var jsonFromOf = ((JsonArray)Json.parse(jsonWithSpaces)).values();
         assertEquals(json, JsonArray.of(jsonFromOf).toString());
     }
+
+    @Test
+    void testToDisplayStringOrder() {
+        var json = """
+            {
+              "a": 1,
+              "c": 2,
+              "b": 3
+            }""";
+        assertEquals(json, Json.toDisplayString(Json.parse(json)));
+    }
+
 }

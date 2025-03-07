@@ -144,7 +144,6 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
         } else {
             s.append("{\n");
             keys().entrySet().stream()
-                .sorted(Map.Entry.comparingByKey(String::compareTo))
                 .forEach(e -> {
                     var key = e.getKey();
                     var value = e.getValue();
