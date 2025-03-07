@@ -41,6 +41,9 @@ import jdk.internal.javac.PreviewFeature;
  * <p>
  * Instances of {@code JsonValue} are immutable. The data contained in the instances,
  * once created, cannot be modified.
+ * Instances of {@code JsonValue} are not equitable. Their {@code equals()} methods
+ * inherit the identity semantics of the {@code Object} class and are not intended for
+ * comparing the JSON values represented by these instances.
  *
  * @since 25
  */
