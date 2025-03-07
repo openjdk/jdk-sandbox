@@ -218,6 +218,10 @@ public class TestJsonObject {
         assertEquals(1, jo.keys().size());
     }
 
+    private static final String json =
+            """
+            [{"name":"John","age":30,"city":"New York"},{"name":"Jane","age":20,"city":"Boston"},true,false,null,["array","inside",{"inner obj":true,"top-level":false}],"foo",42]""";
+
     private static final String jsonWithSpaces =
             """
             [
@@ -259,5 +263,22 @@ public class TestJsonObject {
         // Ensure equivalent Json (besides white space) generates equivalent
         // toString values
         assertEquals(expStr, str);
+    }
+
+    @Test
+    public void orderingParseTest() {
+        assertEquals(json, Json.parse(jsonWithSpaces).toString());
+    }
+
+    @Test
+    public void orderingUntypedTest() {
+        var jsonFromUntyped = Json.toUntyped(Json.parse(jsonWithSpaces));
+        assertEquals(json, Json.fromUntyped(jsonFromUntyped).toString());
+    }
+
+    @Test
+    public void orderingOfTest() {
+        var jsonFromOf = ((JsonArray)Json.parse(jsonWithSpaces)).values();
+        assertEquals(json, JsonArray.of(jsonFromOf).toString());
     }
 }

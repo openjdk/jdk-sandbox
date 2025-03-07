@@ -27,6 +27,7 @@ package java.util.json;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -43,7 +44,7 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
 
     // Via of factory
     JsonObjectImpl(Map<String, ? extends JsonValue> map) {
-        theKeys = Map.copyOf(map);
+        theKeys = new LinkedHashMap<>(map);
         docInfo = null;
         startIndex = 0;
         endIndex = 0;
@@ -51,8 +52,8 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
 
     // Via untyped
     JsonObjectImpl(Map<?, ?> map, Set<Object> identitySet, int depth) {
-        HashMap<String, JsonValue> m = HashMap.newHashMap(map.size());
-        for (Map.Entry<?, ?> entry : map.entrySet()) {
+        Map<String, JsonValue> m = LinkedHashMap.newLinkedHashMap(map.size());
+        for (Map.Entry<?, ?> entry : new LinkedHashMap<>(map).entrySet()) {
             if (!(entry.getKey() instanceof String strKey)) {
                 throw new IllegalArgumentException("Key is not a String: " + entry.getKey());
             } else {
@@ -82,7 +83,7 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
 
     // Inflates the JsonObject using the tokens array
     private Map<String, JsonValue> inflate() {
-        var k = new HashMap<String, JsonValue>();
+        var k = new LinkedHashMap<String, JsonValue>();
         var index = startIndex + 1;
         // Empty case automatically checked by index increment. {} is 2 tokens
         while (index < endIndex) {
@@ -115,7 +116,7 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
     @Override
     public Map<String, Object> toUntyped() {
         return keys().entrySet().stream()
-            .collect(HashMap::new, // to allow `null` value
+            .collect(LinkedHashMap::new, // to allow `null` value
                 (m, e) -> m.put(e.getKey(), Json.toUntyped(e.getValue())),
                 HashMap::putAll);
     }
