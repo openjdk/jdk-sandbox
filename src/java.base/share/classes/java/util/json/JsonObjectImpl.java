@@ -51,13 +51,13 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
     }
 
     // Via untyped
-    JsonObjectImpl(Map<?, ?> map, Set<Object> identitySet, int depth) {
+    JsonObjectImpl(Map<?, ?> map, Set<Object> identitySet) {
         Map<String, JsonValue> m = LinkedHashMap.newLinkedHashMap(map.size());
         for (Map.Entry<?, ?> entry : new LinkedHashMap<>(map).entrySet()) {
             if (!(entry.getKey() instanceof String strKey)) {
                 throw new IllegalArgumentException("Key is not a String: " + entry.getKey());
             } else {
-                m.put(strKey, JsonGenerator.fromUntyped(entry.getValue(), identitySet, depth));
+                m.put(strKey, JsonGenerator.fromUntyped(entry.getValue(), identitySet));
             }
         }
         theKeys = Collections.unmodifiableMap(m);

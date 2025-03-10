@@ -76,31 +76,24 @@ final class JsonGenerator {
      * @param src the untyped Object to convert.
      * @param identitySet an identity hash set that has seen all untyped Objects
      *        encountered thus far.
-     * @param depth the current depth reached, only incremented by structural JSON.
-     * @throws IllegalArgumentException if src is not an accepted type, a circular
-     *         reference is detected, or an implementation depth limit is exceeded.
+     * @throws IllegalArgumentException if src is not an accepted type or a circular
+     *         reference is detected.
      * @return the converted untyped Object -> JsonValue.
      */
-    static JsonValue fromUntyped(Object src, Set<Object> identitySet, int depth) {
+    static JsonValue fromUntyped(Object src, Set<Object> identitySet) {
         return switch (src) {
             // Structural JSON: Object, Array
             case Map<?, ?> map -> {
                 if (!identitySet.add(map)) {
                     throw new IllegalArgumentException("Circular reference detected");
                 }
-                if (depth + 1 > Json.MAX_DEPTH) {
-                    throw new IllegalArgumentException("Max depth exceeded");
-                }
-                yield new JsonObjectImpl(map, identitySet, depth + 1);
+                yield new JsonObjectImpl(map, identitySet);
             }
             case List<?> list-> {
                 if (!identitySet.add(list)) {
                     throw new IllegalArgumentException("Circular reference detected");
                 }
-                if (depth + 1 > Json.MAX_DEPTH) {
-                    throw new IllegalArgumentException("Max depth exceeded");
-                }
-                yield new JsonArrayImpl(list, identitySet, depth + 1);
+                yield new JsonArrayImpl(list, identitySet);
             }
             // JsonPrimitives
             case String str -> new JsonStringImpl(str);
@@ -108,23 +101,9 @@ final class JsonGenerator {
             case Number n -> new JsonNumberImpl(n);
             case null -> JsonNull.of();
             // JsonValue
-            case JsonValue jv -> {
-                checkDepth(jv, depth + 1);
-                yield jv;
-            }
+            case JsonValue jv -> jv;
             default -> throw new IllegalArgumentException("Type not recognized.");
         };
-    }
-
-    static void checkDepth(JsonValue val, int depth) {
-        if (depth > Json.MAX_DEPTH) {
-            throw new IllegalArgumentException("Max depth exceeded");
-        }
-        switch (val) {
-            case JsonObject jo -> jo.keys().forEach((_, jV) -> checkDepth(jV, depth + 1));
-            case JsonArray ja -> ja.values().forEach(jV -> checkDepth(jV, depth + 1));
-            default -> {} // Primitive JSON can not nest
-        }
     }
 
     // no instantiation of this generator

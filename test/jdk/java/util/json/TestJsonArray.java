@@ -87,22 +87,6 @@ public class TestJsonArray {
         }
     }
 
-    // Enforce nest limit in of factory
-    @Test
-    void ofFactoryNestTest() {
-        // Make a max value nested JV
-        var root = new ArrayList<>();
-        var node = root;
-        for (int i = 0; i < 31; i++) {
-            var childNode = new ArrayList<>();
-            node.add(childNode);
-            node = childNode;
-        }
-        var jv = Json.fromUntyped(root);
-        // Try to sneak into of factory, to create nest past limit
-        assertThrows(IllegalArgumentException.class, () -> JsonArray.of(List.of(jv)));
-    }
-
     @Test
     void immutabilityOfTest() {
         var list = new ArrayList<JsonValue>();

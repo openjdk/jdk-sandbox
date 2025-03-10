@@ -33,19 +33,19 @@ final class JsonParser { ;
 
     // Parse the JSON and return the built DocumentInfo w/ tokens array
     static JsonDocumentInfo parseRoot(JsonDocumentInfo docInfo) {
-        int end = parseValue(docInfo, 0, 0);
+        int end = parseValue(docInfo, 0);
         if (!checkWhitespaces(docInfo, end, docInfo.getEndOffset())) {
             throw failure(docInfo,"Unexpected character(s)", end);
         }
         return docInfo;
     }
 
-    static int parseValue(JsonDocumentInfo docInfo, int offset, int depth) {
+    static int parseValue(JsonDocumentInfo docInfo, int offset) {
         offset = skipWhitespaces(docInfo, offset);
 
         return switch (docInfo.charAt(offset)) {
-            case '{' -> parseObject(docInfo, offset, depth + 1);
-            case '[' -> parseArray(docInfo, offset, depth + 1);
+            case '{' -> parseObject(docInfo, offset);
+            case '[' -> parseArray(docInfo, offset);
             case '"' -> parseString(docInfo, offset);
             case 't', 'f' -> parseBoolean(docInfo, offset);
             case 'n' -> parseNull(docInfo, offset);
@@ -54,8 +54,7 @@ final class JsonParser { ;
         };
     }
 
-    static int parseObject(JsonDocumentInfo docInfo, int offset, int depth) {
-        checkDepth(docInfo, offset, depth);
+    static int parseObject(JsonDocumentInfo docInfo, int offset) {
         var keys = new HashSet<String>();
         docInfo.addToken(offset);
         // Walk past the '{'
@@ -156,7 +155,7 @@ final class JsonParser { ;
 
             // Move from ':' to JsonValue
             offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
-            offset = JsonParser.parseValue(docInfo, offset, depth);
+            offset = JsonParser.parseValue(docInfo, offset);
 
             // Walk to either ',' or '}'
             offset = JsonParser.skipWhitespaces(docInfo, offset);
@@ -176,8 +175,7 @@ final class JsonParser { ;
                 "Unexpected character(s) found after value", offset);
     }
 
-    static int parseArray(JsonDocumentInfo docInfo, int offset, int depth) {
-        checkDepth(docInfo, offset, depth);
+    static int parseArray(JsonDocumentInfo docInfo, int offset) {
         docInfo.addToken(offset);
         // Walk past the '['
         offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
@@ -189,7 +187,7 @@ final class JsonParser { ;
 
         while (offset < docInfo.getEndOffset()) {
             // Get the JsonValue
-            offset = JsonParser.parseValue(docInfo, offset, depth);
+            offset = JsonParser.parseValue(docInfo, offset);
             // Walk to either ',' or ']'
             offset = JsonParser.skipWhitespaces(docInfo, offset);
             var c = docInfo.charAt(offset);
@@ -416,12 +414,6 @@ final class JsonParser { ;
         var errMsg = docInfo.composeParseExceptionMessage(
                 message, docInfo.getLine(), docInfo.getLineStart(), offset);
         return new JsonParseException(errMsg, docInfo.getLine(), offset - docInfo.getLineStart());
-    }
-
-    private static void checkDepth(JsonDocumentInfo docInfo, int offset, int depth) {
-        if (depth > Json.MAX_DEPTH) {
-            throw failure(docInfo, "Max depth exceeded", offset);
-        }
     }
 
     // no instantiation of this parser

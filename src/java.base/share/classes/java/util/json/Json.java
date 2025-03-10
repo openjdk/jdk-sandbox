@@ -79,22 +79,12 @@ import java.util.Objects;
  * </tbody>
  * </table>
  *
- * @implSpec The reference implementation defines a {@code JsonValue} nesting
- * depth limit of 32. Attempting to construct a {@code JsonValue} that exceeds this limit
- * will throw an {@code IllegalArgumentException}.
- *
  * @spec https://datatracker.ietf.org/doc/html/rfc8259 RFC 8259: The JavaScript
  *          Object Notation (JSON) Data Interchange Format
  * @since 25
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)
 public final class Json {
-
-    // Depth limit used by Parser and Generator
-    // Note, this is a TBD value. We are option-less, so once we pick a limit, we have
-    // to stick with it. Note that we can always increase this value, but we will
-    // never be able to decrease it.
-    static final int MAX_DEPTH = 32;
 
     /**
      * Parses and creates the top level {@code JsonValue} in this JSON
@@ -106,8 +96,8 @@ public final class Json {
      *
      * @param in the input JSON document as {@code String}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform
-     *      to the JSON document format, a JSON object containing
-     *      duplicate keys is encountered, or a nest limit is exceeded.
+     *      to the JSON document format or a JSON object containing
+     *      duplicate keys is encountered.
      * @throws NullPointerException if {@code in} is {@code null}
      * @return the top level {@code JsonValue}
      */
@@ -127,8 +117,8 @@ public final class Json {
      *
      * @param in the input JSON document as {@code char[]}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform
-     *      to the JSON document format, a JSON object containing
-     *      duplicate keys is encountered, or a nest limit is exceeded.
+     *      to the JSON document format or a JSON object containing
+     *      duplicate keys is encountered.
      * @throws NullPointerException if {@code in} is {@code null}
      * @return the top level {@code JsonValue}
      */
@@ -153,16 +143,16 @@ public final class Json {
      *
      * @param src the data to produce the {@code JsonValue} from. May be null.
      * @throws IllegalArgumentException if {@code src} cannot be converted
-     *      to {@code JsonValue}, contains a circular reference, or exceeds a nesting limit.
+     *      to {@code JsonValue} or contains a circular reference.
      * @see ##mapping-table Mapping Table
      * @see #toUntyped(JsonValue)
      */
     public static JsonValue fromUntyped(Object src) {
         if (src instanceof JsonValue jv) {
-            return jv; // If root is JV, no need to check depth
+            return jv;
         } else {
             return JsonGenerator.fromUntyped(
-                    src, Collections.newSetFromMap(new IdentityHashMap<>()), 0);
+                    src, Collections.newSetFromMap(new IdentityHashMap<>()));
         }
     }
 
