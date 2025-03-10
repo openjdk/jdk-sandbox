@@ -109,7 +109,11 @@ final class JsonDocumentInfo  {
     }
 
     // gets the char at the specified offset in the input
+    // This method JPE throws if the desired offset is out of bounds
     char charAt(int offset) {
+        if (offset >= getEndOffset()) {
+            throw JsonParser.failure(this, "Incomplete JsonValue", offset);
+        }
         return doc[offset];
     }
 
