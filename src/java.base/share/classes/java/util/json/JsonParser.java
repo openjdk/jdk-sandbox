@@ -52,7 +52,10 @@ final class JsonParser { ;
             case 't' -> parseTrue(docInfo, offset);
             case 'f' -> parseFalse(docInfo, offset);
             case 'n' -> parseNull(docInfo, offset);
-            case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-' -> parseNumber(docInfo, offset);
+            // While JSON Number does not support leading '+', '.', or 'e'
+            // we still accept, so that we can provide a better error message
+            case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '+', 'e', '.'
+                    -> parseNumber(docInfo, offset);
             default -> throw failure(docInfo, "Unexpected character(s)", offset);
         };
     }
@@ -72,7 +75,7 @@ final class JsonParser { ;
         while (offset < docInfo.getEndOffset()) {
             // Get the key
             if (!docInfo.charEquals('"', offset)) {
-                throw failure(docInfo, "Invalid key", offset);
+                throw failure(docInfo, "Invalid member name", offset);
             }
             // Member equality done via unescaped String
             // see https://datatracker.ietf.org/doc/html/rfc8259#section-8.3
@@ -99,7 +102,7 @@ final class JsonParser { ;
                                 length = 4;
                             } else {
                                 throw failure(docInfo,
-                                        "Illegal Unicode escape sequence", offset);
+                                        "Invalid Unicode escape sequence", offset);
                             }
                         }
                         default -> throw failure(docInfo,
@@ -144,7 +147,7 @@ final class JsonParser { ;
             // Check for duplicates
             if (keys.contains(keyStr)) {
                 throw failure(docInfo,
-                        "The duplicate key: '%s' was already parsed".formatted(keyStr), offset);
+                        "The duplicate member name: '%s' was already parsed".formatted(keyStr), offset);
             }
             keys.add(keyStr);
 
@@ -153,7 +156,7 @@ final class JsonParser { ;
             docInfo.addToken(offset);
             if (!docInfo.charEquals(':', offset)) {
                 throw failure(docInfo,
-                        "Expected ':' after the key", offset);
+                        "Expected ':' after the member name", offset);
             }
 
             // Move from ':' to JsonValue
@@ -165,13 +168,17 @@ final class JsonParser { ;
             if (docInfo.charEquals('}', offset)) {
                 docInfo.addToken(offset);
                 return ++offset;
-            } else if (!docInfo.charEquals(',', offset)) {
+            } else if (docInfo.charEquals(',', offset)) {
+                // Add the comma, and move to the next key
+                docInfo.addToken(offset);
+                offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
+                if (offset >= docInfo.getEndOffset()) {
+                    throw failure(docInfo, "Expected a member after ','", offset);
+                }
+            } else {
+                // Neither ',' nor '}' so fail
                 break;
             }
-
-            // Add the comma, and move to the next key
-            docInfo.addToken(offset);
-            offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
         }
         throw failure(docInfo, "Object was not closed with '}'", offset);
     }
@@ -195,13 +202,17 @@ final class JsonParser { ;
             if (docInfo.charEquals(']', offset)) {
                 docInfo.addToken(offset);
                 return ++offset;
-            } else if (!docInfo.charEquals(',', offset)) {
+            } else if (docInfo.charEquals(',', offset)) {
+                // Add the comma, and move to the next value
+                docInfo.addToken(offset);
+                offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
+                if (offset >= docInfo.getEndOffset()) {
+                    throw failure(docInfo, "Expected a value after ','", offset);
+                }
+            } else {
+                // Neither ',' nor ']' so fail
                 break;
             }
-
-            // Add the comma, and move to the next value
-            docInfo.addToken(offset);
-            offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
         }
         throw failure(docInfo, "Array was not closed with ']'", offset);
     }
@@ -222,7 +233,7 @@ final class JsonParser { ;
                             offset += 4;
                         } else {
                             throw failure(docInfo,
-                                    "Illegal Unicode escape sequence", offset);
+                                    "Invalid Unicode escape sequence", offset);
                         }
                     }
                     default -> throw failure(docInfo,
@@ -247,7 +258,7 @@ final class JsonParser { ;
         for (int index = 0; index < 4; index++) {
             char c = docInfo.charAt(offset + index);
             if ((c < 'a' || c > 'f') && (c < 'A' || c > 'F') && (c < '0' || c > '9')) {
-                throw failure(docInfo, "Invalid Unicode escape", offset);
+                throw failure(docInfo, "Invalid Unicode escape sequence", offset);
             }
         }
     }
