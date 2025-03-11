@@ -30,12 +30,19 @@
  */
 
 import java.util.json.*;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+// Test both the expected error messages are emitted and
+// the correct row column info
 public class TestParseException {
 
     private static final String basic = "foobarbaz";
@@ -58,37 +65,81 @@ public class TestParseException {
             }
             """;
 
-    private static final String duplicate =
-            """
-            {
-                "baz" : "foo",
-                "bar" : "quux",
-                "baz" : "foo"
-            }
-            """;
+    @ParameterizedTest
+    @MethodSource
+    void testMessages(String json, String err) {
+        Exception e =  assertThrows(JsonParseException.class, () -> Json.parse(json));
+        var msg = e.getMessage();
+        assertTrue(msg.contains(err), "Got: \"%s\"\n\tExpected: \"%s\"".formatted(msg, err));
+    }
 
-    // Ensure that JPE is thrown, not SIIOBE
-    @Test
-    void testBasicNonStructural() {
-        assertThrows(JsonParseException.class, () -> Json.parse("fals"));
-        assertThrows(JsonParseException.class, () -> Json.parse("tru"));
-        assertThrows(JsonParseException.class, () -> Json.parse("nul"));
+    // Supplies the invalid JSON string to parse with the expected failure message
+    private static Stream<Arguments> testMessages() {
+        return Stream.of(
+                // Object
+                Arguments.of("{ \"foo\" : ", "Missing JSON value"),
+                Arguments.of("{ \"foo\" ", "Expected ':' after the member name"),
+                Arguments.of("{ \"foo\" : \"bar\" ", "Object was not closed with '}'"),
+                Arguments.of("{ \"foo\" : \"bar\",  ", "Expected a member after ','"),
+                Arguments.of("{ \"foo\" : 1, \"foo\" : 1  ", "The duplicate member name: 'foo'"),
+                Arguments.of("{ foo : \"bar\" ", "Invalid member name"),
+                Arguments.of("{ \"foo : ", "Closing quote missing"),
+                Arguments.of("{ ", "Object was not closed with '}'"),
+                // Array
+                Arguments.of("[ \"foo\"  ", "Array was not closed with ']'"),
+                Arguments.of("[ \"foo\",  ", "Expected a value after ','"),
+                Arguments.of("[ ", "Array was not closed with ']'"),
+                // String
+                Arguments.of("\"\u001b\"", "Unescaped control code"),
+                Arguments.of("\"foo\\a \"", "Illegal escape"),
+                Arguments.of("\"foo\\u0\"", "Invalid Unicode escape sequence"),
+                Arguments.of("\"foo\\uZZZZ\"", "Invalid Unicode escape sequence"),
+                Arguments.of("\"foo ", "Closing quote missing"),
+                // Null
+                Arguments.of("nul", "Expected null"),
+                Arguments.of("n", "Expected null"),
+                // Boolean
+                Arguments.of("fals", "Expected false"),
+                Arguments.of("f", "Expected false"),
+                Arguments.of("tru", "Expected true"),
+                Arguments.of("t", "Expected true"),
+                // Number
+                Arguments.of("01", "Invalid '0' position"),
+                Arguments.of("5e-2+2", "Invalid '+' position"),
+                Arguments.of("+5", "Invalid '+' position"),
+                Arguments.of("5e+2-2", "Invalid '-' position"),
+                Arguments.of(".5", "Invalid '.' position"),
+                Arguments.of("5e.2", "Invalid '.' position"),
+                Arguments.of("5.5.5", "Invalid '.' position"),
+                Arguments.of("5e3e", "Invalid '[e|E]' position"),
+                Arguments.of("e2", "Invalid '[e|E]' position"),
+                Arguments.of("e", "Invalid '[e|E]' position"),
+                Arguments.of("5.", "Input expected after '[.|e|E]'"),
+                Arguments.of("5e", "Input expected after '[.|e|E]'"),
+                // Misc
+                Arguments.of("", "Missing JSON value"),
+                Arguments.of(" ", "Missing JSON value"),
+                Arguments.of("z", "Unexpected character(s)"),
+                Arguments.of("null ]", "Unexpected character(s)"),
+                Arguments.of("null, true", "Unexpected character(s)"),
+                Arguments.of("null 5", "Unexpected character(s)")
+        );
     }
 
     @Test
-    void testBasic() {
+    void testBasicRowCol() {
         Exception e = assertThrows(JsonParseException.class, () -> Json.parse(basic));
         assertEquals("Expected false: (foobarba) at Row 0, Col 0.", e.getMessage());
     }
 
     @Test
-    void testStructural() {
+    void testStructuralRowCol() {
         Exception e = assertThrows(JsonParseException.class, () -> Json.parse(structural));
         assertEquals("Expected false: (foobarba) at Row 1, Col 10.", e.getMessage());
     }
 
     @Test
-    void testStructuralWithNested() {
+    void testStructuralWithNestedRowCol() {
         Exception e = assertThrows(JsonParseException.class, () -> Json.parse(structuralWithNested));
         assertEquals("Expected false: (foobarba) at Row 4, Col 14.", e.getMessage());
     }

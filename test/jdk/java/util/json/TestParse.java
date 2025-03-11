@@ -42,7 +42,6 @@ import java.util.json.*;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class TestParse {
 
@@ -79,27 +78,10 @@ public class TestParse {
         );
     }
 
-    private static Stream<Arguments> invalidValues() {
-        return Stream.of(
-            Arguments.of("[ 1, 2, 3 \"bar\" ]"),
-            Arguments.of("{\"bar\": baz}"),
-            Arguments.of(" 42-3 "),
-            Arguments.of(" trueee "),
-            Arguments.of(" nul "),
-            Arguments.of("\"foo\\u323\"")
-        );
-    }
-
     @ParameterizedTest
     @MethodSource("validValues")
     void validLazyParse(String value) {
         Json.parse(TEMPLATE.formatted(value));
-    }
-
-    @ParameterizedTest
-    @MethodSource("invalidValues")
-    void invalidLazyParse(String value) {
-        assertThrows(JsonParseException.class, () -> Json.parse(TEMPLATE.formatted(value)));
     }
 
     @Test
