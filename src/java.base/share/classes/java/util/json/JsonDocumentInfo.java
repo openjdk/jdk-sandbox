@@ -108,13 +108,22 @@ final class JsonDocumentInfo  {
         return doc.length;
     }
 
+    // returns true if the char at the specified offset equals the input char
+    // and is within bounds of the JsonDocumentInfo
+    boolean charEquals(char c, int offset) {
+        return offset < getEndOffset() && c == charAt(offset);
+    }
+
     // gets the char at the specified offset in the input
-    // This method JPE throws if the desired offset is out of bounds
     char charAt(int offset) {
-        if (offset >= getEndOffset()) {
-            throw JsonParser.failure(this, "Incomplete JsonValue", offset);
-        }
         return doc[offset];
+    }
+
+    // Returns true if the substring at the given offset equals the input String
+    // and is within bounds
+    boolean charsEqual(String s, int offset) {
+        return offset + s.length() - 1 < getEndOffset()
+                && substring(offset, offset + s.length()).equals(s);
     }
 
     // gets the substring at the specified start/end offsets in the input

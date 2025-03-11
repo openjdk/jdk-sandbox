@@ -78,18 +78,18 @@ public class TestParseException {
     @Test
     void testBasic() {
         Exception e = assertThrows(JsonParseException.class, () -> Json.parse(basic));
-        assertEquals("Unexpected character(s): (foobarba) at Row 0, Col 0.", e.getMessage());
+        assertEquals("Expected false: (foobarba) at Row 0, Col 0.", e.getMessage());
     }
 
     @Test
     void testStructural() {
         Exception e = assertThrows(JsonParseException.class, () -> Json.parse(structural));
-        assertEquals("Unexpected character(s): (foobarba) at Row 1, Col 10.", e.getMessage());
+        assertEquals("Expected false: (foobarba) at Row 1, Col 10.", e.getMessage());
     }
 
     @Test
     void testStructuralWithNested() {
         Exception e = assertThrows(JsonParseException.class, () -> Json.parse(structuralWithNested));
-        assertEquals("Unexpected character(s): (foobarba) at Row 4, Col 14.", e.getMessage());
+        assertEquals("Expected false: (foobarba) at Row 4, Col 14.", e.getMessage());
     }
 }

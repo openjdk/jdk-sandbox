@@ -42,12 +42,15 @@ final class JsonParser { ;
 
     static int parseValue(JsonDocumentInfo docInfo, int offset) {
         offset = skipWhitespaces(docInfo, offset);
-
+        if (offset >= docInfo.getEndOffset()) {
+            throw failure(docInfo, "Missing JSON value", offset);
+        }
         return switch (docInfo.charAt(offset)) {
             case '{' -> parseObject(docInfo, offset);
             case '[' -> parseArray(docInfo, offset);
             case '"' -> parseString(docInfo, offset);
-            case 't', 'f' -> parseBoolean(docInfo, offset);
+            case 't' -> parseTrue(docInfo, offset);
+            case 'f' -> parseFalse(docInfo, offset);
             case 'n' -> parseNull(docInfo, offset);
             case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-' -> parseNumber(docInfo, offset);
             default -> throw failure(docInfo, "Unexpected character(s)", offset);
@@ -60,7 +63,7 @@ final class JsonParser { ;
         // Walk past the '{'
         offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
         // Check for empty case
-        if (docInfo.charAt(offset) == '}') {
+        if (docInfo.charEquals('}', offset)) {
             docInfo.addToken(offset);
             return ++offset;
         }
@@ -68,7 +71,7 @@ final class JsonParser { ;
         StringBuilder sb = null; // only init if we need to use for escapes
         while (offset < docInfo.getEndOffset()) {
             // Get the key
-            if (docInfo.charAt(offset) != '"') {
+            if (!docInfo.charEquals('"', offset)) {
                 throw failure(docInfo, "Invalid key", offset);
             }
             // Member equality done via unescaped String
@@ -148,9 +151,9 @@ final class JsonParser { ;
             // Move from key to ':'
             offset = JsonParser.skipWhitespaces(docInfo, offset);
             docInfo.addToken(offset);
-            if (docInfo.charAt(offset) != ':') {
+            if (!docInfo.charEquals(':', offset)) {
                 throw failure(docInfo,
-                        "Unexpected character(s) found after key", offset);
+                        "Expected ':' after the key", offset);
             }
 
             // Move from ':' to JsonValue
@@ -159,11 +162,10 @@ final class JsonParser { ;
 
             // Walk to either ',' or '}'
             offset = JsonParser.skipWhitespaces(docInfo, offset);
-            var c = docInfo.charAt(offset);
-            if (c == '}') {
+            if (docInfo.charEquals('}', offset)) {
                 docInfo.addToken(offset);
                 return ++offset;
-            } else if (docInfo.charAt(offset) != ',') {
+            } else if (!docInfo.charEquals(',', offset)) {
                 break;
             }
 
@@ -171,8 +173,7 @@ final class JsonParser { ;
             docInfo.addToken(offset);
             offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
         }
-        throw failure(docInfo,
-                "Unexpected character(s) found after value", offset);
+        throw failure(docInfo, "Object was not closed with '}'", offset);
     }
 
     static int parseArray(JsonDocumentInfo docInfo, int offset) {
@@ -180,7 +181,7 @@ final class JsonParser { ;
         // Walk past the '['
         offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
         // Check for empty case
-        if (docInfo.charAt(offset) == ']') {
+        if (docInfo.charEquals(']', offset)) {
             docInfo.addToken(offset);
             return ++offset;
         }
@@ -188,13 +189,13 @@ final class JsonParser { ;
         while (offset < docInfo.getEndOffset()) {
             // Get the JsonValue
             offset = JsonParser.parseValue(docInfo, offset);
+
             // Walk to either ',' or ']'
             offset = JsonParser.skipWhitespaces(docInfo, offset);
-            var c = docInfo.charAt(offset);
-            if (c == ']') {
+            if (docInfo.charEquals(']', offset)) {
                 docInfo.addToken(offset);
                 return ++offset;
-            } else if (c != ',') {
+            } else if (!docInfo.charEquals(',', offset)) {
                 break;
             }
 
@@ -202,8 +203,7 @@ final class JsonParser { ;
             docInfo.addToken(offset);
             offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
         }
-        throw failure(docInfo,
-                "Unexpected character(s) found after value", offset);
+        throw failure(docInfo, "Array was not closed with ']'", offset);
     }
 
     static int parseString(JsonDocumentInfo docInfo, int offset) {
@@ -269,26 +269,25 @@ final class JsonParser { ;
         return val;
     }
 
-    static int parseBoolean(JsonDocumentInfo docInfo, int offset) {
-        var start = docInfo.charAt(offset);
-        if (start == 't') {
-            if (offset + 3 >= docInfo.getEndOffset() || !docInfo.substring(offset + 1, offset + 4).equals("rue")) {
-                throw failure(docInfo, "Unexpected character(s)", offset);
-            }
+    static int parseTrue(JsonDocumentInfo docInfo, int offset) {
+        if (docInfo.charsEqual("rue", offset + 1)) {
             return offset + 4;
-        } else {
-            if (offset + 4 >= docInfo.getEndOffset() || !docInfo.substring(offset + 1, offset + 5).equals("alse")) {
-                throw failure(docInfo, "Unexpected character(s)", offset);
-            }
+        }
+        throw failure(docInfo, "Expected true", offset);
+    }
+
+    static int parseFalse(JsonDocumentInfo docInfo, int offset) {
+        if (docInfo.charsEqual( "alse", offset + 1)) {
             return offset + 5;
         }
+        throw failure(docInfo, "Expected false", offset);
     }
 
     static int parseNull(JsonDocumentInfo docInfo, int offset) {
-        if (offset + 3 >= docInfo.getEndOffset() || !docInfo.substring(offset + 1, offset + 4).equals("ull")) {
-            throw failure(docInfo, "Unexpected character(s)", offset);
+        if (docInfo.charsEqual("ull", offset + 1)) {
+            return offset + 4;
         }
-        return offset + 4;
+        throw failure(docInfo, "Expected null", offset);
     }
 
     static int parseNumber(JsonDocumentInfo docInfo, int offset) {
