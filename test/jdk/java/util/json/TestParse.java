@@ -104,9 +104,9 @@ public class TestParse {
     @Test
     void testBasicParseAndMatch() {
         var doc = Json.parse(basicJson);
-        if (doc instanceof JsonObject o && o.keys() instanceof Map<String, JsonValue> keys
-                && keys.get("name") instanceof JsonString js && js.value() instanceof String name
-                && keys.get("shoeSize") instanceof JsonNumber jn && jn.value() instanceof Number size) {
+        if (doc instanceof JsonObject o && o.members() instanceof Map<String, JsonValue> members
+                && members.get("name") instanceof JsonString js && js.value() instanceof String name
+                && members.get("shoeSize") instanceof JsonNumber jn && jn.value() instanceof Number size) {
             assertEquals("Brian", name);
             assertEquals(10, size.intValue());
         } else {
@@ -124,8 +124,8 @@ public class TestParse {
         Arrays.fill(in, 'A');
 
         if (doc instanceof JsonObject o
-                && o.keys().get("name") instanceof JsonString name
-                && o.keys().get("shoeSize") instanceof JsonNumber size) {
+                && o.members().get("name") instanceof JsonString name
+                && o.members().get("shoeSize") instanceof JsonNumber size) {
             assertEquals("Brian", name.value());
             assertEquals(10, size.value().intValue());
         } else {

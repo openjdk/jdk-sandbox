@@ -29,7 +29,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -40,11 +39,11 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
     private final JsonDocumentInfo docInfo;
     private final int startIndex;
     private final int endIndex;
-    private Map<String, JsonValue> theKeys;
+    private Map<String, JsonValue> theMembers;
 
     // Via of factory
     JsonObjectImpl(Map<String, ? extends JsonValue> map) {
-        theKeys = new LinkedHashMap<>(map);
+        theMembers = new LinkedHashMap<>(map);
         docInfo = null;
         startIndex = 0;
         endIndex = 0;
@@ -60,7 +59,7 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
                 m.put(strKey, JsonGenerator.fromUntyped(entry.getValue(), identitySet));
             }
         }
-        theKeys = Collections.unmodifiableMap(m);
+        theMembers = Collections.unmodifiableMap(m);
         docInfo = null;
         startIndex = 0;
         endIndex = 0;
@@ -74,11 +73,11 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
     }
 
     @Override
-    public Map<String, JsonValue> keys() {
-        if (theKeys == null) {
-            theKeys = inflate();
+    public Map<String, JsonValue> members() {
+        if (theMembers == null) {
+            theMembers = inflate();
         }
-        return theKeys;
+        return theMembers;
     }
 
     // Inflates the JsonObject using the tokens array
@@ -115,7 +114,7 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
 
     @Override
     public Map<String, Object> toUntyped() {
-        return keys().entrySet().stream()
+        return members().entrySet().stream()
             .collect(LinkedHashMap::new, // to allow `null` value
                 (m, e) -> m.put(e.getKey(), Json.toUntyped(e.getValue())),
                 HashMap::putAll);
@@ -124,12 +123,12 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
     @Override
     public String toString() {
         var s = new StringBuilder("{");
-        for (Map.Entry<String, JsonValue> kv: keys().entrySet()) {
+        for (Map.Entry<String, JsonValue> kv: members().entrySet()) {
             s.append("\"").append(kv.getKey()).append("\":")
              .append(kv.getValue().toString())
              .append(",");
         }
-        if (!keys().isEmpty()) {
+        if (!members().isEmpty()) {
             s.setLength(s.length() - 1); // trim final comma
         }
         return s.append("}").toString();
@@ -139,11 +138,11 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
     public String toDisplayString(int indent, boolean isField) {
         var prefix = " ".repeat(indent);
         var s = new StringBuilder(isField ? " " : prefix);
-        if (keys().isEmpty()) {
+        if (members().isEmpty()) {
             s.append("{}");
         } else {
             s.append("{\n");
-            keys().entrySet().stream()
+            members().entrySet().stream()
                 .forEach(e -> {
                     var key = e.getKey();
                     var value = e.getValue();

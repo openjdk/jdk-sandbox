@@ -33,7 +33,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.json.*;
@@ -66,30 +65,30 @@ public class TestJsonObject {
         var builtJson = new HashMap<String, JsonValue>();
         builtJson.put("name", Json.fromUntyped("Brian"));
         builtJson.put("shoeSize", Json.fromUntyped(10));
-        compareValueTypes(((JsonObject)expectedJson).keys(), JsonObject.of(builtJson).keys());
+        compareValueTypes(((JsonObject)expectedJson).members(), JsonObject.of(builtJson).members());
     }
 
     @Test
     void existingBuildTest() {
         var sourceJson = Json.parse(jsonObjStr);
-        var builtJson = JsonObject.of(((JsonObject)sourceJson).keys());
-        compareValueTypes(((JsonObject)sourceJson).keys(), builtJson.keys());
+        var builtJson = JsonObject.of(((JsonObject)sourceJson).members());
+        compareValueTypes(((JsonObject)sourceJson).members(), builtJson.members());
     }
 
     @Test
     void removalTest() {
         var expectedJson = Json.parse(halfJsonObjStr);
         var sourceJson = Json.parse(jsonObjStr);
-        var builtJson = new HashMap<>(((JsonObject) sourceJson).keys());
+        var builtJson = new HashMap<>(((JsonObject) sourceJson).members());
         builtJson.remove("name");
-        compareValueTypes(((JsonObject)expectedJson).keys(), builtJson);
+        compareValueTypes(((JsonObject)expectedJson).members(), builtJson);
     }
 
     @Test
     void clearTest() {
         var expectedJson = Json.parse(emptyJsonObjStr);
         var builtJson = JsonObject.of(Map.of());
-        compareValueTypes(((JsonObject)expectedJson).keys(), builtJson.keys());
+        compareValueTypes(((JsonObject)expectedJson).members(), builtJson.members());
     }
 
     // Basic test to check of factory for JsonObject
@@ -99,8 +98,8 @@ public class TestJsonObject {
         map.put("foo", Json.fromUntyped(5));
         map.put("bar", Json.fromUntyped("value"));
         map.put("baz", Json.fromUntyped((Object) null));
-        compareValueTypes(JsonObject.of(map).keys(),
-                ((JsonObject)Json.parse("{ \"foo\" : 5, \"bar\" : \"value\", \"baz\" : null}")).keys());
+        compareValueTypes(JsonObject.of(map).members(),
+                ((JsonObject)Json.parse("{ \"foo\" : 5, \"bar\" : \"value\", \"baz\" : null}")).members());
     }
 
     private static void compareValueTypes(Map<String, JsonValue> expected, Map<String, JsonValue> actual) {
@@ -184,10 +183,10 @@ public class TestJsonObject {
         var map = new HashMap<String, JsonValue>();
         map.put("foo", JsonString.of("foo"));
         var jo = JsonObject.of(map);
-        assertEquals(1, jo.keys().size());
+        assertEquals(1, jo.members().size());
         // Modifications to backed map should not change JsonObject
         map.put("bar", JsonString.of("foo"));
-        assertEquals(1, jo.keys().size());
+        assertEquals(1, jo.members().size());
     }
 
     @Test
@@ -195,10 +194,10 @@ public class TestJsonObject {
         var map = new HashMap<String, String>();
         map.put("foo", "foo");
         var jo = (JsonObject) Json.fromUntyped(map);
-        assertEquals(1, jo.keys().size());
+        assertEquals(1, jo.members().size());
         // Modifications to backed map should not change JsonObject
         map.put("bar", "foo");
-        assertEquals(1, jo.keys().size());
+        assertEquals(1, jo.members().size());
     }
 
     private static final String json =

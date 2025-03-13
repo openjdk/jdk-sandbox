@@ -48,7 +48,7 @@ public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
      * {@return an unmodifiable map of the {@code String} to {@code JsonValue}
      * members in this {@code JsonObject}}
      */
-    Map<String, JsonValue> keys();
+    Map<String, JsonValue> members();
 
     /**
      * {@return the {@code JsonObject} created from the given

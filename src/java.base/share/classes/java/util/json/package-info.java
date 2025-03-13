@@ -42,9 +42,9 @@
 ///This design allows for the extraction of a JSON Value in a single and class safe expression as follows:
 ///```
 ///JsonValue doc = Json.parse(inputString);
-///if (doc instanceof JsonObject o && o.keys() instanceof Map<String, JsonValue> keys
-///    && keys.get("name") instanceof JsonString js && js.value() instanceof String name
-///    && keys.get("age") instanceof JsonNumber jn && jn.toBigDecimal().intValue() instanceof int age) {
+///if (doc instanceof JsonObject o && o.members() instanceof Map<String, JsonValue> members
+///    && members.get("name") instanceof JsonString js && js.value() instanceof String name
+///    && members.get("age") instanceof JsonNumber jn && jn.value().intValue() instanceof int age) {
 ///        // use "name" and "age"
 ///}
 ///```
