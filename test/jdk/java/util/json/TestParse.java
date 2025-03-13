@@ -35,7 +35,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.json.*;
@@ -107,7 +106,7 @@ public class TestParse {
         var doc = Json.parse(basicJson);
         if (doc instanceof JsonObject o && o.keys() instanceof Map<String, JsonValue> keys
                 && keys.get("name") instanceof JsonString js && js.value() instanceof String name
-                && keys.get("shoeSize") instanceof JsonNumber jn && jn.toBigDecimal() instanceof BigDecimal size) {
+                && keys.get("shoeSize") instanceof JsonNumber jn && jn.value() instanceof Number size) {
             assertEquals("Brian", name);
             assertEquals(10, size.intValue());
         } else {
@@ -128,7 +127,7 @@ public class TestParse {
                 && o.keys().get("name") instanceof JsonString name
                 && o.keys().get("shoeSize") instanceof JsonNumber size) {
             assertEquals("Brian", name.value());
-            assertEquals(10, size.toBigDecimal().intValue());
+            assertEquals(10, size.value().intValue());
         } else {
             throw new RuntimeException("JsonValue corrupted by input array");
         }

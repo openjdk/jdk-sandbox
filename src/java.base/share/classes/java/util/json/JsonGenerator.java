@@ -98,7 +98,12 @@ final class JsonGenerator {
             // JsonPrimitives
             case String str -> new JsonStringImpl(str);
             case Boolean bool -> new JsonBooleanImpl(bool);
-            case Number n -> new JsonNumberImpl(n);
+            case Byte b -> JsonNumber.of(b);
+            case Integer i -> JsonNumber.of(i);
+            case Long l -> new JsonNumberImpl(l);
+            case Short s -> JsonNumber.of(s);
+            case Float f -> JsonNumber.of(f);
+            case Double d -> new JsonNumberImpl(d);
             case null -> JsonNull.of();
             // JsonValue
             case JsonValue jv -> jv;

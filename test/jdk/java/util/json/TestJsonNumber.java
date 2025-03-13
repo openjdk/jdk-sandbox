@@ -57,31 +57,27 @@ public class TestJsonNumber {
     }
 
     @Test
-    void testBigDecimal() {
+    void testValue() {
         assertTrue(Json.fromUntyped(42) instanceof JsonNumber jn &&
-                jn.toBigDecimal() instanceof BigDecimal bd &&
-                bd.intValue() == 42);
+                jn.value().longValue() == 42);
         assertTrue(Json.fromUntyped(4242424242424242L) instanceof JsonNumber jn &&
-                jn.toBigDecimal() instanceof BigDecimal bd &&
-                bd.longValue() == 4242424242424242L);
+                jn.value().longValue() == 4242424242424242L);
         assertTrue(Json.fromUntyped(42.42) instanceof JsonNumber jn &&
-                jn.toBigDecimal() instanceof BigDecimal bd &&
-                bd.doubleValue() == 42.42);
+                jn.value().doubleValue() == 42.42);
         assertTrue(Json.fromUntyped(42e42) instanceof JsonNumber jn &&
-                jn.toBigDecimal() instanceof BigDecimal bd &&
-                bd.doubleValue() == 42e42);
-        var huge = "18446744073709551615";
+                jn.value().doubleValue() == 42e42);
+        var huge = "18446744073709551615e999";
         assertTrue(Json.parse(huge) instanceof JsonNumber jn &&
-                jn.toBigDecimal() instanceof BigDecimal bd &&
+                jn.value() instanceof BigDecimal bd &&
                 bd.equals(new BigDecimal(huge)));
 
         // factories
-        assertEquals(JsonNumber.of((byte)42).toBigDecimal(), BigDecimal.valueOf(42));
-        assertEquals(JsonNumber.of((short)42).toBigDecimal(), BigDecimal.valueOf(42));
-        assertEquals(JsonNumber.of(42).toBigDecimal(), BigDecimal.valueOf(42));
-        assertEquals(JsonNumber.of(42L).toBigDecimal(), BigDecimal.valueOf(42));
-        assertEquals(JsonNumber.of(0.1f).toBigDecimal(), BigDecimal.valueOf(0.10000000149011612f)); // TBD
-        assertEquals(JsonNumber.of(0.1d).toBigDecimal(), BigDecimal.valueOf(0.1d));
+        assertEquals(JsonNumber.of((byte)42).value(), 42L);
+        assertEquals(JsonNumber.of((short)42).value(), 42L);
+        assertEquals(JsonNumber.of(42).value(), 42L);
+        assertEquals(JsonNumber.of(42L).value(), 42L);
+        assertEquals(JsonNumber.of(0.1f).value(), (double)0.1f); // TBD
+        assertEquals(JsonNumber.of(0.1d).value(), 0.1d);
     }
 
 

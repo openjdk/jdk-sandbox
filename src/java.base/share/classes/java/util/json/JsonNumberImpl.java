@@ -26,7 +26,6 @@
 package java.util.json;
 
 import java.math.BigDecimal;
-import java.math.BigInteger;
 
 /**
  * JsonNumber implementation class
@@ -39,7 +38,6 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     private final int endIndex;
     private Number theNumber;
     private String numString;
-    private BigDecimal cachedBD;
 
     JsonNumberImpl(Number num) {
         if (num == null ||
@@ -62,22 +60,33 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     }
 
     @Override
-    public BigDecimal toBigDecimal() {
-        if (cachedBD == null) {
-            if (theNumber == null) {
-                cachedBD = new BigDecimal(string());
-                theNumber = cachedBD;
+    public Number value() {
+        if (theNumber == null) {
+            boolean integral = true;
+            var str = string();
+            for (char c : str.toCharArray()) {
+                if (c == '.' || c == 'e' || c == 'E') {
+                    integral = false;
+                    break;
+                }
+            }
+            if (integral) {
+                try {
+                    theNumber = Long.parseLong(str);
+                    return theNumber;
+                } catch (NumberFormatException _) {}
+            }
+            // Not integral nor did not fit into Long
+            var db = Double.parseDouble(str);
+            if (Double.isInfinite(db)) {
+                // Double was infinite, so try BD
+                // This can throw NFE, as JSON Number syntax is not 1-1 with BD syntax
+                theNumber = new BigDecimal(str);
             } else {
-                cachedBD = switch (theNumber) {
-                    case Long l -> BigDecimal.valueOf(l);
-                    case Double d -> BigDecimal.valueOf(d);
-                    case BigInteger bi -> new BigDecimal(bi);
-                    case BigDecimal bd -> bd;
-                    default -> new BigDecimal(numString);
-                };
+                theNumber = db;
             }
         }
-        return cachedBD;
+        return theNumber;
     }
 
     private String string() {
@@ -99,7 +108,7 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
     @Override
     public Number toUntyped() {
-        return toBigDecimal();
+        return value();
     }
 
     @Override
