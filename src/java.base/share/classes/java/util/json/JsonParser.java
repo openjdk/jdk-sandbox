@@ -274,7 +274,7 @@ final class JsonParser { ;
                         case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> c - '0';
                         case 'a', 'b', 'c', 'd', 'e', 'f' -> c - 'a' + 10;
                         case 'A', 'B', 'C', 'D', 'E', 'F' -> c - 'A' + 10;
-                        default -> throw new InternalError();
+                        default -> throw failure(docInfo, "Invalid Unicode escape sequence", offset);
                     });
         }
         return val;

@@ -85,6 +85,9 @@ public class TestParseException {
                 Arguments.of("{ foo : \"bar\" ", "Invalid member name"),
                 Arguments.of("{ \"foo : ", "Closing quote missing"),
                 Arguments.of("{ ", "Object was not closed with '}'"),
+                // Escaped keys
+                Arguments.of("{ \"foo\" : null, \"\\u0066oo\" : null ", "The duplicate member name: 'foo'"),
+                Arguments.of("{ \"\\u000\" ", "Invalid Unicode escape sequence"),
                 // Array
                 Arguments.of("[ \"foo\"  ", "Array was not closed with ']'"),
                 Arguments.of("[ \"foo\",  ", "Expected a value after ','"),
