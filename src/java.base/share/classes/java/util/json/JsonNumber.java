@@ -27,8 +27,6 @@ package java.util.json;
 
 import jdk.internal.javac.PreviewFeature;
 
-import java.math.BigDecimal;
-
 /**
  * The interface that represents JSON number. The model presented by
  * {@code JsonNumber} is an arbitrary-precision decimal number.
@@ -40,7 +38,7 @@ import java.math.BigDecimal;
  * as long as the syntax is valid. The value of the {@code JsonNumber}
  * can be retrieved from {@link #toString()} as the {@code String} representation
  * from which the JSON number is originally parsed, or with
- * {@link #value()}.
+ * {@link #value()} as a {@code Number} instance.
  *
  * @since 25
  */
@@ -66,8 +64,8 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      * {@code JsonNumber}} This {@code Number} may be of one of the following
      * subtypes: {@code Long}, {@code Double}, or {@code BigDecimal}.
      * @throws NumberFormatException if this {@code JsonNumber} can not be
-     *          represented by a {@code Long}, {@code Double} (excluding {@code
-     *          +/-infinity} and {@code NaN}), or {@code BigDecimal}.
+     *          represented by a {@code Long}, {@code Double} or
+     *          {@code BigDecimal}.
      */
     Number value();
 

@@ -59,7 +59,6 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
         endOffset = endIndex != -1 ? docInfo.getOffset(endIndex) : docInfo.getEndOffset();
     }
 
-    @Override
     public Number value() {
         if (theNumber == null) {
             boolean integral = true;

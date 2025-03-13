@@ -59,13 +59,17 @@ public class TestJsonNumber {
     @Test
     void testValue() {
         assertTrue(Json.fromUntyped(42) instanceof JsonNumber jn &&
-                jn.value().longValue() == 42);
+                jn.value() instanceof long l &&
+                l == 42);
         assertTrue(Json.fromUntyped(4242424242424242L) instanceof JsonNumber jn &&
-                jn.value().longValue() == 4242424242424242L);
+                jn.value() instanceof long l &&
+                l == 4242424242424242L);
         assertTrue(Json.fromUntyped(42.42) instanceof JsonNumber jn &&
-                jn.value().doubleValue() == 42.42);
+                jn.value() instanceof double d &&
+                d == 42.42);
         assertTrue(Json.fromUntyped(42e42) instanceof JsonNumber jn &&
-                jn.value().doubleValue() == 42e42);
+                jn.value() instanceof double d &&
+                d == 42e42);
         var huge = "18446744073709551615e999";
         assertTrue(Json.parse(huge) instanceof JsonNumber jn &&
                 jn.value() instanceof BigDecimal bd &&
