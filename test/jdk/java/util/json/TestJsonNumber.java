@@ -30,6 +30,7 @@
  */
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.json.*;
 import java.util.stream.Stream;
 
@@ -57,31 +58,47 @@ public class TestJsonNumber {
     }
 
     @Test
-    void testValue() {
+    void testToNumber() {
         assertTrue(Json.fromUntyped(42) instanceof JsonNumber jn &&
-                jn.value() instanceof long l &&
+                jn.toNumber() instanceof long l &&
                 l == 42);
         assertTrue(Json.fromUntyped(4242424242424242L) instanceof JsonNumber jn &&
-                jn.value() instanceof long l &&
+                jn.toNumber() instanceof long l &&
                 l == 4242424242424242L);
         assertTrue(Json.fromUntyped(42.42) instanceof JsonNumber jn &&
-                jn.value() instanceof double d &&
+                jn.toNumber() instanceof double d &&
                 d == 42.42);
         assertTrue(Json.fromUntyped(42e42) instanceof JsonNumber jn &&
-                jn.value() instanceof double d &&
+                jn.toNumber() instanceof double d &&
                 d == 42e42);
-        var huge = "18446744073709551615e999";
-        assertTrue(Json.parse(huge) instanceof JsonNumber jn &&
-                jn.value() instanceof BigDecimal bd &&
-                bd.equals(new BigDecimal(huge)));
+        var num = "18446744073709551615e999";
+        assertTrue(Json.parse(num) instanceof JsonNumber jn &&
+            jn.toNumber() instanceof BigInteger bi &&
+            bi.equals(new BigDecimal(num).toBigIntegerExact()));
+        num = "9007199254740991e0"; // 2^53 - 1
+        assertTrue(Json.parse(num) instanceof JsonNumber jn &&
+            jn.toNumber() instanceof Long l &&
+            l.equals(new BigDecimal(num).longValueExact()));
+        num = "9007199254740992e0"; // 2^53
+        assertTrue(Json.parse(num) instanceof JsonNumber jn &&
+            jn.toNumber() instanceof BigInteger bi &&
+            bi.equals(new BigDecimal(num).toBigIntegerExact()));
+        num = "1e0";
+        assertTrue(Json.parse(num) instanceof JsonNumber jn &&
+            jn.toNumber() instanceof long l &&
+            l == 1);
+        num = "0.001e3";
+        assertTrue(Json.parse(num) instanceof JsonNumber jn &&
+            jn.toNumber() instanceof long l &&
+            l == 1);
 
         // factories
-        assertEquals(JsonNumber.of((byte)42).value(), 42L);
-        assertEquals(JsonNumber.of((short)42).value(), 42L);
-        assertEquals(JsonNumber.of(42).value(), 42L);
-        assertEquals(JsonNumber.of(42L).value(), 42L);
-        assertEquals(JsonNumber.of(0.1f).value(), (double)0.1f); // TBD
-        assertEquals(JsonNumber.of(0.1d).value(), 0.1d);
+        assertEquals(JsonNumber.of((byte)42).toNumber(), 42L);
+        assertEquals(JsonNumber.of((short)42).toNumber(), 42L);
+        assertEquals(JsonNumber.of(42).toNumber(), 42L);
+        assertEquals(JsonNumber.of(42L).toNumber(), 42L);
+        assertEquals(JsonNumber.of(0.1f).toNumber(), (double)0.1f); // TBD
+        assertEquals(JsonNumber.of(0.1d).toNumber(), 0.1d);
     }
 
 

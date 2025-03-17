@@ -38,7 +38,7 @@ import jdk.internal.javac.PreviewFeature;
  * as long as the syntax is valid. The value of the {@code JsonNumber}
  * can be retrieved from {@link #toString()} as the {@code String} representation
  * from which the JSON number is originally parsed, or with
- * {@link #value()} as a {@code Number} instance.
+ * {@link #toNumber()} as a {@code Number} instance.
  *
  * @since 25
  */
@@ -60,14 +60,43 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
     String toString();
 
     /**
-     * {@return the {@code Number} value represented by this
-     * {@code JsonNumber}} This {@code Number} may be of one of the following
-     * subtypes: {@code Long}, {@code Double}, or {@code BigDecimal}.
-     * @throws NumberFormatException if this {@code JsonNumber} can not be
-     *          represented by a {@code Long}, {@code Double} or
-     *          {@code BigDecimal}.
+     * {@return the {@code Number number} value represented by this JSON number.
+     * <p>
+     * If the JSON number has no fractional part and is within the range of
+     * {@code long} then this method returns that {@code long} value as an
+     * instance of {@code Long}, otherwise an instance of {@code BigInteger}
+     * is returned.
+     * If the JSON number has a fractional part and is withing the range of
+     * {@code double} then this method returns that {@code double} value as an
+     * instance of {@code Double}, otherwise an instance of {@code BigDecimal}
+     * is returned.
+     * In any of the four cases the lexical representation of the JSON
+     * number is not guaranteed to be preserved, this representation can
+     * be obtained from the JSON number's {@link #toString string value}.
+     * @apiNote
+     * Pattern matching can be used to match against Long, Double, BigInteger
+     * or BigDecimal reference types. Subsequently, primitive type pattern
+     * matching the unboxed values of Long, Double can be performed, for
+     * example to determine if the JsonNumber can be represented as an
+     * int value with no loss of precision. For example:
+     * {@snippet lang=java:
+     * switch(jsonNumber.toNumber()) {
+     *     case Long bl when bl.longValue() instanceof int i -> { ... }
+     *     case Double bd when bd.doubleValue() instanceof int i -> { ... }
+     *     default -> { ... }
+     * }
+     *}
+     * Or with unboxing:
+     * {@snippet lang=java:
+     * switch(jsonNumber.toNumber()) {
+     *     case long l when l instanceof int i -> { ... }
+     *     case double d when d instanceof int i -> { ... }
+     *     default -> { ... }
+     * }
+     *}
+     *}
      */
-    Number value();
+    Number toNumber();
 
     /**
      * {@return the {@code JsonNumber} created from the given

@@ -106,7 +106,7 @@ public class TestParse {
         var doc = Json.parse(basicJson);
         if (doc instanceof JsonObject o && o.members() instanceof Map<String, JsonValue> members
                 && members.get("name") instanceof JsonString js && js.value() instanceof String name
-                && members.get("shoeSize") instanceof JsonNumber jn && jn.value() instanceof long size) {
+                && members.get("shoeSize") instanceof JsonNumber jn && jn.toNumber() instanceof long size) {
             assertEquals("Brian", name);
             assertEquals(10, size);
         } else {
@@ -125,7 +125,7 @@ public class TestParse {
 
         if (doc instanceof JsonObject o
                 && o.members().get("name") instanceof JsonString js && js.value() instanceof String name
-                && o.members().get("shoeSize") instanceof JsonNumber jn && jn.value() instanceof long size) {
+                && o.members().get("shoeSize") instanceof JsonNumber jn && jn.toNumber() instanceof long size) {
             assertEquals("Brian", name);
             assertEquals(10, size);
         } else {

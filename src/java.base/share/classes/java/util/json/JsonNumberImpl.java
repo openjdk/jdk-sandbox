@@ -59,7 +59,7 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
         endOffset = endIndex != -1 ? docInfo.getOffset(endIndex) : docInfo.getEndOffset();
     }
 
-    public Number value() {
+    public Number toNumber() {
         if (theNumber == null) {
             boolean integral = true;
             var str = string();
@@ -75,12 +75,24 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
                     return theNumber;
                 } catch (NumberFormatException _) {}
             }
-            // Not integral nor did not fit into Long
+            // Has fraction, scientific notation, or did not fit into Long
             var db = Double.parseDouble(str);
-            if (Double.isInfinite(db)) {
-                // Double was infinite, so try BD
+            if (db % 1L == 0) { // no fraction
+                if (db > -9_007_199_254_740_992L &&
+                    db < 9_007_199_254_740_992L) { // ulp >= 1.0
+                    theNumber = Double.valueOf(db).longValue();
+                } else {
+                    theNumber = new BigDecimal(str).toBigIntegerExact();
+                }
+            } else if (Double.isInfinite(db)) {
+                // Double was infinite, so try BI/BD
                 // This can throw NFE, as JSON Number syntax is not 1-1 with BD syntax
-                theNumber = new BigDecimal(str);
+                var bd = new BigDecimal(str);
+                try {
+                    theNumber = bd.toBigIntegerExact();
+                } catch (ArithmeticException _) {
+                    theNumber = bd;
+                }
             } else {
                 theNumber = db;
             }
@@ -107,7 +119,7 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
     @Override
     public Number toUntyped() {
-        return value();
+        return toNumber();
     }
 
     @Override
