@@ -31,6 +31,8 @@ import java.math.BigDecimal;
  * JsonNumber implementation class
  */
 final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
+    private static final long MIN_LONG = -9_007_199_254_740_991L;
+    private static final long MAX_LONG = 9_007_199_254_740_991L;
 
     private final JsonDocumentInfo docInfo;
     private final int startOffset;
@@ -71,15 +73,17 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
             }
             if (integral) {
                 try {
-                    theNumber = Long.parseLong(str);
-                    return theNumber;
+                    var l = Long.parseLong(str);
+                    if (l >= MIN_LONG && l <= MAX_LONG) {
+                        theNumber = l;
+                        return theNumber;
+                    }
                 } catch (NumberFormatException _) {}
             }
             // Has fraction, scientific notation, or did not fit into Long
             var db = Double.parseDouble(str);
             if (db % 1L == 0) { // no fraction
-                if (db > -9_007_199_254_740_992L &&
-                    db < 9_007_199_254_740_992L) { // ulp >= 1.0
+                if (db >= MIN_LONG && db <= MAX_LONG) {
                     theNumber = Double.valueOf(db).longValue();
                 } else {
                     theNumber = new BigDecimal(str).toBigIntegerExact();
