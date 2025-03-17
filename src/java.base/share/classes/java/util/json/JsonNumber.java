@@ -60,7 +60,7 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
     String toString();
 
     /**
-     * {@return the {@code Number number} value represented by this JSON number.
+     * {@return the {@code Number} value represented by this JSON number}
      * <p>
      * If the JSON number has no fractional part and is within the range of
      * {@code long} then this method returns that {@code long} value as an
@@ -73,8 +73,9 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      * In any of the four cases the lexical representation of the JSON
      * number is not guaranteed to be preserved, this representation can
      * be obtained from the JSON number's {@link #toString string value}.
+     *
      * @apiNote
-     * Pattern matching can be used to match against Long, Double, BigInteger
+     * Pattern matching can be used to match against Long, Double, BigInteger,
      * or BigDecimal reference types. Subsequently, primitive type pattern
      * matching the unboxed values of Long, Double can be performed, for
      * example to determine if the JsonNumber can be represented as an
@@ -93,7 +94,6 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      *     case double d when d instanceof int i -> { ... }
      *     default -> { ... }
      * }
-     *}
      *}
      */
     Number toNumber();

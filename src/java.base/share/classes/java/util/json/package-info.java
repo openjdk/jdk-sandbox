@@ -44,7 +44,7 @@
 ///JsonValue doc = Json.parse(inputString);
 ///if (doc instanceof JsonObject o && o.members() instanceof Map<String, JsonValue> members
 ///    && members.get("name") instanceof JsonString js && js.value() instanceof String name
-///    && members.get("age") instanceof JsonNumber jn && jn.value() instanceof long age) {
+///    && members.get("age") instanceof JsonNumber jn && jn.toNumber() instanceof long age) {
 ///        // use "name" and "age"
 ///}
 ///```
