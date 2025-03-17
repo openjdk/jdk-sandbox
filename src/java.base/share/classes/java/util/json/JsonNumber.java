@@ -63,9 +63,9 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      * {@return the {@code Number} value represented by this JSON number}
      * <p>
      * If the JSON number has no fractional part and is within the range of
-     * {@code long} then this method returns that {@code long} value as an
-     * instance of {@code Long}, otherwise an instance of {@code BigInteger}
-     * is returned.
+     * {@code [-Math.pow(2, 53) + 1, Math.pow(2, 53) - 1]} then this method
+     * returns an instance of {@code Long}, otherwise an instance of
+     * {@code BigInteger} is returned.
      * If the JSON number has a fractional part and is withing the range of
      * {@code double} then this method returns that {@code double} value as an
      * instance of {@code Double}, otherwise an instance of {@code BigDecimal}
