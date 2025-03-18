@@ -102,8 +102,11 @@ public class TestJsonNumber {
         assertEquals(JsonNumber.of((short)42).toNumber(), 42L);
         assertEquals(JsonNumber.of(42).toNumber(), 42L);
         assertEquals(JsonNumber.of(42L).toNumber(), 42L);
-        assertEquals(JsonNumber.of(0.1f).toNumber(), (double)0.1f); // TBD
+        assertEquals(JsonNumber.of(Long.MAX_VALUE).toNumber(), Long.MAX_VALUE);
+        assertEquals(JsonNumber.of(0.1f).toNumber(), (double)0.1f);
         assertEquals(JsonNumber.of(0.1d).toNumber(), 0.1d);
+        assertEquals(JsonNumber.of(1e0).toNumber(), 1d);
+        assertEquals(JsonNumber.of(Double.MAX_VALUE).toNumber(), Double.MAX_VALUE);
     }
 
 
@@ -113,8 +116,10 @@ public class TestJsonNumber {
         assertEquals(JsonNumber.of((short)42).toString(), "42");
         assertEquals(JsonNumber.of(42).toString(), "42");
         assertEquals(JsonNumber.of(42L).toString(), "42");
-        assertEquals(JsonNumber.of(0.1f).toString(), "0.10000000149011612"); // TBD
+        assertEquals(JsonNumber.of(Long.MAX_VALUE).toString(), Long.valueOf(Long.MAX_VALUE).toString());
+        assertEquals(JsonNumber.of(0.1f).toString(), "0.10000000149011612");
         assertEquals(JsonNumber.of(0.1d).toString(), "0.1");
+        assertEquals(JsonNumber.of(Double.MAX_VALUE).toString(), Double.valueOf(Double.MAX_VALUE).toString());
     }
 
     private static Stream<String> testToString_Parsed() {
