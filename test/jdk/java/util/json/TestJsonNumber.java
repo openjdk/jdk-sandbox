@@ -151,6 +151,10 @@ public class TestJsonNumber {
         // assert that toNumber() returns the expected Number subtype
         Number num = ((JsonNumber) Json.parse(json)).toNumber();
         assertInstanceOf(type, num);
+        if (type == Double.class) {assertEquals(Double.parseDouble(json), num);}
+        else if (type == Long.class) {assertEquals(new BigDecimal(json).longValueExact(), num);}
+        else if (type == BigDecimal.class) {assertEquals(new BigDecimal(json), num);}
+        else if (type == BigInteger.class) {assertEquals(new BigDecimal(json).toBigIntegerExact(), num);}
     }
 
     private static Stream<Arguments> subtypeTest() {
