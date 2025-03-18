@@ -75,11 +75,15 @@ public class TestJsonNumber {
         assertTrue(Json.parse(num) instanceof JsonNumber jn &&
             jn.toNumber() instanceof BigInteger bi &&
             bi.equals(new BigDecimal(num).toBigIntegerExact()));
-        num = "9007199254740991e0"; // 2^53 - 1
+        num = "9223372036854775807e0"; // Long.MAX_VALUE
         assertTrue(Json.parse(num) instanceof JsonNumber jn &&
             jn.toNumber() instanceof Long l &&
             l.equals(new BigDecimal(num).longValueExact()));
-        num = "9007199254740992e0"; // 2^53
+        num = "9223372036854775807.5e0"; // Long.MAX_VALUE + 0.5
+        assertTrue(Json.parse(num) instanceof JsonNumber jn &&
+            jn.toNumber() instanceof Double d &&
+            d.equals(new BigDecimal(num).doubleValue()));
+        num = "9223372036854775808e0"; // Long.MAX_VALUE + 1
         assertTrue(Json.parse(num) instanceof JsonNumber jn &&
             jn.toNumber() instanceof BigInteger bi &&
             bi.equals(new BigDecimal(num).toBigIntegerExact()));

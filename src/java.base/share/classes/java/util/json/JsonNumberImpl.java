@@ -31,8 +31,8 @@ import java.math.BigDecimal;
  * JsonNumber implementation class
  */
 final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
-    private static final long MIN_LONG = -9_007_199_254_740_991L;
-    private static final long MAX_LONG = 9_007_199_254_740_991L;
+    private final BigDecimal MIN_LONG = BigDecimal.valueOf(Long.MIN_VALUE);
+    private final BigDecimal MAX_LONG = BigDecimal.valueOf(Long.MAX_VALUE);
 
     private final JsonDocumentInfo docInfo;
     private final int startOffset;
@@ -65,7 +65,8 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
         if (theNumber == null) {
             boolean integral = true;
             var str = string();
-            for (char c : str.toCharArray()) {
+            for (int index = 0; index < str.length(); index++) {
+                char c = str.charAt(index);
                 if (c == '.' || c == 'e' || c == 'E') {
                     integral = false;
                     break;
@@ -73,32 +74,35 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
             }
             if (integral) {
                 try {
-                    var l = Long.parseLong(str);
-                    if (l >= MIN_LONG && l <= MAX_LONG) {
-                        theNumber = l;
-                        return theNumber;
-                    }
+                    theNumber = Long.parseLong(str);
+                    return theNumber;
                 } catch (NumberFormatException _) {}
             }
-            // Has fraction, scientific notation, or did not fit into Long
-            var db = Double.parseDouble(str);
-            if (db % 1L == 0) { // no fraction
-                if (db >= MIN_LONG && db <= MAX_LONG) {
-                    theNumber = Double.valueOf(db).longValue();
+
+            // Slow path
+            var bd = new BigDecimal(str);
+            if (bd.remainder(BigDecimal.ONE).compareTo(BigDecimal.ZERO) == 0) {
+                // integral numbers
+                if (bd.compareTo(MIN_LONG) >= 0 &&
+                    bd.compareTo(MAX_LONG) <= 0) {
+                    theNumber = bd.longValueExact();
                 } else {
-                    theNumber = new BigDecimal(str).toBigIntegerExact();
-                }
-            } else if (Double.isInfinite(db)) {
-                // Double was infinite, so try BI/BD
-                // This can throw NFE, as JSON Number syntax is not 1-1 with BD syntax
-                var bd = new BigDecimal(str);
-                try {
                     theNumber = bd.toBigIntegerExact();
-                } catch (ArithmeticException _) {
-                    theNumber = bd;
                 }
             } else {
-                theNumber = db;
+                // fractions
+                var db = bd.doubleValue();
+                if (Double.isInfinite(db)) {
+                    // Double was infinite, so try BI/BD
+                    // This can throw NFE, as JSON Number syntax is not 1-1 with BD syntax
+                    try {
+                        theNumber = bd.toBigIntegerExact();
+                    } catch (ArithmeticException _) {
+                        theNumber = bd;
+                    }
+                } else {
+                    theNumber = db;
+                }
             }
         }
         return theNumber;
