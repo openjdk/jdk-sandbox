@@ -36,6 +36,7 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -137,5 +138,64 @@ public class TestJsonNumber {
     void testToString_Parsed(String src) {
         // assert their toString() returns the original text
         assertEquals(src, Json.parse(src).toString());
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    void subtypeTest(String json, Class<?> type) {
+        // assert that toNumber() returns the expected Number subtype
+        Number num = ((JsonNumber) Json.parse(json)).toNumber();
+        assertInstanceOf(type, num);
+    }
+
+    private static Stream<Arguments> subtypeTest() {
+        return Stream.of(
+            // Long cases
+                Arguments.of("1", Long.class),
+                Arguments.of("0", Long.class),
+                Arguments.of("9223372036854775807", Long.class),
+                Arguments.of("-9223372036854775808", Long.class),
+                // Longs that contain decimal symbol
+                Arguments.of("1.0", Long.class),
+                Arguments.of("9223372036854775807.0", Long.class),
+                Arguments.of("-9223372036854775808.0", Long.class),
+                // Longs that contain exponent
+                Arguments.of("1e0", Long.class),
+                Arguments.of("1e-0", Long.class),
+                Arguments.of("0e0", Long.class),
+                Arguments.of("0e1", Long.class),
+                Arguments.of("0e-0", Long.class),
+                Arguments.of("0e-1", Long.class),
+                Arguments.of("5.5e1", Long.class),
+                Arguments.of("1.0e1", Long.class),
+            // BigInteger cases
+                // Arbitrary large value surpassing Double.MAX
+                Arguments.of("9e999", BigInteger.class),
+                // Greater than Double.MAX
+                Arguments.of("1.7976931348623157E309", BigInteger.class),
+                // Less than -Double.MAX
+                Arguments.of("-1.7976931348623157E309", BigInteger.class),
+                // Greater than Long.MAX
+                Arguments.of("9223372036854775808", BigInteger.class),
+                // Less than Long.MIN
+                Arguments.of("-9223372036854775809", BigInteger.class),
+                // Double.MAX
+                Arguments.of("1.7976931348623157E308", BigInteger.class),
+            // Double cases
+                // Basic Fraction
+                Arguments.of("5.5", Double.class),
+                // Fraction w/ more sig digs that Db supports
+                Arguments.of("5."+"5".repeat(17), Double.class),
+                Arguments.of("55.55e1", Double.class),
+                Arguments.of("1e-1", Double.class),
+                // Less than Long.MAX, but contains fraction
+                Arguments.of("9223372036854775806.5", Double.class),
+                // Greater than Long.MIN, but contains fraction
+                Arguments.of("-9223372036854775807.5", Double.class),
+                // Double.MIN
+                Arguments.of("4.9E-324", Double.class),
+            // BigDecimal cases
+                Arguments.of("9".repeat(309)+".9", BigDecimal.class)
+        );
     }
 }
