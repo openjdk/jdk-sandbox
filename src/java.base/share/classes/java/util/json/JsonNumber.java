@@ -95,6 +95,9 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      *     default -> { ... }
      * }
      *}
+     * @throws NumberFormatException if this {@code JsonNumber} can not be
+     *      represented by a {@code Long}, {@code Double}, {@code BigDecimal},
+     *      or {@code BigInteger}.
      */
     Number toNumber();
 
