@@ -65,7 +65,7 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      * If the JSON number has no fractional part and is within the range of
      * {@code long} then this method returns an instance of {@code Long},
      * otherwise an instance of {@code BigInteger} is returned.
-     * If the JSON number has a fractional part and is withing the range of
+     * If the JSON number has a fractional part and is within the range of
      * {@code double} then this method returns an instance of {@code Double},
      * otherwise an instance of {@code BigDecimal} is returned.
      * In any of the four cases the lexical representation of the JSON
