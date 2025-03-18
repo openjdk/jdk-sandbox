@@ -81,7 +81,7 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
             // Slow path
             var bd = new BigDecimal(str);
-            if (bd.stripTrailingZeros().scale() <= 0) {
+            if (bd.scale() <= 0 || bd.stripTrailingZeros().scale() <= 0) {
                 // integral numbers
                 if (bd.compareTo(MIN_LONG) >= 0 &&
                     bd.compareTo(MAX_LONG) <= 0) {
