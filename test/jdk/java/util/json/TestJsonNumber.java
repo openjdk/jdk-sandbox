@@ -198,4 +198,10 @@ public class TestJsonNumber {
                 Arguments.of("9".repeat(309)+".9", BigDecimal.class)
         );
     }
+
+    @Test
+    void toNumberThrowsTest() {
+        var jn = (JsonNumber) Json.parse("9e111111111111");
+        assertThrows(NumberFormatException.class, jn::toNumber);
+    }
 }
