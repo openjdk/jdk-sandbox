@@ -98,31 +98,15 @@ public class TestJsonNumber {
         assertEquals(JsonNumber.of(Double.MAX_VALUE).toString(), Double.valueOf(Double.MAX_VALUE).toString());
     }
 
-    private static Stream<String> testToString_Parsed() {
-        return Stream.of(
-            "3",
-            "3.0",
-            "3.000",
-            "3e0",
-            "0.0",
-            "-0.0",
-            "3.141592653589793238462643383279",
-            "-0.000",
-            "1.00",
-            "12.3e0000",
-            "0.0000123E-0000000045"
-        );
-    }
-
     @ParameterizedTest
-    @MethodSource
+    @MethodSource("parseCases")
     void testToString_Parsed(String src) {
         // assert their toString() returns the original text
         assertEquals(src, Json.parse(src).toString());
     }
 
     @ParameterizedTest
-    @MethodSource
+    @MethodSource("parseCases")
     void toNumberParseTest(String json, Class<?> type) {
         // assert that toNumber() returns the expected Number subtype
         Number num = ((JsonNumber) Json.parse(json)).toNumber();
@@ -133,10 +117,12 @@ public class TestJsonNumber {
         else if (type == BigInteger.class) {assertEquals(new BigDecimal(json).toBigIntegerExact(), num);}
     }
 
-    private static Stream<Arguments> toNumberParseTest() {
+    private static Stream<Arguments> parseCases() {
         return Stream.of(
             // Long cases
                 Arguments.of("1", Long.class),
+                Arguments.of("1.0", Long.class),
+                Arguments.of("1.000", Long.class),
                 Arguments.of("0.001e3", Long.class),
                 Arguments.of("0", Long.class),
                 Arguments.of("9223372036854775807", Long.class),
@@ -150,6 +136,8 @@ public class TestJsonNumber {
                 // Longs that contain exponent
                 Arguments.of("1e0", Long.class),
                 Arguments.of("1e-0", Long.class),
+                Arguments.of("0.0", Long.class),
+                Arguments.of("-0.0", Long.class),
                 Arguments.of("0e0", Long.class),
                 Arguments.of("0e1", Long.class),
                 Arguments.of("0e-0", Long.class),
@@ -175,6 +163,7 @@ public class TestJsonNumber {
             // Double cases
                 // Basic Fraction
                 Arguments.of("5.5", Double.class),
+                Arguments.of("0.0000123E-0000000045", Double.class),
                 // Fraction w/ more sig digs that Db supports
                 Arguments.of("5."+"5".repeat(17), Double.class),
                 Arguments.of("55.55e1", Double.class),
