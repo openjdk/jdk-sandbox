@@ -65,17 +65,17 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
     public Number toNumber() {
         if (theNumber == null) {
-            boolean integral = true;
             var str = string();
             // Fast path for longs
+            boolean integerOnly = true;
             for (int index = 0; index < str.length(); index++) {
                 char c = str.charAt(index);
                 if (c == '.' || c == 'e' || c == 'E') {
-                    integral = false;
+                    integerOnly = false;
                     break;
                 }
             }
-            if (integral) {
+            if (integerOnly) {
                 try {
                     theNumber = Long.parseLong(str);
                     return theNumber;
@@ -90,7 +90,7 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
             // double (e.g. "4."+"9".repeat(16) -> 5.0), fast path can not be done,
             // and the double is returned via slow path
             var db = Double.parseDouble(str);
-            if (db >= MIN_POW_2_53 && db <= MAX_POW_2_53 && db % 1L != 0) {
+            if (db > MIN_POW_2_53 && db < MAX_POW_2_53 && db % 1L != 0) {
                 theNumber = db;
                 return theNumber;
             }
