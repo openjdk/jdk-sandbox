@@ -72,30 +72,6 @@ public class TestJsonNumber {
         assertTrue(Json.fromUntyped(42e42) instanceof JsonNumber jn &&
                 jn.toNumber() instanceof double d &&
                 d == 42e42);
-        var num = "18446744073709551615e999";
-        assertTrue(Json.parse(num) instanceof JsonNumber jn &&
-            jn.toNumber() instanceof BigInteger bi &&
-            bi.equals(new BigDecimal(num).toBigIntegerExact()));
-        num = "9223372036854775807e0"; // Long.MAX_VALUE
-        assertTrue(Json.parse(num) instanceof JsonNumber jn &&
-            jn.toNumber() instanceof Long l &&
-            l.equals(new BigDecimal(num).longValueExact()));
-        num = "9223372036854775807.5e0"; // Long.MAX_VALUE + 0.5
-        assertTrue(Json.parse(num) instanceof JsonNumber jn &&
-            jn.toNumber() instanceof Double d &&
-            d.equals(new BigDecimal(num).doubleValue()));
-        num = "9223372036854775808e0"; // Long.MAX_VALUE + 1
-        assertTrue(Json.parse(num) instanceof JsonNumber jn &&
-            jn.toNumber() instanceof BigInteger bi &&
-            bi.equals(new BigDecimal(num).toBigIntegerExact()));
-        num = "1e0";
-        assertTrue(Json.parse(num) instanceof JsonNumber jn &&
-            jn.toNumber() instanceof long l &&
-            l == 1);
-        num = "0.001e3";
-        assertTrue(Json.parse(num) instanceof JsonNumber jn &&
-            jn.toNumber() instanceof long l &&
-            l == 1);
 
         // factories
         assertEquals(JsonNumber.of((byte)42).toNumber(), 42L);
@@ -147,7 +123,7 @@ public class TestJsonNumber {
 
     @ParameterizedTest
     @MethodSource
-    void subtypeTest(String json, Class<?> type) {
+    void toNumberParseTest(String json, Class<?> type) {
         // assert that toNumber() returns the expected Number subtype
         Number num = ((JsonNumber) Json.parse(json)).toNumber();
         assertInstanceOf(type, num);
@@ -157,10 +133,11 @@ public class TestJsonNumber {
         else if (type == BigInteger.class) {assertEquals(new BigDecimal(json).toBigIntegerExact(), num);}
     }
 
-    private static Stream<Arguments> subtypeTest() {
+    private static Stream<Arguments> toNumberParseTest() {
         return Stream.of(
             // Long cases
                 Arguments.of("1", Long.class),
+                Arguments.of("0.001e3", Long.class),
                 Arguments.of("0", Long.class),
                 Arguments.of("9223372036854775807", Long.class),
                 Arguments.of("-9223372036854775808", Long.class),
@@ -168,6 +145,8 @@ public class TestJsonNumber {
                 Arguments.of("1.0", Long.class),
                 Arguments.of("9223372036854775807.0", Long.class),
                 Arguments.of("-9223372036854775808.0", Long.class),
+                Arguments.of("9223372036854775807e0", Long.class),
+                Arguments.of("-9223372036854775807e0", Long.class),
                 // Longs that contain exponent
                 Arguments.of("1e0", Long.class),
                 Arguments.of("1e-0", Long.class),
@@ -186,10 +165,13 @@ public class TestJsonNumber {
                 Arguments.of("-1.7976931348623157E309", BigInteger.class),
                 // Greater than Long.MAX
                 Arguments.of("9223372036854775808", BigInteger.class),
+                Arguments.of("9223372036854775808e0", BigInteger.class),
                 // Less than Long.MIN
                 Arguments.of("-9223372036854775809", BigInteger.class),
                 // Double.MAX
                 Arguments.of("1.7976931348623157E308", BigInteger.class),
+                Arguments.of("18446744073709551615e999", BigInteger.class),
+
             // Double cases
                 // Basic Fraction
                 Arguments.of("5.5", Double.class),
@@ -203,6 +185,7 @@ public class TestJsonNumber {
                 Arguments.of("-9223372036854775807.5", Double.class),
                 // Double.MIN
                 Arguments.of("4.9E-324", Double.class),
+                Arguments.of("9223372036854775807.5e0", Double.class),
             // BigDecimal cases
                 Arguments.of("9".repeat(309)+".9", BigDecimal.class)
         );
