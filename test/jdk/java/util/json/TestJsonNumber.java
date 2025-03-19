@@ -163,6 +163,13 @@ public class TestJsonNumber {
             // Double cases
                 // Basic Fraction
                 Arguments.of("5.5", Double.class),
+                // Rounds to 4.99999989...
+                Arguments.of("4.9999999", Double.class),
+                // Rounds to integral double value 5.0
+                Arguments.of("4.999999999999999999999999999999999999", Double.class),
+                // Round to integrals
+                Arguments.of("9007199254740989.5", Double.class),
+                Arguments.of("9007199254740990.999999999999", Double.class),
                 Arguments.of("0.0000123E-0000000045", Double.class),
                 // Fraction w/ more sig digs that Db supports
                 Arguments.of("5."+"5".repeat(17), Double.class),

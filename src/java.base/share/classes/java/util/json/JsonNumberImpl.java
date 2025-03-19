@@ -31,8 +31,10 @@ import java.math.BigDecimal;
  * JsonNumber implementation class
  */
 final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
-    private final BigDecimal MIN_LONG = BigDecimal.valueOf(Long.MIN_VALUE);
-    private final BigDecimal MAX_LONG = BigDecimal.valueOf(Long.MAX_VALUE);
+    private static final BigDecimal MIN_LONG = BigDecimal.valueOf(Long.MIN_VALUE);
+    private static final BigDecimal MAX_LONG = BigDecimal.valueOf(Long.MAX_VALUE);
+    private static final long MIN_POW_2_53 = -9_007_199_254_740_991L;
+    private static final long MAX_POW_2_53 = 9_007_199_254_740_991L;
 
     private final JsonDocumentInfo docInfo;
     private final int startOffset;
@@ -65,6 +67,7 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
         if (theNumber == null) {
             boolean integral = true;
             var str = string();
+            // Fast path for longs
             for (int index = 0; index < str.length(); index++) {
                 char c = str.charAt(index);
                 if (c == '.' || c == 'e' || c == 'E') {
@@ -79,6 +82,16 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
                 } catch (NumberFormatException _) {}
             }
 
+            // Fast path for doubles
+            // False negatives go down slow-path. E.g. 4.999999999...
+            // Can't false positive b/c whole numbers are exactly representable
+            // within +/- Math.pow(2,53) range
+            var db = Double.parseDouble(str);
+            if (db >= MIN_POW_2_53 && db <= MAX_POW_2_53 && db % 1L != 0) {
+                theNumber = db;
+                return theNumber;
+            }
+
             // Slow path
             var bd = new BigDecimal(str);
             if (bd.scale() <= 0 || bd.stripTrailingZeros().scale() <= 0) {
@@ -91,7 +104,6 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
                 }
             } else {
                 // fractions
-                var db = bd.doubleValue();
                 if (Double.isInfinite(db)) {
                     // Double was infinite, so try BI/BD
                     // This can throw NFE, as JSON Number syntax is not 1-1 with BD syntax
