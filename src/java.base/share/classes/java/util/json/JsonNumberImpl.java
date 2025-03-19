@@ -83,9 +83,12 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
             }
 
             // Fast path for doubles
-            // False negatives go down slow-path. E.g. 4.999999999...
-            // Can't false positive b/c whole numbers are exactly representable
-            // within +/- Math.pow(2,53) range
+            // Integral doubles within +/- 2^53 range are represented exactly,
+            // they do not incur rounding. Thus, check for a fractional value,
+            // if so parse via Double. Otherwise, proceed down slow path.
+            // In the case that a fractional decimal string rounds to an integral
+            // double (e.g. "4."+"9".repeat(16) -> 5.0), fast path can not be done,
+            // and the double is returned via slow path
             var db = Double.parseDouble(str);
             if (db >= MIN_POW_2_53 && db <= MAX_POW_2_53 && db % 1L != 0) {
                 theNumber = db;
