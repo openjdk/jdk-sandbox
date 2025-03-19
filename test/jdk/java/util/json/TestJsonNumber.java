@@ -72,6 +72,12 @@ public class TestJsonNumber {
         assertTrue(Json.fromUntyped(42e42) instanceof JsonNumber jn &&
                 jn.toNumber() instanceof double d &&
                 d == 42e42);
+        assertTrue(Json.fromUntyped(new BigInteger("1".repeat(400))) instanceof JsonNumber jn &&
+            jn.toNumber() instanceof BigInteger bi &&
+            bi.compareTo(new BigInteger("1".repeat(400))) == 0);
+        assertTrue(Json.fromUntyped(new BigDecimal("1e400")) instanceof JsonNumber jn &&
+            jn.toNumber() instanceof BigDecimal bd &&
+            bd.compareTo(new BigDecimal("1e400")) == 0);
 
         // factories
         assertEquals(JsonNumber.of((byte)42).toNumber(), 42L);

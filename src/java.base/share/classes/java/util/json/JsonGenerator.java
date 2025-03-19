@@ -25,6 +25,8 @@
 
 package java.util.json;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -104,6 +106,8 @@ final class JsonGenerator {
             case Short s -> JsonNumber.of(s);
             case Float f -> JsonNumber.of(f);
             case Double d -> new JsonNumberImpl(d);
+            case BigInteger bi -> new JsonNumberImpl(bi);
+            case BigDecimal bd -> new JsonNumberImpl(bd);
             case null -> JsonNull.of();
             // JsonValue
             case JsonValue jv -> jv;
