@@ -93,9 +93,9 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
             }
 
             // Slow path
-            var bd = new BigDecimal(str);
+            var bd = new BigDecimal(str); // Can throw NFE
             if (bd.scale() <= 0 || bd.stripTrailingZeros().scale() <= 0) {
-                // integral numbers
+                // integrals
                 if (bd.compareTo(MIN_LONG) >= 0 &&
                     bd.compareTo(MAX_LONG) <= 0) {
                     theNumber = bd.longValueExact();
@@ -105,13 +105,7 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
             } else {
                 // fractions
                 if (Double.isInfinite(db)) {
-                    // Double was infinite, so try BI/BD
-                    // This can throw NFE, as JSON Number syntax is not 1-1 with BD syntax
-                    try {
-                        theNumber = bd.toBigIntegerExact();
-                    } catch (ArithmeticException _) {
-                        theNumber = bd;
-                    }
+                    theNumber = bd;
                 } else {
                     theNumber = db;
                 }
