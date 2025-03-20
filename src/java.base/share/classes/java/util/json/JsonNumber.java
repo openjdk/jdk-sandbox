@@ -63,11 +63,13 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      * {@return the {@code Number} value represented by this JSON number}
      * <p>
      * If the JSON number has no fractional part and is within the range of
-     * {@code long} then this method returns an instance of {@code Long},
+     * {@code long}, this method returns an instance of {@code Long},
      * otherwise an instance of {@code BigInteger} is returned.
-     * If the JSON number has a fractional part and is within the range of
-     * {@code double} then this method returns an instance of {@code Double},
-     * otherwise an instance of {@code BigDecimal} is returned.
+     * If the JSON number has a fractional part, this method returns
+     * an instance of {@code Double} unless the parsed {@code double}
+     * value is {@code Double.POSITIVE_INFINITY} or
+     * {@code Double.NEGATIVE_INFINITY}. In those infinity cases, an
+     * instance of {@code BigDecimal} is returned.
      * In any of the four cases the lexical representation of the JSON
      * number is not guaranteed to be preserved, this representation can
      * be obtained from the JSON number's {@link #toString string value}.
@@ -105,8 +107,10 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      * {@return the {@code JsonNumber} created from the given
      * {@code double}}
      *
-     * @implNote If the given {@code double} is equivalent to {@code +/-infinity}
-     * or {@code NaN}, this method will throw an {@code IllegalArgumentException}.
+     * @implNote If the given {@code double} is equivalent to
+     * {@code Double.POSITIVE_INFINITY}, {@code Double.NEGATIVE_INFINITY},
+     * or {@code Double.NaN}, this method will throw an
+     * {@code IllegalArgumentException}.
      *
      * @param num the given {@code double}.
      * @throws IllegalArgumentException if the given {@code num} is out
