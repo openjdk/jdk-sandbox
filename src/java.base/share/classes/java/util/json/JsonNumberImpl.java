@@ -33,8 +33,8 @@ import java.math.BigDecimal;
 final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     private static final BigDecimal MIN_LONG = BigDecimal.valueOf(Long.MIN_VALUE);
     private static final BigDecimal MAX_LONG = BigDecimal.valueOf(Long.MAX_VALUE);
-    private static final long MIN_POW_2_53 = -9_007_199_254_740_991L;
-    private static final long MAX_POW_2_53 = 9_007_199_254_740_991L;
+    private static final long MIN_POW_2_53 = -9_007_199_254_740_992L;
+    private static final long MAX_POW_2_53 = 9_007_199_254_740_992L;
 
     private final JsonDocumentInfo docInfo;
     private final int startOffset;
