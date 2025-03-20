@@ -33,8 +33,8 @@ import java.math.BigDecimal;
 final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     private static final BigDecimal MIN_LONG = BigDecimal.valueOf(Long.MIN_VALUE);
     private static final BigDecimal MAX_LONG = BigDecimal.valueOf(Long.MAX_VALUE);
-    private static final long MIN_POW_2_53 = -9_007_199_254_740_992L;
-    private static final long MAX_POW_2_53 = 9_007_199_254_740_992L;
+    private static final long MIN_POW_2_52 = -4_503_599_627_370_496L;
+    private static final long MAX_POW_2_52 = 4_503_599_627_370_496L;
 
     private final JsonDocumentInfo docInfo;
     private final int startOffset;
@@ -83,14 +83,13 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
             }
 
             // Fast path for doubles
-            // Integral doubles within +/- 2^53 range are represented exactly,
-            // they do not incur rounding. Thus, check for a fractional value,
-            // if so parse via Double. Otherwise, proceed down slow path.
-            // In the case that a fractional decimal string rounds to an integral
-            // double (e.g. "4."+"9".repeat(16) -> 5.0), fast path can not be done,
-            // and the double is returned via slow path
+            // Doubles within +/- 2^52 - 1 have ulp < 1, so it's worthwhile to check
+            // for non-integral doubles which can be parsed via Double. Otherwise,
+            // proceed down slow path. If rounding incurs which rounds to an integral
+            // double (e.g. "4."+"9".repeat(16) -> 5.0), the slow path is taken
+            // and an appropriate value is returned there.
             var db = Double.parseDouble(str);
-            if (db > MIN_POW_2_53 && db < MAX_POW_2_53 && db % 1L != 0) {
+            if (db > MIN_POW_2_52 && db < MAX_POW_2_52 && db % 1L != 0) {
                 theNumber = db;
                 return theNumber;
             }
