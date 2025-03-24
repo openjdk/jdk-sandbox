@@ -62,19 +62,21 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
     /**
      * {@return the {@code Number} value represented by this JSON number}
      * <p>
-     * If the JSON number has no fractional part and is within the range of
-     * {@code long}, this method returns an instance of {@code Long},
-     * otherwise an instance of {@code BigInteger} is returned.
-     * If the JSON number has a fractional part, this method returns
-     * an instance of {@code Double} unless the parsed {@code double}
+     * If the JSON number has no fractional part and can be parsed as a
+     * {@code long} using {@link Long#parseLong(String)}, this method
+     * returns an instance of {@code Long}, otherwise an instance of
+     * {@code BigInteger} is returned. If the JSON number has a fractional
+     * part, this method returns an instance of {@code Double} by calling
+     * {@link Double#parseDouble(String)}, unless the parsed {@code double}
      * value is {@code Double.POSITIVE_INFINITY} or
-     * {@code Double.NEGATIVE_INFINITY}. In those infinity cases, an
-     * instance of {@code BigDecimal} is returned.
+     * {@code Double.NEGATIVE_INFINITY}. In such cases, an
+     * instance of {@code BigDecimal} is returned instead.
      * In any of the four cases the lexical representation of the JSON
      * number is not guaranteed to be preserved, this representation can
      * be obtained from the JSON number's {@link #toString string value}.
-     * If this {@code JsonNumber} is created with one of factory methods,
-     * this method returns the wrapper type of the input primitive type.
+     * If this {@code JsonNumber} is created using one of the factory methods
+     * ({@link #of(double)} or its overloads), this method returns an instance
+     * of the wrapper type corresponding to the input primitive type.
      *
      * @apiNote
      * Pattern matching can be used to match against Long, Double, BigInteger,
