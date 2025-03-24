@@ -63,14 +63,12 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      * {@return the {@code Number} value represented by this JSON number}
      * <p>
      * If the JSON number has no fractional part and can be parsed as a
-     * {@code long} using {@link Long#parseLong(String)}, this method
-     * returns an instance of {@code Long}, otherwise an instance of
-     * {@code BigInteger} is returned. If the JSON number has a fractional
-     * part, this method returns an instance of {@code Double} by calling
-     * {@link Double#parseDouble(String)}, unless the parsed {@code double}
-     * value is {@code Double.POSITIVE_INFINITY} or
-     * {@code Double.NEGATIVE_INFINITY}. In such cases, an
-     * instance of {@code BigDecimal} is returned instead.
+     * {@code long}, this method returns an instance of {@code Long},
+     * otherwise an instance of {@code BigInteger} is returned. If the
+     * JSON number has a fractional part, this method returns an instance
+     * of {@code Double}, unless the parsed {@code double} value is
+     * {@code Double.POSITIVE_INFINITY} or {@code Double.NEGATIVE_INFINITY}.
+     * In such cases, an instance of {@code BigDecimal} is returned instead.
      * In any of the four cases the lexical representation of the JSON
      * number is not guaranteed to be preserved, this representation can
      * be obtained from the JSON number's {@link #toString string value}.
