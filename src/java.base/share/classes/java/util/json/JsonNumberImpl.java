@@ -26,15 +26,12 @@
 package java.util.json;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 
 /**
  * JsonNumber implementation class
  */
 final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
-    private static final BigDecimal MIN_LONG = BigDecimal.valueOf(Long.MIN_VALUE);
-    private static final BigDecimal MAX_LONG = BigDecimal.valueOf(Long.MAX_VALUE);
-    private static final long MIN_POW_2_52 = -4_503_599_627_370_496L;
-    private static final long MAX_POW_2_52 = 4_503_599_627_370_496L;
 
     private final JsonDocumentInfo docInfo;
     private final int startOffset;
@@ -66,7 +63,8 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     public Number toNumber() {
         if (theNumber == null) {
             var str = string();
-            // Fast path for longs
+
+            // Check if integral (Java literal format)
             boolean integerOnly = true;
             for (int index = 0; index < str.length(); index++) {
                 char c = str.charAt(index);
@@ -80,34 +78,12 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
                     theNumber = Long.parseLong(str);
                     return theNumber;
                 } catch (NumberFormatException _) {}
-            }
-
-            // Fast path for doubles
-            // Doubles within +/- 2^52 - 1 have ulp < 1, so it's worthwhile to check
-            // for non-integral doubles which can be parsed via Double. Otherwise,
-            // proceed down slow path. If rounding incurs which rounds to an integral
-            // double (e.g. "4."+"9".repeat(16) -> 5.0), the slow path is taken
-            // and an appropriate value is returned there.
-            var db = Double.parseDouble(str);
-            if (db > MIN_POW_2_52 && db < MAX_POW_2_52 && db % 1L != 0) {
-                theNumber = db;
+                theNumber = new BigInteger(str);
                 return theNumber;
-            }
-
-            // Slow path
-            var bd = new BigDecimal(str); // Can throw NFE
-            if (bd.scale() <= 0 || bd.stripTrailingZeros().scale() <= 0) {
-                // integrals
-                if (bd.compareTo(MIN_LONG) >= 0 &&
-                    bd.compareTo(MAX_LONG) <= 0) {
-                    theNumber = bd.longValueExact();
-                } else {
-                    theNumber = bd.toBigIntegerExact();
-                }
             } else {
-                // fractions
+                var db = Double.parseDouble(str);
                 if (Double.isInfinite(db)) {
-                    theNumber = bd;
+                    theNumber = new BigDecimal(str);
                 } else {
                     theNumber = db;
                 }

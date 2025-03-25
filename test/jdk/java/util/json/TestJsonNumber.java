@@ -127,46 +127,35 @@ public class TestJsonNumber {
         return Stream.of(
             // Long cases
                 Arguments.of("1", Long.class),
-                Arguments.of("1.0", Long.class),
-                Arguments.of("1.000", Long.class),
-                Arguments.of("0.001e3", Long.class),
                 Arguments.of("0", Long.class),
                 Arguments.of("9223372036854775807", Long.class),
                 Arguments.of("-9223372036854775808", Long.class),
-                // Longs that contain decimal symbol
-                Arguments.of("1.0", Long.class),
-                Arguments.of("9223372036854775807.0", Long.class),
-                Arguments.of("-9223372036854775808.0", Long.class),
-                Arguments.of("9223372036854775807e0", Long.class),
-                Arguments.of("-9223372036854775807e0", Long.class),
-                // Longs that contain exponent
-                Arguments.of("1e0", Long.class),
-                Arguments.of("1e-0", Long.class),
-                Arguments.of("0.0", Long.class),
-                Arguments.of("-0.0", Long.class),
-                Arguments.of("0e0", Long.class),
-                Arguments.of("0e1", Long.class),
-                Arguments.of("0e-0", Long.class),
-                Arguments.of("0e-1", Long.class),
-                Arguments.of("5.5e1", Long.class),
-                Arguments.of("1.0e1", Long.class),
             // BigInteger cases
-                // Arbitrary large value surpassing Double.MAX
-                Arguments.of("9e999", BigInteger.class),
-                // Greater than Double.MAX
-                Arguments.of("1.7976931348623157E309", BigInteger.class),
-                // Less than -Double.MAX
-                Arguments.of("-1.7976931348623157E309", BigInteger.class),
-                // Greater than Long.MAX
-                Arguments.of("9223372036854775808", BigInteger.class),
-                Arguments.of("9223372036854775808e0", BigInteger.class),
+                Arguments.of("9".repeat(309), BigInteger.class),
                 // Less than Long.MIN
                 Arguments.of("-9223372036854775809", BigInteger.class),
-                // Double.MAX
-                Arguments.of("1.7976931348623157E308", BigInteger.class),
-                Arguments.of("18446744073709551615e999", BigInteger.class),
+                // Greater than Long.MAX
+                Arguments.of("9223372036854775808", BigInteger.class),
 
             // Double cases
+                Arguments.of("1.0", Double.class),
+                Arguments.of("9223372036854775807.0", Double.class),
+                Arguments.of("-9223372036854775808.0", Double.class),
+                Arguments.of("9223372036854775807e0", Double.class),
+                Arguments.of("-9223372036854775807e0", Double.class),
+                Arguments.of("1e0", Double.class),
+                Arguments.of("1e-0", Double.class),
+                Arguments.of("0.0", Double.class),
+                Arguments.of("-0.0", Double.class),
+                Arguments.of("0e0", Double.class),
+                Arguments.of("0e1", Double.class),
+                Arguments.of("0e-0", Double.class),
+                Arguments.of("0e-1", Double.class),
+                Arguments.of("5.5e1", Double.class),
+                Arguments.of("1.0e1", Double.class),
+                Arguments.of("1.0", Double.class),
+                Arguments.of("1.000", Double.class),
+                Arguments.of("0.001e3", Double.class),
                 // Basic Fraction
                 Arguments.of("5.5", Double.class),
                 // Rounds to 4.99999989...
@@ -188,7 +177,17 @@ public class TestJsonNumber {
                 // Double.MIN
                 Arguments.of("4.9E-324", Double.class),
                 Arguments.of("9223372036854775807.5e0", Double.class),
+                Arguments.of("9223372036854775808e0", Double.class),
+                // Double.MAX
+                Arguments.of("1.7976931348623157E308", Double.class),
             // BigDecimal cases
+                // Arbitrary large value surpassing Double.MAX
+                Arguments.of("9e999", BigDecimal.class),
+                // Greater than Double.MAX
+                Arguments.of("1.7976931348623157E309", BigDecimal.class),
+                // Less than -Double.MAX
+                Arguments.of("-1.7976931348623157E309", BigDecimal.class),
+                Arguments.of("18446744073709551615e999", BigDecimal.class),
                 Arguments.of("9".repeat(309)+".9", BigDecimal.class)
         );
     }
