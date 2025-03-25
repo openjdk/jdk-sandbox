@@ -76,10 +76,9 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
             if (integerOnly) {
                 try {
                     theNumber = Long.parseLong(str);
-                    return theNumber;
-                } catch (NumberFormatException _) {}
-                theNumber = new BigInteger(str);
-                return theNumber;
+                } catch (NumberFormatException _) {
+                    theNumber = new BigInteger(str);
+                }
             } else {
                 var db = Double.parseDouble(str);
                 if (Double.isInfinite(db)) {
