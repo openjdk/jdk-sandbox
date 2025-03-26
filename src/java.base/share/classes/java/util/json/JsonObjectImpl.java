@@ -142,22 +142,19 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
             s.append("{}");
         } else {
             s.append("{\n");
-            members().entrySet().stream()
-                .forEach(e -> {
-                    var key = e.getKey();
-                    var value = e.getValue();
-                    if (value instanceof JsonValueImpl val) {
-                        s.append(prefix)
-                                .append(" ".repeat(INDENT))
-                                .append("\"")
-                                .append(key)
-                                .append("\":")
-                                .append(val.toDisplayString(indent + INDENT, true))
-                                .append(",\n");
-                    } else {
-                        throw new InternalError("type mismatch");
-                    }
-                });
+            members().forEach((key, value) -> {
+                if (value instanceof JsonValueImpl val) {
+                    s.append(prefix)
+                            .append(" ".repeat(INDENT))
+                            .append("\"")
+                            .append(key)
+                            .append("\":")
+                            .append(val.toDisplayString(indent + INDENT, true))
+                            .append(",\n");
+                } else {
+                    throw new InternalError("type mismatch");
+                }
+            });
             s.setLength(s.length() - 2); // trim final comma
             s.append("\n").append(prefix).append("}");
         }
