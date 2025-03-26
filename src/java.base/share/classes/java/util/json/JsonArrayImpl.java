@@ -28,7 +28,6 @@ package java.util.json;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -55,7 +54,7 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
     JsonArrayImpl(List<?> from, Set<Object> identitySet) {
         List<JsonValue> l = new ArrayList<>(from.size());
         for (Object o : from) {
-            l.add(JsonGenerator.fromUntyped(o, identitySet));
+            l.add(JsonFactory.fromUntyped(o, identitySet));
         }
         theValues = Collections.unmodifiableList(l);
         this.endIndex = 0;
@@ -93,7 +92,7 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
             if (docInfo.shouldWalkToken(docInfo.charAtIndex(index + 1))) {
                 index++;
             }
-            var value = JsonGenerator.createValue(docInfo, offset, index);
+            var value = JsonFactory.createValue(docInfo, offset, index);
             v.add(value);
             index = ((JsonValueImpl)value).getEndIndex(); // Move to comma or closing
         }

@@ -56,7 +56,7 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
             if (!(entry.getKey() instanceof String strKey)) {
                 throw new IllegalArgumentException("Key is not a String: " + entry.getKey());
             } else {
-                m.put(strKey, JsonGenerator.fromUntyped(entry.getValue(), identitySet));
+                m.put(strKey, JsonFactory.fromUntyped(entry.getValue(), identitySet));
             }
         }
         theMembers = Collections.unmodifiableMap(m);
@@ -97,7 +97,7 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
             if (docInfo.shouldWalkToken(docInfo.charAtIndex(index + 1))) {
                 index++;
             }
-            var value = JsonGenerator.createValue(docInfo, offset, index);
+            var value = JsonFactory.createValue(docInfo, offset, index);
 
             // Store key and value
             k.put(key, value);

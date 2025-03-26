@@ -32,7 +32,7 @@ import java.util.Map;
 import java.util.Set;
 
 // Responsible for creating "lazy" state JsonValue(s) using the tokens array
-final class JsonGenerator {
+final class JsonFactory {
 
     static JsonValue createValue(JsonDocumentInfo docInfo, int offset, int index) {
         offset = JsonParser.skipWhitespaces(docInfo, offset);
@@ -116,5 +116,5 @@ final class JsonGenerator {
     }
 
     // no instantiation of this generator
-    private JsonGenerator(){}
+    private JsonFactory(){}
 }

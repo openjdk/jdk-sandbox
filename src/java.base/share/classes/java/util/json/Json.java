@@ -103,7 +103,7 @@ public final class Json {
      */
     public static JsonValue parse(String in) {
         Objects.requireNonNull(in);
-        return JsonGenerator.createValue(JsonParser.parseRoot(
+        return JsonFactory.createValue(JsonParser.parseRoot(
                 new JsonDocumentInfo(in.toCharArray())), 0, 0);
     }
 
@@ -124,7 +124,7 @@ public final class Json {
      */
     public static JsonValue parse(char[] in) {
         Objects.requireNonNull(in);
-        return JsonGenerator.createValue(JsonParser.parseRoot(
+        return JsonFactory.createValue(JsonParser.parseRoot(
                 new JsonDocumentInfo(Arrays.copyOf(in, in.length))), 0, 0);
     }
 
@@ -151,7 +151,7 @@ public final class Json {
         if (src instanceof JsonValue jv) {
             return jv;
         } else {
-            return JsonGenerator.fromUntyped(
+            return JsonFactory.fromUntyped(
                     src, Collections.newSetFromMap(new IdentityHashMap<>()));
         }
     }
