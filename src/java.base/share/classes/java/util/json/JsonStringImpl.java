@@ -25,8 +25,6 @@
 
 package java.util.json;
 
-import java.util.Objects;
-
 /**
  * JsonString implementation class
  */

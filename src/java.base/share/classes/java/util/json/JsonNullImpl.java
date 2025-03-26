@@ -37,7 +37,6 @@ final class JsonNullImpl implements JsonNull, JsonValueImpl {
 
     static final JsonNullImpl NULL = new JsonNullImpl();
     static final String VALUE = "null";
-    static final int HASH = Objects.hash(VALUE);
 
     JsonNullImpl() {
         endIndex = 0;
