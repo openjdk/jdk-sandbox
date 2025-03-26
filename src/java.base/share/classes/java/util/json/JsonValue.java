@@ -43,7 +43,10 @@ import jdk.internal.javac.PreviewFeature;
  * once created, cannot be modified.
  * Instances of {@code JsonValue} are not equitable. Their {@code equals()} methods
  * inherit the identity semantics of the {@code Object} class and are not intended for
- * comparing the JSON values represented by these instances.
+ * comparing the JSON values represented by these instances. Rather, the underlying
+ * values provided by the {@code JsonValue} can be used for equality. For example,
+ * a {@code JsonNumber} could compare equality based on its {@link JsonNumber#toString()}
+ * value, or its {@link JsonNumber#toNumber()} value.
  *
  * @since 25
  */
