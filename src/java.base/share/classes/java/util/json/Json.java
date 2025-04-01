@@ -89,8 +89,7 @@ public final class Json {
     /**
      * Parses and creates the top level {@code JsonValue} in this JSON
      * document. If parsing succeeds, it guarantees that the input document
-     * conforms to the JSON syntax. However, it does not necessarily guarantee
-     * if every leaf level JSON element gets converted to a {@code JsonValue}.
+     * conforms to the JSON syntax.
      * If the document contains any JSON Object that has duplicate keys, a
      * {@code JsonParseException} is thrown.
      *
@@ -110,8 +109,7 @@ public final class Json {
     /**
      * Parses and creates the top level {@code JsonValue} in this JSON
      * document. If parsing succeeds, it guarantees that the input document
-     * conforms to the JSON syntax. However, it does not necessarily guarantee
-     * if every leaf level JSON element gets converted to a {@code JsonValue}.
+     * conforms to the JSON syntax.
      * If the document contains any JSON Object that has duplicate keys, a
      * {@code JsonParseException} is thrown.
      *
