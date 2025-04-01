@@ -83,11 +83,7 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
             } else {
                 var db = Double.parseDouble(str);
                 if (Double.isInfinite(db)) {
-                    if (cachedBD instanceof BigDecimal bd) {
-                        theNumber = bd;
-                    } else {
-                        theNumber = new BigDecimal(str);
-                    }
+                    theNumber = toBigDecimal();
                 } else {
                     theNumber = db;
                 }
