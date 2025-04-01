@@ -123,6 +123,13 @@ public class TestJsonNumber {
         else if (type == BigInteger.class) {assertEquals(new BigDecimal(json).toBigIntegerExact(), num);}
     }
 
+    @ParameterizedTest
+    @MethodSource("parseCases")
+    void toBigDecimalParseTest(String json) {
+        assertTrue(new BigDecimal(json).stripTrailingZeros()
+            .compareTo(((JsonNumber) Json.parse(json)).toBigDecimal()) == 0);
+    }
+
     private static Stream<Arguments> parseCases() {
         return Stream.of(
             // Long cases
@@ -196,5 +203,11 @@ public class TestJsonNumber {
     void toNumberThrowsTest() {
         var jn = (JsonNumber) Json.parse("9e111111111111");
         assertThrows(NumberFormatException.class, jn::toNumber);
+    }
+
+    @Test
+    void toBigDecimalThrowsTest() {
+        var jn = (JsonNumber) Json.parse("9e111111111111");
+        assertThrows(NumberFormatException.class, jn::toBigDecimal);
     }
 }

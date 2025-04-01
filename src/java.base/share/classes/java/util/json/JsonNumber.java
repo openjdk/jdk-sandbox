@@ -25,6 +25,7 @@
 
 package java.util.json;
 
+import java.math.BigDecimal;
 import jdk.internal.javac.PreviewFeature;
 
 /**
@@ -37,8 +38,9 @@ import jdk.internal.javac.PreviewFeature;
  * When a JSON number is parsed, a {@code JsonNumber} object is created
  * as long as the syntax is valid. The value of the {@code JsonNumber}
  * can be retrieved from {@link #toString()} as the {@code String} representation
- * from which the JSON number is originally parsed, or with
- * {@link #toNumber()} as a {@code Number} instance.
+ * from which the JSON number is originally parsed, with
+ * {@link #toNumber()} as a {@code Number} instance, or with
+ * {@link #toBigDecimal()} in non-lossy way.
  *
  * @since 25
  */
@@ -62,43 +64,37 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
     /**
      * {@return the {@code Number} value represented by this JSON number}
      * <p>
-     * If the JSON number has no fractional part and can be parsed as a
-     * {@code long} using {@link Long#parseLong(String)}, this method
-     * returns an instance of {@code Long}. If it cannot be parsed as a
-     * {@code long}, this method returns an instance of {@code BigInteger}.
-     * <P>
-     * If the JSON number has a fractional part, this method returns an
-     * instance of {@code Double} using {@link Double#parseDouble(String)},
-     * unless the parsed {@code double} value is
-     * {@code Double.POSITIVE_INFINITY} or {@code Double.NEGATIVE_INFINITY}.
-     * In such cases, an instance of {@code BigDecimal} is returned instead.
+     * The return type depends on the structure of the JSON number:
+     * <ul>
+     * <li>If the number has neither a fractional nor an exponent part and
+     * can be parsed as a {@code long} using {@link Long#parseLong(String)},
+     * this method returns an instance of {@code Long}. Otherwise, it returns
+     * an instance of {@code BigInteger}.</li>
+     * <li>If the number contains a fractional or exponent part, this method
+     * returns an instance of {@code Double} using
+     * {@link Double#parseDouble(String)}. However, if the parsed value is
+     * {@code Double.POSITIVE_INFINITY} or {@code Double.NEGATIVE_INFINITY}, an
+     * instance of {@code BigDecimal} is returned instead.</li>
+     * </ul>
      * <p>
-     * In any of the four cases the lexical representation of the JSON
-     * number is not guaranteed to be preserved, this representation can
-     * be obtained from the JSON number's {@link #toString string value}.
+     * The lexical representation of the JSON number is not guaranteed to be
+     * preserved. To obtain the original string representation, use the
+     * {@link #toString()} method.
+     * <p>
      * If this {@code JsonNumber} is created using one of the factory methods
-     * ({@link #of(double)} or its overloads), this method returns an instance
-     * of the wrapper type corresponding to the input primitive type.
+     * ({@link #of(double)} or its overloads), the returned instance corresponds
+     * to the wrapper type of the input primitive type.
      *
      * @apiNote
      * Pattern matching can be used to match against Long, Double, BigInteger,
-     * or BigDecimal reference types. Subsequently, primitive type pattern
-     * matching the unboxed values of Long, Double can be performed, for
-     * example to determine if the JsonNumber can be represented as an
-     * int value with no loss of precision. For example:
+     * or BigDecimal reference types. For example:
      * {@snippet lang=java:
      * switch(jsonNumber.toNumber()) {
-     *     case Long bl when bl.longValue() instanceof int i -> { ... }
-     *     case Double bd when bd.doubleValue() instanceof int i -> { ... }
-     *     default -> { ... }
-     * }
-     *}
-     * Or with unboxing:
-     * {@snippet lang=java:
-     * switch(jsonNumber.toNumber()) {
-     *     case long l when l instanceof int i -> { ... }
-     *     case double d when d instanceof int i -> { ... }
-     *     default -> { ... }
+     *     case Long l -> { ... }
+     *     case Double d -> { ... }
+     *     case BigInteger bi -> { ... }
+     *     case BigDecimal bd -> { ... }
+     *     default -> { } // should not happen
      * }
      *}
      * @throws NumberFormatException if this {@code JsonNumber} can not be
@@ -106,6 +102,14 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      *      or {@code BigInteger}.
      */
     Number toNumber();
+
+    /**
+     * {@return the {@code BigDecimal} value represented by this
+     * {@code JsonNumber}}
+     * @throws NumberFormatException if this {@code JsonNumber} can not be
+     *      represented by a {@code BigDecimal}.
+     */
+    BigDecimal toBigDecimal();
 
     /**
      * {@return the {@code JsonNumber} created from the given

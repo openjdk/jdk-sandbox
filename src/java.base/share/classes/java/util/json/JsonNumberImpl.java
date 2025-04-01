@@ -39,6 +39,7 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     private final int endIndex;
     private Number theNumber;
     private String numString;
+    private BigDecimal cachedBD;
 
     JsonNumberImpl(Number num) {
         if (num == null ||
@@ -89,6 +90,17 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
             }
         }
         return theNumber;
+    }
+
+    public BigDecimal toBigDecimal() {
+        if (cachedBD == null) {
+            if (theNumber instanceof BigDecimal bd) {
+                cachedBD = bd;
+            } else {
+                cachedBD = new BigDecimal(string());
+            }
+        }
+        return cachedBD;
     }
 
     private String string() {
