@@ -62,9 +62,9 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
     String toString();
 
     /**
-     * {@return the {@code Number} value represented by this JSON number}
+     * {@return the {@code Number} value represented by this {@code JsonNumber}}
      * <p>
-     * The return type depends on the structure of the JSON number:
+     * The return type depends on the structure of its lexical representation:
      * <ul>
      * <li>If the number has neither a fractional nor an exponent part and
      * can be parsed as a {@code long} using {@link Long#parseLong(String)},
@@ -86,8 +86,9 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      * to the wrapper type of the input primitive type.
      *
      * @apiNote
-     * Pattern matching can be used to match against Long, Double, BigInteger,
-     * or BigDecimal reference types. For example:
+     * Pattern matching can be used to match against {@code Long},
+     * {@code Double}, {@code BigInteger}, or {@code BigDecimal} reference
+     * types. For example:
      * {@snippet lang=java:
      * switch(jsonNumber.toNumber()) {
      *     case Long l -> { ... }
@@ -98,8 +99,8 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      * }
      *}
      * @throws NumberFormatException if this {@code JsonNumber} can not be
-     *      represented by a {@code Long}, {@code Double}, {@code BigDecimal},
-     *      or {@code BigInteger}.
+     *      represented by a {@code Long}, {@code Double}, {@code BigInteger},
+     *      or {@code BigDecimal}.
      */
     Number toNumber();
 
