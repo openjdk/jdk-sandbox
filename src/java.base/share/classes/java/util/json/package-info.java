@@ -33,12 +33,12 @@
  * sealed {@code JsonValue} <i>sum</i> type, which can be
  * pattern-matched into one of the following <i>product</i> types: {@code JsonObject},
  * {@code JsonArray}, {@code JsonString}, {@code JsonNumber}, {@code JsonBoolean},
- * {@code JsonNull}.
+ * {@code JsonNull}. These product types are defined as sealed interfaces that
+ * allow flexibility in the implementation of the type. For example, {@code JsonArray}
+ * is defined as follows:
+ * <pre>{@code public sealed interface JsonArray extends JsonValue permits (JsonArray implementation classes)}</pre>
  *
- * <p> Users may be familiar with other JSON APIs that provide convenience
- * methods which directly convert to subtypes (e.g. {@code asXXX()}). This library
- * does not provide such methods and relies on pattern matching instead to make
- * such conversions. Consuming JSON in this style allows for the extraction of a
+ * <p> This API relies on pattern matching to allow for the extraction of a
  * JSON Value in a <i>single and class safe expression</i> as follows:
  * {@snippet lang=java:
  * JsonValue doc = Json.parse(text);
