@@ -65,7 +65,7 @@ import java.util.Objects;
      *     <th> {@code JsonNull}</th>
      * </tr>
      * <tr>
-     *     <th>{@code Number}</th>
+     *     <th>{@code Number*}</th>
      *     <th>{@code JsonNumber}</th>
      * </tr>
      * <tr>
@@ -78,6 +78,9 @@ import java.util.Objects;
      * </tr>
  * </tbody>
  * </table>
+ *
+ * <i>The supported Number subclasses are: Byte, Integer, Long, Short, Float,
+ * Double, BigInteger, and BigDecimal</i>
  *
  * @spec https://datatracker.ietf.org/doc/html/rfc8259 RFC 8259: The JavaScript
  *          Object Notation (JSON) Data Interchange Format
