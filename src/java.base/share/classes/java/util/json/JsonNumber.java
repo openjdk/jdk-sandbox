@@ -113,7 +113,7 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
 
     /**
      * {@return the {@code BigDecimal} translated from the
-     * {@link #toString string representation} of this {@code JsonNumber}}.
+     * {@link #toString string representation} of this {@code JsonNumber}}
      * <p>
      * The string representation is the decimal string representation of a
      * {@code BigDecimal}, translatable by {@link java.math.BigDecimal#BigDecimal(String)},
@@ -145,7 +145,7 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
     /**
      * Creates a JSON number whose string representation is the
      * decimal string representation of the given {@code long} value,
-     * produced by applying the value to {@link Long#toString(long )}.
+     * produced by applying the value to {@link Long#toString(long)}.
      *
      * @param num the given {@code long} value.
      * @return a JSON number created from a {@code long} value
@@ -155,11 +155,25 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
         return new JsonNumberImpl(num);
     }
 
-    // @@@ Factory, BigDecimal and BigInteger, or Number constrained to the four types?
-//    static JsonNumber of(Number num) {
-//        // integral types
-//        return new JsonNumberImpl(num);
-//    }
+    /**
+     * Creates a JSON number whose string representation is the
+     * string representation of the given {@code BigInteger} value.
+     *
+     * @param num the given {@code BigInteger} value.
+     * @return a JSON number created from a {@code BigInteger} value
+     */
+    static JsonNumber of(BigInteger num) {
+        return new JsonNumberImpl(num);
+    }
 
-    // (where the String representation is produced by invoking toString on the number)
+    /**
+     * Creates a JSON number whose string representation is the
+     * string representation of the given {@code BigDecimal} value.
+     *
+     * @param num the given {@code BigDecimal} value.
+     * @return a JSON number created from a {@code BigDecimal} value
+     */
+    static JsonNumber of(BigDecimal num) {
+        return new JsonNumberImpl(num);
+    }
 }
