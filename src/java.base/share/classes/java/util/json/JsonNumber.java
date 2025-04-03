@@ -26,64 +26,71 @@
 package java.util.json;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
+
 import jdk.internal.javac.PreviewFeature;
 
 /**
- * The interface that represents JSON number. The model presented by
- * {@code JsonNumber} is an arbitrary-precision decimal number.
+ * The interface that represents JSON number, an arbitrary-precision
+ * number represented in base 10 using decimal digits.
  * <p>
  * A {@code JsonNumber} can be produced by {@link Json#parse(String)}.
- * Alternatively, {@link #of(double)} and its overload can be used to obtain
+ * Alternatively, {@link #of(double)} and its overloads can be used to obtain
  * a {@code JsonNumber} from a {@code Number}.
  * When a JSON number is parsed, a {@code JsonNumber} object is created
  * as long as the syntax is valid. The value of the {@code JsonNumber}
- * can be retrieved from {@link #toString()} as the {@code String} representation
+ * can be retrieved from {@link #toString()} as the string representation
  * from which the JSON number is originally parsed, with
  * {@link #toNumber()} as a {@code Number} instance, or with
- * {@link #toBigDecimal()} in non-lossy way.
+ * {@link #toBigDecimal()}.
  *
- * @since 25
+ * @since 99
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)
 public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
 
     /**
-     * {@return the String representation of this {@code JsonNumber}}
-     * If this {@code JsonNumber} is created by parsing a JSON document,
-     * it preserves the text representation of the JSON number, regardless of its
+     * {@return the decimal string representation of this {@code JsonNumber}}
+     *
+     * If this {@code JsonNumber} is created by parsing a JSON number in a JSON document,
+     * it preserves the string representation in the document, regardless of its
      * precision or range. For example, a JSON number like
      * {@code 3.141592653589793238462643383279} in the JSON document will be
      * returned exactly as it appears.
      * If this {@code JsonNumber} is created via one of the factory methods,
-     * such as {@link JsonNumber#of(double)}, the resulting String has the
-     * same decimal digits that would result from converting the double value
-     * to String as if by {@link Double#toString(double)}.
+     * such as {@link JsonNumber#of(double)}, then the string representation is
+     * specified by the factory method.
      */
     String toString();
 
     /**
-     * {@return the {@code Number} value represented by this {@code JsonNumber}}
+     * {@return the {@code Number} parsed or translated from the
+     * {@link #toString string representation} of this {@code JsonNumber}}.
      * <p>
-     * The return type depends on the structure of its lexical representation:
-     * <ul>
-     * <li>If the number has neither a fractional nor an exponent part and
-     * can be parsed as a {@code long} using {@link Long#parseLong(String)},
-     * this method returns an instance of {@code Long}. Otherwise, it returns
-     * an instance of {@code BigInteger}.</li>
-     * <li>If the number contains a fractional or exponent part, this method
-     * returns an instance of {@code Double} using
-     * {@link Double#parseDouble(String)}. However, if the parsed value is
-     * {@code Double.POSITIVE_INFINITY} or {@code Double.NEGATIVE_INFINITY}, an
-     * instance of {@code BigDecimal} is returned instead.</li>
-     * </ul>
+     * This method operates on the string representation and depending on that
+     * representation computes and returns an instance of {@code Long}, {@code BigInteger},
+     * {@code Double}, or {@code BigDecimal}.
      * <p>
-     * The lexical representation of the JSON number is not guaranteed to be
-     * preserved. To obtain the original string representation, use the
-     * {@link #toString()} method.
+     * If the string representation is the decimal string representation of
+     * a {@code long} value, parsable by {@link Long#parseLong},
+     * then that {@code long} value is returned in its boxed form as {@code Long}.
+     * Otherwise, if the string representation is the decimal string representation of a
+     * {@code BigInteger}, translatable by {@link java.math.BigInteger#BigInteger(String)},
+     * then that {@code BigInteger} is returned.
+     * Otherwise, if the string representation is the decimal string representation of
+     * a {@code double} value, parsable by {@link Double#parseDouble},
+     * and the {@code double} value is not {@link Double#isInfinite() infinite}, then that
+     * {@code double} value is returned in its boxed form as {@code Double}.
+     * Otherwise, and in all other cases, the string representation is the decimal string
+     * representation of a {@code BigDecimal}, translatable by
+     * {@link java.math.BigDecimal#BigDecimal(String)}, and that {@code BigDecimal} is
+     * returned.
      * <p>
-     * If this {@code JsonNumber} is created using one of the factory methods
-     * ({@link #of(double)} or its overloads), the returned instance corresponds
-     * to the wrapper type of the input primitive type.
+     * The computation may not preserve all information in the string representation.
+     * In all of the above cases one or more leading zero digits are not preserved.
+     * In the third case, returning {@code Double}, decimal to binary conversion may lose
+     * decimal precision, and will not preserve one or more trailing zero digits in the fraction
+     * part.
      *
      * @apiNote
      * Pattern matching can be used to match against {@code Long},
@@ -98,32 +105,37 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      *     default -> { } // should not happen
      * }
      *}
-     * @throws NumberFormatException if this {@code JsonNumber} can not be
-     *      represented by a {@code Long}, {@code Double}, {@code BigInteger},
-     *      or {@code BigDecimal}.
+     * @throws NumberFormatException if the {@code Number} cannot be parsed or translated from the string representation
+     * @see #toBigDecimal()
+     * @see #toString()
      */
     Number toNumber();
 
     /**
-     * {@return the {@code BigDecimal} value represented by this
-     * {@code JsonNumber}}
-     * @throws NumberFormatException if this {@code JsonNumber} can not be
-     *      represented by a {@code BigDecimal}.
+     * {@return the {@code BigDecimal} translated from the
+     * {@link #toString string representation} of this {@code JsonNumber}}.
+     * <p>
+     * The string representation is the decimal string representation of a
+     * {@code BigDecimal}, translatable by {@link java.math.BigDecimal#BigDecimal(String)},
+     * and that {@code BigDecimal} is returned.
+     * <p>
+     * The translation may not preserve all information in the string representation.
+     * The sign is not preserved for the decimal string representation {@code -0.0}. One or more
+     * leading zero digits are not preserved.
+     *
+     * @throws NumberFormatException if the {@code BigDecimal} cannot be translated from the string representation
      */
     BigDecimal toBigDecimal();
 
     /**
-     * {@return the {@code JsonNumber} created from the given
-     * {@code double}}
+     * Creates a JSON number whose string representation is the
+     * decimal string representation of the given {@code double} value,
+     * produced by applying the value to {@link Double#toString(double )}.
      *
-     * @implNote If the given {@code double} is equivalent to
-     * {@code Double.POSITIVE_INFINITY}, {@code Double.NEGATIVE_INFINITY},
-     * or {@code Double.NaN}, this method will throw an
-     * {@code IllegalArgumentException}.
-     *
-     * @param num the given {@code double}.
-     * @throws IllegalArgumentException if the given {@code num} is out
-     *          of the accepted range.
+     * @param num the given {@code double} value.
+     * @return a JSON number created from a {@code double} value
+     * @throws IllegalArgumentException if the given {@code double} value
+     * is {@link Double#isNaN() NaN} or is {@link Double#isInfinite() infinite}.
      */
     static JsonNumber of(double num) {
         // non-integral types
@@ -131,13 +143,23 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
     }
 
     /**
-     * {@return the {@code JsonNumber} created from the given
-     * {@code long}}
+     * Creates a JSON number whose string representation is the
+     * decimal string representation of the given {@code long} value,
+     * produced by applying the value to {@link Long#toString(long )}.
      *
-     * @param num the given {@code long}.
+     * @param num the given {@code long} value.
+     * @return a JSON number created from a {@code long} value
      */
     static JsonNumber of(long num) {
         // integral types
         return new JsonNumberImpl(num);
     }
+
+    // @@@ Factory, BigDecimal and BigInteger, or Number constrained to the four types?
+//    static JsonNumber of(Number num) {
+//        // integral types
+//        return new JsonNumberImpl(num);
+//    }
+
+    // (where the String representation is produced by invoking toString on the number)
 }
