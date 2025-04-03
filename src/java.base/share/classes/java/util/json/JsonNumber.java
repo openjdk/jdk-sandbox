@@ -72,7 +72,7 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      * {@code Double}, or {@code BigDecimal}.
      * <p>
      * If the string representation is the decimal string representation of
-     * a {@code long} value, parsable by {@link Long#parseLong},
+     * a {@code long} value, parsable by {@link Long#parseLong(String)},
      * then that {@code long} value is returned in its boxed form as {@code Long}.
      * Otherwise, if the string representation is the decimal string representation of a
      * {@code BigInteger}, translatable by {@link java.math.BigInteger#BigInteger(String)},
