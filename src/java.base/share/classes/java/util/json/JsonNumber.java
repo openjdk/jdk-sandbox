@@ -65,7 +65,7 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
 
     /**
      * {@return the {@code Number} parsed or translated from the
-     * {@link #toString string representation} of this {@code JsonNumber}}.
+     * {@link #toString string representation} of this {@code JsonNumber}}
      * <p>
      * This method operates on the string representation and depending on that
      * representation computes and returns an instance of {@code Long}, {@code BigInteger},
@@ -75,15 +75,15 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      * a {@code long} value, parsable by {@link Long#parseLong(String)},
      * then that {@code long} value is returned in its boxed form as {@code Long}.
      * Otherwise, if the string representation is the decimal string representation of a
-     * {@code BigInteger}, translatable by {@link java.math.BigInteger#BigInteger(String)},
+     * {@code BigInteger}, translatable by {@link BigInteger#BigInteger(String)},
      * then that {@code BigInteger} is returned.
      * Otherwise, if the string representation is the decimal string representation of
-     * a {@code double} value, parsable by {@link Double#parseDouble},
+     * a {@code double} value, parsable by {@link Double#parseDouble(String)},
      * and the {@code double} value is not {@link Double#isInfinite() infinite}, then that
      * {@code double} value is returned in its boxed form as {@code Double}.
      * Otherwise, and in all other cases, the string representation is the decimal string
      * representation of a {@code BigDecimal}, translatable by
-     * {@link java.math.BigDecimal#BigDecimal(String)}, and that {@code BigDecimal} is
+     * {@link BigDecimal#BigDecimal(String)}, and that {@code BigDecimal} is
      * returned.
      * <p>
      * The computation may not preserve all information in the string representation.
@@ -116,7 +116,7 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      * {@link #toString string representation} of this {@code JsonNumber}}
      * <p>
      * The string representation is the decimal string representation of a
-     * {@code BigDecimal}, translatable by {@link java.math.BigDecimal#BigDecimal(String)},
+     * {@code BigDecimal}, translatable by {@link BigDecimal#BigDecimal(String)},
      * and that {@code BigDecimal} is returned.
      * <p>
      * The translation may not preserve all information in the string representation.
@@ -130,7 +130,7 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
     /**
      * Creates a JSON number whose string representation is the
      * decimal string representation of the given {@code double} value,
-     * produced by applying the value to {@link Double#toString(double )}.
+     * produced by applying the value to {@link Double#toString(double)}.
      *
      * @param num the given {@code double} value.
      * @return a JSON number created from a {@code double} value

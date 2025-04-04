@@ -106,8 +106,8 @@ final class JsonFactory {
             case Short s -> JsonNumber.of(s);
             case Float f -> JsonNumber.of(f);
             case Double d -> new JsonNumberImpl(d);
-            case BigInteger bi -> new JsonNumberImpl(bi);
-            case BigDecimal bd -> new JsonNumberImpl(bd);
+            case BigInteger bi -> JsonNumber.of(bi);
+            case BigDecimal bd -> JsonNumber.of(bd);
             case null -> JsonNull.of();
             // JsonValue
             case JsonValue jv -> jv;
