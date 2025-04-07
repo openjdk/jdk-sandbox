@@ -213,16 +213,24 @@ public class TestJsonNumber {
 
     @ParameterizedTest
     @MethodSource
-    void factoryTest(Number n, Class<?> type) {
+    void factoryTest(Number n) {
         var str = switch (n) {
+            case byte b -> JsonNumber.of(b).toString();
+            case short s -> JsonNumber.of(s).toString();
+            case int i -> JsonNumber.of(i).toString();
             case long l -> JsonNumber.of(l).toString();
+            case float f -> JsonNumber.of(f).toString();
             case double d -> JsonNumber.of(d).toString();
             case BigInteger bi -> JsonNumber.of(bi).toString();
             case BigDecimal bd -> JsonNumber.of(bd).toString();
             default -> throw new IllegalArgumentException("incorrect test argument");
         };
         var expected = switch (n) {
+            case byte b -> Long.toString(b);
+            case short s -> Long.toString(s);
+            case int i -> Long.toString(i);
             case long l -> Long.toString(l);
+            case float f -> Double.toString(f);
             case double d -> Double.toString(d);
             case BigInteger bi -> bi.toString();
             case BigDecimal bd -> bd.toString();
@@ -233,11 +241,15 @@ public class TestJsonNumber {
 
     private static Stream<Arguments> factoryTest() {
         return Stream.of(
-            Arguments.of(1L, Long.class),
-            Arguments.of(1.0d, Double.class),
-            Arguments.of(new BigInteger("10000000000000000000000000000000000000000000000000000000000000"),  BigInteger.class),
-            Arguments.of(new BigDecimal("1.0"),  BigDecimal.class),
-            Arguments.of(new BigDecimal(1.2d),  BigDecimal.class)
+            Arguments.of((byte)1),
+            Arguments.of((short)1),
+            Arguments.of((int)1),
+            Arguments.of(1L),
+            Arguments.of(1.0000000596046448f), // 1.0000001f -> 1.0000001192092896d
+            Arguments.of(1.0000000596046448d),
+            Arguments.of(new BigInteger("10000000000000000000000000000000000000000000000000000000000000")),
+            Arguments.of(new BigDecimal("1.0000000596046448")),
+            Arguments.of(new BigDecimal(1.0000000596046448d))
         );
     }
 }
