@@ -49,11 +49,11 @@
  * }
  * }
  *
- * Instances of {@code JsonValue} are not equitable, the underlying
- * state values should be used for such purposes. Access to state is provided
- * by accessors at the product type level, such as {@link
- * java.util.json.JsonNumber#toNumber()} (and later deconstructors).
- * Instances of {@code JsonValue} and their state values are immutable.
+ * JSON values represented by {@code JsonValue} instances are not intended to be
+ * compared using {@code JsonValue.equals()}. Instead, equality should be determined
+ * by comparing the underlying values, accessible via product type specific accessors
+ * such as {@link JsonNumber#toNumber()} (and later deconstructors). Both
+ * {@code JsonValue} instances and their underlying values are immutable.
  *
  * <h2><a>Parsing</a></h2>
  *
