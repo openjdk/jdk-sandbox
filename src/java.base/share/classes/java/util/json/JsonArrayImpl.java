@@ -28,6 +28,7 @@ package java.util.json;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -142,5 +143,17 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
             s.append("\n").append(prefix).append("]");
         }
         return s.toString();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        return this == o ||
+            o instanceof JsonArrayImpl ojai &&
+                Objects.equals(values(), ojai.values());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(values());
     }
 }

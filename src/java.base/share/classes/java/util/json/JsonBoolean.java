@@ -27,6 +27,8 @@ package java.util.json;
 
 import jdk.internal.javac.PreviewFeature;
 
+import java.util.Objects;
+
 /**
  * The interface that represents JSON boolean.
  * <p>
@@ -34,7 +36,7 @@ import jdk.internal.javac.PreviewFeature;
  * <p> Alternatively, {@link #of(boolean)} can be used to
  * obtain a {@code JsonBoolean}.
  *
- * @since 25
+ * @since 99
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)
 public sealed interface JsonBoolean extends JsonValue permits JsonBooleanImpl {
@@ -54,4 +56,16 @@ public sealed interface JsonBoolean extends JsonValue permits JsonBooleanImpl {
     static JsonBoolean of(boolean src) {
         return src ? JsonBooleanImpl.TRUE : JsonBooleanImpl.FALSE;
     }
+
+    /**
+     * {@return true if the given {@code obj} is equal to this {@code JsonBoolean}}
+     * The comparison is based on the underlying JSON boolean value.
+     */
+    boolean equals(Object obj);
+
+    /**
+     * {@return the hash code value of this {@code JsonBoolean}} The returned hash code
+     * is calculated based on the underlying JSON boolean value.
+     */
+    int hashCode();
 }

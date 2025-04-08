@@ -36,7 +36,7 @@ import java.util.Objects;
  * <p> Alternatively, {@link #of(String)} can be used to obtain a {@code JsonString}
  * from a {@code String}.
  *
- * @since 25
+ * @since 99
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)
 public sealed interface JsonString extends JsonValue permits JsonStringImpl {
@@ -81,4 +81,20 @@ public sealed interface JsonString extends JsonValue permits JsonStringImpl {
      * }
      */
     String toString();
+
+    /**
+     * {@return true if the given {@code obj} is equal to this {@code JsonString}}
+     * The comparison is based on the original document if this {@code JsonString} was
+     * produced by parsing a JSON document, except that escaped characters and their
+     * corresponding unescaped characters are considered equal.
+     */
+    boolean equals(Object obj);
+
+    /**
+     * {@return the hash code value of this {@code JsonString}} The returned hash code
+     * is calculated based on the original document if it was produced by parsing a
+     * JSON document, except that escaped characters and their corresponding unescaped
+     * characters are considered equal.
+     */
+    int hashCode();
 }

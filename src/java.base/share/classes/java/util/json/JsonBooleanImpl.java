@@ -25,6 +25,8 @@
 
 package java.util.json;
 
+import java.util.Objects;
+
 /**
  * JsonBoolean implementation class
  */
@@ -72,5 +74,17 @@ final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
     @Override
     public String toString() {
         return String.valueOf(value());
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return this == obj ||
+            obj instanceof JsonBooleanImpl ojb &&
+                Objects.equals(value(), ojb.value());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(value());
     }
 }

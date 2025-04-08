@@ -27,6 +27,7 @@ package java.util.json;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.Locale;
 
 /**
  * JsonNumber implementation class
@@ -128,5 +129,17 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     @Override
     public String toString() {
         return string();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        return this == o ||
+            o instanceof JsonNumberImpl ojni &&
+                toString().compareToIgnoreCase(ojni.toString()) == 0;
+    }
+
+    @Override
+    public int hashCode() {
+        return toString().toLowerCase(Locale.ROOT).hashCode();
     }
 }

@@ -25,6 +25,8 @@
 
 package java.util.json;
 
+import java.util.Objects;
+
 /**
  * JsonString implementation class
  */
@@ -80,6 +82,18 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
             source = docInfo.substring(startOffset, endOffset);
         }
         return source;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        return this == o ||
+            o instanceof JsonStringImpl ojsi &&
+                Objects.equals(value(), ojsi.value());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(value());
     }
 
     String unescape(int startOffset, int endOffset) {

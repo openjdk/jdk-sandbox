@@ -39,7 +39,7 @@ import java.util.Objects;
  * may not be allowed. If duplicate keys appear during a {@link Json#parse(String)},
  * a {@code JsonParseException} is thrown.
  *
- * @since 25
+ * @since 99
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)
 public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
@@ -60,4 +60,23 @@ public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
     static JsonObject of(Map<String, ? extends JsonValue> map) {
         return new JsonObjectImpl(Objects.requireNonNull(map));
     }
+
+    /**
+     * {@return {@code true} if the given object is also a {@code JsonObject}
+     * and the two {@code JsonObject}s represent the same mappings} More formally,
+     * two {@code JsonObject}s {@code jo1} and {@code jo2} represent the same mappings
+     * if {@code jo1.members().equals(jo2.members())}. This ensures that the equals method
+     * works properly across different implementations of the {@code JsonObject} interface
+     */
+    boolean equals(Object obj);
+
+    /**
+     * {@return the hash code value for this {@code JsonObject}} The hash code value
+     * of a {@code JsonObject} is defined to be the hash code of {@code JsonObject}'s
+     * {@link #members()} value. This ensures that {@code jo1.equals(jo2)}
+     * implies that {@code jo1.hashCode()==jo2.hashCode()} for any two {@code JsonObject}s
+     * {@code jo1} and {@code jo2}, as required by the general contract of
+     * {@link Object#hashCode}.
+     */
+    int hashCode();
 }

@@ -176,4 +176,18 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
     static JsonNumber of(BigDecimal num) {
         return new JsonNumberImpl(num);
     }
+
+    /**
+     * {@return true if the given {@code obj} is equal to this {@code JsonNumber}}
+     * The comparison is based on the string representation of this {@code JsonNumber},
+     * ignoring the case.
+     */
+    boolean equals(Object obj);
+
+    /**
+     * {@return the hash code value of this {@code JsonNumber}} The returned hash code
+     * is calculated based on the string representation of this {@code JsonNumber},
+     * ignoring the case.
+     */
+    int hashCode();
 }

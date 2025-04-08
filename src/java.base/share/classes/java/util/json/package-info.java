@@ -49,11 +49,7 @@
  * }
  * }
  *
- * JSON values represented by {@code JsonValue} instances are not intended to be
- * compared using {@code JsonValue.equals()}. Instead, equality should be determined
- * by comparing the underlying values, accessible via product type specific accessors
- * such as {@link JsonNumber#toNumber()} (and later deconstructors). Both
- * {@code JsonValue} instances and their underlying values are immutable.
+ * Both {@code JsonValue} instances and their underlying values are immutable.
  *
  * <h2><a>Parsing</a></h2>
  *
@@ -152,7 +148,7 @@
  *
  * @spec https://datatracker.ietf.org/doc/html/rfc8259 RFC 8259: The JavaScript
  *      Object Notation (JSON) Data Interchange Format
- * @since 25
+ * @since 99
  */
 
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)

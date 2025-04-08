@@ -36,7 +36,7 @@ import java.util.Objects;
  * A {@code JsonArray} can be produced by {@link Json#parse(String)}.
  * <p> Alternatively, {@link #of(List)} can be used to obtain a {@code JsonArray}.
  *
- * @since 25
+ * @since 99
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)
 public sealed interface JsonArray extends JsonValue permits JsonArrayImpl {
@@ -57,4 +57,22 @@ public sealed interface JsonArray extends JsonValue permits JsonArrayImpl {
     static JsonArray of(List<? extends JsonValue> src) {
         return new JsonArrayImpl(Objects.requireNonNull(src));
     }
+
+    /**
+     * {@return {@code true} if and only if the specified object is also a
+     * {@code JsonArray}, both {@code JsonArray}s have the same size, and
+     * all corresponding pairs of elements in the two {@code JsonArray}s
+     * are equal}
+     */
+    boolean equals(Object obj);
+
+    /**
+     * {@return the hash code value for this {@code JsonArray}} The hash code of a
+     * {@code JsonArray} is calculated by {@code Objects.hash(JsonArray.values()}.
+     * This ensures that {@code ja1.equals(ja2)} implies that
+     * {@code ja1.hashCode()==ja2.hashCode()} for any two {@code JsonArray}s,
+     * {@code ja1} and {@code ja2}, as required by the general contract
+     * of {@link Object#hashCode}.
+     */
+    int hashCode();
 }
