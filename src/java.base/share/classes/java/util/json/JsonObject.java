@@ -63,10 +63,11 @@ public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
 
     /**
      * {@return {@code true} if the given object is also a {@code JsonObject}
-     * and the two {@code JsonObject}s represent the same mappings} More formally,
-     * two {@code JsonObject}s {@code jo1} and {@code jo2} represent the same mappings
-     * if {@code jo1.members().equals(jo2.members())}. This ensures that the equals method
-     * works properly across different implementations of the {@code JsonObject} interface.
+     * and the two {@code JsonObject}s represent the same mappings} Two
+     * {@code JsonObject}s {@code jo1} and {@code jo2} represent the same
+     * mappings if {@code jo1.members().equals(jo2.members())}.
+     *
+     * @see #members()
      */
     boolean equals(Object obj);
 
@@ -76,6 +77,8 @@ public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
      * {@link #members()} value. Thus, for two {@code JsonObject}s {@code jo1} and {@code jo2},
      * {@code jo1.equals(jo2)} implies that {@code jo1.hashCode() == jo2.hashCode()}
      * as required by the general contract of {@link Object#hashCode}.
+     *
+     * @see #members()
      */
     int hashCode();
 }

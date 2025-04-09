@@ -58,14 +58,23 @@ public sealed interface JsonBoolean extends JsonValue permits JsonBooleanImpl {
     }
 
     /**
-     * {@return true if the given {@code obj} is equal to this {@code JsonBoolean}}
-     * The comparison is based on the underlying JSON boolean value.
+     * {@return {@code true} if the given object is also a {@code JsonBoolean}
+     * and the two {@code JsonBoolean}s represent the same boolean value} Two
+     * {@code JsonBoolean}s {@code jb1} and {@code jb2} represent the same
+     * boolean values if {@code jb1.value().equals(jb2.value())}.
+     *
+     * @see #value()
      */
     boolean equals(Object obj);
 
     /**
-     * {@return the hash code value of this {@code JsonBoolean}} The returned hash code
-     * is calculated based on the underlying JSON boolean value.
+     * {@return the hash code value for this {@code JsonBoolean}} The hash code value
+     * of a {@code JsonBoolean} is defined to be the hash code of {@code JsonBoolean}'s
+     * {@link #value()}. Thus, for two {@code JsonBooleans}s {@code jb1} and {@code jb2},
+     * {@code jb1.equals(jb2)} implies that {@code jb1.hashCode() == jb2.hashCode()}
+     * as required by the general contract of {@link Object#hashCode}.
+     *
+     * @see #value()
      */
     int hashCode();
 }

@@ -59,13 +59,12 @@ public sealed interface JsonArray extends JsonValue permits JsonArrayImpl {
     }
 
     /**
-     * {@return {@code true} if and only if the given object is also a
-     * {@code JsonArray}, both {@code JsonArray}s have the same size, and
-     * all corresponding pairs of elements in the two {@code JsonArray}s
-     * are equal} More formally, two {@code JsonArray}s {@code ja1} and {@code ja2}
-     * represent the same elements if {@code ja1.values().equals(ja2.values())}.
-     * This ensures that the equals method works properly across different
-     * implementations of the {@code JsonArray} interface.
+     * {@return {@code true} if the given object is also a {@code JsonArray}
+     * and the two {@code JsonArray}s represent the same mappings} Two
+     * {@code JsonArray}s {@code ja1} and {@code ja2} represent the same
+     * mappings if {@code ja1.values().equals(ja2.values())}.
+     *
+     * @see #values()
      */
     boolean equals(Object obj);
 
@@ -75,6 +74,8 @@ public sealed interface JsonArray extends JsonValue permits JsonArrayImpl {
      * Thus, for two {@code JsonArray}s {@code ja1} and {@code ja2},
      * {@code ja1.equals(ja2)} implies that {@code ja1.hashCode() == ja2.hashCode()}
      * as required by the general contract of {@link Object#hashCode}.
+     *
+     * @see #values()
      */
     int hashCode();
 }

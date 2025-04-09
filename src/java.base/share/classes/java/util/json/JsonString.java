@@ -93,7 +93,7 @@ public sealed interface JsonString extends JsonValue permits JsonStringImpl {
 
     /**
      * {@return the hash code value of this {@code JsonString}} The hash code of a
-     * {@code JsonString} is calculated by {@code Objects.hash(JsonString.value()}.
+     * {@code JsonString} is calculated by {@code Objects.hash(JsonString.value())}.
      *
      * @see #value()
      */

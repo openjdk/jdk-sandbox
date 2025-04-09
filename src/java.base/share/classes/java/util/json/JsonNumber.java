@@ -181,6 +181,8 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      * {@return true if the given {@code obj} is equal to this {@code JsonNumber}}
      * The comparison is based on the string representation of this {@code JsonNumber},
      * ignoring the case.
+     *
+     * @see #toString()
      */
     boolean equals(Object obj);
 
@@ -188,6 +190,8 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
      * {@return the hash code value of this {@code JsonNumber}} The returned hash code
      * is calculated based on the string representation of this {@code JsonNumber},
      * ignoring the case.
+     *
+     * @see #toString()
      */
     int hashCode();
 }
