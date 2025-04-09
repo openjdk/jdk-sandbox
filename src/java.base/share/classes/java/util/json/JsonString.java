@@ -86,12 +86,16 @@ public sealed interface JsonString extends JsonValue permits JsonStringImpl {
      * {@return true if the given {@code obj} is equal to this {@code JsonString}}
      * Two {@code JsonString}s {@code js1} and {@code js2} represent the same value
      * if {@code js1.value().equals(js2.value())}.
+     *
+     * @see #value()
      */
     boolean equals(Object obj);
 
     /**
      * {@return the hash code value of this {@code JsonString}} The hash code of a
      * {@code JsonString} is calculated by {@code Objects.hash(JsonString.value()}.
+     *
+     * @see #value()
      */
     int hashCode();
 }
