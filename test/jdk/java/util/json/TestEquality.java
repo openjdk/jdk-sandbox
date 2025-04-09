@@ -169,6 +169,7 @@ public class TestEquality {
         return Stream.of(
                 // true
                 Arguments.of("3", "3"),
+                Arguments.of("3", "   3   "),
                 Arguments.of("3.0", "3.0"),
                 Arguments.of("3e0", "3E0"),
                 Arguments.of("3.141592653589793238462643383279", "3.141592653589793238462643383279"),
@@ -193,13 +194,15 @@ public class TestEquality {
         var jv1 = Json.parse(arg1);
         var jv2 = Json.parse(arg2);
 
-        // assert their toString() returns the original text
-        assertEquals(arg1, jv1.toString());
-        assertEquals(arg2, jv2.toString());
+        // assert their toString() returns the original text (w/o leading/trailing spaces)
+        var a1 = arg1.trim();
+        var a2 = arg2.trim();
+        assertEquals(a1, jv1.toString());
+        assertEquals(a2, jv2.toString());
 
         // equality should be decided by the equality of the string representation,
         // ignoring the case.
-        assertEquals(arg1.compareToIgnoreCase(arg2) == 0, jv1.equals(jv2),
+        assertEquals(a1.compareToIgnoreCase(a2) == 0, jv1.equals(jv2),
                 "jv1: %s, jv2: %s".formatted(jv1, jv2));
     }
 }
