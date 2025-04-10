@@ -60,9 +60,9 @@ public sealed interface JsonArray extends JsonValue permits JsonArrayImpl {
 
     /**
      * {@return {@code true} if the given object is also a {@code JsonArray}
-     * and the two {@code JsonArray}s represent the same mappings} Two
+     * and the two {@code JsonArray}s represent the same elements} Two
      * {@code JsonArray}s {@code ja1} and {@code ja2} represent the same
-     * mappings if {@code ja1.values().equals(ja2.values())}.
+     * elements if {@code ja1.values().equals(ja2.values())}.
      *
      * @see #values()
      */
