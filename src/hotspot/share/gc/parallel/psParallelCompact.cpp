@@ -530,7 +530,7 @@ ParallelCompactData PSParallelCompact::_summary_data;
 
 PSParallelCompact::IsAliveClosure PSParallelCompact::_is_alive_closure;
 
-class PCAdjustPointerClosure: public BasicOopIterateClosure {
+class PCAdjustPointerClosureNew: public BasicOopIterateClosure {
   template <typename T>
   void do_oop_work(T* p) { PSParallelCompact::adjust_pointer(p); }
 
@@ -541,7 +541,7 @@ public:
   virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
 };
 
-static PCAdjustPointerClosure pc_adjust_pointer_closure;
+static PCAdjustPointerClosureNew pc_adjust_pointer_closure;
 
 bool PSParallelCompact::IsAliveClosure::do_object_b(oop p) { return mark_bitmap()->is_marked(p); }
 
