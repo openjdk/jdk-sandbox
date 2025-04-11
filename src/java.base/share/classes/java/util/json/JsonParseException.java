@@ -33,7 +33,7 @@ import java.io.Serial;
  * Signals that an error has been detected while parsing the
  * JSON document.
  *
- * @since 25
+ * @since 99
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)
 public class JsonParseException extends RuntimeException {
