@@ -789,6 +789,8 @@ public class WhiteBox {
 
   public native void waitUnsafe(int time_ms);
 
+  public native void wasteCPU(int time_ms);
+
   public native void pinObject(Object o);
 
   public native void unpinObject(Object o);
