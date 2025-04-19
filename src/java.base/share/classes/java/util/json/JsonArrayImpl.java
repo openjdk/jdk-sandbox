@@ -106,13 +106,6 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
     }
 
     @Override
-    public List<Object> toUntyped() {
-        return values().stream()
-                .map(Json::toUntyped)
-                .toList();
-    }
-
-    @Override
     public String toString() {
         var s = new StringBuilder("[");
         for (JsonValue v: values()) {
@@ -125,31 +118,10 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
     }
 
     @Override
-    public String toDisplayString(int indent, boolean isField) {
-        var prefix = " ".repeat(indent);
-        var s = new StringBuilder(isField ? " " : prefix);
-        if (values().isEmpty()) {
-            s.append("[]");
-        } else {
-            s.append("[\n");
-            for (JsonValue v: values()) {
-                if (v instanceof JsonValueImpl impl) {
-                    s.append(impl.toDisplayString(indent + INDENT, false)).append(",\n");
-                } else {
-                    throw new InternalError("type mismatch");
-                }
-            }
-            s.setLength(s.length() - 2); // trim final comma/newline
-            s.append("\n").append(prefix).append("]");
-        }
-        return s.toString();
-    }
-
-    @Override
     public boolean equals(Object o) {
         return this == o ||
-            o instanceof JsonArrayImpl ojai &&
-                Objects.equals(values(), ojai.values());
+            o instanceof JsonArrayImpl oja &&
+                Objects.equals(values(), oja.values());
     }
 
     @Override

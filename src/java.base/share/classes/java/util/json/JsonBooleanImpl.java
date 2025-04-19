@@ -67,11 +67,6 @@ final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
     }
 
     @Override
-    public Boolean toUntyped() {
-        return value();
-    }
-
-    @Override
     public String toString() {
         return String.valueOf(value());
     }
@@ -79,7 +74,7 @@ final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
     @Override
     public boolean equals(Object obj) {
         return this == obj ||
-            obj instanceof JsonBooleanImpl ojb &&
+            obj instanceof JsonBoolean ojb &&
                 Objects.equals(value(), ojb.value());
     }
 

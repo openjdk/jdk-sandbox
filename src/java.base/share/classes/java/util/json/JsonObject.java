@@ -42,7 +42,7 @@ import java.util.Objects;
  * @since 99
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)
-public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
+public non-sealed interface JsonObject extends JsonValue {
 
     /**
      * {@return an unmodifiable map of the {@code String} to {@code JsonValue}

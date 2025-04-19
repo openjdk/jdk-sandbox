@@ -30,6 +30,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Objects;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 
 /**
  * This class provides static methods for producing and manipulating a {@link JsonValue}.
@@ -168,7 +170,19 @@ public final class Json {
      */
     public static Object toUntyped(JsonValue src) {
         Objects.requireNonNull(src);
-        return ((JsonValueImpl)src).toUntyped();
+        return switch (src) {
+            case JsonObject jo -> jo.members().entrySet().stream()
+                    .collect(LinkedHashMap::new, // to allow `null` value
+                            (m, e) -> m.put(e.getKey(), Json.toUntyped(e.getValue())),
+                            HashMap::putAll);
+            case JsonArray ja -> ja.values().stream()
+                    .map(Json::toUntyped)
+                    .toList();
+            case JsonBoolean jb -> jb.value();
+            case JsonNull _ -> null;
+            case JsonNumber n -> n.toNumber();
+            case JsonString js -> js.value();
+        };
     }
 
     /**
@@ -182,8 +196,65 @@ public final class Json {
      */
     public static String toDisplayString(JsonValue value) {
         Objects.requireNonNull(value);
-        return ((JsonValueImpl)value).toDisplayString();
+        return toDisplayString(value, 0 , false);
     }
+
+    private static String toDisplayString(JsonValue jv, int indent, boolean isField) {
+        return switch (jv) {
+            case JsonObject jo -> toDisplayString(jo, indent, isField);
+            case JsonArray ja -> toDisplayString(ja, indent, isField);
+            default -> " ".repeat(isField ? 1 : indent) + jv;
+        };
+    }
+
+    private static String toDisplayString(JsonObject jo, int indent, boolean isField) {
+        var prefix = " ".repeat(indent);
+        var s = new StringBuilder(isField ? " " : prefix);
+        if (jo.members().isEmpty()) {
+            s.append("{}");
+        } else {
+            s.append("{\n");
+            jo.members().forEach((key, value) -> {
+                if (value instanceof JsonValue val) {
+                    s.append(prefix)
+                            .append(" ".repeat(INDENT))
+                            .append("\"")
+                            .append(key)
+                            .append("\":")
+                            .append(Json.toDisplayString(val, indent + INDENT, true))
+                            .append(",\n");
+                } else {
+                    throw new InternalError("type mismatch");
+                }
+            });
+            s.setLength(s.length() - 2); // trim final comma
+            s.append("\n").append(prefix).append("}");
+        }
+        return s.toString();
+    }
+
+    private static String toDisplayString(JsonArray ja, int indent, boolean isField) {
+        var prefix = " ".repeat(indent);
+        var s = new StringBuilder(isField ? " " : prefix);
+        if (ja.values().isEmpty()) {
+            s.append("[]");
+        } else {
+            s.append("[\n");
+            for (JsonValue v: ja.values()) {
+                if (v instanceof JsonValue jv) {
+                    s.append(Json.toDisplayString(jv,indent + INDENT, false)).append(",\n");
+                } else {
+                    throw new InternalError("type mismatch");
+                }
+            }
+            s.setLength(s.length() - 2); // trim final comma/newline
+            s.append("\n").append(prefix).append("]");
+        }
+        return s.toString();
+    }
+
+    // default indentation for display string
+    private static final int INDENT = 2;
 
     // no instantiation is allowed for this class
     private Json() {}

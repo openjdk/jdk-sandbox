@@ -122,11 +122,6 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     }
 
     @Override
-    public Number toUntyped() {
-        return toNumber();
-    }
-
-    @Override
     public String toString() {
         return string();
     }
@@ -134,8 +129,8 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     @Override
     public boolean equals(Object o) {
         return this == o ||
-            o instanceof JsonNumberImpl ojni &&
-                toString().compareToIgnoreCase(ojni.toString()) == 0;
+            o instanceof JsonNumber ojn &&
+                toString().compareToIgnoreCase(ojn.toString()) == 0;
     }
 
     @Override

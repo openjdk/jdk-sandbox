@@ -46,7 +46,7 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
         theString = unescape(startOffset + 1, endOffset - 1);
         endIndex = 0;
     }
-    
+
     JsonStringImpl(JsonDocumentInfo doc, int offset, int index) {
         docInfo = doc;
         startOffset = offset;
@@ -72,11 +72,6 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
     }
 
     @Override
-    public String toUntyped() {
-        return value();
-    }
-
-    @Override
     public String toString() {
         if (source == null) {
             source = docInfo.substring(startOffset, endOffset);
@@ -87,8 +82,8 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
     @Override
     public boolean equals(Object o) {
         return this == o ||
-            o instanceof JsonStringImpl ojsi &&
-                Objects.equals(value(), ojsi.value());
+            o instanceof JsonString ojs &&
+                Objects.equals(value(), ojs.value());
     }
 
     @Override

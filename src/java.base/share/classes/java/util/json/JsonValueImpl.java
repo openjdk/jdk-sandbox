@@ -29,20 +29,7 @@ package java.util.json;
  * Implementation methods/fields common to JsonXXXImpl classes
  */
 sealed interface JsonValueImpl permits JsonArrayImpl, JsonBooleanImpl, JsonNullImpl, JsonNumberImpl, JsonObjectImpl, JsonStringImpl {
-    // default indentation for display string
-    int INDENT = 2;
 
     // obtaining end index
     int getEndIndex();
-
-    // Json.toUntyped() implementations
-    Object toUntyped();
-
-    // Display string default implementations
-    default String toDisplayString() {
-        return toDisplayString(0, false);
-    }
-    default String toDisplayString(int indent, boolean isField) {
-        return " ".repeat(isField ? 1 : indent) + this;
-    }
 }

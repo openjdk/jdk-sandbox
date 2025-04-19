@@ -114,14 +114,6 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
     }
 
     @Override
-    public Map<String, Object> toUntyped() {
-        return members().entrySet().stream()
-            .collect(LinkedHashMap::new, // to allow `null` value
-                (m, e) -> m.put(e.getKey(), Json.toUntyped(e.getValue())),
-                HashMap::putAll);
-    }
-
-    @Override
     public String toString() {
         var s = new StringBuilder("{");
         for (Map.Entry<String, JsonValue> kv: members().entrySet()) {
@@ -136,37 +128,10 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
     }
 
     @Override
-    public String toDisplayString(int indent, boolean isField) {
-        var prefix = " ".repeat(indent);
-        var s = new StringBuilder(isField ? " " : prefix);
-        if (members().isEmpty()) {
-            s.append("{}");
-        } else {
-            s.append("{\n");
-            members().forEach((key, value) -> {
-                if (value instanceof JsonValueImpl val) {
-                    s.append(prefix)
-                            .append(" ".repeat(INDENT))
-                            .append("\"")
-                            .append(key)
-                            .append("\":")
-                            .append(val.toDisplayString(indent + INDENT, true))
-                            .append(",\n");
-                } else {
-                    throw new InternalError("type mismatch");
-                }
-            });
-            s.setLength(s.length() - 2); // trim final comma
-            s.append("\n").append(prefix).append("}");
-        }
-        return s.toString();
-    }
-
-    @Override
     public boolean equals(Object o) {
         return this == o ||
-            o instanceof JsonObjectImpl ojoi &&
-                Objects.equals(members(), ojoi.members());
+            o instanceof JsonObject ojo &&
+                Objects.equals(members(), ojo.members());
     }
 
     @Override

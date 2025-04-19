@@ -39,7 +39,7 @@ import java.util.Objects;
  * @since 99
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)
-public sealed interface JsonArray extends JsonValue permits JsonArrayImpl {
+public non-sealed interface JsonArray extends JsonValue {
 
     /**
      * {@return an unmodifiable list of the {@code JsonValue} elements in

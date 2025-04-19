@@ -47,7 +47,7 @@ import jdk.internal.javac.PreviewFeature;
  * @since 99
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)
-public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
+public non-sealed interface JsonNumber extends JsonValue {
 
     /**
      * {@return the decimal string representation of this {@code JsonNumber}}

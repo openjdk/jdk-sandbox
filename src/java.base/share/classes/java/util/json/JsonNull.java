@@ -36,7 +36,7 @@ import jdk.internal.javac.PreviewFeature;
  * @since 99
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)
-public sealed interface JsonNull extends JsonValue permits JsonNullImpl {
+public non-sealed interface JsonNull extends JsonValue {
 
     /**
      * {@return the {@code JsonNull} that represents a "null" JSON value}

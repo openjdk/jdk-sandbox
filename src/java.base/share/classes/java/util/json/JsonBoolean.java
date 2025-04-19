@@ -39,7 +39,7 @@ import java.util.Objects;
  * @since 99
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)
-public sealed interface JsonBoolean extends JsonValue permits JsonBooleanImpl {
+public non-sealed interface JsonBoolean extends JsonValue {
 
     /**
      * {@return the {@code boolean} value represented by this

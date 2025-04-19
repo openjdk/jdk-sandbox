@@ -55,18 +55,13 @@ final class JsonNullImpl implements JsonNull, JsonValueImpl {
     }
 
     @Override
-    public Object toUntyped() {
-        return null;
-    }
-
-    @Override
     public String toString() {
         return VALUE;
     }
 
     @Override
     public boolean equals(Object obj) {
-        return obj instanceof JsonNullImpl;
+        return obj instanceof JsonNull;
     }
 
     @Override
