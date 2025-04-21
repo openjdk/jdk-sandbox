@@ -33,10 +33,10 @@
  * sealed {@code JsonValue} <i>sum</i> type, which can be
  * pattern-matched into one of the following <i>product</i> types: {@code JsonObject},
  * {@code JsonArray}, {@code JsonString}, {@code JsonNumber}, {@code JsonBoolean},
- * {@code JsonNull}. These product types are defined as sealed interfaces that
+ * {@code JsonNull}. These product types are defined as non-sealed interfaces that
  * allow flexibility in the implementation of the type. For example, {@code JsonArray}
  * is defined as follows:
- * <pre>{@code public sealed interface JsonArray extends JsonValue permits (JsonArray implementation classes)}</pre>
+ * <pre>{@code public non-sealed interface JsonArray extends JsonValue}</pre>
  *
  * <p> This API relies on pattern matching to allow for the extraction of a
  * JSON Value in a <i>single and class safe expression</i> as follows:
@@ -59,9 +59,10 @@
  * adheres to the JSON grammar. The parsing APIs provided do not accept JSON text
  * that contain JSON Objects with duplicate keys.
  *
- * <p>Parsing is performed <i>lazily</i>. The underlying value(s) of the root
- * {@code JsonValue} are evaluated and allocated on-demand. This approach allows
- * for memory usage to scale as required. Consider the following example,
+ * <p>Parsing constructs the {@code JsonValue} <i>lazily</i>. For the reference
+ * JDK implementation, the underlying value(s) of the root {@code JsonValue} are
+ * evaluated and allocated on-demand. This approach allows for memory usage to scale as
+ * required. Consider the following example,
  * {@snippet lang=java:
  * String text = "{\"foo\" : [null, 15, \"baz\"], \"bar\" : true}";
  * JsonValue root = Json.parse(text);
