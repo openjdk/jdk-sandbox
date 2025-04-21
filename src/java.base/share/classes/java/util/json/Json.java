@@ -104,6 +104,11 @@ public final class Json {
      * If the document contains any JSON Object that has duplicate keys, a
      * {@code JsonParseException} is thrown.
      *
+     * @implNote The JDK reference implementation inflates {@code JsonValue}s
+     * lazily when created from parsing. While parsing validates the entire JSON
+     * document for correctness, the underlying {@code JsonValue}s that the root
+     * {@code JsonValue} is composed of are allocated on-demand.
+     *
      * @param in the input JSON document as {@code String}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform
      *      to the JSON document format or a JSON object containing
@@ -123,6 +128,11 @@ public final class Json {
      * conforms to the JSON syntax.
      * If the document contains any JSON Object that has duplicate keys, a
      * {@code JsonParseException} is thrown.
+     *
+     * @implNote The JDK reference implementation inflates {@code JsonValue}s
+     * lazily when created from parsing. While parsing validates the entire JSON
+     * document for correctness, the underlying {@code JsonValue}s that the root
+     * {@code JsonValue} is composed of are allocated on-demand.
      *
      * @param in the input JSON document as {@code char[]}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform
