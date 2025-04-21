@@ -41,7 +41,6 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
     private final int startOffset;
     private List<JsonValue> theValues;
 
-    // Via of factory
     JsonArrayImpl(List<? extends JsonValue> from) {
         theValues = List.copyOf(from);
         this.endIndex = 0;

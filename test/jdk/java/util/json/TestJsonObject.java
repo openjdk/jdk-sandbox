@@ -184,9 +184,13 @@ public class TestJsonObject {
         map.put("foo", JsonString.of("foo"));
         var jo = JsonObject.of(map);
         assertEquals(1, jo.members().size());
-        // Modifications to backed map should not change JsonObject
+        // Modifications to original backed map should not change JsonObject
         map.put("bar", JsonString.of("foo"));
         assertEquals(1, jo.members().size());
+        // Modifications to JsonObject members() should not be possible
+        assertThrows(UnsupportedOperationException.class,
+                () -> jo.members().put("bar", JsonNull.of()),
+                "Object members able to be modified");
     }
 
     @Test
@@ -198,6 +202,10 @@ public class TestJsonObject {
         // Modifications to backed map should not change JsonObject
         map.put("bar", "foo");
         assertEquals(1, jo.members().size());
+        // Modifications to JsonObject members() should not be possible
+        assertThrows(UnsupportedOperationException.class,
+                () -> jo.members().put("bar", JsonNull.of()),
+                "Object members able to be modified");
     }
 
     private static final String json =

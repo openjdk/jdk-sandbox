@@ -93,9 +93,13 @@ public class TestJsonArray {
         list.add(JsonString.of("foo"));
         var ja = JsonArray.of(list);
         assertEquals(1, ja.values().size());
-        // Modifications to backed list should not change JsonObject
+        // Modifications to backed list should not change JsonArray
         list.add(JsonString.of("foo"));
         assertEquals(1, ja.values().size());
+        // Modifications to JsonArray values() should throw
+        assertThrows(UnsupportedOperationException.class,
+                () -> ja.values().add(JsonNull.of()),
+                "Array values able to be modified");
     }
 
     @Test
@@ -104,8 +108,12 @@ public class TestJsonArray {
         list.add("foo");
         var ja = (JsonArray) Json.fromUntyped(list);
         assertEquals(1, ja.values().size());
-        // Modifications to backed list should not change JsonObject
+        // Modifications to backed list should not change JsonArray
         list.add("foo");
         assertEquals(1, ja.values().size());
+        // Modifications to JsonArray values() should throw
+        assertThrows(UnsupportedOperationException.class,
+                () -> ja.values().add(JsonNull.of()),
+                "Array values able to be modified");
     }
 }
