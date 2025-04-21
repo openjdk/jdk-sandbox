@@ -55,7 +55,8 @@ public non-sealed interface JsonObject extends JsonValue {
      * map of {@code String} to {@code JsonValue}s}
      *
      * @param map the map of {@code JsonValue}s. Non-null.
-     * @throws NullPointerException if {@code map} is {@code null}
+     * @throws NullPointerException if {@code map} is {@code null}, or contains
+     *      any keys that are {@code null}
      */
     static JsonObject of(Map<String, ? extends JsonValue> map) {
         return new JsonObjectImpl(Objects.requireNonNull(map));

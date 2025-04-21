@@ -42,7 +42,13 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
 
     // Via of factory
     JsonObjectImpl(Map<String, ? extends JsonValue> map) {
+        // Map.copyOf does not preserve insertion-order
         theMembers = new LinkedHashMap<>(map);
+        // We check with LHM, because checking with the passed Map impl
+        // may vary depending on implementation
+        if (theMembers.containsKey(null)) {
+            throw new NullPointerException("Key is not a String");
+        }
         docInfo = null;
         startIndex = 0;
         endIndex = 0;

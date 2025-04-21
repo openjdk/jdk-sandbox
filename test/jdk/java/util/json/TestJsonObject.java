@@ -253,6 +253,14 @@ public class TestJsonObject {
     }
 
     @Test
+    void nullKeyTest() {
+        Map<String, JsonValue> map = new HashMap<>();
+        map.put(null, JsonNull.of());
+        assertThrows(NullPointerException.class, () -> JsonObject.of(map));
+        assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(map));
+    }
+
+    @Test
     void orderingUntypedTest() {
         var jsonFromUntyped = Json.toUntyped(Json.parse(jsonWithSpaces));
         assertEquals(json, Json.fromUntyped(jsonFromUntyped).toString());
