@@ -192,7 +192,7 @@ public final class Json {
             case Boolean bool -> JsonBoolean.of(bool);
             case Byte b -> JsonNumber.of(b);
             case Integer i -> JsonNumber.of(i);
-            case Long l -> new JsonNumberImpl(l);
+            case Long l -> JsonNumber.of(l);
             case Short s -> JsonNumber.of(s);
             case Float f -> JsonNumber.of(f);
             case Double d -> JsonNumber.of(d);
