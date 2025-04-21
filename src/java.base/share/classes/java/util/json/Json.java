@@ -26,12 +26,18 @@ package java.util.json;
 
 import jdk.internal.javac.PreviewFeature;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.Set;
 
 /**
  * This class provides static methods for producing and manipulating a {@link JsonValue}.
@@ -151,12 +157,52 @@ public final class Json {
      * @see #toUntyped(JsonValue)
      */
     public static JsonValue fromUntyped(Object src) {
-        if (src instanceof JsonValue jv) {
-            return jv;
-        } else {
-            return JsonFactory.fromUntyped(
-                    src, Collections.newSetFromMap(new IdentityHashMap<>()));
-        }
+        return fromUntyped(src, Collections.newSetFromMap(new IdentityHashMap<>()));
+    }
+
+    static JsonValue fromUntyped(Object src, Set<Object> identitySet) {
+        return switch (src) {
+            // Structural JSON: Object, Array
+            case Map<?, ?> map -> {
+                if (!identitySet.add(map)) {
+                    throw new IllegalArgumentException("Circular reference detected");
+                }
+                Map<String, JsonValue> m = LinkedHashMap.newLinkedHashMap(map.size());
+                for (Map.Entry<?, ?> entry : new LinkedHashMap<>(map).entrySet()) {
+                    if (!(entry.getKey() instanceof String strKey)) {
+                        throw new IllegalArgumentException("Key is not a String: " + entry.getKey());
+                    } else {
+                        m.put(strKey, Json.fromUntyped(entry.getValue(), identitySet));
+                    }
+                }
+                yield JsonObject.of(m);
+            }
+            case List<?> list -> {
+                if (!identitySet.add(list)) {
+                    throw new IllegalArgumentException("Circular reference detected");
+                }
+                List<JsonValue> l = new ArrayList<>(list.size());
+                for (Object o : list) {
+                    l.add(Json.fromUntyped(o, identitySet));
+                }
+                yield JsonArray.of(l);
+            }
+            // JsonPrimitives
+            case String str -> JsonString.of(str);
+            case Boolean bool -> JsonBoolean.of(bool);
+            case Byte b -> JsonNumber.of(b);
+            case Integer i -> JsonNumber.of(i);
+            case Long l -> new JsonNumberImpl(l);
+            case Short s -> JsonNumber.of(s);
+            case Float f -> JsonNumber.of(f);
+            case Double d -> JsonNumber.of(d);
+            case BigInteger bi -> JsonNumber.of(bi);
+            case BigDecimal bd -> JsonNumber.of(bd);
+            case null -> JsonNull.of();
+            // JsonValue
+            case JsonValue jv -> jv;
+            default -> throw new IllegalArgumentException("Type not recognized.");
+        };
     }
 
     /**

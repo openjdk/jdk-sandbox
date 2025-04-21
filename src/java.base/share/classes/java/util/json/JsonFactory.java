@@ -72,49 +72,6 @@ final class JsonFactory {
         return new JsonNumberImpl(docInfo, offset, index);
     }
 
-    /**
-     * Makes a conversion from an untyped Object to the corresponding JsonValue.
-     *
-     * @param src the untyped Object to convert.
-     * @param identitySet an identity hash set that has seen all untyped Objects
-     *        encountered thus far.
-     * @throws IllegalArgumentException if src is not an accepted type or a circular
-     *         reference is detected.
-     * @return the converted untyped Object -> JsonValue.
-     */
-    static JsonValue fromUntyped(Object src, Set<Object> identitySet) {
-        return switch (src) {
-            // Structural JSON: Object, Array
-            case Map<?, ?> map -> {
-                if (!identitySet.add(map)) {
-                    throw new IllegalArgumentException("Circular reference detected");
-                }
-                yield new JsonObjectImpl(map, identitySet);
-            }
-            case List<?> list-> {
-                if (!identitySet.add(list)) {
-                    throw new IllegalArgumentException("Circular reference detected");
-                }
-                yield new JsonArrayImpl(list, identitySet);
-            }
-            // JsonPrimitives
-            case String str -> new JsonStringImpl(str);
-            case Boolean bool -> new JsonBooleanImpl(bool);
-            case Byte b -> JsonNumber.of(b);
-            case Integer i -> JsonNumber.of(i);
-            case Long l -> new JsonNumberImpl(l);
-            case Short s -> JsonNumber.of(s);
-            case Float f -> JsonNumber.of(f);
-            case Double d -> new JsonNumberImpl(d);
-            case BigInteger bi -> JsonNumber.of(bi);
-            case BigDecimal bd -> JsonNumber.of(bd);
-            case null -> JsonNull.of();
-            // JsonValue
-            case JsonValue jv -> jv;
-            default -> throw new IllegalArgumentException("Type not recognized.");
-        };
-    }
-
     // no instantiation of this generator
     private JsonFactory(){}
 }

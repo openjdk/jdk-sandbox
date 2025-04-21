@@ -29,7 +29,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  * JsonArray implementation class
@@ -45,19 +44,6 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
     // Via of factory
     JsonArrayImpl(List<? extends JsonValue> from) {
         theValues = List.copyOf(from);
-        this.endIndex = 0;
-        this.startIndex = 0;
-        this.startOffset = 0;
-        docInfo = null;
-    }
-
-    // Via untyped
-    JsonArrayImpl(List<?> from, Set<Object> identitySet) {
-        List<JsonValue> l = new ArrayList<>(from.size());
-        for (Object o : from) {
-            l.add(JsonFactory.fromUntyped(o, identitySet));
-        }
-        theValues = Collections.unmodifiableList(l);
         this.endIndex = 0;
         this.startIndex = 0;
         this.startOffset = 0;

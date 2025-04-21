@@ -26,11 +26,9 @@
 package java.util.json;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  * JsonObject implementation class
@@ -45,22 +43,6 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
     // Via of factory
     JsonObjectImpl(Map<String, ? extends JsonValue> map) {
         theMembers = new LinkedHashMap<>(map);
-        docInfo = null;
-        startIndex = 0;
-        endIndex = 0;
-    }
-
-    // Via untyped
-    JsonObjectImpl(Map<?, ?> map, Set<Object> identitySet) {
-        Map<String, JsonValue> m = LinkedHashMap.newLinkedHashMap(map.size());
-        for (Map.Entry<?, ?> entry : new LinkedHashMap<>(map).entrySet()) {
-            if (!(entry.getKey() instanceof String strKey)) {
-                throw new IllegalArgumentException("Key is not a String: " + entry.getKey());
-            } else {
-                m.put(strKey, JsonFactory.fromUntyped(entry.getValue(), identitySet));
-            }
-        }
-        theMembers = Collections.unmodifiableMap(m);
         docInfo = null;
         startIndex = 0;
         endIndex = 0;
