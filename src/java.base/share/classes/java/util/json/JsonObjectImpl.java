@@ -25,6 +25,8 @@
 
 package java.util.json;
 
+import jdk.internal.vm.annotation.Stable;
+
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -38,6 +40,7 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
     private final JsonDocumentInfo docInfo;
     private final int startIndex;
     private final int endIndex;
+    @Stable
     private Map<String, JsonValue> theMembers;
 
     JsonObjectImpl(Map<String, ? extends JsonValue> map) {

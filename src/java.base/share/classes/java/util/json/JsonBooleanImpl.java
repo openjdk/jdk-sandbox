@@ -25,6 +25,8 @@
 
 package java.util.json;
 
+import jdk.internal.vm.annotation.Stable;
+
 import java.util.Objects;
 
 /**
@@ -35,6 +37,7 @@ final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
     private final JsonDocumentInfo docInfo;
     private final int startOffset;
     private final int endIndex;
+    @Stable
     private Boolean theBoolean;
 
     static final JsonBooleanImpl TRUE = new JsonBooleanImpl(true);

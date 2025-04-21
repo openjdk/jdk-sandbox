@@ -25,6 +25,8 @@
 
 package java.util.json;
 
+import jdk.internal.vm.annotation.Stable;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -39,6 +41,7 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
     private final int endIndex;
     private final int startIndex;
     private final int startOffset;
+    @Stable
     private List<JsonValue> theValues;
 
     JsonArrayImpl(List<? extends JsonValue> from) {

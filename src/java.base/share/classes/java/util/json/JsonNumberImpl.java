@@ -25,6 +25,8 @@
 
 package java.util.json;
 
+import jdk.internal.vm.annotation.Stable;
+
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Locale;
@@ -38,8 +40,11 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     private final int startOffset;
     private final int endOffset;
     private final int endIndex;
+    @Stable
     private Number theNumber;
+    @Stable
     private String numString;
+    @Stable
     private BigDecimal cachedBD;
 
     JsonNumberImpl(Number num) {

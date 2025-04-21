@@ -25,6 +25,8 @@
 
 package java.util.json;
 
+import jdk.internal.vm.annotation.Stable;
+
 import java.util.Objects;
 
 /**
@@ -36,7 +38,9 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
     private final int startOffset;
     private final int endOffset;
     private final int endIndex;
+    @Stable
     private String theString;
+    @Stable
     private String source;
 
     JsonStringImpl(String str) {
