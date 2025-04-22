@@ -116,4 +116,14 @@ public class TestJsonArray {
                 () -> ja.values().add(JsonNull.of()),
                 "Array values able to be modified");
     }
+
+    @Test
+    void nullValueTest() {
+        List<JsonValue> list = new ArrayList<>();
+        list.add(null);
+        // JsonArray.of() should throw as typed to JsonValue
+        assertThrows(NullPointerException.class, () -> JsonArray.of(list));
+        // Json.fromUntyped() should map null to JsonNull
+        assertDoesNotThrow(() -> Json.fromUntyped(list));
+    }
 }

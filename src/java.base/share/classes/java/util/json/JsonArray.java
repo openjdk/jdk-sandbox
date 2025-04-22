@@ -52,7 +52,8 @@ public non-sealed interface JsonArray extends JsonValue {
      * list of {@code JsonValue}s}
      *
      * @param src the list of {@code JsonValue}s. Non-null.
-     * @throws NullPointerException if {@code src} is {@code null}
+     * @throws NullPointerException if {@code src} is {@code null}, or contains
+     *      any values that are {@code null}
      */
     static JsonArray of(List<? extends JsonValue> src) {
         return new JsonArrayImpl(List.copyOf(src)); // implicit null check
