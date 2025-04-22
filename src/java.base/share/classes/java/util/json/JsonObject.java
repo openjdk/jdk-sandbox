@@ -27,6 +27,8 @@ package java.util.json;
 
 import jdk.internal.javac.PreviewFeature;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -59,7 +61,12 @@ public non-sealed interface JsonObject extends JsonValue {
      *      any keys that are {@code null}
      */
     static JsonObject of(Map<String, ? extends JsonValue> map) {
-        return new JsonObjectImpl(Objects.requireNonNull(map));
+        // Map.copyOf() does not preserve insertion-order
+        Map<String, JsonValue> members = Collections.unmodifiableMap(new LinkedHashMap<>(map));
+        if (members.containsKey(null)) {
+            throw new NullPointerException("Key is not a String");
+        }
+        return new JsonObjectImpl(members);
     }
 
     /**

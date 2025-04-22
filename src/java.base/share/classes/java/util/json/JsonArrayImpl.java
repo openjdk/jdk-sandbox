@@ -46,8 +46,8 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
     @Stable
     private List<JsonValue> theValues;
 
-    JsonArrayImpl(List<? extends JsonValue> from) {
-        theValues = List.copyOf(from);
+    JsonArrayImpl(List<JsonValue> from) {
+        theValues = from;
         this.endIndex = 0;
         this.startIndex = 0;
         this.startOffset = 0;

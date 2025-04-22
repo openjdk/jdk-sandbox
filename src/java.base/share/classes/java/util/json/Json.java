@@ -185,7 +185,8 @@ public final class Json {
                         m.put(strKey, Json.fromUntyped(entry.getValue(), identitySet));
                     }
                 }
-                yield JsonObject.of(m);
+                // Equivalent to JsonObject.of(m) without a defensive copy
+                yield new JsonObjectImpl(Collections.unmodifiableMap(m));
             }
             case List<?> list -> {
                 if (!identitySet.add(list)) {
@@ -195,7 +196,8 @@ public final class Json {
                 for (Object o : list) {
                     l.add(Json.fromUntyped(o, identitySet));
                 }
-                yield JsonArray.of(l);
+                // Equivalent to JsonArray.of(l) without a defensive copy
+                yield new JsonArrayImpl(Collections.unmodifiableList(l));
             }
             // JsonPrimitives
             case String str -> JsonString.of(str);
