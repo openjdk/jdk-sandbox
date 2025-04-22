@@ -38,7 +38,7 @@ import jdk.internal.javac.PreviewFeature;
  *     JsonValue json = Json.fromUntyped(values);
  *     json.toString(); // returns "[\"foo\",true,25]"
  * }
- * @implSpec Instances of {@code JsonValue} are immutable. The data contained in the instances,
+ * Instances of {@code JsonValue} are immutable. The data contained in the instances,
  * once created, cannot be modified. {@code JsonValue} and its sub-types are
  * <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>.
  *
