@@ -25,6 +25,7 @@
 
 package java.util.json;
 
+import jdk.internal.ValueBased;
 import jdk.internal.vm.annotation.Stable;
 
 import java.math.BigDecimal;
@@ -34,6 +35,7 @@ import java.util.Locale;
 /**
  * JsonNumber implementation class
  */
+@ValueBased
 final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
     private final JsonDocumentInfo docInfo;

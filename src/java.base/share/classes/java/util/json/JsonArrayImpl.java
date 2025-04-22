@@ -25,6 +25,7 @@
 
 package java.util.json;
 
+import jdk.internal.ValueBased;
 import jdk.internal.vm.annotation.Stable;
 
 import java.util.ArrayList;
@@ -35,6 +36,7 @@ import java.util.Objects;
 /**
  * JsonArray implementation class
  */
+@ValueBased
 final class JsonArrayImpl implements JsonArray, JsonValueImpl {
 
     private final JsonDocumentInfo docInfo;

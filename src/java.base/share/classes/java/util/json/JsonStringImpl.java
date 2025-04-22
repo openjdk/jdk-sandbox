@@ -25,6 +25,7 @@
 
 package java.util.json;
 
+import jdk.internal.ValueBased;
 import jdk.internal.vm.annotation.Stable;
 
 import java.util.Objects;
@@ -32,6 +33,7 @@ import java.util.Objects;
 /**
  * JsonString implementation class
  */
+@ValueBased
 final class JsonStringImpl implements JsonString, JsonValueImpl {
 
     private final JsonDocumentInfo docInfo;
