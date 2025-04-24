@@ -54,10 +54,10 @@
  * <h2><a>Parsing</a></h2>
  *
  * Parsing produces a {@code JsonValue} from JSON text and is done using either
- * {@link java.util.json.Json#parse(java.lang.String)} or {@link
- * java.util.json.Json#parse(char[])}. A successful parse indicates that the JSON text
- * adheres to the JSON grammar. The parsing APIs provided do not accept JSON text
- * that contain JSON Objects with duplicate names.
+ * {@link Json#parse(java.lang.String)} or {@link Json#parse(char[])}. A successful
+ * parse indicates that the JSON text adheres to the JSON grammar. The parsing
+ * APIs provided do not accept JSON text that contain JSON Objects with duplicate
+ * names.
  *
  * <p>For the reference JDK implementation, {@code JsonValue}s created via parsing
  * procure their underlying values <i>lazily</i>.
@@ -65,8 +65,8 @@
  * <h2><a>Mapping</a></h2>
  *
  * Once a {@code JsonValue} is obtained, it can be converted into a simple Java
- * object (and vice versa) via {@link java.util.json.Json#fromUntyped(java.lang.Object)}
- * /{@link java.util.json.Json#toUntyped(java.util.json.JsonValue)} as seen below:
+ * object (and vice versa) via {@link Json#fromUntyped(java.lang.Object)}
+ * /{@link Json#toUntyped(JsonValue)} as seen below:
  * {@snippet lang=java:
  * Object map = Json.toUntyped(someJsonObject); // produces Map<String, Object>
  * Json.fromUntyped(map); // produces the JsonObject
@@ -119,8 +119,7 @@
  * <h2><a>Formatting</a></h2>
  *
  * Formatting of a {@code JsonValue} is performed with either {@link
- * java.util.json.JsonValue#toString()} or {@link
- * java.util.json.Json#toDisplayString(java.util.json.JsonValue)}.
+ * JsonValue#toString()} or {@link Json#toDisplayString(JsonValue)}.
  * These methods produce formatted String representations of a {@code JsonValue}.
  * The returned text adheres to the JSON grammar defined in RFC 8259.
  * {@code JsonValue.toString()} produces the most compact representation which does not
