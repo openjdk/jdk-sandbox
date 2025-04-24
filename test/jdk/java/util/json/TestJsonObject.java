@@ -109,7 +109,7 @@ public class TestJsonObject {
         }
     }
 
-    // Check for basic duplicate key
+    // Check for basic duplicate name
     @Test
     void testDuplicateKeys() {
         var json =
@@ -155,9 +155,9 @@ public class TestJsonObject {
                 "{ \"name\": :Brian\"}",
                 "{ \"name\": \"Brian:}",
                 "{ \"name\": ,Brian\"}",
-                "{ foo \"name\": \"Brian\"}", // Garbage before key
-                "{ \"name\" foo : \"Brian\"}", // Garbage after key, but before colon
-                // Garbage in second key/val
+                "{ foo \"name\": \"Brian\"}", // Garbage before name
+                "{ \"name\" foo : \"Brian\"}", // Garbage after name, but before colon
+                // Garbage in second name/val
                 "{ \"name\": \"Brian\" , \"name2\": \"Brian\" 5}",
                 "{ \"name\": \"Brian\" 5}", // Garbage next to closing bracket
                 "{ \"name\": \"Brian\"5   }", // Garbage next to value

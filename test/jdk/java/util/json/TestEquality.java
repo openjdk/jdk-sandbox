@@ -50,8 +50,8 @@ public class TestEquality {
     private static final String json =
             """
             [
-                {"key1": "val1", "key2": 10, "key3": true, "key4": [1, 2, 3]},
-                {"key1": "val1", "key2": 10, "key3": true, "key4": [1,2,3]},
+                {"name1": "val1", "name2": 10, "name3": true, "name4": [1, 2, 3]},
+                {"name1": "val1", "name2": 10, "name3": true, "name4": [1,2,3]},
                 "test",
                 "test",
                 30,
@@ -64,10 +64,10 @@ public class TestEquality {
             """;
 
     private static final List<Object> untyped = Arrays.asList(
-            Map.ofEntries(Map.entry("key1", "val1"),
-                    Map.entry("key2", 10),
-                    Map.entry("key3", Boolean.TRUE),
-                    Map.entry("key4", List.of(1, 2, 3))),
+            Map.ofEntries(Map.entry("name1", "val1"),
+                    Map.entry("name2", 10),
+                    Map.entry("name3", Boolean.TRUE),
+                    Map.entry("name4", List.of(1, 2, 3))),
             "test",
             30,
             Boolean.FALSE,

@@ -101,7 +101,7 @@ public final class Json {
      * Parses and creates the top level {@code JsonValue} in this JSON
      * document. If parsing succeeds, it guarantees that the input document
      * conforms to the JSON syntax.
-     * If the document contains any JSON Object that has duplicate keys, a
+     * If the document contains any JSON Object that has duplicate names, a
      * {@code JsonParseException} is thrown.
      *
      * @implNote The JDK reference implementation inflates {@code JsonValue}s
@@ -112,7 +112,7 @@ public final class Json {
      * @param in the input JSON document as {@code String}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform
      *      to the JSON document format or a JSON object containing
-     *      duplicate keys is encountered.
+     *      duplicate names is encountered.
      * @throws NullPointerException if {@code in} is {@code null}
      * @return the top level {@code JsonValue}
      */
@@ -126,7 +126,7 @@ public final class Json {
      * Parses and creates the top level {@code JsonValue} in this JSON
      * document. If parsing succeeds, it guarantees that the input document
      * conforms to the JSON syntax.
-     * If the document contains any JSON Object that has duplicate keys, a
+     * If the document contains any JSON Object that has duplicate names, a
      * {@code JsonParseException} is thrown.
      *
      * @implNote The JDK reference implementation inflates {@code JsonValue}s
@@ -137,7 +137,7 @@ public final class Json {
      * @param in the input JSON document as {@code char[]}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform
      *      to the JSON document format or a JSON object containing
-     *      duplicate keys is encountered.
+     *      duplicate names is encountered.
      * @throws NullPointerException if {@code in} is {@code null}
      * @return the top level {@code JsonValue}
      */
@@ -272,12 +272,12 @@ public final class Json {
             s.append("{}");
         } else {
             s.append("{\n");
-            jo.members().forEach((key, value) -> {
+            jo.members().forEach((name, value) -> {
                 if (value instanceof JsonValue val) {
                     s.append(prefix)
                             .append(" ".repeat(INDENT))
                             .append("\"")
-                            .append(key)
+                            .append(name)
                             .append("\":")
                             .append(Json.toDisplayString(val, indent + INDENT, true))
                             .append(",\n");

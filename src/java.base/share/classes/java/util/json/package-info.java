@@ -57,7 +57,7 @@
  * {@link java.util.json.Json#parse(java.lang.String)} or {@link
  * java.util.json.Json#parse(char[])}. A successful parse indicates that the JSON text
  * adheres to the JSON grammar. The parsing APIs provided do not accept JSON text
- * that contain JSON Objects with duplicate keys.
+ * that contain JSON Objects with duplicate names.
  *
  * <p>Parsing constructs the {@code JsonValue} <i>lazily</i>. For the reference
  * JDK implementation, the underlying value(s) of the root {@code JsonValue} are

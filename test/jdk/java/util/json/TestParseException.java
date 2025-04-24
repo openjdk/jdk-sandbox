@@ -57,7 +57,7 @@ public class TestParseException {
     private static final String structuralWithNested =
             """
             {
-                "key" :
+                "name" :
                 [
                     "value",
                     null, foobarbaz
@@ -85,7 +85,7 @@ public class TestParseException {
                 Arguments.of("{ foo : \"bar\" ", "Invalid member name"),
                 Arguments.of("{ \"foo : ", "Closing quote missing"),
                 Arguments.of("{ ", "Object was not closed with '}'"),
-                // Escaped keys
+                // Escaped names
                 Arguments.of("{ \"foo\" : null, \"\\u0066oo\" : null ", "The duplicate member name: 'foo'"),
                 Arguments.of("{ \"\\u000\" ", "Invalid Unicode escape sequence"),
                 // Array

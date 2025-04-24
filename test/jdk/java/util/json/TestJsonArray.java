@@ -45,7 +45,7 @@ public class TestJsonArray {
     @Test
     void testFactory() {
         var doc = Json.parse("""
-            [1, "two", false, null, {"key": 42}, [1]]
+            [1, "two", false, null, {"name": 42}, [1]]
         """);
         var expected = JsonArray.of(
             List.of(
@@ -53,7 +53,7 @@ public class TestJsonArray {
                 JsonString.of("two"),
                 JsonBoolean.of(Boolean.FALSE),
                 JsonNull.of(),
-                JsonObject.of(Map.of("key", JsonNumber.of(42))),
+                JsonObject.of(Map.of("name", JsonNumber.of(42))),
                 JsonArray.of(List.of(JsonNumber.of(1)))
             )
         ).values();

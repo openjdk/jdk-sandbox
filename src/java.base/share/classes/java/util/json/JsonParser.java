@@ -61,7 +61,7 @@ final class JsonParser { ;
     }
 
     static int parseObject(JsonDocumentInfo docInfo, int offset) {
-        var keys = new HashSet<String>();
+        var names = new HashSet<String>();
         docInfo.addToken(offset);
         // Walk past the '{'
         offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
@@ -73,7 +73,7 @@ final class JsonParser { ;
 
         StringBuilder sb = null; // only init if we need to use for escapes
         while (offset < docInfo.getEndOffset()) {
-            // Get the key
+            // Get the name
             if (!docInfo.charEquals('"', offset)) {
                 throw failure(docInfo, "Invalid member name", offset);
             }
@@ -136,22 +136,22 @@ final class JsonParser { ;
                 throw failure(docInfo, "Closing quote missing", offset);
             }
 
-            String keyStr;
+            String nameStr;
             if (useBldr) {
-                keyStr = sb.toString();
+                nameStr = sb.toString();
                 sb.setLength(0);
             } else {
-                keyStr = docInfo.substring(start, offset - 1);
+                nameStr = docInfo.substring(start, offset - 1);
             }
 
             // Check for duplicates
-            if (keys.contains(keyStr)) {
+            if (names.contains(nameStr)) {
                 throw failure(docInfo,
-                        "The duplicate member name: '%s' was already parsed".formatted(keyStr), offset);
+                        "The duplicate member name: '%s' was already parsed".formatted(nameStr), offset);
             }
-            keys.add(keyStr);
+            names.add(nameStr);
 
-            // Move from key to ':'
+            // Move from name to ':'
             offset = JsonParser.skipWhitespaces(docInfo, offset);
             docInfo.addToken(offset);
             if (!docInfo.charEquals(':', offset)) {
@@ -169,7 +169,7 @@ final class JsonParser { ;
                 docInfo.addToken(offset);
                 return ++offset;
             } else if (docInfo.charEquals(',', offset)) {
-                // Add the comma, and move to the next key
+                // Add the comma, and move to the next name
                 docInfo.addToken(offset);
                 offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
                 if (offset >= docInfo.getEndOffset()) {

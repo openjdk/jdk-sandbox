@@ -75,7 +75,7 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
         while (index < endIndex) {
             // Member name should be source string, not unescaped
             // Member equality is done via unescaped in JsonParser
-            var key = docInfo.substring(
+            var name = docInfo.substring(
                     docInfo.getOffset(index) + 1, docInfo.getOffset(index + 1));
             index = index + 2;
 
@@ -86,9 +86,9 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
             }
             var value = JsonFactory.createValue(docInfo, offset, index);
 
-            // Store key and value
-            k.put(key, value);
-            // Move to the next key
+            // Store name and value
+            k.put(name, value);
+            // Move to the next name
             index = ((JsonValueImpl)value).getEndIndex() + 1;
         }
         return Collections.unmodifiableMap(k);
