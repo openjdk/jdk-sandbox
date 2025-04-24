@@ -25,7 +25,6 @@
 
 package java.util.json;
 
-import jdk.internal.ValueBased;
 import jdk.internal.vm.annotation.Stable;
 
 import java.util.Collections;
@@ -35,7 +34,6 @@ import java.util.Objects;
 /**
  * JsonObject implementation class
  */
-@ValueBased
 final class JsonObjectImpl implements JsonObject, JsonValueImpl {
 
     private final int endOffset;

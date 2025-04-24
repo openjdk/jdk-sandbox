@@ -39,8 +39,16 @@ import jdk.internal.javac.PreviewFeature;
  *     json.toString(); // returns "[\"foo\",true,25]"
  * }
  * Instances of {@code JsonValue} are immutable. The data contained in the instances,
- * once created, cannot be modified. {@code JsonValue} and its sub-types are
- * <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>.
+ * once created, cannot be modified.
+ * <p>
+ * When two instances of {@code JsonValue} are equal (according to `equals`), a program
+ * should not attempt to distinguish between their identities, whether directly via reference
+ * equality or indirectly via an appeal to synchronization, identity hashing,
+ * serialization, or any other identity-sensitive mechanism.
+ * <p>
+ * Synchronization on instances of {@code JsonValue} is strongly discouraged,
+ * because the programmer cannot guarantee exclusive ownership of the
+ * associated monitor.
  *
  * @since 99
  */

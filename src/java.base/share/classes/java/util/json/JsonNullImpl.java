@@ -25,14 +25,11 @@
 
 package java.util.json;
 
-import jdk.internal.ValueBased;
-
 import java.util.Objects;
 
 /**
  * JsonNull implementation class
  */
-@ValueBased
 final class JsonNullImpl implements JsonNull, JsonValueImpl {
 
     private final int endOffset;
