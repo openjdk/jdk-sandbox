@@ -261,11 +261,19 @@ public class TestJsonObject {
     }
 
     @Test
-    void nullKeyTest() {
+    void nullTest() {
+        // null map to of factory
+        assertThrows(NullPointerException.class, () -> JsonObject.of(null));
         Map<String, JsonValue> map = new HashMap<>();
+        // Check null key
         map.put(null, JsonNull.of());
         assertThrows(NullPointerException.class, () -> JsonObject.of(map));
         assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(map));
+        map.clear();
+        // Check null value
+        map.put("foo", null);
+        assertThrows(NullPointerException.class, () -> JsonObject.of(map));
+        assertDoesNotThrow(() -> Json.fromUntyped(map));
     }
 
     @Test

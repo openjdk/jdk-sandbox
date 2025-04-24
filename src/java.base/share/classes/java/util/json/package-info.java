@@ -59,27 +59,24 @@
  * adheres to the JSON grammar. The parsing APIs provided do not accept JSON text
  * that contain JSON Objects with duplicate names.
  *
- * <p>Parsing constructs the {@code JsonValue} <i>lazily</i>. For the reference
- * JDK implementation, the underlying value(s) of the root {@code JsonValue} are
- * evaluated and allocated on-demand. This approach allows for memory usage to scale as
- * required. Consider the following example,
+ * <p>For the reference JDK implementation, parsing constructs the {@code JsonValue}
+ * <i>lazily</i>. Parsing builds the tree of {@code JsonValue}s, and the underlying value
+ * of a {@code JsonValue} is not procured until needed.
+ * <p>Consider the following example,
  * {@snippet lang=java:
- * String text = "{\"foo\" : [null, 15, \"baz\"], \"bar\" : true}";
+ * String text = " [\"baz\", 15, false, null] ";
  * JsonValue root = Json.parse(text);
- * if (root instanceof JsonObject jo) {
- *     Map<String, JsonValue> elements = jo.members();
- *     if (elements.get("foo") instanceof JsonArray ja) {
- *         List<JsonValue> values = ja.values();
- *         // use "values"
+ * if (root instanceof JsonArray ja) {
+ *     if (ja.get(0) instanceof JsonString js && js.value() instanceof String str) {
+ *         // use "str"
  *     }
  * }
  * }
- * The JSON text consists of a root JSON Object composed of the members "foo" and
- * "bar". The initial parse invocation only allocates an empty root JSON object.
- * It isn't until {@code JsonObject.members()} is invoked, that the underlying members
- * are allocated as well. Similarly, the JSON Array belonging to "foo"
- * remains empty, and the underlying values are not allocated until {@code
- * JsonArray.values()} is invoked.
+ * The JSON text consists of a root JSON Array composed of a variety of JSON values.
+ * The initial parse invocation creates the tree of {@code JsonValue}s.
+ * However, the underlying values of the array are not allocated until a particular
+ * {@code JsonValue} is accessed and its value queried for. In the above example,
+ * only {@code js} will have its underlying value allocated.
  *
  * <h2><a>Mapping</a></h2>
  *

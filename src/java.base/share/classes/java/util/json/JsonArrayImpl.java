@@ -28,7 +28,6 @@ package java.util.json;
 import jdk.internal.ValueBased;
 import jdk.internal.vm.annotation.Stable;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -39,60 +38,24 @@ import java.util.Objects;
 @ValueBased
 final class JsonArrayImpl implements JsonArray, JsonValueImpl {
 
-    private final JsonDocumentInfo docInfo;
-    private final int endIndex;
-    private final int startIndex;
-    private final int startOffset;
+    private final int endOffset;
     @Stable
-    private List<JsonValue> theValues;
+    private final List<JsonValue> theValues;
 
     JsonArrayImpl(List<JsonValue> from) {
         theValues = from;
-        this.endIndex = 0;
-        this.startIndex = 0;
-        this.startOffset = 0;
-        docInfo = null;
+        // unused
+        endOffset = -1;
     }
 
-    JsonArrayImpl(JsonDocumentInfo doc, int offset, int index) {
-        docInfo = doc;
-        startOffset = offset;
-        startIndex = index;
-        endIndex = startIndex == 0 ? docInfo.getIndexCount() - 1 // For root
-                : docInfo.nextIndex(index, '[', ']');
+    JsonArrayImpl(List<JsonValue> from, int end) {
+        theValues = from;
+        endOffset = end;
     }
 
     @Override
     public List<JsonValue> values() {
-        if (theValues == null) {
-            theValues = inflate();
-        }
-        return theValues;
-    }
-
-    // Inflate the JsonArray using the tokens array.
-    private List<JsonValue> inflate() {
-        if (docInfo.charAt(JsonParser.skipWhitespaces(docInfo, startOffset + 1)) == ']') {
-            return Collections.emptyList();
-        }
-        var v = new ArrayList<JsonValue>();
-        var index = startIndex;
-        while (index < endIndex) { // start on comma or opening bracket
-            // Get Val
-            int offset = docInfo.getOffset(index) + 1;
-            if (docInfo.shouldWalkToken(docInfo.charAtIndex(index + 1))) {
-                index++;
-            }
-            var value = JsonFactory.createValue(docInfo, offset, index);
-            v.add(value);
-            index = ((JsonValueImpl)value).getEndIndex(); // Move to comma or closing
-        }
-        return Collections.unmodifiableList(v);
-    }
-
-    @Override
-    public int getEndIndex() {
-        return endIndex + 1;  // We are always interested in the index after ']'
+        return Collections.unmodifiableList(theValues);
     }
 
     @Override
@@ -117,5 +80,10 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
     @Override
     public int hashCode() {
         return Objects.hash(values());
+    }
+
+    @Override
+    public int getEndOffset() {
+        return endOffset;
     }
 }

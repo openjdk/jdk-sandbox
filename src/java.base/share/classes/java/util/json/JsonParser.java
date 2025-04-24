@@ -25,22 +25,28 @@
 
 package java.util.json;
 
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 
-// Responsible for parsing the Json document which validates the contents
-// and builds the tokens array in JsonDocumentInfo which is used for lazy inflation
+// Parse the JSON document which creates a tree of nodes
+// These nodes are lazy, structural JSON nodes contain their Data Structures
+// Primitive JSON Values are fully lazy until their value/string is accessed
 final class JsonParser { ;
 
-    // Parse the JSON and return the built DocumentInfo w/ tokens array
-    static JsonDocumentInfo parseRoot(JsonDocumentInfo docInfo) {
-        int end = parseValue(docInfo, 0);
+    static JsonValue parseRoot(JsonDocumentInfo docInfo) {
+        int offset = skipWhitespaces(docInfo, 0);
+        if (offset >= docInfo.getEndOffset()) {
+            throw failure(docInfo, "Missing JSON value", offset);
+        }
+        JsonValueImpl root = parseValue(docInfo, offset);
+        int end = root.getEndOffset();
         if (!checkWhitespaces(docInfo, end, docInfo.getEndOffset())) {
             throw failure(docInfo,"Unexpected character(s)", end);
         }
-        return docInfo;
+        return (JsonValue) root;
     }
 
-    static int parseValue(JsonDocumentInfo docInfo, int offset) {
+    static JsonValueImpl parseValue(JsonDocumentInfo docInfo, int offset) {
         offset = skipWhitespaces(docInfo, offset);
         if (offset >= docInfo.getEndOffset()) {
             throw failure(docInfo, "Missing JSON value", offset);
@@ -60,15 +66,14 @@ final class JsonParser { ;
         };
     }
 
-    static int parseObject(JsonDocumentInfo docInfo, int offset) {
-        var names = new HashSet<String>();
-        docInfo.addToken(offset);
+    static JsonObjectImpl parseObject(JsonDocumentInfo docInfo, int offset) {
+        var members = new LinkedHashMap<String, JsonValue>();
+
         // Walk past the '{'
         offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
         // Check for empty case
         if (docInfo.charEquals('}', offset)) {
-            docInfo.addToken(offset);
-            return ++offset;
+            return new JsonObjectImpl(members, ++offset);
         }
 
         StringBuilder sb = null; // only init if we need to use for escapes
@@ -79,7 +84,7 @@ final class JsonParser { ;
             }
             // Member equality done via unescaped String
             // see https://datatracker.ietf.org/doc/html/rfc8259#section-8.3
-            docInfo.addToken(offset++); // Move past the starting quote
+            offset++; // Move past the starting quote
             var escape = false;
             boolean useBldr = false;
             var start = offset;
@@ -121,7 +126,7 @@ final class JsonParser { ;
                     escape = true;
                     continue;
                 } else if (c == '\"') {
-                    docInfo.addToken(offset++);
+                    offset++;
                     foundClosing = true;
                     break;
                 } else if (c < ' ') {
@@ -143,17 +148,13 @@ final class JsonParser { ;
             } else {
                 nameStr = docInfo.substring(start, offset - 1);
             }
-
-            // Check for duplicates
-            if (names.contains(nameStr)) {
-                throw failure(docInfo,
-                        "The duplicate member name: '%s' was already parsed".formatted(nameStr), offset);
+            if (members.containsKey(nameStr)) {
+                throw failure(docInfo, "The duplicate member name: '%s' was already parsed".formatted(nameStr), offset);
             }
-            names.add(nameStr);
 
             // Move from name to ':'
             offset = JsonParser.skipWhitespaces(docInfo, offset);
-            docInfo.addToken(offset);
+
             if (!docInfo.charEquals(':', offset)) {
                 throw failure(docInfo,
                         "Expected ':' after the member name", offset);
@@ -161,16 +162,17 @@ final class JsonParser { ;
 
             // Move from ':' to JsonValue
             offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
-            offset = JsonParser.parseValue(docInfo, offset);
+            JsonValueImpl val = JsonParser.parseValue(docInfo, offset);
+            members.put(nameStr, (JsonValue) val);
+            // Move to end of JsonValue
+            offset = val.getEndOffset();
 
             // Walk to either ',' or '}'
             offset = JsonParser.skipWhitespaces(docInfo, offset);
             if (docInfo.charEquals('}', offset)) {
-                docInfo.addToken(offset);
-                return ++offset;
+                return new JsonObjectImpl(members, ++offset);
             } else if (docInfo.charEquals(',', offset)) {
-                // Add the comma, and move to the next name
-                docInfo.addToken(offset);
+                // Add the comma, and move to the next key
                 offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
                 if (offset >= docInfo.getEndOffset()) {
                     throw failure(docInfo, "Expected a member after ','", offset);
@@ -183,28 +185,28 @@ final class JsonParser { ;
         throw failure(docInfo, "Object was not closed with '}'", offset);
     }
 
-    static int parseArray(JsonDocumentInfo docInfo, int offset) {
-        docInfo.addToken(offset);
+    static JsonArrayImpl parseArray(JsonDocumentInfo docInfo, int offset) {
+        var list = new ArrayList<JsonValue>();
         // Walk past the '['
         offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
         // Check for empty case
         if (docInfo.charEquals(']', offset)) {
-            docInfo.addToken(offset);
-            return ++offset;
+            return new JsonArrayImpl(list, ++offset);
         }
 
         while (offset < docInfo.getEndOffset()) {
             // Get the JsonValue
-            offset = JsonParser.parseValue(docInfo, offset);
+            JsonValueImpl val = JsonParser.parseValue(docInfo, offset);
+            list.add((JsonValue) val);
+
+            offset = val.getEndOffset();
 
             // Walk to either ',' or ']'
             offset = JsonParser.skipWhitespaces(docInfo, offset);
             if (docInfo.charEquals(']', offset)) {
-                docInfo.addToken(offset);
-                return ++offset;
+                return new JsonArrayImpl(list, ++offset);
             } else if (docInfo.charEquals(',', offset)) {
                 // Add the comma, and move to the next value
-                docInfo.addToken(offset);
                 offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
                 if (offset >= docInfo.getEndOffset()) {
                     throw failure(docInfo, "Expected a value after ','", offset);
@@ -217,10 +219,10 @@ final class JsonParser { ;
         throw failure(docInfo, "Array was not closed with ']'", offset);
     }
 
-    static int parseString(JsonDocumentInfo docInfo, int offset) {
-        docInfo.addToken(offset++); // Move past the starting quote
+    static JsonStringImpl parseString(JsonDocumentInfo docInfo, int offset) {
+        int start = offset;
+        offset++; // Move past the starting quote
         var escape = false;
-
         for (; offset < docInfo.getEndOffset(); offset++) {
             var c = docInfo.charAt(offset);
             if (escape) {
@@ -243,8 +245,7 @@ final class JsonParser { ;
             } else if (c == '\\') {
                 escape = true;
             } else if (c == '\"') {
-                docInfo.addToken(offset);
-                return ++offset;
+                return new JsonStringImpl(docInfo, start, ++offset);
             } else if (c < ' ') {
                 throw failure(docInfo,
                         "Unescaped control code", offset);
@@ -280,28 +281,28 @@ final class JsonParser { ;
         return val;
     }
 
-    static int parseTrue(JsonDocumentInfo docInfo, int offset) {
+    static JsonBooleanImpl parseTrue(JsonDocumentInfo docInfo, int offset) {
         if (docInfo.charsEqual("rue", offset + 1)) {
-            return offset + 4;
+            return new JsonBooleanImpl(docInfo, offset, offset + 4);
         }
         throw failure(docInfo, "Expected true", offset);
     }
 
-    static int parseFalse(JsonDocumentInfo docInfo, int offset) {
+    static JsonBooleanImpl parseFalse(JsonDocumentInfo docInfo, int offset) {
         if (docInfo.charsEqual( "alse", offset + 1)) {
-            return offset + 5;
+            return new JsonBooleanImpl(docInfo, offset, offset + 5);
         }
         throw failure(docInfo, "Expected false", offset);
     }
 
-    static int parseNull(JsonDocumentInfo docInfo, int offset) {
+    static JsonNullImpl parseNull(JsonDocumentInfo docInfo, int offset) {
         if (docInfo.charsEqual("ull", offset + 1)) {
-            return offset + 4;
+            return new JsonNullImpl(offset + 4);
         }
         throw failure(docInfo, "Expected null", offset);
     }
 
-    static int parseNumber(JsonDocumentInfo docInfo, int offset) {
+    static JsonNumberImpl parseNumber(JsonDocumentInfo docInfo, int offset) {
         boolean sawDecimal = false;
         boolean sawExponent = false;
         boolean sawZero = false;
@@ -380,7 +381,7 @@ final class JsonParser { ;
             throw failure(docInfo,
                     "Input expected after '[.|e|E]'", offset);
         }
-        return offset;
+        return new JsonNumberImpl(docInfo, start, offset);
     }
 
     // Utility functions

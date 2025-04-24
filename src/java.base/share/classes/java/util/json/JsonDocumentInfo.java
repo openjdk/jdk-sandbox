@@ -24,84 +24,20 @@
  */
 package java.util.json;
 
-import java.util.Objects;
-
 final class JsonDocumentInfo  {
 
     // Access to the underlying JSON contents
     private final char[] doc;
-    // tokens array/index are finalized by JsonParser::parse
-    private final int[] tokens;
-    private int index;
     // For exception message on failure
     private int line = 0;
     private int lineStart = 0;
 
     JsonDocumentInfo(char[] in) {
         doc = in;
-        tokens = new int[doc.length];
-        index = 0;
     }
 
     char[] getDoc() {
         return doc;
-    }
-
-    // Add the offset of the token to token array
-    void addToken(int offset) {
-        tokens[index++] = offset;
-    }
-
-    // Convenience to walk a token during inflation
-    boolean shouldWalkToken(char c) {
-        return switch (c) {
-            case '"', '{', '['  -> true;
-            default -> false;
-        };
-    }
-
-    // gets offset in the input from the array index
-    int getOffset(int index) {
-        Objects.checkIndex(index, this.index);
-        return tokens[index];
-    }
-
-    // Json Boolean, Null, and Number have an end index that is 1 greater
-    // If the root is a primitive JSON value, -1 is returned as there are no indices
-    int nextIndex(int index) {
-        if (index + 1 < this.index) {
-            return index + 1;
-        } else {
-            return -1;
-        }
-    }
-
-    // Json Array and Object have an end index that corresponds to the closing bracket
-    int nextIndex(int startIdx, char startToken, char endToken) {
-        var index = startIdx + 1;
-        int depth = 0;
-        while (index < this.index) {
-            var c = charAtIndex(index);
-            if (c == startToken) {
-                depth++;
-            } else if (c == endToken) {
-                depth--;
-            }
-            if (depth < 0) {
-                break;
-            }
-            index++;
-        }
-        return index;
-    }
-
-    // for convenience
-    char charAtIndex(int index) {
-        return doc[getOffset(index)];
-    }
-
-    int getIndexCount() {
-        return index;
     }
 
     int getEndOffset() {

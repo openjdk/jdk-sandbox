@@ -27,8 +27,8 @@ package java.util.json;
 
 import jdk.internal.javac.PreviewFeature;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * The interface that represents JSON array.
@@ -56,7 +56,11 @@ public non-sealed interface JsonArray extends JsonValue {
      *      any values that are {@code null}
      */
     static JsonArray of(List<? extends JsonValue> src) {
-        return new JsonArrayImpl(List.copyOf(src)); // implicit null check
+        var values = new ArrayList<JsonValue>(src); // implicit null check
+        if (values.contains(null)) {
+            throw new NullPointerException("src contains null value(s)");
+        }
+        return new JsonArrayImpl(values);
     }
 
     /**

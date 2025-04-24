@@ -118,8 +118,7 @@ public final class Json {
      */
     public static JsonValue parse(String in) {
         Objects.requireNonNull(in);
-        return JsonFactory.createValue(JsonParser.parseRoot(
-                new JsonDocumentInfo(in.toCharArray())), 0, 0);
+        return JsonParser.parseRoot(new JsonDocumentInfo(in.toCharArray()));
     }
 
     /**
@@ -143,8 +142,7 @@ public final class Json {
      */
     public static JsonValue parse(char[] in) {
         Objects.requireNonNull(in);
-        return JsonFactory.createValue(JsonParser.parseRoot(
-                new JsonDocumentInfo(Arrays.copyOf(in, in.length))), 0, 0);
+        return JsonParser.parseRoot(new JsonDocumentInfo(Arrays.copyOf(in, in.length)));
     }
 
     /**
@@ -186,7 +184,7 @@ public final class Json {
                     }
                 }
                 // Equivalent to JsonObject.of(m) without a defensive copy
-                yield new JsonObjectImpl(Collections.unmodifiableMap(m));
+                yield new JsonObjectImpl(m);
             }
             case List<?> list -> {
                 if (!identitySet.add(list)) {
@@ -197,7 +195,7 @@ public final class Json {
                     l.add(Json.fromUntyped(o, identitySet));
                 }
                 // Equivalent to JsonArray.of(l) without a defensive copy
-                yield new JsonArrayImpl(Collections.unmodifiableList(l));
+                yield new JsonArrayImpl(l);
             }
             // JsonPrimitives
             case String str -> JsonString.of(str);

@@ -28,8 +28,9 @@ package java.util.json;
 /**
  * Implementation methods/fields common to JsonXXXImpl classes
  */
-sealed interface JsonValueImpl permits JsonArrayImpl, JsonBooleanImpl, JsonNullImpl, JsonNumberImpl, JsonObjectImpl, JsonStringImpl {
+sealed interface JsonValueImpl
+        permits JsonArrayImpl, JsonBooleanImpl, JsonNullImpl, JsonNumberImpl, JsonObjectImpl, JsonStringImpl {
 
-    // obtaining end index
-    int getEndIndex();
+    // obtaining end offset
+    int getEndOffset();
 }

@@ -118,12 +118,14 @@ public class TestJsonArray {
     }
 
     @Test
-    void nullValueTest() {
+    void nullTest() {
+        // null list to of factory
+        assertThrows(NullPointerException.class, () -> JsonArray.of(null));
         List<JsonValue> list = new ArrayList<>();
         list.add(null);
         // JsonArray.of() should throw as typed to JsonValue
         assertThrows(NullPointerException.class, () -> JsonArray.of(list));
-        // Json.fromUntyped() should map null to JsonNull
+        // Json.fromUntyped() should map null value to JsonNull
         assertDoesNotThrow(() -> Json.fromUntyped(list));
     }
 }

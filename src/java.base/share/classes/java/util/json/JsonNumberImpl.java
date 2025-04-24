@@ -41,7 +41,6 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     private final JsonDocumentInfo docInfo;
     private final int startOffset;
     private final int endOffset;
-    private final int endIndex;
     @Stable
     private Number theNumber;
     @Stable
@@ -56,17 +55,16 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
         }
         theNumber = num;
         numString = num.toString();
-        startOffset = 0;
-        endOffset = 0;
-        endIndex = 0;
+        // unused
+        startOffset = -1;
+        endOffset = -1;
         docInfo = null;
     }
 
-    JsonNumberImpl(JsonDocumentInfo doc, int offset, int index) {
+    JsonNumberImpl(JsonDocumentInfo doc, int start, int end) {
         docInfo = doc;
-        startOffset = offset;
-        endIndex = docInfo.nextIndex(index);
-        endOffset = endIndex != -1 ? docInfo.getOffset(endIndex) : docInfo.getEndOffset();
+        startOffset = start;
+        endOffset = end;
     }
 
     public Number toNumber() {
@@ -124,11 +122,6 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     }
 
     @Override
-    public int getEndIndex() {
-        return endIndex;
-    }
-
-    @Override
     public String toString() {
         return string();
     }
@@ -143,5 +136,10 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     @Override
     public int hashCode() {
         return toString().toLowerCase(Locale.ROOT).hashCode();
+    }
+
+    @Override
+    public int getEndOffset() {
+        return endOffset;
     }
 }

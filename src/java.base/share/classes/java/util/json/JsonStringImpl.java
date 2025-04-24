@@ -39,7 +39,6 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
     private final JsonDocumentInfo docInfo;
     private final int startOffset;
     private final int endOffset;
-    private final int endIndex;
     @Stable
     private String theString;
     @Stable
@@ -50,14 +49,12 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
         startOffset = 0;
         endOffset = docInfo.getEndOffset();
         theString = unescape(startOffset + 1, endOffset - 1);
-        endIndex = 0;
     }
 
-    JsonStringImpl(JsonDocumentInfo doc, int offset, int index) {
+    JsonStringImpl(JsonDocumentInfo doc, int start, int end) {
         docInfo = doc;
-        startOffset = offset;
-        endIndex = index + 1;
-        endOffset = docInfo.getOffset(endIndex) + 1;
+        startOffset = start;
+        endOffset = end;
     }
 
     @Override
@@ -70,11 +67,6 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
             }
         }
         return theString;
-    }
-
-    @Override
-    public int getEndIndex() {
-        return endIndex + 1; // We are interested in the index after '"'
     }
 
     @Override
@@ -142,5 +134,10 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
             // unescape() does not include the quotes
             return ret.substring(1, ret.length() - 1);
         }
+    }
+
+    @Override
+    public int getEndOffset() {
+        return endOffset;
     }
 }

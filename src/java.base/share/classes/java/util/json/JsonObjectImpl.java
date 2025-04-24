@@ -29,7 +29,6 @@ import jdk.internal.ValueBased;
 import jdk.internal.vm.annotation.Stable;
 
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -39,64 +38,24 @@ import java.util.Objects;
 @ValueBased
 final class JsonObjectImpl implements JsonObject, JsonValueImpl {
 
-    private final JsonDocumentInfo docInfo;
-    private final int startIndex;
-    private final int endIndex;
+    private final int endOffset;
     @Stable
-    private Map<String, JsonValue> theMembers;
+    private final Map<String, JsonValue> theMembers;
 
     JsonObjectImpl(Map<String, JsonValue> map) {
         theMembers = map;
-        docInfo = null;
-        startIndex = 0;
-        endIndex = 0;
+        // unused
+        endOffset = -1;
     }
 
-    JsonObjectImpl(JsonDocumentInfo doc, int index) {
-        docInfo = doc;
-        startIndex = index;
-        endIndex = startIndex == 0 ? docInfo.getIndexCount() - 1 // For root
-                : docInfo.nextIndex(index, '{', '}');
+    JsonObjectImpl(Map<String, JsonValue> map, int end) {
+        theMembers = map;
+        endOffset = end;
     }
 
     @Override
     public Map<String, JsonValue> members() {
-        if (theMembers == null) {
-            theMembers = inflate();
-        }
-        return theMembers;
-    }
-
-    // Inflates the JsonObject using the tokens array
-    private Map<String, JsonValue> inflate() {
-        var k = new LinkedHashMap<String, JsonValue>();
-        var index = startIndex + 1;
-        // Empty case automatically checked by index increment. {} is 2 tokens
-        while (index < endIndex) {
-            // Member name should be source string, not unescaped
-            // Member equality is done via unescaped in JsonParser
-            var name = docInfo.substring(
-                    docInfo.getOffset(index) + 1, docInfo.getOffset(index + 1));
-            index = index + 2;
-
-            // Get value
-            int offset = docInfo.getOffset(index) + 1;
-            if (docInfo.shouldWalkToken(docInfo.charAtIndex(index + 1))) {
-                index++;
-            }
-            var value = JsonFactory.createValue(docInfo, offset, index);
-
-            // Store name and value
-            k.put(name, value);
-            // Move to the next name
-            index = ((JsonValueImpl)value).getEndIndex() + 1;
-        }
-        return Collections.unmodifiableMap(k);
-    }
-
-    @Override
-    public int getEndIndex() {
-        return endIndex + 1; // We are interested in the index after '}'
+        return Collections.unmodifiableMap(theMembers);
     }
 
     @Override
@@ -123,5 +82,10 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
     @Override
     public int hashCode() {
         return Objects.hash(members());
+    }
+
+    @Override
+    public int getEndOffset() {
+        return endOffset;
     }
 }

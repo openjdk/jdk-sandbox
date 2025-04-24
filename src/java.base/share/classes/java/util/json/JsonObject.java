@@ -27,10 +27,8 @@ package java.util.json;
 
 import jdk.internal.javac.PreviewFeature;
 
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * The interface that represents JSON object.
@@ -57,14 +55,13 @@ public non-sealed interface JsonObject extends JsonValue {
      * map of {@code String} to {@code JsonValue}s}
      *
      * @param map the map of {@code JsonValue}s. Non-null.
-     * @throws NullPointerException if {@code map} is {@code null}, or contains
-     *      any keys that are {@code null}
+     * @throws NullPointerException if {@code map} is {@code null}, contains
+     *      any keys that are {@code null}, or contains any values that are {@code null}
      */
     static JsonObject of(Map<String, ? extends JsonValue> map) {
-        // Map.copyOf() does not preserve insertion-order
-        Map<String, JsonValue> members = Collections.unmodifiableMap(new LinkedHashMap<>(map));
-        if (members.containsKey(null)) {
-            throw new NullPointerException("Key is not a String");
+        var members = new LinkedHashMap<String, JsonValue>(map); // implicit null check
+        if (members.containsKey(null) || members.containsValue(null)) {
+            throw new NullPointerException("map contains null keys(s) or value(s)");
         }
         return new JsonObjectImpl(members);
     }

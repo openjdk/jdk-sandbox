@@ -38,7 +38,7 @@ final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
 
     private final JsonDocumentInfo docInfo;
     private final int startOffset;
-    private final int endIndex;
+    private final int endOffset;
     @Stable
     private Boolean theBoolean;
 
@@ -47,15 +47,16 @@ final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
 
     JsonBooleanImpl(Boolean bool) {
         theBoolean = bool;
-        startOffset = 0;
-        endIndex = 0;
+        // unused
         docInfo = null;
+        startOffset = -1;
+        endOffset = -1;
     }
 
-    JsonBooleanImpl(JsonDocumentInfo doc, int offset, int index) {
+    JsonBooleanImpl(JsonDocumentInfo doc, int start, int end) {
         docInfo = doc;
-        startOffset = offset;
-        endIndex = docInfo.nextIndex(index);
+        startOffset = start;
+        endOffset = end;
     }
 
     @Override
@@ -64,11 +65,6 @@ final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
             theBoolean = docInfo.charAt(startOffset) == 't';
         }
         return theBoolean;
-    }
-
-    @Override
-    public int getEndIndex() {
-        return endIndex;
     }
 
     @Override
@@ -86,5 +82,10 @@ final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
     @Override
     public int hashCode() {
         return Objects.hash(value());
+    }
+
+    @Override
+    public int getEndOffset() {
+        return endOffset;
     }
 }
