@@ -59,24 +59,8 @@
  * adheres to the JSON grammar. The parsing APIs provided do not accept JSON text
  * that contain JSON Objects with duplicate names.
  *
- * <p>For the reference JDK implementation, parsing constructs the {@code JsonValue}
- * <i>lazily</i>. Parsing builds the tree of {@code JsonValue}s, and the underlying value
- * of a {@code JsonValue} is not procured until needed.
- * <p>Consider the following example,
- * {@snippet lang=java:
- * String text = " [\"baz\", 15, false, null] ";
- * JsonValue root = Json.parse(text);
- * if (root instanceof JsonArray ja) {
- *     if (ja.get(0) instanceof JsonString js && js.value() instanceof String str) {
- *         // use "str"
- *     }
- * }
- * }
- * The JSON text consists of a root JSON Array composed of a variety of JSON values.
- * The initial parse invocation creates the tree of {@code JsonValue}s.
- * However, the underlying values of the array are not allocated until a particular
- * {@code JsonValue} is accessed and its value queried for. In the above example,
- * only {@code js} will have its underlying value allocated.
+ * <p>For the reference JDK implementation, {@code JsonValue}s created via parsing
+ * procure their underlying values <i>lazily</i>.
  *
  * <h2><a>Mapping</a></h2>
  *
