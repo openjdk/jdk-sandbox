@@ -90,7 +90,7 @@ public class TestParseException {
                 Arguments.of("{ \"\\u000\" ", "Invalid Unicode escape sequence"),
                 // Array
                 Arguments.of("[ \"foo\"  ", "Array was not closed with ']'"),
-                Arguments.of("[ \"foo\",  ", "Expected a value after ','"),
+                Arguments.of("[ \"foo\",  ", "Array was not closed with ']'"),
                 Arguments.of("[ ", "Array was not closed with ']'"),
                 // String
                 Arguments.of("\"\u001b\"", "Unescaped control code"),

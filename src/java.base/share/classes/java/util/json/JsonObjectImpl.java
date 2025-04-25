@@ -34,21 +34,13 @@ import java.util.Objects;
 /**
  * JsonObject implementation class
  */
-final class JsonObjectImpl implements JsonObject, JsonValueImpl {
+final class JsonObjectImpl implements JsonObject {
 
-    private final int endOffset;
     @Stable
     private final Map<String, JsonValue> theMembers;
 
     JsonObjectImpl(Map<String, JsonValue> map) {
         theMembers = map;
-        // unused
-        endOffset = -1;
-    }
-
-    JsonObjectImpl(Map<String, JsonValue> map, int end) {
-        theMembers = map;
-        endOffset = end;
     }
 
     @Override
@@ -80,10 +72,5 @@ final class JsonObjectImpl implements JsonObject, JsonValueImpl {
     @Override
     public int hashCode() {
         return Objects.hash(members());
-    }
-
-    @Override
-    public int getEndOffset() {
-        return endOffset;
     }
 }

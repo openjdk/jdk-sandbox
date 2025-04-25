@@ -34,7 +34,7 @@ import java.util.Locale;
 /**
  * JsonNumber implementation class
  */
-final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
+final class JsonNumberImpl implements JsonNumber {
 
     private final JsonDocumentInfo docInfo;
     private final int startOffset;
@@ -109,12 +109,7 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
     private String string() {
         if (numString == null) {
-            // Strip any trailing white space from the number
-            var offset = endOffset - 1;
-            while (JsonParser.isWhitespace(docInfo, offset)) {
-                offset--;
-            }
-            numString = docInfo.substring(startOffset, offset + 1);
+            numString = docInfo.substring(startOffset, endOffset);
         }
         return numString;
     }
@@ -134,10 +129,5 @@ final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     @Override
     public int hashCode() {
         return toString().toLowerCase(Locale.ROOT).hashCode();
-    }
-
-    @Override
-    public int getEndOffset() {
-        return endOffset;
     }
 }

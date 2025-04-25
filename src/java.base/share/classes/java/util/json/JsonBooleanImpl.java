@@ -32,36 +32,20 @@ import java.util.Objects;
 /**
  * JsonBoolean implementation class
  */
-final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
+final class JsonBooleanImpl implements JsonBoolean {
 
-    private final JsonDocumentInfo docInfo;
-    private final int startOffset;
-    private final int endOffset;
     @Stable
-    private Boolean theBoolean;
+    private final Boolean theBoolean;
 
     static final JsonBooleanImpl TRUE = new JsonBooleanImpl(true);
     static final JsonBooleanImpl FALSE = new JsonBooleanImpl(false);
 
-    JsonBooleanImpl(Boolean bool) {
+    private JsonBooleanImpl(Boolean bool) {
         theBoolean = bool;
-        // unused
-        docInfo = null;
-        startOffset = -1;
-        endOffset = -1;
-    }
-
-    JsonBooleanImpl(JsonDocumentInfo doc, int start, int end) {
-        docInfo = doc;
-        startOffset = start;
-        endOffset = end;
     }
 
     @Override
     public boolean value() {
-        if (theBoolean == null) {
-            theBoolean = docInfo.charAt(startOffset) == 't';
-        }
         return theBoolean;
     }
 
@@ -80,10 +64,5 @@ final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
     @Override
     public int hashCode() {
         return Objects.hash(value());
-    }
-
-    @Override
-    public int getEndOffset() {
-        return endOffset;
     }
 }

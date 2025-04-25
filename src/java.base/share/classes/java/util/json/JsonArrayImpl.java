@@ -34,21 +34,13 @@ import java.util.Objects;
 /**
  * JsonArray implementation class
  */
-final class JsonArrayImpl implements JsonArray, JsonValueImpl {
+final class JsonArrayImpl implements JsonArray {
 
-    private final int endOffset;
     @Stable
     private final List<JsonValue> theValues;
 
     JsonArrayImpl(List<JsonValue> from) {
         theValues = from;
-        // unused
-        endOffset = -1;
-    }
-
-    JsonArrayImpl(List<JsonValue> from, int end) {
-        theValues = from;
-        endOffset = end;
     }
 
     @Override
@@ -78,10 +70,5 @@ final class JsonArrayImpl implements JsonArray, JsonValueImpl {
     @Override
     public int hashCode() {
         return Objects.hash(values());
-    }
-
-    @Override
-    public int getEndOffset() {
-        return endOffset;
     }
 }

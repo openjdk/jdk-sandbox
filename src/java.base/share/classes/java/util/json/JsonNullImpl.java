@@ -30,22 +30,13 @@ import java.util.Objects;
 /**
  * JsonNull implementation class
  */
-final class JsonNullImpl implements JsonNull, JsonValueImpl {
-
-    private final int endOffset;
+final class JsonNullImpl implements JsonNull {
 
     static final JsonNullImpl NULL = new JsonNullImpl();
     static final String VALUE = "null";
     static final int HASH = Objects.hash(VALUE);
 
-    JsonNullImpl() {
-        // unused
-        endOffset = 0;
-    }
-
-    JsonNullImpl(int end) {
-        endOffset = end;
-    }
+    private JsonNullImpl() {}
 
     @Override
     public String toString() {
@@ -60,10 +51,5 @@ final class JsonNullImpl implements JsonNull, JsonValueImpl {
     @Override
     public int hashCode() {
         return HASH;
-    }
-
-    @Override
-    public int getEndOffset() {
-        return endOffset;
     }
 }

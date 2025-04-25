@@ -32,7 +32,7 @@ import java.util.Objects;
 /**
  * JsonString implementation class
  */
-final class JsonStringImpl implements JsonString, JsonValueImpl {
+final class JsonStringImpl implements JsonString {
 
     private final JsonDocumentInfo docInfo;
     private final int startOffset;
@@ -104,7 +104,7 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
                     case 'r' -> c = '\r';
                     case 't' -> c = '\t';
                     case 'u' -> {
-                        c = JsonParser.codeUnit(docInfo, offset + 1);
+                        c = codeUnit(docInfo, offset + 1);
                         length = 4;
                     }
                     default -> throw new IllegalArgumentException("Illegal escape sequence");
@@ -134,8 +134,20 @@ final class JsonStringImpl implements JsonString, JsonValueImpl {
         }
     }
 
-    @Override
-    public int getEndOffset() {
-        return endOffset;
+    // Validate and construct corresponding value of unicode escape sequence
+    static char codeUnit(JsonDocumentInfo docInfo, int offset) {
+        char val = 0;
+        for (int index = 0; index < 4; index ++) {
+            char c = docInfo.charAt(offset + index);
+            val <<= 4;
+            val += (char) (
+                    switch (c) {
+                        case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> c - '0';
+                        case 'a', 'b', 'c', 'd', 'e', 'f' -> c - 'a' + 10;
+                        case 'A', 'B', 'C', 'D', 'E', 'F' -> c - 'A' + 10;
+                        default -> throw new IllegalArgumentException("Illegal Unicode escape sequence");
+                    });
+        }
+        return val;
     }
 }

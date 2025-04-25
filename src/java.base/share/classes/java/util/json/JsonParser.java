@@ -34,65 +34,61 @@ import java.util.LinkedHashMap;
 final class JsonParser { ;
 
     static JsonValue parseRoot(JsonDocumentInfo docInfo) {
-        int offset = skipWhitespaces(docInfo, 0);
-        if (offset >= docInfo.getEndOffset()) {
-            throw failure(docInfo, "Missing JSON value", offset);
+        JsonValue root = parseValue(docInfo);
+        skipWhitespaces(docInfo);
+        if (docInfo.offset != docInfo.getEndOffset()) {
+            throw failure(docInfo,"Unexpected character(s)");
         }
-        JsonValueImpl root = parseValue(docInfo, offset);
-        int end = root.getEndOffset();
-        if (!checkWhitespaces(docInfo, end, docInfo.getEndOffset())) {
-            throw failure(docInfo,"Unexpected character(s)", end);
-        }
-        return (JsonValue) root;
+        return root;
     }
 
-    static JsonValueImpl parseValue(JsonDocumentInfo docInfo, int offset) {
-        offset = skipWhitespaces(docInfo, offset);
-        if (offset >= docInfo.getEndOffset()) {
-            throw failure(docInfo, "Missing JSON value", offset);
+    static JsonValue parseValue(JsonDocumentInfo docInfo) {
+        skipWhitespaces(docInfo);
+        if (docInfo.offset >= docInfo.getEndOffset()) {
+            throw failure(docInfo, "Missing JSON value");
         }
-        return switch (docInfo.charAt(offset)) {
-            case '{' -> parseObject(docInfo, offset);
-            case '[' -> parseArray(docInfo, offset);
-            case '"' -> parseString(docInfo, offset);
-            case 't' -> parseTrue(docInfo, offset);
-            case 'f' -> parseFalse(docInfo, offset);
-            case 'n' -> parseNull(docInfo, offset);
+        return switch (docInfo.charAt(docInfo.offset)) {
+            case '{' -> parseObject(docInfo);
+            case '[' -> parseArray(docInfo);
+            case '"' -> parseString(docInfo);
+            case 't' -> parseTrue(docInfo);
+            case 'f' -> parseFalse(docInfo);
+            case 'n' -> parseNull(docInfo);
             // While JSON Number does not support leading '+', '.', or 'e'
             // we still accept, so that we can provide a better error message
             case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '+', 'e', '.'
-                    -> parseNumber(docInfo, offset);
-            default -> throw failure(docInfo, "Unexpected character(s)", offset);
+                    -> parseNumber(docInfo);
+            default -> throw failure(docInfo, "Unexpected character(s)");
         };
     }
 
-    static JsonObjectImpl parseObject(JsonDocumentInfo docInfo, int offset) {
+    static JsonObject parseObject(JsonDocumentInfo docInfo) {
         var members = new LinkedHashMap<String, JsonValue>();
-
-        // Walk past the '{'
-        offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
+        docInfo.offset++; // Walk past the '{'
+        skipWhitespaces(docInfo);
         // Check for empty case
-        if (docInfo.charEquals('}', offset)) {
-            return new JsonObjectImpl(members, ++offset);
+        if (docInfo.currCharEquals('}')) {
+            docInfo.offset++;
+            return new JsonObjectImpl(members);
         }
 
         StringBuilder sb = null; // only init if we need to use for escapes
-        while (offset < docInfo.getEndOffset()) {
+        while (docInfo.offset < docInfo.getEndOffset()) {
             // Get the name
-            if (!docInfo.charEquals('"', offset)) {
-                throw failure(docInfo, "Invalid member name", offset);
+            if (!docInfo.currCharEquals('"')) {
+                throw failure(docInfo, "Invalid member name");
             }
             // Member equality done via unescaped String
             // see https://datatracker.ietf.org/doc/html/rfc8259#section-8.3
-            offset++; // Move past the starting quote
+            docInfo.offset++; // Move past the starting quote
             var escape = false;
             boolean useBldr = false;
-            var start = offset;
+            var start = docInfo.offset;
             boolean foundClosing = false;
-            for (; offset < docInfo.getEndOffset(); offset++) {
-                var c = docInfo.charAt(offset);
+            for (; docInfo.offset < docInfo.getEndOffset(); docInfo.offset++) {
+                var c = docInfo.charAt(docInfo.offset);
                 if (escape) {
-                    var length = 0;
+                    var escapeLength = 0;
                     switch (c) {
                         // Allowed JSON escapes
                         case '"', '\\', '/' -> {}
@@ -102,43 +98,43 @@ final class JsonParser { ;
                         case 'r' -> c = '\r';
                         case 't' -> c = '\t';
                         case 'u' -> {
-                            if (offset + 4 < docInfo.getEndOffset()) {
-                                c = codeUnit(docInfo, offset + 1);
-                                length = 4;
+                            if (docInfo.offset + 4 < docInfo.getEndOffset()) {
+                                escapeLength = 4;
+                                docInfo.offset++; // Move to first char in sequence
+                                c = codeUnit(docInfo);
+                                // Move back, since outer loop will increment offset
+                                docInfo.offset--;
                             } else {
-                                throw failure(docInfo,
-                                        "Invalid Unicode escape sequence", offset);
+                                throw failure(docInfo, "Invalid Unicode escape sequence");
                             }
                         }
-                        default -> throw failure(docInfo,
-                                "Illegal escape", offset);
+                        default -> throw failure(docInfo, "Illegal escape");
                     }
                     if (!useBldr) {
                         if (sb == null) {
                             sb = new StringBuilder();
                         }
-                        sb.append(docInfo.getDoc(), start, offset - 1 - start);
+                        // Append everything up to the first escape sequence
+                        sb.append(docInfo.getDoc(), start, docInfo.offset - escapeLength - 1 - start);
                         useBldr = true;
                     }
-                    offset+=length;
                     escape = false;
                 } else if (c == '\\') {
                     escape = true;
                     continue;
                 } else if (c == '\"') {
-                    offset++;
+                    docInfo.offset++;
                     foundClosing = true;
                     break;
                 } else if (c < ' ') {
-                    throw failure(docInfo,
-                            "Unescaped control code", offset);
+                    throw failure(docInfo, "Unescaped control code");
                 }
                 if (useBldr) {
                     sb.append(c);
                 }
             }
             if (!foundClosing) {
-                throw failure(docInfo, "Closing quote missing", offset);
+                throw failure(docInfo, "Closing quote missing");
             }
 
             String nameStr;
@@ -146,163 +142,164 @@ final class JsonParser { ;
                 nameStr = sb.toString();
                 sb.setLength(0);
             } else {
-                nameStr = docInfo.substring(start, offset - 1);
+                nameStr = docInfo.substring(start, docInfo.offset - 1);
             }
             if (members.containsKey(nameStr)) {
-                throw failure(docInfo, "The duplicate member name: '%s' was already parsed".formatted(nameStr), offset);
+                throw failure(docInfo, "The duplicate member name: '%s' was already parsed".formatted(nameStr));
             }
 
             // Move from name to ':'
-            offset = JsonParser.skipWhitespaces(docInfo, offset);
+            skipWhitespaces(docInfo);
 
-            if (!docInfo.charEquals(':', offset)) {
+            if (!docInfo.currCharEquals(':')) {
                 throw failure(docInfo,
-                        "Expected ':' after the member name", offset);
+                        "Expected ':' after the member name");
             }
 
             // Move from ':' to JsonValue
-            offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
-            JsonValueImpl val = JsonParser.parseValue(docInfo, offset);
-            members.put(nameStr, (JsonValue) val);
-            // Move to end of JsonValue
-            offset = val.getEndOffset();
+            docInfo.offset++;
+            skipWhitespaces(docInfo);
+            JsonValue val = JsonParser.parseValue(docInfo);
+            members.put(nameStr, val);
 
             // Walk to either ',' or '}'
-            offset = JsonParser.skipWhitespaces(docInfo, offset);
-            if (docInfo.charEquals('}', offset)) {
-                return new JsonObjectImpl(members, ++offset);
-            } else if (docInfo.charEquals(',', offset)) {
+            skipWhitespaces(docInfo);
+            if (docInfo.currCharEquals('}')) {
+                docInfo.offset++;
+                return new JsonObjectImpl(members);
+            } else if (docInfo.currCharEquals(',')) {
                 // Add the comma, and move to the next key
-                offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
-                if (offset >= docInfo.getEndOffset()) {
-                    throw failure(docInfo, "Expected a member after ','", offset);
+                docInfo.offset++;
+                skipWhitespaces(docInfo);
+                if (docInfo.offset >= docInfo.getEndOffset()) {
+                    throw failure(docInfo, "Expected a member after ','");
                 }
             } else {
                 // Neither ',' nor '}' so fail
                 break;
             }
         }
-        throw failure(docInfo, "Object was not closed with '}'", offset);
+        throw failure(docInfo, "Object was not closed with '}'");
     }
 
-    static JsonArrayImpl parseArray(JsonDocumentInfo docInfo, int offset) {
+    static JsonArray parseArray(JsonDocumentInfo docInfo) {
         var list = new ArrayList<JsonValue>();
-        // Walk past the '['
-        offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
+        docInfo.offset++; // Walk past the '['
+        skipWhitespaces(docInfo);
         // Check for empty case
-        if (docInfo.charEquals(']', offset)) {
-            return new JsonArrayImpl(list, ++offset);
+        if (docInfo.currCharEquals(']')) {
+            docInfo.offset++;
+            return new JsonArrayImpl(list);
         }
 
-        while (offset < docInfo.getEndOffset()) {
+        while (docInfo.offset < docInfo.getEndOffset()) {
             // Get the JsonValue
-            JsonValueImpl val = JsonParser.parseValue(docInfo, offset);
-            list.add((JsonValue) val);
-
-            offset = val.getEndOffset();
-
+            JsonValue val = JsonParser.parseValue(docInfo);
+            list.add(val);
             // Walk to either ',' or ']'
-            offset = JsonParser.skipWhitespaces(docInfo, offset);
-            if (docInfo.charEquals(']', offset)) {
-                return new JsonArrayImpl(list, ++offset);
-            } else if (docInfo.charEquals(',', offset)) {
-                // Add the comma, and move to the next value
-                offset = JsonParser.skipWhitespaces(docInfo, offset + 1);
-                if (offset >= docInfo.getEndOffset()) {
-                    throw failure(docInfo, "Expected a value after ','", offset);
-                }
+            skipWhitespaces(docInfo);
+            if (docInfo.currCharEquals(']')) {
+                docInfo.offset++;
+                return new JsonArrayImpl(list);
+            } else if (docInfo.currCharEquals(',')) {
+                // Walk past the comma and move to before the next value
+                docInfo.offset++;
+                skipWhitespaces(docInfo);
             } else {
-                // Neither ',' nor ']' so fail
+                // Neither ',' nor ']' after the value, so fail
                 break;
             }
         }
-        throw failure(docInfo, "Array was not closed with ']'", offset);
+        throw failure(docInfo, "Array was not closed with ']'");
     }
 
-    static JsonStringImpl parseString(JsonDocumentInfo docInfo, int offset) {
-        int start = offset;
-        offset++; // Move past the starting quote
+    static JsonString parseString(JsonDocumentInfo docInfo) {
+        int start = docInfo.offset;
+        docInfo.offset++; // Move past the starting quote
         var escape = false;
-        for (; offset < docInfo.getEndOffset(); offset++) {
-            var c = docInfo.charAt(offset);
+        for (; docInfo.offset < docInfo.getEndOffset(); docInfo.offset++) {
+            var c = docInfo.charAt(docInfo.offset);
             if (escape) {
                 switch (c) {
                     // Allowed JSON escapes
                     case '"', '\\', '/', 'b', 'f', 'n', 'r', 't' -> {}
                     case 'u' -> {
-                        if (offset + 4 < docInfo.getEndOffset()) {
-                            checkEscapeSequence(docInfo, offset + 1);
-                            offset += 4;
+                        if (docInfo.offset + 4 < docInfo.getEndOffset()) {
+                            docInfo.offset++; // Move to first char in sequence
+                            checkEscapeSequence(docInfo);
+                            docInfo.offset--; // Move back, outer loop increments
                         } else {
-                            throw failure(docInfo,
-                                    "Invalid Unicode escape sequence", offset);
+                            throw failure(docInfo, "Invalid Unicode escape sequence");
                         }
                     }
-                    default -> throw failure(docInfo,
-                            "Illegal escape", offset);
+                    default -> throw failure(docInfo, "Illegal escape");
                 }
                 escape = false;
             } else if (c == '\\') {
                 escape = true;
             } else if (c == '\"') {
-                return new JsonStringImpl(docInfo, start, ++offset);
+                return new JsonStringImpl(docInfo, start, docInfo.offset += 1);
             } else if (c < ' ') {
-                throw failure(docInfo,
-                        "Unescaped control code", offset);
+                throw failure(docInfo, "Unescaped control code");
             }
         }
-        throw failure(docInfo, "Closing quote missing", offset);
+        throw failure(docInfo, "Closing quote missing");
     }
 
     // Validate unicode escape sequence
-    static void checkEscapeSequence(JsonDocumentInfo docInfo, int offset) {
+    static void checkEscapeSequence(JsonDocumentInfo docInfo) {
         for (int index = 0; index < 4; index++) {
-            char c = docInfo.charAt(offset + index);
+            char c = docInfo.charAt(docInfo.offset);
             if ((c < 'a' || c > 'f') && (c < 'A' || c > 'F') && (c < '0' || c > '9')) {
-                throw failure(docInfo, "Invalid Unicode escape sequence", offset);
+                throw failure(docInfo, "Invalid Unicode escape sequence");
             }
+            docInfo.offset++;
         }
     }
 
     // Validate and construct corresponding value of unicode escape sequence
-    static char codeUnit(JsonDocumentInfo docInfo, int offset) {
+    static char codeUnit(JsonDocumentInfo docInfo) {
         char val = 0;
         for (int index = 0; index < 4; index ++) {
-            char c = docInfo.charAt(offset + index);
+            char c = docInfo.charAt(docInfo.offset);
             val <<= 4;
             val += (char) (
                     switch (c) {
                         case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> c - '0';
                         case 'a', 'b', 'c', 'd', 'e', 'f' -> c - 'a' + 10;
                         case 'A', 'B', 'C', 'D', 'E', 'F' -> c - 'A' + 10;
-                        default -> throw failure(docInfo, "Invalid Unicode escape sequence", offset);
+                        default -> throw failure(docInfo, "Invalid Unicode escape sequence");
                     });
+            docInfo.offset++;
         }
         return val;
     }
 
-    static JsonBooleanImpl parseTrue(JsonDocumentInfo docInfo, int offset) {
-        if (docInfo.charsEqual("rue", offset + 1)) {
-            return new JsonBooleanImpl(docInfo, offset, offset + 4);
+    static JsonBooleanImpl parseTrue(JsonDocumentInfo docInfo) {
+        if (docInfo.charsEqual("rue", docInfo.offset + 1)) {
+            docInfo.offset += 4;
+            return JsonBooleanImpl.TRUE;
         }
-        throw failure(docInfo, "Expected true", offset);
+        throw failure(docInfo, "Expected true");
     }
 
-    static JsonBooleanImpl parseFalse(JsonDocumentInfo docInfo, int offset) {
-        if (docInfo.charsEqual( "alse", offset + 1)) {
-            return new JsonBooleanImpl(docInfo, offset, offset + 5);
+    static JsonBooleanImpl parseFalse(JsonDocumentInfo docInfo) {
+        if (docInfo.charsEqual( "alse", docInfo.offset + 1)) {
+            docInfo.offset += 5;
+            return JsonBooleanImpl.FALSE;
         }
-        throw failure(docInfo, "Expected false", offset);
+        throw failure(docInfo, "Expected false");
     }
 
-    static JsonNullImpl parseNull(JsonDocumentInfo docInfo, int offset) {
-        if (docInfo.charsEqual("ull", offset + 1)) {
-            return new JsonNullImpl(offset + 4);
+    static JsonNullImpl parseNull(JsonDocumentInfo docInfo) {
+        if (docInfo.charsEqual("ull", docInfo.offset + 1)) {
+            docInfo.offset += 4;
+            return JsonNullImpl.NULL;
         }
-        throw failure(docInfo, "Expected null", offset);
+        throw failure(docInfo, "Expected null");
     }
 
-    static JsonNumberImpl parseNumber(JsonDocumentInfo docInfo, int offset) {
+    static JsonNumberImpl parseNumber(JsonDocumentInfo docInfo) {
         boolean sawDecimal = false;
         boolean sawExponent = false;
         boolean sawZero = false;
@@ -310,20 +307,18 @@ final class JsonParser { ;
         boolean havePart = false;
         boolean sawInvalid = false;
         boolean sawSign = false;
-        var start = offset;
-        for (; offset < docInfo.getEndOffset() && !sawWhitespace && !sawInvalid; offset++) {
-            switch (docInfo.charAt(offset)) {
+        var start = docInfo.offset;
+        for (; docInfo.offset < docInfo.getEndOffset() && !sawWhitespace && !sawInvalid; docInfo.offset++) {
+            switch (docInfo.charAt(docInfo.offset)) {
                 case '-' -> {
-                    if (offset != start && !sawExponent || sawSign) {
-                        throw failure(docInfo,
-                                "Invalid '-' position", offset);
+                    if (docInfo.offset != start && !sawExponent || sawSign) {
+                        throw failure(docInfo, "Invalid '-' position");
                     }
                     sawSign = true;
                 }
                 case '+' -> {
                     if (!sawExponent || havePart || sawSign) {
-                        throw failure(docInfo,
-                                "Invalid '+' position", offset);
+                        throw failure(docInfo, "Invalid '+' position");
                     }
                     sawSign = true;
                 }
@@ -335,19 +330,16 @@ final class JsonParser { ;
                 }
                 case '1', '2', '3', '4', '5', '6', '7', '8', '9' -> {
                     if (!sawDecimal && !sawExponent && sawZero) {
-                        throw failure(docInfo,
-                                "Invalid '0' position", offset);
+                        throw failure(docInfo, "Invalid '0' position");
                     }
                     havePart = true;
                 }
                 case '.' -> {
                     if (sawDecimal) {
-                        throw failure(docInfo,
-                                "Invalid '.' position", offset);
+                        throw failure(docInfo, "Invalid '.' position");
                     } else {
                         if (!havePart) {
-                            throw failure(docInfo,
-                                    "Invalid '.' position", offset);
+                            throw failure(docInfo, "Invalid '.' position");
                         }
                         sawDecimal = true;
                         havePart = false;
@@ -355,12 +347,10 @@ final class JsonParser { ;
                 }
                 case 'e', 'E' -> {
                     if (sawExponent) {
-                        throw failure(docInfo,
-                                "Invalid '[e|E]' position", offset);
+                        throw failure(docInfo, "Invalid '[e|E]' position");
                     } else {
                         if (!havePart) {
-                            throw failure(docInfo,
-                                    "Invalid '[e|E]' position", offset);
+                            throw failure(docInfo, "Invalid '[e|E]' position");
                         }
                         sawExponent = true;
                         havePart = false;
@@ -369,62 +359,47 @@ final class JsonParser { ;
                 }
                 case ' ', '\t', '\r', '\n' -> {
                     sawWhitespace = true;
-                    offset --;
+                    docInfo.offset --;
                 }
                 default -> {
-                    offset--;
+                    docInfo.offset--;
                     sawInvalid = true;
                 }
             }
         }
         if (!havePart) {
-            throw failure(docInfo,
-                    "Input expected after '[.|e|E]'", offset);
+            throw failure(docInfo, "Input expected after '[.|e|E]'");
         }
-        return new JsonNumberImpl(docInfo, start, offset);
+        return new JsonNumberImpl(docInfo, start, docInfo.offset);
     }
 
     // Utility functions
-    static int skipWhitespaces(JsonDocumentInfo docInfo, int offset) {
-        while (offset < docInfo.getEndOffset()) {
-            if (notWhitespace(docInfo, offset)) {
+
+    // Walk to the next non-white space char from the current docInfo offset
+    static void skipWhitespaces(JsonDocumentInfo docInfo) {
+        while (docInfo.offset < docInfo.getEndOffset()) {
+            if (notWhitespace(docInfo)) {
                 break;
             }
-            offset ++;
+            docInfo.offset++;
         }
-        return offset;
     }
 
-    static boolean checkWhitespaces(JsonDocumentInfo docInfo, int offset, int endOffset) {
-        int end = Math.min(endOffset, docInfo.getEndOffset());
-        while (offset < end) {
-            if (notWhitespace(docInfo, offset)) {
-                return false;
-            }
-            offset ++;
-        }
-        return true;
-    }
-
-    static boolean notWhitespace(JsonDocumentInfo docInfo, int offset) {
-        return !isWhitespace(docInfo, offset);
-    }
-
-    static boolean isWhitespace(JsonDocumentInfo docInfo, int offset) {
-        return switch (docInfo.charAt(offset)) {
-            case ' ', '\t','\r' -> true;
+    static boolean notWhitespace(JsonDocumentInfo docInfo) {
+        return switch (docInfo.charAt(docInfo.offset)) {
+            case ' ', '\t','\r' -> false;
             case '\n' -> {
-                docInfo.updatePosition(offset + 1);
-                yield true;
+                docInfo.updateLine(docInfo.offset + 1);
+                yield false;
             }
-            default -> false;
+            default -> true;
         };
     }
 
-    static JsonParseException failure(JsonDocumentInfo docInfo, String message, int offset) {
+    static JsonParseException failure(JsonDocumentInfo docInfo, String message) {
         var errMsg = docInfo.composeParseExceptionMessage(
-                message, docInfo.getLine(), docInfo.getLineStart(), offset);
-        return new JsonParseException(errMsg, docInfo.getLine(), offset - docInfo.getLineStart());
+                message, docInfo.getLine(), docInfo.getLineStart(), docInfo.offset);
+        return new JsonParseException(errMsg, docInfo.getLine(), docInfo.offset - docInfo.getLineStart());
     }
 
     // no instantiation of this parser

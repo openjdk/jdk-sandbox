@@ -28,6 +28,8 @@ final class JsonDocumentInfo  {
 
     // Access to the underlying JSON contents
     private final char[] doc;
+    // Current offset during parsing
+    int offset = 0;
     // For exception message on failure
     private int line = 0;
     private int lineStart = 0;
@@ -46,7 +48,7 @@ final class JsonDocumentInfo  {
 
     // returns true if the char at the specified offset equals the input char
     // and is within bounds of the JsonDocumentInfo
-    boolean charEquals(char c, int offset) {
+    boolean currCharEquals(char c) {
         return offset < getEndOffset() && c == charAt(offset);
     }
 
@@ -68,7 +70,7 @@ final class JsonDocumentInfo  {
     }
 
     // Increments the row and col
-    void updatePosition(int offset) {
+    void updateLine(int offset) {
         line+=1;
         lineStart = offset;
     }
