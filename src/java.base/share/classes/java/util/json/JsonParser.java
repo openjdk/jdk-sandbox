@@ -226,8 +226,8 @@ final class JsonParser { ;
                     case 'u' -> {
                         if (docInfo.offset + 4 < docInfo.getEndOffset()) {
                             docInfo.offset++; // Move to first char in sequence
-                            checkEscapeSequence(docInfo);
-                            docInfo.offset--; // Move back, outer loop increments
+                            checkEscapeSequence(docInfo, docInfo.offset);
+                            docInfo.offset += 3; // Move to the last hex digit, outer loop increments
                         } else {
                             throw failure(docInfo, "Invalid Unicode escape sequence");
                         }
@@ -247,13 +247,12 @@ final class JsonParser { ;
     }
 
     // Validate unicode escape sequence
-    static void checkEscapeSequence(JsonDocumentInfo docInfo) {
+    static void checkEscapeSequence(JsonDocumentInfo docInfo, int offset) {
         for (int index = 0; index < 4; index++) {
-            char c = docInfo.charAt(docInfo.offset);
+            char c = docInfo.charAt(offset + index);
             if ((c < 'a' || c > 'f') && (c < 'A' || c > 'F') && (c < '0' || c > '9')) {
                 throw failure(docInfo, "Invalid Unicode escape sequence");
             }
-            docInfo.offset++;
         }
     }
 
