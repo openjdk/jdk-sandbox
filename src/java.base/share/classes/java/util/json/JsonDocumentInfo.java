@@ -57,14 +57,22 @@ final class JsonDocumentInfo  {
         return doc[offset];
     }
 
-    // Returns true if the substring at the given offset equals the input String
-    // and is within bounds
-    boolean charsEqual(String s, int offset) {
-        return offset + s.length() - 1 < getEndOffset()
-                && substring(offset, offset + s.length()).equals(s);
+    // Returns true if the substring starting at the given offset equals the
+    // input String and is within bounds of the JSON document
+    boolean charsEqual(String str, int offset) {
+        if (offset + str.length() - 1 < getEndOffset()) {
+            for (int index = 0; index < str.length(); index++) {
+                if (charAt(offset) != str.charAt(index)) {
+                    return false; // char does not match
+                }
+                offset++;
+            }
+            return true; // all chars match
+        }
+        return false; // not within bounds
     }
 
-    // gets the substring at the specified start/end offsets in the input
+    // Gets the substring at the specified start/end offsets in the input
     String substring(int startOffset, int endOffset) {
         return new String(doc, startOffset, endOffset - startOffset);
     }
