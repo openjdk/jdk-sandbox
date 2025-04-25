@@ -347,7 +347,7 @@ final class JsonParser { ;
     // Utility functions
 
     // Validate unicode escape sequence
-    // This method do not increment docInfo.offset
+    // This method does not increment docInfo.offset
     static void checkEscapeSequence(JsonDocumentInfo docInfo, int offset) {
         for (int index = 0; index < 4; index++) {
             char c = docInfo.charAt(offset + index);
@@ -358,7 +358,7 @@ final class JsonParser { ;
     }
 
     // Validate and construct corresponding value of unicode escape sequence
-    // This method do not increment docInfo.offset
+    // This method does not increment docInfo.offset
     static char codeUnit(JsonDocumentInfo docInfo, int offset) {
         char val = 0;
         for (int index = 0; index < 4; index ++) {
