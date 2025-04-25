@@ -25,8 +25,6 @@
 
 package java.util.json;
 
-import jdk.internal.vm.annotation.Stable;
-
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
@@ -36,7 +34,6 @@ import java.util.Objects;
  */
 final class JsonObjectImpl implements JsonObject {
 
-    @Stable
     private final Map<String, JsonValue> theMembers;
 
     JsonObjectImpl(Map<String, JsonValue> map) {

@@ -25,8 +25,6 @@
 
 package java.util.json;
 
-import jdk.internal.vm.annotation.Stable;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -36,7 +34,6 @@ import java.util.Objects;
  */
 final class JsonArrayImpl implements JsonArray {
 
-    @Stable
     private final List<JsonValue> theValues;
 
     JsonArrayImpl(List<JsonValue> from) {
