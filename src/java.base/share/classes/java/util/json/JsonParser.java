@@ -101,9 +101,9 @@ final class JsonParser { ;
                             if (docInfo.offset + 4 < docInfo.getEndOffset()) {
                                 escapeLength = 4;
                                 docInfo.offset++; // Move to first char in sequence
-                                c = codeUnit(docInfo);
-                                // Move back, since outer loop will increment offset
-                                docInfo.offset--;
+                                c = codeUnit(docInfo, docInfo.offset);
+                                // Move to the last hex digit, since outer loop will increment offset
+                                docInfo.offset += 3;
                             } else {
                                 throw failure(docInfo, "Invalid Unicode escape sequence");
                             }
@@ -258,10 +258,10 @@ final class JsonParser { ;
     }
 
     // Validate and construct corresponding value of unicode escape sequence
-    static char codeUnit(JsonDocumentInfo docInfo) {
+    static char codeUnit(JsonDocumentInfo docInfo, int offset) {
         char val = 0;
         for (int index = 0; index < 4; index ++) {
-            char c = docInfo.charAt(docInfo.offset);
+            char c = docInfo.charAt(offset + index);
             val <<= 4;
             val += (char) (
                     switch (c) {
@@ -270,7 +270,6 @@ final class JsonParser { ;
                         case 'A', 'B', 'C', 'D', 'E', 'F' -> c - 'A' + 10;
                         default -> throw failure(docInfo, "Invalid Unicode escape sequence");
                     });
-            docInfo.offset++;
         }
         return val;
     }
