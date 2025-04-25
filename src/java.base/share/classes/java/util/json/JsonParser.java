@@ -246,33 +246,6 @@ final class JsonParser { ;
         throw failure(docInfo, "Closing quote missing");
     }
 
-    // Validate unicode escape sequence
-    static void checkEscapeSequence(JsonDocumentInfo docInfo, int offset) {
-        for (int index = 0; index < 4; index++) {
-            char c = docInfo.charAt(offset + index);
-            if ((c < 'a' || c > 'f') && (c < 'A' || c > 'F') && (c < '0' || c > '9')) {
-                throw failure(docInfo, "Invalid Unicode escape sequence");
-            }
-        }
-    }
-
-    // Validate and construct corresponding value of unicode escape sequence
-    static char codeUnit(JsonDocumentInfo docInfo, int offset) {
-        char val = 0;
-        for (int index = 0; index < 4; index ++) {
-            char c = docInfo.charAt(offset + index);
-            val <<= 4;
-            val += (char) (
-                    switch (c) {
-                        case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> c - '0';
-                        case 'a', 'b', 'c', 'd', 'e', 'f' -> c - 'a' + 10;
-                        case 'A', 'B', 'C', 'D', 'E', 'F' -> c - 'A' + 10;
-                        default -> throw failure(docInfo, "Invalid Unicode escape sequence");
-                    });
-        }
-        return val;
-    }
-
     static JsonBooleanImpl parseTrue(JsonDocumentInfo docInfo) {
         if (docInfo.charsEqual("rue", docInfo.offset + 1)) {
             docInfo.offset += 4;
@@ -372,6 +345,35 @@ final class JsonParser { ;
     }
 
     // Utility functions
+
+    // Validate unicode escape sequence
+    // This method do not increment docInfo.offset
+    static void checkEscapeSequence(JsonDocumentInfo docInfo, int offset) {
+        for (int index = 0; index < 4; index++) {
+            char c = docInfo.charAt(offset + index);
+            if ((c < 'a' || c > 'f') && (c < 'A' || c > 'F') && (c < '0' || c > '9')) {
+                throw failure(docInfo, "Invalid Unicode escape sequence");
+            }
+        }
+    }
+
+    // Validate and construct corresponding value of unicode escape sequence
+    // This method do not increment docInfo.offset
+    static char codeUnit(JsonDocumentInfo docInfo, int offset) {
+        char val = 0;
+        for (int index = 0; index < 4; index ++) {
+            char c = docInfo.charAt(offset + index);
+            val <<= 4;
+            val += (char) (
+                switch (c) {
+                    case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> c - '0';
+                    case 'a', 'b', 'c', 'd', 'e', 'f' -> c - 'a' + 10;
+                    case 'A', 'B', 'C', 'D', 'E', 'F' -> c - 'A' + 10;
+                    default -> throw failure(docInfo, "Invalid Unicode escape sequence");
+                });
+        }
+        return val;
+    }
 
     // Walk to the next non-white space char from the current docInfo offset
     static void skipWhitespaces(JsonDocumentInfo docInfo) {
