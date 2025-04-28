@@ -36,7 +36,7 @@ import java.util.Locale;
  */
 final class JsonNumberImpl implements JsonNumber {
 
-    private final JsonDocumentInfo docInfo;
+    private final char[] doc;
     private final int startOffset;
     private final int endOffset;
     @Stable
@@ -56,11 +56,11 @@ final class JsonNumberImpl implements JsonNumber {
         // unused
         startOffset = -1;
         endOffset = -1;
-        docInfo = null;
+        doc = null;
     }
 
-    JsonNumberImpl(JsonDocumentInfo doc, int start, int end) {
-        docInfo = doc;
+    JsonNumberImpl(char[] doc, int start, int end) {
+        this.doc = doc;
         startOffset = start;
         endOffset = end;
     }
@@ -109,7 +109,7 @@ final class JsonNumberImpl implements JsonNumber {
 
     private String string() {
         if (numString == null) {
-            numString = docInfo.substring(startOffset, endOffset);
+            numString = new String(doc, startOffset, endOffset - startOffset);
         }
         return numString;
     }

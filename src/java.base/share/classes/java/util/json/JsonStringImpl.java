@@ -34,7 +34,7 @@ import java.util.Objects;
  */
 final class JsonStringImpl implements JsonString {
 
-    private final JsonDocumentInfo docInfo;
+    private final char[] doc;
     private final int startOffset;
     private final int endOffset;
     @Stable
@@ -43,14 +43,14 @@ final class JsonStringImpl implements JsonString {
     private String source;
 
     JsonStringImpl(String str) {
-        docInfo = new JsonDocumentInfo(("\"" + str + "\"").toCharArray());
+        doc= ("\"" + str + "\"").toCharArray();
         startOffset = 0;
-        endOffset = docInfo.getEndOffset();
+        endOffset = doc.length;
         theString = unescape(startOffset + 1, endOffset - 1);
     }
 
-    JsonStringImpl(JsonDocumentInfo doc, int start, int end) {
-        docInfo = doc;
+    JsonStringImpl(char[] doc, int start, int end) {
+        this.doc = doc;
         startOffset = start;
         endOffset = end;
     }
@@ -70,7 +70,7 @@ final class JsonStringImpl implements JsonString {
     @Override
     public String toString() {
         if (source == null) {
-            source = docInfo.substring(startOffset, endOffset);
+            source = new String(doc, startOffset, endOffset - startOffset);
         }
         return source;
     }
@@ -93,7 +93,7 @@ final class JsonStringImpl implements JsonString {
         int offset = startOffset;
         boolean useBldr = false;
         for (; offset < endOffset; offset++) {
-            var c = docInfo.charAt(offset);
+            var c = doc[offset];
             if (escape) {
                 var length = 0;
                 switch (c) {
@@ -105,7 +105,7 @@ final class JsonStringImpl implements JsonString {
                     case 't' -> c = '\t';
                     case 'u' -> {
                         try {
-                            c = JsonParser.codeUnit(docInfo, offset + 1);
+                            c = JsonParser.codeUnit(doc, offset + 1);
                             length = 4;
                         } catch (JsonParseException _) {
                             throw new IllegalArgumentException("Illegal Unicode escape sequence");
@@ -117,7 +117,7 @@ final class JsonStringImpl implements JsonString {
                     useBldr = true;
                     // At best, we know the size of the first escaped value
                     sb = new StringBuilder(endOffset - startOffset - length - 1)
-                            .append(docInfo.getDoc(), startOffset, offset - 1 - startOffset);
+                            .append(doc, startOffset, offset - 1 - startOffset);
                 }
                 offset+=length;
                 escape = false;

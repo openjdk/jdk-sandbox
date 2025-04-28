@@ -78,4 +78,11 @@ public class JsonParseException extends RuntimeException {
     public int getErrorColumn() {
         return col;
     }
+
+    // package private
+    JsonParseException(String message) {
+        super(message);
+        this.row = 0;
+        this.col = 0;
+    }
 }
