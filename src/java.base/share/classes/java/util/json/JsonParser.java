@@ -31,7 +31,7 @@ import java.util.LinkedHashMap;
 // Parse the JSON document which creates a tree of nodes
 // These nodes are lazy, structural JSON nodes contain their Data Structures
 // Primitive JSON Values are fully lazy until their value/string is accessed
-final class JsonParser { ;
+final class JsonParser {
 
     // Access to the underlying JSON contents
     private final char[] doc;
@@ -57,7 +57,7 @@ final class JsonParser { ;
     JsonValue parseValue() {
         skipWhitespaces();
         if (offset >= doc.length) {
-            throw failure( "Missing JSON value");
+            throw failure("Missing JSON value");
         }
         return switch (doc[offset]) {
             case '{' -> parseObject();
@@ -70,7 +70,7 @@ final class JsonParser { ;
             // we still accept, so that we can provide a better error message
             case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '+', 'e', '.'
                     -> parseNumber();
-            default -> throw failure( "Unexpected character(s)");
+            default -> throw failure("Unexpected character(s)");
         };
     }
 
@@ -88,7 +88,7 @@ final class JsonParser { ;
         while (offset < doc.length) {
             // Get the name
             if (!currCharEquals('"')) {
-                throw failure( "Invalid member name");
+                throw failure("Invalid member name");
             }
             // Member equality done via unescaped String
             // see https://datatracker.ietf.org/doc/html/rfc8259#section-8.3
@@ -117,10 +117,10 @@ final class JsonParser { ;
                                 // Move to the last hex digit, since outer loop will increment offset
                                 offset += 3;
                             } else {
-                                throw failure( "Invalid Unicode escape sequence");
+                                throw failure("Invalid Unicode escape sequence");
                             }
                         }
-                        default -> throw failure( "Illegal escape");
+                        default -> throw failure("Illegal escape");
                     }
                     if (!useBldr) {
                         if (sb == null) {
@@ -139,14 +139,14 @@ final class JsonParser { ;
                     foundClosing = true;
                     break;
                 } else if (c < ' ') {
-                    throw failure( "Unescaped control code");
+                    throw failure("Unescaped control code");
                 }
                 if (useBldr) {
                     sb.append(c);
                 }
             }
             if (!foundClosing) {
-                throw failure( "Closing quote missing");
+                throw failure("Closing quote missing");
             }
 
             String nameStr;
@@ -157,7 +157,7 @@ final class JsonParser { ;
                 nameStr = new String(doc, start, offset - start - 1);
             }
             if (members.containsKey(nameStr)) {
-                throw failure( "The duplicate member name: '%s' was already parsed".formatted(nameStr));
+                throw failure("The duplicate member name: '%s' was already parsed".formatted(nameStr));
             }
 
             // Move from name to ':'
@@ -184,14 +184,14 @@ final class JsonParser { ;
                 offset++;
                 skipWhitespaces();
                 if (offset >= doc.length) {
-                    throw failure( "Expected a member after ','");
+                    throw failure("Expected a member after ','");
                 }
             } else {
                 // Neither ',' nor '}' so fail
                 break;
             }
         }
-        throw failure( "Object was not closed with '}'");
+        throw failure("Object was not closed with '}'");
     }
 
     JsonArray parseArray() {
@@ -222,7 +222,7 @@ final class JsonParser { ;
                 break;
             }
         }
-        throw failure( "Array was not closed with ']'");
+        throw failure("Array was not closed with ']'");
     }
 
     JsonString parseString() {
@@ -238,13 +238,13 @@ final class JsonParser { ;
                     case 'u' -> {
                         if (offset + 4 < doc.length) {
                             offset++; // Move to first char in sequence
-                            checkEscapeSequence(doc);
+                            checkEscapeSequence();
                             offset += 3; // Move to the last hex digit, outer loop increments
                         } else {
-                            throw failure( "Invalid Unicode escape sequence");
+                            throw failure("Invalid Unicode escape sequence");
                         }
                     }
-                    default -> throw failure( "Illegal escape");
+                    default -> throw failure("Illegal escape");
                 }
                 escape = false;
             } else if (c == '\\') {
@@ -252,10 +252,10 @@ final class JsonParser { ;
             } else if (c == '\"') {
                 return new JsonStringImpl(doc, start, offset += 1);
             } else if (c < ' ') {
-                throw failure( "Unescaped control code");
+                throw failure("Unescaped control code");
             }
         }
-        throw failure( "Closing quote missing");
+        throw failure("Closing quote missing");
     }
 
     JsonBooleanImpl parseTrue() {
@@ -263,7 +263,7 @@ final class JsonParser { ;
             offset += 4;
             return JsonBooleanImpl.TRUE;
         }
-        throw failure( "Expected true");
+        throw failure("Expected true");
     }
 
     JsonBooleanImpl parseFalse() {
@@ -271,7 +271,7 @@ final class JsonParser { ;
             offset += 5;
             return JsonBooleanImpl.FALSE;
         }
-        throw failure( "Expected false");
+        throw failure("Expected false");
     }
 
     JsonNullImpl parseNull() {
@@ -279,7 +279,7 @@ final class JsonParser { ;
             offset += 4;
             return JsonNullImpl.NULL;
         }
-        throw failure( "Expected null");
+        throw failure("Expected null");
     }
 
     JsonNumberImpl parseNumber() {
@@ -295,13 +295,13 @@ final class JsonParser { ;
             switch (doc[offset]) {
                 case '-' -> {
                     if (offset != start && !sawExponent || sawSign) {
-                        throw failure( "Invalid '-' position");
+                        throw failure("Invalid '-' position");
                     }
                     sawSign = true;
                 }
                 case '+' -> {
                     if (!sawExponent || havePart || sawSign) {
-                        throw failure( "Invalid '+' position");
+                        throw failure("Invalid '+' position");
                     }
                     sawSign = true;
                 }
@@ -313,16 +313,16 @@ final class JsonParser { ;
                 }
                 case '1', '2', '3', '4', '5', '6', '7', '8', '9' -> {
                     if (!sawDecimal && !sawExponent && sawZero) {
-                        throw failure( "Invalid '0' position");
+                        throw failure("Invalid '0' position");
                     }
                     havePart = true;
                 }
                 case '.' -> {
                     if (sawDecimal) {
-                        throw failure( "Invalid '.' position");
+                        throw failure("Invalid '.' position");
                     } else {
                         if (!havePart) {
-                            throw failure( "Invalid '.' position");
+                            throw failure("Invalid '.' position");
                         }
                         sawDecimal = true;
                         havePart = false;
@@ -330,7 +330,7 @@ final class JsonParser { ;
                 }
                 case 'e', 'E' -> {
                     if (sawExponent) {
-                        throw failure( "Invalid '[e|E]' position");
+                        throw failure("Invalid '[e|E]' position");
                     } else {
                         if (!havePart) {
                             throw failure("Invalid '[e|E]' position");
@@ -351,7 +351,7 @@ final class JsonParser { ;
             }
         }
         if (!havePart) {
-            throw failure( "Input expected after '[.|e|E]'");
+            throw failure("Input expected after '[.|e|E]'");
         }
         return new JsonNumberImpl(doc, start, offset);
     }
@@ -360,7 +360,7 @@ final class JsonParser { ;
 
     // Validate unicode escape sequence
     // This method does not increment offset
-    void checkEscapeSequence(char[] doc) {
+    void checkEscapeSequence() {
         for (int index = 0; index < 4; index++) {
             char c = doc[offset + index];
             if ((c < 'a' || c > 'f') && (c < 'A' || c > 'F') && (c < '0' || c > '9')) {
@@ -424,13 +424,13 @@ final class JsonParser { ;
 
     // Returns true if the substring starting at the given offset equals the
     // input String and is within bounds of the JSON document
-    boolean charsEqual(String str, int offset) {
-        if (offset + str.length() - 1 < doc.length) {
+    boolean charsEqual(String str, int o) {
+        if (o + str.length() - 1 < doc.length) {
             for (int index = 0; index < str.length(); index++) {
-                if (doc[offset] != str.charAt(index)) {
+                if (doc[o] != str.charAt(index)) {
                     return false; // char does not match
                 }
-                offset++;
+                o++;
             }
             return true; // all chars match
         }
