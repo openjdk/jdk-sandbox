@@ -55,9 +55,10 @@
  *
  * Parsing produces a {@code JsonValue} from JSON text and is done using either
  * {@link Json#parse(java.lang.String)} or {@link Json#parse(char[])}. A successful
- * parse indicates that the JSON text adheres to the JSON grammar. The parsing
- * APIs provided do not accept JSON text that contain JSON Objects with duplicate
- * names.
+ * parse indicates that the JSON text adheres to the
+ * <a href="https://datatracker.ietf.org/doc/html/rfc8259">JSON grammar</a>.
+ * The parsing APIs provided do not accept JSON text that contain JSON Objects
+ * with duplicate names.
  *
  * <p>For the reference JDK implementation, {@code JsonValue}s created via parsing
  * procure their underlying values <i>lazily</i>.
