@@ -137,7 +137,6 @@ final class JsonParser {
         var escape = false;
         boolean useBldr = false;
         var start = offset;
-        boolean foundClosing = false;
         for (; offset < doc.length; offset++) {
             var c = doc[offset];
             if (escape) {
@@ -175,8 +174,13 @@ final class JsonParser {
                 continue;
             } else if (c == '\"') {
                 offset++;
-                foundClosing = true;
-                break;
+                if (useBldr) {
+                    var name = builder.toString();
+                    builder.setLength(0);
+                    return name;
+                } else {
+                    return new String(doc, start, offset - start - 1);
+                }
             } else if (c < ' ') {
                 throw failure("Unescaped control code");
             }
@@ -184,17 +188,7 @@ final class JsonParser {
                 builder.append(c);
             }
         }
-        if (!foundClosing) {
-            throw failure("Closing quote missing");
-        }
-
-        if (useBldr) {
-            var name = builder.toString();
-            builder.setLength(0);
-            return name;
-        } else {
-            return new String(doc, start, offset - start - 1);
-        }
+        throw failure("Closing quote missing");
     }
 
     JsonArray parseArray() {
