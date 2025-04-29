@@ -35,9 +35,9 @@ import java.util.Map;
  * <p>
  * A {@code JsonObject} can be produced by a {@link Json#parse(String)}.
  * <p> Alternatively, {@link #of(Map)} can be used to obtain a {@code JsonObject}.
- * Since {@code JsonObject} is backed by {@link Map}, duplicate names
- * may not be allowed. If duplicate names appear during a {@link Json#parse(String)},
- * a {@code JsonParseException} is thrown.
+ * Implementations of {@code JsonObject} cannot be created from sources that
+ * contain duplicate member names. If duplicate names appear during
+ * a {@link Json#parse(String)}, a {@code JsonParseException} is thrown.
  *
  * @since 99
  */
