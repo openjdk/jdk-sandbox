@@ -47,6 +47,9 @@ public non-sealed interface JsonObject extends JsonValue {
     /**
      * {@return an unmodifiable map of the {@code String} to {@code JsonValue}
      * members in this {@code JsonObject}}
+     *
+     * @implNote The JDK reference implementation returns a {@code Map} that maintains
+     * the insertion order of the source it was created from.
      */
     Map<String, JsonValue> members();
 
