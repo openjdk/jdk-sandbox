@@ -38,15 +38,21 @@ final class JsonStringImpl implements JsonString {
     private final int startOffset;
     private final int endOffset;
     @Stable
-    private String theString;
+    private String unescapedStr;
     @Stable
-    private String source;
+    private String sourceStr;
 
     JsonStringImpl(String str) {
-        doc= ("\"" + str + "\"").toCharArray();
+        doc = ("\"" + str + "\"").toCharArray();
         startOffset = 0;
         endOffset = doc.length;
-        theString = unescape(startOffset + 1, endOffset - 1);
+        // Eagerly compute the unescaped String to validate escape sequences
+        // On failure, re-throw ISE as IAE, adhering to JsonString.of() contract
+        try {
+            unescapedStr = unescape(startOffset + 1, endOffset - 1);
+        } catch (IllegalStateException ise) {
+            throw new IllegalArgumentException(ise);
+        }
     }
 
     JsonStringImpl(char[] doc, int start, int end) {
@@ -57,22 +63,18 @@ final class JsonStringImpl implements JsonString {
 
     @Override
     public String value() {
-        if (theString == null) {
-            try {
-                theString = unescape(startOffset + 1, endOffset - 1);
-            } catch (IllegalArgumentException iae) {
-                throw new IllegalStateException(iae);
-            }
+        if (unescapedStr == null) {
+            unescapedStr = unescape(startOffset + 1, endOffset - 1);
         }
-        return theString;
+        return unescapedStr;
     }
 
     @Override
     public String toString() {
-        if (source == null) {
-            source = new String(doc, startOffset, endOffset - startOffset);
+        if (sourceStr == null) {
+            sourceStr = new String(doc, startOffset, endOffset - startOffset);
         }
-        return source;
+        return sourceStr;
     }
 
     @Override
@@ -108,10 +110,10 @@ final class JsonStringImpl implements JsonString {
                             c = JsonParser.codeUnit(doc, offset + 1);
                             length = 4;
                         } catch (JsonParseException _) {
-                            throw new IllegalArgumentException("Illegal Unicode escape sequence");
+                            throw new IllegalStateException("Illegal Unicode escape sequence");
                         }
                     }
-                    default -> throw new IllegalArgumentException("Illegal escape sequence");
+                    default -> throw new IllegalStateException("Illegal escape sequence");
                 }
                 if (!useBldr) {
                     useBldr = true;
