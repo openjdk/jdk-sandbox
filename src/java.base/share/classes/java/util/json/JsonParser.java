@@ -40,6 +40,7 @@ final class JsonParser {
     // For exception message on failure
     private int line;
     private int lineStart;
+    private StringBuilder builder;
 
     JsonParser(char[] doc) {
         this.doc = doc;
@@ -83,86 +84,18 @@ final class JsonParser {
             offset++;
             return new JsonObjectImpl(members);
         }
-
-        StringBuilder sb = null; // only init if we need to use for escapes
         while (offset < doc.length) {
-            // Get the name
-            if (!currCharEquals('"')) {
-                throw failure("Invalid member name");
-            }
-            // Member equality done via unescaped String
-            // see https://datatracker.ietf.org/doc/html/rfc8259#section-8.3
-            offset++; // Move past the starting quote
-            var escape = false;
-            boolean useBldr = false;
-            var start = offset;
-            boolean foundClosing = false;
-            for (; offset < doc.length; offset++) {
-                var c = doc[offset];
-                if (escape) {
-                    var escapeLength = 0;
-                    switch (c) {
-                        // Allowed JSON escapes
-                        case '"', '\\', '/' -> {}
-                        case 'b' -> c = '\b';
-                        case 'f' -> c = '\f';
-                        case 'n' -> c = '\n';
-                        case 'r' -> c = '\r';
-                        case 't' -> c = '\t';
-                        case 'u' -> {
-                            if (offset + 4 < doc.length) {
-                                escapeLength = 4;
-                                offset++; // Move to first char in sequence
-                                c = codeUnit(doc, offset);
-                                // Move to the last hex digit, since outer loop will increment offset
-                                offset += 3;
-                            } else {
-                                throw failure("Invalid Unicode escape sequence");
-                            }
-                        }
-                        default -> throw failure("Illegal escape");
-                    }
-                    if (!useBldr) {
-                        if (sb == null) {
-                            sb = new StringBuilder();
-                        }
-                        // Append everything up to the first escape sequence
-                        sb.append(doc, start, offset - escapeLength - 1 - start);
-                        useBldr = true;
-                    }
-                    escape = false;
-                } else if (c == '\\') {
-                    escape = true;
-                    continue;
-                } else if (c == '\"') {
-                    offset++;
-                    foundClosing = true;
-                    break;
-                } else if (c < ' ') {
-                    throw failure("Unescaped control code");
-                }
-                if (useBldr) {
-                    sb.append(c);
-                }
-            }
-            if (!foundClosing) {
-                throw failure("Closing quote missing");
-            }
+            // Get the member name, which should be unescaped
+            // Why not parse the name as a JsonString and then return its value()?
+            // Would requires 2 passes; we should build the String as we parse.
+            var name = parseName();
 
-            String nameStr;
-            if (useBldr) {
-                nameStr = sb.toString();
-                sb.setLength(0);
-            } else {
-                nameStr = new String(doc, start, offset - start - 1);
-            }
-            if (members.containsKey(nameStr)) {
-                throw failure("The duplicate member name: '%s' was already parsed".formatted(nameStr));
+            if (members.containsKey(name)) {
+                throw failure("The duplicate member name: '%s' was already parsed".formatted(name));
             }
 
             // Move from name to ':'
             skipWhitespaces();
-
             if (!currCharEquals(':')) {
                 throw failure(
                         "Expected ':' after the member name");
@@ -172,7 +105,7 @@ final class JsonParser {
             offset++;
             skipWhitespaces();
             JsonValue val = parseValue();
-            members.put(nameStr, val);
+            members.put(name, val);
 
             // Walk to either ',' or '}'
             skipWhitespaces();
@@ -192,6 +125,76 @@ final class JsonParser {
             }
         }
         throw failure("Object was not closed with '}'");
+    }
+
+    String parseName() {
+        // Member equality done via unescaped String
+        // see https://datatracker.ietf.org/doc/html/rfc8259#section-8.3
+        if (!currCharEquals('"')) {
+            throw failure("Invalid member name");
+        }
+        offset++; // Move past the starting quote
+        var escape = false;
+        boolean useBldr = false;
+        var start = offset;
+        boolean foundClosing = false;
+        for (; offset < doc.length; offset++) {
+            var c = doc[offset];
+            if (escape) {
+                var escapeLength = 0;
+                switch (c) {
+                    // Allowed JSON escapes
+                    case '"', '\\', '/' -> {}
+                    case 'b' -> c = '\b';
+                    case 'f' -> c = '\f';
+                    case 'n' -> c = '\n';
+                    case 'r' -> c = '\r';
+                    case 't' -> c = '\t';
+                    case 'u' -> {
+                        if (offset + 4 < doc.length) {
+                            escapeLength = 4;
+                            offset++; // Move to first char in sequence
+                            c = codeUnit(doc, offset);
+                            // Move to the last hex digit, since outer loop will increment offset
+                            offset += 3;
+                        } else {
+                            throw failure("Invalid Unicode escape sequence");
+                        }
+                    }
+                    default -> throw failure("Illegal escape");
+                }
+                if (!useBldr) {
+                    initBuilder();
+                    // Append everything up to the first escape sequence
+                    builder.append(doc, start, offset - escapeLength - 1 - start);
+                    useBldr = true;
+                }
+                escape = false;
+            } else if (c == '\\') {
+                escape = true;
+                continue;
+            } else if (c == '\"') {
+                offset++;
+                foundClosing = true;
+                break;
+            } else if (c < ' ') {
+                throw failure("Unescaped control code");
+            }
+            if (useBldr) {
+                builder.append(c);
+            }
+        }
+        if (!foundClosing) {
+            throw failure("Closing quote missing");
+        }
+
+        if (useBldr) {
+            var name = builder.toString();
+            builder.setLength(0);
+            return name;
+        } else {
+            return new String(doc, start, offset - start - 1);
+        }
     }
 
     JsonArray parseArray() {
@@ -357,6 +360,13 @@ final class JsonParser {
     }
 
     // Utility functions
+
+    // Called when a SB is required to un-escape a member name
+    void initBuilder() {
+        if (builder == null) {
+            builder = new StringBuilder();
+        }
+    }
 
     // Validate unicode escape sequence
     // This method does not increment offset
