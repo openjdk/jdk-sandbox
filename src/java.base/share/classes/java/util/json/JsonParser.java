@@ -28,9 +28,13 @@ package java.util.json;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 
-// Parse the JSON document which creates a tree of nodes
-// These nodes are lazy, structural JSON nodes contain their Data Structures
-// Primitive JSON Values are fully lazy until their value/string is accessed
+/**
+ * Parses a JSON Document String into a tree of JsonValues. JsonObject and JsonArray
+ * nodes create their data structures which maintain the connection to children.
+ * JsonNumber and JsonString contain only a start and end offset, which
+ * are used to lazily procure their underlying value/string on demand. Singletons
+ * are used for JsonBoolean and JsonNull.
+ */
 final class JsonParser {
 
     // Access to the underlying JSON contents
@@ -49,7 +53,7 @@ final class JsonParser {
     JsonValue parseRoot() {
         JsonValue root = parseValue();
         skipWhitespaces();
-        if (offset != doc.length) {
+        if (hasInput()) {
             throw failure("Unexpected character(s)");
         }
         return root;
@@ -57,7 +61,7 @@ final class JsonParser {
 
     JsonValue parseValue() {
         skipWhitespaces();
-        if (offset >= doc.length) {
+        if (!hasInput()) {
             throw failure("Missing JSON value");
         }
         return switch (doc[offset]) {
@@ -84,7 +88,7 @@ final class JsonParser {
             offset++;
             return new JsonObjectImpl(members);
         }
-        while (offset < doc.length) {
+        while (hasInput()) {
             // Get the member name, which should be unescaped
             // Why not parse the name as a JsonString and then return its value()?
             // Would requires 2 passes; we should build the String as we parse.
@@ -116,9 +120,6 @@ final class JsonParser {
                 // Add the comma, and move to the next key
                 offset++;
                 skipWhitespaces();
-                if (offset >= doc.length) {
-                    throw failure("Expected a member after ','");
-                }
             } else {
                 // Neither ',' nor '}' so fail
                 break;
@@ -137,7 +138,7 @@ final class JsonParser {
         var escape = false;
         boolean useBldr = false;
         var start = offset;
-        for (; offset < doc.length; offset++) {
+        for (; hasInput(); offset++) {
             var c = doc[offset];
             if (escape) {
                 var escapeLength = 0;
@@ -201,7 +202,7 @@ final class JsonParser {
             return new JsonArrayImpl(list);
         }
 
-        while (offset < doc.length) {
+        while (hasInput()) {
             // Get the JsonValue
             JsonValue val = parseValue();
             list.add(val);
@@ -226,7 +227,7 @@ final class JsonParser {
         int start = offset;
         offset++; // Move past the starting quote
         var escape = false;
-        for (; offset < doc.length; offset++) {
+        for (; hasInput(); offset++) {
             var c = doc[offset];
             if (escape) {
                 switch (c) {
@@ -288,7 +289,7 @@ final class JsonParser {
         boolean sawInvalid = false;
         boolean sawSign = false;
         var start = offset;
-        for (; offset < doc.length && !sawWhitespace && !sawInvalid; offset++) {
+        for (; hasInput() && !sawWhitespace && !sawInvalid; offset++) {
             switch (doc[offset]) {
                 case '-' -> {
                     if (offset != start && !sawExponent || sawSign) {
@@ -391,9 +392,14 @@ final class JsonParser {
         return val;
     }
 
+    // Returns true if the parser has not yet reached the end of the Document
+    boolean hasInput() {
+        return offset < doc.length;
+    }
+
     // Walk to the next non-white space char from the current offset
     void skipWhitespaces() {
-        while (offset < doc.length) {
+        while (hasInput()) {
             if (notWhitespace()) {
                 break;
             }
@@ -423,7 +429,7 @@ final class JsonParser {
     // returns true if the char at the specified offset equals the input char
     // and is within bounds of the char[]
     boolean currCharEquals(char c) {
-        return offset < doc.length && c == doc[offset];
+        return hasInput() && c == doc[offset];
     }
 
     // Returns true if the substring starting at the given offset equals the

@@ -80,7 +80,7 @@ public class TestParseException {
                 Arguments.of("{ \"foo\" : ", "Missing JSON value"),
                 Arguments.of("{ \"foo\" ", "Expected ':' after the member name"),
                 Arguments.of("{ \"foo\" : \"bar\" ", "Object was not closed with '}'"),
-                Arguments.of("{ \"foo\" : \"bar\",  ", "Expected a member after ','"),
+                Arguments.of("{ \"foo\" : \"bar\",  ", "Object was not closed with '}'"),
                 Arguments.of("{ \"foo\" : 1, \"foo\" : 1  ", "The duplicate member name: 'foo'"),
                 Arguments.of("{ foo : \"bar\" ", "Invalid member name"),
                 Arguments.of("{ \"foo : ", "Closing quote missing"),
