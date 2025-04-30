@@ -52,7 +52,6 @@ final class JsonParser {
 
     JsonValue parseRoot() {
         JsonValue root = parseValue();
-        skipWhitespaces();
         if (hasInput()) {
             throw failure("Unexpected character(s)");
         }
@@ -64,7 +63,7 @@ final class JsonParser {
         if (!hasInput()) {
             throw failure("Missing JSON value");
         }
-        return switch (doc[offset]) {
+        var val = switch (doc[offset]) {
             case '{' -> parseObject();
             case '[' -> parseArray();
             case '"' -> parseString();
@@ -77,6 +76,8 @@ final class JsonParser {
                     -> parseNumber();
             default -> throw failure("Unexpected character(s)");
         };
+        skipWhitespaces();
+        return val;
     }
 
     JsonObject parseObject() {
@@ -107,12 +108,8 @@ final class JsonParser {
 
             // Move from ':' to JsonValue
             offset++;
-            skipWhitespaces();
-            JsonValue val = parseValue();
-            members.put(name, val);
-
-            // Walk to either ',' or '}'
-            skipWhitespaces();
+            members.put(name, parseValue());
+            // Ensure current char is either ',' or '}'
             if (currCharEquals('}')) {
                 offset++;
                 return new JsonObjectImpl(members);
@@ -201,22 +198,14 @@ final class JsonParser {
             offset++;
             return new JsonArrayImpl(list);
         }
-
-        while (hasInput()) {
+        for (; hasInput(); offset++) {
             // Get the JsonValue
-            JsonValue val = parseValue();
-            list.add(val);
-            // Walk to either ',' or ']'
-            skipWhitespaces();
+            list.add(parseValue());
+            // Ensure current char is either ']' or ','
             if (currCharEquals(']')) {
                 offset++;
                 return new JsonArrayImpl(list);
-            } else if (currCharEquals(',')) {
-                // Walk past the comma and move to before the next value
-                offset++;
-                skipWhitespaces();
-            } else {
-                // Neither ',' nor ']' after the value, so fail
+            } else if (!currCharEquals(',')) {
                 break;
             }
         }
