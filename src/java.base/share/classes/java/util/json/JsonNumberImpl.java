@@ -29,8 +29,6 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Locale;
 
-import jdk.internal.vm.annotation.Stable;
-
 /**
  * JsonNumber implementation class
  */
@@ -39,20 +37,17 @@ final class JsonNumberImpl implements JsonNumber {
     private final char[] doc;
     private final int startOffset;
     private final int endOffset;
-    @Stable
-    private Number theNumber;
-    @Stable
-    private String numString;
-    @Stable
-    private BigDecimal cachedBD;
+    private final StableValue<Number> theNumber = StableValue.of();
+    private final StableValue<String> numString = StableValue.of();
+    private final StableValue<BigDecimal> cachedBD = StableValue.of();
 
     JsonNumberImpl(Number num) {
         if (num == null ||
             num instanceof Double d && (d.isNaN() || d.isInfinite())) {
             throw new IllegalArgumentException("Not a valid JSON number");
         }
-        theNumber = num;
-        numString = num.toString();
+        theNumber.setOrThrow(num);
+        numString.setOrThrow(num.toString());
         // unused
         startOffset = -1;
         endOffset = -1;
@@ -66,9 +61,8 @@ final class JsonNumberImpl implements JsonNumber {
     }
 
     public Number toNumber() {
-        if (theNumber == null) {
-            var str = string();
-
+        return theNumber.orElseSet(() -> {
+            var str = toString();
             // Check if integral (Java literal format)
             boolean integerOnly = true;
             for (int index = 0; index < str.length(); index++) {
@@ -80,43 +74,36 @@ final class JsonNumberImpl implements JsonNumber {
             }
             if (integerOnly) {
                 try {
-                    theNumber = Long.parseLong(str);
+                    return Long.parseLong(str);
                 } catch (NumberFormatException _) {
-                    theNumber = new BigInteger(str);
+                    return new BigInteger(str);
                 }
             } else {
                 var db = Double.parseDouble(str);
                 if (Double.isInfinite(db)) {
-                    theNumber = toBigDecimal();
+                    return toBigDecimal();
                 } else {
-                    theNumber = db;
+                    return db;
                 }
             }
-        }
-        return theNumber;
+        });
     }
 
     public BigDecimal toBigDecimal() {
-        if (cachedBD == null) {
-            if (theNumber instanceof BigDecimal bd) {
-                cachedBD = bd;
+        return cachedBD.orElseSet(() -> {
+            // If we already computed theNumber, check if it's BD
+            if (theNumber.orElse(null) instanceof BigDecimal bd) {
+                return bd;
             } else {
-                cachedBD = new BigDecimal(string());
+                return new BigDecimal(toString());
             }
-        }
-        return cachedBD;
-    }
-
-    private String string() {
-        if (numString == null) {
-            numString = new String(doc, startOffset, endOffset - startOffset);
-        }
-        return numString;
+        });
     }
 
     @Override
     public String toString() {
-        return string();
+        return numString.orElseSet(
+                () -> new String(doc, startOffset, endOffset - startOffset));
     }
 
     @Override

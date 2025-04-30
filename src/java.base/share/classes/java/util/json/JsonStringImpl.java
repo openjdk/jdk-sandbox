@@ -27,8 +27,6 @@ package java.util.json;
 
 import java.util.Objects;
 
-import jdk.internal.vm.annotation.Stable;
-
 /**
  * JsonString implementation class
  */
@@ -37,10 +35,8 @@ final class JsonStringImpl implements JsonString {
     private final char[] doc;
     private final int startOffset;
     private final int endOffset;
-    @Stable
-    private String unescapedStr;
-    @Stable
-    private String sourceStr;
+    private final StableValue<String> unescapedStr = StableValue.of();
+    private final StableValue<String> sourceStr = StableValue.of();
 
     JsonStringImpl(String str) {
         doc = ("\"" + str + "\"").toCharArray();
@@ -49,7 +45,7 @@ final class JsonStringImpl implements JsonString {
         // Eagerly compute the unescaped JSON string to validate escape sequences
         // On failure, re-throw ISE as IAE, adhering to JsonString.of() contract
         try {
-            unescapedStr = unescape(startOffset + 1, endOffset - 1);
+            value();
         } catch (IllegalStateException ise) {
             throw new IllegalArgumentException(ise);
         }
@@ -63,18 +59,14 @@ final class JsonStringImpl implements JsonString {
 
     @Override
     public String value() {
-        if (unescapedStr == null) {
-            unescapedStr = unescape(startOffset + 1, endOffset - 1);
-        }
-        return unescapedStr;
+        return unescapedStr.orElseSet(
+                () -> unescape(startOffset + 1, endOffset - 1));
     }
 
     @Override
     public String toString() {
-        if (sourceStr == null) {
-            sourceStr = new String(doc, startOffset, endOffset - startOffset);
-        }
-        return sourceStr;
+        return sourceStr.orElseSet(
+                () -> new String(doc, startOffset, endOffset - startOffset));
     }
 
     @Override
