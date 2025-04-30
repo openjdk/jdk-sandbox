@@ -29,7 +29,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 
 /**
- * Parses a JSON Document String into a tree of JsonValues. JsonObject and JsonArray
+ * Parses a JSON Document char[] into a tree of JsonValues. JsonObject and JsonArray
  * nodes create their data structures which maintain the connection to children.
  * JsonNumber and JsonString contain only a start and end offset, which
  * are used to lazily procure their underlying value/string on demand. Singletons

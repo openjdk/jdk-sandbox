@@ -25,11 +25,11 @@
 
 package java.util.json;
 
-import jdk.internal.vm.annotation.Stable;
-
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Locale;
+
+import jdk.internal.vm.annotation.Stable;
 
 /**
  * JsonNumber implementation class

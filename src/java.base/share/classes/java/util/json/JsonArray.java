@@ -25,10 +25,10 @@
 
 package java.util.json;
 
-import jdk.internal.javac.PreviewFeature;
-
 import java.util.ArrayList;
 import java.util.List;
+
+import jdk.internal.javac.PreviewFeature;
 
 /**
  * The interface that represents JSON array.

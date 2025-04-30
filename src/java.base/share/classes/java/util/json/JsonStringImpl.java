@@ -25,9 +25,9 @@
 
 package java.util.json;
 
-import jdk.internal.vm.annotation.Stable;
-
 import java.util.Objects;
+
+import jdk.internal.vm.annotation.Stable;
 
 /**
  * JsonString implementation class
@@ -46,7 +46,7 @@ final class JsonStringImpl implements JsonString {
         doc = ("\"" + str + "\"").toCharArray();
         startOffset = 0;
         endOffset = doc.length;
-        // Eagerly compute the unescaped String to validate escape sequences
+        // Eagerly compute the unescaped JSON string to validate escape sequences
         // On failure, re-throw ISE as IAE, adhering to JsonString.of() contract
         try {
             unescapedStr = unescape(startOffset + 1, endOffset - 1);

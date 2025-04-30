@@ -25,9 +25,9 @@
 
 package java.util.json;
 
-import jdk.internal.javac.PreviewFeature;
-
 import java.io.Serial;
+
+import jdk.internal.javac.PreviewFeature;
 
 /**
  * Signals that an error has been detected while parsing the
@@ -79,7 +79,10 @@ public class JsonParseException extends RuntimeException {
         return col;
     }
 
-    // package private
+    /**
+     * Package private constructor. Thrown on parsing invalid Unicode
+     * escape sequences when the original JSON text is not accessible.
+     */
     JsonParseException(String message) {
         super(message);
         this.row = 0;

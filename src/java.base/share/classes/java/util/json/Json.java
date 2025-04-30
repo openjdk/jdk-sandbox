@@ -24,8 +24,6 @@
  */
 package java.util.json;
 
-import jdk.internal.javac.PreviewFeature;
-
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -38,6 +36,8 @@ import java.util.Objects;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Set;
+
+import jdk.internal.javac.PreviewFeature;
 
 /**
  * This class provides static methods for producing and manipulating a {@link JsonValue}.
@@ -170,7 +170,7 @@ public final class Json {
 
     static JsonValue fromUntyped(Object src, Set<Object> identitySet) {
         return switch (src) {
-            // Structural JSON: Object, Array
+            // Structural: JSON object, JSON array
             case Map<?, ?> map -> {
                 if (!identitySet.add(map)) {
                     throw new IllegalArgumentException("Circular reference detected");
@@ -197,7 +197,7 @@ public final class Json {
                 // Equivalent to JsonArray.of(l) without a defensive copy
                 yield new JsonArrayImpl(l);
             }
-            // JsonPrimitives
+            // JSON primitives
             case String str -> JsonString.of(str);
             case Boolean bool -> JsonBoolean.of(bool);
             case Byte b -> JsonNumber.of(b);
@@ -218,6 +218,10 @@ public final class Json {
     /**
      * {@return an {@code Object} corresponding to {@code src}}
      * See the {@link ##mapping-table Mapping Table} for conversion details.
+     *
+     * @implNote The JDK reference implementation converts a {@code JsonObject}
+     * in {@code src} into a {@code Map} that preserves the insertion order of
+     * the original {@code JsonObject}.
      *
      * @param src the {@code JsonValue} to convert to untyped. Non-null.
      * @throws NullPointerException if {@code src} is {@code null}
