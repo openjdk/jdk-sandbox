@@ -80,6 +80,8 @@ public @interface PreviewFeature {
         MODULE_IMPORTS,
         @JEP(number=478, title="Key Derivation Function API", status="Preview")
         KEY_DERIVATION,
+        @JEP(number = 502, title = "Stable Values", status = "Preview")
+        STABLE_VALUES,
         LANGUAGE_MODEL,
         JSON,
         /**
