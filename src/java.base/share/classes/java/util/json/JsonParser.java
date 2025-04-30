@@ -50,6 +50,7 @@ final class JsonParser {
         this.doc = doc;
     }
 
+    // Parses the lone JsonValue root
     JsonValue parseRoot() {
         JsonValue root = parseValue();
         if (hasInput()) {
@@ -58,6 +59,12 @@ final class JsonParser {
         return root;
     }
 
+    /*
+     * Parse any one of the JSON value types: object, array, number, string,
+     * true, false, or null.
+     *      JSON-text = ws value ws
+     * See https://datatracker.ietf.org/doc/html/rfc8259#section-3
+     */
     JsonValue parseValue() {
         skipWhitespaces();
         if (!hasInput()) {
@@ -80,6 +87,11 @@ final class JsonParser {
         return val;
     }
 
+    /*
+     * The parsed JsonObject contains a map which holds all lazy member mappings.
+     * No offsets are required as member values hold their own offsets.
+     * See https://datatracker.ietf.org/doc/html/rfc8259#section-4
+     */
     JsonObject parseObject() {
         var members = new LinkedHashMap<String, JsonValue>();
         offset++; // Walk past the '{'
@@ -125,9 +137,12 @@ final class JsonParser {
         throw failure("Object was not closed with '}'");
     }
 
+    /*
+     * Member name equality and storage in the map should be done with the
+     * unescaped String value.
+     * See https://datatracker.ietf.org/doc/html/rfc8259#section-8.3
+     */
     String parseName() {
-        // Member equality done via unescaped String
-        // see https://datatracker.ietf.org/doc/html/rfc8259#section-8.3
         if (!currCharEquals('"')) {
             throw failure("Invalid member name");
         }
@@ -189,6 +204,11 @@ final class JsonParser {
         throw failure("Closing quote missing");
     }
 
+    /*
+     * The parsed JsonArray contains a List which holds all lazy children
+     * elements. No offsets are required as children values hold their own offsets.
+     * See https://datatracker.ietf.org/doc/html/rfc8259#section-5
+     */
     JsonArray parseArray() {
         var list = new ArrayList<JsonValue>();
         offset++; // Walk past the '['
@@ -212,6 +232,14 @@ final class JsonParser {
         throw failure("Array was not closed with ']'");
     }
 
+    /*
+     * The parsed JsonString will contain offsets correlating to the beginning
+     * and ending quotation marks. All Unicode characters are allowed except the
+     * following that require escaping: quotation mark, reverse solidus, and the
+     * control characters (U+0000 through U+001F). Any character may be escaped
+     * either through a Unicode escape sequence or two-char sequence.
+     * See https://datatracker.ietf.org/doc/html/rfc8259#section-7
+     */
     JsonString parseString() {
         int start = offset;
         offset++; // Move past the starting quote
@@ -245,6 +273,10 @@ final class JsonParser {
         throw failure("Closing quote missing");
     }
 
+    /*
+     * Parsing true, false, and null return singletons. These JsonValues
+     * do not require offsets to lazily compute their values.
+     */
     JsonBooleanImpl parseTrue() {
         if (charsEqual("rue", offset + 1)) {
             offset += 4;
@@ -269,6 +301,12 @@ final class JsonParser {
         throw failure("Expected null");
     }
 
+    /*
+     * The parsed JsonNumber contains offsets correlating to the first and last
+     * allowed chars permitted in the JSON numeric grammar:
+     *      number = [ minus ] int [ frac ] [ exp ]
+     * See https://datatracker.ietf.org/doc/html/rfc8259#section-6
+     */
     JsonNumberImpl parseNumber() {
         boolean sawDecimal = false;
         boolean sawExponent = false;
@@ -396,6 +434,7 @@ final class JsonParser {
         }
     }
 
+    // see https://datatracker.ietf.org/doc/html/rfc8259#section-2
     boolean notWhitespace() {
         return switch (doc[offset]) {
             case ' ', '\t','\r' -> false;
