@@ -29,9 +29,12 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Locale;
 
+import jdk.internal.ValueBased;
+
 /**
  * JsonNumber implementation class
  */
+@ValueBased
 final class JsonNumberImpl implements JsonNumber {
 
     private final char[] doc;

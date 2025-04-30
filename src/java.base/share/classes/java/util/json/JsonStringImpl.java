@@ -27,9 +27,12 @@ package java.util.json;
 
 import java.util.Objects;
 
+import jdk.internal.ValueBased;
+
 /**
  * JsonString implementation class
  */
+@ValueBased
 final class JsonStringImpl implements JsonString {
 
     private final char[] doc;

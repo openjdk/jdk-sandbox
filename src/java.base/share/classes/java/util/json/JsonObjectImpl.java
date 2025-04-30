@@ -29,9 +29,12 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 
+import jdk.internal.ValueBased;
+
 /**
  * JsonObject implementation class
  */
+@ValueBased
 final class JsonObjectImpl implements JsonObject {
 
     private final Map<String, JsonValue> theMembers;

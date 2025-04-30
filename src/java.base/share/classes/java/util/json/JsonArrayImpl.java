@@ -29,9 +29,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+import jdk.internal.ValueBased;
+
 /**
  * JsonArray implementation class
  */
+@ValueBased
 final class JsonArrayImpl implements JsonArray {
 
     private final List<JsonValue> theValues;

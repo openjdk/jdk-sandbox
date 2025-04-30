@@ -27,9 +27,12 @@ package java.util.json;
 
 import java.util.Objects;
 
+import jdk.internal.ValueBased;
+
 /**
  * JsonBoolean implementation class
  */
+@ValueBased
 final class JsonBooleanImpl implements JsonBoolean {
 
     private final Boolean theBoolean;
