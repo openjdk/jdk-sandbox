@@ -62,8 +62,7 @@ final class JsonArrayImpl implements JsonArray {
 
     @Override
     public boolean equals(Object o) {
-        return this == o ||
-            o instanceof JsonArray oja &&
+        return o instanceof JsonArray oja &&
                 Objects.equals(values(), oja.values());
     }
 

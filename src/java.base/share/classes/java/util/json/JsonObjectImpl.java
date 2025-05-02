@@ -64,8 +64,7 @@ final class JsonObjectImpl implements JsonObject {
 
     @Override
     public boolean equals(Object o) {
-        return this == o ||
-            o instanceof JsonObject ojo &&
+        return o instanceof JsonObject ojo &&
                 Objects.equals(members(), ojo.members());
     }
 

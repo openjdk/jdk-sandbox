@@ -56,8 +56,7 @@ final class JsonBooleanImpl implements JsonBoolean {
 
     @Override
     public boolean equals(Object obj) {
-        return this == obj ||
-            obj instanceof JsonBoolean ojb &&
+        return obj instanceof JsonBoolean ojb &&
                 Objects.equals(value(), ojb.value());
     }
 

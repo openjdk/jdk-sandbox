@@ -111,8 +111,7 @@ final class JsonNumberImpl implements JsonNumber {
 
     @Override
     public boolean equals(Object o) {
-        return this == o ||
-            o instanceof JsonNumber ojn &&
+        return o instanceof JsonNumber ojn &&
                 toString().compareToIgnoreCase(ojn.toString()) == 0;
     }
 
