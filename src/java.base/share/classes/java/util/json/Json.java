@@ -104,10 +104,8 @@ public final class Json {
      * If the document contains any JSON Object that has duplicate names, a
      * {@code JsonParseException} is thrown.
      *
-     * @implNote The JDK reference implementation inflates {@code JsonValue}s
-     * lazily when created from parsing. While parsing validates the entire JSON
-     * document for correctness, the underlying {@code JsonValue}s that the root
-     * {@code JsonValue} is composed of are allocated on-demand.
+     * @implNote The JDK reference implementation generates the String and underlying
+     * value representation of a {@code JsonValue} lazily when created from parsing.
      *
      * @param in the input JSON document as {@code String}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform
@@ -128,10 +126,8 @@ public final class Json {
      * If the document contains any JSON Object that has duplicate names, a
      * {@code JsonParseException} is thrown.
      *
-     * @implNote The JDK reference implementation inflates {@code JsonValue}s
-     * lazily when created from parsing. While parsing validates the entire JSON
-     * document for correctness, the underlying {@code JsonValue}s that the root
-     * {@code JsonValue} is composed of are allocated on-demand.
+     * @implNote The JDK reference implementation generates the String and underlying
+     * value representation of a {@code JsonValue} lazily when created from parsing.
      *
      * @param in the input JSON document as {@code char[]}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform
