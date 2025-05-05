@@ -215,8 +215,8 @@ public final class Json {
      * {@return an {@code Object} corresponding to {@code src}}
      * See the {@link ##mapping-table Mapping Table} for conversion details.
      *
-     * @implNote The JDK reference implementation converts a {@code JsonObject}
-     * in {@code src} into a {@code Map} that preserves the insertion order of
+     * @implNote For the JDK reference implementation, instances of {@code JsonObject}
+     * in {@code src} are converted into a {@code Map} that preserves the insertion order of
      * the original {@code JsonObject}.
      *
      * @param src the {@code JsonValue} to convert to untyped. Non-null.
