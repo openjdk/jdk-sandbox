@@ -43,30 +43,31 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class TestOtherImpl {
 
-    static final JsonString standardJsonString = JsonString.of("bar");
-    static final JsonString altJsonString = new JsonFooString("bar".getBytes(StandardCharsets.UTF_8));
+    private static final JsonString STANDARD_JSON_STRING = JsonString.of("bar");
+    private static final JsonString ALT_JSON_STRING =
+            new JsonFooString("bar".getBytes(StandardCharsets.UTF_8));
 
     @Test
     void equalsHashcodeTest() {
-        assertTrue(altJsonString.equals(standardJsonString));
-        assertTrue(standardJsonString.equals(altJsonString));
-        assertEquals(standardJsonString.hashCode(), altJsonString.hashCode());
-        assertEquals(standardJsonString.toString(), altJsonString.toString());
+        assertTrue(ALT_JSON_STRING.equals(STANDARD_JSON_STRING));
+        assertTrue(STANDARD_JSON_STRING.equals(ALT_JSON_STRING));
+        assertEquals(STANDARD_JSON_STRING.hashCode(), ALT_JSON_STRING.hashCode());
+        assertEquals(STANDARD_JSON_STRING.toString(), ALT_JSON_STRING.toString());
     }
 
     @Test
     void toUntypedTest() {
-        assertEquals(Json.toUntyped(standardJsonString), Json.toUntyped(altJsonString));
+        assertEquals(Json.toUntyped(STANDARD_JSON_STRING), Json.toUntyped(ALT_JSON_STRING));
         // There will be no fromUntypedTest(), we do not want to offer a way
         // to provide non-standard implementations of product types
     }
 
     @Test
     void displayStringTest() {
-        assertEquals(Json.toDisplayString(standardJsonString), Json.toDisplayString(altJsonString));
+        assertEquals(Json.toDisplayString(STANDARD_JSON_STRING), Json.toDisplayString(ALT_JSON_STRING));
         // Wrap it in a JsonObject, and check display string equality again
-        assertEquals(Json.toDisplayString(JsonObject.of(Map.of("foo", standardJsonString))),
-                Json.toDisplayString(JsonObject.of(Map.of("foo", altJsonString))));
+        assertEquals(Json.toDisplayString(JsonObject.of(Map.of("foo", STANDARD_JSON_STRING))),
+                Json.toDisplayString(JsonObject.of(Map.of("foo", ALT_JSON_STRING))));
     }
 
     static class JsonFooString implements JsonString {

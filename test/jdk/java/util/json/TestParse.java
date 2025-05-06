@@ -26,84 +26,42 @@
 /*
  * @test
  * @enablePreview
+ * @summary Checks non JSON subtype specific parse behavior
  * @run junit TestParse
  */
 
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.FieldSource;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
-import java.util.json.*;
-import java.util.stream.Stream;
+import java.util.json.Json;
+import java.util.json.JsonNumber;
+import java.util.json.JsonObject;
+import java.util.json.JsonParseException;
+import java.util.json.JsonString;
+import java.util.json.JsonValue;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class TestParse {
 
-    private static final String basicJson =
+    private static final String JSON =
             """
             { "name": "Brian", "shoeSize": 10 }
             """;
 
-    private static final String TEMPLATE =
-        """
-        { 
-          "obj": {
-            "foo": "bar",
-            "baz": 20,
-            "array": [
-              "foo",
-              "bar",
-              {
-                "foo": %s
-              }
-            ]
-          }
-        }
-        """;
-
-    private static Stream<Arguments> validValues() {
-        return Stream.of(
-            Arguments.of("[ 1, 2, 3, \"bar\" ]"),
-            Arguments.of("{\"bar\": \"baz\"}"),
-            Arguments.of(" 42 "),
-            Arguments.of(" true "),
-            Arguments.of(" null "),
-            Arguments.of("\"foo\"")
-        );
-    }
-
-    @ParameterizedTest
-    @MethodSource("validValues")
-    void validLazyParse(String value) {
-        Json.parse(TEMPLATE.formatted(value));
-    }
-
-    @Test
-    void testBasicPrimitiveParse() throws Exception {
-        Json.parse("true");
-        Json.parse("[true]");
-        Json.parse("{\"a\":true}");
-        Json.parse("false");
-        Json.parse("[false]");
-        Json.parse("{\"a\":false}");
-        Json.parse("null");
-        Json.parse("[null]");
-        Json.parse("{\"a\":null}");
-    }
-
-    @Test
-    void testBasicParse() {
-        Json.parse(basicJson);
-    }
-
+    // A basic parse and match example
     @Test
     void testBasicParseAndMatch() {
-        var doc = Json.parse(basicJson);
+        var doc = Json.parse(JSON);
         if (doc instanceof JsonObject o && o.members() instanceof Map<String, JsonValue> members
                 && members.get("name") instanceof JsonString js && js.value() instanceof String name
                 && members.get("shoeSize") instanceof JsonNumber jn && jn.toNumber() instanceof long size) {
@@ -114,10 +72,10 @@ public class TestParse {
         }
     }
 
-    // Ensure modifying input char array has no impact on JsonValue
+    // Ensure modifying input char array passed to Json.parse has no impact on JsonValue
     @Test
     void testDefensiveCopy() {
-        char[] in = basicJson.toCharArray();
+        char[] in = JSON.toCharArray();
         var doc = Json.parse(in);
 
         // Mutate original char array with nonsense
@@ -130,6 +88,112 @@ public class TestParse {
             assertEquals(10, size);
         } else {
             throw new RuntimeException("JsonValue corrupted by input array");
+        }
+    }
+
+    private static final String JSON_WITH_SPACES =
+            """
+            [
+                { "name": "John", "age": 30, "city": "New York" },
+                { "name": "Jane", "age": 20, "city": "Boston" },
+                true,
+                false,
+                null,
+                [ "array", "inside", {"inner obj": true, "top-level": false}],
+                "foo",
+                42
+            ]
+            """;
+
+    private static final String JSON_EXTRA_SPACES =
+            """
+            [
+           \s
+                { "name"    : "John",    "age"  : 30, "city": "New York" },
+                {  "name": "Jane"  , "age": 20, "city": "Boston" },
+                \s
+               \s
+                true,   \s
+                false   ,
+                null, \s
+                [    "array"  , "inside", {"inner obj": true, "top-level" : false  } ] ,\s
+                "foo",\s
+                42
+              ]
+           \s""";
+
+    // White space is allowed but should have no effect
+    // on the underlying structure, and should not play a role during equality
+    @Test
+    void testWhiteSpaceEquality() {
+        var obj = Json.parse(JSON_EXTRA_SPACES);
+        var str = assertDoesNotThrow(obj::toString);
+        var expStr = Json.parse(JSON_WITH_SPACES).toString();
+        // Ensure equivalent Json (besides white space) generates equivalent
+        // toString values
+        assertEquals(expStr, str);
+    }
+
+    @Nested
+    class TestExceptions {
+
+        // General exceptions
+
+        private static final List<Arguments> INVALID_JSON = List.of(
+                Arguments.of("", "Missing JSON value"),
+                Arguments.of(" ", "Missing JSON value"),
+                Arguments.of("z", "Unexpected character(s)"),
+                Arguments.of("null, true", "Unexpected character(s)"),
+                Arguments.of("null 5", "Unexpected character(s)")
+        );
+
+        @ParameterizedTest
+        @FieldSource("INVALID_JSON")
+        void testMessages(String json, String err) {
+            Exception e =  assertThrows(JsonParseException.class, () -> Json.parse(json));
+            var msg = e.getMessage();
+            assertTrue(msg.contains(err), "Got: \"%s\"\n\tExpected: \"%s\"".formatted(msg, err));
+        }
+
+
+        // Row Col focused exceptions
+
+        private static final String BASIC = "foobarbaz";
+
+        @Test
+        void testBasicRowCol() {
+            Exception e = assertThrows(JsonParseException.class, () -> Json.parse(BASIC));
+            assertEquals("Expected false: (foobarba) at Row 0, Col 0.", e.getMessage());
+        }
+
+        private static final String STRUCTURAL =
+                """
+                [
+                  null,   foobarbaz
+                ]
+                """;
+
+        @Test
+        void testStructuralRowCol() {
+            Exception e = assertThrows(JsonParseException.class, () -> Json.parse(STRUCTURAL));
+            assertEquals("Expected false: (foobarba) at Row 1, Col 10.", e.getMessage());
+        }
+
+        private static final String STRUCTURAL_WITH_NESTED =
+                """
+                {
+                    "name" :
+                    [
+                        "value",
+                        null, foobarbaz
+                    ]
+                }
+                """;
+
+        @Test
+        void testStructuralWithNestedRowCol() {
+            Exception e = assertThrows(JsonParseException.class, () -> Json.parse(STRUCTURAL_WITH_NESTED));
+            assertEquals("Expected false: (foobarba) at Row 4, Col 14.", e.getMessage());
         }
     }
 }

@@ -29,80 +29,113 @@
  * @run junit TestJsonString
  */
 
-import java.util.json.*;
+import java.util.List;
+import java.util.json.Json;
+import java.util.json.JsonParseException;
+import java.util.json.JsonString;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class TestJsonString {
 
-    // Basic test to ensure untyped value() returns unescaped, but toString
-    // returns the source
-    @Test
-    void untypedStringTest() {
-        var s = Json.fromUntyped("afo");
-        var c = Json.fromUntyped(new String(new char[]{'\\', 'u', '0', '0', '6', '1', 'f', 'o'}));
-        assertEquals(Json.toUntyped(s), Json.toUntyped(c));
-        assertNotEquals(s.toString(), c.toString());
+    @Nested
+    class TestValue {
+
+        // Escape sequence tests on value()
+        @ParameterizedTest
+        @MethodSource
+        void escapeTest(String src, String expected) {
+            assertEquals(((JsonString)Json.parse(src)).value(), expected);
+        }
+        private static Stream<Arguments> escapeTest() {
+            return Stream.of(
+                    Arguments.of("\"\\\"\"", "\""),
+                    Arguments.of("\"\\\\\"", "\\"),
+                    Arguments.of("\"\\/\"", "/"),
+                    Arguments.of("\"\\b\"", "\b"),
+                    Arguments.of("\"\\f\"", "\f"),
+                    Arguments.of("\"\\n\"", "\n"),
+                    Arguments.of("\"\\r\"", "\r"),
+                    Arguments.of("\"\\t\"", "\t"),
+                    Arguments.of("\"\\uD834\\uDD1E\"", "\uD834\uDD1E")
+            );
+        }
     }
 
-    @Test
-    void illegalEscapeTest() {
-        assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped("a\\afo"));
-        assertThrows(IllegalArgumentException.class, () -> JsonString.of("a\\afo"));
-        assertThrows(IllegalArgumentException.class, () -> JsonString.of("a\\u00AZ"));
+    @Nested
+    class TestParse {
+
+        private static final List<Arguments> FAIL_STRING = List.of(
+                Arguments.of("\"\u001b\"", "Unescaped control code"),
+                Arguments.of("\"foo\\a \"", "Illegal escape"),
+                Arguments.of("\"foo\\u0\"", "Invalid Unicode escape sequence"),
+                Arguments.of("\"foo\\uZZZZ\"", "Invalid Unicode escape sequence"),
+                Arguments.of("\"foo ", "Closing quote missing"));
+
+        @ParameterizedTest
+        @FieldSource("FAIL_STRING")
+        void testMessages(String json, String err) {
+            Exception e =  assertThrows(JsonParseException.class, () -> Json.parse(json));
+            var msg = e.getMessage();
+            assertTrue(msg.contains(err), "Got: \"%s\"\n\tExpected: \"%s\"".formatted(msg, err));
+        }
+
+        private static Stream<Arguments> testStringEquality() {
+            return Stream.of(
+                    Arguments.of("\"afo\"", "\"afo\"", true),
+                    Arguments.of("\"afo\"", new char[]{'"', 'a', 'f', 'o', '"'}, true),
+                    Arguments.of("\"afo\"", new char[]{'"', '\\', 'u', '0', '0', '6', '1', 'f', 'o', '"'}, true)
+            );
+        }
+
+        @ParameterizedTest
+        @MethodSource
+        void testStringEquality(Object arg1, Object arg2) {
+            var jv1 = arg1 instanceof String s ? Json.parse(s) :
+                    arg1 instanceof char[] ca ? Json.parse(ca) : null;
+            var jv2 = arg2 instanceof String s ? Json.parse(s) :
+                    arg2 instanceof char[] ca ? Json.parse(ca) : null;
+            var val1 = jv1 instanceof JsonString js ? js.value() : null;
+            var val2 = jv2 instanceof JsonString js ? js.value() : null;
+
+            // two JsonValue arguments should have the same value()
+            assertEquals(val1, val2);
+
+            // assert their toString() returns the original text
+            assertEquals(arg1 instanceof char[] ca ? new String(ca) : arg1, jv1.toString());
+            assertEquals(arg2 instanceof char[] ca ? new String(ca) : arg2, jv2.toString());
+        }
     }
 
-    // Escape sequence tests
-    @ParameterizedTest
-    @MethodSource
-    void escapeTest(String src, String expected) {
-        assertEquals(((JsonString)Json.parse(src)).value(), expected);
-    }
-    private static Stream<Arguments> escapeTest() {
-        return Stream.of(
-                Arguments.of("\"\\\"\"", "\""),
-                Arguments.of("\"\\\\\"", "\\"),
-                Arguments.of("\"\\/\"", "/"),
-                Arguments.of("\"\\b\"", "\b"),
-                Arguments.of("\"\\f\"", "\f"),
-                Arguments.of("\"\\n\"", "\n"),
-                Arguments.of("\"\\r\"", "\r"),
-                Arguments.of("\"\\t\"", "\t"),
-                Arguments.of("\"\\uD834\\uDD1E\"", "\uD834\uDD1E")
-        );
-    }
+    @Nested
+    class TestFactory {
 
-    private static Stream<Arguments> testStringEquality() {
-        return Stream.of(
-                Arguments.of("\"afo\"", "\"afo\"", true),
-                Arguments.of("\"afo\"", new char[]{'"', 'a', 'f', 'o', '"'}, true),
-                Arguments.of("\"afo\"", new char[]{'"', '\\', 'u', '0', '0', '6', '1', 'f', 'o', '"'}, true)
-        );
-    }
+        // Basic test to ensure untyped value() returns unescaped, but toString
+        // returns the source
+        @Test
+        void untypedStringTest() {
+            var s = Json.fromUntyped("afo");
+            var c = Json.fromUntyped(new String(new char[]{'\\', 'u', '0', '0', '6', '1', 'f', 'o'}));
+            assertEquals(Json.toUntyped(s), Json.toUntyped(c));
+            assertNotEquals(s.toString(), c.toString());
+        }
 
-    @ParameterizedTest
-    @MethodSource
-    void testStringEquality(Object arg1, Object arg2, boolean expected) {
-        var jv1 = arg1 instanceof String s ? Json.parse(s) :
-                arg1 instanceof char[] ca ? Json.parse(ca) : null;
-        var jv2 = arg2 instanceof String s ? Json.parse(s) :
-                arg2 instanceof char[] ca ? Json.parse(ca) : null;
-        var val1 = jv1 instanceof JsonString js ? js.value() : null;
-        var val2 = jv2 instanceof JsonString js ? js.value() : null;
-
-        // two JsonValue arguments should have the same value()
-        assertEquals(val1, val2);
-
-        // assert their toString() returns the original text
-        assertEquals(arg1 instanceof char[] ca ? new String(ca) : arg1, jv1.toString());
-        assertEquals(arg2 instanceof char[] ca ? new String(ca) : arg2, jv2.toString());
+        @Test
+        void illegalEscapeTest() {
+            assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped("a\\afo"));
+            assertThrows(IllegalArgumentException.class, () -> JsonString.of("a\\afo"));
+            assertThrows(IllegalArgumentException.class, () -> JsonString.of("a\\u00AZ"));
+        }
     }
 }

@@ -29,103 +29,188 @@
  * @run junit TestJsonArray
  */
 
-
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.FieldSource;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.json.*;
+import java.util.json.Json;
+import java.util.json.JsonArray;
+import java.util.json.JsonBoolean;
+import java.util.json.JsonNull;
+import java.util.json.JsonNumber;
+import java.util.json.JsonObject;
+import java.util.json.JsonParseException;
+import java.util.json.JsonString;
+import java.util.json.JsonValue;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class TestJsonArray {
 
-    @Test
-    void testFactory() {
-        var doc = Json.parse("""
+    @Nested
+    class TestParse {
+
+        // Some basic malformed JSON arrays and expected error message
+        static List<Arguments> BASIC_FAIL = List.of(
+                Arguments.of("[ \"foo\"  ", "Array was not closed with ']'"),
+                Arguments.of("[ \"foo\",  ", "Missing JSON value"),
+                Arguments.of("[ ", "Array was not closed with ']'"),
+                Arguments.of("null ]", "Unexpected character(s)"));
+
+        @ParameterizedTest
+        @FieldSource("BASIC_FAIL")
+        void basicFailParse(String json) {
+            assertThrows(JsonParseException.class, () -> Json.parse(json),
+                    "String parse did not fail for %s".formatted(json));
+            assertThrows(JsonParseException.class, () -> Json.parse(json.toCharArray()),
+                    "Char parse did not fail for %s".formatted(json));
+        }
+    }
+
+    @Nested
+    class TestFactory {
+
+        // Ensure equivalence of JsonArray created from parse vs of factory
+        @Test
+        void testFactory() {
+
+            var doc = Json.parse(
+            """
             [1, "two", false, null, {"name": 42}, [1]]
-        """);
-        var expected = JsonArray.of(
-            List.of(
-                JsonNumber.of(1),
-                JsonString.of("two"),
-                JsonBoolean.of(Boolean.FALSE),
-                JsonNull.of(),
-                JsonObject.of(Map.of("name", JsonNumber.of(42))),
-                JsonArray.of(List.of(JsonNumber.of(1)))
-            )
-        ).values();
-        if (doc instanceof JsonArray ja) {
-            //only compare types
-            compareTypes(expected, ja.values());
-        } else {
-            throw new RuntimeException("JsonArray expected");
+            """);
+
+            var expected = JsonArray.of(
+                    List.of(
+                            JsonNumber.of(1),
+                            JsonString.of("two"),
+                            JsonBoolean.of(Boolean.FALSE),
+                            JsonNull.of(),
+                            JsonObject.of(Map.of("name", JsonNumber.of(42))),
+                            JsonArray.of(List.of(JsonNumber.of(1)))
+                    )
+            ).values();
+            if (doc instanceof JsonArray ja) {
+                //only compare types
+                compareTypes(expected, ja.values());
+            } else {
+                throw new RuntimeException("JsonArray expected");
+            }
         }
-    }
 
-    // Test that the Json::fromUntyped and JsonArray::of factories
-    // take the expected element types
-    @Test
-    void testFromUntyped() {
-        var untyped = Json.fromUntyped(Arrays.asList(new Object[]{1, null, false, "test"}));
-        var typed = JsonArray.of(List.of(JsonNumber.of(1), JsonNull.of(),
-                JsonBoolean.of(false), JsonString.of("test"))).values();
-        if (untyped instanceof JsonArray ja) {
-            //only compare types
-            compareTypes(typed, ja.values());
-        } else {
-            throw new RuntimeException("JsonArray expected");
+        // Test that the Json::fromUntyped and JsonArray::of factories
+        // take the expected element types
+        @Test
+        void testFromUntyped() {
+            var untyped = Json.fromUntyped(Arrays.asList(1, null, false, "test"));
+            var typed = JsonArray.of(List.of(JsonNumber.of(1), JsonNull.of(),
+                    JsonBoolean.of(false), JsonString.of("test"))).values();
+            if (untyped instanceof JsonArray ja) {
+                // only compare types
+                compareTypes(typed, ja.values());
+            } else {
+                throw new RuntimeException("JsonArray expected");
+            }
         }
-    }
 
-    private static void compareTypes(List<JsonValue> expected, List<JsonValue> actual) {
-        assertEquals(expected.size(), actual.size());
-        for (int index = 0; index < expected.size(); index++) {
-            assertEquals(expected.get(index).getClass(), actual.get(index).getClass());
+        private static void compareTypes(List<JsonValue> expected, List<JsonValue> actual) {
+            assertEquals(expected.size(), actual.size());
+            for (int index = 0; index < expected.size(); index++) {
+                assertEquals(expected.get(index).getClass(), actual.get(index).getClass());
+            }
         }
-    }
 
-    @Test
-    void immutabilityOfTest() {
-        var list = new ArrayList<JsonValue>();
-        list.add(JsonString.of("foo"));
-        var ja = JsonArray.of(list);
-        assertEquals(1, ja.values().size());
-        // Modifications to backed list should not change JsonArray
-        list.add(JsonString.of("foo"));
-        assertEquals(1, ja.values().size());
-        // Modifications to JsonArray values() should throw
-        assertThrows(UnsupportedOperationException.class,
-                () -> ja.values().add(JsonNull.of()),
-                "Array values able to be modified");
-    }
+        @Test
+        void immutabilityOfTest() {
+            var list = new ArrayList<JsonValue>();
+            list.add(JsonString.of("foo"));
+            var ja = JsonArray.of(list);
+            assertEquals(1, ja.values().size());
+            // Modifications to backed list should not change JsonArray
+            list.add(JsonString.of("foo"));
+            assertEquals(1, ja.values().size());
+            // Modifications to JsonArray values() should throw
+            assertThrows(UnsupportedOperationException.class,
+                    () -> ja.values().add(JsonNull.of()),
+                    "Array values able to be modified");
+        }
 
-    @Test
-    void immutabilityUntypedTest() {
-        var list = new ArrayList<String>();
-        list.add("foo");
-        var ja = (JsonArray) Json.fromUntyped(list);
-        assertEquals(1, ja.values().size());
-        // Modifications to backed list should not change JsonArray
-        list.add("foo");
-        assertEquals(1, ja.values().size());
-        // Modifications to JsonArray values() should throw
-        assertThrows(UnsupportedOperationException.class,
-                () -> ja.values().add(JsonNull.of()),
-                "Array values able to be modified");
-    }
+        @Test
+        void immutabilityUntypedTest() {
+            var list = new ArrayList<String>();
+            list.add("foo");
+            var ja = (JsonArray) Json.fromUntyped(list);
+            assertEquals(1, ja.values().size());
+            // Modifications to backed list should not change JsonArray
+            list.add("foo");
+            assertEquals(1, ja.values().size());
+            // Modifications to JsonArray values() should throw
+            assertThrows(UnsupportedOperationException.class,
+                    () -> ja.values().add(JsonNull.of()),
+                    "Array values able to be modified");
+        }
 
-    @Test
-    void nullTest() {
-        // null list to of factory
-        assertThrows(NullPointerException.class, () -> JsonArray.of(null));
-        List<JsonValue> list = new ArrayList<>();
-        list.add(null);
-        // JsonArray.of() should throw as typed to JsonValue
-        assertThrows(NullPointerException.class, () -> JsonArray.of(list));
-        // Json.fromUntyped() should map null value to JsonNull
-        assertDoesNotThrow(() -> Json.fromUntyped(list));
+        @Test
+        void nullTest() {
+            // null list to of factory
+            assertThrows(NullPointerException.class, () -> JsonArray.of(null));
+            List<JsonValue> list = new ArrayList<>();
+            list.add(null);
+            // JsonArray.of() should throw as typed to JsonValue
+            assertThrows(NullPointerException.class, () -> JsonArray.of(list));
+            // Json.fromUntyped() should map null value to JsonNull
+            assertDoesNotThrow(() -> Json.fromUntyped(list));
+        }
+
+        // Basic single depth circular reference
+        @Test
+        void arrayCycleTest() {
+            ArrayList<Object> arr = new ArrayList<>();
+            arr.add(arr);
+            assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(arr));
+        }
+
+        private static final String json =
+                """
+                [
+                    {"name1": "val1", "name2": 10, "name3": true, "name4": [1, 2, 3]},
+                    {"name1": "val1", "name2": 10, "name3": true, "name4": [1,2,3]},
+                    "test",
+                    "test",
+                    30,
+                    30,
+                    false,
+                    false,
+                    null,
+                    null
+                ]
+                """;
+
+        private static final List<Object> untyped = Arrays.asList(
+                Map.ofEntries(Map.entry("name1", "val1"),
+                        Map.entry("name2", 10),
+                        Map.entry("name3", Boolean.TRUE),
+                        Map.entry("name4", List.of(1, 2, 3))),
+                "test",
+                30,
+                Boolean.FALSE,
+                null
+        );
+
+        @Test
+        public void testArrayEquality() {
+            JsonArray jsonArray = (JsonArray) Json.parse(json);
+            for (int i = 0; i < jsonArray.values().size(); i += 2) {
+                assertEquals(jsonArray.values().get(i), jsonArray.values().get(i + 1));
+                assertEquals(jsonArray.values().get(i), Json.fromUntyped(untyped.get(i / 2)));
+            }
+        }
     }
 }
