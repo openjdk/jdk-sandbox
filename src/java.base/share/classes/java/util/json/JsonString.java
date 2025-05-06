@@ -80,6 +80,7 @@ public non-sealed interface JsonString extends JsonValue {
      *     JsonString.of("fo\\u006f").toString(); // returns "\"fo\\u006f\""
      * }
      */
+    @Override
     String toString();
 
     /**
@@ -89,6 +90,7 @@ public non-sealed interface JsonString extends JsonValue {
      *
      * @see #value()
      */
+    @Override
     boolean equals(Object obj);
 
     /**
@@ -97,5 +99,6 @@ public non-sealed interface JsonString extends JsonValue {
      *
      * @see #value()
      */
+    @Override
     int hashCode();
 }

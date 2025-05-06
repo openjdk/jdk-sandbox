@@ -48,10 +48,12 @@ public non-sealed interface JsonNull extends JsonValue {
     /**
      * {@return true if the given {@code obj} is a {@code JsonNull}}
      */
+    @Override
     boolean equals(Object obj);
 
     /**
      * {@return the hash code value of this {@code JsonNull}}
      */
+    @Override
     int hashCode();
 }

@@ -77,6 +77,7 @@ public non-sealed interface JsonObject extends JsonValue {
      *
      * @see #members()
      */
+    @Override
     boolean equals(Object obj);
 
     /**
@@ -88,5 +89,6 @@ public non-sealed interface JsonObject extends JsonValue {
      *
      * @see #members()
      */
+    @Override
     int hashCode();
 }

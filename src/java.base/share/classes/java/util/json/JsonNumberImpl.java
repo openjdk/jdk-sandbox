@@ -63,6 +63,7 @@ final class JsonNumberImpl implements JsonNumber {
         endOffset = end;
     }
 
+    @Override
     public Number toNumber() {
         return theNumber.orElseSet(() -> {
             var str = toString();
@@ -92,6 +93,7 @@ final class JsonNumberImpl implements JsonNumber {
         });
     }
 
+    @Override
     public BigDecimal toBigDecimal() {
         return cachedBD.orElseSet(() -> {
             // If we already computed theNumber, check if it's BD

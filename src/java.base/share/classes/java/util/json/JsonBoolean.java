@@ -63,6 +63,7 @@ public non-sealed interface JsonBoolean extends JsonValue {
      *
      * @see #value()
      */
+    @Override
     boolean equals(Object obj);
 
     /**
@@ -74,5 +75,6 @@ public non-sealed interface JsonBoolean extends JsonValue {
      *
      * @see #value()
      */
+    @Override
     int hashCode();
 }

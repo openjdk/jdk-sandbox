@@ -50,20 +50,6 @@ import jdk.internal.javac.PreviewFeature;
 public non-sealed interface JsonNumber extends JsonValue {
 
     /**
-     * {@return the decimal string representation of this {@code JsonNumber}}
-     *
-     * If this {@code JsonNumber} is created by parsing a JSON number in a JSON document,
-     * it preserves the string representation in the document, regardless of its
-     * precision or range. For example, a JSON number like
-     * {@code 3.141592653589793238462643383279} in the JSON document will be
-     * returned exactly as it appears.
-     * If this {@code JsonNumber} is created via one of the factory methods,
-     * such as {@link JsonNumber#of(double)}, then the string representation is
-     * specified by the factory method.
-     */
-    String toString();
-
-    /**
      * {@return the {@code Number} parsed or translated from the
      * {@link #toString string representation} of this {@code JsonNumber}}
      * <p>
@@ -178,12 +164,28 @@ public non-sealed interface JsonNumber extends JsonValue {
     }
 
     /**
+     * {@return the decimal string representation of this {@code JsonNumber}}
+     *
+     * If this {@code JsonNumber} is created by parsing a JSON number in a JSON document,
+     * it preserves the string representation in the document, regardless of its
+     * precision or range. For example, a JSON number like
+     * {@code 3.141592653589793238462643383279} in the JSON document will be
+     * returned exactly as it appears.
+     * If this {@code JsonNumber} is created via one of the factory methods,
+     * such as {@link JsonNumber#of(double)}, then the string representation is
+     * specified by the factory method.
+     */
+    @Override
+    String toString();
+
+    /**
      * {@return true if the given {@code obj} is equal to this {@code JsonNumber}}
      * The comparison is based on the string representation of this {@code JsonNumber},
      * ignoring the case.
      *
      * @see #toString()
      */
+    @Override
     boolean equals(Object obj);
 
     /**
@@ -193,5 +195,6 @@ public non-sealed interface JsonNumber extends JsonValue {
      *
      * @see #toString()
      */
+    @Override
     int hashCode();
 }
