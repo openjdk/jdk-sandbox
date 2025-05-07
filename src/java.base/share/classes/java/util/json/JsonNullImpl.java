@@ -27,12 +27,9 @@ package java.util.json;
 
 import java.util.Objects;
 
-import jdk.internal.ValueBased;
-
 /**
  * JsonNull implementation class
  */
-@ValueBased
 final class JsonNullImpl implements JsonNull {
 
     static final JsonNullImpl NULL = new JsonNullImpl();

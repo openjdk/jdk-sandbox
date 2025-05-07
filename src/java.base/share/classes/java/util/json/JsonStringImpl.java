@@ -74,7 +74,8 @@ final class JsonStringImpl implements JsonString {
 
     @Override
     public boolean equals(Object o) {
-        return o instanceof JsonString ojs &&
+        return this == o ||
+            o instanceof JsonString ojs &&
                 Objects.equals(value(), ojs.value());
     }
 
