@@ -25,6 +25,8 @@
 
 package java.util.json;
 
+import jdk.internal.ValueBased;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -32,6 +34,7 @@ import java.util.Objects;
 /**
  * JsonArray implementation class
  */
+@ValueBased
 final class JsonArrayImpl implements JsonArray {
 
     private final List<JsonValue> theValues;
@@ -59,8 +62,7 @@ final class JsonArrayImpl implements JsonArray {
 
     @Override
     public boolean equals(Object o) {
-        return this == o ||
-            o instanceof JsonArray oja &&
+        return o instanceof JsonArray oja &&
                 Objects.equals(values(), oja.values());
     }
 

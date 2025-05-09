@@ -25,6 +25,8 @@
 
 package java.util.json;
 
+import jdk.internal.ValueBased;
+
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Locale;
@@ -32,6 +34,7 @@ import java.util.Locale;
 /**
  * JsonNumber implementation class
  */
+@ValueBased
 final class JsonNumberImpl implements JsonNumber {
 
     private final char[] doc;
@@ -110,8 +113,7 @@ final class JsonNumberImpl implements JsonNumber {
 
     @Override
     public boolean equals(Object o) {
-        return this == o ||
-            o instanceof JsonNumber ojn &&
+        return o instanceof JsonNumber ojn &&
                 toString().compareToIgnoreCase(ojn.toString()) == 0;
     }
 
