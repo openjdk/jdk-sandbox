@@ -98,11 +98,10 @@ import jdk.internal.javac.PreviewFeature;
 public final class Json {
 
     /**
-     * Parses and creates the top level {@code JsonValue} in this JSON
-     * document. If parsing succeeds, it guarantees that the input document
-     * conforms to the JSON syntax.
-     * If the document contains any JSON Object that has duplicate names, a
-     * {@code JsonParseException} is thrown.
+     * Parses and creates a {@code JsonValue} from the given JSON document.
+     * If parsing succeeds, it guarantees that the input document conforms to
+     * the JSON syntax. If the document contains any JSON Object that has
+     * duplicate names, a {@code JsonParseException} is thrown.
      *
      * @implNote The JDK reference implementation generates the String and underlying
      * value representation of a {@code JsonValue} lazily when created from parsing.
@@ -112,7 +111,7 @@ public final class Json {
      *      to the JSON document format or a JSON object containing
      *      duplicate names is encountered.
      * @throws NullPointerException if {@code in} is {@code null}
-     * @return the top level {@code JsonValue}
+     * @return the parsed {@code JsonValue}
      */
     public static JsonValue parse(String in) {
         Objects.requireNonNull(in);
@@ -120,11 +119,10 @@ public final class Json {
     }
 
     /**
-     * Parses and creates the top level {@code JsonValue} in this JSON
-     * document. If parsing succeeds, it guarantees that the input document
-     * conforms to the JSON syntax.
-     * If the document contains any JSON Object that has duplicate names, a
-     * {@code JsonParseException} is thrown.
+     * Parses and creates a {@code JsonValue} from the given JSON document.
+     * If parsing succeeds, it guarantees that the input document conforms to
+     * the JSON syntax. If the document contains any JSON Object that has
+     * duplicate names, a {@code JsonParseException} is thrown.
      *
      * @implNote The JDK reference implementation generates the String and underlying
      * value representation of a {@code JsonValue} lazily when created from parsing.
@@ -134,7 +132,7 @@ public final class Json {
      *      to the JSON document format or a JSON object containing
      *      duplicate names is encountered.
      * @throws NullPointerException if {@code in} is {@code null}
-     * @return the top level {@code JsonValue}
+     * @return the parsed {@code JsonValue}
      */
     public static JsonValue parse(char[] in) {
         Objects.requireNonNull(in);
