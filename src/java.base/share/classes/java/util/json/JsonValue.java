@@ -62,6 +62,10 @@ public sealed interface JsonValue
      * JSON document, it preserves the text representation of the corresponding
      * JSON element, except that the returned string does not contain any white
      * spaces or newlines to produce a compact representation.
+     * For a String representation suitable for display, use
+     * {@link Json#toDisplayString(JsonValue)}.
+     *
+     * @see Json#toDisplayString(JsonValue)
      */
     String toString();
 }
