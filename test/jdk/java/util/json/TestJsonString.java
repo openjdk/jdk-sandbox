@@ -114,21 +114,18 @@ public class TestJsonString {
 
             // assert their toString() returns the original text
             assertEquals(arg1 instanceof char[] ca ? new String(ca) : arg1, jv1.toString());
-            assertEquals(arg2 instanceof char[] ca ? new String(ca) : arg2, jv2.toString());
         }
     }
 
     @Nested
     class TestFactory {
 
-        // Basic test to ensure untyped value() returns unescaped, but toString
-        // returns the source
         @Test
         void untypedStringTest() {
             var s = Json.fromUntyped("afo");
             var c = Json.fromUntyped(new String(new char[]{'\\', 'u', '0', '0', '6', '1', 'f', 'o'}));
             assertEquals(Json.toUntyped(s), Json.toUntyped(c));
-            assertNotEquals(s.toString(), c.toString());
+            assertEquals(s.toString(), c.toString());
         }
 
         @Test

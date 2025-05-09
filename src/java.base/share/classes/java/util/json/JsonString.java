@@ -45,12 +45,7 @@ public non-sealed interface JsonString extends JsonValue {
      * {@return the {@code String} value represented by this
      * {@code JsonString}} Any escaped characters in the original
      * JSON string are converted to their unescaped form in the
-     * returned {@code String}. This is different from {@link #toString()},
-     * which keeps the escaped characters as they are.
-     * For example,
-     * {@snippet lang=java:
-     *     JsonString.of("fo\\u006f").value(); // returns "foo"
-     * }
+     * returned {@code String}.
      * @throws IllegalStateException if the source JSON string cannot
      *          be unescaped.
      */
@@ -69,19 +64,6 @@ public non-sealed interface JsonString extends JsonValue {
         Objects.requireNonNull(src);
         return new JsonStringImpl(src);
     }
-
-    /**
-     * {@return the String representation of this {@code JsonString}}
-     * If this {@code JsonString} is created by parsing a JSON document,
-     * it preserves the original text representation, including any escaped
-     * characters.
-     * For example,
-     * {@snippet lang=java:
-     *     JsonString.of("fo\\u006f").toString(); // returns "\"fo\\u006f\""
-     * }
-     */
-    @Override
-    String toString();
 
     /**
      * {@return true if the given {@code obj} is equal to this {@code JsonString}}

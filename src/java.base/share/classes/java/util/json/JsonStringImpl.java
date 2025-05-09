@@ -26,8 +26,10 @@
 package java.util.json;
 
 import java.util.Objects;
+import java.util.function.Supplier;
 
 import jdk.internal.ValueBased;
+import jdk.internal.lang.stable.StableSupplier;
 
 /**
  * JsonString implementation class
@@ -38,8 +40,7 @@ final class JsonStringImpl implements JsonString {
     private final char[] doc;
     private final int startOffset;
     private final int endOffset;
-    private final StableValue<String> unescapedStr = StableValue.of();
-    private final StableValue<String> sourceStr = StableValue.of();
+    private final Supplier<String> str = StableSupplier.of(this::unescape);
 
     JsonStringImpl(String str) {
         doc = ("\"" + str + "\"").toCharArray();
@@ -62,14 +63,13 @@ final class JsonStringImpl implements JsonString {
 
     @Override
     public String value() {
-        return unescapedStr.orElseSet(
-                () -> unescape(startOffset + 1, endOffset - 1));
+        var ret = str.get();
+        return ret.substring(1, ret.length() - 1);
     }
 
     @Override
     public String toString() {
-        return sourceStr.orElseSet(
-                () -> new String(doc, startOffset, endOffset - startOffset));
+        return str.get();
     }
 
     @Override
@@ -84,7 +84,7 @@ final class JsonStringImpl implements JsonString {
         return Objects.hash(value());
     }
 
-    String unescape(int startOffset, int endOffset) {
+    String unescape() {
         StringBuilder sb = null; // Only use if required
         var escape = false;
         int offset = startOffset;
@@ -129,9 +129,7 @@ final class JsonStringImpl implements JsonString {
         if (useBldr) {
             return sb.toString();
         } else {
-            var ret = toString();
-            // unescape() does not include the quotes
-            return ret.substring(1, ret.length() - 1);
+            return new String(doc, startOffset, endOffset - startOffset);
         }
     }
 }
