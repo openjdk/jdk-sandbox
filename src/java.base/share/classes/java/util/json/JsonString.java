@@ -42,16 +42,6 @@ import jdk.internal.javac.PreviewFeature;
 public non-sealed interface JsonString extends JsonValue {
 
     /**
-     * {@return the {@code String} value represented by this
-     * {@code JsonString}} Any escaped characters in the original
-     * JSON string are converted to their unescaped form in the
-     * returned {@code String}.
-     * @throws IllegalStateException if the source JSON string cannot
-     *          be unescaped.
-     */
-    String value();
-
-    /**
      * {@return the {@code JsonString} created from the given
      * {@code String}}
      *
@@ -64,6 +54,25 @@ public non-sealed interface JsonString extends JsonValue {
         Objects.requireNonNull(src);
         return new JsonStringImpl(src);
     }
+
+    /**
+     * {@return the {@code String} value represented by this {@code JsonString}}
+     * Any escaped characters in the original JSON string are converted to their
+     * unescaped form in the returned {@code String}.
+     *
+     * @see #toString()
+     */
+    String value();
+
+    /**
+     * {@return the {@code String} value represented by this {@code JsonString}
+     * surrounded by quotation marks} Any escaped characters in the original JSON
+     * string are converted to their unescaped form in the returned {@code String}.
+     *
+     * @see #value()
+     */
+    @Override
+    String toString();
 
     /**
      * {@return true if the given {@code obj} is equal to this {@code JsonString}}
