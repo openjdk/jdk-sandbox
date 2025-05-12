@@ -23,10 +23,15 @@
  * questions.
  */
 
-package java.util.json;
+package jdk.internal.util.json;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.json.JsonArray;
+import java.util.json.JsonObject;
+import java.util.json.JsonParseException;
+import java.util.json.JsonString;
+import java.util.json.JsonValue;
 
 /**
  * Parses a JSON Document char[] into a tree of JsonValues. JsonObject and JsonArray
@@ -35,7 +40,7 @@ import java.util.LinkedHashMap;
  * are used to lazily procure their underlying value/string on demand. Singletons
  * are used for JsonBoolean and JsonNull.
  */
-final class JsonParser {
+public final class JsonParser {
 
     // Access to the underlying JSON contents
     private final char[] doc;
@@ -46,12 +51,12 @@ final class JsonParser {
     private int lineStart;
     private StringBuilder builder;
 
-    JsonParser(char[] doc) {
+    public JsonParser(char[] doc) {
         this.doc = doc;
     }
 
     // Parses the lone JsonValue root
-    JsonValue parseRoot() {
+    public JsonValue parseRoot() {
         JsonValue root = parseValue();
         if (hasInput()) {
             throw failure("Unexpected character(s)");
@@ -166,7 +171,7 @@ final class JsonParser {
                         if (offset + 4 < doc.length) {
                             escapeLength = 4;
                             offset++; // Move to first char in sequence
-                            c = codeUnit(doc, offset);
+                            c = codeUnit();
                             // Move to the last hex digit, since outer loop will increment offset
                             offset += 3;
                         } else {
@@ -401,7 +406,15 @@ final class JsonParser {
         }
     }
 
-    // Validate and construct corresponding value of unicode escape sequence
+    char codeUnit() {
+        try {
+            return codeUnit(doc, offset);
+        } catch (IllegalArgumentException _) {
+            throw failure("Invalid Unicode escape sequence");
+        }
+    }
+
+    // Validate and construct corresponding value of Unicode escape sequence
     // This method does not increment offset
     static char codeUnit(char[] doc, int o) {
         char val = 0;
@@ -413,7 +426,7 @@ final class JsonParser {
                     case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> c - '0';
                     case 'a', 'b', 'c', 'd', 'e', 'f' -> c - 'a' + 10;
                     case 'A', 'B', 'C', 'D', 'E', 'F' -> c - 'A' + 10;
-                    default -> throw new JsonParseException("Invalid Unicode escape sequence");
+                    default -> throw new IllegalArgumentException("Illegal Unicode escape sequence");
                 });
         }
         return val;

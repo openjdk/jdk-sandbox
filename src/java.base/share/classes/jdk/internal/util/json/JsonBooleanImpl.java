@@ -23,22 +23,23 @@
  * questions.
  */
 
-package java.util.json;
+package jdk.internal.util.json;
 
 import jdk.internal.ValueBased;
 
 import java.util.Objects;
+import java.util.json.JsonBoolean;
 
 /**
  * JsonBoolean implementation class
  */
 @ValueBased
-final class JsonBooleanImpl implements JsonBoolean {
+public final class JsonBooleanImpl implements JsonBoolean {
 
     private final Boolean theBoolean;
 
-    static final JsonBooleanImpl TRUE = new JsonBooleanImpl(true);
-    static final JsonBooleanImpl FALSE = new JsonBooleanImpl(false);
+    public static final JsonBooleanImpl TRUE = new JsonBooleanImpl(true);
+    public static final JsonBooleanImpl FALSE = new JsonBooleanImpl(false);
 
     private JsonBooleanImpl(Boolean bool) {
         theBoolean = bool;

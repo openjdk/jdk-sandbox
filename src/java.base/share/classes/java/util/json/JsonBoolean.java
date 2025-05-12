@@ -26,6 +26,7 @@
 package java.util.json;
 
 import jdk.internal.javac.PreviewFeature;
+import jdk.internal.util.json.JsonBooleanImpl;
 
 /**
  * The interface that represents JSON boolean.

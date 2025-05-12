@@ -78,14 +78,4 @@ public class JsonParseException extends RuntimeException {
     public int getErrorColumn() {
         return col;
     }
-
-    /**
-     * Package private constructor. Thrown on parsing invalid Unicode
-     * escape sequences when the original JSON text is not accessible.
-     */
-    JsonParseException(String message) {
-        super(message);
-        this.row = 0;
-        this.col = 0;
-    }
 }

@@ -28,6 +28,7 @@ package java.util.json;
 import java.util.Objects;
 
 import jdk.internal.javac.PreviewFeature;
+import jdk.internal.util.json.JsonStringImpl;
 
 /**
  * The interface that represents JSON string.

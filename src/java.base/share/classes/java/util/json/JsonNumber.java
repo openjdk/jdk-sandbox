@@ -29,6 +29,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 
 import jdk.internal.javac.PreviewFeature;
+import jdk.internal.util.json.JsonNumberImpl;
 
 /**
  * The interface that represents JSON number, an arbitrary-precision

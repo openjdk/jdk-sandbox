@@ -23,19 +23,20 @@
  * questions.
  */
 
-package java.util.json;
+package jdk.internal.util.json;
 
 import jdk.internal.ValueBased;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Locale;
+import java.util.json.JsonNumber;
 
 /**
  * JsonNumber implementation class
  */
 @ValueBased
-final class JsonNumberImpl implements JsonNumber {
+public final class JsonNumberImpl implements JsonNumber {
 
     private final char[] doc;
     private final int startOffset;
@@ -44,7 +45,7 @@ final class JsonNumberImpl implements JsonNumber {
     private final StableValue<String> numString = StableValue.of();
     private final StableValue<BigDecimal> cachedBD = StableValue.of();
 
-    JsonNumberImpl(Number num) {
+    public JsonNumberImpl(Number num) {
         if (num == null ||
             num instanceof Double d && (d.isNaN() || d.isInfinite())) {
             throw new IllegalArgumentException("Not a valid JSON number");
@@ -57,7 +58,7 @@ final class JsonNumberImpl implements JsonNumber {
         doc = null;
     }
 
-    JsonNumberImpl(char[] doc, int start, int end) {
+    public JsonNumberImpl(char[] doc, int start, int end) {
         this.doc = doc;
         startOffset = start;
         endOffset = end;

@@ -23,36 +23,53 @@
  * questions.
  */
 
-package java.util.json;
+package jdk.internal.util.json;
 
 import jdk.internal.ValueBased;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
+import java.util.json.JsonArray;
+import java.util.json.JsonValue;
 
 /**
- * JsonNull implementation class
+ * JsonArray implementation class
  */
 @ValueBased
-final class JsonNullImpl implements JsonNull {
+public final class JsonArrayImpl implements JsonArray {
 
-    static final JsonNullImpl NULL = new JsonNullImpl();
-    static final String VALUE = "null";
-    static final int HASH = Objects.hash(VALUE);
+    private final List<JsonValue> theValues;
 
-    private JsonNullImpl() {}
-
-    @Override
-    public String toString() {
-        return VALUE;
+    public JsonArrayImpl(List<JsonValue> from) {
+        theValues = from;
     }
 
     @Override
-    public boolean equals(Object obj) {
-        return obj instanceof JsonNull;
+    public List<JsonValue> values() {
+        return Collections.unmodifiableList(theValues);
+    }
+
+    @Override
+    public String toString() {
+        var s = new StringBuilder("[");
+        for (JsonValue v: values()) {
+            s.append(v.toString()).append(",");
+        }
+        if (!values().isEmpty()) {
+            s.setLength(s.length() - 1); // trim final comma
+        }
+        return s.append("]").toString();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        return o instanceof JsonArray oja &&
+                Objects.equals(values(), oja.values());
     }
 
     @Override
     public int hashCode() {
-        return HASH;
+        return Objects.hash(values());
     }
 }

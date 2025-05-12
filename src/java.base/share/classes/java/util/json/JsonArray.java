@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import jdk.internal.javac.PreviewFeature;
+import jdk.internal.util.json.JsonArrayImpl;
 
 /**
  * The interface that represents JSON array.

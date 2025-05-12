@@ -38,6 +38,9 @@ import java.util.LinkedHashMap;
 import java.util.Set;
 
 import jdk.internal.javac.PreviewFeature;
+import jdk.internal.util.json.JsonArrayImpl;
+import jdk.internal.util.json.JsonObjectImpl;
+import jdk.internal.util.json.JsonParser;
 
 /**
  * This class provides static methods for producing and manipulating a {@link JsonValue}.

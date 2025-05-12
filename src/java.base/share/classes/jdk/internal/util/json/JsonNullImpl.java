@@ -23,53 +23,37 @@
  * questions.
  */
 
-package java.util.json;
-
-import java.util.Collections;
-import java.util.Map;
-import java.util.Objects;
+package jdk.internal.util.json;
 
 import jdk.internal.ValueBased;
 
+import java.util.Objects;
+import java.util.json.JsonNull;
+
 /**
- * JsonObject implementation class
+ * JsonNull implementation class
  */
 @ValueBased
-final class JsonObjectImpl implements JsonObject {
+public final class JsonNullImpl implements JsonNull {
 
-    private final Map<String, JsonValue> theMembers;
+    public static final JsonNullImpl NULL = new JsonNullImpl();
+    private static final String VALUE = "null";
+    private static final int HASH = Objects.hash(VALUE);
 
-    JsonObjectImpl(Map<String, JsonValue> map) {
-        theMembers = map;
-    }
-
-    @Override
-    public Map<String, JsonValue> members() {
-        return Collections.unmodifiableMap(theMembers);
-    }
+    private JsonNullImpl() {}
 
     @Override
     public String toString() {
-        var s = new StringBuilder("{");
-        for (Map.Entry<String, JsonValue> kv: members().entrySet()) {
-            s.append("\"").append(kv.getKey()).append("\":")
-             .append(kv.getValue().toString())
-             .append(",");
-        }
-        if (!members().isEmpty()) {
-            s.setLength(s.length() - 1); // trim final comma
-        }
-        return s.append("}").toString();
+        return VALUE;
     }
 
     @Override
-    public boolean equals(Object o) {
-        return o instanceof JsonObject ojo &&
-                Objects.equals(members(), ojo.members());
+    public boolean equals(Object obj) {
+        return obj instanceof JsonNull;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(members());
+        return HASH;
     }
 }

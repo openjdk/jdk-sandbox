@@ -23,51 +23,55 @@
  * questions.
  */
 
-package java.util.json;
+package jdk.internal.util.json;
 
 import jdk.internal.ValueBased;
 
 import java.util.Collections;
-import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.json.JsonObject;
+import java.util.json.JsonValue;
 
 /**
- * JsonArray implementation class
+ * JsonObject implementation class
  */
 @ValueBased
-final class JsonArrayImpl implements JsonArray {
+public final class JsonObjectImpl implements JsonObject {
 
-    private final List<JsonValue> theValues;
+    private final Map<String, JsonValue> theMembers;
 
-    JsonArrayImpl(List<JsonValue> from) {
-        theValues = from;
+    public JsonObjectImpl(Map<String, JsonValue> map) {
+        theMembers = map;
     }
 
     @Override
-    public List<JsonValue> values() {
-        return Collections.unmodifiableList(theValues);
+    public Map<String, JsonValue> members() {
+        return Collections.unmodifiableMap(theMembers);
     }
 
     @Override
     public String toString() {
-        var s = new StringBuilder("[");
-        for (JsonValue v: values()) {
-            s.append(v.toString()).append(",");
+        var s = new StringBuilder("{");
+        for (Map.Entry<String, JsonValue> kv: members().entrySet()) {
+            s.append("\"").append(kv.getKey()).append("\":")
+             .append(kv.getValue().toString())
+             .append(",");
         }
-        if (!values().isEmpty()) {
+        if (!members().isEmpty()) {
             s.setLength(s.length() - 1); // trim final comma
         }
-        return s.append("]").toString();
+        return s.append("}").toString();
     }
 
     @Override
     public boolean equals(Object o) {
-        return o instanceof JsonArray oja &&
-                Objects.equals(values(), oja.values());
+        return o instanceof JsonObject ojo &&
+                Objects.equals(members(), ojo.members());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(values());
+        return Objects.hash(members());
     }
 }

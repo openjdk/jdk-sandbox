@@ -23,26 +23,28 @@
  * questions.
  */
 
-package java.util.json;
-
-import java.util.Objects;
-import java.util.function.Supplier;
+package jdk.internal.util.json;
 
 import jdk.internal.ValueBased;
 import jdk.internal.lang.stable.StableSupplier;
+
+import java.util.Objects;
+import java.util.function.Supplier;
+import java.util.json.JsonParseException;
+import java.util.json.JsonString;
 
 /**
  * JsonString implementation class
  */
 @ValueBased
-final class JsonStringImpl implements JsonString {
+public final class JsonStringImpl implements JsonString {
 
     private final char[] doc;
     private final int startOffset;
     private final int endOffset;
     private final Supplier<String> str = StableSupplier.of(this::unescape);
 
-    JsonStringImpl(String str) {
+    public JsonStringImpl(String str) {
         doc = ("\"" + str + "\"").toCharArray();
         startOffset = 0;
         endOffset = doc.length;
@@ -55,7 +57,7 @@ final class JsonStringImpl implements JsonString {
         }
     }
 
-    JsonStringImpl(char[] doc, int start, int end) {
+    public JsonStringImpl(char[] doc, int start, int end) {
         this.doc = doc;
         startOffset = start;
         endOffset = end;
@@ -100,12 +102,8 @@ final class JsonStringImpl implements JsonString {
                     case 'r' -> c = '\r';
                     case 't' -> c = '\t';
                     case 'u' -> {
-                        try {
-                            c = JsonParser.codeUnit(doc, offset + 1);
-                            length = 4;
-                        } catch (JsonParseException _) {
-                            throw new IllegalStateException("Illegal Unicode escape sequence");
-                        }
+                        c = JsonParser.codeUnit(doc, offset + 1);
+                        length = 4;
                     }
                     default -> throw new IllegalStateException("Illegal escape sequence");
                 }

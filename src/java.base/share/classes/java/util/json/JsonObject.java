@@ -29,6 +29,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import jdk.internal.javac.PreviewFeature;
+import jdk.internal.util.json.JsonObjectImpl;
 
 /**
  * The interface that represents JSON object.
