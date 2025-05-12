@@ -63,60 +63,6 @@
  * <p>For the reference JDK implementation, {@code JsonValue}s created via parsing
  * procure their underlying values <i>lazily</i>.
  *
- * <h2><a>Mapping</a></h2>
- *
- * Once a {@code JsonValue} is obtained, it can be converted into a simple Java
- * object (and vice versa) via {@link Json#fromUntyped(java.lang.Object)}
- * /{@link Json#toUntyped(JsonValue)} as seen below:
- * {@snippet lang=java:
- * Object map = Json.toUntyped(someJsonObject); // produces Map<String, Object>
- * Json.fromUntyped(map); // produces the JsonObject
- * }
- * Each Json value type has a corresponding Java object type.
- * This mapping is defined below:
- * <table id="mapping-table" class="striped">
- * <caption>Mapping Table</caption>
- * <thead>
- *    <tr>
- *       <th scope="col" class="TableHeadingColor">Untyped Object</th>
- *       <th scope="col" class="TableHeadingColor">JsonValue</th>
- *    </tr>
- * </thead>
- * <tbody>
- * <tr>
- *     <th>{@code List<Object>}</th>
- *     <th> {@code JsonArray}</th>
- * </tr>
- * <tr>
- *     <th>{@code Boolean}</th>
- *     <th>{@code JsonBoolean}</th>
- * </tr>
- * <tr>
- *     <th>{@code `null`}</th>
- *     <th> {@code JsonNull}</th>
- * </tr>
- * <tr>
- *     <th>{@code Number*}</th>
- *     <th>{@code JsonNumber}</th>
- * </tr>
- * <tr>
- *     <th>{@code Map<String, Object>}</th>
- *     <th> {@code JsonObject}</th>
- * </tr>
- * <tr>
- *     <th>{@code String}</th>
- *     <th>{@code JsonString}</th>
- * </tr>
- * </tbody>
- * </table>
- *
- * <i>The supported Number subclasses are: Byte, Integer, Long, Short, Float,
- * Double, BigInteger, and BigDecimal</i>
- *
- * <p>Since a {@code JsonValue} may or may not retain the original information from which
- * it was created with, {@code fromUntyped()}/{@code toUntyped()} do not necessarily offer a
- * round-trip that produces equivalent Objects.
- *
  * <h2><a>Formatting</a></h2>
  *
  * Formatting of a {@code JsonValue} is performed with either {@link

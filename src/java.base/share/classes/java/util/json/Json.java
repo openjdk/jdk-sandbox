@@ -51,45 +51,6 @@ import jdk.internal.javac.PreviewFeature;
  * {@link #fromUntyped(Object)} and {@link #toUntyped(JsonValue)} provide a conversion
  * between {@code JsonValue} and an untyped object.
  *
- * <table id="mapping-table" class="striped">
- * <caption>Mapping Table</caption>
- * <thead>
- *    <tr>
- *       <th scope="col" class="TableHeadingColor">Untyped Object</th>
- *       <th scope="col" class="TableHeadingColor">JsonValue</th>
- *    </tr>
- * </thead>
- * <tbody>
-     * <tr>
-     *     <th>{@code List<Object>}</th>
-     *     <th> {@code JsonArray}</th>
-     * </tr>
-     * <tr>
-     *     <th>{@code Boolean}</th>
-     *     <th>{@code JsonBoolean}</th>
-     * </tr>
-     * <tr>
-     *     <th>{@code `null`}</th>
-     *     <th> {@code JsonNull}</th>
-     * </tr>
-     * <tr>
-     *     <th>{@code Number*}</th>
-     *     <th>{@code JsonNumber}</th>
-     * </tr>
-     * <tr>
-     *     <th>{@code Map<String, Object>}</th>
-     *     <th> {@code JsonObject}</th>
-     * </tr>
-     * <tr>
-     *     <th>{@code String}</th>
-     *     <th>{@code JsonString}</th>
-     * </tr>
- * </tbody>
- * </table>
- *
- * <i>The supported Number subclasses are: Byte, Integer, Long, Short, Float,
- * Double, BigInteger, and BigDecimal</i>
- *
  * @spec https://datatracker.ietf.org/doc/html/rfc8259 RFC 8259: The JavaScript
  *          Object Notation (JSON) Data Interchange Format
  * @since 99
@@ -140,10 +101,51 @@ public final class Json {
     }
 
     /**
-     * {@return a {@code JsonValue} corresponding to {@code src}}
-     * See the {@link ##mapping-table Mapping Table} for conversion details.
+     * {@return a {@code JsonValue} created from the given {@code src} object}
+     * The mapping from an untyped {@code src} object to a {@code JsonValue}
+     * follows the table below.
+     * <table class="striped">
+     * <caption>Untyped to JsonValue mapping</caption>
+     * <thead>
+     *    <tr>
+     *       <th scope="col" class="TableHeadingColor">Untyped Object</th>
+     *       <th scope="col" class="TableHeadingColor">JsonValue</th>
+     *    </tr>
+     * </thead>
+     * <tbody>
+     * <tr>
+     *     <th>{@code List<Object>}</th>
+     *     <th>{@code JsonArray}</th>
+     * </tr>
+     * <tr>
+     *     <th>{@code Boolean}</th>
+     *     <th>{@code JsonBoolean}</th>
+     * </tr>
+     * <tr>
+     *     <th>{@code `null`}</th>
+     *     <th>{@code JsonNull}</th>
+     * </tr>
+     * <tr>
+     *     <th>{@code Number*}</th>
+     *     <th>{@code JsonNumber}</th>
+     * </tr>
+     * <tr>
+     *     <th>{@code Map<String, Object>}</th>
+     *     <th>{@code JsonObject}</th>
+     * </tr>
+     * <tr>
+     *     <th>{@code String}</th>
+     *     <th>{@code JsonString}</th>
+     * </tr>
+     * </tbody>
+     * </table>
      *
-     * <p>If {@code src} contains a circular reference, {@code IllegalArgumentException}
+     * <i><sup>*</sup>The supported {@code Number} subclasses are: {@code Byte},
+     * {@code Short}, {@code Integer}, {@code Long}, {@code Float},
+     * {@code Double}, {@code BigInteger}, and {@code BigDecimal}.</i>
+     *
+     * <p>If {@code src} is an instance of {@code JsonValue}, it is returned as is.
+     * If {@code src} contains a circular reference, {@code IllegalArgumentException}
      * will be thrown. For example, the following code throws an exception,
      * {@snippet lang=java:
      *     var map = new HashMap<String, Object>();
@@ -155,7 +157,6 @@ public final class Json {
      * @param src the data to produce the {@code JsonValue} from. May be null.
      * @throws IllegalArgumentException if {@code src} cannot be converted
      *      to {@code JsonValue} or contains a circular reference.
-     * @see ##mapping-table Mapping Table
      * @see #toUntyped(JsonValue)
      */
     public static JsonValue fromUntyped(Object src) {
@@ -210,8 +211,44 @@ public final class Json {
     }
 
     /**
-     * {@return an {@code Object} corresponding to {@code src}}
-     * See the {@link ##mapping-table Mapping Table} for conversion details.
+     * {@return an {@code Object} created from the given {@code src}
+     * {@code JsonValue}} The mapping from a {@code JsonValue} to an
+     * untyped {@code src} object follows the table below.
+     * <table class="striped">
+     * <caption>JsonValue to Untyped mapping</caption>
+     * <thead>
+     *    <tr>
+     *       <th scope="col" class="TableHeadingColor">JsonValue</th>
+     *       <th scope="col" class="TableHeadingColor">Untyped Object</th>
+     *    </tr>
+     * </thead>
+     * <tbody>
+     * <tr>
+     *     <th>{@code JsonArray}</th>
+     *     <th>{@code List<Object>}</th>
+     * </tr>
+     * <tr>
+     *     <th>{@code JsonBoolean}</th>
+     *     <th>{@code Boolean}</th>
+     * </tr>
+     * <tr>
+     *     <th>{@code JsonNull}</th>
+     *     <th>{@code `null`}</th>
+     * </tr>
+     * <tr>
+     *     <th>{@code JsonNumber}</th>
+     *     <th>{@code Number}</th>
+     * </tr>
+     * <tr>
+     *     <th>{@code JsonObject}</th>
+     *     <th>{@code Map<String, Object>}</th>
+     * </tr>
+     * <tr>
+     *     <th>{@code JsonString}</th>
+     *     <th>{@code String}</th>
+     * </tr>
+     * </tbody>
+     * </table>
      *
      * @implNote For the JDK reference implementation, instances of {@code JsonObject}
      * in {@code src} are converted into a {@code Map} that preserves the insertion order of
@@ -219,7 +256,6 @@ public final class Json {
      *
      * @param src the {@code JsonValue} to convert to untyped. Non-null.
      * @throws NullPointerException if {@code src} is {@code null}
-     * @see ##mapping-table Mapping Table
      * @see #fromUntyped(Object)
      */
     public static Object toUntyped(JsonValue src) {
