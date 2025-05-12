@@ -38,8 +38,8 @@ import jdk.internal.javac.PreviewFeature;
  *     JsonValue json = Json.fromUntyped(values);
  *     json.toString(); // returns "[\"foo\",true,25]"
  * }
- * Instances of {@code JsonValue} are immutable. The data contained in the instances,
- * once created, cannot be modified.
+ * Instances of {@code JsonValue} are immutable and thread safe. The data
+ * contained in the instances, once created, cannot be modified.
  * <h2 id="thread-safety">Thread Safety</h2>
  * Instances of {@code JsonValue} are thread safe.
  * <h2 id="value-based">Value Based</h2>
