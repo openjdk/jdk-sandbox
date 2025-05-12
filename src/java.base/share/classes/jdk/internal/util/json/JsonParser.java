@@ -406,30 +406,14 @@ public final class JsonParser {
         }
     }
 
+    // Unescapes the Unicode escape sequence and produces a char
     private char codeUnit() {
         try {
-            return codeUnit(doc, offset);
+            return JsonUtilities.codeUnit(doc, offset);
         } catch (IllegalArgumentException _) {
+            // Catch and re-throw as JPE with correct row/col
             throw failure("Invalid Unicode escape sequence");
         }
-    }
-
-    // Validate and construct corresponding value of Unicode escape sequence
-    // This method does not increment offset
-    static char codeUnit(char[] doc, int o) {
-        char val = 0;
-        for (int index = 0; index < 4; index ++) {
-            char c = doc[o + index];
-            val <<= 4;
-            val += (char) (
-                switch (c) {
-                    case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> c - '0';
-                    case 'a', 'b', 'c', 'd', 'e', 'f' -> c - 'a' + 10;
-                    case 'A', 'B', 'C', 'D', 'E', 'F' -> c - 'A' + 10;
-                    default -> throw new IllegalArgumentException("Illegal Unicode escape sequence");
-                });
-        }
-        return val;
     }
 
     // Returns true if the parser has not yet reached the end of the Document

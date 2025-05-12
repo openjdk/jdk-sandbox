@@ -48,12 +48,7 @@ public final class JsonStringImpl implements JsonString {
         startOffset = 0;
         endOffset = doc.length;
         // Eagerly compute the unescaped JSON string to validate escape sequences
-        // On failure, re-throw ISE as IAE, adhering to JsonString.of() contract
-        try {
-            value();
-        } catch (IllegalStateException ise) {
-            throw new IllegalArgumentException(ise);
-        }
+        value();
     }
 
     public JsonStringImpl(char[] doc, int start, int end) {
@@ -85,52 +80,6 @@ public final class JsonStringImpl implements JsonString {
     }
 
     private String unescape() {
-        return unescape(doc, startOffset, endOffset);
-    }
-
-    // Used by Json and JsonObject as well to escape member names
-    public static String unescape(char[] doc, int startOffset, int endOffset) {
-        StringBuilder sb = null; // Only use if required
-        var escape = false;
-        int offset = startOffset;
-        boolean useBldr = false;
-        for (; offset < endOffset; offset++) {
-            var c = doc[offset];
-            if (escape) {
-                var length = 0;
-                switch (c) {
-                    case '"', '\\', '/' -> {}
-                    case 'b' -> c = '\b';
-                    case 'f' -> c = '\f';
-                    case 'n' -> c = '\n';
-                    case 'r' -> c = '\r';
-                    case 't' -> c = '\t';
-                    case 'u' -> {
-                        c = JsonParser.codeUnit(doc, offset + 1);
-                        length = 4;
-                    }
-                    default -> throw new IllegalStateException("Illegal escape sequence");
-                }
-                if (!useBldr) {
-                    useBldr = true;
-                    // At best, we know the size of the first escaped value
-                    sb = new StringBuilder(endOffset - startOffset - length - 1)
-                            .append(doc, startOffset, offset - 1 - startOffset);
-                }
-                offset+=length;
-                escape = false;
-            } else if (c == '\\') {
-                escape = true;
-                continue;
-            }
-            if (useBldr) {
-                sb.append(c);
-            }
-        }
-        if (useBldr) {
-            return sb.toString();
-        } else {
-            return new String(doc, startOffset, endOffset - startOffset);
-        }
+        return JsonUtilities.unescape(doc, startOffset, endOffset);
     }
 }

@@ -38,10 +38,8 @@ import java.util.LinkedHashMap;
 import java.util.Set;
 
 import jdk.internal.javac.PreviewFeature;
-import jdk.internal.util.json.JsonArrayImpl;
-import jdk.internal.util.json.JsonObjectImpl;
 import jdk.internal.util.json.JsonParser;
-import jdk.internal.util.json.JsonStringImpl;
+import jdk.internal.util.json.JsonUtilities;
 
 /**
  * This class provides static methods for producing and manipulating a {@link JsonValue}.
@@ -184,7 +182,7 @@ public final class Json {
                     if (!(entry.getKey() instanceof String strKey)) {
                         throw new IllegalArgumentException("Key is not a String: " + entry.getKey());
                     } else {
-                        var unescapedKey = JsonStringImpl.unescape(
+                        var unescapedKey = JsonUtilities.unescape(
                                 strKey.toCharArray(), 0, strKey.length());
                         if (m.containsKey(unescapedKey)) {
                             throw new IllegalArgumentException(
@@ -195,7 +193,7 @@ public final class Json {
                     }
                 }
                 // Equivalent to JsonObject.of(m) without a defensive copy
-                yield new JsonObjectImpl(m);
+                yield JsonUtilities.objectOf(m);
             }
             case List<?> list -> {
                 if (!identitySet.add(list)) {
@@ -206,7 +204,7 @@ public final class Json {
                     l.add(Json.fromUntyped(o, identitySet));
                 }
                 // Equivalent to JsonArray.of(l) without a defensive copy
-                yield new JsonArrayImpl(l);
+                yield JsonUtilities.arrayOf(l);
             }
             // JSON primitives
             case String str -> JsonString.of(str);

@@ -390,5 +390,15 @@ public class TestJsonObject {
             assertThrows(IllegalArgumentException.class, () -> JsonObject.of(ofMap));
             assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(untypedMap));
         }
+
+
+        // Enforce IAE for invalid escapes in factory methods
+        @Test
+        void testInvalidEscapes() {
+            var untypedMap = Map.of("clon\\u00", "foo");
+            var ofMap = Map.of("clon\\u00", JsonNull.of());
+            assertThrows(IllegalArgumentException.class, () -> JsonObject.of(ofMap));
+            assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(untypedMap));
+        }
     }
 }
