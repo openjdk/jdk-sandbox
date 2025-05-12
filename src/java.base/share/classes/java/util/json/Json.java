@@ -154,6 +154,11 @@ public final class Json {
      *     Json.fromUntyped(map);
      * }
      *
+     * @implNote
+     * The JDK reference implementation produces conversions from an {@code Object}
+     * to a {@code JsonValue} by utilizing the factory methods supported by the
+     * {@code JsonValue} sub-interfaces. For example, {@link JsonString#of(String)}.
+     *
      * @param src the data to produce the {@code JsonValue} from. May be null.
      * @throws IllegalArgumentException if {@code src} cannot be converted
      *      to {@code JsonValue} or contains a circular reference.
