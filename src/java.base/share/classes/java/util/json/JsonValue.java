@@ -45,7 +45,7 @@ import jdk.internal.javac.PreviewFeature;
  * <h2 id="value-based">Value Based</h2>
  * Instances of {@code JsonValue} are value-based.
  * <p>
- * Implementations of the permitted {@code JsonValue} subtypes should ensure the following,
+ * Implementations of the permitted {@code JsonValue} sub-interfaces should ensure the following,
  * <ul>
  * <li>The class's implementations of {@code equals}, {@code hashCode},
  * and {@code toString} compute their results solely from the values
