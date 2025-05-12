@@ -30,8 +30,7 @@ import jdk.internal.javac.PreviewFeature;
 /**
  * The interface that represents a JSON value.
  * <p>
- * Instances of {@code JsonValue} are immutable, thread safe, and
- * <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>.
+ * Instances of {@code JsonValue} are immutable and thread safe.
  * <p>
  * A {@code JsonValue} can be produced by {@link Json#parse(String)} or {@link
  * Json#fromUntyped(Object)}. See {@link #toString()}  for converting a {@code
@@ -41,6 +40,39 @@ import jdk.internal.javac.PreviewFeature;
  *     JsonValue json = Json.fromUntyped(values);
  *     json.toString(); // returns "[\"foo\",true,25]"
  * }
+ *
+ * @implSpec
+ * The JDK reference implementation of the {@code JsonValue} sub-interfaces are
+ * <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>.
+ * <p>
+ * Implementations of the {@code JsonValue} sub-interfaces adhere to the following,
+ * <ul>
+ * <li>The class's implementations of {@code equals}, {@code hashCode},
+ * and {@code toString} compute their results solely from the values
+ * of the class's instance fields (and the members of the objects they
+ * reference), not from the instance's identity.</li>
+ * <li>The class's methods treat instances as <em>freely substitutable</em>
+ * when equal, meaning that interchanging any two instances {@code x} and
+ * {@code y} that are equal according to {@code equals()} produces no
+ * visible change in the behavior of the class's methods.</li>
+ * <li>The class performs no synchronization using an instance's monitor.</li>
+ * <li>The class does not provide any instance creation mechanism that promises
+ * a unique identity on each method call&mdash;in particular, any factory
+ * method's contract must allow for the possibility that if two independently-produced
+ * instances are equal according to {@code equals()}, they may also be
+ * equal according to {@code ==}.</li>
+ * </ul>
+ * <p>
+ * Users of {@code JsonValue} instances should ensure the following,
+ * <ul>
+ * <li> When two instances of {@code JsonValue} are equal (according to {@code equals()}), users
+ * should not attempt to distinguish between their identities, whether directly via reference
+ * equality or indirectly via an appeal to synchronization, identity hashing,
+ * serialization, or any other identity-sensitive mechanism.</li>
+ * <li> Synchronization on instances of {@code JsonValue} is strongly discouraged,
+ * because the programmer cannot guarantee exclusive ownership of the
+ * associated monitor.</li>
+ * </ul>
  *
  * @since 99
  */
