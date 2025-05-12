@@ -25,13 +25,12 @@
 
 package jdk.internal.util.json;
 
-import jdk.internal.ValueBased;
-import jdk.internal.lang.stable.StableSupplier;
-
 import java.util.Objects;
 import java.util.function.Supplier;
-import java.util.json.JsonParseException;
 import java.util.json.JsonString;
+
+import jdk.internal.ValueBased;
+import jdk.internal.lang.stable.StableSupplier;
 
 /**
  * JsonString implementation class

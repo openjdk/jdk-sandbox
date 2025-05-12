@@ -25,12 +25,12 @@
 
 package jdk.internal.util.json;
 
-import jdk.internal.ValueBased;
-
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Locale;
 import java.util.json.JsonNumber;
+
+import jdk.internal.ValueBased;
 
 /**
  * JsonNumber implementation class

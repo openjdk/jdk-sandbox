@@ -25,13 +25,13 @@
 
 package jdk.internal.util.json;
 
-import jdk.internal.ValueBased;
-
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.json.JsonObject;
 import java.util.json.JsonValue;
+
+import jdk.internal.ValueBased;
 
 /**
  * JsonObject implementation class

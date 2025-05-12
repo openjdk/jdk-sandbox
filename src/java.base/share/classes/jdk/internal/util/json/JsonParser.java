@@ -45,7 +45,7 @@ public final class JsonParser {
     // Access to the underlying JSON contents
     private final char[] doc;
     // Current offset during parsing
-    int offset;
+    private int offset;
     // For exception message on failure
     private int line;
     private int lineStart;
@@ -70,7 +70,7 @@ public final class JsonParser {
      *      JSON-text = ws value ws
      * See https://datatracker.ietf.org/doc/html/rfc8259#section-3
      */
-    JsonValue parseValue() {
+    private JsonValue parseValue() {
         skipWhitespaces();
         if (!hasInput()) {
             throw failure("Missing JSON value");
@@ -97,7 +97,7 @@ public final class JsonParser {
      * No offsets are required as member values hold their own offsets.
      * See https://datatracker.ietf.org/doc/html/rfc8259#section-4
      */
-    JsonObject parseObject() {
+    private JsonObject parseObject() {
         var members = new LinkedHashMap<String, JsonValue>();
         offset++; // Walk past the '{'
         skipWhitespaces();
@@ -147,7 +147,7 @@ public final class JsonParser {
      * unescaped String value.
      * See https://datatracker.ietf.org/doc/html/rfc8259#section-8.3
      */
-    String parseName() {
+    private String parseName() {
         if (!currCharEquals('"')) {
             throw failure("Invalid member name");
         }
@@ -214,7 +214,7 @@ public final class JsonParser {
      * elements. No offsets are required as children values hold their own offsets.
      * See https://datatracker.ietf.org/doc/html/rfc8259#section-5
      */
-    JsonArray parseArray() {
+    private JsonArray parseArray() {
         var list = new ArrayList<JsonValue>();
         offset++; // Walk past the '['
         skipWhitespaces();
@@ -245,7 +245,7 @@ public final class JsonParser {
      * either through a Unicode escape sequence or two-char sequence.
      * See https://datatracker.ietf.org/doc/html/rfc8259#section-7
      */
-    JsonString parseString() {
+    private JsonString parseString() {
         int start = offset;
         offset++; // Move past the starting quote
         var escape = false;
@@ -282,7 +282,7 @@ public final class JsonParser {
      * Parsing true, false, and null return singletons. These JsonValues
      * do not require offsets to lazily compute their values.
      */
-    JsonBooleanImpl parseTrue() {
+    private JsonBooleanImpl parseTrue() {
         if (charsEqual("rue", offset + 1)) {
             offset += 4;
             return JsonBooleanImpl.TRUE;
@@ -290,7 +290,7 @@ public final class JsonParser {
         throw failure("Expected true");
     }
 
-    JsonBooleanImpl parseFalse() {
+    private JsonBooleanImpl parseFalse() {
         if (charsEqual( "alse", offset + 1)) {
             offset += 5;
             return JsonBooleanImpl.FALSE;
@@ -298,7 +298,7 @@ public final class JsonParser {
         throw failure("Expected false");
     }
 
-    JsonNullImpl parseNull() {
+    private JsonNullImpl parseNull() {
         if (charsEqual("ull", offset + 1)) {
             offset += 4;
             return JsonNullImpl.NULL;
@@ -312,7 +312,7 @@ public final class JsonParser {
      *      number = [ minus ] int [ frac ] [ exp ]
      * See https://datatracker.ietf.org/doc/html/rfc8259#section-6
      */
-    JsonNumberImpl parseNumber() {
+    private JsonNumberImpl parseNumber() {
         boolean sawDecimal = false;
         boolean sawExponent = false;
         boolean sawZero = false;
@@ -389,7 +389,7 @@ public final class JsonParser {
     // Utility functions
 
     // Called when a SB is required to un-escape a member name
-    void initBuilder() {
+    private void initBuilder() {
         if (builder == null) {
             builder = new StringBuilder();
         }
@@ -397,7 +397,7 @@ public final class JsonParser {
 
     // Validate unicode escape sequence
     // This method does not increment offset
-    void checkEscapeSequence() {
+    private void checkEscapeSequence() {
         for (int index = 0; index < 4; index++) {
             char c = doc[offset + index];
             if ((c < 'a' || c > 'f') && (c < 'A' || c > 'F') && (c < '0' || c > '9')) {
@@ -406,7 +406,7 @@ public final class JsonParser {
         }
     }
 
-    char codeUnit() {
+    private char codeUnit() {
         try {
             return codeUnit(doc, offset);
         } catch (IllegalArgumentException _) {
@@ -433,12 +433,12 @@ public final class JsonParser {
     }
 
     // Returns true if the parser has not yet reached the end of the Document
-    boolean hasInput() {
+    private boolean hasInput() {
         return offset < doc.length;
     }
 
     // Walk to the next non-white space char from the current offset
-    void skipWhitespaces() {
+    private void skipWhitespaces() {
         while (hasInput()) {
             if (notWhitespace()) {
                 break;
@@ -448,7 +448,7 @@ public final class JsonParser {
     }
 
     // see https://datatracker.ietf.org/doc/html/rfc8259#section-2
-    boolean notWhitespace() {
+    private boolean notWhitespace() {
         return switch (doc[offset]) {
             case ' ', '\t','\r' -> false;
             case '\n' -> {
@@ -461,7 +461,7 @@ public final class JsonParser {
         };
     }
 
-    JsonParseException failure(String message) {
+    private JsonParseException failure(String message) {
         var errMsg = composeParseExceptionMessage(
                 message, line, lineStart, offset);
         return new JsonParseException(errMsg, line, offset - lineStart);
@@ -469,13 +469,13 @@ public final class JsonParser {
 
     // returns true if the char at the specified offset equals the input char
     // and is within bounds of the char[]
-    boolean currCharEquals(char c) {
+    private boolean currCharEquals(char c) {
         return hasInput() && c == doc[offset];
     }
 
     // Returns true if the substring starting at the given offset equals the
     // input String and is within bounds of the JSON document
-    boolean charsEqual(String str, int o) {
+    private boolean charsEqual(String str, int o) {
         if (o + str.length() - 1 < doc.length) {
             for (int index = 0; index < str.length(); index++) {
                 if (doc[o] != str.charAt(index)) {
@@ -489,7 +489,7 @@ public final class JsonParser {
     }
 
     // Utility method to compose parse exception message
-    String composeParseExceptionMessage(String message, int line, int lineStart, int offset) {
+    private String composeParseExceptionMessage(String message, int line, int lineStart, int offset) {
         return "%s: (%s) at Row %d, Col %d."
             .formatted(message, new String(doc, offset, Math.min(offset + 8, doc.length) - offset),
                 line, offset - lineStart);

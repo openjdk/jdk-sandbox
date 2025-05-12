@@ -25,10 +25,10 @@
 
 package jdk.internal.util.json;
 
-import jdk.internal.ValueBased;
-
 import java.util.Objects;
 import java.util.json.JsonNull;
+
+import jdk.internal.ValueBased;
 
 /**
  * JsonNull implementation class
