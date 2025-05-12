@@ -84,7 +84,12 @@ public final class JsonStringImpl implements JsonString {
         return Objects.hash(value());
     }
 
-    String unescape() {
+    private String unescape() {
+        return unescape(doc, startOffset, endOffset);
+    }
+
+    // Used by Json and JsonObject as well to escape member names
+    public static String unescape(char[] doc, int startOffset, int endOffset) {
         StringBuilder sb = null; // Only use if required
         var escape = false;
         int offset = startOffset;

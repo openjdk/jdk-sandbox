@@ -27,9 +27,11 @@ package java.util.json;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
 import jdk.internal.javac.PreviewFeature;
 import jdk.internal.util.json.JsonObjectImpl;
+import jdk.internal.util.json.JsonStringImpl;
 
 /**
  * The interface that represents JSON object.
@@ -59,15 +61,25 @@ public non-sealed interface JsonObject extends JsonValue {
      * map of {@code String} to {@code JsonValue}s}
      *
      * @param map the map of {@code JsonValue}s. Non-null.
+     * @throws IllegalArgumentException if {@code map} contains duplicate keys
      * @throws NullPointerException if {@code map} is {@code null}, contains
      *      any keys that are {@code null}, or contains any values that are {@code null}
      */
     static JsonObject of(Map<String, ? extends JsonValue> map) {
-        var members = new LinkedHashMap<String, JsonValue>(map); // implicit null check
-        if (members.containsKey(null) || members.containsValue(null)) {
-            throw new NullPointerException("map contains null keys(s) or value(s)");
+        Map<String, JsonValue> ret = new LinkedHashMap<>(map.size()); // implicit NPE on map
+        for (var e : map.entrySet()) {
+            var key = e.getKey();
+            // Implicit NPE on key
+            var unescapedKey = JsonStringImpl.unescape(key.toCharArray(), 0, key.length());
+            var val = e.getValue();
+            if (ret.containsKey(unescapedKey)) {
+                throw new IllegalArgumentException(
+                        "Duplicate member name: '%s'".formatted(unescapedKey));
+            } else {
+                ret.put(unescapedKey, Objects.requireNonNull(val));
+            }
         }
-        return new JsonObjectImpl(members);
+        return new JsonObjectImpl(ret);
     }
 
     /**

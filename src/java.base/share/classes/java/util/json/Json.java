@@ -41,6 +41,7 @@ import jdk.internal.javac.PreviewFeature;
 import jdk.internal.util.json.JsonArrayImpl;
 import jdk.internal.util.json.JsonObjectImpl;
 import jdk.internal.util.json.JsonParser;
+import jdk.internal.util.json.JsonStringImpl;
 
 /**
  * This class provides static methods for producing and manipulating a {@link JsonValue}.
@@ -183,7 +184,14 @@ public final class Json {
                     if (!(entry.getKey() instanceof String strKey)) {
                         throw new IllegalArgumentException("Key is not a String: " + entry.getKey());
                     } else {
-                        m.put(strKey, Json.fromUntyped(entry.getValue(), identitySet));
+                        var unescapedKey = JsonStringImpl.unescape(
+                                strKey.toCharArray(), 0, strKey.length());
+                        if (m.containsKey(unescapedKey)) {
+                            throw new IllegalArgumentException(
+                                    "Duplicate member name: '%s'".formatted(unescapedKey));
+                        } else {
+                            m.put(unescapedKey, Json.fromUntyped(entry.getValue(), identitySet));
+                        }
                     }
                 }
                 // Equivalent to JsonObject.of(m) without a defensive copy

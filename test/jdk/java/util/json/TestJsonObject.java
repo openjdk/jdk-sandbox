@@ -381,5 +381,14 @@ public class TestJsonObject {
 
             assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(mapRoot));
         }
+
+        // Enforce un-escaping of member names in factory methods
+        @Test
+        void testDuplicateKeyEqualityMultipleUnescaped() {
+            var untypedMap = Map.of("clone", "foo", "clon\\u0065", "foo");
+            var ofMap = Map.of("clone", JsonNull.of(), "clon\\u0065", JsonNull.of());
+            assertThrows(IllegalArgumentException.class, () -> JsonObject.of(ofMap));
+            assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(untypedMap));
+        }
     }
 }
