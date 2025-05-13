@@ -60,6 +60,9 @@ public non-sealed interface JsonObject extends JsonValue {
      * {@return the {@code JsonObject} created from the given
      * map of {@code String} to {@code JsonValue}s}
      *
+     * The returned {@code JsonObject} is backed by a {@code Map} that consists
+     * of keys corresponding to the unescaped keys of the input {@code Map}.
+     *
      * @param map the map of {@code JsonValue}s. Non-null.
      * @throws IllegalArgumentException if {@code map} contains duplicate keys
      * @throws NullPointerException if {@code map} is {@code null}, contains
