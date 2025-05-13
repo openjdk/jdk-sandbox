@@ -79,7 +79,7 @@ public non-sealed interface JsonObject extends JsonValue {
             var val = e.getValue();
             if (ret.containsKey(unescapedKey)) {
                 throw new IllegalArgumentException(
-                        "Duplicate member name: '%s'".formatted(unescapedKey));
+                        "Multiple keys unescape to the same value: '%s'".formatted(unescapedKey));
             } else {
                 ret.put(unescapedKey, Objects.requireNonNull(val));
             }
