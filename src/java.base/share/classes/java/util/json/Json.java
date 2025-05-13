@@ -39,7 +39,7 @@ import java.util.Set;
 
 import jdk.internal.javac.PreviewFeature;
 import jdk.internal.util.json.JsonParser;
-import jdk.internal.util.json.JsonUtilities;
+import jdk.internal.util.json.Utils;
 
 /**
  * This class provides static methods for producing and manipulating a {@link JsonValue}.
@@ -182,7 +182,7 @@ public final class Json {
                     if (!(entry.getKey() instanceof String strKey)) {
                         throw new IllegalArgumentException("Key is not a String: " + entry.getKey());
                     } else {
-                        var unescapedKey = JsonUtilities.unescape(
+                        var unescapedKey = Utils.unescape(
                                 strKey.toCharArray(), 0, strKey.length());
                         if (m.containsKey(unescapedKey)) {
                             throw new IllegalArgumentException(
@@ -193,7 +193,7 @@ public final class Json {
                     }
                 }
                 // Bypasses defensive copy in JsonObject.of(m)
-                yield JsonUtilities.objectOf(m);
+                yield Utils.objectOf(m);
             }
             case List<?> list -> {
                 if (!identitySet.add(list)) {
@@ -204,7 +204,7 @@ public final class Json {
                     l.add(Json.fromUntyped(o, identitySet));
                 }
                 // Bypasses defensive copy in JsonArray.of(l)
-                yield JsonUtilities.arrayOf(l);
+                yield Utils.arrayOf(l);
             }
             // JSON primitives
             case String str -> JsonString.of(str);

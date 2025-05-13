@@ -80,6 +80,6 @@ public final class JsonStringImpl implements JsonString {
     }
 
     private String unescape() {
-        return JsonUtilities.unescape(doc, startOffset, endOffset);
+        return Utils.unescape(doc, startOffset, endOffset);
     }
 }

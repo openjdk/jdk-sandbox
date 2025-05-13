@@ -409,7 +409,7 @@ public final class JsonParser {
     // Unescapes the Unicode escape sequence and produces a char
     private char codeUnit() {
         try {
-            return JsonUtilities.codeUnit(doc, offset);
+            return Utils.codeUnit(doc, offset);
         } catch (IllegalArgumentException _) {
             // Catch and re-throw as JPE with correct row/col
             throw failure("Invalid Unicode escape sequence");

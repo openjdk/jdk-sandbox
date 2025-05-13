@@ -34,10 +34,10 @@ import java.util.json.JsonValue;
 /**
  * Shared utilities for Json classes.
  */
-public class JsonUtilities {
+public class Utils {
 
     // Non instantiable
-    private JsonUtilities() {}
+    private Utils() {}
 
     // Equivalent to JsonObject/Array.of() factories without the need for defensive copy
     // and other input validation

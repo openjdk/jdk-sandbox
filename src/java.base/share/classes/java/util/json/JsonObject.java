@@ -31,7 +31,7 @@ import java.util.Objects;
 
 import jdk.internal.javac.PreviewFeature;
 import jdk.internal.util.json.JsonObjectImpl;
-import jdk.internal.util.json.JsonUtilities;
+import jdk.internal.util.json.Utils;
 
 /**
  * The interface that represents JSON object.
@@ -73,7 +73,7 @@ public non-sealed interface JsonObject extends JsonValue {
         for (var e : map.entrySet()) {
             var key = e.getKey();
             // Implicit NPE on key
-            var unescapedKey = JsonUtilities.unescape(key.toCharArray(), 0, key.length());
+            var unescapedKey = Utils.unescape(key.toCharArray(), 0, key.length());
             var val = e.getValue();
             if (ret.containsKey(unescapedKey)) {
                 throw new IllegalArgumentException(
