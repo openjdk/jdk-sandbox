@@ -192,7 +192,7 @@ public final class Json {
                         }
                     }
                 }
-                // Equivalent to JsonObject.of(m) without a defensive copy
+                // Bypasses defensive copy in JsonObject.of(m)
                 yield JsonUtilities.objectOf(m);
             }
             case List<?> list -> {
@@ -203,7 +203,7 @@ public final class Json {
                 for (Object o : list) {
                     l.add(Json.fromUntyped(o, identitySet));
                 }
-                // Equivalent to JsonArray.of(l) without a defensive copy
+                // Bypasses defensive copy in JsonArray.of(l)
                 yield JsonUtilities.arrayOf(l);
             }
             // JSON primitives
