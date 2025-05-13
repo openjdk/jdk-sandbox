@@ -39,12 +39,16 @@ import jdk.internal.util.json.JsonNumberImpl;
  * Alternatively, {@link #of(double)} and its overloads can be used to obtain
  * a {@code JsonNumber} from a {@code Number}.
  * When a JSON number is parsed, a {@code JsonNumber} object is created
- * as long as the syntax is valid. The value of the {@code JsonNumber}
+ * as long as the parsed value adheres to the JSON number
+ * <a href="https://datatracker.ietf.org/doc/html/rfc8259#section-6">
+ * syntax</a>. The value of the {@code JsonNumber}
  * can be retrieved from {@link #toString()} as the string representation
  * from which the JSON number is originally parsed, with
  * {@link #toNumber()} as a {@code Number} instance, or with
  * {@link #toBigDecimal()}.
  *
+ * @spec https://datatracker.ietf.org/doc/html/rfc8259#section-6 RFC 8259:
+ *      The JavaScript Object Notation (JSON) Data Interchange Format - Numbers
  * @since 99
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)

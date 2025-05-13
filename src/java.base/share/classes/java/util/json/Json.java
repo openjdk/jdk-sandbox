@@ -54,7 +54,7 @@ import jdk.internal.util.json.JsonUtilities;
  * between {@code JsonValue} and an untyped object.
  *
  * @spec https://datatracker.ietf.org/doc/html/rfc8259 RFC 8259: The JavaScript
- *          Object Notation (JSON) Data Interchange Format
+ *      Object Notation (JSON) Data Interchange Format
  * @since 99
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)
