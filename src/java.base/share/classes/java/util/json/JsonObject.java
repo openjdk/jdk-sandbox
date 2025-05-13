@@ -66,7 +66,7 @@ public non-sealed interface JsonObject extends JsonValue {
      *
      * @param map the map of {@code JsonValue}s. Non-null.
      * @throws IllegalArgumentException if {@code map} contains multiple keys
-     *      unescape to the same value
+     *      that unescape to the same value
      * @throws NullPointerException if {@code map} is {@code null}, contains
      *      any keys that are {@code null}, or contains any values that are {@code null}
      */
