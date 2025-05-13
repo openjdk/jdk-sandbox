@@ -65,9 +65,12 @@ public final class Json {
      * If parsing succeeds, it guarantees that the input document conforms to
      * the JSON syntax. If the document contains any JSON Object that has
      * duplicate names, a {@code JsonParseException} is thrown.
-     *
-     * @implNote The JDK reference implementation generates the String and underlying
-     * value representation of a {@code JsonValue} lazily when created from parsing.
+     * <p>
+     * {@code JsonValue}s created by this method produce their String and underlying
+     * value representation lazily.
+     * <p>
+     * {@code JsonObject}s preserve the order of their members declared in and parsed from
+     * the JSON document.
      *
      * @param in the input JSON document as {@code String}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform
@@ -86,9 +89,12 @@ public final class Json {
      * If parsing succeeds, it guarantees that the input document conforms to
      * the JSON syntax. If the document contains any JSON Object that has
      * duplicate names, a {@code JsonParseException} is thrown.
-     *
-     * @implNote The JDK reference implementation generates the String and underlying
-     * value representation of a {@code JsonValue} lazily when created from parsing.
+     * <p>
+     * {@code JsonValue}s created by this method produce their String and underlying
+     * value representation lazily.
+     * <p>
+     * {@code JsonObject}s preserve the order of their members declared in and parsed from
+     * the JSON document.
      *
      * @param in the input JSON document as {@code char[]}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform
@@ -155,11 +161,6 @@ public final class Json {
      *     map.put("bar", map);
      *     Json.fromUntyped(map);
      * }
-     *
-     * @implNote
-     * The JDK reference implementation produces conversions from an {@code Object}
-     * to a {@code JsonValue} by utilizing the factory methods supported by the
-     * {@code JsonValue} sub-interfaces. For example, {@link JsonString#of(String)}.
      *
      * @param src the data to produce the {@code JsonValue} from. May be null.
      * @throws IllegalArgumentException if {@code src} cannot be converted
@@ -239,7 +240,7 @@ public final class Json {
      * <tbody>
      * <tr>
      *     <th>{@code JsonArray}</th>
-     *     <th>{@code List<Object>}</th>
+     *     <th>{@code List<Object>}(unmodifiable)</th>
      * </tr>
      * <tr>
      *     <th>{@code JsonBoolean}</th>
@@ -255,7 +256,7 @@ public final class Json {
      * </tr>
      * <tr>
      *     <th>{@code JsonObject}</th>
-     *     <th>{@code Map<String, Object>}</th>
+     *     <th>{@code Map<String, Object>}(unmodifiable)</th>
      * </tr>
      * <tr>
      *     <th>{@code JsonString}</th>
@@ -264,9 +265,9 @@ public final class Json {
      * </tbody>
      * </table>
      *
-     * @implNote For the JDK reference implementation, instances of {@code JsonObject}
-     * in {@code src} are converted into a {@code Map} that preserves the insertion order of
-     * the original {@code JsonObject}.
+     * <p>
+     * A {@code JsonObject} in {@code src} is converted to a {@code Map} whose
+     * entries occur in the same order as the {@code JsonObject}'s members.
      *
      * @param src the {@code JsonValue} to convert to untyped. Non-null.
      * @throws NullPointerException if {@code src} is {@code null}

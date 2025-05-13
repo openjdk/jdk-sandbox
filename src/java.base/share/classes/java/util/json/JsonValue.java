@@ -41,11 +41,8 @@ import jdk.internal.javac.PreviewFeature;
  *     json.toString(); // returns "[\"foo\",true,25]"
  * }
  *
- * @implSpec
- * The JDK reference implementation of the {@code JsonValue} sub-interfaces are
- * <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>.
- * <p>
- * Implementations of the {@code JsonValue} sub-interfaces adhere to the following,
+ * A class implementing a non-sealed {@code JsonValue} sub-interface must adhere
+ * to the following:
  * <ul>
  * <li>The class's implementations of {@code equals}, {@code hashCode},
  * and {@code toString} compute their results solely from the values
@@ -63,7 +60,7 @@ import jdk.internal.javac.PreviewFeature;
  * equal according to {@code ==}.</li>
  * </ul>
  * <p>
- * Users of {@code JsonValue} instances should ensure the following,
+ * Users of {@code JsonValue} instances should ensure the following:
  * <ul>
  * <li> When two instances of {@code JsonValue} are equal (according to {@code equals()}), users
  * should not attempt to distinguish between their identities, whether directly via reference

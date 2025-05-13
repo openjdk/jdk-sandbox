@@ -50,9 +50,6 @@ public non-sealed interface JsonObject extends JsonValue {
     /**
      * {@return an unmodifiable map of the {@code String} to {@code JsonValue}
      * members in this {@code JsonObject}}
-     *
-     * @implNote The JDK reference implementation returns a {@code Map} that maintains
-     * the insertion order of the source it was created from.
      */
     Map<String, JsonValue> members();
 
@@ -60,6 +57,9 @@ public non-sealed interface JsonObject extends JsonValue {
      * {@return the {@code JsonObject} created from the given
      * map of {@code String} to {@code JsonValue}s}
      *
+     * The {@code JsonObject}'s members occur in the same order as the given
+     * map's entries.
+     * <p>
      * If a key in the provided {@code map} contains escape characters, they are
      * unescaped before being added to the resulting {@code JsonObject}. If multiple
      * keys unescape to the same value, an {@code IllegalArgumentException} is thrown.
