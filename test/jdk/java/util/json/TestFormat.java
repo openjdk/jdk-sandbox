@@ -32,6 +32,7 @@
 
 import java.util.List;
 import java.util.json.Json;
+import java.util.json.JsonString;
 import java.util.json.JsonValue;
 
 import org.junit.jupiter.api.Test;
@@ -66,7 +67,8 @@ public class TestFormat {
 
     @Test
     void testToDisplayString_NegativeIndent() {
-        assertThrows(IllegalArgumentException.class, () -> Json.toDisplayString(SRC, -1));
+        assertThrows(IllegalArgumentException.class,
+            () -> Json.toDisplayString(JsonString.of("foo"), -1));
     }
 
     private static final List<Arguments> DISPLAYSTRING = List.of(

@@ -304,6 +304,9 @@ public final class Json {
      */
     public static String toDisplayString(JsonValue value, int indent) {
         Objects.requireNonNull(value);
+        if (indent < 0) {
+            throw new IllegalArgumentException("indent is negative");
+        }
         return toDisplayString(value, 0, indent, false);
     }
 
