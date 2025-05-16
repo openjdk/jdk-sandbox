@@ -61,7 +61,7 @@ public class TestFormat {
     @Test
     void testToString() {
         var s = SRC.toString();
-        assertTrue(!s.matches(".*[ \\n].*"), "toString() contains white spaces or new lines");
+        assertFalse(s.matches(".*[ \\n].*"), "toString() contains white spaces or new lines");
     }
 
     @Test
