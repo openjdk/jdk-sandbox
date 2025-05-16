@@ -64,10 +64,10 @@ public class TestOtherImpl {
 
     @Test
     void displayStringTest() {
-        assertEquals(Json.toDisplayString(STANDARD_JSON_STRING), Json.toDisplayString(ALT_JSON_STRING));
+        assertEquals(Json.toDisplayString(STANDARD_JSON_STRING, 2), Json.toDisplayString(ALT_JSON_STRING, 2));
         // Wrap it in a JsonObject, and check display string equality again
-        assertEquals(Json.toDisplayString(JsonObject.of(Map.of("foo", STANDARD_JSON_STRING))),
-                Json.toDisplayString(JsonObject.of(Map.of("foo", ALT_JSON_STRING))));
+        assertEquals(Json.toDisplayString(JsonObject.of(Map.of("foo", STANDARD_JSON_STRING)), 2),
+                Json.toDisplayString(JsonObject.of(Map.of("foo", ALT_JSON_STRING)), 2));
     }
 
     static class JsonFooString implements JsonString {

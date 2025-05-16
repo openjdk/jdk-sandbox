@@ -84,9 +84,9 @@ public sealed interface JsonValue
      * JSON element, except that the returned string does not contain any white
      * spaces or newlines to produce a compact representation.
      * For a String representation suitable for display, use
-     * {@link Json#toDisplayString(JsonValue)}.
+     * {@link Json#toDisplayString(JsonValue, int)}.
      *
-     * @see Json#toDisplayString(JsonValue)
+     * @see Json#toDisplayString(JsonValue, int)
      */
     String toString();
 }

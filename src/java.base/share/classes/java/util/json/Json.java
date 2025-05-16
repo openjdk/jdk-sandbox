@@ -47,7 +47,7 @@ import jdk.internal.util.json.Utils;
  * {@link #parse(String)} and {@link #parse(char[])} produce a {@code JsonValue}
  * by parsing data adhering to the JSON syntax defined in RFC 8259.
  * <p>
- * {@link #toDisplayString(JsonValue)} is a formatter that produces a
+ * {@link #toDisplayString(JsonValue, int)} is a formatter that produces a
  * representation of the JSON value suitable for display.
  * <p>
  * {@link #fromUntyped(Object)} and {@link #toUntyped(JsonValue)} provide a conversion
@@ -297,24 +297,26 @@ public final class Json {
      * suited for display.
      *
      * @param value the {@code JsonValue} to create the display string from. Non-null.
+     * @param indent number of spaces for the indentation. Zero or positive.
      * @throws NullPointerException if {@code value} is {@code null}
+     * @throws IllegalArgumentException if {@code indent} is a negative number
      * @see JsonValue#toString()
      */
-    public static String toDisplayString(JsonValue value) {
+    public static String toDisplayString(JsonValue value, int indent) {
         Objects.requireNonNull(value);
-        return toDisplayString(value, 0 , false);
+        return toDisplayString(value, 0, indent, false);
     }
 
-    private static String toDisplayString(JsonValue jv, int indent, boolean isField) {
+    private static String toDisplayString(JsonValue jv, int col, int indent, boolean isField) {
         return switch (jv) {
-            case JsonObject jo -> toDisplayString(jo, indent, isField);
-            case JsonArray ja -> toDisplayString(ja, indent, isField);
-            default -> " ".repeat(isField ? 1 : indent) + jv;
+            case JsonObject jo -> toDisplayString(jo, col, indent, isField);
+            case JsonArray ja -> toDisplayString(ja, col, indent, isField);
+            default -> " ".repeat(isField ? 1 : col) + jv;
         };
     }
 
-    private static String toDisplayString(JsonObject jo, int indent, boolean isField) {
-        var prefix = " ".repeat(indent);
+    private static String toDisplayString(JsonObject jo, int col, int indent, boolean isField) {
+        var prefix = " ".repeat(col);
         var s = new StringBuilder(isField ? " " : prefix);
         if (jo.members().isEmpty()) {
             s.append("{}");
@@ -323,11 +325,11 @@ public final class Json {
             jo.members().forEach((name, value) -> {
                 if (value instanceof JsonValue val) {
                     s.append(prefix)
-                            .append(" ".repeat(INDENT))
+                            .append(" ".repeat(indent))
                             .append("\"")
                             .append(name)
                             .append("\":")
-                            .append(Json.toDisplayString(val, indent + INDENT, true))
+                            .append(Json.toDisplayString(val, col + indent, indent, true))
                             .append(",\n");
                 } else {
                     throw new InternalError("type mismatch");
@@ -339,8 +341,8 @@ public final class Json {
         return s.toString();
     }
 
-    private static String toDisplayString(JsonArray ja, int indent, boolean isField) {
-        var prefix = " ".repeat(indent);
+    private static String toDisplayString(JsonArray ja, int col, int indent, boolean isField) {
+        var prefix = " ".repeat(col);
         var s = new StringBuilder(isField ? " " : prefix);
         if (ja.values().isEmpty()) {
             s.append("[]");
@@ -348,7 +350,7 @@ public final class Json {
             s.append("[\n");
             for (JsonValue v: ja.values()) {
                 if (v instanceof JsonValue jv) {
-                    s.append(Json.toDisplayString(jv,indent + INDENT, false)).append(",\n");
+                    s.append(Json.toDisplayString(jv, col + indent, indent, false)).append(",\n");
                 } else {
                     throw new InternalError("type mismatch");
                 }
@@ -358,9 +360,6 @@ public final class Json {
         }
         return s.toString();
     }
-
-    // default indentation for display string
-    private static final int INDENT = 2;
 
     // no instantiation is allowed for this class
     private Json() {}

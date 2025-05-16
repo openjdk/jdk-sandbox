@@ -204,7 +204,7 @@ public class TestJsonObject {
               "c": 2,
               "b": 3
             }""";
-            assertEquals(json, Json.toDisplayString(Json.parse(json)));
+            assertEquals(json, Json.toDisplayString(Json.parse(json), 2));
         }
     }
 
