@@ -71,7 +71,7 @@
  * The returned text adheres to the JSON grammar defined in RFC 8259.
  * {@code JsonValue.toString()} produces the most compact representation which does not
  * include extra whitespaces or line-breaks, preferable for network transaction
- * or storage. {@code Json.toDisplayString(JsonValue)} produces a text representation that
+ * or storage. {@code Json.toDisplayString(JsonValue, int)} produces a text representation that
  * is human friendly, preferable for debugging or logging.
  *
  * @spec https://datatracker.ietf.org/doc/html/rfc8259 RFC 8259: The JavaScript

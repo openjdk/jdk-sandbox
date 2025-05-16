@@ -297,7 +297,7 @@ public final class Json {
      * suited for display.
      *
      * @param value the {@code JsonValue} to create the display string from. Non-null.
-     * @param indent number of spaces for the indentation. Zero or positive.
+     * @param indent the number of spaces used for the indentation. Zero or positive.
      * @throws NullPointerException if {@code value} is {@code null}
      * @throws IllegalArgumentException if {@code indent} is a negative number
      * @see JsonValue#toString()
