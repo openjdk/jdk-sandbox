@@ -122,6 +122,8 @@ public:
   static void print(outputStream* st);
   static void release(DirectiveSet* set);
   static void release(CompilerDirectives* dir);
+  static int  depth() { return _depth; }
+  static CompilerDirectives* top() { return _top; }
 };
 
 class DirectiveSet : public CHeapObj<mtCompiler> {

@@ -262,7 +262,6 @@ void mutex_init() {
   MUTEX_DEFL(TrainingData_lock               , PaddedMutex  , MethodCompileQueue_lock);
   MUTEX_DEFN(TrainingReplayQueue_lock        , PaddedMonitor, safepoint);
   MUTEX_DEFN(CompileStatistics_lock          , PaddedMutex  , safepoint);
-  MUTEX_DEFN(DirectivesStack_lock            , PaddedMutex  , nosafepoint);
 
   MUTEX_DEFN(JvmtiVTMSTransition_lock        , PaddedMonitor, safepoint);   // used for Virtual Thread Mount State transition management
   MUTEX_DEFN(JvmtiVThreadSuspend_lock        , PaddedMutex,   nosafepoint-1);
@@ -322,6 +321,7 @@ void mutex_init() {
   MUTEX_DEFL(VtableStubs_lock               , PaddedMutex  , CompiledIC_lock);  // Also holds DumpTimeTable_lock
   MUTEX_DEFL(CodeCache_lock                 , PaddedMonitor, VtableStubs_lock);
   MUTEX_DEFL(NMethodState_lock              , PaddedMutex  , CodeCache_lock);
+  MUTEX_DEFL(DirectivesStack_lock           , PaddedMutex  , CodeCache_lock);
 
   // tty_lock is held when printing nmethod and its relocations which use this lock.
   MUTEX_DEFL(ExternalsRecorder_lock         , PaddedMutex  , tty_lock);

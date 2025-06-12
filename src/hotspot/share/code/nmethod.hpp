@@ -285,6 +285,8 @@ class nmethod : public CodeBlob {
 
   volatile DeoptimizationStatus _deoptimization_status; // Used for stack deoptimization
 
+  bool _needs_recompilation;          // Marked for recompilation with new directives
+
   DeoptimizationStatus deoptimization_status() const {
     return Atomic::load(&_deoptimization_status);
   }
@@ -494,6 +496,7 @@ public:
     uncommon_trap,
     whitebox_deoptimization,
     zombie,
+    directives_update,
   };
 
 
@@ -543,6 +546,8 @@ public:
         return "whitebox deoptimization";
       case ChangeReason::zombie:
         return "zombie";
+      case ChangeReason::directives_update:
+        return "directives update";
       default: {
         assert(false, "Unhandled reason");
         return "Unknown";
@@ -1066,6 +1071,9 @@ public:
 
   void make_deoptimized();
   void finalize_relocations();
+
+  void set_needs_recompilation()   { _needs_recompilation = true; }
+  bool needs_recompilation() const { return _needs_recompilation; }
 
   class Vptr : public CodeBlob::Vptr {
     void print_on(const CodeBlob* instance, outputStream* st) const override {

@@ -1255,6 +1255,8 @@ void nmethod::init_defaults(CodeBuffer *code_buffer, CodeOffsets* offsets) {
 
   _deoptimization_status      = not_marked;
 
+  _needs_recompilation        = false;
+
   // SECT_CONSTS is first in code buffer so the offset should be 0.
   int consts_offset = code_buffer->total_offset_of(code_buffer->consts());
   assert(consts_offset == 0, "const_offset: %d", consts_offset);

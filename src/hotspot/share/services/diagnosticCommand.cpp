@@ -33,6 +33,7 @@
 #include "code/codeCache.hpp"
 #include "compiler/compilationMemoryStatistic.hpp"
 #include "compiler/compiler_globals.hpp"
+#include "compiler/compilationPolicy.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/directivesParser.hpp"
 #include "gc/shared/gcVMOperations.hpp"
@@ -913,12 +914,218 @@ void CompilerDirectivesPrintDCmd::execute(DCmdSource source, TRAPS) {
 
 CompilerDirectivesAddDCmd::CompilerDirectivesAddDCmd(outputStream* output, bool heap) :
                            DCmdWithParser(output, heap),
-  _filename("filename","Name of the directives file", "STRING",true) {
+  _filename("filename","Name of the directives file", "STRING",true),
+  _refresh("-r", "Refresh affected methods", "BOOLEAN", false, "false") {
   _dcmdparser.add_dcmd_argument(&_filename);
+  _dcmdparser.add_dcmd_option(&_refresh);
+}
+
+struct InUseNMethodsForRecompilationFilter {
+  static bool apply(CodeBlob* cb) {
+    if (!cb->is_nmethod()) {
+      return false;
+    }
+    nmethod *nm = cb->as_nmethod();
+    return nm->is_in_use() && nm->needs_recompilation();
+  }
+
+  static const GrowableArray<CodeHeap*>* heaps() { return CodeCache::nmethod_heaps(); }
+};
+
+typedef CodeBlobIterator<nmethod, InUseNMethodsForRecompilationFilter, false /* is_relaxed */> InUseMethodsForRecompilationIterator;
+
+static void recompile_methods_with_changed_directives(TRAPS) {
+  MutexLocker code_cache_locker(CodeCache_lock, Mutex::_no_safepoint_check_flag);
+
+  InUseMethodsForRecompilationIterator iter(InUseMethodsForRecompilationIterator::not_unloading);
+  while (iter.next()) {
+    nmethod* nm = iter.method();
+    methodHandle mh(THREAD, nm->method());
+
+    if (CompileBroker::compilation_is_in_queue(mh)) {
+      // If the method is in the queue, it will be compiled with the new
+      // directives. If the method is not in the queue, it might be being
+      // compiled with the old directives. If it is the case, the method will
+      // be marked as queued with old directives. The result of such
+      // compilation will be discarded. If the method gets hot again, it will
+      // be recompiled with the new directives.
+      continue;
+    }
+
+    ResourceMark rm;
+    int comp_level = nm->comp_level();
+
+    log_trace(codecache)(
+        "Recompile %s to level %d because of directives update",
+        mh->external_name(), comp_level);
+
+    // Release CodeCache_lock to allow CompilerBroker to create a compile task.
+    MutexUnlocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
+
+    nmethod* new_nm = CompileBroker::compile_method(
+        mh, InvocationEntryBci, comp_level, 0,
+        CompileTask::Reason_DirectivesChanged, THREAD);
+    if (mh->is_not_compilable(comp_level) ||
+        (new_nm == nullptr && mh->has_compiled_code())) {
+      log_trace(codecache)(
+          "Recompilation of %s to level %d with directives update failed. Make "
+          "the method current code not entrant",
+          mh->external_name(), comp_level);
+      nm = mh->code()->as_nmethod();
+      if (nm != nullptr) {
+        nm->make_not_entrant(nmethod::ChangeReason::directives_update);
+      }
+    }
+  }
+}
+
+static bool has_matching_directive_for_any_compiler(const methodHandle& mh, int top_directives_count) {
+  MutexLocker locker(DirectivesStack_lock, Mutex::_no_safepoint_check_flag);
+  AbstractCompiler *comp1 = CompileBroker::compiler1();
+  AbstractCompiler *comp2 = CompileBroker::compiler2();
+
+  CompilerDirectives* dir = DirectivesStack::top();
+  int depth = DirectivesStack::depth();
+  for (int count = MIN2(top_directives_count, depth); count > 0; --count) {
+    assert(dir != nullptr, "Must not be null if count > 0");
+    if (!dir->is_default_directive() && dir->match(mh)) {
+      assert(comp1 == nullptr || dir->get_for(comp1) != nullptr, "Must not be null for any compiler");
+      assert(comp2 == nullptr || dir->get_for(comp2) != nullptr, "Must not be null for any compiler");
+      if ((comp1 != nullptr && dir->get_for(comp1)->EnableOption) ||
+          (comp2 != nullptr && dir->get_for(comp2)->EnableOption)) {
+        return true;
+      }
+    }
+    dir = dir->next();
+  }
+  return false;
+}
+
+static bool has_matching_directive(const methodHandle& mh, int top_directives_count, AbstractCompiler *comp) {
+  MutexLocker locker(DirectivesStack_lock, Mutex::_no_safepoint_check_flag);
+  CompilerDirectives* dir = DirectivesStack::top();
+  int depth = DirectivesStack::depth();
+  for (int count = MIN2(top_directives_count, depth); count > 0; --count) {
+    assert(dir != nullptr, "Must not be null if count > 0");
+    if (!dir->is_default_directive() && dir->match(mh)) {
+      assert(dir->get_for(comp) != nullptr, "Must not be null for any compiler");
+      if (dir->get_for(comp)->EnableOption) {
+        return true;
+      }
+    }
+    dir = dir->next();
+  }
+  return false;
+}
+
+// Traverse CodeCache and process nmethods affected by a directives update.
+// An nmethod has a matching directive if its owner, a Java method, has matching
+// directive for the compiler used to compile the nmethod.
+// There can be the following cases:
+// 1. An owner of an nmethod is queued for compilation. If the owner has a matching
+//    directive for any compiler in the directive update, it can have been queued with
+//    an old directive. We mark a Java method as queued with an old directive.
+// 2. An nmethod is current code of its owner and has a matching directive.
+//    It needs to be recompiled. We mark its owner that it needs recompilation.
+//    We don't recompile nmethods which are not the current code. Such nmethods
+//    won't be used in future calls.
+// 3. An nmethod is an OSR nmethod, in use and has a matching directive.
+//    We make the nmethod not entrant. We don't recompile OSR nmethods because
+//    directives updates usually target normal nmethods. However we need to invalidate
+//    them to prevent using code compiled with an old directive. We can reconsider
+//    recompilations of OSR nmethods if more such cases are encountered.
+//
+// We don't make the current code not entrant because this can cause performance
+// issues if many methods are affected by the directives update. The current code
+// will be made not entrant after successful recompilation.
+//
+// The function returns true if any Java methods have been marked for recompilation.
+static bool process_nmethods_affected_by_directives_update(int n_top_directives, TRAPS) {
+  assert(MethodCompileQueue_lock->owned_by_self(), "MethodCompileQueue_lock must be held");
+
+  MutexLocker code_cache_locker(CodeCache_lock, Mutex::_no_safepoint_check_flag);
+
+  int methods_marked = 0;
+
+  NMethodIterator iter(NMethodIterator::not_unloading);
+  while (iter.next()) {
+    ResourceMark rm;
+    nmethod* nm = iter.method();
+    methodHandle mh(THREAD, nm->method());
+    AbstractCompiler *comp = CompileBroker::compiler(nm->comp_level());
+
+    // Nmethods without a compiler cannot have compiler directives.
+    if (comp == nullptr) {
+      continue;
+    }
+
+    // Case #1
+    if (CompileBroker::compilation_is_in_queue(mh) &&
+        !mh->queued_with_old_directive() &&
+        has_matching_directive_for_any_compiler(mh, n_top_directives)) {
+      // FIXME: We don't know which compiler will be compiling the method.
+      //        There might be a case when the method is queued for C1 but
+      //        the matching directive is for C2. In this case, the method will be
+      //        incorrectly marked as queued with an old directive.
+      log_trace(codecache)("%s has been queued for compilation with an old directive", mh->external_name());
+      mh->set_queued_with_old_directive();
+    }
+
+    if (mh->code() == nm &&
+        has_matching_directive(mh, n_top_directives, comp)) {
+      // Case #2
+      log_trace(codecache)("Marked %s [id:%d, level:%d] for recompilation because of directives update",
+                           mh->external_name(), nm->compile_id(), nm->comp_level());
+      nm->set_needs_recompilation();
+      ++methods_marked;
+    } else if (nm->is_osr_method() && nm->is_in_use() &&
+               has_matching_directive(mh, n_top_directives, comp)) {
+      // Case #3
+      log_trace(codecache)("Make OSR %s [id:%d, level:%d] not entrant because of directives update",
+                           mh->external_name(), nm->compile_id(), nm->comp_level());
+      nm->make_not_entrant(nmethod::ChangeReason::directives_update);
+    }
+   }
+
+  return methods_marked > 0;
+}
+
+static void add_new_directives_from_file_and_recompile_methods(const char* file_name, outputStream* output, TRAPS) {
+  bool methods_marked;
+  {
+    // We hold MethodCompileQueue_lock to prevent creating compile tasks
+    // with old directives or compile tasks with old directives from getting
+    // off the queue. It will guarantee that if
+    // CompileBroker::compilation_is_in_queue returns true then Method* is
+    // being compiled with old directives.
+    MonitorLocker compile_queue_lock(THREAD, MethodCompileQueue_lock);
+
+    int top_directives_count;
+    {
+      // We hold DirectivesStack_lock to prevent CompileBroker from getting
+      // old directives.
+      MutexLocker ml(THREAD, DirectivesStack_lock, Mutex::_no_safepoint_check_flag);
+      int current_depth = DirectivesStack::depth();
+      DirectivesParser::parse_from_file(file_name, output);
+      int new_depth = DirectivesStack::depth();
+      top_directives_count = new_depth - current_depth;
+    }
+
+    methods_marked = process_nmethods_affected_by_directives_update(top_directives_count, THREAD);
+    CompileBroker::remove_tasks_with_old_directives();
+  }
+
+  if (methods_marked) {
+    recompile_methods_with_changed_directives(THREAD);
+  }
 }
 
 void CompilerDirectivesAddDCmd::execute(DCmdSource source, TRAPS) {
-  DirectivesParser::parse_from_file(_filename.value(), output(), true);
+  if (!_refresh.value()) {
+    DirectivesParser::parse_from_file(_filename.value(), output(), true);
+  } else {
+    add_new_directives_from_file_and_recompile_methods(_filename.value(), output(), THREAD);
+  }
 }
 
 void CompilerDirectivesRemoveDCmd::execute(DCmdSource source, TRAPS) {
