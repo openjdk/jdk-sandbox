@@ -954,26 +954,37 @@ static void recompile_methods_with_changed_directives(TRAPS) {
 
     ResourceMark rm;
     int comp_level = nm->comp_level();
+    int compile_id = nm->compile_id();
 
     log_trace(codecache)(
-        "Recompile %s to level %d because of directives update",
-        mh->external_name(), comp_level);
+        "Recompile %s [id:%d, level:%d] because of directives update",
+        mh->external_name(), compile_id, comp_level);
 
     // Release CodeCache_lock to allow CompilerBroker to create a compile task.
+    // Any uses of nm after this point can be unsafe.
     MutexUnlocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
 
     nmethod* new_nm = CompileBroker::compile_method(
         mh, InvocationEntryBci, comp_level, 0,
         CompileTask::Reason_DirectivesChanged, THREAD);
+    // In case of blocking compilations, successful compile_method returns
+    // new code.
+    // In case of non-blocking compilations, successful compile_method can
+    // return:
+    // - nullptr, if nm has been made not entrant, and the method
+    //   is queued for compilation.
+    // - nm, if mh->code() is in use, and the method is queued for compilation.
+    // - new code, if the method has been compiled.
+    // The recompilation has failed if the returned value is nullptr and
+    // the method is not in the compile queue or the method is not compilable.
+    // As nm is compiled with an old directive we need to invalidate it if it
+    // is still in use.
     if (mh->is_not_compilable(comp_level) ||
-        (new_nm == nullptr && mh->has_compiled_code())) {
-      log_trace(codecache)(
-          "Recompilation of %s to level %d with directives update failed. Make "
-          "the method current code not entrant",
-          mh->external_name(), comp_level);
-      nm = mh->code()->as_nmethod();
-      if (nm != nullptr) {
-        nm->make_not_entrant(nmethod::ChangeReason::directives_update);
+        (new_nm == nullptr && !CompileBroker::compilation_is_in_queue(mh))) {
+      if (nm == mh->code() && nm->make_not_entrant(nmethod::ChangeReason::directives_update)) {
+        log_trace(codecache)(
+            "Made %s [id:%d, level:%d] not entrant because recompilation due to directives changed failed",
+            mh->external_name(), compile_id, comp_level);
       }
     }
   }
@@ -1079,11 +1090,11 @@ static bool process_nmethods_affected_by_directives_update(int n_top_directives,
       nm->set_needs_recompilation();
       ++methods_marked;
     } else if (nm->is_osr_method() && nm->is_in_use() &&
-               has_matching_directive(mh, n_top_directives, comp)) {
+               has_matching_directive(mh, n_top_directives, comp) &&
+               nm->make_not_entrant(nmethod::ChangeReason::directives_update)) {
       // Case #3
-      log_trace(codecache)("Make OSR %s [id:%d, level:%d] not entrant because of directives update",
+      log_trace(codecache)("Made OSR %s [id:%d, level:%d] not entrant because of directives update",
                            mh->external_name(), nm->compile_id(), nm->comp_level());
-      nm->make_not_entrant(nmethod::ChangeReason::directives_update);
     }
    }
 

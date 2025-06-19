@@ -338,7 +338,7 @@ class nmethod : public CodeBlob {
           );
 
   // helper methods
-  void* operator new(size_t size, int nmethod_size, int comp_level) throw();
+  void* operator new(size_t size, int nmethod_size, CodeBlobType code_blob_type) throw();
 
   // For method handle intrinsics: Try MethodNonProfiled, MethodProfiled and NonNMethod.
   // Attention: Only allow NonNMethod space for special nmethods which don't need to be

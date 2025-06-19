@@ -1134,6 +1134,34 @@ nmethod* nmethod::new_native_nmethod(const methodHandle& method,
   return nm;
 }
 
+static bool hot_code_heap_candidate(const methodHandle& method, int comp_level) {
+  if (method->is_native()) {
+    // Native methods are not allowed in the hot code heap.
+    return false;
+  }
+
+  if (!is_c2_compile(comp_level)) {
+    // Only fully-optimized methods are allowed in the hot code heap.
+    return false;
+  }
+
+  MethodData *mdo = method->method_data();
+  if (mdo != nullptr && mdo->use_state() != MethodData::UseState::Unknown) {
+    return mdo->use_state() == MethodData::UseState::Hot;
+  }
+
+  return false;
+}
+
+static CodeBlobType get_code_blob_type(const methodHandle& method, int comp_level) {
+  if (CodeCache::heap_available(CodeBlobType::MethodHot) &&
+      hot_code_heap_candidate(method, comp_level)) {
+    return CodeBlobType::MethodHot;
+  }
+
+  return CodeCache::get_code_blob_type(comp_level);
+}
+
 nmethod* nmethod::new_nmethod(const methodHandle& method,
   int compile_id,
   int entry_bci,
@@ -1156,6 +1184,7 @@ nmethod* nmethod::new_nmethod(const methodHandle& method,
 {
   assert(debug_info->oop_recorder() == code_buffer->oop_recorder(), "shared OR");
   code_buffer->finalize_oop_references(method);
+  CodeBlobType code_blob_type = get_code_blob_type(method, comp_level);
   // create nmethod
   nmethod* nm = nullptr;
   int nmethod_size = CodeBlob::allocation_size(code_buffer, sizeof(nmethod));
@@ -1186,7 +1215,7 @@ nmethod* nmethod::new_nmethod(const methodHandle& method,
   {
     MutexLocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
 
-    nm = new (nmethod_size, comp_level)
+    nm = new (nmethod_size, code_blob_type)
     nmethod(method(), compiler->type(), nmethod_size, immutable_data_size, mutable_data_size,
             compile_id, entry_bci, immutable_data, offsets, orig_pc_offset,
             debug_info, dependencies, code_buffer, frame_size, oop_maps,
@@ -1397,8 +1426,8 @@ nmethod::nmethod(
   }
 }
 
-void* nmethod::operator new(size_t size, int nmethod_size, int comp_level) throw () {
-  return CodeCache::allocate(nmethod_size, CodeCache::get_code_blob_type(comp_level));
+void* nmethod::operator new(size_t size, int nmethod_size, CodeBlobType code_blob_type) throw () {
+  return CodeCache::allocate(nmethod_size, code_blob_type);
 }
 
 void* nmethod::operator new(size_t size, int nmethod_size, bool allow_NonNMethod_space) throw () {

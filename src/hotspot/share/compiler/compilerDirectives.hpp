@@ -86,7 +86,8 @@ NOT_PRODUCT(cflags(PrintIdeal,          bool, PrintIdeal, PrintIdeal)) \
 NOT_PRODUCT(cflags(PhasePrintLevel, intx, PrintPhaseLevel, PhasePrintLevel)) \
 NOT_PRODUCT(cflags(IGVPrintLevel,   intx, PrintIdealGraphLevel, IGVPrintLevel)) \
     cflags(IncrementalInlineForceCleanup, bool, IncrementalInlineForceCleanup, IncrementalInlineForceCleanup) \
-    cflags(MaxNodeLimit,            intx, MaxNodeLimit, MaxNodeLimit)
+    cflags(MaxNodeLimit,            intx, MaxNodeLimit, MaxNodeLimit) \
+    cflags(UseState,                intx, (intx)MethodData::UseState::Unknown, Unknown)
 #define compilerdirectives_c2_string_flags(cflags) \
 NOT_PRODUCT(cflags(TraceAutoVectorization, ccstrlist, "", TraceAutoVectorization)) \
 NOT_PRODUCT(cflags(TraceMergeStores, ccstrlist, "", TraceMergeStores)) \

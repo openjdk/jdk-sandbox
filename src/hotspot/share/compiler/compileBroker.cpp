@@ -1170,6 +1170,86 @@ void CompileBroker::mark_on_stack() {
   }
 }
 
+// The function checks whether a C2 recompilation of an nmethod in HotCodeHeap caused by
+// compiler directives update should be skipped.
+// The function returns true if the recompilation is not needed:
+// - The method is marked as cold by compiler directive UseState and RecompileColdNMethods is false.
+// - The method is marked as hot by compiler directive UseState and it is already in the HotCodeHeap.
+// Otherwise, it returns false. It returns false if the method is not compiled by C2 or
+// HotCodeHeap is not available or a compiler directive does not provide UseState.
+// The function requires MethodData to be available for the method. If not, the function returns false.
+//
+// This function updates a Java method use state based on the compiler directive
+// UseState. Using the compiler directive UseState we can dynamicly mark methods
+// as hot or cold. This allows moving methods in and out of the HotCodeHeap.
+// This cannot be done with the compile command HotCodeHeap. The compile command HotCodeHeap
+// can only mark methods hot.
+//
+// The function makes the method not entrant if the method is marked as cold and
+// in the HotCodeHeap.
+//
+// FIXME: This is a temporary solution to support placing C2 compiled methods marked with
+//        the UseState compiler directive into the HotCodeHeap.
+static bool skip_hot_code_heap_nmethod_recompilation(const methodHandle& method,
+                                                     int comp_level,
+                                                     CompileTask::CompileReason compile_reason,
+                                                     DirectiveSet *directive) {
+#ifdef COMPILER2
+  MethodData *mdo = method->method_data();
+  if (mdo == nullptr ||
+      !is_c2_compile(comp_level) ||
+      !CodeCache::heap_available(CodeBlobType::MethodHot) ||
+      directive->UseStateOption == (int)MethodData::UseState::Unknown) {
+    return false;
+  }
+
+  ResourceMark rm;
+
+  // We need to update the method use state based on the compiler directive UseState.
+  // We map compiler directive UseState positive values to MethodData::UseState::Hot.
+  // and negative values to MethodData::UseState::Cold. Absolute values are currently
+  // not used.
+  MethodData::UseState new_state = (directive->UseStateOption < 0)
+                                       ? MethodData::UseState::Cold
+                                       : MethodData::UseState::Hot;
+  mdo->set_use_state(new_state);
+  log_debug(codecache)("Marked %s as %s with compiler directive UseState",
+                       method->external_name(),
+                       (new_state == MethodData::UseState::Cold) ? "cold" : "hot");
+
+
+  // If this recompilation is not due to compiler directives update, we should not skip it.
+  if (compile_reason != CompileTask::CompileReason::Reason_DirectivesChanged) {
+    return false;
+  }
+
+  nmethod* cm = method->code();
+  if (cm != nullptr &&
+      cm->is_in_use() &&
+      !cm->is_unloading() &&
+      CodeCache::get_code_blob_type(cm) == CodeBlobType::MethodHot) {
+    bool skip = true;
+    if (new_state == MethodData::UseState::Cold) {
+      if (cm->make_not_entrant(nmethod::ChangeReason::directives_update)) {
+        log_trace(codecache)("Made %s [id:%d, level:%d, MethodHot] not entrant because of marked as cold",
+                             method->external_name(), cm->compile_id(), cm->comp_level());
+      }
+
+      skip = !RecompileColdNMethods;
+    }
+
+    if (skip) {
+      log_trace(codecache)(
+          "Cancel recompilation of %s [id:%d, level:%d] from HotCodeHeap marked as %s",
+          method->external_name(), cm->compile_id(), cm->comp_level(),
+          (new_state == MethodData::UseState::Cold) ? "cold" : "hot");
+    }
+    return skip;
+  }
+#endif
+  return false;
+}
+
 // ------------------------------------------------------------------
 // CompileBroker::compile_method
 //
@@ -1269,6 +1349,10 @@ void CompileBroker::compile_method_base(const methodHandle& method,
     // This directive will be owned by a compile task.
     DirectiveSet* directive = DirectivesStack::getMatchingDirective(method, compiler(comp_level));
     blocking = !directive->BackgroundCompilationOption || ReplayCompiles;
+
+    if (skip_hot_code_heap_nmethod_recompilation(method, comp_level, compile_reason, directive)) {
+      return;
+    }
 
 #if INCLUDE_JVMCI
     if (UseJVMCICompiler && blocking) {
@@ -1543,7 +1627,9 @@ bool CompileBroker::compilation_is_complete(const methodHandle& method,
       return true;
     } else {
       nmethod* result = method->code();
-      if (result == nullptr) return false;
+      if (result == nullptr || result->needs_recompilation()) {
+        return false;
+      }
       return comp_level == result->comp_level();
     }
   }
@@ -2457,9 +2543,8 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
     // A recompilation with new directives was requested and has failed.
     // As the method is still compilable we can try to recompile it through the normal compilation path.
     nmethod *nm = method->code();
-    if (nm != nullptr) {
+    if (nm != nullptr && nm->make_not_entrant(nmethod::ChangeReason::directives_update)) {
       ResourceMark rm;
-      nm->make_not_entrant(nmethod::ChangeReason::directives_update);
       log_trace(codecache)("Made %s [id:%d, level:%d] not entrant because of directives update",
                             method->external_name(),
                             nm->compile_id(),
