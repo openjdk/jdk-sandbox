@@ -240,6 +240,8 @@ public class TestJsonNumber {
         }
 
         private static final List<Arguments> INVALID_NUMBER = List.of(
+                Arguments.of("00", "Invalid '0' position"),
+                Arguments.of("-00", "Invalid '0' position"),
                 Arguments.of("01", "Invalid '0' position"),
                 Arguments.of("5e-2+2", "Invalid '+' position"),
                 Arguments.of("+5", "Invalid '+' position"),

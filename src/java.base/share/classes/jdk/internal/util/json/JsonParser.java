@@ -335,15 +335,12 @@ public final class JsonParser {
                     }
                     sawSign = true;
                 }
-                case '0' -> {
-                    if (!havePart) {
-                        sawZero = true;
-                    }
-                    havePart = true;
-                }
-                case '1', '2', '3', '4', '5', '6', '7', '8', '9' -> {
+                case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> {
                     if (!sawDecimal && !sawExponent && sawZero) {
                         throw failure("Invalid '0' position");
+                    }
+                    if (doc[offset] == '0' && !havePart) {
+                        sawZero = true;
                     }
                     havePart = true;
                 }
