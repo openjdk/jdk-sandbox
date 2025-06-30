@@ -317,10 +317,11 @@ public final class JsonParser {
         boolean sawExponent = false;
         boolean sawZero = false;
         boolean havePart = false;
-        boolean sawInvalid = false;
         boolean sawSign = false;
         var start = offset;
-        for (; hasInput() && !sawInvalid; offset++) {
+        // label for ending the loop
+        endloop:
+        for (; hasInput(); offset++) {
             switch (doc[offset]) {
                 case '-' -> {
                     if (offset != start && !sawExponent || sawSign) {
@@ -367,8 +368,7 @@ public final class JsonParser {
                     }
                 }
                 default -> {
-                    offset--;
-                    sawInvalid = true;
+                    break endloop;
                 }
             }
         }
