@@ -316,12 +316,11 @@ public final class JsonParser {
         boolean sawDecimal = false;
         boolean sawExponent = false;
         boolean sawZero = false;
-        boolean sawWhitespace = false;
         boolean havePart = false;
         boolean sawInvalid = false;
         boolean sawSign = false;
         var start = offset;
-        for (; hasInput() && !sawWhitespace && !sawInvalid; offset++) {
+        for (; hasInput() && !sawInvalid; offset++) {
             switch (doc[offset]) {
                 case '-' -> {
                     if (offset != start && !sawExponent || sawSign) {
@@ -366,10 +365,6 @@ public final class JsonParser {
                         havePart = false;
                         sawSign = false;
                     }
-                }
-                case ' ', '\t', '\r', '\n' -> {
-                    sawWhitespace = true;
-                    offset --;
                 }
                 default -> {
                     offset--;
