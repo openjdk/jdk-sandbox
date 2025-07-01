@@ -59,9 +59,14 @@ public non-sealed interface JsonObject extends JsonValue {
      *
      * The {@code JsonObject}'s members occur in the same order as the given
      * map's entries.
+     * <p>
+     * If a key in the provided {@code map} contains escaped Unicode escape sequences,
+     * they are unescaped before being added to the resulting {@code JsonObject}
+     * as a member name. If duplicate member names are found, an {@code
+     * IllegalArgumentException} is thrown.
      *
      * @param map the map of {@code JsonValue}s. Non-null.
-     * @throws IllegalArgumentException if {@code map} contains duplicate keys
+     * @throws IllegalArgumentException if there are duplicate member names.
      * @throws NullPointerException if {@code map} is {@code null}, contains
      *      any keys that are {@code null}, or contains any values that are {@code null}
      */
