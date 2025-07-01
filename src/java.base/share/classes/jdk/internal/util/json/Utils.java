@@ -49,8 +49,9 @@ public class Utils {
         return new JsonObjectImpl(map);
     }
 
-    // Returns a valid JSON String. Unicode escape sequences are converted
-    // to their corresponding char, and properly escaped if required.
+    // This method checks that the input is a valid JSON String and returns the form
+    // with Unicode escape sequences converted to their corresponding char.
+    // Checks for unescaped control chars and quotation marks.
     public static String getSource(char[] doc, int startOffset, int endOffset) {
         StringBuilder sb = null; // Only use if required
         var escape = false;
@@ -101,7 +102,7 @@ public class Utils {
                 escape = false;
             } else if (c == '\\') {
                 escape = true;
-            } else if (c < ' ') {
+            } else if (c < ' ' || c == '"') {
                 throw new IllegalArgumentException("Unescaped control code");
             }
             if (useBldr) {

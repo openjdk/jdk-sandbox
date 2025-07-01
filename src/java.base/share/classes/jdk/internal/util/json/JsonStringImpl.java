@@ -48,8 +48,8 @@ public final class JsonStringImpl implements JsonString {
         doc = ("\"" + str + "\"").toCharArray();
         startOffset = 0;
         endOffset = doc.length;
-        // Eagerly compute the unescaped JSON string to validate escape sequences
-        value();
+        // Validates the input String as proper JSON
+        source();
     }
 
     public JsonStringImpl(char[] doc, int start, int end) {
@@ -103,11 +103,8 @@ public final class JsonStringImpl implements JsonString {
                         if (offset + 4 < endOffset) {
                             c = Utils.codeUnit(doc, offset + 1);
                             length = 4;
-                        } else {
-                            throw new IllegalArgumentException("Illegal Unicode escape sequence");
                         }
                     }
-                    default -> throw new IllegalArgumentException("Illegal escape sequence");
                 }
                 if (!useBldr) {
                     useBldr = true;
@@ -133,6 +130,7 @@ public final class JsonStringImpl implements JsonString {
     }
 
     private String source() {
-        return Utils.getSource(doc, startOffset, endOffset);
+        // getSource throws on quotes, so bypass and re-insert
+        return '"' + Utils.getSource(doc, startOffset + 1, endOffset - 1) + '"';
     }
 }

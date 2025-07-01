@@ -241,6 +241,19 @@ public class TestJsonObject {
                 """;
 
         @Test
+        void invalidStringTest() {
+            // JsonObject factory
+            assertThrows(IllegalArgumentException.class, () -> JsonObject.of(Map.of("Foo \t", JsonNull.of())));
+            assertThrows(IllegalArgumentException.class, () -> JsonObject.of(Map.of("Foo \"", JsonNull.of())));
+            // fromUntyped factory
+            assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(Map.of("Foo \t", "Bar")));
+            assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(Map.of("Foo \"", "Bar")));
+            // Equivalents as above, but properly escaped
+            assertDoesNotThrow(() -> JsonObject.of(Map.of("Foo \\t", JsonNull.of())));
+            assertDoesNotThrow(() -> JsonObject.of(Map.of("Foo \\\"", JsonNull.of())));
+        }
+
+        @Test
         void unexpectedTypeTest() {
             var df = new DecimalFormat();
             var exception = assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(df));

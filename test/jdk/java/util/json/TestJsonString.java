@@ -42,8 +42,8 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.FieldSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -129,6 +129,16 @@ public class TestJsonString {
 
     @Nested
     class TestFactory {
+
+        @Test
+        void invalidStringTest() {
+            // Pass some invalid Strings to the factory
+            assertThrows(IllegalArgumentException.class, () -> JsonString.of("Foo \t"));
+            assertThrows(IllegalArgumentException.class, () -> JsonString.of("Foo \""));
+            // Equivalents as above, but properly escaped
+            assertDoesNotThrow(() -> JsonString.of("Foo \\t"));
+            assertDoesNotThrow(() -> JsonString.of("Foo \\\""));
+        }
 
         @Test
         void toStringTest() {
