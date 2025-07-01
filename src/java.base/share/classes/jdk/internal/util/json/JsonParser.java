@@ -331,7 +331,7 @@ public final class JsonParser {
         boolean havePart = false;
         boolean sawSign = false;
         var start = offset;
-        // label for ending the loop
+
         endloop:
         for (; hasInput(); offset++) {
             switch (doc[offset]) {
@@ -380,6 +380,7 @@ public final class JsonParser {
                     }
                 }
                 default -> {
+                    // break the loop for white space or invalid characters
                     break endloop;
                 }
             }
