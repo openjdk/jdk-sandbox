@@ -59,14 +59,9 @@ public non-sealed interface JsonObject extends JsonValue {
      *
      * The {@code JsonObject}'s members occur in the same order as the given
      * map's entries.
-     * <p>
-     * If a key in the provided {@code map} contains escape characters, they are
-     * unescaped before being added to the resulting {@code JsonObject}. If multiple
-     * keys unescape to the same string, an {@code IllegalArgumentException} is thrown.
      *
      * @param map the map of {@code JsonValue}s. Non-null.
-     * @throws IllegalArgumentException if {@code map} contains multiple keys
-     *      that unescape to the same string
+     * @throws IllegalArgumentException if {@code map} contains duplicate keys
      * @throws NullPointerException if {@code map} is {@code null}, contains
      *      any keys that are {@code null}, or contains any values that are {@code null}
      */
@@ -79,7 +74,7 @@ public non-sealed interface JsonObject extends JsonValue {
             var val = e.getValue();
             if (ret.containsKey(jsonKey)) {
                 throw new IllegalArgumentException(
-                        "Multiple keys unescape to the same string: '%s'".formatted(jsonKey));
+                        "Duplicate member name: '%s'".formatted(jsonKey));
             } else {
                 ret.put(jsonKey, Objects.requireNonNull(val));
             }
