@@ -465,7 +465,7 @@ public final class JsonParser {
     // Returns true if the substring starting at the given offset equals the
     // input String and is within bounds of the JSON document
     private boolean charsEqual(String str, int o) {
-        if (o + str.length() - 1 < doc.length) {
+        if (o + str.length() <= doc.length) {
             for (int index = 0; index < str.length(); index++) {
                 if (doc[o] != str.charAt(index)) {
                     return false; // char does not match
