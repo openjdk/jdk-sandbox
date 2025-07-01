@@ -46,6 +46,7 @@ public final class JsonNumberImpl implements JsonNumber {
     private final StableValue<BigDecimal> cachedBD = StableValue.of();
 
     public JsonNumberImpl(Number num) {
+        // Called by factories. Input is Double, Long, BI, or BD.
         if (num == null ||
             num instanceof Double d && (d.isNaN() || d.isInfinite())) {
             throw new IllegalArgumentException("Not a valid JSON number");
