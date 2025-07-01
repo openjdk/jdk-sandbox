@@ -101,6 +101,8 @@ public class Utils {
                 escape = false;
             } else if (c == '\\') {
                 escape = true;
+            } else if (c < ' ') {
+                throw new IllegalArgumentException("Unescaped control code");
             }
             if (useBldr) {
                 sb.append(c);

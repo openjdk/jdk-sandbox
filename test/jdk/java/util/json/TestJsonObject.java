@@ -240,6 +240,12 @@ public class TestJsonObject {
                 """;
 
         @Test
+        void controlCharInKeyTest() {
+            var key = "Foo \t"; // Key contains unescaped control code
+            assertThrows(IllegalArgumentException.class, () -> JsonObject.of(Map.of(key, JsonNull.of())));
+        }
+
+        @Test
         void toStringTest() {
             // 2 char sequence first
             var key = " \\t \\u0021 \\u0022 \\u005c \\u0008 test ";
