@@ -117,7 +117,6 @@ public class Utils {
     }
 
     // Validate and construct corresponding value of Unicode escape sequence
-    // This method does not increment offset
     static char codeUnit(char[] doc, int o) {
         char val = 0;
         for (int index = 0; index < 4; index ++) {
