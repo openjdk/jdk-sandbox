@@ -27,6 +27,8 @@ package jdk.internal.util.json;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.json.JsonArray;
 import java.util.json.JsonObject;
 import java.util.json.JsonParseException;
@@ -98,14 +100,14 @@ public final class JsonParser {
      * See https://datatracker.ietf.org/doc/html/rfc8259#section-4
      */
     private JsonObject parseObject() {
-        var members = new LinkedHashMap<String, JsonValue>();
         offset++; // Walk past the '{'
         skipWhitespaces();
         // Check for empty case
         if (currCharEquals('}')) {
             offset++;
-            return new JsonObjectImpl(members);
+            return new JsonObjectImpl(Map.of());
         }
+        var members = new LinkedHashMap<String, JsonValue>();
         while (hasInput()) {
             // Get the member name, which should be unescaped
             // Why not parse the name as a JsonString and then return its value()?
@@ -227,14 +229,14 @@ public final class JsonParser {
      * See https://datatracker.ietf.org/doc/html/rfc8259#section-5
      */
     private JsonArray parseArray() {
-        var list = new ArrayList<JsonValue>();
         offset++; // Walk past the '['
         skipWhitespaces();
         // Check for empty case
         if (currCharEquals(']')) {
             offset++;
-            return new JsonArrayImpl(list);
+            return new JsonArrayImpl(List.of());
         }
+        var list = new ArrayList<JsonValue>();
         for (; hasInput(); offset++) {
             // Get the JsonValue
             list.add(parseValue());
