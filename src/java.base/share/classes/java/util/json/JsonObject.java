@@ -71,12 +71,8 @@ public non-sealed interface JsonObject extends JsonValue {
             var key = e.getKey();
             // Implicit NPE on key
             var jsonKey = Utils.getSource(key.toCharArray(), 0, key.length());
-            var val = e.getValue();
-            if (ret.containsKey(jsonKey)) {
-                throw new IllegalArgumentException(
-                        "Duplicate member name: '%s'".formatted(jsonKey));
-            } else {
-                ret.put(jsonKey, Objects.requireNonNull(val));
+            if (ret.putIfAbsent(jsonKey, Objects.requireNonNull(e.getValue())) != null) {
+                throw new IllegalArgumentException("Duplicate member name: '%s'".formatted(jsonKey));
             }
         }
         return new JsonObjectImpl(ret);

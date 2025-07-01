@@ -186,11 +186,9 @@ public final class Json {
                                 "The key '%s' is not a String".formatted(entry.getKey()));
                     } else {
                         var key = Utils.getSource(strKey.toCharArray(), 0, strKey.length());
-                        if (m.containsKey(key)) {
-                            throw new IllegalArgumentException(
-                                    "Duplicate member name: '%s'".formatted(key));
-                        } else {
-                            m.put(key, Json.fromUntyped(entry.getValue(), identitySet));
+                        // Can't correctly return null since mapped to JsonNull, so null is error
+                        if (m.putIfAbsent(key, Json.fromUntyped(entry.getValue(), identitySet)) != null) {
+                            throw new IllegalArgumentException("Duplicate member name: '%s'".formatted(key));
                         }
                     }
                 }
