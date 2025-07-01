@@ -75,6 +75,18 @@ public class TestJsonObject {
     @Nested
     class TestParse {
 
+        @Test
+        void toStringTest() {
+            // 2 char sequence first
+            var key = "\" \\t \\u0021 \\u0022 \\u005c \\u0008 test \"";
+            var map = "{" + key + ":null}";
+            assertEquals("{\" \\t ! \\\" \\\\ \\b test \":null}", Json.parse(map).toString());
+            // Unicode escape sequence first
+            var key2 = "\" \\u0021 \\t \\u0022 \\u005c \\u0008 test \"";
+            var map2 = "{" + key2 + ":null}";
+            assertEquals("{\" ! \\t \\\" \\\\ \\b test \":null}", Json.parse(map2).toString());
+        }
+
         // Check for basic duplicate name
         @Test
         void testDuplicateKeys() {
@@ -226,6 +238,16 @@ public class TestJsonObject {
                 """
                 { }
                 """;
+
+        @Test
+        void toStringTest() {
+            // 2 char sequence first
+            var key = " \\t \\u0021 \\u0022 \\u005c \\u0008 test ";
+            assertEquals("{\" \\t ! \\\" \\\\ \\b test \":null}", JsonObject.of(Map.of(key, JsonNull.of())).toString());
+            // Unicode escape sequence first
+            var key2 = " \\u0021 \\t \\u0022 \\u005c \\u0008 test ";
+            assertEquals("{\" ! \\t \\\" \\\\ \\b test \":null}", JsonObject.of(Map.of(key2, JsonNull.of())).toString());
+        }
 
         @Test
         void emptyBuildTest() {

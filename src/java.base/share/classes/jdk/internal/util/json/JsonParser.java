@@ -143,8 +143,8 @@ public final class JsonParser {
     }
 
     /*
-     * Member name equality and storage in the map should be done with the
-     * unescaped String value.
+     * Member name equality and storage in the map should be done with Unicode
+     * escape sequences converted to their char equivalents.
      * See https://datatracker.ietf.org/doc/html/rfc8259#section-8.3
      */
     private String parseName() {
@@ -159,14 +159,10 @@ public final class JsonParser {
             var c = doc[offset];
             if (escape) {
                 var escapeLength = 0;
+                var dropEscape = false;
                 switch (c) {
-                    // Allowed JSON escapes
-                    case '"', '\\', '/' -> {}
-                    case 'b' -> c = '\b';
-                    case 'f' -> c = '\f';
-                    case 'n' -> c = '\n';
-                    case 'r' -> c = '\r';
-                    case 't' -> c = '\t';
+                    // Eligible 2 char escapes
+                    case '"', '\\', '/', 'b', 'f', 'n', 'r', 't' -> {}
                     case 'u' -> {
                         if (offset + 4 < doc.length) {
                             escapeLength = 4;
@@ -174,6 +170,18 @@ public final class JsonParser {
                             c = codeUnit();
                             // Move to the last hex digit, since outer loop will increment offset
                             offset += 3;
+                            c = switch (c) {
+                                case '"', '\\', '/' -> c;
+                                case '\b' -> 'b';
+                                case '\f' -> 'f';
+                                case '\n' -> 'n';
+                                case '\r' -> 'r';
+                                case '\t' -> 't';
+                                default -> {
+                                    dropEscape = true;
+                                    yield c;
+                                }
+                            };
                         } else {
                             throw failure("Invalid Unicode escape sequence");
                         }
@@ -183,13 +191,17 @@ public final class JsonParser {
                 if (!useBldr) {
                     initBuilder();
                     // Append everything up to the first escape sequence
-                    builder.append(doc, start, offset - escapeLength - 1 - start);
+                    builder.append(doc, start, offset - escapeLength - start);
                     useBldr = true;
+                }
+                if (dropEscape) {
+                    // Remove the backslash on valid converted U escape sequence
+                    // that does not require escaping
+                    builder.deleteCharAt(builder.length() - 1);
                 }
                 escape = false;
             } else if (c == '\\') {
                 escape = true;
-                continue;
             } else if (c == '\"') {
                 offset++;
                 if (useBldr) {

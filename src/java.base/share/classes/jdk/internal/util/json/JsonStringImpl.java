@@ -41,7 +41,8 @@ public final class JsonStringImpl implements JsonString {
     private final char[] doc;
     private final int startOffset;
     private final int endOffset;
-    private final Supplier<String> str = StableSupplier.of(this::unescape);
+    private final Supplier<String> str = StableSupplier.of(this::source);
+    private final Supplier<String> val = StableSupplier.of(this::unescape);
 
     public JsonStringImpl(String str) {
         doc = ("\"" + str + "\"").toCharArray();
@@ -59,8 +60,7 @@ public final class JsonStringImpl implements JsonString {
 
     @Override
     public String value() {
-        var ret = str.get();
-        return ret.substring(1, ret.length() - 1);
+        return val.get();
     }
 
     @Override
@@ -79,7 +79,60 @@ public final class JsonStringImpl implements JsonString {
         return Objects.hash(value());
     }
 
+    // Provides the fully unescaped value with quotes trimmed.
+    // Unlike Utils::getSource, this method unescapes 2 char escapes which may
+    // result in an invalid JSON String.
     private String unescape() {
-        return Utils.unescape(doc, startOffset, endOffset);
+        StringBuilder sb = null; // Only use if required
+        var escape = false;
+        int start = startOffset + 1;
+        int end = endOffset - 1;
+        boolean useBldr = false;
+        for (int offset = start; offset < end; offset++) {
+            var c = doc[offset];
+            if (escape) {
+                var length = 0;
+                switch (c) {
+                    case '"', '\\', '/' -> {}
+                    case 'b' -> c = '\b';
+                    case 'f' -> c = '\f';
+                    case 'n' -> c = '\n';
+                    case 'r' -> c = '\r';
+                    case 't' -> c = '\t';
+                    case 'u' -> {
+                        if (offset + 4 < endOffset) {
+                            c = Utils.codeUnit(doc, offset + 1);
+                            length = 4;
+                        } else {
+                            throw new IllegalArgumentException("Illegal Unicode escape sequence");
+                        }
+                    }
+                    default -> throw new IllegalArgumentException("Illegal escape sequence");
+                }
+                if (!useBldr) {
+                    useBldr = true;
+                    // At best, we know the size of the first escaped value
+                    sb = new StringBuilder(end - start - length - 1)
+                            .append(doc, start, offset - 1 - start);
+                }
+                offset+=length;
+                escape = false;
+            } else if (c == '\\') {
+                escape = true;
+                continue;
+            }
+            if (useBldr) {
+                sb.append(c);
+            }
+        }
+        if (useBldr) {
+            return sb.toString();
+        } else {
+            return new String(doc, start, end - start);
+        }
+    }
+
+    private String source() {
+        return Utils.getSource(doc, startOffset, endOffset);
     }
 }

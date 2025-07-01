@@ -49,8 +49,9 @@ public class Utils {
         return new JsonObjectImpl(map);
     }
 
-    // Used for escaping String values, applicable to JSON Strings and member names
-    public static String unescape(char[] doc, int startOffset, int endOffset) {
+    // Returns a valid JSON String. Unicode escape sequences are converted
+    // to their corresponding char, and properly escaped if required.
+    public static String getSource(char[] doc, int startOffset, int endOffset) {
         StringBuilder sb = null; // Only use if required
         var escape = false;
         int offset = startOffset;
@@ -58,18 +59,27 @@ public class Utils {
         for (; offset < endOffset; offset++) {
             var c = doc[offset];
             if (escape) {
+                var dropEscape = false;
                 var length = 0;
                 switch (c) {
-                    case '"', '\\', '/' -> {}
-                    case 'b' -> c = '\b';
-                    case 'f' -> c = '\f';
-                    case 'n' -> c = '\n';
-                    case 'r' -> c = '\r';
-                    case 't' -> c = '\t';
+                    // Eligible 2 char escapes
+                    case '"', '\\', '/', 'b', 'f', 'n', 'r', 't' -> {}
                     case 'u' -> {
                         if (offset + 4 < endOffset) {
                             c = codeUnit(doc, offset + 1);
                             length = 4;
+                            c = switch (c) {
+                                case '"', '\\', '/' -> c;
+                                case '\b' -> 'b';
+                                case '\f' -> 'f';
+                                case '\n' -> 'n';
+                                case '\r' -> 'r';
+                                case '\t' -> 't';
+                                default -> {
+                                    dropEscape = true;
+                                    yield c;
+                                }
+                            };
                         } else {
                             throw new IllegalArgumentException("Illegal Unicode escape sequence");
                         }
@@ -79,14 +89,18 @@ public class Utils {
                 if (!useBldr) {
                     useBldr = true;
                     // At best, we know the size of the first escaped value
-                    sb = new StringBuilder(endOffset - startOffset - length - 1)
-                            .append(doc, startOffset, offset - 1 - startOffset);
+                    sb = new StringBuilder(endOffset - startOffset - length)
+                            .append(doc, startOffset, offset - startOffset);
+                }
+                if (dropEscape) {
+                    // Remove the backslash on valid converted U escape sequence
+                    // that does not require escaping
+                    sb.deleteCharAt(sb.length() - 1);
                 }
                 offset+=length;
                 escape = false;
             } else if (c == '\\') {
                 escape = true;
-                continue;
             }
             if (useBldr) {
                 sb.append(c);

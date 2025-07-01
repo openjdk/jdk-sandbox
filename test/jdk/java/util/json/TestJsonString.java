@@ -115,10 +115,29 @@ public class TestJsonString {
             // assert their toString() returns the original text
             assertEquals(arg1 instanceof char[] ca ? new String(ca) : arg1, jv1.toString());
         }
+
+        @Test
+        void toStringTest() {
+            // 2 char sequence first
+            var str = "\" \\t \\u0021 \\u0022 \\u005c \\u0008 test \"";
+            assertEquals("\" \\t ! \\\" \\\\ \\b test \"", Json.parse(str).toString());
+            // Unicode escape sequence first
+            var str2 = "\" \\u0021 \\t \\u0022 \\u005c \\u0008 test \"";
+            assertEquals("\" ! \\t \\\" \\\\ \\b test \"", Json.parse(str2).toString());
+        }
     }
 
     @Nested
     class TestFactory {
+
+        @Test
+        void toStringTest() {
+            var str = " \\t \\u0021 \\u0022 \\u005c \\u0008 test ";
+            assertEquals("\" \\t ! \\\" \\\\ \\b test \"", JsonString.of(str).toString());
+            // Unicode escape sequence first
+            var str2 = " \\u0021 \\t \\u0022 \\u005c \\u0008 test ";
+            assertEquals("\" ! \\t \\\" \\\\ \\b test \"", JsonString.of(str2).toString());
+        }
 
         @Test
         void untypedStringTest() {

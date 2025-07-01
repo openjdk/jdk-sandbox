@@ -75,7 +75,7 @@ public non-sealed interface JsonObject extends JsonValue {
         for (var e : map.entrySet()) {
             var key = e.getKey();
             // Implicit NPE on key
-            var unescapedKey = Utils.unescape(key.toCharArray(), 0, key.length());
+            var unescapedKey = Utils.getSource(key.toCharArray(), 0, key.length());
             var val = e.getValue();
             if (ret.containsKey(unescapedKey)) {
                 throw new IllegalArgumentException(

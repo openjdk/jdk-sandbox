@@ -71,9 +71,7 @@ public non-sealed interface JsonString extends JsonValue {
     String value();
 
     /**
-     * {@return the {@code String} value represented by this {@code JsonString}
-     * surrounded by quotation marks} Any escaped characters in the original JSON
-     * string are converted to their unescaped form in the returned {@code String}.
+     * {@return the {@code String} value represented by this {@code JsonString}}
      *
      * @see #value()
      */

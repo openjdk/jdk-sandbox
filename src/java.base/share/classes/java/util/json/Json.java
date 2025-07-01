@@ -183,7 +183,7 @@ public final class Json {
                     if (!(entry.getKey() instanceof String strKey)) {
                         throw new IllegalArgumentException("Key is not a String: " + entry.getKey());
                     } else {
-                        var unescapedKey = Utils.unescape(
+                        var unescapedKey = Utils.getSource(
                                 strKey.toCharArray(), 0, strKey.length());
                         if (m.containsKey(unescapedKey)) {
                             throw new IllegalArgumentException(
