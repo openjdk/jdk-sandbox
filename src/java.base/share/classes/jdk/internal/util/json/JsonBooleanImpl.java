@@ -25,7 +25,6 @@
 
 package jdk.internal.util.json;
 
-import java.util.Objects;
 import java.util.json.JsonBoolean;
 
 import jdk.internal.ValueBased;
@@ -57,12 +56,11 @@ public final class JsonBooleanImpl implements JsonBoolean {
 
     @Override
     public boolean equals(Object o) {
-        return o instanceof JsonBoolean ojb &&
-                Objects.equals(value(), ojb.value());
+        return o instanceof JsonBoolean ojb && value() == ojb.value();
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(value());
+        return Boolean.hashCode(value());
     }
 }
