@@ -35,6 +35,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.FieldSource;
 
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -238,6 +239,13 @@ public class TestJsonObject {
                 """
                 { }
                 """;
+
+        @Test
+        void unexpectedTypeTest() {
+            var df = new DecimalFormat();
+            var exception = assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(df));
+            assertEquals("DecimalFormat is not a recognized type", exception.getMessage());
+        }
 
         @Test
         void controlCharInKeyTest() {

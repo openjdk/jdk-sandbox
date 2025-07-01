@@ -222,7 +222,7 @@ public final class Json {
             case null -> JsonNull.of();
             // JsonValue
             case JsonValue jv -> jv;
-            default -> throw new IllegalArgumentException("Type not recognized.");
+            default -> throw new IllegalArgumentException(src.getClass().getSimpleName() + " is not a recognized type");
         };
     }
 
