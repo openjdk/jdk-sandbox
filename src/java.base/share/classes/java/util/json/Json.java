@@ -180,7 +180,7 @@ public final class Json {
                     throw new IllegalArgumentException("Circular reference detected");
                 }
                 Map<String, JsonValue> m = LinkedHashMap.newLinkedHashMap(map.size());
-                for (Map.Entry<?, ?> entry : new LinkedHashMap<>(map).entrySet()) {
+                for (Map.Entry<?, ?> entry : map.entrySet()) {
                     if (!(entry.getKey() instanceof String strKey)) {
                         throw new IllegalArgumentException("Key is not a String: " + entry.getKey());
                     } else {
