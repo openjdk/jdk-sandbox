@@ -184,13 +184,12 @@ public final class Json {
                     if (!(entry.getKey() instanceof String strKey)) {
                         throw new IllegalArgumentException("Key is not a String: " + entry.getKey());
                     } else {
-                        var unescapedKey = Utils.getSource(
-                                strKey.toCharArray(), 0, strKey.length());
-                        if (m.containsKey(unescapedKey)) {
+                        var key = Utils.getSource(strKey.toCharArray(), 0, strKey.length());
+                        if (m.containsKey(key)) {
                             throw new IllegalArgumentException(
-                                    "Duplicate member name: '%s'".formatted(unescapedKey));
+                                    "Duplicate member name: '%s'".formatted(key));
                         } else {
-                            m.put(unescapedKey, Json.fromUntyped(entry.getValue(), identitySet));
+                            m.put(key, Json.fromUntyped(entry.getValue(), identitySet));
                         }
                     }
                 }

@@ -75,13 +75,13 @@ public non-sealed interface JsonObject extends JsonValue {
         for (var e : map.entrySet()) {
             var key = e.getKey();
             // Implicit NPE on key
-            var unescapedKey = Utils.getSource(key.toCharArray(), 0, key.length());
+            var jsonKey = Utils.getSource(key.toCharArray(), 0, key.length());
             var val = e.getValue();
-            if (ret.containsKey(unescapedKey)) {
+            if (ret.containsKey(jsonKey)) {
                 throw new IllegalArgumentException(
-                        "Multiple keys unescape to the same string: '%s'".formatted(unescapedKey));
+                        "Multiple keys unescape to the same string: '%s'".formatted(jsonKey));
             } else {
-                ret.put(unescapedKey, Objects.requireNonNull(val));
+                ret.put(jsonKey, Objects.requireNonNull(val));
             }
         }
         return new JsonObjectImpl(ret);
