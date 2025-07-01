@@ -182,7 +182,8 @@ public final class Json {
                 Map<String, JsonValue> m = LinkedHashMap.newLinkedHashMap(map.size());
                 for (Map.Entry<?, ?> entry : map.entrySet()) {
                     if (!(entry.getKey() instanceof String strKey)) {
-                        throw new IllegalArgumentException("Key is not a String: " + entry.getKey());
+                        throw new IllegalArgumentException(
+                                "The key '%s' is not a String".formatted(entry.getKey()));
                     } else {
                         var key = Utils.getSource(strKey.toCharArray(), 0, strKey.length());
                         if (m.containsKey(key)) {
