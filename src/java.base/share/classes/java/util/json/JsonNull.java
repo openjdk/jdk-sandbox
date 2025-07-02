@@ -40,7 +40,7 @@ import jdk.internal.util.json.JsonNullImpl;
 public non-sealed interface JsonNull extends JsonValue {
 
     /**
-     * {@return the {@code JsonNull} that represents a "null" JSON value}
+     * {@return a {@code JsonNull}}
      */
     static JsonNull of() {
         return JsonNullImpl.NULL;
