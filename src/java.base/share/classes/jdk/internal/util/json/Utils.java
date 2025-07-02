@@ -106,11 +106,14 @@ public class Utils {
             } else if (c == '\\') {
                 escape = true;
             } else if (c < ' ' || c == '"') {
-                throw new IllegalArgumentException("Unescaped control code");
+                throw new IllegalArgumentException("Reserved character: '%c' is not escaped".formatted(c));
             }
             if (useBldr) {
                 sb.append(c);
             }
+        }
+        if (escape) {
+            throw new IllegalArgumentException("Reserved character: '\\' is not escaped");
         }
         if (useBldr) {
             return sb.toString();

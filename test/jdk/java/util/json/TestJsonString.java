@@ -135,6 +135,9 @@ public class TestJsonString {
             // Pass some invalid Strings to the factory
             assertThrows(IllegalArgumentException.class, () -> JsonString.of("Foo \t"));
             assertThrows(IllegalArgumentException.class, () -> JsonString.of("Foo \""));
+            assertThrows(IllegalArgumentException.class, () -> JsonString.of("Foo \\"));
+            assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped("Foo \\"));
+
             // Equivalents as above, but properly escaped
             assertDoesNotThrow(() -> JsonString.of("Foo \\t"));
             assertDoesNotThrow(() -> JsonString.of("Foo \\\""));
