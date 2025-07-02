@@ -25,7 +25,6 @@
 
 package jdk.internal.util.json;
 
-import java.util.Objects;
 import java.util.json.JsonNull;
 
 import jdk.internal.ValueBased;
@@ -38,7 +37,7 @@ public final class JsonNullImpl implements JsonNull {
 
     public static final JsonNullImpl NULL = new JsonNullImpl();
     private static final String VALUE = "null";
-    private static final int HASH = Objects.hash(VALUE);
+    private static final int HASH = VALUE.hashCode();
 
     private JsonNullImpl() {}
 

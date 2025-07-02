@@ -25,7 +25,6 @@
 
 package jdk.internal.util.json;
 
-import java.util.Objects;
 import java.util.function.Supplier;
 import java.util.json.JsonString;
 
@@ -76,7 +75,7 @@ public final class JsonStringImpl implements JsonString {
 
     @Override
     public int hashCode() {
-        return Objects.hash(value());
+        return value().hashCode();
     }
 
     // Provides the fully unescaped value with quotes trimmed.

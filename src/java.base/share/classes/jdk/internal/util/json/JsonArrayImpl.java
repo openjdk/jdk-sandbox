@@ -27,7 +27,6 @@ package jdk.internal.util.json;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.json.JsonArray;
 import java.util.json.JsonValue;
 
@@ -70,6 +69,6 @@ public final class JsonArrayImpl implements JsonArray {
 
     @Override
     public int hashCode() {
-        return Objects.hash(values());
+        return values().hashCode();
     }
 }
