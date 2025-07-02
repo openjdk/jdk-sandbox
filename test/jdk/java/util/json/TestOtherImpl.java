@@ -93,12 +93,12 @@ public class TestOtherImpl {
         @Override
         public boolean equals(Object o) {
             return this == o ||
-                    o instanceof JsonString ojs && Objects.equals(value(), ojs.value());
+                    o instanceof JsonString ojs && value().equals(ojs.value());
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(value());
+            return value().hashCode();
         }
     }
 }
