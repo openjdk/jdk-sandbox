@@ -276,7 +276,7 @@ public final class Json {
         Objects.requireNonNull(src);
         return switch (src) {
             case JsonObject jo -> jo.members().entrySet().stream()
-                    .collect(LinkedHashMap::new, // to allow `null` value
+                    .collect(LinkedHashMap::new, // Avoid Collectors.toMap, to allow `null` value
                             (m, e) -> m.put(e.getKey(), Json.toUntyped(e.getValue())),
                             HashMap::putAll);
             case JsonArray ja -> ja.values().stream()
