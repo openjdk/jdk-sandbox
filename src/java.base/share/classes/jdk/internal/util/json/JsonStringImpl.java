@@ -78,9 +78,9 @@ public final class JsonStringImpl implements JsonString {
         return value().hashCode();
     }
 
-    // Provides the fully unescaped value with quotes trimmed.
-    // Unlike Utils::getSource, this method unescapes 2 char escapes which may
-    // result in an invalid JSON String.
+    // Provides the fully unescaped value with surrounding quotes trimmed.
+    // This method fully unescapes 2 char sequences as well as U escape sequences.
+    // As a result of un-escaping, the resultant String may not be JSON conformant.
     private String unescape() {
         StringBuilder sb = null; // Only use if required
         var escape = false;
@@ -130,6 +130,6 @@ public final class JsonStringImpl implements JsonString {
 
     private String source() {
         // getSource throws on quotes, so bypass and re-insert
-        return '"' + Utils.getSource(doc, startOffset + 1, endOffset - 1) + '"';
+        return '"' + Utils.getCompliantString(doc, startOffset + 1, endOffset - 1) + '"';
     }
 }

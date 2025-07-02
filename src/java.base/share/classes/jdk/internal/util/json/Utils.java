@@ -49,10 +49,13 @@ public class Utils {
         return new JsonObjectImpl(map);
     }
 
-    // This method checks that the input is a valid JSON String and returns the form
-    // with Unicode escape sequences converted to their corresponding char.
-    // Checks for unescaped control chars and quotation marks.
-    public static String getSource(char[] doc, int startOffset, int endOffset) {
+    /*
+     * 1) Converts the input into a JSON compliant String whose Unicode escape
+     * sequences have been decoded. The resultant char may be re-escaped if required.
+     * 2) This method also ensures the input is JSON compliant (Checks for
+     * unescaped control characters or quotation marks).
+     */
+    public static String getCompliantString(char[] doc, int startOffset, int endOffset) {
         StringBuilder sb = null; // Only use if required
         var escape = false;
         int offset = startOffset;

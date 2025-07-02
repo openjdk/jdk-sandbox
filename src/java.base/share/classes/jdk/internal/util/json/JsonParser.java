@@ -146,7 +146,8 @@ public final class JsonParser {
 
     /*
      * Member name equality and storage in the map should be done with Unicode
-     * escape sequences converted to their char equivalents.
+     * escape sequences converted to their char equivalents. This method is
+     * similar to Utils.getCompliantString, but for the parsing side.
      * See https://datatracker.ietf.org/doc/html/rfc8259#section-8.3
      */
     private String parseName() {
