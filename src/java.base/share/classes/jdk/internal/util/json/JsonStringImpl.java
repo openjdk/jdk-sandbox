@@ -40,15 +40,14 @@ public final class JsonStringImpl implements JsonString {
     private final char[] doc;
     private final int startOffset;
     private final int endOffset;
-    private final Supplier<String> str = StableSupplier.of(this::source);
-    private final Supplier<String> val = StableSupplier.of(this::unescape);
+    private final Supplier<String> source = StableSupplier.of(this::source);
+    private final Supplier<String> unescaped = StableSupplier.of(this::unescape);
 
     public JsonStringImpl(String str) {
         doc = ("\"" + str + "\"").toCharArray();
         startOffset = 0;
         endOffset = doc.length;
-        // Validates the input String as proper JSON
-        source();
+        source.get(); // Validates the input String as proper JSON
     }
 
     public JsonStringImpl(char[] doc, int start, int end) {
@@ -59,12 +58,12 @@ public final class JsonStringImpl implements JsonString {
 
     @Override
     public String value() {
-        return val.get();
+        return unescaped.get();
     }
 
     @Override
     public String toString() {
-        return str.get();
+        return source.get();
     }
 
     @Override
