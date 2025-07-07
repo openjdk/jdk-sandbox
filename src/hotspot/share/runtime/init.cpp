@@ -43,6 +43,7 @@
 #include "runtime/handles.inline.hpp"
 #include "runtime/icache.hpp"
 #include "runtime/init.hpp"
+#include "runtime/nmethodGrouper.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "sanitizers/leak.hpp"
@@ -203,6 +204,10 @@ jint init_globals2() {
   compiler_stubs_init(false /* in_compiler_thread */); // compiler's intrinsics stubs
   final_stubs_init();    // final StubRoutines stubs
   MethodHandles::generate_adapters();
+
+  if (UseNewCode2) {
+    NMethodGrouper::initialize();
+  }
 
   // All the flags that get adjusted by VM_Version_init and os::init_2
   // have been set so dump the flags now.
