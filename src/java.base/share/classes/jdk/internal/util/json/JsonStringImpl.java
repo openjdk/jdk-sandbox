@@ -40,14 +40,14 @@ public final class JsonStringImpl implements JsonString {
     private final char[] doc;
     private final int startOffset;
     private final int endOffset;
-    private final Supplier<String> source = StableSupplier.of(this::source);
-    private final Supplier<String> unescaped = StableSupplier.of(this::unescape);
+    private final Supplier<String> jsonStr = StableSupplier.of(this::jsonString);
+    private final Supplier<String> value = StableSupplier.of(this::unescape);
 
     public JsonStringImpl(String str) {
         doc = ("\"" + str + "\"").toCharArray();
         startOffset = 0;
         endOffset = doc.length;
-        source.get(); // Validates the input String as proper JSON
+        jsonStr.get(); // Validates the input String as proper JSON
     }
 
     public JsonStringImpl(char[] doc, int start, int end) {
@@ -58,12 +58,12 @@ public final class JsonStringImpl implements JsonString {
 
     @Override
     public String value() {
-        return unescaped.get();
+        return value.get();
     }
 
     @Override
     public String toString() {
-        return source.get();
+        return jsonStr.get();
     }
 
     @Override
@@ -127,8 +127,10 @@ public final class JsonStringImpl implements JsonString {
         }
     }
 
-    private String source() {
-        // getSource throws on quotes, so bypass and re-insert
-        return '"' + Utils.getCompliantString(doc, startOffset + 1, endOffset - 1) + '"';
+    // Decodes Unicode escape sequences and re-escapes if required
+    private String jsonString() {
+        // Utils.decodeUSequences will throw an exception on an unescaped quote
+        // Strip the surrounding quotes, and then re-add them.
+        return '"' + Utils.decodeUSequences(doc, startOffset + 1, endOffset - 1) + '"';
     }
 }

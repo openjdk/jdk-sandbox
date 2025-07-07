@@ -219,6 +219,17 @@ public class TestJsonObject {
             }""";
             assertEquals(json, Json.toDisplayString(Json.parse(json), 2));
         }
+
+        // Ensure decoded escape sequences are translated to valid JSON
+        // Supported 2 char escapes should be translated, otherwise U sequence
+        // needs to be preserved.
+        @Test
+        void controlCodeRoundTripTest() {
+            for (int i = 0; i < 32; i++) {
+                var mapWithSequence = "{ \" \\u" + String.format("%04x", i) + "\" : true }";
+                Json.parse(Json.parse(mapWithSequence).toString());
+            }
+        }
     }
 
 
@@ -450,6 +461,20 @@ public class TestJsonObject {
             var ofMap = Map.of("clon\\u00", JsonNull.of());
             assertThrows(IllegalArgumentException.class, () -> JsonObject.of(ofMap));
             assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(untypedMap));
+        }
+
+        // Ensure decoded escape sequences are translated to valid JSON
+        // Supported 2 char escapes should be translated, otherwise U sequence
+        // needs to be preserved.
+        @Test
+        void controlCodeRoundTripTest() {
+            for (int i = 0; i < 32; i++) {
+                var sequence = Map.of("\\u" + String.format("%04x", i), JsonNull.of());
+                var jo = JsonObject.of(sequence).members();
+                JsonObject.of(jo);
+                jo = ((JsonObject)Json.fromUntyped(sequence)).members();
+                Json.fromUntyped(jo);
+            }
         }
     }
 }

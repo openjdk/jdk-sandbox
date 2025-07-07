@@ -125,6 +125,17 @@ public class TestJsonString {
             var str2 = "\" \\u0021 \\t \\u0022 \\u005c \\u0008 test \"";
             assertEquals("\" ! \\t \\\" \\\\ \\b test \"", Json.parse(str2).toString());
         }
+
+        // Ensure decoded escape sequences are translated to valid JSON
+        // Supported 2 char escapes should be translated, otherwise U sequence
+        // needs to be preserved.
+        @Test
+        void controlCodeRoundTripTest() {
+            for (int i = 0; i < 32; i++) {
+                var sequence = "\\u" + String.format("%04x", i);
+                Json.parse(Json.parse("\"" + sequence + "\"").toString());
+            }
+        }
     }
 
     @Nested
@@ -165,6 +176,20 @@ public class TestJsonString {
             assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped("a\\afo"));
             assertThrows(IllegalArgumentException.class, () -> JsonString.of("a\\afo"));
             assertThrows(IllegalArgumentException.class, () -> JsonString.of("a\\u00AZ"));
+        }
+
+        // Ensure decoded escape sequences are translated to valid JSON
+        // Supported 2 char escapes should be translated, otherwise U sequence
+        // needs to be preserved.
+        @Test
+        void controlCodeRoundTripTest() {
+            for (int i = 0; i < 32; i++) {
+                var sequence = "\\u" + String.format("%04x", i);
+                var js = JsonString.of(sequence).toString();
+                JsonString.of(js.substring(1, js.length() - 1));
+                js = Json.fromUntyped(sequence).toString();
+                Json.fromUntyped(js.substring(1, js.length() - 1));
+            }
         }
     }
 }
