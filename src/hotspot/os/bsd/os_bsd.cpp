@@ -2001,6 +2001,10 @@ void os::init(void) {
   os::Posix::init();
 }
 
+void os::revive_init(void) {
+
+}
+
 // To install functions for atexit system call
 extern "C" {
   static void perfMemory_exit_helper() {

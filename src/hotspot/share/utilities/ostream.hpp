@@ -335,6 +335,7 @@ void ostream_init();
 void ostream_init_log();
 void ostream_exit();
 void ostream_abort();
+void ostream_revive();
 const char* make_log_name(const char* log_name, const char* force_directory);
 
 // In the non-fixed buffer case an underlying buffer will be created and

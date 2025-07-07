@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -199,6 +199,31 @@ public abstract class VirtualMachine {
         for (AttachProvider provider: providers) {
             try {
                 return provider.attachVirtualMachine(id);
+            } catch (AttachNotSupportedException x) {
+                lastExc = x;
+            }
+        }
+        throw lastExc;
+    }
+
+    /*
+     * Alternate attach method accepting library directory list, for core files.
+     * @since 25
+     */
+    public static VirtualMachine attach(String id, List<String> libDirs)
+        throws AttachNotSupportedException, IOException
+    {
+        if (id == null) {
+            throw new NullPointerException("id cannot be null");
+        }
+        List<AttachProvider> providers = AttachProvider.providers();
+        if (providers.size() == 0) {
+            throw new AttachNotSupportedException("no providers installed");
+        }
+        AttachNotSupportedException lastExc = null;
+        for (AttachProvider provider: providers) {
+            try {
+                return provider.attachVirtualMachine(id, libDirs);
             } catch (AttachNotSupportedException x) {
                 lastExc = x;
             }

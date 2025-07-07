@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,13 @@
 
 package sun.tools.jcmd;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.List;
 import java.net.URISyntaxException;
 
 import com.sun.tools.attach.AttachOperationFailedException;
@@ -65,6 +67,7 @@ public class JCmd {
         }
 
         ProcessArgumentMatcher ap = null;
+        boolean coredump = false;
         try {
             ap = new ProcessArgumentMatcher(arg.getProcessString());
         } catch (IllegalArgumentException iae) {
@@ -80,6 +83,20 @@ public class JCmd {
         }
 
         Collection<String> pids = ap.getVirtualMachinePids(JCmd.class);
+
+        if (arg.isCore() ||
+            (pids.isEmpty() && new File(arg.getProcessString()).exists())) {
+            // core or minidump
+            System.out.println("Opening dump file '" + arg.getProcessString() + "'...");
+
+            try {
+                executeCommandForCrashDump(arg.getProcessString(), arg.getLibDirs(), arg.getCommand());
+                System.exit(0);
+            } catch (Throwable thr) {
+                thr.printStackTrace();
+                System.exit(1);
+            }
+        }
 
         if (pids.isEmpty()) {
             System.err.println("Could not find any processes matching : '"
@@ -110,9 +127,22 @@ public class JCmd {
     private static void executeCommandForPid(String pid, String command)
         throws AttachNotSupportedException, IOException,
                UnsupportedEncodingException {
-        VirtualMachine vm = VirtualMachine.attach(pid);
 
-        // Cast to HotSpotVirtualMachine as this is an
+        VirtualMachine vm = VirtualMachine.attach(pid);
+        executeCommandCommon(vm, command);
+        vm.detach();
+    }
+
+    private static void executeCommandForCrashDump(String pid, List<String> libDirs, String command)
+        throws AttachNotSupportedException, IOException, UnsupportedEncodingException {
+
+        VirtualMachine vm = VirtualMachine.attach(pid, libDirs);
+        executeCommandCommon(vm, command);
+        vm.detach();
+    }
+
+    private static void executeCommandCommon(VirtualMachine vm, String command) throws IOException, UnsupportedEncodingException {
+        // Cast to HotSpotVirtualMachine as executeJCmd is an
         // implementation specific method.
         HotSpotVirtualMachine hvm = (HotSpotVirtualMachine) vm;
         String lines[] = command.split("\\n");
@@ -127,7 +157,7 @@ public class JCmd {
                 System.out.println("Command executed successfully");
             }
         }
-        vm.detach();
+
     }
 
     private static void listCounters(String pid) {

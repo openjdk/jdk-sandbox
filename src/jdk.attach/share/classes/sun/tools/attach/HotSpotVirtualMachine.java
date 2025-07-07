@@ -34,6 +34,7 @@ import com.sun.tools.attach.spi.AttachProvider;
 import jdk.internal.misc.VM;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.InputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -78,7 +79,11 @@ public abstract class HotSpotVirtualMachine extends VirtualMachine {
         try {
             pid = Integer.parseInt(id);
         } catch (NumberFormatException e) {
-            throw new AttachNotSupportedException("Invalid process identifier: " + id);
+            if (new File(id).exists()) {
+                pid = -1;
+            } else {
+                throw new AttachNotSupportedException("Invalid process identifier: " + id);
+            }
         }
 
         selfAttach = pid == 0 || pid == CURRENT_PID;

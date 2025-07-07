@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2025, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -52,6 +52,19 @@ public class AttachProviderImpl extends HotSpotAttachProvider {
     public VirtualMachine attachVirtualMachine(String vmid)
         throws AttachNotSupportedException, IOException
     {
+        // AttachNotSupportedException will be thrown if the target VM can be determined
+        // to be not attachable.
+        testAttachable(vmid);
+
+        return new VirtualMachineImpl(this, vmid);
+    }
+
+    public VirtualMachine attachVirtualMachine(String vmid, List<String> libDirs)
+        throws AttachNotSupportedException, IOException
+    {
+         if (new File(vmid).exists()) {
+             return new VirtualMachineCoreDumpImpl(this, vmid, libDirs);
+         }
         // AttachNotSupportedException will be thrown if the target VM can be determined
         // to be not attachable.
         testAttachable(vmid);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@ import com.sun.tools.attach.AttachNotSupportedException;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -51,11 +52,7 @@ public class AttachProviderImpl extends HotSpotAttachProvider {
     public VirtualMachine attachVirtualMachine(String vmid)
         throws AttachNotSupportedException, IOException
     {
-        // AttachNotSupportedException will be thrown if the target VM can be determined
-        // to be not attachable.
-        testAttachable(vmid);
-
-        return new VirtualMachineImpl(this, vmid);
+        return attachVirtualMachine(vmid, null);
     }
 
     public List<VirtualMachineDescriptor> listVirtualMachines() {

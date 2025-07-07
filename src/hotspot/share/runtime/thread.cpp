@@ -47,6 +47,7 @@
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadSMR.inline.hpp"
 #include "utilities/macros.hpp"
+#include "utilities/ostream.hpp"
 #include "utilities/spinYield.hpp"
 #if INCLUDE_JFR
 #include "jfr/jfr.hpp"
@@ -615,3 +616,59 @@ void Thread::SpinRelease(volatile int * adr) {
   // more than covers this on all platforms.
   *adr = 0;
 }
+
+
+jboolean Thread::_revived_vm = false;
+
+// Consider revival returning more info:
+struct revival_data {
+  void* info;
+  void* vm_thread;
+  void* tty;
+};
+
+struct revival_data vm_revival_data;
+
+// VM Process Revival for Serviceability
+Thread* Thread::process_revival() {
+  _revived_vm = true;
+#ifdef LINUX
+  os::Linux::revive_init();
+#endif
+#ifdef WINDOWS
+  // os::Windows::revive_init();
+#endif
+  // A Thread object is needed to call the dcmd parser, and use a
+  // VMThread so commands invoking a VMOperation will run it themselves.
+  // VMThread constructor is now private, so not: VMThread *jt = new VMThread();
+  VMThread *jt = VMThread::vm_thread(); // access the _vm_thread singleton
+  jt->initialize_thread_current(); // call before using tty
+  jt->record_stack_base_and_size();
+  jt->set_osthread(new OSThread()); // was; (nullptr, nullptr));
+
+  // If creating a JavaThread, do:
+  //  jt->set_thread_state(_thread_in_vm);
+  //  jt->set_on_thread_list();
+
+  ostream_revive(); // fix tty
+
+  // Set flag that we are at a Safepoint:
+  SafepointSynchronize::set_is_at_safepoint();
+
+  // VM options:
+  // GCParallelVerificationEnabled = false;
+  DisplayVMOutput = 1;
+  LogVMOutput = 0;
+  NativeMemoryTracking = 0;
+  UnlockDiagnosticVMOptions = true;
+  DebuggingContext::force(); // Disable asserts
+
+  vm_revival_data.vm_thread = jt;
+  vm_revival_data.tty = tty;
+  tty->print_cr("Thread::process_revival done");
+  //return &vm_revival_data;
+  return jt;
+}
+
+void* process_revival() { return (void*) Thread::process_revival(); }
+

@@ -2251,6 +2251,10 @@ jint os::init_2(void) {
   return JNI_OK;
 }
 
+void os::revive_init(void) {
+
+}
+
 int os::active_processor_count() {
   // User has overridden the number of active processors
   if (ActiveProcessorCount > 0) {

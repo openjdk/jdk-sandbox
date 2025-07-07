@@ -37,7 +37,8 @@
 enum DCmdSource {
   DCmd_Source_Internal  = 0x01U,  // invocation from the JVM
   DCmd_Source_AttachAPI = 0x02U,  // invocation via the attachAPI
-  DCmd_Source_MBean     = 0x04U   // invocation via a MBean
+  DCmd_Source_MBean     = 0x04U,  // invocation via a MBean
+  DCmd_Source_Revival   = 0x08U   // invocation via process revival
 };
 
 // CmdLine is the class used to handle a command line containing a single

@@ -187,7 +187,7 @@ void VM_GC_HeapInspection::doit() {
     }
   }
   HeapInspection inspect;
-  WorkerThreads* workers = Universe::heap()->safepoint_workers();
+  WorkerThreads* workers = !Thread::is_revived() ? Universe::heap()->safepoint_workers() : nullptr;
   if (workers != nullptr) {
     // The GC provided a WorkerThreads to be used during a safepoint.
     // Can't run with more threads than provided by the WorkerThreads.

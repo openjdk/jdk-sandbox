@@ -106,6 +106,10 @@ class JavaThread;
 //     - this->thread_main_inner()  // extra call level to ensure correct stack calculations
 //       - this->entry_point()  // set differently for each kind of JavaThread
 
+extern "C" {
+JNIEXPORT void * process_revival();
+}
+
 class Thread: public ThreadShadow {
   friend class VMError;
   friend class VMErrorCallbackMark;
@@ -274,6 +278,11 @@ class Thread: public ThreadShadow {
   // Manage Thread::current()
   void initialize_thread_current();
   static void clear_thread_current(); // TLS cleanup needed before threads terminate
+
+  // Process Revival for Serviceability:
+  JNIEXPORT static Thread* process_revival();
+  JNIEXPORT static bool is_revived() { return _revived_vm; }
+  static jboolean _revived_vm;
 
  protected:
   // To be implemented by children.
@@ -635,6 +644,7 @@ protected:
 
  private:
   VMErrorCallback* _vm_error_callbacks;
+
 };
 
 class ThreadInAsgct {

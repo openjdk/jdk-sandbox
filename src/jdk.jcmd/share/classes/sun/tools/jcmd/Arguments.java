@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,8 @@ package sun.tools.jcmd;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 class Arguments {
     private boolean listProcesses = false;
@@ -35,12 +37,16 @@ class Arguments {
     private boolean showUsage     = false;
     private String  command       = null;
     private String  processString = null;
+    private boolean core = false;
+    private List<String> libDirs = new ArrayList<>(1);
 
     public boolean isListProcesses() { return listProcesses; }
     public boolean isListCounters() { return listCounters; }
     public boolean isShowUsage() { return showUsage; }
     public String getCommand() { return command; }
     public String getProcessString() { return processString; }
+    public boolean isCore() { return core; }
+    public List<String> getLibDirs() { return libDirs; }
 
     public Arguments(String[] args) {
         if (args.length == 0 || args[0].equals("-l")) {
@@ -50,19 +56,34 @@ class Arguments {
             return;
         }
 
-        if (args[0].equals("-?") ||
-            args[0].equals("-h") ||
-            args[0].equals("--help") ||
-            // -help: legacy.
-            args[0].equals("-help")) {
-            showUsage = true;
-            return;
+        int i = 0;
+        while (i < args.length) {
+            if (args[i].equals("-?") ||
+                args[i].equals("-h") ||
+                args[i].equals("--help") ||
+                // -help: legacy.
+                args[i].equals("-help")) {
+                showUsage = true;
+                return;
+            } else if (args[i].equals("-c") || args[i].equals("--core")) {
+                core = true;
+            } else if (args[i].equals("-L") || args[i].equals("--libdir")) {
+                i++;
+                libDirs.add(args[i]);
+            } else {
+                // Not a known argument, move on to read process string/pid.
+                break;
+            }
+            i++;
         }
-
-        processString = args[0];
+        if (i >= args.length - 1) {
+            throw new IllegalArgumentException("Incomplete arguments, process ID, name or dump filename required.");
+        }
+        // Remaining arguments: process string or pid, and command.
+        processString = args[i++];
 
         StringBuilder sb = new StringBuilder();
-        for (int i = 1; i < args.length; i++) {
+        for (; i < args.length; i++) {
             if (args[i].equals("-f")) {
                 if (args.length == i + 1) {
                     throw new IllegalArgumentException(
