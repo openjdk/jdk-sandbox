@@ -685,8 +685,12 @@ void write(int fd, const char *buf) {
 
 #ifdef WINDOWS
 char *basename(char *s) {
-    // PRS_TODO
-
+    for (char *p = s + strlen(s); p != s; p--) {
+		if (*p == '\\') {
+			p++;
+            return p;
+        }
+	}
     return s;
 }
 #endif
@@ -698,7 +702,8 @@ int mappings_file_create(const char *dirname, const char *corename) {
 // time 123213123
 // L jvm addresshex 0   (0 is placeholder for possible checksum)
 // 
-// Mappings to be written separately.
+// Memory mappings to be written separately.
+
     char buf[BUFLEN];
     snprintf(buf, BUFLEN, "%s%s", dirname, "/core.mappings"); 
     if (verbose) {
