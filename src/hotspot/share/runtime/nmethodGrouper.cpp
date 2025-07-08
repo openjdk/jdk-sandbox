@@ -17,6 +17,7 @@ NonJavaThread *NMethodGrouper::_nmethod_grouper_thread = nullptr;
 LinkedListImpl<const nmethod*> NMethodGrouper::_unregistered_nmethods;
 
 void NMethodGrouper::initialize() {
+  _nmethod_grouper_thread = new C2NMethodGrouperThread();
   if (os::create_thread(_nmethod_grouper_thread, os::os_thread)) {
     os::start_thread(_nmethod_grouper_thread);
   } else {
@@ -82,9 +83,10 @@ class ThreadSampler : public StackObj {
  private:
   NMethodSamples _samples;
   int _total_samples;
+  int _processed_threads;
 
  public:
-  ThreadSampler() : _samples(), _total_samples(0) {}
+  ThreadSampler() : _samples(), _total_samples(0), _processed_threads(0) {}
 
   void run() {
     MutexLocker ml(Threads_lock);
@@ -94,6 +96,7 @@ class ThreadSampler : public StackObj {
         continue;
       }
 
+      _processed_threads++;
       GetC2NMethodTask task(jt);
       task.run();
       if (task._nmethod != nullptr) {
@@ -110,6 +113,9 @@ class ThreadSampler : public StackObj {
   }
   int total_samples() const {
     return _total_samples;
+  }
+  int processed_threads() const {
+    return _processed_threads;
   }
 };
 
@@ -138,16 +144,29 @@ static void find_nmethods_to_group() {
 
   const int64_t period = sampling_period_ms();
   ThreadSampler sampler;
-  while (sampler.total_samples() < min_samples()) {
+  int i = 0;
+  while (true) {
+    i++;
     const int64_t sampling_start = get_monotonic_ms();
     sampler.run();
+    if (sampler.total_samples() >= min_samples()) {
+      break;
+    }
     const int64_t next_sample = period - (get_monotonic_ms() - sampling_start);
     if (next_sample > 0) {
       os::naked_sleep(next_sample);
     }
   }
-  int total_samples = sampler.total_samples();
-  tty->print_cr("Profiling nmethods done, %d samples", total_samples);
+
+  {
+    MutexLocker ml(CodeCache_lock, Mutex::_no_safepoint_check_flag);
+    int total_samples = sampler.total_samples();
+    int processed_threads = sampler.processed_threads();
+    tty->print_cr("Profiling nmethods done: %d samples, %d nmethods, %d iterations, %d processed threads, %d unregistered nmethods",
+       total_samples, sampler.samples().number_of_entries(), i,
+       processed_threads, (int)NMethodGrouper::_unregistered_nmethods.size());
+    NMethodGrouper::_unregistered_nmethods.clear();
+  }
 }
 
 void NMethodGrouper::group_nmethods() {

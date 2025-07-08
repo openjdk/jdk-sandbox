@@ -10,8 +10,8 @@ class NMethodGrouper : public AllStatic {
   static void group_nmethods();
 
   static NonJavaThread *_nmethod_grouper_thread;
-  static LinkedListImpl<const nmethod*> _unregistered_nmethods;
  public:
+  static LinkedListImpl<const nmethod*> _unregistered_nmethods;
   static void group_nmethods_loop();
   static void initialize();
   static void unregister_nmethod(const nmethod* nm);
