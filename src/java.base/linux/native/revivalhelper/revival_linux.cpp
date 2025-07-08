@@ -756,7 +756,7 @@ int copy_file_pd(char *srcfile, char *destfile) {
 }
 
 
-// PSR_TODO
+// PRS_TODO
 int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const char *javahome, void *addr) {
     char command[BUFLEN];
     memset(command, 0, BUFLEN);
@@ -765,8 +765,7 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
     // Create list of mappings for revived process.
     //
     // Write mappings file.
-    // use fd, create a Segment, call int mappings_file_write(int fd, Segment seg)
-
+    // use fd, create a Segment, call int Segment::write_mapping(int fd)
 
     // Get symbols in libjvm.
     // If dlopen relocated libjvm, should use dlsym results.
@@ -817,8 +816,7 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
     }
 
     // Create core.mappings file:
-    unsigned long long coretime = 0;
-    int fd = mappings_file_create(revival_dirname, corename, "0", coretime);
+    int fd = mappings_file_create(revival_dirname, corename);
     if (fd < 0) {
         fprintf(stderr, "failed to create mappings file\n");
         return -1;

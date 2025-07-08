@@ -140,6 +140,32 @@ const char * dangerous(void *vaddr, unsigned long long length) {
     return nullptr;
 }
 
+
+/**
+ * File size utility.
+ */
+unsigned long long file_size(const char *filename) {
+    struct stat sb;
+    if (stat(filename, &sb) == -1) {
+       printf("cannot stat '%s': %d: %s\n", filename, errno, strerror(errno));
+       return -1;
+   }
+   return (long long) sb.st_size;
+}
+
+/**
+ * File time utility.
+ */
+unsigned long long file_time(const char *filename) {
+    struct stat sb;
+    if (stat(filename, &sb) == -1) {
+       printf("cannot stat '%s': %d: %s\n", filename, errno, strerror(errno));
+       return -1;
+   }
+   return (long long) sb.st_mtime;
+}
+
+
 /**
  * Create a memory mapping, at some virtual address, directly from a file/offset/length.
  * Return -1 on failure.
@@ -336,16 +362,11 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
     // Do not compare names: core_filename does not have to match, cores can be renamed.
     // Compare size: this should match.
     unsigned long long parsedSize = strtoull(s2, nullptr, 10);
-    struct stat sb;
-    // Check if Linux needs lstat here, Windows uses stat:
-    if (stat(core_filename, &sb) == -1) {
-        printf("cannot stat '%s': %d: %s\n", core_filename, errno, strerror(errno));
-        return -1;
+    unsigned long long coresize = file_size(corename);
+    if (verbose || (unsigned long long) coresize != parsedSize) {
+        printf("%s: revival data recorded core size %lld, actual file size %lld\n", core_filename, parsedSize, coresize);
     }
-    if (verbose || (unsigned long long) sb.st_size != parsedSize) {
-        printf("%s: revivaldata recorded core size %lld, actual file size %lld\n", core_filename, parsedSize, (long long) sb.st_size);
-    }
-    if ((unsigned long long) sb.st_size != parsedSize) {
+    if (coresize != parsedSize) {
         return -1;
     }
     // Consider a checksum.
@@ -654,7 +675,7 @@ int symbol_set(const char *sym, int value) {
 void write(int fd, const char *buf) {
     size_t len = strlen(buf);
     fprintf(stderr, "%s", buf); // temp echo to stderr
-    int e = write(fd, buf, len);
+    int e = (int) write(fd, buf,(unsigned int) len);
     if (e < 0) {
         fprintf(stderr, "Write failed: %s\n", strerror(errno));
     } else if (e != (int) len) {
@@ -662,21 +683,29 @@ void write(int fd, const char *buf) {
     }
 }
 
-int mappings_file_create(const char *dirname, const char *corename, const char *checksum,  unsigned long long time) {
-// core FILENAME
+#ifdef WINDOWS
+char *basename(char *s) {
+    // PRS_TODO
+
+    return s;
+}
+#endif
+
+
+int mappings_file_create(const char *dirname, const char *corename) {
+// Create file and write 3 header lines:
+// core FILENAME size
 // time 123213123
-// L jvm addresshex
+// L jvm addresshex 0   (0 is placeholder for possible checksum)
 // 
 // Mappings to be written separately.
-    fprintf(stderr, "XXXX mappings_file_create\n");
-
     char buf[BUFLEN];
     snprintf(buf, BUFLEN, "%s%s", dirname, "/core.mappings"); 
     if (verbose) {
         fprintf(stderr, "mappings_file_create: %s\n", buf);
     }
 #ifdef WINDOWS
-    int fd = _open(buf, _O_CREAT | _O_WRONLY | _O_TRUNC, _S_IREAD | _IWRITE);
+    int fd = _open(buf, _O_CREAT | _O_WRONLY | _O_TRUNC, _S_IREAD | _S_IWRITE);
 #else
     int fd = open(buf, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR);
 #endif
@@ -684,19 +713,40 @@ int mappings_file_create(const char *dirname, const char *corename, const char *
         fprintf(stderr, "mappings_file_create: %s: %s\n", buf, strerror(errno));
         return fd;
     }
-    snprintf(buf, BUFLEN, "core %s %s\n", basename((char *) corename), checksum);
+
+    unsigned long long coresize = file_size(corename);
+    snprintf(buf, BUFLEN, "core %s %lld\n", basename((char *) corename), coresize);
     write(fd, buf);
-    snprintf(buf, BUFLEN, "time %lld\n", time);
+    snprintf(buf, BUFLEN, "time %llu\n",file_time(corename));
     write(fd, buf);
-    snprintf(buf, BUFLEN, "L %s %llx\n", basename(jvm_filename), (unsigned long long) jvm_address);
+    const char *checksum = "0";
+    snprintf(buf, BUFLEN, "L %s %llx %s\n", basename(jvm_filename), (unsigned long long) jvm_address, checksum);
     write(fd, buf);
     return fd;
 }
 
-int mappings_file_write(int fd, Segment seg) {
-    // PRS_TODO
+
+/**
+ * Segment
+ */
+// PRS_TODO
+int Segment::write_mapping(int fd) {
+    // M vaddr endaddress fileoffset filesize memsize perms
+    // e.g.
+    // M 2d05a12e000 2d05a12f000 19615fd4 1000 1000 RW-
+    char buf[BUFLEN];
+    snprintf(buf, BUFLEN, "M %llx %llx %llx %llx %llx %s\n",
+             (unsigned long long) vaddr,
+             (unsigned long long) vaddr + length,
+             (unsigned long long) file_offset,
+             (unsigned long long) file_length,
+             (unsigned long long) file_length,
+             "RWX" // temp
+            );
+    write(fd, buf);
     return 0;
 }
+
 
 // REMOVE:
 int revive_common() {

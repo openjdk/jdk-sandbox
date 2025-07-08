@@ -86,7 +86,6 @@ static void install_kernelbase_1803_symbol_or_exit(Fn*& fn, const char* name) {
 
 
 void init_pd() {
-    verbose = true; // Temp default to verbose on Windows
     _SYSTEM_INFO systemInfo;
     GetSystemInfo(&systemInfo);
     valign = systemInfo.dwAllocationGranularity - 1;
@@ -712,14 +711,31 @@ void *get_jvm_load_adddress_pd(const char*corename) {
     return jvm_address;
 }
 
+
+void normalize(char *s) {
+    for (char *p = s; *p != '\0'; p++) {
+        if (*p == '/') *p = '\\';
+    }
+}
+
 int copy_file_pd(const char *srcfile, const char *destfile) {
     char command[BUFLEN];
     memset(command, 0, BUFLEN);
 
+    // Normalise paths
+    char *s = (char *) malloc(strlen(srcfile));
+    char *d = (char *) malloc(strlen(destfile));
+    strcpy(s, srcfile);
+    strcpy(d, destfile);
+    normalize(s);
+    normalize(d);
+
     strncat(command, "COPY ", BUFLEN - 1);
-    strncat(command, srcfile, BUFLEN - 1);
+    strncat(command, s, BUFLEN - 1);
     strncat(command, " ", BUFLEN - 1);
-    strncat(command, destfile, BUFLEN - 1);
+    strncat(command, d, BUFLEN - 1);
+    free(s);
+    free(d);
 
     fprintf(stderr, "COPY: %s\n", command);
     return system(command);
@@ -782,13 +798,13 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
         currentRVA += d.DataSize;
         prevAddr = d.StartOfMemoryRange;
 
-        // PSR_TODO
         // Write to mappings file.
-        // use fd, create a Segment, call int mappings_file_write(int fd, Segment seg) 
-
+        // PRS_TODO
+        Segment seg((void *) d.StartOfMemoryRange, (size_t) d.DataSize, (off_t) currentRVA, (size_t) d.DataSize);
+        e = seg.write_mapping(fd);
     }
     close_minidump(dump);
-    return -1;
+    return 0;
 }
 
 int create_revivalbits_native_pd(const char *corename, const char *javahome, const char *revival_dirname, const char *libdir) {
@@ -833,8 +849,7 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
     }
 
     // Create core.mappings file:
-    unsigned long long coretime = 0;
-    int fd = mappings_file_create(revival_dirname, corename, "0", coretime);
+    int fd = mappings_file_create(revival_dirname, corename);
     if (fd < 0) {
         fprintf(stderr, "failed to create mappings file\n");
         return -1;
@@ -842,7 +857,7 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
 
     e = create_mappings_pd(fd, corename, jvm_copy, javahome, addr);
 
-    fsync(fd);
+    // fsync
     close(fd);
     if (e != 0) {
         fprintf(stderr, "failed to create memory mappings: %d\n", e);

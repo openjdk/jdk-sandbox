@@ -32,7 +32,6 @@
 #include <errno.h>
 #include <fcntl.h>
 //#include <inttypes.h>
-#include <libgen.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -68,8 +67,9 @@ typedef uint64_t address;
 //
 #ifdef LINUX
 
-#include <unistd.h>
+#include <libgen.h>
 #include <pthread.h>
+#include <unistd.h>
 #include <time.h>
 #include <sys/mman.h>
 #include <sys/time.h>
@@ -90,8 +90,8 @@ void install_handler();
 
 #ifdef WIN32
 
-#include <windows.h>
 #include <io.h>
+#include <windows.h>
 
 static DWORD _thread_key;
 void tls_fixup_pd(void *tlsPtr);
@@ -112,6 +112,7 @@ void tls_fixup_pd(void *tlsPtr);
 
 #ifdef MACOSX
 
+#include <libgen.h>
 #include <unistd.h>
 
 #define LIBJVM_NAME "libjvm.dylib"
@@ -184,7 +185,7 @@ class Segment {
         off_t  file_offset;
         size_t file_length;
 
-        int write_mapping();
+        int write_mapping(int fd);
 };
 
 extern std::list<Segment> writableSegments;
@@ -250,9 +251,11 @@ int relocate_sharedlib_pd(const char* filename, const void *addr, const char *ja
 
 int create_revivalbits_native_pd(const char *corename, const char *javahome, const char *dirname, const char *libdir);
 
-int mappings_file_create(const char *filename, const char *corename, const char *checksum, unsigned long long time);
-
-int mappings_file_write(int fd, Segment seg);
+/**
+ * Create core.mappings file and write the header lines.
+ * Return the fd so other code can write the memory mapping lines.
+ */
+int mappings_file_create(const char *filename, const char *corename);
 
 
 /**
