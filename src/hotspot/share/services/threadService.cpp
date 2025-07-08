@@ -1554,3 +1554,4 @@ oop ThreadSnapshotFactory::get_thread_snapshot(jobject jthread, TRAPS) {
 }
 
 #endif // INCLUDE_JVMTI
+
