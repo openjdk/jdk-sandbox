@@ -174,27 +174,24 @@ public final class Json {
 
     static JsonValue fromUntyped(Object src, Set<Object> identitySet) {
         return switch (src) {
-            // Structural: JSON object, JSON array
+            // Structural: JSON object
             case Map<?, ?> map -> {
                 if (!identitySet.add(map)) {
                     throw new IllegalArgumentException("Circular reference detected");
                 }
                 Map<String, JsonValue> m = LinkedHashMap.newLinkedHashMap(map.size());
                 for (Map.Entry<?, ?> entry : map.entrySet()) {
-                    if (!(entry.getKey() instanceof String strKey)) {
+                    if (!(entry.getKey() instanceof String key)) {
                         throw new IllegalArgumentException(
                                 "The key '%s' is not a String".formatted(entry.getKey()));
                     } else {
-                        var key = Utils.decodeUSequences(strKey.toCharArray(), 0, strKey.length());
-                        // Can't correctly return null since mapped to JsonNull, so null is error
-                        if (m.putIfAbsent(key, Json.fromUntyped(entry.getValue(), identitySet)) != null) {
-                            throw new IllegalArgumentException("Duplicate member name: '%s'".formatted(key));
-                        }
+                        m.put(key, Json.fromUntyped(entry.getValue(), identitySet));
                     }
                 }
                 // Bypasses defensive copy in JsonObject.of(m)
                 yield Utils.objectOf(m);
             }
+            // Structural: JSON Array
             case List<?> list -> {
                 if (!identitySet.add(list)) {
                     throw new IllegalArgumentException("Circular reference detected");

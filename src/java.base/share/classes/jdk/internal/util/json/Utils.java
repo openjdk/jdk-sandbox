@@ -50,96 +50,48 @@ public class Utils {
     }
 
     /*
-     * 1) Converts the input into a JSON compliant String whose Unicode escape
-     * sequences have been decoded (control characters must remain escaped).
-     * 2) This method also ensures the input is JSON compliant (Checks for the
-     * reserved values that must be escaped).
+     * Used for an untyped translation to a Java String.
+     * Backslash, double quote, and control chars are escaped.
+     * Providing this method in Utils allows for a bypass of `JsonString.of(str).value()`
+     * for untyped conversions to JsonObject.
      */
-    public static String decodeUSequences(char[] doc, int startOffset, int endOffset) {
-        StringBuilder sb = null; // Only use if required
-        var escape = false;
-        int offset = startOffset;
-        boolean useBldr = false;
-        for (; offset < endOffset; offset++) {
-            var c = doc[offset];
-            if (escape) {
-                var dropEscape = false;
-                var length = 0;
-                switch (c) {
-                    // Eligible 2 char escapes
-                    case '"', '\\', '/', 'b', 'f', 'n', 'r', 't' -> {}
-                    case 'u' -> {
-                        if (offset + 4 < endOffset) {
-                            c = codeUnit(doc, offset + 1);
-                            length = 4;
-                            var controlChar = false;
-                            // If U sequence is decoded to double quote, backslash, or a control char,
-                            // ensure it remains escaped. Otherwise, drop the escape.
-                            c = switch (c) {
-                                case '"', '\\' -> c;
-                                case '\b' -> 'b';
-                                case '\f' -> 'f';
-                                case '\n' -> 'n';
-                                case '\r' -> 'r';
-                                case '\t' -> 't';
-                                default -> {
-                                    if (c < 32) {
-                                        // Decoded sequence is a control char
-                                        // that did not have a valid 2 char escape.
-                                        // It must remain escaped as U sequence.
-                                        controlChar = true;
-                                        yield 'u';
-                                    } else {
-                                        dropEscape = true;
-                                        yield c;
-                                    }
-                                }
-                            };
-                            if (controlChar) {
-                                // Append the 'u' and reset escape var
-                                // Loop will append the rest of the sequence normally
-                                escape = false;
-                                if (useBldr) {
-                                    sb.append(c);
-                                }
-                                continue;
-                            }
-                        } else {
-                            throw new IllegalArgumentException("Illegal Unicode escape sequence");
-                        }
-                    }
-                    default -> throw new IllegalArgumentException("Illegal escape sequence");
+    public static String escape(String str) {
+        StringBuilder sb = null; // Lazy init
+        for (int i = 0; i < str.length(); i++) {
+            char c = str.charAt(i);
+            // Does not require escaping
+            if (c >= 32 && c != '\\' && c != '"') {
+                if (sb != null) {
+                    sb.append(c);
                 }
-                if (!useBldr) {
-                    useBldr = true;
-                    // At best, we know the size of the first escaped value
-                    sb = new StringBuilder(endOffset - startOffset - length)
-                            .append(doc, startOffset, offset - startOffset);
+            // Requires escaping
+            } else {
+                if (sb == null) {
+                    sb = new StringBuilder().append(str, 0, i);
                 }
-                if (dropEscape) {
-                    // Remove the backslash on valid converted U escape sequence
-                    // that does not require escaping
-                    sb.deleteCharAt(sb.length() - 1);
+                // 2 Char escapes (Non-control characters)
+                if (c == '\\') {
+                    sb.append('\\').append(c);
+                } else if (c == '"') {
+                    sb.append('\\').append(c);
+                    // 2 Char escapes (Control characters)
+                } else if (c == '\b') {
+                    sb.append('\\').append('b');
+                } else if (c == '\f') {
+                    sb.append('\\').append('f');
+                } else if (c == '\n') {
+                    sb.append('\\').append('n');
+                } else if (c == '\r') {
+                    sb.append('\\').append('r');
+                } else if (c == '\t') {
+                    sb.append('\\').append('t');
+                    // All other chars requiring Unicode escape sequence
+                } else {
+                    sb.append('\\').append('u').append(String.format("%04X", (int) c));
                 }
-                offset+=length;
-                escape = false;
-            } else if (c == '\\') {
-                escape = true;
-            } else if (c < ' ' || c == '"') {
-                throw new IllegalArgumentException("Reserved character: '%c' is not escaped".formatted(c));
-            }
-            if (useBldr) {
-                sb.append(c);
             }
         }
-        if (escape) {
-            throw new IllegalArgumentException("Reserved character: '\\' is not escaped");
-        }
-        if (useBldr) {
-            return sb.toString();
-        } else {
-            return new String(doc, startOffset, endOffset - startOffset);
-        }
+        return sb == null ? str : sb.toString();
     }
 
     // Validate and construct corresponding value of Unicode escape sequence

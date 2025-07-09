@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.json.Json;
 import java.util.json.JsonArray;
+import java.util.json.JsonBoolean;
 import java.util.json.JsonNull;
 import java.util.json.JsonObject;
 import java.util.json.JsonParseException;
@@ -75,6 +76,22 @@ public class TestJsonObject {
 
     @Nested
     class TestParse {
+
+        // Ensure storage is done with the unescaped version
+        @Test
+        void retrievalTest() {
+            // parse
+            var jo = (JsonObject) Json.parse("{ \"foo\\t\" : false}");
+            assertEquals(JsonBoolean.of(false), jo.members().get("foo\t"));
+            jo = (JsonObject) Json.parse("{ \"foo\\u0009\" : false}");
+            assertEquals(JsonBoolean.of(false), jo.members().get("foo\t"));
+            // jo factory
+            jo = JsonObject.of(Map.of("foo\t", JsonBoolean.of(false)));
+            assertEquals(JsonBoolean.of(false), jo.members().get("foo\t"));
+            // untyped factory
+            jo = (JsonObject) Json.fromUntyped(Map.of("foo\t", JsonBoolean.of(false)));
+            assertEquals(JsonBoolean.of(false), jo.members().get("foo\t"));
+        }
 
         @Test
         void toStringTest() {
@@ -232,7 +249,6 @@ public class TestJsonObject {
         }
     }
 
-
     @Nested
     class TestFactory {
 
@@ -252,41 +268,10 @@ public class TestJsonObject {
                 """;
 
         @Test
-        void invalidStringTest() {
-            // JsonObject factory
-            assertThrows(IllegalArgumentException.class, () -> JsonObject.of(Map.of("Foo \t", JsonNull.of())));
-            assertThrows(IllegalArgumentException.class, () -> JsonObject.of(Map.of("Foo \"", JsonNull.of())));
-            assertThrows(IllegalArgumentException.class, () -> JsonObject.of(Map.of("Foo \\", JsonNull.of())));
-            // fromUntyped factory
-            assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(Map.of("Foo \t", "Bar")));
-            assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(Map.of("Foo \"", "Bar")));
-            assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(Map.of("Foo \\", "Bar")));
-            // Equivalents as above, but properly escaped
-            assertDoesNotThrow(() -> JsonObject.of(Map.of("Foo \\t", JsonNull.of())));
-            assertDoesNotThrow(() -> JsonObject.of(Map.of("Foo \\\"", JsonNull.of())));
-        }
-
-        @Test
         void unexpectedTypeTest() {
             var df = new DecimalFormat();
             var exception = assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(df));
             assertEquals("DecimalFormat is not a recognized type", exception.getMessage());
-        }
-
-        @Test
-        void controlCharInKeyTest() {
-            var key = "Foo \t"; // Key contains unescaped control code
-            assertThrows(IllegalArgumentException.class, () -> JsonObject.of(Map.of(key, JsonNull.of())));
-        }
-
-        @Test
-        void toStringTest() {
-            // 2 char sequence first
-            var key = " \\t \\u0021 \\u0022 \\u005c \\u0008 test ";
-            assertEquals("{\" \\t ! \\\" \\\\ \\b test \":null}", JsonObject.of(Map.of(key, JsonNull.of())).toString());
-            // Unicode escape sequence first
-            var key2 = " \\u0021 \\t \\u0022 \\u005c \\u0008 test ";
-            assertEquals("{\" ! \\t \\\" \\\\ \\b test \":null}", JsonObject.of(Map.of(key2, JsonNull.of())).toString());
         }
 
         @Test
@@ -442,25 +427,6 @@ public class TestJsonObject {
             mapNode.put("bar", mapRoot);
 
             assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(mapRoot));
-        }
-
-        // Enforce un-escaping of member names in factory methods
-        @Test
-        void testDuplicateKeyEqualityMultipleUnescaped() {
-            var untypedMap = Map.of("clone", "foo", "clon\\u0065", "foo");
-            var ofMap = Map.of("clone", JsonNull.of(), "clon\\u0065", JsonNull.of());
-            assertThrows(IllegalArgumentException.class, () -> JsonObject.of(ofMap));
-            assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(untypedMap));
-        }
-
-
-        // Enforce IAE for invalid escapes in factory methods
-        @Test
-        void testInvalidEscapes() {
-            var untypedMap = Map.of("clon\\u00", "foo");
-            var ofMap = Map.of("clon\\u00", JsonNull.of());
-            assertThrows(IllegalArgumentException.class, () -> JsonObject.of(ofMap));
-            assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(untypedMap));
         }
 
         // Ensure decoded escape sequences are translated to valid JSON

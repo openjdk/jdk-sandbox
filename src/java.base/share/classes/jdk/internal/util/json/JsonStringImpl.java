@@ -25,11 +25,9 @@
 
 package jdk.internal.util.json;
 
-import java.util.function.Supplier;
 import java.util.json.JsonString;
 
 import jdk.internal.ValueBased;
-import jdk.internal.lang.stable.StableSupplier;
 
 /**
  * JsonString implementation class
@@ -40,14 +38,16 @@ public final class JsonStringImpl implements JsonString {
     private final char[] doc;
     private final int startOffset;
     private final int endOffset;
-    private final Supplier<String> jsonStr = StableSupplier.of(this::jsonString);
-    private final Supplier<String> value = StableSupplier.of(this::unescape);
+    private final StableValue<String> jsonStr = StableValue.of();
+    private final StableValue<String> value = StableValue.of();
 
+    // Called by JsonString.of() factory. The passed String represents the
+    // unescaped value.
     public JsonStringImpl(String str) {
-        doc = ("\"" + str + "\"").toCharArray();
-        startOffset = 0;
-        endOffset = doc.length;
-        jsonStr.get(); // Validates the input String as proper JSON
+        doc = null;
+        startOffset = -1;
+        endOffset = -1;
+        jsonStr.setOrThrow('"' + Utils.escape(value.orElseSet(() -> str)) + '"');
     }
 
     public JsonStringImpl(char[] doc, int start, int end) {
@@ -58,34 +58,25 @@ public final class JsonStringImpl implements JsonString {
 
     @Override
     public String value() {
-        return value.get();
+        return value.orElseSet(this::unescape);
     }
 
     @Override
     public String toString() {
-        return jsonStr.get();
+        return jsonStr.orElseSet(
+                () -> new String(doc, startOffset, endOffset - startOffset));
     }
 
-    @Override
-    public boolean equals(Object o) {
-        return o instanceof JsonString ojs &&
-                value().equals(ojs.value());
-    }
-
-    @Override
-    public int hashCode() {
-        return value().hashCode();
-    }
-
-    // Provides the fully unescaped value with surrounding quotes trimmed.
-    // This method fully unescapes 2 char sequences as well as U escape sequences.
-    // As a result of un-escaping, the resultant String may not be JSON conformant.
+    /*
+     * Provides the fully unescaped value with surrounding quotes trimmed.
+     * This method fully unescapes 2 char sequences as well as U escape sequences.
+     * As a result of un-escaping, the resultant String may not be JSON conformant.
+     */
     private String unescape() {
-        StringBuilder sb = null; // Only use if required
+        StringBuilder sb = null; // Lazy init
         var escape = false;
         int start = startOffset + 1;
         int end = endOffset - 1;
-        boolean useBldr = false;
         for (int offset = start; offset < end; offset++) {
             var c = doc[offset];
             if (escape) {
@@ -104,8 +95,7 @@ public final class JsonStringImpl implements JsonString {
                         }
                     }
                 }
-                if (!useBldr) {
-                    useBldr = true;
+                if (sb == null) {
                     // At best, we know the size of the first escaped value
                     sb = new StringBuilder(end - start - length - 1)
                             .append(doc, start, offset - 1 - start);
@@ -116,21 +106,21 @@ public final class JsonStringImpl implements JsonString {
                 escape = true;
                 continue;
             }
-            if (useBldr) {
+            if (sb != null) {
                 sb.append(c);
             }
         }
-        if (useBldr) {
-            return sb.toString();
-        } else {
-            return new String(doc, start, end - start);
-        }
+        return sb == null ? new String(doc, start, end - start) : sb.toString();
     }
 
-    // Decodes Unicode escape sequences and re-escapes if required
-    private String jsonString() {
-        // Utils.decodeUSequences will throw an exception on an unescaped quote
-        // Strip the surrounding quotes, and then re-add them.
-        return '"' + Utils.decodeUSequences(doc, startOffset + 1, endOffset - 1) + '"';
+    @Override
+    public boolean equals(Object o) {
+        return o instanceof JsonString ojs &&
+                value().equals(ojs.value());
+    }
+
+    @Override
+    public int hashCode() {
+        return value().hashCode();
     }
 }

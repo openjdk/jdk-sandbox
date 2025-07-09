@@ -28,10 +28,10 @@ package java.util.json;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import jdk.internal.javac.PreviewFeature;
 import jdk.internal.util.json.JsonObjectImpl;
-import jdk.internal.util.json.Utils;
 
 /**
  * The interface that represents JSON object.
@@ -59,28 +59,17 @@ public non-sealed interface JsonObject extends JsonValue {
      *
      * The {@code JsonObject}'s members occur in the same order as the given
      * map's entries.
-     * <p>
-     * If a key in the provided {@code map} contains escaped Unicode escape sequences,
-     * they are unescaped before being added to the resulting {@code JsonObject}
-     * as a member name. If duplicate member names are found, an {@code
-     * IllegalArgumentException} is thrown.
      *
      * @param map the map of {@code JsonValue}s. Non-null.
-     * @throws IllegalArgumentException if there are duplicate member names.
      * @throws NullPointerException if {@code map} is {@code null}, contains
-     *      any keys that are {@code null}, or contains any values that are {@code null}
+     *      any keys that are {@code null}, or contains any values that are {@code null}.
      */
     static JsonObject of(Map<String, ? extends JsonValue> map) {
-        Map<String, JsonValue> ret = new LinkedHashMap<>(map.size()); // implicit NPE on map
-        for (var e : map.entrySet()) {
-            var key = e.getKey();
-            // Implicit NPE on key
-            var jsonKey = Utils.decodeUSequences(key.toCharArray(), 0, key.length());
-            if (ret.putIfAbsent(jsonKey, Objects.requireNonNull(e.getValue())) != null) {
-                throw new IllegalArgumentException("Duplicate member name: '%s'".formatted(jsonKey));
-            }
-        }
-        return new JsonObjectImpl(ret);
+        return new JsonObjectImpl(map.entrySet() // Implicit NPE on map
+                .stream()
+                .collect(Collectors.toMap(
+                        e -> Objects.requireNonNull(e.getKey()), Map.Entry::getValue, // Implicit NPE on val
+                        (_, v) -> v, LinkedHashMap::new)));
     }
 
     /**

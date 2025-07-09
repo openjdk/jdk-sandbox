@@ -51,14 +51,7 @@ public non-sealed interface JsonString extends JsonValue {
      * {@return the {@code JsonString} created from the given
      * {@code String}}
      *
-     * <p>
-     * {@code src} must be a valid JSON String. The following characters
-     * must be escaped: quotation mark (U+0022), reverse solidus (U+005C), and
-     * the control characters (U+0000 through U+001F).
-     *
      * @param src the given {@code String}. Non-null.
-     * @throws IllegalArgumentException if the given {@code src} is
-     *          not a valid JSON string.
      * @throws NullPointerException if {@code src} is {@code null}
      */
     static JsonString of(String src) {

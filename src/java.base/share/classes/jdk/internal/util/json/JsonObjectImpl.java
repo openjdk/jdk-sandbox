@@ -53,7 +53,8 @@ public final class JsonObjectImpl implements JsonObject {
     public String toString() {
         var s = new StringBuilder("{");
         for (Map.Entry<String, JsonValue> kv: members().entrySet()) {
-            s.append("\"").append(kv.getKey()).append("\":")
+            // Escape the key (which is stored as unescaped) to conform to JSON syntax
+            s.append("\"").append(Utils.escape(kv.getKey())).append("\":")
              .append(kv.getValue().toString())
              .append(",");
         }

@@ -145,8 +145,8 @@ public final class JsonParser {
     }
 
     /*
-     * Member name equality and storage in the map should be done with Unicode
-     * escape sequences converted to their char equivalents.
+     * Member name equality and storage in the map should be done with the
+     * unescaped value.
      * See https://datatracker.ietf.org/doc/html/rfc8259#section-8.3
      */
     private String parseName() {
@@ -161,10 +161,14 @@ public final class JsonParser {
             var c = doc[offset];
             if (escape) {
                 var escapeLength = 0;
-                var dropEscape = false;
                 switch (c) {
-                    // Eligible 2 char escapes
-                    case '"', '\\', '/', 'b', 'f', 'n', 'r', 't' -> {}
+                    // Allowed JSON escapes
+                    case '"', '\\', '/' -> {}
+                    case 'b' -> c = '\b';
+                    case 'f' -> c = '\f';
+                    case 'n' -> c = '\n';
+                    case 'r' -> c = '\r';
+                    case 't' -> c = '\t';
                     case 'u' -> {
                         if (offset + 4 < doc.length) {
                             escapeLength = 4;
@@ -172,38 +176,6 @@ public final class JsonParser {
                             c = codeUnit();
                             // Move to the last hex digit, since outer loop will increment offset
                             offset += 3;
-                            var controlChar = false;
-                            // If U sequence is decoded to double quote, backslash, or a control char,
-                            // ensure it remains escaped. Otherwise, drop the escape.
-                            c = switch (c) {
-                                case '"', '\\' -> c;
-                                case '\b' -> 'b';
-                                case '\f' -> 'f';
-                                case '\n' -> 'n';
-                                case '\r' -> 'r';
-                                case '\t' -> 't';
-                                default -> {
-                                    if (c < 32) {
-                                        // Decoded sequence is a control char
-                                        // that did not have a valid 2 char escape.
-                                        // It must remain escaped as U sequence.
-                                        controlChar = true;
-                                        yield 'u';
-                                    } else {
-                                        dropEscape = true;
-                                        yield c;
-                                    }
-                                }
-                            };
-                            if (controlChar) {
-                                // Append the 'u' and reset escape var
-                                // Loop will append the rest of the sequence normally
-                                escape = false;
-                                if (useBldr) {
-                                    builder.append(c);
-                                }
-                                continue;
-                            }
                         } else {
                             throw failure("Invalid Unicode escape sequence");
                         }
@@ -213,17 +185,13 @@ public final class JsonParser {
                 if (!useBldr) {
                     initBuilder();
                     // Append everything up to the first escape sequence
-                    builder.append(doc, start, offset - escapeLength - start);
+                    builder.append(doc, start, offset - escapeLength - 1 - start);
                     useBldr = true;
-                }
-                if (dropEscape) {
-                    // Remove the backslash on valid converted U escape sequence
-                    // that does not require escaping
-                    builder.deleteCharAt(builder.length() - 1);
                 }
                 escape = false;
             } else if (c == '\\') {
                 escape = true;
+                continue;
             } else if (c == '\"') {
                 offset++;
                 if (useBldr) {
