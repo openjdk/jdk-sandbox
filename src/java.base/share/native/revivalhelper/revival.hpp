@@ -170,10 +170,6 @@ extern void *revivalthread;
 extern void *h; // handle to libjvm
 
 
-extern char *jvm_filename;
-extern void *jvm_address;
-
-
 
 class Segment {
     public:
@@ -185,11 +181,19 @@ class Segment {
         off_t  file_offset;
         size_t file_length;
 
+        bool is_relevant();
         int write_mapping(int fd);
 };
 
 extern std::list<Segment> writableSegments;
 extern std::list<Segment> failedSegments;
+
+
+
+// Revival prep state:
+extern char *jvm_filename;
+extern void *jvm_address;
+extern std::list<Segment> avoidSegments;
 
 
 // Symbol lookup
@@ -275,6 +279,10 @@ int revival_checks_pd(const char *dirname);
 int dangerous0(void *vaddr, unsigned long long length, address xaddr);
 const char *dangerous( void *vaddr, unsigned long long length);
 
+/**
+ * If we know an upper limit on process virtual address, return it, or return 0 if not known.
+ */
+unsigned long long max_user_vaddr_pd();
 
 /**
  * Diagnostic utils:

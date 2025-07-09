@@ -55,6 +55,7 @@
 
 const char *corePageFilename;
 
+
 uint64_t vaddr_alignment_pd() {
     return 0xfff;
 }
@@ -72,11 +73,14 @@ uint64_t length_alignment_pd() {
     return 0xfff;
 }
 
-// long pagesize = sysconf(_SC_PAGE_SIZE);
+unsigned long long max_user_vaddr_pd() {
+    return 0x0; // update when known
+}
 
 void init_pd() {
 
 }
+
 
 bool revival_direxists_pd(const char *dirname) {
     int fd = open(dirname, O_DIRECTORY);

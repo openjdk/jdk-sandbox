@@ -69,6 +69,10 @@ uint64_t length_alignment_pd() {
     return vaddr_align;
 }
 
+unsigned long long max_user_vaddr_pd() {
+    return 0xffff800000000000;
+}
+
 void init_pd() {
     // pagesize, expect 0x1000
     long value = sysconf(_SC_PAGESIZE);
@@ -608,14 +612,15 @@ char *readstring(int fd) {
 
 
 /**
- * Read core NOTES, find NT_FILE, find libjvm.so
+ * Open dump, find JVM filename and load address.
+ * Return the jvm_filename to confirm it was found.
  */
-void *resolve_jvm_info(const char *filename) {
+char *resolve_jvm_info_pd(const char *filename) {
+// Read core NOTES, find NT_FILE, find libjvm.so
 
     int fd = open(filename, O_RDONLY);
     if (fd < 0) {
-        fprintf(stderr, "Cannot open %s\n", filename);
-        close(fd);
+        fprintf(stderr, "Cannot open %s: %s\n", filename, strerror(errno));
         return nullptr;
     }
     // Read ELF header, find NOTES
@@ -626,6 +631,8 @@ void *resolve_jvm_info(const char *filename) {
         close(fd);
         return nullptr;
     }
+    // TODO: Sanity check ELF header.
+
     lseek(fd, hdr.e_phoff, SEEK_SET);
     // Read ELF Program Headers.  Look for PT_NOTE
     Elf64_Phdr phdr;
@@ -734,7 +741,7 @@ void *resolve_jvm_info(const char *filename) {
 
 char *get_jvm_filename_pd(const char *filename) {
     if (jvm_filename == nullptr) {
-        resolve_jvm_info(filename);
+        jvm_filename = resolve_jvm_info_pd(filename);
     }
     return jvm_filename;
 }
@@ -785,6 +792,7 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
     // find libjvm and its load address from core
     char *jvm = get_jvm_filename_pd(corename);
     if (jvm == nullptr) {
+        fprintf(stderr, "revival: cannot locate JVM in core.\n") ;
         return -1;
     }
     fprintf(stderr, "JVM = '%s'\n", jvm);

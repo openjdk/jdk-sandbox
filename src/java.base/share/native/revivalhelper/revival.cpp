@@ -48,9 +48,6 @@ char *core_filename;
 int core_fd;
 const char *revivaldir;
 
-// Set during process revival prep:
-char *jvm_filename = nullptr;
-void *jvm_address = nullptr;
 
 // Set during actual revival:
 void *h; // handle to libjvm
@@ -59,6 +56,13 @@ void *_tty;
 
 std::list<Segment> writableSegments;
 std::list<Segment> failedSegments;
+
+
+// Revival prep state:
+char *jvm_filename = nullptr;
+void *jvm_address = nullptr;
+std::list<Segment> avoidSegments;
+
 
 address align_down(address ptr, uint64_t mask) {
     return ptr & ~mask;
@@ -734,7 +738,17 @@ int mappings_file_create(const char *dirname, const char *corename) {
 /**
  * Segment
  */
-// PRS_TODO
+
+/**
+ * Is this Segment not trivially ignorable, e.g. zero-length.
+ */
+bool Segment::is_relevant() {
+  return length > 0 && file_length > 0;
+}
+
+/**
+ * Write mappings line to fd.
+ */
 int Segment::write_mapping(int fd) {
     // M vaddr endaddress fileoffset filesize memsize perms
     // e.g.
@@ -751,6 +765,7 @@ int Segment::write_mapping(int fd) {
     write(fd, buf);
     return 0;
 }
+
 
 
 // REMOVE:

@@ -84,6 +84,21 @@ static void install_kernelbase_1803_symbol_or_exit(Fn*& fn, const char* name) {
     }
 }
 
+uint64_t vaddr_alignment_pd() {
+    return valign;
+}
+
+uint64_t offset_alignment_pd() {
+    return valign;
+}
+
+uint64_t length_alignment_pd() {
+    return valign;
+}
+
+unsigned long long max_user_vaddr_pd() {
+    return 0x7FFFFFFFFFFF;
+}
 
 void init_pd() {
     _SYSTEM_INFO systemInfo;
@@ -102,18 +117,6 @@ void init_pd() {
     // Function lookups
     install_kernelbase_1803_symbol_or_exit(pVirtualAlloc2,      "VirtualAlloc2");
     install_kernelbase_1803_symbol_or_exit(pMapViewOfFile3,     "MapViewOfFile3");
-}
-
-uint64_t vaddr_alignment_pd() {
-    return valign;
-}
-
-uint64_t offset_alignment_pd() {
-    return valign;
-}
-
-uint64_t length_alignment_pd() {
-    return valign;
 }
 
 /*
@@ -656,9 +659,12 @@ void close_minidump(struct minidump *dump) {
     free(dump);
 }
 
-void *resolve_jvm_info_pd(const char *filename) {
-    // Open dump, find JVM, find JVM load address.
-
+/**
+ * Open dump, find JVM filename and load address.
+ * Return the jvm_filename to confirm it was found.
+ */
+char *resolve_jvm_info_pd(const char *filename) {
+// Read dump ModuleListStream to find jvm.dll
     struct minidump *dump = open_minidump(filename);
     if (dump == nullptr) {
         return nullptr;
@@ -702,7 +708,7 @@ void *resolve_jvm_info_pd(const char *filename) {
 
 char *get_jvm_filename_pd(const char *filename) {
     if (jvm_filename == nullptr) {
-        resolve_jvm_info_pd(filename);
+        jvm_filename = resolve_jvm_info_pd(filename);
     }
     return jvm_filename;
 }
@@ -791,16 +797,26 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
     for (ULONG64 i = 0; i < NumberOfMemoryRanges; i++) {
         e = read(dump->fd, &d, sizeof(d));
         if (d.StartOfMemoryRange == prevAddr) {
-            break;
+            break; // Repeated data in minidump can be observed at end
         }
-        fprintf(stderr, "create_mappings_pd: %8lld 0x%16llx 0x%16llx   dump file offset 0x%16llx \n",
-                i, d.StartOfMemoryRange, d.DataSize, currentRVA);
+        if (max_user_vaddr_pd() > 0 && d.StartOfMemoryRange >= max_user_vaddr_pd()) {
+            break; // End of user space mappings.
+        }
+        if (verbose) {
+            fprintf(stderr, "create_mappings_pd: %8lld 0x%16llx 0x%16llx   dump file offset 0x%16llx \n",
+                    i, d.StartOfMemoryRange, d.DataSize, currentRVA);
+        }
         currentRVA += d.DataSize;
         prevAddr = d.StartOfMemoryRange;
 
-        // Write to mappings file.
-        // PRS_TODO
         Segment seg((void *) d.StartOfMemoryRange, (size_t) d.DataSize, (off_t) currentRVA, (size_t) d.DataSize);
+        if (!seg.isRelevant()) {
+            continue;
+        }
+        // PRS_TODO
+        // Check avoidSegments
+
+        // Write to mappings file.
         e = seg.write_mapping(fd);
     }
     close_minidump(dump);
@@ -812,6 +828,7 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
 
     char *jvm = get_jvm_filename_pd(corename);
     if (jvm == nullptr) {
+        fprintf(stderr, "revival: cannot locate JVM in minidump.\n") ;
         return -1;
     }
     fprintf(stderr, "JVM = '%s'\n", jvm);
