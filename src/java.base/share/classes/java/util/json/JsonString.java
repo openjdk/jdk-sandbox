@@ -31,7 +31,7 @@ import jdk.internal.javac.PreviewFeature;
 import jdk.internal.util.json.JsonStringImpl;
 
 /**
- * The interface that represents JSON string. Any character may be escaped,
+ * The interface that represents a JSON string. Any character may be escaped,
  * see the JSON string <a href="https://datatracker.ietf.org/doc/html/rfc8259#section-6">
  * syntax</a> for the full list of two-character sequence escapes as well as
  * the characters that must be escaped.
@@ -59,6 +59,16 @@ public non-sealed interface JsonString extends JsonValue {
         Objects.requireNonNull(value);
         return new JsonStringImpl(value);
     }
+
+    /**
+     * {@return the JSON {@code String} represented by this {@code JsonString}}
+     * If this {@code JsonString} was created by parsing a JSON document, it
+     * preserves the text representation of the corresponding JSON String. Otherwise,
+     * the {@code value} is escaped to produce the JSON {@code String}.
+     *
+     * @see #value()
+     */
+    String toString();
 
     /**
      * {@return the {@code String} value represented by this {@code JsonString}}
