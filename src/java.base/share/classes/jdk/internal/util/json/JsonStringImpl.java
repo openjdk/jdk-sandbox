@@ -45,8 +45,9 @@ public final class JsonStringImpl implements JsonString {
     // non-conformant characters are properly escaped.
     private final StableValue<String> jsonStr = StableValue.of();
 
-    // The String instance representing the value of this JSON string,
-    // with any escaped characters converted to their unescaped form.
+    // The String instance returned by `value()`.
+    // If created by parsing a JSON document, escaped characters are unescaped.
+    // If created via the factory method, the input String is used as-is.
     private final StableValue<String> value = StableValue.of();
 
     // Called by JsonString.of() factory. The passed String represents the
