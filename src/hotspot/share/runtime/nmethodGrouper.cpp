@@ -77,7 +77,25 @@ class GetC2NMethodTask : public SuspendedThreadTask {
   }
 };
 
-using NMethodSamples = ResourceHashtable<nmethod*, int, 1024>;
+static inline int64_t get_monotonic_ms() {
+  return os::javaTimeNanos() / 1000000;
+}
+
+static inline int64_t sampling_period_ms() {
+  // This is the interval in milliseconds between samples.
+  return 20;
+}
+
+static inline int64_t duration_ms() {
+  // This is the total duration in milliseconds for which the sampling will run.
+  return 60 * 1000; // 60 seconds
+}
+
+static inline int min_samples() {
+  return 3000; // Minimum number of samples to collect
+}
+
+using NMethodSamples = ResourceHashtable<const nmethod*, int, 1024>;
 
 class ThreadSampler : public StackObj {
  private:
@@ -108,6 +126,24 @@ class ThreadSampler : public StackObj {
     }
   }
 
+  void collect_samples() {
+    tty->print_cr("Profiling nmethods");
+
+    const int64_t period = sampling_period_ms();
+    while (true) {
+      const int64_t sampling_start = get_monotonic_ms();
+      run();
+      if (_total_samples >= min_samples()) {
+        break;
+      }
+      const int64_t next_sample =
+          period - (get_monotonic_ms() - sampling_start);
+      if (next_sample > 0) {
+        os::naked_sleep(next_sample);
+      }
+    }
+  }
+
   const NMethodSamples& samples() const {
     return _samples;
   }
@@ -117,60 +153,60 @@ class ThreadSampler : public StackObj {
   int processed_threads() const {
     return _processed_threads;
   }
+
+  void exclude_unregistered_nmethods(const LinkedListImpl<const nmethod*>& unregistered);
 };
 
-static inline int64_t get_monotonic_ms() {
-  return os::javaTimeNanos() / 1000000;
-}
-
-static inline int64_t sampling_period_ms() {
-  // This is the interval in milliseconds between samples.
-  return 20;
-}
-
-static inline int64_t duration_ms() {
-  // This is the total duration in milliseconds for which the sampling will run.
-  return 60 * 1000; // 60 seconds
-}
-
-static inline int min_samples() {
-  return 3000; // Minimum number of samples to collect
-}
-
-static void find_nmethods_to_group() {
-  ResourceMark rm;
-  // TODO: add logging support to codecache.
-  tty->print_cr("Profiling nmethods");
-
-  const int64_t period = sampling_period_ms();
-  ThreadSampler sampler;
-  int i = 0;
-  while (true) {
-    i++;
-    const int64_t sampling_start = get_monotonic_ms();
-    sampler.run();
-    if (sampler.total_samples() >= min_samples()) {
-      break;
-    }
-    const int64_t next_sample = period - (get_monotonic_ms() - sampling_start);
-    if (next_sample > 0) {
-      os::naked_sleep(next_sample);
+void ThreadSampler::exclude_unregistered_nmethods(const LinkedListImpl<const nmethod*>& unregistered) {
+  LinkedListIterator<const nmethod*> it(unregistered.head());
+  while (!it.is_empty()) {
+    const nmethod* nm = *it.next();
+    int* count = _samples.get(nm);
+    if (count != nullptr) {
+      _total_samples -= *count;
+      *count = 0;
     }
   }
+}
+
+class HotCodeHeapCandidates : public StackObj {
+ public:
+  void find(const NMethodSamples& samples) {
+  }
+
+  void relocate() {}
+};
+
+void NMethodGrouper::group_nmethods() {
+  ResourceMark rm;
+
+  ThreadSampler sampler;
+  sampler.collect_samples();
 
   {
     MutexLocker ml(CodeCache_lock, Mutex::_no_safepoint_check_flag);
     int total_samples = sampler.total_samples();
     int processed_threads = sampler.processed_threads();
-    tty->print_cr("Profiling nmethods done: %d samples, %d nmethods, %d iterations, %d processed threads, %d unregistered nmethods",
-       total_samples, sampler.samples().number_of_entries(), i,
-       processed_threads, (int)NMethodGrouper::_unregistered_nmethods.size());
-    NMethodGrouper::_unregistered_nmethods.clear();
-  }
-}
+    tty->print_cr("Profiling nmethods done: %d samples, %d nmethods, %d processed threads, %d unregistered nmethods",
+       total_samples, sampler.samples().number_of_entries(),
+       processed_threads, (int)_unregistered_nmethods.size());
 
-void NMethodGrouper::group_nmethods() {
-  find_nmethods_to_group();
+    if (is_code_cache_unstable()) {
+      tty->print_cr("CodeCache is unstable, skipping nmethod grouping");
+      return;
+    }
+
+    sampler.exclude_unregistered_nmethods(_unregistered_nmethods);
+    tty->print_cr("Total samples after excluding unregistered nmethods: %d",
+       sampler.total_samples());
+    _unregistered_nmethods.clear();
+
+    // TODO: We might want to update nmethods GC status to prevent them from getting cold.
+
+    HotCodeHeapCandidates candidates;
+    candidates.find(sampler.samples());
+    candidates.relocate();
+  }
 }
 
 void NMethodGrouper::unregister_nmethod(const nmethod* nm) {
