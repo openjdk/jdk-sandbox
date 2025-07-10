@@ -53,7 +53,7 @@ public non-sealed interface JsonString extends JsonValue {
      *
      * @param value the given {@code String} used as the {@code value} of this
      *             {@code JsonString}. Non-null.
-     * @throws NullPointerException if {@code src} is {@code null}
+     * @throws NullPointerException if {@code value} is {@code null}
      */
     static JsonString of(String value) {
         Objects.requireNonNull(value);
