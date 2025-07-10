@@ -51,18 +51,20 @@ public non-sealed interface JsonString extends JsonValue {
      * {@return the {@code JsonString} created from the given
      * {@code String}}
      *
-     * @param src the given {@code String}. Non-null.
+     * @param value the given {@code String} used as the {@code value} of this
+     *             {@code JsonString}. Non-null.
      * @throws NullPointerException if {@code src} is {@code null}
      */
-    static JsonString of(String src) {
-        Objects.requireNonNull(src);
-        return new JsonStringImpl(src);
+    static JsonString of(String value) {
+        Objects.requireNonNull(value);
+        return new JsonStringImpl(value);
     }
 
     /**
      * {@return the {@code String} value represented by this {@code JsonString}}
-     * Any escaped characters in the original JSON string are converted to their
-     * unescaped form in the returned {@code String}.
+     * If this {@code JsonString} was created by parsing a JSON document, any
+     * escaped characters in the original JSON document are converted to their
+     * unescaped form.
      *
      * @see #toString()
      */
