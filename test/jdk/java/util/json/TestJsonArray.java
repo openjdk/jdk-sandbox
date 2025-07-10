@@ -169,14 +169,6 @@ public class TestJsonArray {
             assertDoesNotThrow(() -> Json.fromUntyped(list));
         }
 
-        // Basic single depth circular reference
-        @Test
-        void arrayCycleTest() {
-            ArrayList<Object> arr = new ArrayList<>();
-            arr.add(arr);
-            assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(arr));
-        }
-
         private static final String json =
                 """
                 [

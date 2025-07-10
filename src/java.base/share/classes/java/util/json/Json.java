@@ -28,14 +28,11 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.Set;
 
 import jdk.internal.javac.PreviewFeature;
 import jdk.internal.util.json.JsonParser;
@@ -154,38 +151,23 @@ public final class Json {
      * {@code Double}, {@code BigInteger}, and {@code BigDecimal}.</i>
      *
      * <p>If {@code src} is an instance of {@code JsonValue}, it is returned as is.
-     * If {@code src} contains a circular reference, {@code IllegalArgumentException}
-     * will be thrown. For example, the following code throws an exception,
-     * {@snippet lang=java:
-     *     var map = new HashMap<String, Object>();
-     *     map.put("foo", false);
-     *     map.put("bar", map);
-     *     Json.fromUntyped(map);
-     * }
      *
      * @param src the data to produce the {@code JsonValue} from. May be null.
      * @throws IllegalArgumentException if {@code src} cannot be converted
-     *      to {@code JsonValue} or contains a circular reference.
+     *      to a {@code JsonValue}.
      * @see #toUntyped(JsonValue)
      */
     public static JsonValue fromUntyped(Object src) {
-        return fromUntyped(src, Collections.newSetFromMap(new IdentityHashMap<>()));
-    }
-
-    static JsonValue fromUntyped(Object src, Set<Object> identitySet) {
         return switch (src) {
             // Structural: JSON object
             case Map<?, ?> map -> {
-                if (!identitySet.add(map)) {
-                    throw new IllegalArgumentException("Circular reference detected");
-                }
                 Map<String, JsonValue> m = LinkedHashMap.newLinkedHashMap(map.size());
                 for (Map.Entry<?, ?> entry : map.entrySet()) {
                     if (!(entry.getKey() instanceof String key)) {
                         throw new IllegalArgumentException(
                                 "The key '%s' is not a String".formatted(entry.getKey()));
                     } else {
-                        m.put(key, Json.fromUntyped(entry.getValue(), identitySet));
+                        m.put(key, Json.fromUntyped(entry.getValue()));
                     }
                 }
                 // Bypasses defensive copy in JsonObject.of(m)
@@ -193,12 +175,9 @@ public final class Json {
             }
             // Structural: JSON Array
             case List<?> list -> {
-                if (!identitySet.add(list)) {
-                    throw new IllegalArgumentException("Circular reference detected");
-                }
                 List<JsonValue> l = new ArrayList<>(list.size());
                 for (Object o : list) {
-                    l.add(Json.fromUntyped(o, identitySet));
+                    l.add(Json.fromUntyped(o));
                 }
                 // Bypasses defensive copy in JsonArray.of(l)
                 yield Utils.arrayOf(l);

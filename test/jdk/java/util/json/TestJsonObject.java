@@ -405,30 +405,6 @@ public class TestJsonObject {
             } catch (Exception _) {}
         }
 
-        // Basic single depth circular reference
-        @Test
-        void objectCycleTest() {
-            HashMap<String,Object> map = new HashMap<>();
-            map.put("foo", map);
-            assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(map));
-        }
-
-        // Deeper nest circular reference
-        @Test
-        void multiDepthCycleTest() {
-            HashMap<String,Object> mapRoot = new HashMap<>();
-            List<Object> listNode = new ArrayList<>();
-            List<Object> lowerListNode = new ArrayList<>();
-            HashMap<String, Object> mapNode = new HashMap<>();
-
-            mapRoot.put("foo", listNode);
-            listNode.add(lowerListNode);
-            lowerListNode.add(mapNode);
-            mapNode.put("bar", mapRoot);
-
-            assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(mapRoot));
-        }
-
         // Ensure decoded escape sequences are translated to valid JSON
         // Supported 2 char escapes should be translated, otherwise U sequence
         // needs to be preserved.
