@@ -38,7 +38,15 @@ public final class JsonStringImpl implements JsonString {
     private final char[] doc;
     private final int startOffset;
     private final int endOffset;
+
+    // The String instance representing this JSON string for `toString()`.
+    // It always conforms to JSON syntax. If created by parsing a JSON document,
+    // it matches the original text exactly. If created via the factory method,
+    // non-conformant characters are properly escaped.
     private final StableValue<String> jsonStr = StableValue.of();
+
+    // The String instance representing the value of this JSON string,
+    // with any escaped characters converted to their unescaped form.
     private final StableValue<String> value = StableValue.of();
 
     // Called by JsonString.of() factory. The passed String represents the
