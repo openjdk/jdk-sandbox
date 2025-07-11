@@ -178,7 +178,7 @@ void printMemBasicInfo(MEMORY_BASIC_INFORMATION meminfo) {
 }
 void pmap_pd() {
 
-    // Is QueryWorkingSet more useful?
+/*    // Is QueryWorkingSet more useful?
     MEMORY_BASIC_INFORMATION meminfo;
     uint64_t p = (uint64_t) &pmap_pd;
     fprintf(stderr, "Memory Map: >>>\n");
@@ -197,7 +197,7 @@ void pmap_pd() {
         p = next_p;
     }
     fprintf(stderr, "<<<\n");
-    waitHitRet();
+    waitHitRet(); */
 }
 
 
@@ -665,6 +665,7 @@ void close_minidump(struct minidump *dump) {
  */
 char *resolve_jvm_info_pd(const char *filename) {
 // Read dump ModuleListStream to find jvm.dll
+
     struct minidump *dump = open_minidump(filename);
     if (dump == nullptr) {
         return nullptr;
@@ -673,7 +674,7 @@ char *resolve_jvm_info_pd(const char *filename) {
     MINIDUMP_DIRECTORY *md = minidump_find_stream(dump, ModuleListStream);
     if (md == nullptr) {
         fprintf(stderr, "Minidump ModuleListStream not found\n");
-        return (void *) -1;
+        return nullptr;
     }
 
     // Use MINIDUMP_LOCATION_DESCRIPTOR
@@ -810,7 +811,7 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
         prevAddr = d.StartOfMemoryRange;
 
         Segment seg((void *) d.StartOfMemoryRange, (size_t) d.DataSize, (off_t) currentRVA, (size_t) d.DataSize);
-        if (!seg.isRelevant()) {
+        if (!seg.is_relevant()) {
             continue;
         }
         // PRS_TODO
