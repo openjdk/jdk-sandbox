@@ -31,14 +31,20 @@ import jdk.internal.javac.PreviewFeature;
 import jdk.internal.util.json.JsonStringImpl;
 
 /**
- * The interface that represents a JSON string. Any character may be escaped,
- * see the JSON string <a href="https://datatracker.ietf.org/doc/html/rfc8259#section-6">
- * syntax</a> for the full list of two-character sequence escapes as well as
- * the characters that must be escaped.
+ * The interface that represents a JSON string.
  * <p>
  * A {@code JsonString} can be produced by a {@link Json#parse(String)}.
+ * Within a valid JSON String, any character may be escaped using either a
+ * two-character escape sequence (if applicable) or a Unicode escape sequence.
+ * Quotation mark (U+0022), reverse solidus (U+005C), and the control characters
+ * (U+0000 through U+001F) must be escaped.
  * <p> Alternatively, {@link #of(String)} can be used to obtain a {@code JsonString}
- * from a {@code String}.
+ * directly from a {@code String}. The following expressions are all equivalent,
+ * {@snippet lang="java" :
+ *     Json.parse("\"foo\\t\"");
+ *     Json.parse("\"foo\\u0009\"");
+ *     JsonString.of("foo\t");
+ * }
  *
  * @spec https://datatracker.ietf.org/doc/html/rfc8259#section-7 RFC 8259:
  *      The JavaScript Object Notation (JSON) Data Interchange Format - Strings
