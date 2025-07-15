@@ -98,10 +98,8 @@ public final class JsonStringImpl implements JsonString {
                     case 'r' -> c = '\r';
                     case 't' -> c = '\t';
                     case 'u' -> {
-                        if (offset + 4 < endOffset) {
-                            c = Utils.codeUnit(doc, offset + 1);
-                            length = 4;
-                        }
+                        length = 4; // Will not throw NFE, document parse already validated input
+                        c = (char) Integer.parseInt(new String(doc, offset + 1, 4), 16);
                     }
                 }
                 if (sb == null) {
@@ -109,7 +107,7 @@ public final class JsonStringImpl implements JsonString {
                     sb = new StringBuilder(end - start - length - 1)
                             .append(doc, start, offset - 1 - start);
                 }
-                offset+=length;
+                offset += length;
                 escape = false;
             } else if (c == '\\') {
                 escape = true;

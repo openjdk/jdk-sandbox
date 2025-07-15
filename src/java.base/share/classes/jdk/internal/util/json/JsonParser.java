@@ -260,7 +260,7 @@ public final class JsonParser {
                     case 'u' -> {
                         if (offset + 4 < doc.length) {
                             offset++; // Move to first char in sequence
-                            checkEscapeSequence();
+                            codeUnit();
                             offset += 3; // Move to the last hex digit, outer loop increments
                         } else {
                             throw failure("Invalid Unicode escape sequence");
@@ -390,25 +390,21 @@ public final class JsonParser {
         }
     }
 
-    // Validate unicode escape sequence
-    // This method does not increment offset
-    private void checkEscapeSequence() {
-        for (int index = 0; index < 4; index++) {
-            char c = doc[offset + index];
-            if ((c < 'a' || c > 'f') && (c < 'A' || c > 'F') && (c < '0' || c > '9')) {
-                throw failure("Invalid Unicode escape sequence");
-            }
-        }
-    }
-
     // Unescapes the Unicode escape sequence and produces a char
     private char codeUnit() {
-        try {
-            return Utils.codeUnit(doc, offset);
-        } catch (IllegalArgumentException _) {
-            // Catch and re-throw as JPE with correct row/col
-            throw failure("Invalid Unicode escape sequence");
+        char val = 0;
+        for (int index = 0; index < 4; index ++) {
+            char c = doc[offset + index];
+            val <<= 4;
+            val += (char) (
+                    switch (c) {
+                        case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> c - '0';
+                        case 'a', 'b', 'c', 'd', 'e', 'f' -> c - 'a' + 10;
+                        case 'A', 'B', 'C', 'D', 'E', 'F' -> c - 'A' + 10;
+                        default -> throw failure("Invalid Unicode escape sequence");
+                    });
         }
+        return val;
     }
 
     // Returns true if the parser has not yet reached the end of the Document
