@@ -61,7 +61,7 @@ public final class JsonParser {
     public JsonValue parseRoot() {
         JsonValue root = parseValue();
         if (hasInput()) {
-            throw failure("Unexpected character(s)");
+            throw failure("Additional value(s) were found after the JSON Value");
         }
         return root;
     }
@@ -75,7 +75,7 @@ public final class JsonParser {
     private JsonValue parseValue() {
         skipWhitespaces();
         if (!hasInput()) {
-            throw failure("Missing JSON value");
+            throw failure("Expected a JSON Object, Array, String, Number, Boolean, or Null");
         }
         var val = switch (doc[offset]) {
             case '{' -> parseObject();
@@ -88,7 +88,7 @@ public final class JsonParser {
             // we still accept, so that we can provide a better error message
             case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '+', 'e', '.'
                     -> parseNumber();
-            default -> throw failure("Unexpected character(s)");
+            default -> throw failure(UNEXPECTED_VAL);
         };
         skipWhitespaces();
         return val;
@@ -115,14 +115,14 @@ public final class JsonParser {
             var name = parseName();
 
             if (members.containsKey(name)) {
-                throw failure("The duplicate member name: '%s' was already parsed".formatted(name));
+                throw failure("The duplicate member name: \"%s\" was already parsed".formatted(name));
             }
 
             // Move from name to ':'
             skipWhitespaces();
             if (!currCharEquals(':')) {
                 throw failure(
-                        "Expected ':' after the member name");
+                        "Expected a colon after the member name");
             }
 
             // Move from ':' to JsonValue
@@ -141,7 +141,7 @@ public final class JsonParser {
                 break;
             }
         }
-        throw failure("Object was not closed with '}'");
+        throw failure("JSON Object is not closed with a brace");
     }
 
     /*
@@ -151,7 +151,7 @@ public final class JsonParser {
      */
     private String parseName() {
         if (!currCharEquals('"')) {
-            throw failure("Invalid member name");
+            throw failure("Expecting a JSON Object member name");
         }
         offset++; // Move past the starting quote
         var escape = false;
@@ -177,10 +177,10 @@ public final class JsonParser {
                             // Move to the last hex digit, since outer loop will increment offset
                             offset += 3;
                         } else {
-                            throw failure("Invalid Unicode escape sequence");
+                            throw failure(INVALID_LENGTH_UNICODE_ESCAPE_SEQUENCE);
                         }
                     }
-                    default -> throw failure("Illegal escape");
+                    default -> throw failure(UNRECOGNIZED_ESCAPE_SEQUENCE.formatted(c));
                 }
                 if (!useBldr) {
                     initBuilder();
@@ -202,13 +202,13 @@ public final class JsonParser {
                     return new String(doc, start, offset - start - 1);
                 }
             } else if (c < ' ') {
-                throw failure("Unescaped control code");
+                throw failure(UNESCAPED_CONTROL_CODE);
             }
             if (useBldr) {
                 builder.append(c);
             }
         }
-        throw failure("Closing quote missing");
+        throw failure(UNCLOSED_STRING.formatted("JSON Object member name"));
     }
 
     /*
@@ -236,7 +236,7 @@ public final class JsonParser {
                 break;
             }
         }
-        throw failure("Array was not closed with ']'");
+        throw failure("JSON Array is not closed with a bracket");
     }
 
     /*
@@ -263,10 +263,10 @@ public final class JsonParser {
                             codeUnit();
                             offset += 3; // Move to the last hex digit, outer loop increments
                         } else {
-                            throw failure("Invalid Unicode escape sequence");
+                            throw failure(INVALID_LENGTH_UNICODE_ESCAPE_SEQUENCE);
                         }
                     }
-                    default -> throw failure("Illegal escape");
+                    default -> throw failure(UNRECOGNIZED_ESCAPE_SEQUENCE.formatted(c));
                 }
                 escape = false;
             } else if (c == '\\') {
@@ -274,10 +274,10 @@ public final class JsonParser {
             } else if (c == '\"') {
                 return new JsonStringImpl(doc, start, offset += 1);
             } else if (c < ' ') {
-                throw failure("Unescaped control code");
+                throw failure(UNESCAPED_CONTROL_CODE);
             }
         }
-        throw failure("Closing quote missing");
+        throw failure(UNCLOSED_STRING.formatted("JSON String"));
     }
 
     /*
@@ -289,7 +289,7 @@ public final class JsonParser {
             offset += 4;
             return JsonBooleanImpl.TRUE;
         }
-        throw failure("Expected true");
+        throw failure(UNEXPECTED_VAL);
     }
 
     private JsonBooleanImpl parseFalse() {
@@ -297,7 +297,7 @@ public final class JsonParser {
             offset += 5;
             return JsonBooleanImpl.FALSE;
         }
-        throw failure("Expected false");
+        throw failure(UNEXPECTED_VAL);
     }
 
     private JsonNullImpl parseNull() {
@@ -305,7 +305,7 @@ public final class JsonParser {
             offset += 4;
             return JsonNullImpl.NULL;
         }
-        throw failure("Expected null");
+        throw failure(UNEXPECTED_VAL);
     }
 
     /*
@@ -324,22 +324,23 @@ public final class JsonParser {
 
         endloop:
         for (; hasInput(); offset++) {
-            switch (doc[offset]) {
+            var c = doc[offset];
+            switch (c) {
                 case '-' -> {
                     if (offset != start && !sawExponent || sawSign) {
-                        throw failure("Invalid '-' position");
+                        throw failure(INVALID_POSITION_IN_NUMBER.formatted(c));
                     }
                     sawSign = true;
                 }
                 case '+' -> {
                     if (!sawExponent || havePart || sawSign) {
-                        throw failure("Invalid '+' position");
+                        throw failure(INVALID_POSITION_IN_NUMBER.formatted(c));
                     }
                     sawSign = true;
                 }
                 case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> {
                     if (!sawDecimal && !sawExponent && sawZero) {
-                        throw failure("Invalid '0' position");
+                        throw failure(INVALID_POSITION_IN_NUMBER.formatted('0'));
                     }
                     if (doc[offset] == '0' && !havePart) {
                         sawZero = true;
@@ -348,10 +349,10 @@ public final class JsonParser {
                 }
                 case '.' -> {
                     if (sawDecimal) {
-                        throw failure("Invalid '.' position");
+                        throw failure(INVALID_POSITION_IN_NUMBER.formatted(c));
                     } else {
                         if (!havePart) {
-                            throw failure("Invalid '.' position");
+                            throw failure(INVALID_POSITION_IN_NUMBER.formatted(c));
                         }
                         sawDecimal = true;
                         havePart = false;
@@ -359,10 +360,10 @@ public final class JsonParser {
                 }
                 case 'e', 'E' -> {
                     if (sawExponent) {
-                        throw failure("Invalid '[e|E]' position");
+                        throw failure(INVALID_POSITION_IN_NUMBER.formatted(c));
                     } else {
                         if (!havePart) {
-                            throw failure("Invalid '[e|E]' position");
+                            throw failure(INVALID_POSITION_IN_NUMBER.formatted(c));
                         }
                         sawExponent = true;
                         havePart = false;
@@ -401,7 +402,8 @@ public final class JsonParser {
                         case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> c - '0';
                         case 'a', 'b', 'c', 'd', 'e', 'f' -> c - 'a' + 10;
                         case 'A', 'B', 'C', 'D', 'E', 'F' -> c - 'A' + 10;
-                        default -> throw failure("Invalid Unicode escape sequence");
+                        default -> throw failure(
+                                "Invalid Unicode escape sequence. '%c' is not a hex digit".formatted(c));
                     });
         }
         return val;
@@ -436,12 +438,6 @@ public final class JsonParser {
         };
     }
 
-    private JsonParseException failure(String message) {
-        var errMsg = composeParseExceptionMessage(
-                message, line, lineStart, offset);
-        return new JsonParseException(errMsg, line, offset - lineStart);
-    }
-
     // returns true if the char at the specified offset equals the input char
     // and is within bounds of the char[]
     private boolean currCharEquals(char c) {
@@ -463,10 +459,24 @@ public final class JsonParser {
         return false; // not within bounds
     }
 
-    // Utility method to compose parse exception message
-    private String composeParseExceptionMessage(String message, int line, int lineStart, int offset) {
-        return "%s: (%s) at Row %d, Col %d."
-            .formatted(message, new String(doc, offset, Math.min(offset + 8, doc.length) - offset),
+    private JsonParseException failure(String message) {
+        // Non-revealing message does not produce input source String
+        return new JsonParseException("%s. Location: row %d, col %d."
+                .formatted(message, line, offset - lineStart),
                 line, offset - lineStart);
     }
+
+    // Parsing error messages ----------------------
+    private static final String UNEXPECTED_VAL =
+            "Unexpected value. Expected a JSON Object, Array, String, Number, Boolean, or Null";
+    private static final String UNRECOGNIZED_ESCAPE_SEQUENCE =
+            "Unrecognized escape sequence: \"\\%c\"";
+    private static final String INVALID_LENGTH_UNICODE_ESCAPE_SEQUENCE =
+            "Invalid Unicode escape sequence. Expected four hex digits";
+    private static final String UNESCAPED_CONTROL_CODE =
+            "Unescaped control code";
+    private static final String UNCLOSED_STRING =
+            "%s is not closed with a quotation mark";
+    private static final String INVALID_POSITION_IN_NUMBER =
+            "Invalid position of '%c' within JSON Number";
 }

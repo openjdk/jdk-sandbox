@@ -89,19 +89,19 @@ public class TestJsonString {
     @Nested
     class TestParse {
 
+        // All JsonString related parse failure messages
         private static final List<Arguments> FAIL_STRING = List.of(
-                Arguments.of("\"\u001b\"", "Unescaped control code"),
-                Arguments.of("\"foo\\a \"", "Illegal escape"),
-                Arguments.of("\"foo\\u0\"", "Invalid Unicode escape sequence"),
-                Arguments.of("\"foo\\uZZZZ\"", "Invalid Unicode escape sequence"),
-                Arguments.of("\"foo ", "Closing quote missing"));
+                Arguments.of("\"\t", "Unescaped control code. Location: row 0, col 1."),
+                Arguments.of("\"foo\\a \"", "Unrecognized escape sequence: \"\\a\". Location: row 0, col 5."),
+                Arguments.of("\"foo\\u0\"", "Invalid Unicode escape sequence. Expected four hex digits. Location: row 0, col 5."),
+                Arguments.of("\"foo\\uZZZZ\"", "Invalid Unicode escape sequence. 'Z' is not a hex digit. Location: row 0, col 6."),
+                Arguments.of("\"foo ", "JSON String is not closed with a quotation mark. Location: row 0, col 5."));
 
         @ParameterizedTest
         @FieldSource("FAIL_STRING")
         void testMessages(String json, String err) {
             Exception e =  assertThrows(JsonParseException.class, () -> Json.parse(json));
-            var msg = e.getMessage();
-            assertTrue(msg.contains(err), "Got: \"%s\"\n\tExpected: \"%s\"".formatted(msg, err));
+            assertEquals(err, e.getMessage());
         }
 
         private static Stream<Arguments> testStringEquality() {

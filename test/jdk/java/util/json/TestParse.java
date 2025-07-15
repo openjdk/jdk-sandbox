@@ -137,22 +137,20 @@ public class TestParse {
     @Nested
     class TestExceptions {
 
-        // General exceptions
-
+        // General exceptions not particularly tied to a sub-interface of JsonValue
         private static final List<Arguments> INVALID_JSON = List.of(
-                Arguments.of("", "Missing JSON value"),
-                Arguments.of(" ", "Missing JSON value"),
-                Arguments.of("z", "Unexpected character(s)"),
-                Arguments.of("null, true", "Unexpected character(s)"),
-                Arguments.of("null 5", "Unexpected character(s)")
+                Arguments.of("", "Expected a JSON Object, Array, String, Number, Boolean, or Null. Location: row 0, col 0."),
+                Arguments.of(" ", "Expected a JSON Object, Array, String, Number, Boolean, or Null. Location: row 0, col 1."),
+                Arguments.of("z", "Unexpected value. Expected a JSON Object, Array, String, Number, Boolean, or Null. Location: row 0, col 0."),
+                Arguments.of("null, true", "Additional value(s) were found after the JSON Value. Location: row 0, col 4."),
+                Arguments.of("null 5", "Additional value(s) were found after the JSON Value. Location: row 0, col 5.")
         );
 
         @ParameterizedTest
         @FieldSource("INVALID_JSON")
         void testMessages(String json, String err) {
             Exception e =  assertThrows(JsonParseException.class, () -> Json.parse(json));
-            var msg = e.getMessage();
-            assertTrue(msg.contains(err), "Got: \"%s\"\n\tExpected: \"%s\"".formatted(msg, err));
+            assertEquals(err, e.getMessage());
         }
 
 
@@ -162,8 +160,10 @@ public class TestParse {
 
         @Test
         void testBasicRowCol() {
-            Exception e = assertThrows(JsonParseException.class, () -> Json.parse(BASIC));
-            assertEquals("Expected false: (foobarba) at Row 0, Col 0.", e.getMessage());
+            JsonParseException e = assertThrows(JsonParseException.class, () -> Json.parse(BASIC));
+            assertTrue(e.getMessage().contains("Location: row 0, col 0."),
+                    "Expected row 0, col 0 but got row "
+                            + e.getErrorRow() + ", col " + e.getErrorColumn());
         }
 
         private static final String STRUCTURAL =
@@ -175,8 +175,10 @@ public class TestParse {
 
         @Test
         void testStructuralRowCol() {
-            Exception e = assertThrows(JsonParseException.class, () -> Json.parse(STRUCTURAL));
-            assertEquals("Expected false: (foobarba) at Row 1, Col 10.", e.getMessage());
+            JsonParseException e = assertThrows(JsonParseException.class, () -> Json.parse(STRUCTURAL));
+            assertTrue(e.getMessage().contains("Location: row 1, col 10."),
+                    "Expected row 1, col 10 but got row "
+                            + e.getErrorRow() + ", col " + e.getErrorColumn());
         }
 
         private static final String STRUCTURAL_WITH_NESTED =
@@ -192,8 +194,10 @@ public class TestParse {
 
         @Test
         void testStructuralWithNestedRowCol() {
-            Exception e = assertThrows(JsonParseException.class, () -> Json.parse(STRUCTURAL_WITH_NESTED));
-            assertEquals("Expected false: (foobarba) at Row 4, Col 14.", e.getMessage());
+            JsonParseException e = assertThrows(JsonParseException.class, () -> Json.parse(STRUCTURAL_WITH_NESTED));
+            assertTrue(e.getMessage().contains("Location: row 4, col 14."),
+                    "Expected row 4, col 14 but got row "
+                            + e.getErrorRow() + ", col " + e.getErrorColumn());
         }
     }
 }

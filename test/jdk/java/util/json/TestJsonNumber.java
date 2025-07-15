@@ -240,27 +240,26 @@ public class TestJsonNumber {
         }
 
         private static final List<Arguments> INVALID_NUMBER = List.of(
-                Arguments.of("00", "Invalid '0' position"),
-                Arguments.of("-00", "Invalid '0' position"),
-                Arguments.of("01", "Invalid '0' position"),
-                Arguments.of("5e-2+2", "Invalid '+' position"),
-                Arguments.of("+5", "Invalid '+' position"),
-                Arguments.of("5e+2-2", "Invalid '-' position"),
-                Arguments.of(".5", "Invalid '.' position"),
-                Arguments.of("5e.2", "Invalid '.' position"),
-                Arguments.of("5.5.5", "Invalid '.' position"),
-                Arguments.of("5e3e", "Invalid '[e|E]' position"),
-                Arguments.of("e2", "Invalid '[e|E]' position"),
-                Arguments.of("e", "Invalid '[e|E]' position"),
-                Arguments.of("5.", "Input expected after '[.|e|E]'"),
-                Arguments.of("5e", "Input expected after '[.|e|E]'"));
+                Arguments.of("00", "Invalid position of '0' within JSON Number. Location: row 0, col 1."),
+                Arguments.of("-00", "Invalid position of '0' within JSON Number. Location: row 0, col 2."),
+                Arguments.of("01", "Invalid position of '0' within JSON Number. Location: row 0, col 1."),
+                Arguments.of("5e-2+2", "Invalid position of '+' within JSON Number. Location: row 0, col 4."),
+                Arguments.of("+5", "Invalid position of '+' within JSON Number. Location: row 0, col 0."),
+                Arguments.of("5e+2-2", "Invalid position of '-' within JSON Number. Location: row 0, col 4."),
+                Arguments.of(".5", "Invalid position of '.' within JSON Number. Location: row 0, col 0."),
+                Arguments.of("5e.2", "Invalid position of '.' within JSON Number. Location: row 0, col 2."),
+                Arguments.of("5.5.5", "Invalid position of '.' within JSON Number. Location: row 0, col 3."),
+                Arguments.of("5e3e", "Invalid position of 'e' within JSON Number. Location: row 0, col 3."),
+                Arguments.of("e2", "Invalid position of 'e' within JSON Number. Location: row 0, col 0."),
+                Arguments.of("e", "Invalid position of 'e' within JSON Number. Location: row 0, col 0."),
+                Arguments.of("5.", "Input expected after '[.|e|E]'. Location: row 0, col 2."),
+                Arguments.of("5e", "Input expected after '[.|e|E]'. Location: row 0, col 2."));
 
         @ParameterizedTest
         @FieldSource("INVALID_NUMBER")
         void testMessages(String json, String err) {
             Exception e =  assertThrows(JsonParseException.class, () -> Json.parse(json));
-            var msg = e.getMessage();
-            assertTrue(msg.contains(err), "Got: \"%s\"\n\tExpected: \"%s\"".formatted(msg, err));
+            assertEquals(err, e.getMessage());
         }
     }
 
