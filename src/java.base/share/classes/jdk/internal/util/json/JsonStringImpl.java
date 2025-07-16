@@ -38,6 +38,7 @@ public final class JsonStringImpl implements JsonString {
     private final char[] doc;
     private final int startOffset;
     private final int endOffset;
+    private final boolean hasEscape;
 
     // The String instance representing this JSON string for `toString()`.
     // It always conforms to JSON syntax. If created by parsing a JSON document,
@@ -53,16 +54,19 @@ public final class JsonStringImpl implements JsonString {
     // Called by JsonString.of() factory. The passed String represents the
     // unescaped value.
     public JsonStringImpl(String str) {
+        jsonStr.setOrThrow('"' + Utils.escape(value.orElseSet(() -> str)) + '"');
+        // unused
         doc = null;
         startOffset = -1;
         endOffset = -1;
-        jsonStr.setOrThrow('"' + Utils.escape(value.orElseSet(() -> str)) + '"');
+        hasEscape = false;
     }
 
-    public JsonStringImpl(char[] doc, int start, int end) {
+    public JsonStringImpl(char[] doc, int start, int end, boolean escape) {
         this.doc = doc;
         startOffset = start;
         endOffset = end;
+        hasEscape = escape;
     }
 
     @Override
@@ -82,14 +86,18 @@ public final class JsonStringImpl implements JsonString {
      * As a result of un-escaping, the resultant String may not be JSON conformant.
      */
     private String unescape() {
-        StringBuilder sb = null; // Lazy init
+        // If no escapes exist, produce from doc directly without un-escaping
+        if (!hasEscape) {
+            var ret = toString(); // Also loads JSON String value
+            return ret.substring(1, ret.length() - 1);
+        }
+
+        // Unescape any escape sequences that exist and build the new String value
+        StringBuilder sb = new StringBuilder(endOffset - startOffset - 2);
         var escape = false;
-        int start = startOffset + 1;
-        int end = endOffset - 1;
-        for (int offset = start; offset < end; offset++) {
+        for (int offset = startOffset + 1; offset < endOffset - 1; offset++) {
             var c = doc[offset];
             if (escape) {
-                var length = 0;
                 switch (c) {
                     case '"', '\\', '/' -> {}
                     case 'b' -> c = '\b';
@@ -98,26 +106,19 @@ public final class JsonStringImpl implements JsonString {
                     case 'r' -> c = '\r';
                     case 't' -> c = '\t';
                     case 'u' -> {
-                        length = 4; // Will not throw NFE, document parse already validated input
+                        // Will not throw NFE, document parse already validated input
                         c = (char) Integer.parseInt(new String(doc, offset + 1, 4), 16);
+                        offset += 4;
                     }
                 }
-                if (sb == null) {
-                    // At best, we know the size of the first escaped value
-                    sb = new StringBuilder(end - start - length - 1)
-                            .append(doc, start, offset - 1 - start);
-                }
-                offset += length;
                 escape = false;
             } else if (c == '\\') {
                 escape = true;
                 continue;
             }
-            if (sb != null) {
-                sb.append(c);
-            }
+            sb.append(c);
         }
-        return sb == null ? new String(doc, start, end - start) : sb.toString();
+        return sb.toString();
     }
 
     @Override

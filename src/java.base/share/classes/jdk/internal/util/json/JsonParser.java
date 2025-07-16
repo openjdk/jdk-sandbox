@@ -241,9 +241,9 @@ public final class JsonParser {
      * See https://datatracker.ietf.org/doc/html/rfc8259#section-7
      */
     private JsonString parseString() {
-        int start = offset;
-        offset++; // Move past the starting quote
+        int start = offset++; // Move past the starting quote
         var escape = false;
+        boolean hasEscape = false;
         for (; hasInput(); offset++) {
             var c = doc[offset];
             if (escape) {
@@ -255,9 +255,10 @@ public final class JsonParser {
                 }
                 escape = false;
             } else if (c == '\\') {
+                hasEscape = true;
                 escape = true;
             } else if (c == '\"') {
-                return new JsonStringImpl(doc, start, offset += 1);
+                return new JsonStringImpl(doc, start, offset += 1, hasEscape);
             } else if (c < ' ') {
                 throw failure(UNESCAPED_CONTROL_CODE);
             }
