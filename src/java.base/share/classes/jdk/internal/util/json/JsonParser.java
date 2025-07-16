@@ -170,15 +170,8 @@ public final class JsonParser {
                     case 'r' -> c = '\r';
                     case 't' -> c = '\t';
                     case 'u' -> {
-                        if (offset + 4 < doc.length) {
-                            escapeLength = 4;
-                            offset++; // Move to first char in sequence
-                            c = codeUnit();
-                            // Move to the last hex digit, since outer loop will increment offset
-                            offset += 3;
-                        } else {
-                            throw failure(INVALID_LENGTH_UNICODE_ESCAPE_SEQUENCE);
-                        }
+                        c = codeUnit();
+                        escapeLength = 4;
                     }
                     default -> throw failure(UNRECOGNIZED_ESCAPE_SEQUENCE.formatted(c));
                 }
@@ -257,15 +250,7 @@ public final class JsonParser {
                 switch (c) {
                     // Allowed JSON escapes
                     case '"', '\\', '/', 'b', 'f', 'n', 'r', 't' -> {}
-                    case 'u' -> {
-                        if (offset + 4 < doc.length) {
-                            offset++; // Move to first char in sequence
-                            codeUnit();
-                            offset += 3; // Move to the last hex digit, outer loop increments
-                        } else {
-                            throw failure(INVALID_LENGTH_UNICODE_ESCAPE_SEQUENCE);
-                        }
-                    }
+                    case 'u' -> codeUnit();
                     default -> throw failure(UNRECOGNIZED_ESCAPE_SEQUENCE.formatted(c));
                 }
                 escape = false;
@@ -394,8 +379,12 @@ public final class JsonParser {
     // Unescapes the Unicode escape sequence and produces a char
     private char codeUnit() {
         char val = 0;
-        for (int index = 0; index < 4; index ++) {
-            char c = doc[offset + index];
+        int end = offset + 4;
+        if (end >= doc.length) {
+            throw failure("Invalid Unicode escape sequence. Expected four hex digits");
+        }
+        while (offset < end) {
+            char c = doc[++offset];
             val <<= 4;
             val += (char) (
                     switch (c) {
@@ -471,8 +460,6 @@ public final class JsonParser {
             "Unexpected value. Expected a JSON Object, Array, String, Number, Boolean, or Null";
     private static final String UNRECOGNIZED_ESCAPE_SEQUENCE =
             "Unrecognized escape sequence: \"\\%c\"";
-    private static final String INVALID_LENGTH_UNICODE_ESCAPE_SEQUENCE =
-            "Invalid Unicode escape sequence. Expected four hex digits";
     private static final String UNESCAPED_CONTROL_CODE =
             "Unescaped control code";
     private static final String UNCLOSED_STRING =

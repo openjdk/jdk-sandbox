@@ -182,7 +182,7 @@ public class TestJsonObject {
                 Arguments.of("{ ", "JSON Object is not closed with a brace. Location: row 0, col 2."),
                 // Escaped names
                 Arguments.of("{ \"foo\" : null, \"\\u0066oo\" : null ", "The duplicate member name: \"foo\" was already parsed. Location: row 0, col 26."),
-                Arguments.of("{ \"\\u00M\" ", "Invalid Unicode escape sequence. 'M' is not a hex digit. Location: row 0, col 5."),
+                Arguments.of("{ \"\\u00M\" ", "Invalid Unicode escape sequence. 'M' is not a hex digit. Location: row 0, col 7."),
                 Arguments.of("{ \"foo\\a\" ", "Unrecognized escape sequence: \"\\a\". Location: row 0, col 7."));
 
         @ParameterizedTest
