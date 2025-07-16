@@ -719,7 +719,7 @@ char *resolve_jvm_info_pd(const char *filename) {
                             jvm_address = (void *) start;
                         }
                         close(fd);
-                        return (char *) filename;
+                        return (char *) jvm_filename;
                     }
                     fprintf(stderr, "No NT_FILE entry found for JVM\n");
                     close(fd);
@@ -740,7 +740,8 @@ char *resolve_jvm_info_pd(const char *filename) {
 
 
 char *get_jvm_filename_pd(const char *filename) {
-    if (jvm_filename == nullptr) {
+    char* jvm_filename = nullptr;
+    if (filename != nullptr) {
         jvm_filename = resolve_jvm_info_pd(filename);
     }
     return jvm_filename;
@@ -792,7 +793,7 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
     // find libjvm and its load address from core
     char *jvm = get_jvm_filename_pd(corename);
     if (jvm == nullptr) {
-        fprintf(stderr, "revival: cannot locate JVM in core.\n") ;
+        fprintf(stderr, "revival: cannot locate JVM in core %s.\n", corename) ;
         return -1;
     }
     fprintf(stderr, "JVM = '%s'\n", jvm);
