@@ -41,6 +41,7 @@ public final class JsonNumberImpl implements JsonNumber {
     private final char[] doc;
     private final int startOffset;
     private final int endOffset;
+    private final boolean isFp;
     private final StableValue<Number> theNumber = StableValue.of();
     private final StableValue<String> numString = StableValue.of();
     private final StableValue<BigDecimal> cachedBD = StableValue.of();
@@ -56,40 +57,33 @@ public final class JsonNumberImpl implements JsonNumber {
         // unused
         startOffset = -1;
         endOffset = -1;
+        isFp = false;
         doc = null;
     }
 
-    public JsonNumberImpl(char[] doc, int start, int end) {
+    public JsonNumberImpl(char[] doc, int start, int end, boolean fp) {
         this.doc = doc;
         startOffset = start;
         endOffset = end;
+        isFp = fp;
     }
 
     @Override
     public Number toNumber() {
         return theNumber.orElseSet(() -> {
             var str = toString();
-            // Check if integral (Java literal format)
-            boolean integerOnly = true;
-            for (int index = 0; index < str.length(); index++) {
-                char c = str.charAt(index);
-                if (c == '.' || c == 'e' || c == 'E') {
-                    integerOnly = false;
-                    break;
-                }
-            }
-            if (integerOnly) {
-                try {
-                    return Long.parseLong(str);
-                } catch (NumberFormatException _) {
-                    return new BigInteger(str);
-                }
-            } else {
+            if (isFp) {
                 var db = Double.parseDouble(str);
                 if (Double.isInfinite(db)) {
                     return toBigDecimal();
                 } else {
                     return db;
+                }
+            } else {
+                try {
+                    return Long.parseLong(str);
+                } catch (NumberFormatException _) {
+                    return new BigInteger(str);
                 }
             }
         });

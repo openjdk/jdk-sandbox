@@ -365,7 +365,7 @@ public final class JsonParser {
         if (!havePart) {
             throw failure("Input expected after '[.|e|E]'");
         }
-        return new JsonNumberImpl(doc, start, offset);
+        return new JsonNumberImpl(doc, start, offset, sawDecimal || sawExponent);
     }
 
     // Utility functions
