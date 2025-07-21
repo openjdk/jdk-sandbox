@@ -734,6 +734,25 @@ int mappings_file_create(const char *dirname, const char *corename) {
     return fd;
 }
 
+int symbols_file_create(const char *dirname) {
+    char buf[BUFLEN];
+    snprintf(buf, BUFLEN, "%s%s", dirname, "/core.symbols"); 
+    if (verbose) {
+        fprintf(stderr, "symbols_file_create: %s\n", buf);
+    }
+#ifdef WINDOWS
+    int fd = _open(buf, _O_CREAT | _O_WRONLY | _O_TRUNC, _S_IREAD | _S_IWRITE);
+#else
+    int fd = open(buf, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR);
+#endif
+    if (fd < 0) {
+        fprintf(stderr, "symbols_file_create: %s: %s\n", buf, strerror(errno));
+        return fd;
+    }
+
+    return fd;
+}
+
 
 /**
  * Segment
@@ -885,6 +904,9 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
     char *dirname;
 
     verbose = env_check((char *) "REVIVAL_VERBOSE");
+    verbose = true;
+    fprintf(stderr, "LUDVIG vvVERBOSE IS %i\n", verbose);
+
     _wait = env_check((char *) "REVIVAL_WAIT");
     _abortOnClash = env_check((char *) "REVIVAL_ABORT");
 
@@ -974,7 +996,7 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
     }
     revivaldir = dirname;
 
-    if (false) {
+    if (true) {
         // Query JVM version: this was done as a sanity check.
         uint64_t jdkvi;
         void * s = symbol(SYM_JVM_VERSION);

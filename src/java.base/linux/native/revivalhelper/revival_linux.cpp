@@ -43,6 +43,7 @@
 #include <sys/types.h>
 
 #include <list>
+#include <array>
 
 // For dlinfo:
 #define _GNU_SOURCE 1
@@ -51,6 +52,12 @@
 
 
 #include "revival.hpp"
+
+struct SharedLibMapping {
+    Elf64_Addr start;
+    Elf64_Addr end;
+    char* path;
+};
 
 const char *corePageFilename;
 
@@ -588,7 +595,6 @@ void *load_sharedobject_pd(const char *name, void *vaddr) {
     }
 }
 
-
 int unload_sharedobject_pd(void *h) {
     return dlclose(h); // zero on success
 }
@@ -609,26 +615,18 @@ char *readstring(int fd) {
     return buf;
 }
 
-
-
-/**
- * Open dump, find JVM filename and load address.
- * Return the jvm_filename to confirm it was found.
- */
-char *resolve_jvm_info_pd(const char *filename) {
+SharedLibMapping* read_NT_mappings(
+    int fd,
+    int &count_out
+) {
+    lseek(fd, 0, SEEK_SET);
 // Read core NOTES, find NT_FILE, find libjvm.so
 
-    int fd = open(filename, O_RDONLY);
-    if (fd < 0) {
-        fprintf(stderr, "Cannot open %s: %s\n", filename, strerror(errno));
-        return nullptr;
-    }
     // Read ELF header, find NOTES
     Elf64_Ehdr hdr;
     size_t e = read(fd, &hdr, sizeof(hdr));
     if (e < sizeof(hdr)) {
-        fprintf(stderr, "Failed to read ELF header %s: %ld\n", filename, e);
-        close(fd);
+        fprintf(stderr, "Failed to read ELF header: %ld\n", e);
         return nullptr;
     }
     // TODO: Sanity check ELF header.
@@ -639,8 +637,7 @@ char *resolve_jvm_info_pd(const char *filename) {
     for (int i = 0; i < hdr.e_phnum; i++) {
         e = read(fd, &phdr, sizeof(phdr));
         if (e < sizeof(phdr)) {
-            fprintf(stderr, "Failed to read ELF Program Header %s: %ld\n", filename, e);
-            close(fd);
+            fprintf(stderr, "Failed to read ELF Program Header: %ld\n", e);
             return nullptr;
         }
         if (verbose) {
@@ -656,15 +653,14 @@ char *resolve_jvm_info_pd(const char *filename) {
             while (pos < end) {
                 e = read(fd, &nhdr, sizeof(nhdr));
                 if (e < sizeof(nhdr)) {
-                    fprintf(stderr, "Failed to read NOTE header: %s: %ld\n", filename, e);
-                    close(fd);
+                    fprintf(stderr, "Failed to read NOTE header: %ld\n", e);
                     return nullptr;
                 }
-                // fprintf(stderr, "NOTE type 0x%x namesz %x descsz %x\n", nhdr.n_type, nhdr.n_namesz, nhdr.n_descsz);
+                fprintf(stderr, "NOTE type 0x%x namesz %x descsz %x\n", nhdr.n_type, nhdr.n_namesz, nhdr.n_descsz);
+                // TODO where's this freed?
                 char *name = (char *) malloc(nhdr.n_namesz);
                 if (name == nullptr) {
                     fprintf(stderr, "Failed malloc for namesz %d\n", nhdr.n_namesz);
-                    close(fd);
                     return nullptr;
                 }
                 e = read(fd, name, nhdr.n_namesz);
@@ -686,8 +682,10 @@ char *resolve_jvm_info_pd(const char *filename) {
                     if (verbose) {
                         fprintf(stderr, "NT_FILE count %d pagesize 0x%lx\n", count, pagesize);
                     }
+                    
+                    SharedLibMapping* ret = new SharedLibMapping[count];
+                    count_out = count;
 
-                    uint64_t pos = lseek(fd, 0, SEEK_CUR);
                     uint64_t start;
                     uint64_t end;
                     uint64_t offset;
@@ -695,35 +693,15 @@ char *resolve_jvm_info_pd(const char *filename) {
                         e = read(fd, &start, sizeof (long));
                         e = read(fd, &end, sizeof (long));
                         e = read(fd, &offset, sizeof (long)); // multiply offset by pagesize
-                        // fprintf(stderr, "find_jvm_filename_pd: %lx %lx %lx\n", start, end, offset);
+
+                        ret[i].start = start;
+                        ret[i].end = end;
                     }
-                    int found = -1;
+
                     for (int i = 0; i < count; i++) {
-                        char *filename = readstring(fd);
-                        // fprintf(stderr, "find_jvm_filename_pd: %s.\n", filename);
-                        if (strstr(filename, "libjvm.so")) {
-                            jvm_filename = filename;
-                            found = i;
-                            break;
-                        }
+                        ret[i].path = readstring(fd);
                     }
-                    if (found >= 0) {
-                        lseek(fd, pos, SEEK_SET);
-                        uint64_t start;
-                        uint64_t end;
-                        uint64_t offset;
-                        for (int i = 0; i <= found; i++) {
-                            e = read(fd, &start, sizeof (long));
-                            e = read(fd, &end, sizeof (long));
-                            e = read(fd, &offset, sizeof (long)); // multiply offset by pagesize
-                            jvm_address = (void *) start;
-                        }
-                        close(fd);
-                        return (char *) jvm_filename;
-                    }
-                    fprintf(stderr, "No NT_FILE entry found for JVM\n");
-                    close(fd);
-                    return nullptr;
+                    return ret;
                 } else {
                     // Not NT_FILE, skip over...
                     lseek(fd, (nhdr.n_descsz), SEEK_CUR);
@@ -733,25 +711,36 @@ char *resolve_jvm_info_pd(const char *filename) {
             break; // only need one NOTE
         }
     }
-    close(fd);
     fprintf(stderr, "No NT_FILE NOTE found?\n");
-    return jvm_filename;
+    return nullptr;
 }
 
 
-char *get_jvm_filename_pd(const char *filename) {
-    char* jvm_filename = nullptr;
-    if (filename != nullptr) {
-        jvm_filename = resolve_jvm_info_pd(filename);
+void init_jvm_filename_pd(int core_fd) {
+    //char* jvm_filename = nullptr;
+    //if (filename != nullptr) {
+    //    jvm_filename = resolve_jvm_info_pd(filename);
+   // }
+    //return jvm_filename;
+
+    int count_out = 0;
+    SharedLibMapping* mappings = read_NT_mappings(core_fd, count_out);
+    //fprintf(stderr, "Num of mappings: %i\n", count_out);
+    for (int i = 0; i < count_out; i++) {
+        //fprintf(stderr, "Mapping: %lu %lu %s\n", mappings[i].start, mappings[i].end, mappings[i].path);
+        if(strstr(mappings[i].path, "libjvm.so")) {
+            jvm_filename = mappings[i].path;// TODO yes memleak
+            jvm_address = (void*) mappings[i].start;
+            return;
+        }
     }
-    return jvm_filename;
 }
 
 void *get_jvm_load_adddress_pd(const char*corename) {
     return jvm_address;
 }
 
-int copy_file_pd(char *srcfile, char *destfile) {
+int copy_file_pd(const char *srcfile, const char *destfile) {
 
     // sendfile(outfd, infd, 0, count);
     char command[BUFLEN];
@@ -763,9 +752,28 @@ int copy_file_pd(char *srcfile, char *destfile) {
     return system(command);
 }
 
+bool is_unwanted_phdr(Elf64_Phdr phdr) {
+    if (
+        phdr.p_memsz == 0 ||
+        phdr.p_filesz == 0
+    ) return true;
+
+
+   return false;
+}
+
+
+bool is_inside(Elf64_Addr from, Elf64_Addr x, Elf64_Addr to) {
+    return from <= x && x < to;
+}
+
+bool is_inside(Elf64_Phdr phdr, Elf64_Addr start, Elf64_Addr end) {
+    return is_inside(start, phdr.p_vaddr, end)
+      || is_inside(start, phdr.p_vaddr + phdr.p_memsz, end);
+}
 
 // PRS_TODO
-int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const char *javahome, void *addr) {
+int create_mappings_pd(int mappings_fd, int core_fd, const char *jvm_copy, const char *javahome, void *addr) {
     char command[BUFLEN];
     memset(command, 0, BUFLEN);
 
@@ -779,26 +787,121 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
     // If dlopen relocated libjvm, should use dlsym results.
     // Write symbol list for revived process.
 
-    return -1;
-}
 
+    // For each program header:
+    //  If filesize or memsize is zero, skip it (maybe log)
+    //  If it touches an unwantedmapping, skipt it (maybe log)
+    //  If not writeable and inOtherMapping* skip it (maybe log)
+    //  Write an "M" entry
+
+    Elf64_Ehdr hdr;
+    lseek(core_fd, 0, SEEK_SET);
+    size_t e = read(core_fd, &hdr, sizeof(hdr));
+    if (e < sizeof(hdr)) {
+        fprintf(stderr, "Failed to read ELF header: %ld\n", e);
+        close(core_fd);
+        return -1;
+    }
+
+    int count_out = 0;
+    SharedLibMapping* mappings = read_NT_mappings(core_fd, count_out);
+    fprintf(stderr, "Num of mappings: %i\n", count_out);
+    for (int i = 0; i < count_out; i++) {
+        fprintf(stderr, "Mapping: %lu %lu %s\n", mappings[i].start, mappings[i].end, mappings[i].path);
+    }
+
+    int n_skipped = 0;
+    lseek(core_fd, hdr.e_phoff, SEEK_SET);
+    for (int i = 0; i < hdr.e_phnum; i++) {
+        // TODO skip some 
+        
+        Elf64_Phdr phdr;
+
+        lseek(core_fd, hdr.e_phoff + i*sizeof(phdr), SEEK_SET);
+        e = read(core_fd, &phdr, sizeof(phdr));
+        if (e < sizeof(phdr)) {
+            fprintf(stderr, "Failed to read ELF program header: %ld\n", e);
+            close(core_fd);
+            return -1;
+        }
+
+        if (
+            phdr.p_memsz == 0 ||
+            phdr.p_filesz == 0
+        ) {
+            n_skipped++;
+            continue;
+        } 
+
+        // Now we want to exclude this mapping if it touches any unwanted mapping. 
+        // Let's start with /bin/java #1
+        // If the virtaddr is between start and end, it touches, exclude it
+ 
+        bool skip = false;
+        for (int i = 0; i < count_out; i++) {
+            if(
+              is_inside(phdr, mappings[i].start, mappings[i].end)
+              && (
+                strstr(mappings[i].path, "bin/java") || false//!(phdr.p_flags & PF_W)
+              )
+            ) {
+                skip = true;
+                break;
+            }
+        }
+        if (skip) {
+            fprintf(stderr, "\nSkipping due to bin/java at %lu\n", phdr.p_vaddr);
+            n_skipped++;
+            continue;
+        }
+
+        if (!(phdr.p_flags & PF_W)) {
+            skip = false;
+            for (int i = 0; i < count_out; i++) {
+                if(
+                    is_inside(phdr, mappings[i].start, mappings[i].end)
+                ) {
+                    skip = true;
+                    break;
+                }
+            }
+            if (skip) {
+                fprintf(stderr, "\nSkipping due to nonwritable overlap at %lu\n", phdr.p_vaddr);
+                n_skipped++;
+                continue;
+            }
+        }
+
+        // TODO plt/GOTs maybe
+        // TODO "non-writeable mappings that are part of other mappings"
+        
+        fprintf(stderr, "Writing: %lu\n", phdr.p_vaddr);
+        Segment s((void*)phdr.p_vaddr, phdr.p_memsz, phdr.p_offset, phdr.p_filesz);
+        s.write_mapping(mappings_fd);
+    }
+    fprintf(stderr, "Skipped number: %i\n", n_skipped);
+    return 0;
+}
 
 /**
  *
  */
 int create_revivalbits_native_pd(const char *corename, const char *javahome, const char *revival_dirname, const char *libdir) {
-    char jvm_copy[BUFLEN];
-    memset(jvm_copy, 0, BUFLEN);
+    int core_fd = open(corename, O_RDONLY);
+    if (core_fd < 0) {
+        fprintf(stderr, "Cannot open %s: %s\n", corename, strerror(errno));
+        return -1;
+    }
 
     // find libjvm and its load address from core
-    char *jvm = get_jvm_filename_pd(corename);
-    if (jvm == nullptr) {
+    init_jvm_filename_pd(core_fd);
+    if (jvm_filename == nullptr) {
         fprintf(stderr, "revival: cannot locate JVM in core %s.\n", corename) ;
         return -1;
     }
-    fprintf(stderr, "JVM = '%s'\n", jvm);
-    void *addr = get_jvm_load_adddress_pd(corename);
-    fprintf(stderr, "JVM addr = %p\n", addr);
+    fprintf(stderr, "JVM = '%s'\n", jvm_filename);
+    jvm_address = get_jvm_load_adddress_pd(corename);
+    fprintf(stderr, "JVM addr = %p\n", jvm_address);
 
     // make core.revival dir
     int e = mkdir(revival_dirname, S_IRUSR | S_IWUSR | S_IXUSR);
@@ -808,36 +911,52 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
     }
 
     // copy libjvm into core.revival dir
+    char jvm_copy[BUFLEN];
+    memset(jvm_copy, 0, BUFLEN);
     strncpy(jvm_copy, revival_dirname, BUFLEN - 1);
     strncat(jvm_copy, "/libjvm.so", BUFLEN - 1);
     fprintf(stderr, "copying JVM to: %s\n", jvm_copy);
-    e = copy_file_pd(jvm, jvm_copy);
+    e = copy_file_pd(jvm_filename, jvm_copy);
     if (e != 0) {
-        fprintf(stderr, "Cannot copy JVM: %s to  %s\n", jvm, revival_dirname);
+        fprintf(stderr, "Cannot copy JVM: %s to  %s\n", jvm_filename, revival_dirname);
         return -1;
     }
 
     // relocate copy of libjvm:
-    e = relocate_sharedlib_pd(jvm_copy, addr, javahome);
+    e = relocate_sharedlib_pd(jvm_copy, jvm_address, javahome);
     if (e != 0) {
         fprintf(stderr, "failed to relocate JVM\n");
         return -1;
     }
 
     // Create core.mappings file:
-    int fd = mappings_file_create(revival_dirname, corename);
-    if (fd < 0) {
+    int mappings_fd = mappings_file_create(revival_dirname, corename);
+    if (mappings_fd < 0) {
         fprintf(stderr, "failed to create mappings file\n");
         return -1;
     }
 
     // read core file to create core.mappings file
-    e = create_mappings_pd(fd, corename, jvm_copy, javahome, addr);
+    e = create_mappings_pd(mappings_fd, core_fd, jvm_copy, javahome, jvm_address);
 
-    fsync(fd);
-    close(fd);
-    if (fd < 0) {
-        fprintf(stderr, "failed to write mappings\n");
+    fsync(mappings_fd);
+    if (close(mappings_fd) < 0) {
+        fprintf(stderr, "failed to close mappings\n");
+        return -1;
+    }
+
+    // Create core.symbols file:
+    int symbols_fd = symbols_file_create(revival_dirname);
+    if (symbols_fd < 0) {
+        fprintf(stderr, "failed to create mappings file\n");
+        return -1;
+    }
+
+    generate_symbols_pd(jvm_copy, symbols_fd);
+
+    fsync(symbols_fd);
+    if (close(symbols_fd) < 0) {
+        fprintf(stderr, "failed to close symbols file\n");
         return -1;
     }
 

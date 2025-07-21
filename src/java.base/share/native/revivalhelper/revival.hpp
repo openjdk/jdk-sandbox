@@ -261,6 +261,13 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
  */
 int mappings_file_create(const char *filename, const char *corename);
 
+/**
+ * Create core.symbols file
+ * Return the fd so other code can write the symbols lines.
+ */
+int symbols_file_create(const char *filename);
+
+int generate_symbols_pd(const char *name, int fd);
 
 /**
  *  Load a shared library.  Return an opaque handle (not the load address), or -1 for error.
@@ -293,6 +300,8 @@ void waitHitRet();
 
 // Possibly implement a process memory map display for debugging.
 void pmap_pd();
+
+void write(int fd, const char *buf);
 
 #endif /* REVIVAL_H */
 
