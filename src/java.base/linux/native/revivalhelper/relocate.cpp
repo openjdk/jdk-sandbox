@@ -31,6 +31,10 @@
 #include <fstream>
 #include <elf.h>
 
+#include "revival.hpp"
+
+struct Relocator {
+
 long long RELOC_AMOUNT;
 FILE* LIB_FILE;
 Elf64_Ehdr EHDR;
@@ -253,7 +257,66 @@ void run() {
     relocate_symbol_table(".symtab");
 }
 
+void generate_symbols(int fd) {
+    assert_ELF_sound();
+    Elf64_Shdr sh;
+
+    sh = find_section_by_name(".strtab");
+    char* SYMTAB_BUFFER = new char[sh.sh_size];
+    read_at(LIB_FILE, sh.sh_offset, sh.sh_size, SYMTAB_BUFFER);
+
+    sh = find_section_by_name(".symtab");
+    assert(sh.sh_type == SHT_SYMTAB);
+    for (long unsigned int i = 0; i < sh.sh_size/sh.sh_entsize; i++) {
+        Elf64_Sym sym = read_type_at<Elf64_Sym>(sh.sh_offset+ i*sh.sh_entsize);
+        //if (i >= 10555 && i < 10570) {
+        //    std::cout << SYMTAB_BUFFER + sym.st_name << std::endl;
+       // }
+        // Is it the version symbol?
+
+        const int N_SYMS = 11;
+        const char* symbols[N_SYMS] = {
+            "process_revival",
+            "tty",
+            "_ZN19Abstract_VM_Version11jvm_versionEv",
+            "_ZL8tc_owner",
+            "_ZN4DCmd17parse_and_executeE10DCmdSourceP12outputStreamPKccP10JavaThread",
+            "_ZN19java_lang_Throwable5printE3oopP12outputStream",
+            "_ZL11_thread_key",
+            "_ZN12StubRoutines21_safefetch32_fault_pcE",
+            "_ZN12StubRoutines28_safefetch32_continuation_pcE",
+            "_ZN12StubRoutines20_safefetchN_fault_pcE",
+            "_ZN12StubRoutines27_safefetchN_continuation_pcE"
+        };
+
+        for (int j = 0; j < N_SYMS; j++) {
+            int ret = strcmp(
+                symbols[j],
+                SYMTAB_BUFFER + sym.st_name);
+            if(ret == 0) {
+                char buf[2048];
+                snprintf(buf, 2048, "%s %llx %llx\n",
+                        SYMTAB_BUFFER + sym.st_name,
+                        (unsigned long long) sym.st_value,
+                        (unsigned long long) 0);
+                write(fd, buf);
+            }
+        }
+    }
+    //iter syms etc
+
+    // TODO go here, I have all the tools!
+}
+
 FILE* open_file(const char* path) {
+    FILE* file = fopen(path, "r");
+    if (nullptr == file) {
+        error("Cannot open file ");
+    }
+    return file;
+}
+
+FILE* open_file_write(const char* path) {
     FILE* file = fopen(path, "r+");
     if (nullptr == file) {
         error("Cannot open file ");
@@ -278,9 +341,19 @@ long long hex_to_int(const char* str) {
     return std::stoul(str, 0, 16);
 }
 
+// for relocation
 void initialize_globals(const char* path_to_lib, long long reloc_amount) {
-    LIB_FILE = open_file(path_to_lib);
+    LIB_FILE = open_file_write(path_to_lib);
     RELOC_AMOUNT = reloc_amount;
+    EHDR = read_type_at<Elf64_Ehdr>(0);
+    Elf64_Shdr strndx_shdr = read_type_at<Elf64_Shdr>(section_header_offset(EHDR.e_shstrndx));
+    SHDRSTR_BUFFER = new char[strndx_shdr.sh_size];
+    read_at(LIB_FILE, strndx_shdr.sh_offset, strndx_shdr.sh_size, SHDRSTR_BUFFER);
+}
+
+// for reading
+void initialize_globals(const char* path_to_lib) {
+    LIB_FILE = open_file(path_to_lib);
     EHDR = read_type_at<Elf64_Ehdr>(0);
     Elf64_Shdr strndx_shdr = read_type_at<Elf64_Shdr>(section_header_offset(EHDR.e_shstrndx));
     SHDRSTR_BUFFER = new char[strndx_shdr.sh_size];
@@ -307,13 +380,27 @@ void assert_struct_sizes() {
     assert(sizeof(Elf64_Rel) == 16);
 }
 
-int relocate_sharedlib_pd(const char* filename, const void *addr , const char *javahome) {
+};
+
+int relocate_sharedlib_pd(const char* filename, const void *addr , const char *javahome) { 
     std::cout << "relocate_sharedlib_pd" << std::endl;
-    assert_struct_sizes();
+    Relocator l;
+    l.assert_struct_sizes();
     unsigned long reloc_amount = (unsigned long) addr; // assume library currently has zero base address
-    initialize_globals(filename, reloc_amount);
-    run();
-    close_lib_file();
+    l.initialize_globals(filename, reloc_amount);
+    l.run();
+    l.close_lib_file();
+    std::cout << "relocate_sharedlib_pd done" << std::endl;
+    return 0;
+}
+
+int generate_symbols_pd(const char* filename, int symbols_fd) { 
+    std::cout << "generate_symbols_pd" << std::endl;
+    Relocator l;
+    l.assert_struct_sizes();
+    l.initialize_globals(filename);
+    l.generate_symbols(symbols_fd);
+    l.close_lib_file();
     std::cout << "relocate_sharedlib_pd done" << std::endl;
     return 0;
 }

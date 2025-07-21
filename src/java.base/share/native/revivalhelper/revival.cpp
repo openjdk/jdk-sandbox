@@ -734,7 +734,7 @@ int mappings_file_create(const char *dirname, const char *corename) {
     return fd;
 }
 
-int symbols_file_create(const char *dirname, const char *corename) {
+int symbols_file_create(const char *dirname) {
     char buf[BUFLEN];
     snprintf(buf, BUFLEN, "%s%s", dirname, "/core.symbols"); 
     if (verbose) {

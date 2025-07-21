@@ -21,8 +21,18 @@
  * questions.
  */
 
+/*
+ * @test JCmdRevivalSimple
+ * @summary Simplified variant with just VM.version
+ * @requires os.family == "linux" | os.family == "windows"
+ * @library /test/lib
+ * @requires vm.debug == true
+ *
+ * @run main/othervm JCmdRevival cicrash VM.version 
+ */
+
 /**
- * @test JCmdRevival
+ * @test JCmdRevivalOom
  * @summary Test process revival for serviceability: jcmd on a core file (OOM crash).
  * @requires os.family == "linux" | os.family == "windows"
  * @library /test/lib
@@ -31,7 +41,7 @@
  */
 
 /*
- * @test JCmdRevival
+ * @test JCmdRevivalCrash
  * @summary Test process revival for serviceability: jcmd on a core file (CI crash, debug VM).
  * @requires os.family == "linux" | os.family == "windows"
  * @library /test/lib
@@ -43,6 +53,7 @@
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -176,6 +187,7 @@ public class JCmdRevival {
         }
 
         ProcessBuilder jcmdpb = new ProcessBuilder();
+        System.out.println("Will run command:" + Arrays.toString(launcher.getCommand()));
         jcmdpb.command(launcher.getCommand());
         // Process revival is currently assisted by some pre-work in a separate Java tool:
         Map<String, String> env = jcmdpb.environment();

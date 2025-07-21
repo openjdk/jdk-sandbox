@@ -795,6 +795,7 @@ int create_mappings_pd(int mappings_fd, int core_fd, const char *jvm_copy, const
     //  Write an "M" entry
 
     Elf64_Ehdr hdr;
+    lseek(core_fd, 0, SEEK_SET);
     size_t e = read(core_fd, &hdr, sizeof(hdr));
     if (e < sizeof(hdr)) {
         fprintf(stderr, "Failed to read ELF header: %ld\n", e);
@@ -849,40 +850,36 @@ int create_mappings_pd(int mappings_fd, int core_fd, const char *jvm_copy, const
             }
         }
         if (skip) {
-            fprintf(stderr, "\nSkipping at %lu\n", phdr.p_vaddr);
+            fprintf(stderr, "\nSkipping due to bin/java at %lu\n", phdr.p_vaddr);
             n_skipped++;
             continue;
+        }
+
+        if (!(phdr.p_flags & PF_W)) {
+            skip = false;
+            for (int i = 0; i < count_out; i++) {
+                if(
+                    is_inside(phdr, mappings[i].start, mappings[i].end)
+                ) {
+                    skip = true;
+                    break;
+                }
+            }
+            if (skip) {
+                fprintf(stderr, "\nSkipping due to nonwritable overlap at %lu\n", phdr.p_vaddr);
+                n_skipped++;
+                continue;
+            }
         }
 
         // TODO plt/GOTs maybe
         // TODO "non-writeable mappings that are part of other mappings"
         
-
         fprintf(stderr, "Writing: %lu\n", phdr.p_vaddr);
         Segment s((void*)phdr.p_vaddr, phdr.p_memsz, phdr.p_offset, phdr.p_filesz);
         s.write_mapping(mappings_fd);
     }
     fprintf(stderr, "Skipped number: %i\n", n_skipped);
-
-    //int jvm_fd = open(jvm_filename, O_RDONLY);
-    //if (jvm_fd < 0) {
-    //    fprintf(stderr, "Cannot open %s: %s\n", jvm_filename, strerror(errno));
-    //    return -1;
-   // }
-
-    //size_t e = read(jvm_fd, &hdr, sizeof(hdr));
-    //if (e < sizeof(hdr)) {
-    //    fprintf(stderr, "Failed to read ELF header %s: %ld\n", jvm_filename, e);
-    //    close(core_fd);
-     //   return -1;
-   // }
-    // Then do symbols
-    // TODO symbols
-    //for(int i = 0; i < hdr.e_shnum; i++) {
-    //    kkkkkkkkk
-   // }
-
-
     return 0;
 }
 
@@ -942,17 +939,24 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
     // read core file to create core.mappings file
     e = create_mappings_pd(mappings_fd, core_fd, jvm_copy, javahome, jvm_address);
 
-    //// Create core.symbols file:
-    //int mappings_fd = mappings_file_create(revival_dirname, corename);
-    //if (mappings_fd < 0) {
-    //    fprintf(stderr, "failed to create mappings file\n");
-    //    return -1;
-   // }
-
-
     fsync(mappings_fd);
     if (close(mappings_fd) < 0) {
         fprintf(stderr, "failed to close mappings\n");
+        return -1;
+    }
+
+    // Create core.symbols file:
+    int symbols_fd = symbols_file_create(revival_dirname);
+    if (symbols_fd < 0) {
+        fprintf(stderr, "failed to create mappings file\n");
+        return -1;
+    }
+
+    generate_symbols_pd(jvm_copy, symbols_fd);
+
+    fsync(symbols_fd);
+    if (close(symbols_fd) < 0) {
+        fprintf(stderr, "failed to close symbols file\n");
         return -1;
     }
 
