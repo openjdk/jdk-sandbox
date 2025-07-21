@@ -160,9 +160,10 @@ public class TestParse {
 
         @Test
         void testBasicRowCol() {
+            var msg = "Location: row 0, col 1.";
             JsonParseException e = assertThrows(JsonParseException.class, () -> Json.parse(BASIC));
-            assertTrue(e.getMessage().contains("Location: row 0, col 0."),
-                    "Expected row 0, col 0 but got row "
+            assertTrue(e.getMessage().contains(msg),
+                    "Expected: " + msg + " but got row "
                             + e.getErrorRow() + ", col " + e.getErrorColumn());
         }
 
@@ -175,9 +176,10 @@ public class TestParse {
 
         @Test
         void testStructuralRowCol() {
+            var msg = "Location: row 1, col 11.";
             JsonParseException e = assertThrows(JsonParseException.class, () -> Json.parse(STRUCTURAL));
-            assertTrue(e.getMessage().contains("Location: row 1, col 10."),
-                    "Expected row 1, col 10 but got row "
+            assertTrue(e.getMessage().contains(msg),
+                    "Expected: " + msg + " but got row "
                             + e.getErrorRow() + ", col " + e.getErrorColumn());
         }
 
@@ -194,9 +196,10 @@ public class TestParse {
 
         @Test
         void testStructuralWithNestedRowCol() {
+            var msg = "Location: row 4, col 15.";
             JsonParseException e = assertThrows(JsonParseException.class, () -> Json.parse(STRUCTURAL_WITH_NESTED));
-            assertTrue(e.getMessage().contains("Location: row 4, col 14."),
-                    "Expected row 4, col 14 but got row "
+            assertTrue(e.getMessage().contains(msg),
+                    "Expected: " + msg + " but got row "
                             + e.getErrorRow() + ", col " + e.getErrorColumn());
         }
     }

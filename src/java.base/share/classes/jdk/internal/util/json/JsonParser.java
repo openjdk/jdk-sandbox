@@ -103,8 +103,7 @@ public final class JsonParser {
         offset++; // Walk past the '{'
         skipWhitespaces();
         // Check for empty case
-        if (currCharEquals('}')) {
-            offset++;
+        if (charEquals('}')) {
             return new JsonObjectImpl(Map.of());
         }
         var members = new LinkedHashMap<String, JsonValue>();
@@ -120,21 +119,15 @@ public final class JsonParser {
 
             // Move from name to ':'
             skipWhitespaces();
-            if (!currCharEquals(':')) {
+            if (!charEquals(':')) {
                 throw failure(
                         "Expected a colon after the member name");
             }
-
-            // Move from ':' to JsonValue
-            offset++;
             members.put(name, parseValue());
             // Ensure current char is either ',' or '}'
-            if (currCharEquals('}')) {
-                offset++;
+            if (charEquals('}')) {
                 return new JsonObjectImpl(members);
-            } else if (currCharEquals(',')) {
-                // Add the comma, and move to the next key
-                offset++;
+            } else if (charEquals(',')) {
                 skipWhitespaces();
             } else {
                 // Neither ',' nor '}' so fail
@@ -150,10 +143,9 @@ public final class JsonParser {
      * See https://datatracker.ietf.org/doc/html/rfc8259#section-8.3
      */
     private String parseName() {
-        if (!currCharEquals('"')) {
+        if (!charEquals('"')) {
             throw failure("Expecting a JSON Object member name");
         }
-        offset++; // Move past the starting quote
         var escape = false;
         boolean useBldr = false;
         var start = offset;
@@ -213,19 +205,17 @@ public final class JsonParser {
         offset++; // Walk past the '['
         skipWhitespaces();
         // Check for empty case
-        if (currCharEquals(']')) {
-            offset++;
+        if (charEquals(']')) {
             return new JsonArrayImpl(List.of());
         }
         var list = new ArrayList<JsonValue>();
-        for (; hasInput(); offset++) {
+        while (hasInput()) {
             // Get the JsonValue
             list.add(parseValue());
             // Ensure current char is either ']' or ','
-            if (currCharEquals(']')) {
-                offset++;
+            if (charEquals(']')) {
                 return new JsonArrayImpl(list);
-            } else if (!currCharEquals(',')) {
+            } else if (!charEquals(',')) {
                 break;
             }
         }
@@ -271,24 +261,25 @@ public final class JsonParser {
      * do not require offsets to lazily compute their values.
      */
     private JsonBooleanImpl parseTrue() {
-        if (charsEqual("rue", offset + 1)) {
-            offset += 4;
+        offset++;
+        if (charEquals('r') && charEquals('u') && charEquals('e')) {
             return JsonBooleanImpl.TRUE;
         }
         throw failure(UNEXPECTED_VAL);
     }
 
     private JsonBooleanImpl parseFalse() {
-        if (charsEqual( "alse", offset + 1)) {
-            offset += 5;
+        offset++;
+        if (charEquals('a') && charEquals('l') && charEquals('s')
+                && charEquals('e')) {
             return JsonBooleanImpl.FALSE;
         }
         throw failure(UNEXPECTED_VAL);
     }
 
     private JsonNullImpl parseNull() {
-        if (charsEqual("ull", offset + 1)) {
-            offset += 4;
+        offset++;
+        if (charEquals('u') && charEquals('l') && charEquals('l')) {
             return JsonNullImpl.NULL;
         }
         throw failure(UNEXPECTED_VAL);
@@ -428,25 +419,14 @@ public final class JsonParser {
         };
     }
 
-    // returns true if the char at the specified offset equals the input char
-    // and is within bounds of the char[]
-    private boolean currCharEquals(char c) {
-        return hasInput() && c == doc[offset];
-    }
-
-    // Returns true if the substring starting at the given offset equals the
-    // input String and is within bounds of the JSON document
-    private boolean charsEqual(String str, int o) {
-        if (o + str.length() <= doc.length) {
-            for (int index = 0; index < str.length(); index++) {
-                if (doc[o] != str.charAt(index)) {
-                    return false; // char does not match
-                }
-                o++;
-            }
-            return true; // all chars match
+    // Returns true if within bounds and if the char at the current parser offset
+    // is equivalent to the input one. If so, offset is incremented.
+    private boolean charEquals(char c) {
+        if (hasInput() && c == doc[offset]) {
+            offset++;
+            return true;
         }
-        return false; // not within bounds
+        return false;
     }
 
     private JsonParseException failure(String message) {
