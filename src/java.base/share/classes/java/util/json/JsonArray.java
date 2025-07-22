@@ -80,8 +80,9 @@ public non-sealed interface JsonArray extends JsonValue {
     boolean equals(Object obj);
 
     /**
-     * {@return the hash code value for this {@code JsonArray}} The hash code of a
-     * {@code JsonArray} is calculated by {@code Objects.hash(JsonArray.values()}.
+     * {@return the hash code value for this {@code JsonArray}} The hash code value
+     * of a {@code JsonArray} is defined to be the hash code of {@code JsonArray}'s
+     * {@link #values()}.
      * Thus, for two {@code JsonArray}s {@code ja1} and {@code ja2},
      * {@code ja1.equals(ja2)} implies that {@code ja1.hashCode() == ja2.hashCode()}
      * as required by the general contract of {@link Object#hashCode}.
