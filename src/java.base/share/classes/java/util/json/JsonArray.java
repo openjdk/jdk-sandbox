@@ -27,6 +27,8 @@ package java.util.json;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 import jdk.internal.javac.PreviewFeature;
 import jdk.internal.util.json.JsonArrayImpl;
@@ -57,11 +59,13 @@ public non-sealed interface JsonArray extends JsonValue {
      *      any values that are {@code null}
      */
     static JsonArray of(List<? extends JsonValue> src) {
-        var values = new ArrayList<JsonValue>(src); // implicit null check
-        if (values.contains(null)) {
-            throw new NullPointerException("src contains null value(s)");
-        }
-        return new JsonArrayImpl(values);
+        // Careful not to use List::contains on src for null checking which
+        // throws NPE for immutable lists
+        return new JsonArrayImpl(src
+                .stream()
+                .map(Objects::requireNonNull)
+                .collect(Collectors.toCollection(ArrayList::new))
+        );
     }
 
     /**
