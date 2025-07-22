@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import java.util.json.JsonArray;
 import java.util.json.JsonObject;
 import java.util.json.JsonParseException;
@@ -46,12 +47,13 @@ public final class JsonParser {
 
     // Access to the underlying JSON contents
     private final char[] doc;
+    // Lazily initialized for member names with escape sequences
+    private final Supplier<StringBuilder> sb = StableValue.supplier(this::initSb);
     // Current offset during parsing
     private int offset;
     // For exception message on failure
     private int line;
     private int lineStart;
-    private StringBuilder builder;
 
     public JsonParser(char[] doc) {
         this.doc = doc;
@@ -168,9 +170,8 @@ public final class JsonParser {
                     default -> throw failure(UNRECOGNIZED_ESCAPE_SEQUENCE.formatted(c));
                 }
                 if (!useBldr) {
-                    initBuilder();
                     // Append everything up to the first escape sequence
-                    builder.append(doc, start, offset - escapeLength - 1 - start);
+                    sb.get().append(doc, start, offset - escapeLength - 1 - start);
                     useBldr = true;
                 }
                 escape = false;
@@ -180,8 +181,8 @@ public final class JsonParser {
             } else if (c == '\"') {
                 offset++;
                 if (useBldr) {
-                    var name = builder.toString();
-                    builder.setLength(0);
+                    var name = sb.toString();
+                    sb.get().setLength(0);
                     return name;
                 } else {
                     return new String(doc, start, offset - start - 1);
@@ -190,7 +191,7 @@ public final class JsonParser {
                 throw failure(UNESCAPED_CONTROL_CODE);
             }
             if (useBldr) {
-                builder.append(c);
+                sb.get().append(c);
             }
         }
         throw failure(UNCLOSED_STRING.formatted("JSON Object member name"));
@@ -248,7 +249,7 @@ public final class JsonParser {
                 hasEscape = true;
                 escape = true;
             } else if (c == '\"') {
-                return new JsonStringImpl(doc, start, offset += 1, hasEscape);
+                return new JsonStringImpl(doc, start, ++offset, hasEscape);
             } else if (c < ' ') {
                 throw failure(UNESCAPED_CONTROL_CODE);
             }
@@ -361,11 +362,8 @@ public final class JsonParser {
 
     // Utility functions
 
-    // Called when a SB is required to un-escape a member name
-    private void initBuilder() {
-        if (builder == null) {
-            builder = new StringBuilder();
-        }
+    private StringBuilder initSb() {
+        return new StringBuilder();
     }
 
     // Unescapes the Unicode escape sequence and produces a char
@@ -411,7 +409,7 @@ public final class JsonParser {
             case ' ', '\t','\r' -> false;
             case '\n' -> {
                 // Increments the row and col
-                line += 1;
+                line++;
                 lineStart = offset + 1;
                 yield false;
             }
