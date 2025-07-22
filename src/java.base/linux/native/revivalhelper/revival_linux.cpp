@@ -317,8 +317,8 @@ off_t writeTempFileBytes(const char *tempName, Segment seg) {
     }
     off_t pos = lseek(fdTemp, 0, SEEK_END);
     if (pos < 0) {
-        close(fdTemp);
         fprintf(stderr, "writeTempFileBytes: lseek fails %d : %s\n", errno, strerror(errno));
+        close(fdTemp);
     }
     // Write bytes
     size_t s = write(fdTemp, seg.vaddr, seg.length); 
@@ -732,7 +732,6 @@ void *get_jvm_load_adddress_pd(const char*corename) {
 }
 
 int copy_file_pd(const char *srcfile, const char *destfile) {
-
     // sendfile(outfd, infd, 0, count);
     char command[BUFLEN];
     memset(command, 0, BUFLEN);
@@ -740,7 +739,9 @@ int copy_file_pd(const char *srcfile, const char *destfile) {
     strncat(command, srcfile, BUFLEN - 1);
     strncat(command, " ", BUFLEN - 1);
     strncat(command,  destfile, BUFLEN - 1);
-    return system(command);
+    int e = system(command);
+    if (verbose) log("copy: '%s' returns %d", command, e);
+    return e;
 }
 
 /**
@@ -765,6 +766,7 @@ int create_mappings_pd(int mappings_fd, int core_fd, const char *jvm_copy, const
     char command[BUFLEN];
     memset(command, 0, BUFLEN);
 
+    if (verbose) log("create_mappings_pd");
     // Get list of memory mappings in core file.
     // Create list of mappings for revived process.
     //
@@ -862,13 +864,12 @@ int create_mappings_pd(int mappings_fd, int core_fd, const char *jvm_copy, const
         // TODO plt/GOTs maybe
         // TODO "non-writeable mappings that are part of other mappings"
         
-        if (verbose) fprintf(stderr, "Writing: %lu\n", phdr.p_vaddr);
+        if (verbose) log("Writing: %lu", phdr.p_vaddr);
         Segment s((void*)phdr.p_vaddr, phdr.p_memsz, phdr.p_offset, phdr.p_filesz);
         s.write_mapping(mappings_fd);
     }
-    if (verbose) {
-        fprintf(stderr, "Skipped number: %i\n", n_skipped);
-    }
+
+    if (verbose) log("create_mappings_pd done.  Skipped = %i", n_skipped);
     return 0;
 }
 
@@ -888,9 +889,9 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
         fprintf(stderr, "revival: cannot locate JVM in core %s.\n", corename) ;
         return -1;
     }
-    fprintf(stderr, "JVM = '%s'\n", jvm_filename);
+    if (verbose) log("JVM = '%s'", jvm_filename);
     jvm_address = get_jvm_load_adddress_pd(corename);
-    fprintf(stderr, "JVM addr = %p\n", jvm_address);
+    if (verbose) log("JVM addr = %p", jvm_address);
 
     // make core.revival dir
     int e = mkdir(revival_dirname, S_IRUSR | S_IWUSR | S_IXUSR);
@@ -904,7 +905,6 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
     memset(jvm_copy, 0, BUFLEN);
     strncpy(jvm_copy, revival_dirname, BUFLEN - 1);
     strncat(jvm_copy, "/" JVM_FILENAME, BUFLEN - 1);
-    fprintf(stderr, "copying JVM to: %s\n", jvm_copy);
     e = copy_file_pd(jvm_filename, jvm_copy);
     if (e != 0) {
         fprintf(stderr, "Cannot copy JVM: %s to  %s\n", jvm_filename, revival_dirname);
@@ -921,36 +921,35 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
     // Create core.mappings file:
     int mappings_fd = mappings_file_create(revival_dirname, corename);
     if (mappings_fd < 0) {
-        fprintf(stderr, "failed to create mappings file\n");
+        // error already printed
         return -1;
     }
 
     // read core file to create core.mappings file
     e = create_mappings_pd(mappings_fd, core_fd, jvm_copy, javahome, jvm_address);
-
-    fsync(mappings_fd);
+    // fsync(mappings_fd); // unnnecessary
     if (close(mappings_fd) < 0) {
-        fprintf(stderr, "failed to close mappings\n");
+        fprintf(stderr, "Failed to close mappings file\n");
         return -1;
     }
 
     // Create core.symbols file:
     int symbols_fd = symbols_file_create(revival_dirname);
     if (symbols_fd < 0) {
-        fprintf(stderr, "failed to create mappings file\n");
+        fprintf(stderr, "Failed to create mappings file\n");
         return -1;
     }
 
     generate_symbols_pd(jvm_copy, symbols_fd);
 
-    fsync(symbols_fd);
+    // fsync(symbols_fd); // unnecessary
     if (close(symbols_fd) < 0) {
-        fprintf(stderr, "failed to close symbols file\n");
+        fprintf(stderr, "Failed to close symbols file: %s\n", strerror(errno));
         return -1;
     }
 
     if (verbose) {
-        printf("create_revivalbits_native_pd returning %d.\n", e);
+        log("create_revivalbits_native_pd returning %d", e);
     }
     return e;
 }

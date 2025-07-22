@@ -383,25 +383,25 @@ void assert_struct_sizes() {
 };
 
 int relocate_sharedlib_pd(const char* filename, const void *addr , const char *javahome) {
-    if (verbose) std::cout << "relocate_sharedlib_pd" << std::endl;
+    if (verbose) log("relocate_sharedlib_pd");
     Relocator l;
     l.assert_struct_sizes();
     unsigned long reloc_amount = (unsigned long) addr; // assume library currently has zero base address
     l.initialize_globals(filename, reloc_amount);
     l.run();
     l.close_lib_file();
-    if (verbose) std::cout << "relocate_sharedlib_pd done" << std::endl;
+    if (verbose) log("relocate_sharedlib_pd_done");
     return 0;
 }
 
 int generate_symbols_pd(const char* filename, int symbols_fd) {
-    if (verbose) std::cout << "generate_symbols_pd" << std::endl;
+    if (verbose) log("generate_symbols_pd");
     Relocator l;
     l.assert_struct_sizes();
     l.initialize_globals(filename);
     l.generate_symbols(symbols_fd);
     l.close_lib_file();
-    if (verbose) std::cout << "relocate_sharedlib_pd done" << std::endl;
+    if (verbose) log("generate_symbols_pd done");
     return 0;
 }
 

@@ -106,8 +106,8 @@ void init_pd() {
     valign = systemInfo.dwAllocationGranularity - 1;
     pagesize = systemInfo.dwPageSize;
     if (verbose) {
-        fprintf(stderr, "dwPageSize = %d\n", systemInfo.dwPageSize);
-        fprintf(stderr, "dwAllocationGranularity = %d\n", systemInfo.dwAllocationGranularity);
+        log("dwPageSize = %d", systemInfo.dwPageSize);
+        log("dwAllocationGranularity = %d", systemInfo.dwAllocationGranularity);
     }
     if (valign != 0xffff) {
         // expected: dwAllocationGranularity = 65536
@@ -141,8 +141,8 @@ void *getTLS() {
 }
 
 void printTLS() {
-    fprintf(stderr, "TIB = 0x%p\n", getTIB());
-    fprintf(stderr, "TLS = 0x%p contains 0x%p\n", getTLS(), (void *) *(long long *)getTLS());
+    log("TIB = 0x%p", getTIB());
+    log("TLS = 0x%p contains 0x%p", getTLS(), (void *) *(long long *)getTLS());
 }
 
 bool revival_direxists_pd(const char *dirname) {
@@ -156,7 +156,7 @@ int revival_checks_pd(const char *dirname) {
 
 void tls_fixup_pd(void *tlsPtr) {
     if (verbose) {
-        fprintf(stderr, "tls_fixup restore to 0x%p\n", tlsPtr);
+        log("tls_fixup restore to 0x%p", tlsPtr);
         printTLS();
     }
     uint64_t *this_tls = (uint64_t*) getTLS();
@@ -581,7 +581,6 @@ char *readstring_minidump(int fd) {
         fprintf(stderr, "MINIDUMP_STRING length %d, short bad results from wcstombs: %d\n", length, e);
         return nullptr;
     }
-    //    fprintf(stderr, "readsstring_minidump: size %d '%s'\n", length, (const char *) mbuf);
 
     // Ideally put mbuf string into an accurately-sized buffer.
     free(wbuf);
@@ -686,7 +685,6 @@ char *resolve_jvm_info_pd(const char *filename) {
         MINIDUMP_MODULE module;
         e = read(dump->fd, &module, sizeof(module));
         // Read name
-        //fprintf(stderr, "name RVA = 0x%lx\n", (unsigned long) module.ModuleNameRva);
         char *name = string_at_offset_minidump(dump->fd, module.ModuleNameRva);
         if (verbose) {
             fprintf(stderr, "MODULE name = '%s' 0x%llx\n", name, module.BaseOfImage);
@@ -744,8 +742,9 @@ int copy_file_pd(const char *srcfile, const char *destfile) {
     free(s);
     free(d);
 
-    fprintf(stderr, "COPY: %s\n", command);
-    return system(command);
+    int e = system(command);
+    if (verbose) log("copy: '%s' returns %d", command, e);
+    return e;
 }
 
 
@@ -768,8 +767,9 @@ int relocate_sharedlib_pd(const char *filename, const void *addr) {
     strncat(command, " ", BUFLEN - 1);
     strncat(command, filename, BUFLEN - 1);
 
-    fprintf(stderr, "relocate_sharedlib_pd: '%s'\n", command);
-    return system(command);
+    int e = system(command);
+    log("relocate_sharedlib_pd: '%s' returns %d", command, e);
+    return e;
 }
 
 
@@ -791,7 +791,7 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
     RVA64 BaseRVA;
     int e = read(dump->fd, &NumberOfMemoryRanges, sizeof(NumberOfMemoryRanges));
     e = read(dump->fd, &BaseRVA, sizeof(BaseRVA));
-    fprintf(stderr, "create_mappings_pd: %lld memory ranges at base RVA=0x%llx\n", NumberOfMemoryRanges, BaseRVA);
+    if (verbose) fprintf(stderr, "create_mappings_pd: %lld memory ranges at base RVA=0x%llx\n", NumberOfMemoryRanges, BaseRVA);
     RVA64 currentRVA = BaseRVA;
     MINIDUMP_MEMORY_DESCRIPTOR64 d;
     ULONG64 prevAddr = 0;
@@ -832,9 +832,9 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
         fprintf(stderr, "revival: cannot locate JVM in minidump.\n") ;
         return -1;
     }
-    fprintf(stderr, "JVM = '%s'\n", jvm);
+    if (verbose) log("JVM = '%s'", jvm);
     void *addr = get_jvm_load_adddress_pd(corename);
-    fprintf(stderr, "JVM addr = %p\n", addr);
+    if (verbose) log("JVM addr = %p", addr);
 
     // make core.revival dir
     int e = _mkdir(revival_dirname);
@@ -852,7 +852,6 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
     memset(jvm_copy, 0, BUFLEN);
     strncpy(jvm_copy, revival_dirname, BUFLEN - 1);
     strncat(jvm_copy, "\\" JVM_FILENAME, BUFLEN - 1);
-    fprintf(stderr, "copying JVM to: %s\n", jvm_copy);
     e = copy_file_pd(jvm, jvm_copy);
     if (e != 0) {
         fprintf(stderr, "Cannot copy JVM: %s to  %s\n", jvm_copy, revival_dirname);
@@ -862,23 +861,22 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
     // relocate copy of libjvm:
     e = relocate_sharedlib_pd(jvm_copy, addr);
     if (e != 0) {
-        fprintf(stderr, "failed to relocate JVM: %d\n", e);
-        //    return -1; // temp ignore to read mappings...
+        fprintf(stderr, "Failed to relocate JVM: %d\n", e);
+        //    return -1; // temp ignore to test mappings when editbin not found...
     }
 
     // Create core.mappings file:
     int fd = mappings_file_create(revival_dirname, corename);
     if (fd < 0) {
-        fprintf(stderr, "failed to create mappings file\n");
+        fprintf(stderr, "Failed to create mappings file\n");
         return -1;
     }
 
     e = create_mappings_pd(fd, corename, jvm_copy, javahome, addr);
 
-    // fsync
     close(fd);
     if (e != 0) {
-        fprintf(stderr, "failed to create memory mappings: %d\n", e);
+        fprintf(stderr, "Failed to create memory mappings: %d\n", e);
         return -1;
     }
     return 0;

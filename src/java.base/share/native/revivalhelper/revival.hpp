@@ -26,8 +26,6 @@
 #ifndef REVIVAL_H
 #define REVIVAL_H
 
-#include <list>
-#include <cinttypes>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -35,15 +33,17 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-
+#include <sys/time.h>
 #include <time.h>
 
+#include <cinttypes>
+#include <list>
 #include <new>
 #include <set>
-#include <list>
 
 // More types
 typedef uint64_t address;
@@ -303,6 +303,11 @@ const char *dangerous( void *vaddr, unsigned long long length);
 unsigned long long max_user_vaddr_pd();
 
 /**
+ * Write string fully to fd, log if error.
+ */
+void write(int fd, const char *buf);
+
+/**
  * Diagnostic utils:
  */
 
@@ -312,7 +317,10 @@ void waitHitRet();
 // Possibly implement a process memory map display for debugging.
 void pmap_pd();
 
-void write(int fd, const char *buf);
+// Diagnostic message.
+// Adds newline to given message.
+void log0(const char *msg);
+void log(const char *format, ...);
 
 #endif /* REVIVAL_H */
 

@@ -78,11 +78,63 @@ pthread_key_t _pthread_key;
 #endif /* LINUX */
 
 
+void write(int fd, const char *buf) {
+    size_t len = strlen(buf);
+    int e = (int) write(fd, buf, (unsigned int) len);
+    if (e < 0) {
+        fprintf(stderr, "revival write: Write failed: %s\n", strerror(errno));
+    } else if (e != (int) len) {
+        fprintf(stderr, "revival write: Write failed: written %d buf %d.\n", e, (int) len);
+    }
+}
+
+void log0(const char *msg) {
+    char buffer[BUFLEN];
+    struct timeval t;
+    gettimeofday(&t, nullptr);
+    snprintf(buffer, BUFLEN - 1, "%ld.%ld: %s\n", t.tv_sec, (long) t.tv_usec, msg);
+    write(2 /* stderr */, buffer);
+}
+
+void log(const char *format, ...) {
+    char buffer[BUFLEN];
+    memset(buffer, 0, BUFLEN);
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buffer, BUFLEN - 1, format, args);
+    va_end(args);
+    log0(buffer);
+}
+
 void waitHitRet() {
     if (_wait) {
         printf("hit return");
         getchar();
     }
+}
+
+/**
+ * File size utility.
+ */
+unsigned long long file_size(const char *filename) {
+    struct stat sb;
+    if (stat(filename, &sb) == -1) {
+       printf("cannot stat '%s': %d: %s\n", filename, errno, strerror(errno));
+       return -1;
+   }
+   return (long long) sb.st_size;
+}
+
+/**
+ * File time utility.
+ */
+unsigned long long file_time(const char *filename) {
+    struct stat sb;
+    if (stat(filename, &sb) == -1) {
+       printf("cannot stat '%s': %d: %s\n", filename, errno, strerror(errno));
+       return -1;
+   }
+   return (long long) sb.st_mtime;
 }
 
 /**
@@ -144,32 +196,6 @@ const char * dangerous(void *vaddr, unsigned long long length) {
     return nullptr;
 }
 
-
-/**
- * File size utility.
- */
-unsigned long long file_size(const char *filename) {
-    struct stat sb;
-    if (stat(filename, &sb) == -1) {
-       printf("cannot stat '%s': %d: %s\n", filename, errno, strerror(errno));
-       return -1;
-   }
-   return (long long) sb.st_size;
-}
-
-/**
- * File time utility.
- */
-unsigned long long file_time(const char *filename) {
-    struct stat sb;
-    if (stat(filename, &sb) == -1) {
-       printf("cannot stat '%s': %d: %s\n", filename, errno, strerror(errno));
-       return -1;
-   }
-   return (long long) sb.st_mtime;
-}
-
-
 /**
  * Create a memory mapping, at some virtual address, directly from a file/offset/length.
  * Return -1 on failure.
@@ -215,7 +241,6 @@ int revival_mapping_mmap(void *vaddr, size_t length, off_t offset, int lines, ch
         }
     }
 #endif
-
     return e;
 }
 
@@ -312,8 +337,7 @@ int revival_mapping_copy(void *vaddr, size_t length, off_t offset, bool allocate
     if (verbose) {
         printf("  revival_mapping_copy: done, copied %zd.\n", length);
     }
-    // Return 0 for success, not fread result from above.
-    return 0;
+    return 0; // Success
 }
 
 
@@ -325,13 +349,13 @@ void *load_sharedlibrary_fromdir(const char *dirname, const char *libname, void 
     char buf[BUFLEN];
     snprintf(buf, BUFLEN, "%s/%s", dirname, libname); 
     if (verbose) {
-        printf("load_sharedlibrary_fromdir: %s\n", buf);
+        log("load_sharedlibrary_fromdir: %s\n", buf);
     }
 
     void *a = load_sharedobject_pd(buf, vaddr);
 
     if (verbose) {
-        printf("load_sharedobject_pd: %s: returns %p\n", buf, a);
+        log("load_sharedobject_pd: %s: returns %p\n", buf, a);
     }
     return a;
 }
@@ -412,12 +436,10 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
         e = fscanf(f, "L %s %s %s\n", s1, s2, s3);
         if (e == 3) {
             void *vaddr = (void *) strtoull(s2, nullptr, 16);
-            //if (verbose) {
             fprintf(stderr, "Load library '%s' required at %p...\n", s1, vaddr);
-            //}
             h = load_sharedlibrary_fromdir(dirname, s1, vaddr, s3);
             if (verbose) {
-                printf("load_sharedlibrary_fromdir returns: %p\n", h);
+                log("load_sharedlibrary_fromdir returns: %p", h);
             }
             if (h == (void *) -1) {
                 fprintf(stderr, "Load library '%s' failed to load at %p\n", s1, vaddr);
@@ -676,17 +698,6 @@ int symbol_set(const char *sym, int value) {
 }
 
 
-void write(int fd, const char *buf) {
-    size_t len = strlen(buf);
-    if (verbose) fprintf(stderr, "%s", buf);
-    int e = (int) write(fd, buf, (unsigned int) len);
-    if (e < 0) {
-        fprintf(stderr, "Write failed: %s\n", strerror(errno));
-    } else if (e != (int) len) {
-        fprintf(stderr, "Write failed: written %d buf %d.\n", e, (int) len);
-    }
-}
-
 #ifdef WINDOWS
 char *basename(char *s) {
     for (char *p = s + strlen(s); p != s; p--) {
@@ -711,7 +722,7 @@ int mappings_file_create(const char *dirname, const char *corename) {
     char buf[BUFLEN];
     snprintf(buf, BUFLEN, "%s%s", dirname, "/" MAPPINGS_FILENAME);
     if (verbose) {
-        fprintf(stderr, "mappings_file_create: %s\n", buf);
+        log("mappings_file_create: %s", buf);
     }
 #ifdef WINDOWS
     int fd = _open(buf, _O_CREAT | _O_WRONLY | _O_TRUNC, _S_IREAD | _S_IWRITE);
@@ -738,7 +749,7 @@ int symbols_file_create(const char *dirname) {
     char buf[BUFLEN];
     snprintf(buf, BUFLEN, "%s%s", dirname, "/" SYMBOLS_FILENAME);
     if (verbose) {
-        fprintf(stderr, "symbols_file_create: %s\n", buf);
+        log("symbols_file_create: %s", buf);
     }
 #ifdef WINDOWS
     int fd = _open(buf, _O_CREAT | _O_WRONLY | _O_TRUNC, _S_IREAD | _S_IWRITE);
@@ -844,11 +855,11 @@ int revive_image_cooperative() {
     }  
 
     // Call the VM helper method, save the VMThread pointer it returns.
-    if (verbose) fprintf(stderr, "calling revival helper %p\n", s);
+    if (verbose) log("calling revival helper %p", s);
     void*(*helper)() = (void*(*)()) s;
     revivalthread = (helper)();
     if (verbose) {
-        fprintf(stderr, "revive_image: JVM returned VM Thread object = %p\n", revivalthread);
+        log("revive_image: JVM returned VM Thread object = %p", revivalthread);
     }
     if ((long long) revivalthread == 0) {
         fprintf(stderr, "revive_image: JVM helper failed\n");
@@ -868,7 +879,6 @@ int revive_image_cooperative() {
  * Return zero on success.
  */
 int create_revivalbits(const char *corename, const char *javahome, const char *dirname, const char *libdir) {
-
     // Currenly per-platform implementations.  Could hoist some common work here.
     //
     // make core.revival dir
@@ -907,7 +917,7 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
     char *dirname;
 
     verbose = env_check((char *) "REVIVAL_VERBOSE");
-    fprintf(stderr, "LUDVIG vvVERBOSE IS %i\n", verbose);
+    log("LUDVIG vvVERBOSE IS %i", verbose);
 
     _wait = env_check((char *) "REVIVAL_WAIT");
     _abortOnClash = env_check((char *) "REVIVAL_ABORT");
@@ -916,19 +926,18 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
 
     if (corename == nullptr) {
         printf("revive_image: core file name required.\n");
-        fprintf(stderr, ">>> revive_image FAIL 1\n");
         return -1;
     }
     if (revivaldir || revivalthread) {
-        printf("revive_image: already called.\n");
-        fprintf(stderr, ">>> revive_image FAIL 2\n");
+        fprintf(stderr, "revive_image: already called.\n");
+        log("revive_image FAIL 2");
         return -1;
     }
     // Record our copy of core file name:
     core_filename = strdup(corename);
     if (core_filename == nullptr) {
-        printf("revive: alloc copy of core_filename failed.\n");
-        fprintf(stderr, ">>> revive_image FAIL 3\n");
+        fprintf(stderr, "revive: alloc copy of core_filename failed.\n");
+        log(">>> revive_image FAIL 3");
         return -1;
     }
 
@@ -956,7 +965,7 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
     if (!revival_direxists_pd(dirname)) {
         e = create_revivalbits(corename, javahome, dirname, libdir);
         if (verbose) {
-            printf("revive_image: create_revivalbits return code: %d\n", e);
+            log("revive_image: create_revivalbits return code: %d", e);
         }
         if (e < 0) {
             fprintf(stderr, "revive_image: create_revivalbits failed.  Return code: %d\n", e);
@@ -977,14 +986,14 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
     e = pthread_key_create(&_pthread_key, nullptr);
     int pksize = sizeof(_pthread_key);
     if (verbose) {
-        fprintf(stderr, "pthread_key_create: result %d\n", e);
-        fprintf(stderr, "pthread_key size = %d\n", pksize); 
+        log("pthread_key_create: result %d", e);
+        log("pthread_key size = %d", pksize); 
     }
 #endif
 #ifdef WINDOWS
     _thread_key = TlsAlloc();
     if (verbose) {
-        fprintf(stderr, "TlsAlloc: thread_key = %d\n", _thread_key); 
+        log("TlsAlloc: thread_key = %d", _thread_key); 
     }
 #endif
 
@@ -1027,10 +1036,9 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
 
     e = revive_image_cooperative();
     if (!e) {
-        printf("revival: failed: %d\n", e);
-    }
-    if (verbose) {
-        fprintf(stderr, "revive_image: OK\n");
+        fprintf(stderr, "revival: revive_image failed: %d\n", e);
+    } else if (verbose) {
+        log("revive_image: OK");
     }
     return e;
 }
