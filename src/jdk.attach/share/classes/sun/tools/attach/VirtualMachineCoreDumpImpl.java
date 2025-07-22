@@ -111,6 +111,9 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
         pb.redirectErrorStream(true);
 
         Map<String, String> newEnv = pb.environment();
+        if (Boolean.getBoolean("jdk.attach.core.verbose")) {
+            newEnv.put("REVIVAL_VERBOSE", "1");
+        }
         if (System.getProperty("os.name").startsWith("Linux")) {
             newEnv.put("LD_USE_LOAD_BIAS", "1");
         }
