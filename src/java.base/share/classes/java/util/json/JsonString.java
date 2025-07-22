@@ -98,7 +98,8 @@ public non-sealed interface JsonString extends JsonValue {
 
     /**
      * {@return the hash code value of this {@code JsonString}} The hash code of a
-     * {@code JsonString} is calculated by {@code Objects.hash(JsonString.value())}.
+     * {@code JsonString} is defined to be the hash code of {@code JsonString}'s
+     * {@link #value()}.
      *
      * @see #value()
      */
