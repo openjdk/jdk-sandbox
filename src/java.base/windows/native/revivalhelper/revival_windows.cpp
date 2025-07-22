@@ -692,7 +692,7 @@ char *resolve_jvm_info_pd(const char *filename) {
             fprintf(stderr, "MODULE name = '%s' 0x%llx\n", name, module.BaseOfImage);
         }
         // Is it the JVM?
-        if (strstr(name, "\\jvm.dll") != nullptr) {
+        if (strstr(name, "\\" JVM_FILENAME) != nullptr) {
             if (verbose) {
                 fprintf(stderr, "FOUND JVM name = '%s' %llx\n", name, module.BaseOfImage);
             }
@@ -851,7 +851,7 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
     // copy libjvm into core.revival dir
     memset(jvm_copy, 0, BUFLEN);
     strncpy(jvm_copy, revival_dirname, BUFLEN - 1);
-    strncat(jvm_copy, "\\jvm.dll", BUFLEN - 1);
+    strncat(jvm_copy, "\\" JVM_FILENAME, BUFLEN - 1);
     fprintf(stderr, "copying JVM to: %s\n", jvm_copy);
     e = copy_file_pd(jvm, jvm_copy);
     if (e != 0) {

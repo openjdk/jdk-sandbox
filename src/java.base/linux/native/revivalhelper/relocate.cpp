@@ -266,27 +266,29 @@ void generate_symbols(int fd) {
     read_at(LIB_FILE, sh.sh_offset, sh.sh_size, SYMTAB_BUFFER);
 
     sh = find_section_by_name(".symtab");
-    assert(sh.sh_type == SHT_SYMTAB);
+    assert(sh.sh_type == SHT_SYMTAB); // remove?
     for (long unsigned int i = 0; i < sh.sh_size/sh.sh_entsize; i++) {
         Elf64_Sym sym = read_type_at<Elf64_Sym>(sh.sh_offset+ i*sh.sh_entsize);
         //if (i >= 10555 && i < 10570) {
         //    std::cout << SYMTAB_BUFFER + sym.st_name << std::endl;
-       // }
+        //}
         // Is it the version symbol?
 
-        const int N_SYMS = 11;
+        // Symbols. Possibly move to common header.
+        const int N_SYMS = 7;
         const char* symbols[N_SYMS] = {
-            "process_revival",
-            "tty",
-            "_ZN19Abstract_VM_Version11jvm_versionEv",
-            "_ZL8tc_owner",
-            "_ZN4DCmd17parse_and_executeE10DCmdSourceP12outputStreamPKccP10JavaThread",
-            "_ZN19java_lang_Throwable5printE3oopP12outputStream",
-            "_ZL11_thread_key",
-            "_ZN12StubRoutines21_safefetch32_fault_pcE",
+            SYM_REVIVE_VM,
+            SYM_TTY,
+            SYM_JVM_VERSION,
+            SYM_TC_OWNER,
+            SYM_PARSE_AND_EXECUTE,
+            SYM_THROWABLE_PRINT,
+            SYM_THREAD_KEY
+            /* safefetch syms: not required in latest JDK.
+             "_ZN12StubRoutines21_safefetch32_fault_pcE",
             "_ZN12StubRoutines28_safefetch32_continuation_pcE",
             "_ZN12StubRoutines20_safefetchN_fault_pcE",
-            "_ZN12StubRoutines27_safefetchN_continuation_pcE"
+            "_ZN12StubRoutines27_safefetchN_continuation_pcE" */
         };
 
         for (int j = 0; j < N_SYMS; j++) {
@@ -361,10 +363,8 @@ void initialize_globals(const char* path_to_lib) {
 }
 
 void close_lib_file() {
-    if (std::fclose(LIB_FILE) == 0) {
-        std::cout << "Closed file successfully" << std::endl;
-    } else {
-        std::cout << "Closed file failed" << std::endl;
+    if (std::fclose(LIB_FILE) != 0) {
+        std::cout << "Close file failed" << std::endl;
     }
 }
 
@@ -382,26 +382,26 @@ void assert_struct_sizes() {
 
 };
 
-int relocate_sharedlib_pd(const char* filename, const void *addr , const char *javahome) { 
-    std::cout << "relocate_sharedlib_pd" << std::endl;
+int relocate_sharedlib_pd(const char* filename, const void *addr , const char *javahome) {
+    if (verbose) std::cout << "relocate_sharedlib_pd" << std::endl;
     Relocator l;
     l.assert_struct_sizes();
     unsigned long reloc_amount = (unsigned long) addr; // assume library currently has zero base address
     l.initialize_globals(filename, reloc_amount);
     l.run();
     l.close_lib_file();
-    std::cout << "relocate_sharedlib_pd done" << std::endl;
+    if (verbose) std::cout << "relocate_sharedlib_pd done" << std::endl;
     return 0;
 }
 
-int generate_symbols_pd(const char* filename, int symbols_fd) { 
-    std::cout << "generate_symbols_pd" << std::endl;
+int generate_symbols_pd(const char* filename, int symbols_fd) {
+    if (verbose) std::cout << "generate_symbols_pd" << std::endl;
     Relocator l;
     l.assert_struct_sizes();
     l.initialize_globals(filename);
     l.generate_symbols(symbols_fd);
     l.close_lib_file();
-    std::cout << "relocate_sharedlib_pd done" << std::endl;
+    if (verbose) std::cout << "relocate_sharedlib_pd done" << std::endl;
     return 0;
 }
 

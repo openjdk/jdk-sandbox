@@ -515,7 +515,7 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
  */
 void *symbol0(const char *dirname, const char *sym) {
     char buf[BUFLEN];
-    snprintf(buf, BUFLEN, "%s/%s", dirname, "core.symbols"); 
+    snprintf(buf, BUFLEN, "%s/%s", dirname, SYMBOLS_FILENAME);
     int e = 0;
     void *addr = (void *) -1;
     FILE *f = fopen((char*)&buf, "r"); 
@@ -678,8 +678,8 @@ int symbol_set(const char *sym, int value) {
 
 void write(int fd, const char *buf) {
     size_t len = strlen(buf);
-    fprintf(stderr, "%s", buf); // temp echo to stderr
-    int e = (int) write(fd, buf,(unsigned int) len);
+    if (verbose) fprintf(stderr, "%s", buf);
+    int e = (int) write(fd, buf, (unsigned int) len);
     if (e < 0) {
         fprintf(stderr, "Write failed: %s\n", strerror(errno));
     } else if (e != (int) len) {
@@ -709,7 +709,7 @@ int mappings_file_create(const char *dirname, const char *corename) {
 // Memory mappings to be written separately.
 
     char buf[BUFLEN];
-    snprintf(buf, BUFLEN, "%s%s", dirname, "/core.mappings"); 
+    snprintf(buf, BUFLEN, "%s%s", dirname, "/" MAPPINGS_FILENAME);
     if (verbose) {
         fprintf(stderr, "mappings_file_create: %s\n", buf);
     }
@@ -736,7 +736,7 @@ int mappings_file_create(const char *dirname, const char *corename) {
 
 int symbols_file_create(const char *dirname) {
     char buf[BUFLEN];
-    snprintf(buf, BUFLEN, "%s%s", dirname, "/core.symbols"); 
+    snprintf(buf, BUFLEN, "%s%s", dirname, "/" SYMBOLS_FILENAME);
     if (verbose) {
         fprintf(stderr, "symbols_file_create: %s\n", buf);
     }
@@ -766,7 +766,7 @@ bool Segment::is_relevant() {
 }
 
 /**
- * Write mappings line to fd.
+ * Write this Segment, formatted as a core.mappings line, to the given fd.
  */
 int Segment::write_mapping(int fd) {
     // M vaddr endaddress fileoffset filesize memsize perms
@@ -781,7 +781,7 @@ int Segment::write_mapping(int fd) {
              (unsigned long long) file_length,
              "RWX" // temp
             );
-    write(fd, buf);
+    write(fd, buf); // includes warning on error
     return 0;
 }
 
@@ -863,10 +863,14 @@ int revive_image_cooperative() {
  *
  * Create and populate the revival data directory.
  *
- * Return zero on success
+ * Only called when the directory (core.revival) does not exist.
+ *
+ * Return zero on success.
  */
 int create_revivalbits(const char *corename, const char *javahome, const char *dirname, const char *libdir) {
 
+    // Currenly per-platform implementations.  Could hoist some common work here.
+    //
     // make core.revival dir
     // find libjvm and its load address from core
     // copy libjvm into .revival dir
@@ -874,7 +878,6 @@ int create_revivalbits(const char *corename, const char *javahome, const char *d
     // read core file to create core.mappings file
 
     int e = create_revivalbits_native_pd(corename, javahome, dirname, libdir);
-
     return e;
 }
 
@@ -885,7 +888,7 @@ char *revival_dirname(const char *corename) {
     char *dirname = (char *) calloc(1, BUFLEN);
     if (dirname) {
         strncpy(dirname, corename, BUFLEN - 1);
-        strncat(dirname, ".revival", BUFLEN - 1);
+        strncat(dirname, REVIVAL_SUFFIX, BUFLEN - 1);
     }
     return dirname;
 }
@@ -904,7 +907,6 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
     char *dirname;
 
     verbose = env_check((char *) "REVIVAL_VERBOSE");
-    verbose = true;
     fprintf(stderr, "LUDVIG vvVERBOSE IS %i\n", verbose);
 
     _wait = env_check((char *) "REVIVAL_WAIT");
@@ -945,8 +947,6 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
     }
     if (verbose) {
         printf("revive_image:\n");
-    }
-    if (verbose) {
         printf("revival directory: '%s'\n", dirname);
         printf("vaddr_alignment = %llu\n", (unsigned long long) vaddr_alignment_pd());
         printf("check if revivaldir exists? %s = %d\n",( const char *) dirname, revival_direxists_pd(dirname));
@@ -973,7 +973,7 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
     // Previously, Linux loaded libjvm.so NOW, before calling pthread_key_create.
     // Unnecessary.  Windows was OK when NOT loading jvm.dll here.
 #if defined(LINUX) || defined(__APPLE__)
-    // h = load_sharedlibrary_fromdir(dirname, LIBJVM_NAME, 0, nullptr);
+    // h = load_sharedlibrary_fromdir(dirname, JVM_FILENAME, 0, nullptr);
     e = pthread_key_create(&_pthread_key, nullptr);
     int pksize = sizeof(_pthread_key);
     if (verbose) {
@@ -988,7 +988,7 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
     }
 #endif
 
-    snprintf(buf, BUFLEN, "%s%s", dirname, "/core.mappings"); 
+    snprintf(buf, BUFLEN, "%s%s", dirname, "/" MAPPINGS_FILENAME);
     e = mappings_file_read(corename, dirname, buf);
     if (e < 0) {
         fprintf(stderr, "revive_image: mappings_file_read failed: %d\n", e);

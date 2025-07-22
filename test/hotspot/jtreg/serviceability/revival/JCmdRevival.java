@@ -28,7 +28,7 @@
  * @library /test/lib
  * @requires vm.debug == true
  *
- * @run main/othervm JCmdRevival cicrash VM.version 
+ * @run main/othervm JCmdRevival cicrash VM.version
  */
 
 /**

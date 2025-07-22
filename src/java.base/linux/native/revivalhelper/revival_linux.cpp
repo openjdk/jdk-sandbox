@@ -53,11 +53,7 @@
 
 #include "revival.hpp"
 
-struct SharedLibMapping {
-    Elf64_Addr start;
-    Elf64_Addr end;
-    char* path;
-};
+// moved to common header: struct SharedLibMapping
 
 const char *corePageFilename;
 
@@ -103,7 +99,6 @@ bool revival_direxists_pd(const char *dirname) {
     return false;
 }
 
-int flags = MAP_SHARED | MAP_PRIVATE | MAP_FIXED;
 
 bool mem_canwrite_pd(void *vaddr, size_t length) {
     return true;
@@ -111,6 +106,7 @@ bool mem_canwrite_pd(void *vaddr, size_t length) {
 
 
 void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, off_t offset) {
+    int flags = MAP_SHARED | MAP_PRIVATE | MAP_FIXED;
     int prot = PROT_READ | PROT_EXEC;
     if (mapWrite) {
         prot |= PROT_WRITE;
@@ -174,7 +170,6 @@ int do_munmap_pd(void *addr, size_t length) {
  */
 void *do_map_allocate_pd(void *vaddr, size_t length) {
     int prot = PROT_READ | PROT_WRITE;
-    // int flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED;
     int flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED | MAP_NORESERVE;
     int fd = -1;
     size_t offset = 0;
@@ -360,9 +355,8 @@ void remap(Segment seg) {
         fprintf(stderr, "remap: failed to munmap 0x%p failed: returns: %d: errno = %d: %s\n",  seg.vaddr, e1, errno, strerror(errno));
         abort();
     }
-    // int flags = MAP_SHARED | MAP_PRIVATE | MAP_FIXED;
-    int flags = MAP_PRIVATE | MAP_FIXED;
-    int prot = PROT_READ | PROT_EXEC | PROT_WRITE; // could use mappings file info
+    int flags = MAP_PRIVATE | MAP_FIXED; // previously also MAP_SHARED
+    int prot = PROT_READ | PROT_EXEC | PROT_WRITE; // should use mappings file info
     void * e = mmap(seg.vaddr, seg.length, prot, flags, fd, offset);
     if ((long long) e < 0) {
         fprintf(stderr, "remap: mmap 0x%p failed: returns: 0x%p: errno = %d: %s\n",  seg.vaddr, e, errno, strerror(errno));
@@ -615,10 +609,7 @@ char *readstring(int fd) {
     return buf;
 }
 
-SharedLibMapping* read_NT_mappings(
-    int fd,
-    int &count_out
-) {
+SharedLibMapping* read_NT_mappings(int fd, int &count_out) {
     lseek(fd, 0, SEEK_SET);
 // Read core NOTES, find NT_FILE, find libjvm.so
 
@@ -656,7 +647,7 @@ SharedLibMapping* read_NT_mappings(
                     fprintf(stderr, "Failed to read NOTE header: %ld\n", e);
                     return nullptr;
                 }
-                fprintf(stderr, "NOTE type 0x%x namesz %x descsz %x\n", nhdr.n_type, nhdr.n_namesz, nhdr.n_descsz);
+                if (verbose) fprintf(stderr, "NOTE type 0x%x namesz %x descsz %x\n", nhdr.n_type, nhdr.n_namesz, nhdr.n_descsz);
                 // TODO where's this freed?
                 char *name = (char *) malloc(nhdr.n_namesz);
                 if (name == nullptr) {
@@ -728,7 +719,7 @@ void init_jvm_filename_pd(int core_fd) {
     //fprintf(stderr, "Num of mappings: %i\n", count_out);
     for (int i = 0; i < count_out; i++) {
         //fprintf(stderr, "Mapping: %lu %lu %s\n", mappings[i].start, mappings[i].end, mappings[i].path);
-        if(strstr(mappings[i].path, "libjvm.so")) {
+        if(strstr(mappings[i].path, JVM_FILENAME)) {
             jvm_filename = mappings[i].path;// TODO yes memleak
             jvm_address = (void*) mappings[i].start;
             return;
@@ -752,14 +743,12 @@ int copy_file_pd(const char *srcfile, const char *destfile) {
     return system(command);
 }
 
+/**
+ * Return bool for whether a Program Header obviously unnecessary.
+ * We have Segment::is_relevant() but can avoid getting as far as creating a Segment.
+ */
 bool is_unwanted_phdr(Elf64_Phdr phdr) {
-    if (
-        phdr.p_memsz == 0 ||
-        phdr.p_filesz == 0
-    ) return true;
-
-
-   return false;
+   return (phdr.p_memsz == 0 || phdr.p_filesz == 0);
 }
 
 
@@ -772,7 +761,6 @@ bool is_inside(Elf64_Phdr phdr, Elf64_Addr start, Elf64_Addr end) {
       || is_inside(start, phdr.p_vaddr + phdr.p_memsz, end);
 }
 
-// PRS_TODO
 int create_mappings_pd(int mappings_fd, int core_fd, const char *jvm_copy, const char *javahome, void *addr) {
     char command[BUFLEN];
     memset(command, 0, BUFLEN);
@@ -787,10 +775,9 @@ int create_mappings_pd(int mappings_fd, int core_fd, const char *jvm_copy, const
     // If dlopen relocated libjvm, should use dlsym results.
     // Write symbol list for revived process.
 
-
     // For each program header:
     //  If filesize or memsize is zero, skip it (maybe log)
-    //  If it touches an unwantedmapping, skipt it (maybe log)
+    //  If it touches an unwantedmapping, skip it (maybe log)
     //  If not writeable and inOtherMapping* skip it (maybe log)
     //  Write an "M" entry
 
@@ -805,9 +792,11 @@ int create_mappings_pd(int mappings_fd, int core_fd, const char *jvm_copy, const
 
     int count_out = 0;
     SharedLibMapping* mappings = read_NT_mappings(core_fd, count_out);
-    fprintf(stderr, "Num of mappings: %i\n", count_out);
-    for (int i = 0; i < count_out; i++) {
-        fprintf(stderr, "Mapping: %lu %lu %s\n", mappings[i].start, mappings[i].end, mappings[i].path);
+    if (verbose) {
+        fprintf(stderr, "Num of mappings: %i\n", count_out);
+        for (int i = 0; i < count_out; i++) {
+            fprintf(stderr, "Mapping: %lu %lu %s\n", mappings[i].start, mappings[i].end, mappings[i].path);
+        }
     }
 
     int n_skipped = 0;
@@ -824,19 +813,17 @@ int create_mappings_pd(int mappings_fd, int core_fd, const char *jvm_copy, const
             close(core_fd);
             return -1;
         }
-
-        if (
-            phdr.p_memsz == 0 ||
-            phdr.p_filesz == 0
-        ) {
+        if (is_unwanted_phdr(phdr)) {
             n_skipped++;
             continue;
         } 
+        if (phdr.p_vaddr >= max_user_vaddr_pd()) {
+            break; // Kernel mapping?  Not something we can map in.  Phdrs are in ascending address order.
+        }
 
         // Now we want to exclude this mapping if it touches any unwanted mapping. 
         // Let's start with /bin/java #1
         // If the virtaddr is between start and end, it touches, exclude it
- 
         bool skip = false;
         for (int i = 0; i < count_out; i++) {
             if(
@@ -850,7 +837,7 @@ int create_mappings_pd(int mappings_fd, int core_fd, const char *jvm_copy, const
             }
         }
         if (skip) {
-            fprintf(stderr, "\nSkipping due to bin/java at %lu\n", phdr.p_vaddr);
+            if (verbose) fprintf(stderr, "\nSkipping due to bin/java at %lu\n", phdr.p_vaddr);
             n_skipped++;
             continue;
         }
@@ -866,7 +853,7 @@ int create_mappings_pd(int mappings_fd, int core_fd, const char *jvm_copy, const
                 }
             }
             if (skip) {
-                fprintf(stderr, "\nSkipping due to nonwritable overlap at %lu\n", phdr.p_vaddr);
+                if (verbose) fprintf(stderr, "\nSkipping due to nonwritable overlap at %lu\n", phdr.p_vaddr);
                 n_skipped++;
                 continue;
             }
@@ -875,11 +862,13 @@ int create_mappings_pd(int mappings_fd, int core_fd, const char *jvm_copy, const
         // TODO plt/GOTs maybe
         // TODO "non-writeable mappings that are part of other mappings"
         
-        fprintf(stderr, "Writing: %lu\n", phdr.p_vaddr);
+        if (verbose) fprintf(stderr, "Writing: %lu\n", phdr.p_vaddr);
         Segment s((void*)phdr.p_vaddr, phdr.p_memsz, phdr.p_offset, phdr.p_filesz);
         s.write_mapping(mappings_fd);
     }
-    fprintf(stderr, "Skipped number: %i\n", n_skipped);
+    if (verbose) {
+        fprintf(stderr, "Skipped number: %i\n", n_skipped);
+    }
     return 0;
 }
 
@@ -914,7 +903,7 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
     char jvm_copy[BUFLEN];
     memset(jvm_copy, 0, BUFLEN);
     strncpy(jvm_copy, revival_dirname, BUFLEN - 1);
-    strncat(jvm_copy, "/libjvm.so", BUFLEN - 1);
+    strncat(jvm_copy, "/" JVM_FILENAME, BUFLEN - 1);
     fprintf(stderr, "copying JVM to: %s\n", jvm_copy);
     e = copy_file_pd(jvm_filename, jvm_copy);
     if (e != 0) {

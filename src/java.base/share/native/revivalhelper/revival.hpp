@@ -57,6 +57,11 @@ typedef uint64_t address;
 // Source param for executing DiagnosticCommand (sync with diagnosticFramework.hpp)
 #define DCMD_SOURCE 8
 
+// Filenames
+#define MAPPINGS_FILENAME "core.mappings"
+#define SYMBOLS_FILENAME "core.symbols"
+#define REVIVAL_SUFFIX ".revival"
+
 // The few essential known symbols are defined in SYM_... macros.
 // This one is "C" and common to all platforms:
 #define SYM_REVIVE_VM "process_revival"
@@ -74,7 +79,7 @@ typedef uint64_t address;
 #include <sys/mman.h>
 #include <sys/time.h>
 
-#define LIBJVM_NAME "libjvm.so"
+#define JVM_FILENAME "libjvm.so"
 
 #define SYM_JVM_VERSION "_ZN19Abstract_VM_Version11jvm_versionEv"
 #define SYM_THROWABLE_PRINT "_ZN19java_lang_Throwable5printE3oopP12outputStream"
@@ -96,7 +101,7 @@ void install_handler();
 static DWORD _thread_key;
 void tls_fixup_pd(void *tlsPtr);
 
-#define LIBJVM_NAME "jvm.dll"
+#define JVM_FILENAME "jvm.dll"
 
 #define SYM_JVM_VERSION "?jvm_version@Abstract_VM_Version@@SAIXZ"
 #define SYM_THROWABLE_PRINT "?print@java_lang_Throwable@@SAXVoop@@PEAVoutputStream@@@Z"
@@ -115,7 +120,7 @@ void tls_fixup_pd(void *tlsPtr);
 #include <libgen.h>
 #include <unistd.h>
 
-#define LIBJVM_NAME "libjvm.dylib"
+#define JVM_FILENAME "libjvm.dylib"
 
 #define SYM_JVM_VERSION "?jvm_version@Abstract_VM_Version@@SAIXZ"
 #define SYM_THROWABLE_PRINT "_ZN19java_lang_Throwable5printE3oopP12outputStream"
@@ -169,6 +174,12 @@ extern const char *revivaldir;
 extern void *revivalthread;
 extern void *h; // handle to libjvm
 
+
+struct SharedLibMapping {
+    uint64_t start;
+    uint64_t end;
+    char *path;
+};
 
 
 class Segment {
