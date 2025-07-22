@@ -195,7 +195,7 @@ public non-sealed interface JsonNumber extends JsonValue {
 
     /**
      * {@return the hash code value of this {@code JsonNumber}} The returned hash code
-     * is calculated based on the string representation of this {@code JsonNumber},
+     * is derived from the string representation of this {@code JsonNumber},
      * ignoring the case.
      *
      * @see #toString()

@@ -98,7 +98,7 @@ public non-sealed interface JsonString extends JsonValue {
 
     /**
      * {@return the hash code value of this {@code JsonString}} The hash code of a
-     * {@code JsonString} is defined to be the hash code of {@code JsonString}'s
+     * {@code JsonString} is derived from the hash code of {@code JsonString}'s
      * {@link #value()}.
      *
      * @see #value()

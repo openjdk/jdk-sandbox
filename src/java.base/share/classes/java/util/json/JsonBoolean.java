@@ -69,7 +69,7 @@ public non-sealed interface JsonBoolean extends JsonValue {
 
     /**
      * {@return the hash code value for this {@code JsonBoolean}} The hash code value
-     * of a {@code JsonBoolean} is defined to be the hash code of {@code JsonBoolean}'s
+     * of a {@code JsonBoolean} is derived from the hash code of {@code JsonBoolean}'s
      * {@link #value()}. Thus, for two {@code JsonBooleans}s {@code jb1} and {@code jb2},
      * {@code jb1.equals(jb2)} implies that {@code jb1.hashCode() == jb2.hashCode()}
      * as required by the general contract of {@link Object#hashCode}.

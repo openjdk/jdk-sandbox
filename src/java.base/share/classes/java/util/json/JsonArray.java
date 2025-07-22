@@ -81,7 +81,7 @@ public non-sealed interface JsonArray extends JsonValue {
 
     /**
      * {@return the hash code value for this {@code JsonArray}} The hash code value
-     * of a {@code JsonArray} is defined to be the hash code of {@code JsonArray}'s
+     * of a {@code JsonArray} is derived from the hash code of {@code JsonArray}'s
      * {@link #values()}.
      * Thus, for two {@code JsonArray}s {@code ja1} and {@code ja2},
      * {@code ja1.equals(ja2)} implies that {@code ja1.hashCode() == ja2.hashCode()}

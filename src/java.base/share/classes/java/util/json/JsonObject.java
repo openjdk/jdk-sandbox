@@ -85,8 +85,8 @@ public non-sealed interface JsonObject extends JsonValue {
 
     /**
      * {@return the hash code value for this {@code JsonObject}} The hash code value
-     * of a {@code JsonObject} is defined to be the hash code of {@code JsonObject}'s
-     * {@link #members()} value. Thus, for two {@code JsonObject}s {@code jo1} and {@code jo2},
+     * of a {@code JsonObject} is derived from the hash code of {@code JsonObject}'s
+     * {@link #members()}. Thus, for two {@code JsonObject}s {@code jo1} and {@code jo2},
      * {@code jo1.equals(jo2)} implies that {@code jo1.hashCode() == jo2.hashCode()}
      * as required by the general contract of {@link Object#hashCode}.
      *
