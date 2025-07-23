@@ -757,9 +757,6 @@ bool is_inside(Elf64_Phdr phdr, Elf64_Addr start, Elf64_Addr end) {
 }
 
 int create_mappings_pd(int mappings_fd, int core_fd, const char *jvm_copy, const char *javahome, void *addr) {
-    char command[BUFLEN];
-    memset(command, 0, BUFLEN);
-
     if (verbose) log("create_mappings_pd");
     // Get list of memory mappings in core file.
     // Create list of mappings for revived process.
@@ -776,6 +773,9 @@ int create_mappings_pd(int mappings_fd, int core_fd, const char *jvm_copy, const
     //  If it touches an unwantedmapping, skip it (maybe log)
     //  If not writeable and inOtherMapping* skip it (maybe log)
     //  Write an "M" entry
+
+    //ELFOperations coreops(core_fd);
+    //coreops.read
 
     Elf64_Ehdr hdr;
     lseek(core_fd, 0, SEEK_SET);

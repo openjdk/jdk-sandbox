@@ -23,6 +23,8 @@
  * questions.
  */
 
+#include <errno.h>
+#include <fcntl.h>
 #include <string>
 #include <cstdio>
 #include <cstring>
@@ -38,11 +40,11 @@
 // read_basics() must be called prior to other operations.
 struct ELFOperations {
     long long relocation_amount = 0;
-    FILE* ELF_FILE = 0;
+    int ELF_FILE = -1;
     Elf64_Ehdr EHDR;
     char* SHDRSTR_BUFFER = 0;
 
-    ELFOperations(FILE* file) {
+    ELFOperations(int fd) {
         // Manually computed from adding fields in elf.h
         // This is to guard against the compiler adding padding without us noticing, which would break parsing.
         assert(sizeof(Elf64_Ehdr) == 64);
@@ -53,8 +55,8 @@ struct ELFOperations {
         assert(sizeof(Elf64_Rela) == 24);
         assert(sizeof(Elf64_Rel) == 16);
 
-        ELF_FILE = file;
-        assert(ELF_FILE != 0);
+        ELF_FILE = fd;
+        assert(ELF_FILE != -1);
     }
 
     void read_basics() {
@@ -68,29 +70,23 @@ struct ELFOperations {
     template <typename T>
     T read_type_at(unsigned long at) {
         T ret;
-        std::fseek(ELF_FILE, at, SEEK_SET);
-        unsigned int read = fread(&ret, sizeof(T), 1, ELF_FILE);
-        if (std::feof(ELF_FILE)) {
-            error("End of file");
-        }
-        if (read != 1) {
-            std::cout << read << std::endl;
-            std::perror("reading failed");
-            error("Reading failed");
+        if (lseek(ELF_FILE, at, SEEK_SET) == -1) {
+            error(strerror(errno));
+        };
+        if (read(ELF_FILE, &ret, sizeof(T)) != sizeof(T)) {
+            error(strerror(errno));
         }
         return ret;
     }
 
     template <typename T>
     void write_type_at(T content, unsigned long at) {
-        if(0 != std::fseek(ELF_FILE, at, SEEK_SET)) {
-            std::perror("Seeking failed");
-        }
+        if (lseek(ELF_FILE, at, SEEK_SET) == -1) {
+            error(strerror(errno));
+        };
 
-        unsigned int wrote = fwrite(&content, sizeof(T), 1, ELF_FILE);
-        if (wrote != 1) {
-            std::perror("Writing failed");
-            error("writing failed");
+        if (write(ELF_FILE, &content, sizeof(T)) != sizeof(T)) {
+            error(strerror(errno));
         }
     }
 
@@ -269,16 +265,12 @@ struct ELFOperations {
         }
     }
 
-    void read_bytes_at(unsigned long at, unsigned long bytes, char* buffer) {
-        std::fseek(ELF_FILE, at, SEEK_SET);
-        unsigned int read = fread(buffer, bytes, 1, ELF_FILE);
-        if (std::feof(ELF_FILE)) {
-            error("End of file");
-        }
-        if (read != 1) {
-            std::cout << read << std::endl;
-            std::perror("reading failed");
-            error("Reading failed");
+    void read_bytes_at(unsigned long at, ssize_t bytes, char* buffer) {
+        if (lseek(ELF_FILE, at, SEEK_SET) == -1) {
+            error(strerror(errno));
+        };
+        if (read(ELF_FILE, buffer, bytes) != bytes) {
+            error(strerror(errno));
         }
     }
 
@@ -342,11 +334,16 @@ struct ELFOperations {
 int relocate_sharedlib_pd(const char* filename, const void *addr) {
     if (verbose) log("relocate_sharedlib_pd");
 
-    FILE* ELF_FILE = open_file(filename, "r+");
+    int ELF_FILE = open(filename, O_RDWR);
+    if (ELF_FILE == -1) {
+        error(strerror(errno));
+    }
     ELFOperations l(ELF_FILE);
     l.read_basics();
     l.relocate((unsigned long) addr /* assume library currently has zero base address */);
-    close_file(ELF_FILE);
+    if (close(ELF_FILE) == -1) {
+        error(strerror(errno));
+    }
 
     if (verbose) log("relocate_sharedlib_pd_done");
     return 0;
@@ -355,11 +352,16 @@ int relocate_sharedlib_pd(const char* filename, const void *addr) {
 int generate_symbols_pd(const char* filename, int symbols_fd) {
     if (verbose) log("generate_symbols_pd");
 
-    FILE* ELF_FILE = open_file(filename, "r");
+    int ELF_FILE = open(filename, O_RDONLY);
+    if (ELF_FILE == -1) {
+        error(strerror(errno));
+    }
     ELFOperations l(ELF_FILE);
     l.read_basics();
     l.write_jvm_symbols(symbols_fd);
-    close_file(ELF_FILE);
+    if (close(ELF_FILE) == -1) {
+        error(strerror(errno));
+    }
 
     if (verbose) log("generate_symbols_pd done");
     return 0;
