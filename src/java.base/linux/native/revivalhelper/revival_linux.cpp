@@ -611,7 +611,7 @@ char *readstring(int fd) {
 
 SharedLibMapping* read_NT_mappings(int fd, int &count_out) {
     lseek(fd, 0, SEEK_SET);
-// Read core NOTES, find NT_FILE, find libjvm.so
+    // Read core NOTES, find NT_FILE, find libjvm.so
 
     // Read ELF header, find NOTES
     Elf64_Ehdr hdr;
@@ -708,12 +708,6 @@ SharedLibMapping* read_NT_mappings(int fd, int &count_out) {
 
 
 void init_jvm_filename_pd(int core_fd) {
-    //char* jvm_filename = nullptr;
-    //if (filename != nullptr) {
-    //    jvm_filename = resolve_jvm_info_pd(filename);
-   // }
-    //return jvm_filename;
-
     int count_out = 0;
     SharedLibMapping* mappings = read_NT_mappings(core_fd, count_out);
     //fprintf(stderr, "Num of mappings: %i\n", count_out);
@@ -862,7 +856,6 @@ int create_mappings_pd(int mappings_fd, int core_fd, const char *jvm_copy, const
         }
 
         // TODO plt/GOTs maybe
-        // TODO "non-writeable mappings that are part of other mappings"
         
         if (verbose) log("Writing: %lu", phdr.p_vaddr);
         Segment s((void*)phdr.p_vaddr, phdr.p_memsz, phdr.p_offset, phdr.p_filesz);
@@ -871,6 +864,25 @@ int create_mappings_pd(int mappings_fd, int core_fd, const char *jvm_copy, const
 
     if (verbose) log("create_mappings_pd done.  Skipped = %i", n_skipped);
     return 0;
+}
+
+void error(const char* msg) {
+    printf("%s", msg);
+    exit(1);
+}
+
+FILE* open_file(const char* path, const char* permissions) {
+    FILE* file = fopen(path, permissions);
+    if (nullptr == file) {
+        error("Cannot open file ");
+    }
+    return file;
+}
+
+void close_file(FILE* file) {
+    if (fclose(file) != 0) {
+        error("Close file failed!");
+    }
 }
 
 /**
@@ -912,7 +924,7 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
     }
 
     // relocate copy of libjvm:
-    e = relocate_sharedlib_pd(jvm_copy, jvm_address, javahome);
+    e = relocate_sharedlib_pd(jvm_copy, jvm_address);
     if (e != 0) {
         fprintf(stderr, "failed to relocate JVM\n");
         return -1;
@@ -927,7 +939,6 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
 
     // read core file to create core.mappings file
     e = create_mappings_pd(mappings_fd, core_fd, jvm_copy, javahome, jvm_address);
-    // fsync(mappings_fd); // unnnecessary
     if (close(mappings_fd) < 0) {
         fprintf(stderr, "Failed to close mappings file\n");
         return -1;
@@ -941,8 +952,6 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
     }
 
     generate_symbols_pd(jvm_copy, symbols_fd);
-
-    // fsync(symbols_fd); // unnecessary
     if (close(symbols_fd) < 0) {
         fprintf(stderr, "Failed to close symbols file: %s\n", strerror(errno));
         return -1;

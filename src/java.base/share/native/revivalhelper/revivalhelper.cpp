@@ -62,13 +62,11 @@ int main(int argc, char **argv) {
     char *s = strstr(argv[0], MY_NAME);
     if (s != nullptr) {
         strncpy(javahome, argv[0], (s - argv[0]));
-        fprintf(stderr, "revivalhelper: LUDVIG Using JDK home: %s.\n", javahome);
+        fprintf(stderr, "revivalhelper: Using JDK home: %s.\n", javahome);
     } else {
         printf("revivalhelper: cannot find JDK home in '%s'.\n", argv[0]);
         exit(1);
     }
-    fprintf(stdout, "LUDVIG2");
-    fprintf(stderr, "LUDVIG3");
 
     if (argc < 4 ) {
         usageExit(argv[0]);

@@ -254,6 +254,11 @@ void *do_map_allocate_pd(void *addr, size_t length);
  */
 void *revived_vm_thread();
 
+
+void error(const char* msg);
+FILE* open_file(const char* path, const char* permissions);
+void close_file(FILE* file);
+
 /**
  * Return a boolean true if the given revival directory exists.
  */
@@ -261,7 +266,7 @@ bool revival_direxists_pd(const char *dirname);
 
 int revival_mapping_copy(void *vaddr, size_t length, off_t offset, bool allocate, char *filename, int fd);
 
-int relocate_sharedlib_pd(const char* filename, const void *addr, const char *javahome);
+int relocate_sharedlib_pd(const char* filename, const void *addr);
 
 
 int create_revivalbits_native_pd(const char *corename, const char *javahome, const char *dirname, const char *libdir);

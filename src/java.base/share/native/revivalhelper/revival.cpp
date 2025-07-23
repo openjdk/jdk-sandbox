@@ -917,8 +917,6 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
     char *dirname;
 
     verbose = env_check((char *) "REVIVAL_VERBOSE");
-    log("LUDVIG vvVERBOSE IS %i", verbose);
-
     _wait = env_check((char *) "REVIVAL_WAIT");
     _abortOnClash = env_check((char *) "REVIVAL_ABORT");
 

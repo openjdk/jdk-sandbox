@@ -22,7 +22,7 @@
  */
 
 /*
- * @test JCmdRevivalSimple
+ * @test id=Simple
  * @summary Simplified variant with just VM.version
  * @requires os.family == "linux" | os.family == "windows"
  * @library /test/lib
@@ -32,7 +32,7 @@
  */
 
 /**
- * @test JCmdRevivalOom
+ * @test id=JCmdRevivalOom
  * @summary Test process revival for serviceability: jcmd on a core file (OOM crash).
  * @requires os.family == "linux" | os.family == "windows"
  * @library /test/lib
@@ -41,7 +41,7 @@
  */
 
 /*
- * @test JCmdRevivalCrash
+ * @test id=JCmdRevivalCrash
  * @summary Test process revival for serviceability: jcmd on a core file (CI crash, debug VM).
  * @requires os.family == "linux" | os.family == "windows"
  * @library /test/lib
