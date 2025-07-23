@@ -254,11 +254,7 @@ void *do_map_allocate_pd(void *addr, size_t length);
  */
 void *revived_vm_thread();
 
-
-void error(const char* msg);
-FILE* open_file(const char* path, const char* permissions);
-void close_file(FILE* file);
-
+SharedLibMapping* read_NT_mappings2(int core_fd, int& count_out);
 /**
  * Return a boolean true if the given revival directory exists.
  */

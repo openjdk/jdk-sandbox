@@ -593,123 +593,9 @@ int unload_sharedobject_pd(void *h) {
     return dlclose(h); // zero on success
 }
 
-char *readstring(int fd) {
-    char *buf = (char *) malloc(BUFLEN);
-    if (buf == nullptr) {
-        return nullptr;
-    }
-    int c = 0;
-    do {
-        int e = read(fd, &buf[c], 1);
-        if (e != 1) {
-            free(buf);
-            return nullptr;
-        }
-    } while (buf[c++] != 0);
-    return buf;
-}
-
-SharedLibMapping* read_NT_mappings(int fd, int &count_out) {
-    lseek(fd, 0, SEEK_SET);
-    // Read core NOTES, find NT_FILE, find libjvm.so
-
-    // Read ELF header, find NOTES
-    Elf64_Ehdr hdr;
-    size_t e = read(fd, &hdr, sizeof(hdr));
-    if (e < sizeof(hdr)) {
-        fprintf(stderr, "Failed to read ELF header: %ld\n", e);
-        return nullptr;
-    }
-    // TODO: Sanity check ELF header.
-
-    lseek(fd, hdr.e_phoff, SEEK_SET);
-    // Read ELF Program Headers.  Look for PT_NOTE
-    Elf64_Phdr phdr;
-    for (int i = 0; i < hdr.e_phnum; i++) {
-        e = read(fd, &phdr, sizeof(phdr));
-        if (e < sizeof(phdr)) {
-            fprintf(stderr, "Failed to read ELF Program Header: %ld\n", e);
-            return nullptr;
-        }
-        if (verbose) {
-            fprintf(stderr, "PH %d: type 0x%x flags 0x%x vaddr 0x%lx\n", i, phdr.p_type, phdr.p_flags, phdr.p_vaddr);
-        }
-        if (phdr.p_type == PT_NOTE) {
-            lseek(fd, phdr.p_offset, SEEK_SET);
-            // Read NOTES.  p_filesz
-            // Look for NT_FILE note
-            Elf64_Nhdr nhdr;
-            uint64_t pos = lseek(fd, 0, SEEK_CUR);
-            uint64_t end =  pos + phdr.p_filesz;
-            while (pos < end) {
-                e = read(fd, &nhdr, sizeof(nhdr));
-                if (e < sizeof(nhdr)) {
-                    fprintf(stderr, "Failed to read NOTE header: %ld\n", e);
-                    return nullptr;
-                }
-                if (verbose) fprintf(stderr, "NOTE type 0x%x namesz %x descsz %x\n", nhdr.n_type, nhdr.n_namesz, nhdr.n_descsz);
-                // TODO where's this freed?
-                char *name = (char *) malloc(nhdr.n_namesz);
-                if (name == nullptr) {
-                    fprintf(stderr, "Failed malloc for namesz %d\n", nhdr.n_namesz);
-                    return nullptr;
-                }
-                e = read(fd, name, nhdr.n_namesz);
-
-                // Align. 4 byte alignment, including when 64-bit.
-                while ((lseek(fd, 0, SEEK_CUR) & 0x3) != 0) {
-                    char c;
-                    e = read(fd, &c, 1);
-                }
-
-                if (nhdr.n_type == 0x46494c45 /* NT_FILE */) {
-                    // Read NT_FILE:
-                    int count;
-                    e = read(fd, &count, sizeof (int));
-                    int pad;
-                    e = read(fd, &pad, sizeof (int));
-                    long pagesize;
-                    e = read(fd, &pagesize, sizeof (long));
-                    if (verbose) {
-                        fprintf(stderr, "NT_FILE count %d pagesize 0x%lx\n", count, pagesize);
-                    }
-                    
-                    SharedLibMapping* ret = new SharedLibMapping[count];
-                    count_out = count;
-
-                    uint64_t start;
-                    uint64_t end;
-                    uint64_t offset;
-                    for (int i = 0; i < count; i++) {
-                        e = read(fd, &start, sizeof (long));
-                        e = read(fd, &end, sizeof (long));
-                        e = read(fd, &offset, sizeof (long)); // multiply offset by pagesize
-
-                        ret[i].start = start;
-                        ret[i].end = end;
-                    }
-
-                    for (int i = 0; i < count; i++) {
-                        ret[i].path = readstring(fd);
-                    }
-                    return ret;
-                } else {
-                    // Not NT_FILE, skip over...
-                    lseek(fd, (nhdr.n_descsz), SEEK_CUR);
-                }
-                pos = lseek(fd, 0, SEEK_CUR);
-            }
-            break; // only need one NOTE
-        }
-    }
-    fprintf(stderr, "No NT_FILE NOTE found?\n");
-    return nullptr;
-}
-
-
 void init_jvm_filename_pd(int core_fd) {
     int count_out = 0;
-    SharedLibMapping* mappings = read_NT_mappings(core_fd, count_out);
+    SharedLibMapping* mappings = read_NT_mappings2(core_fd, count_out);
     //fprintf(stderr, "Num of mappings: %i\n", count_out);
     for (int i = 0; i < count_out; i++) {
         //fprintf(stderr, "Mapping: %lu %lu %s\n", mappings[i].start, mappings[i].end, mappings[i].path);
@@ -787,7 +673,7 @@ int create_mappings_pd(int mappings_fd, int core_fd, const char *jvm_copy, const
     }
 
     int count_out = 0;
-    SharedLibMapping* mappings = read_NT_mappings(core_fd, count_out);
+    SharedLibMapping* mappings = read_NT_mappings2(core_fd, count_out);
     if (verbose) {
         fprintf(stderr, "Num of mappings: %i\n", count_out);
         for (int i = 0; i < count_out; i++) {
@@ -865,26 +751,6 @@ int create_mappings_pd(int mappings_fd, int core_fd, const char *jvm_copy, const
     if (verbose) log("create_mappings_pd done.  Skipped = %i", n_skipped);
     return 0;
 }
-
-void error(const char* msg) {
-    printf("%s", msg);
-    exit(1);
-}
-
-FILE* open_file(const char* path, const char* permissions) {
-    FILE* file = fopen(path, permissions);
-    if (nullptr == file) {
-        error("Cannot open file ");
-    }
-    return file;
-}
-
-void close_file(FILE* file) {
-    if (fclose(file) != 0) {
-        error("Close file failed!");
-    }
-}
-
 /**
  *
  */

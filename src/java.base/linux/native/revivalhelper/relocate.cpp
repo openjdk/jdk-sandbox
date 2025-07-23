@@ -35,6 +35,11 @@
 
 #include "revival.hpp"
 
+void error(const char* msg) {
+    printf("%s", msg);
+    exit(1);
+}
+
 // A minimal set of operations for doing what we need to do on ELF files.
 // ELFOperations is passed an open file. 
 // read_basics() must be called prior to other operations.
@@ -68,15 +73,20 @@ struct ELFOperations {
     }
 
     template <typename T>
-    T read_type_at(unsigned long at) {
+    T read_type() {
         T ret;
-        if (lseek(ELF_FILE, at, SEEK_SET) == -1) {
-            error(strerror(errno));
-        };
         if (read(ELF_FILE, &ret, sizeof(T)) != sizeof(T)) {
             error(strerror(errno));
         }
         return ret;
+    }
+
+    template <typename T>
+    T read_type_at(unsigned long at) {
+        if (lseek(ELF_FILE, at, SEEK_SET) == -1) {
+            error(strerror(errno));
+        };
+        return read_type<T>();
     }
 
     template <typename T>
@@ -130,6 +140,17 @@ struct ELFOperations {
         return read_type_at<Elf64_Shdr>(EHDR.e_shoff + index * EHDR.e_shentsize);
     }
 
+    // Returns the first phdr where predicate returns true.
+    // On return, ELF_FILE is positioned having just read the phdr.
+    Elf64_Phdr program_header_by_predicate(bool (*predptr)(Elf64_Phdr*)) {
+        for (int i = 0; i < EHDR.e_phnum; i++) {
+            Elf64_Phdr phdr = read_type_at<Elf64_Phdr>(EHDR.e_phoff + i * EHDR.e_phentsize);
+            if (predptr(&phdr)) {
+                return phdr;
+            }
+        }
+    }
+
     bool should_relocate_addend(Elf64_Rela& rela) {
         switch (ELF64_R_TYPE(rela.r_info)) {
     #if defined(AARCH64)
@@ -152,7 +173,6 @@ struct ELFOperations {
         assert(EHDR.e_ident[5] == ELFDATA2LSB);
         assert(EHDR.e_ident[6] == EV_CURRENT);
         assert(EHDR.e_ident[7] == ELFOSABI_SYSV);
-        assert(EHDR.e_type == ET_DYN);
         assert(EHDR.e_version == EV_CURRENT);
 
     // elf.h in devkit on Linux x86_64 does not define EM_AARCH64
@@ -164,8 +184,8 @@ struct ELFOperations {
         if (EHDR.e_phnum == PN_XNUM) {
             error("Too many program headers, handling not implemented.");
         }
-        if (EHDR.e_shnum == 0) {
-            error("Invalid number of section headers, zero.");
+        if (EHDR.e_type == ET_DYN && EHDR.e_shnum == 0) {
+            error("Invalid number of section headers in shared library, zero.");
         }
         assert(EHDR.e_phentsize == sizeof(Elf64_Phdr));
     }
@@ -179,11 +199,15 @@ struct ELFOperations {
         return phdr.p_type != PT_GNU_STACK;
     }
 
+    long long program_header_offset(int i) {
+        return EHDR.e_phoff + i * EHDR.e_phentsize;
+    }
+
     void relocate_program_headers() {
         for (int i = 0; i < EHDR.e_phnum; i++) {
-            RELOCATE_IF(EHDR.e_phoff + i * EHDR.e_phentsize, Elf64_Phdr, p_vaddr, 
+            RELOCATE_IF(program_header_offset(i), Elf64_Phdr, p_vaddr, 
                 should_relocate_program_header);
-            RELOCATE_IF(EHDR.e_phoff + i * EHDR.e_phentsize, Elf64_Phdr, p_paddr,
+            RELOCATE_IF(program_header_offset(i), Elf64_Phdr, p_paddr,
                 should_relocate_program_header);
         }
     }
@@ -274,8 +298,15 @@ struct ELFOperations {
         }
     }
 
+    void read_bytes(ssize_t bytes, char* buffer) {
+        if (read(ELF_FILE, buffer, bytes) != bytes) {
+            error(strerror(errno));
+        }
+    }
+    
     void relocate(unsigned long reloc_amount) {
         assert(SHDRSTR_BUFFER != 0);
+        assert(EHDR.e_type == ET_DYN);
         relocation_amount = reloc_amount;
         relocate_execution_header();
         relocate_program_headers();
@@ -329,6 +360,92 @@ struct ELFOperations {
             }
         }
     }
+
+    char *readstring(int fd) {
+        char *buf = (char *) malloc(BUFLEN);
+        if (buf == nullptr) {
+            return nullptr;
+        }
+        int c = 0;
+        do {
+            int e = read(fd, &buf[c], 1);
+            if (e != 1) {
+                free(buf);
+                return nullptr;
+            }
+        } while (buf[c++] != 0);
+        return buf;
+    }
+
+    SharedLibMapping* read_NT_mappings(int &count_out) {
+        // Read core NOTES, find NT_FILE, find libjvm.so
+
+        lseek(ELF_FILE, EHDR.e_phoff, SEEK_SET);
+        // Read ELF Program Headers.  Look for PT_NOTE
+        Elf64_Phdr phdr;
+        for (int i = 0; i < EHDR.e_phnum; i++) {
+            phdr = read_type<Elf64_Phdr>();
+            if (verbose) {
+                fprintf(stderr, "PH %d: type 0x%x flags 0x%x vaddr 0x%lx\n", i, phdr.p_type, phdr.p_flags, phdr.p_vaddr);
+            }
+
+            if (phdr.p_type != PT_NOTE) {
+                continue;
+            }
+
+            lseek(ELF_FILE, phdr.p_offset, SEEK_SET);
+            // Read NOTES.  p_filesz
+            // Look for NT_FILE note
+            Elf64_Nhdr nhdr;
+            uint64_t pos = lseek(ELF_FILE, 0, SEEK_CUR);
+            uint64_t end =  pos + phdr.p_filesz;
+            while (pos < end) {
+                nhdr = read_type<Elf64_Nhdr>();
+                if (verbose) fprintf(stderr, "NOTE type 0x%x namesz %x descsz %x\n", nhdr.n_type, nhdr.n_namesz, nhdr.n_descsz);
+
+                // TODO where's this freed?
+                char *name = (char *) malloc(nhdr.n_namesz);
+                if (name == nullptr) {
+                    fprintf(stderr, "Failed malloc for namesz %d\n", nhdr.n_namesz);
+                    return nullptr;
+                }
+                read_bytes(nhdr.n_namesz, name);
+
+                // Align. 4 byte alignment, including when 64-bit.
+                while ((lseek(ELF_FILE, 0, SEEK_CUR) & 0x3) != 0) {
+                    read_type<char>();
+                }
+
+                if (nhdr.n_type != 0x46494c45 /* NT_FILE */) {
+                    // Not NT_FILE, skip over...
+                    lseek(ELF_FILE, (nhdr.n_descsz), SEEK_CUR);
+                    pos = lseek(ELF_FILE, 0, SEEK_CUR);
+                    continue;
+                }
+
+                // Read NT_FILE:
+                count_out = read_type<int>();
+                read_type<int>(); // pad 
+                long pagesize = read_type<long>();
+                if (verbose) {
+                    fprintf(stderr, "NT_FILE count %d pagesize 0x%lx\n", count_out, pagesize);
+                }
+                
+                SharedLibMapping* ret = new SharedLibMapping[count_out];
+                for (int i = 0; i < count_out; i++) {
+                    ret[i].start = read_type<long>();
+                    ret[i].end = read_type<long>();;
+                    read_type<long>(); // offset 
+                }
+                for (int i = 0; i < count_out; i++) {
+                    ret[i].path = readstring(ELF_FILE);
+                }
+                return ret;
+            }
+        }
+        fprintf(stderr, "No NT_FILE NOTE found?\n");
+        return nullptr;
+    }
 };
 
 int relocate_sharedlib_pd(const char* filename, const void *addr) {
@@ -365,4 +482,11 @@ int generate_symbols_pd(const char* filename, int symbols_fd) {
 
     if (verbose) log("generate_symbols_pd done");
     return 0;
+}
+
+SharedLibMapping* read_NT_mappings2(int core_fd, int& count_out) {
+    ELFOperations l(core_fd);
+    l.read_basics();
+    return l.read_NT_mappings(count_out);
+
 }
