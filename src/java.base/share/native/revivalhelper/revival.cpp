@@ -30,6 +30,7 @@ using namespace std;
 
 #include "revival.hpp"
 
+
 // Behaviour settings:
 // Diagnostics
 int verbose = false;
@@ -104,6 +105,18 @@ void log(const char *format, ...) {
     vsnprintf(buffer, BUFLEN - 1, format, args);
     va_end(args);
     log0(buffer);
+}
+
+void logv(const char* format, ...) {
+    if (verbose) {
+        char buffer[BUFLEN];
+        memset(buffer, 0, BUFLEN);
+        va_list args;
+        va_start(args, format);
+        vsnprintf(buffer, BUFLEN - 1, format, args);
+        va_end(args);
+        log0(buffer);
+    }
 }
 
 void waitHitRet() {
@@ -721,9 +734,7 @@ int mappings_file_create(const char *dirname, const char *corename) {
 
     char buf[BUFLEN];
     snprintf(buf, BUFLEN, "%s%s", dirname, "/" MAPPINGS_FILENAME);
-    if (verbose) {
-        log("mappings_file_create: %s", buf);
-    }
+    logv("mappings_file_create: %s", buf);
 #ifdef WINDOWS
     int fd = _open(buf, _O_CREAT | _O_WRONLY | _O_TRUNC, _S_IREAD | _S_IWRITE);
 #else

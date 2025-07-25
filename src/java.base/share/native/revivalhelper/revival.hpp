@@ -133,7 +133,6 @@ void tls_fixup_pd(void *tlsPtr);
 
 #endif /* MACOSX */
 
-
 //
 // The revival interface:
 // revivalhelper tool uses only these two functions.
@@ -322,6 +321,9 @@ void pmap_pd();
 // Adds newline to given message.
 void log0(const char *msg);
 void log(const char *format, ...);
+void logv(const char *format, ...);
+
+
 
 #endif /* REVIVAL_H */
 
