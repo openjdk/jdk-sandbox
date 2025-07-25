@@ -59,7 +59,7 @@ typedef uint64_t address;
 
 // Filenames
 #define MAPPINGS_FILENAME "core.mappings"
-#define SYMBOLS_FILENAME "core.symbols"
+#define SYMBOLS_FILENAME "jvm.symbols"
 #define REVIVAL_SUFFIX ".revival"
 
 // The few essential known symbols are defined in SYM_... macros.
@@ -273,7 +273,7 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
 int mappings_file_create(const char *filename, const char *corename);
 
 /**
- * Create core.symbols file
+ * Create jvm.symbols file
  * Return the fd so other code can write the symbols lines.
  */
 int symbols_file_create(const char *filename);

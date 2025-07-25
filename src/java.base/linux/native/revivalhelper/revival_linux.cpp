@@ -1188,7 +1188,7 @@ void init_jvm_filename_and_address(ELFOperations& core) {
  * Create "core.revival" directory containing what's needed to revive a corefile.
  *  * A copy of libjvm.so, relocated to load at the same address as it was in the corefile
  *  * "core.mappings" a text file with instructions on which segments to load from the core
- *  * "core.symbols" a text file with information about important symbols in libjvm.so
+ *  * "jvm.symbols" a text file with information about important symbols in libjvm.so
  */
 int create_revivalbits_native_pd(const char *corename, const char *javahome, const char *revival_dirname, const char *libdir) {
     logv("create_revivalbits_native_pd");
@@ -1239,4 +1239,3 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
 }
 
 // TODO revert to actual error handling?
-// TODO core.symbols -> jvm.symbols

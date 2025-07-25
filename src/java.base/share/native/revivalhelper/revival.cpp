@@ -545,8 +545,8 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
 }
 
 /*
- * Lookup a symbol in core.symbols.
- * Read and process a core.symbols file in a given direcory.
+ * Lookup a symbol in jvm.symbols.
+ * Read and process a jvm.symbols file in a given direcory.
  */
 void *symbol0(const char *dirname, const char *sym) {
     char buf[BUFLEN];
@@ -621,8 +621,8 @@ void verbose_call(void *p) {
 }
 
 /**
- * Resolve a symbol from core.symbols, and call it.
- * Use the symbol() function which will try using core.symbols first,
+ * Resolve a symbol from jvm.symbols, and call it.
+ * Use the symbol() function which will try using jvm.symbols first,
  * then a live lookup.
  * Return any value as a void *, and caller will ignore an unwanted return value.
  */
