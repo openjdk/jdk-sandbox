@@ -47,7 +47,7 @@ public class IOURingSocket extends IOURingReaderWriter {
 
     private Optional<Duration> duration = Optional.empty();
 
-    private IOURingSocket(BlockingRing ring, FDImpl fd) {
+    private IOURingSocket(BlockingRing ring, int fd) {
         super(ring, fd);
     }
 
@@ -62,7 +62,7 @@ public class IOURingSocket extends IOURingReaderWriter {
         if (result < 0) {
             throw new IOException("Open failed: " + strerror(-result));
         }
-        return new IOURingSocket(ring, new FDImpl(result));
+        return new IOURingSocket(ring, result);
     }
 
 
@@ -72,7 +72,7 @@ public class IOURingSocket extends IOURingReaderWriter {
     public IOURingSocket accept() throws IOException, InterruptedException {
         Sqe request = new Sqe()
                 .opcode(IORING_OP_ACCEPT())
-                .fd(fd.fd())
+                .fd(fd)
                 .xxx_flags(0) // Not currently setting flags
                 .addr(MemorySegment.NULL) // Not currently returning the remote addr
                 .addr2(MemorySegment.NULL);
@@ -81,13 +81,13 @@ public class IOURingSocket extends IOURingReaderWriter {
         if (result < 0) {
             throw new IOException("accept failed: " + strerror(-result));
         }
-        return new IOURingSocket(ring, new FDImpl(result));
+        return new IOURingSocket(ring, result);
     }
 
     public void close() throws IOException, InterruptedException {
         Sqe request = new Sqe()
                 .opcode(IORING_OP_CLOSE())
-                .fd(fd.fd());
+                .fd(fd);
         Cqe response = ring.blockingSubmit(request);
         int result = response.res();
         if (result < 0) {
@@ -105,7 +105,7 @@ public class IOURingSocket extends IOURingReaderWriter {
         int ret = 0;
         try {
             int bs = (int)addrseg.byteSize();
-            ret = (int)bind_fn.invoke(ctx.errnoCaptureSegment(), fd.fd(), addrseg, bs);
+            ret = (int)bind_fn.invoke(ctx.errnoCaptureSegment(), fd, addrseg, bs);
         } catch (Throwable e) {
             throw new RuntimeException(e);
         }
@@ -116,7 +116,7 @@ public class IOURingSocket extends IOURingReaderWriter {
         MemorySegment addrseg = socketAddressToSegment(address);
         Sqe request = new Sqe()
                 .opcode(IORING_OP_CONNECT())
-                .fd(fd.fd())
+                .fd(fd)
                 .addr(addrseg)
                 .off(addrseg.byteSize());
         Cqe response = ring.blockingSubmit(request, duration);
@@ -129,7 +129,7 @@ public class IOURingSocket extends IOURingReaderWriter {
     public void listen(int backlog) throws IOException {
         int ret = 0;
         try {
-            ret = (int)listen_fn.invoke(ctx.errnoCaptureSegment(), fd.fd(), backlog);
+            ret = (int)listen_fn.invoke(ctx.errnoCaptureSegment(), fd, backlog);
         } catch (Throwable e) {
             throw new RuntimeException(e);
         }
@@ -147,7 +147,7 @@ public class IOURingSocket extends IOURingReaderWriter {
         int ret = 0;
         try {
             MemorySegment val = autoArena.allocateFrom(ValueLayout.JAVA_INT, value);
-            ret = (int)setsockopt_fn.invoke(ctx.errnoCaptureSegment(), fd.fd(),
+            ret = (int)setsockopt_fn.invoke(ctx.errnoCaptureSegment(), fd,
                     level, name, val, 4);
         } catch (Throwable e) {
             throw new RuntimeException(e);
@@ -208,7 +208,7 @@ public class IOURingSocket extends IOURingReaderWriter {
         try {
             ret = (int)mth.invoke(
                     ctx.errnoCaptureSegment(),
-                    fd.fd(), addrseg,
+                    fd, addrseg,
                     adlenseg.address());
         } catch (Throwable e) {
             throw new RuntimeException(e);

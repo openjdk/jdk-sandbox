@@ -30,9 +30,12 @@ import java.time.Duration;
 import java.util.Optional;
 
 import static sun.nio.ch.iouring.foreign.iouring_h.IOSQE_IO_LINK;
+import static sun.nio.ch.iouring.foreign.iouring_h_1.IORING_OP_TIMEOUT;
 
 class SimpleRingImpl extends BlockingRing {
-    SimpleRingImpl(IOUring ring) {
+    long nextid = 1L;
+
+    SimpleRingImpl(IOUringImpl ring) {
         super(ring);
     }
 
@@ -43,12 +46,9 @@ class SimpleRingImpl extends BlockingRing {
 
     @Override
     public Cqe blockingSubmit(Sqe request) throws InterruptedException, IOException {
-        long requestID = ring.submit(request); // Assuming there is space
-        if (requestID < 0) {
-            throw new IOException("blockingSubmit failed: ");
-        }
+        ring.submit(request); // Assuming there is space
         Cqe response = enter(1);
-        if (response.user_data() != requestID)
+        if (response.user_data() != request.user_data())
             throw new InternalError();
         return response;
     }
@@ -64,19 +64,21 @@ class SimpleRingImpl extends BlockingRing {
         if (ring.sqsize() < 2) {
             throw new IllegalStateException("Ring must have at least 2 entries to support timed operations");
         }
-        long requestID;
+        long requestID = nextid++;
         long timerID = -1;
         int n;
+	request.user_data(requestID);
         if (duration.isPresent()) {
             // link this request to the following timeout request
             request.flags(request.flags() | IOSQE_IO_LINK());
-            Sqe timeout = ring.getTimeoutSqe(duration.get());
-            requestID = ring.submit(request);
-            timerID = ring.submit(timeout);
+            Sqe timeout = ring.getTimeoutSqe(duration.get(),
+			                     IORING_OP_TIMEOUT(), 1);
+            ring.submit(request); // TODO: check user_data
+            ring.submit(timeout);
             n = 2;
         } else {
             n = 1;
-            requestID = ring.submit(request);
+            ring.submit(request);
         }
         Cqe cqe = enter(n);
         long respID = cqe.user_data();

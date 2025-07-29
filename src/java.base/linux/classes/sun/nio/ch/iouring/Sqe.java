@@ -43,13 +43,15 @@ import java.util.concurrent.CompletableFuture;
 public class Sqe {
     int opcode;
     int flags;
-    int xxx_flags;
+    OptionalInt xxx_flags;
+    OptionalInt poll_events;
     OptionalInt buf_index;
     int fd;
     Optional<MemorySegment> addr;
     Optional<MemorySegment> addr2;
     OptionalInt len;
     OptionalLong off;
+    long user_data;
 
     public String toString() {
         return "[opcode: " + Util.sqe_opcode(opcode) + " flags: " + flags +
@@ -62,6 +64,8 @@ public class Sqe {
         addr2 = Optional.empty();
         len = OptionalInt.empty();
         off = OptionalLong.empty();
+        xxx_flags = OptionalInt.empty();
+        poll_events = OptionalInt.empty();
         buf_index = OptionalInt.empty();
         fd = -1;
     }
@@ -70,8 +74,7 @@ public class Sqe {
     }
 
     public Sqe off(long off) {
-        if (addr2.isPresent())
-            throw new IllegalArgumentException("off cannot be set with addr2");
+	checkOptionalMemSeg(addr2, "off may not be set if addr2 is already set");
         this.off = OptionalLong.of(off);
         return this;
     }
@@ -85,27 +88,50 @@ public class Sqe {
         this.opcode = opcode;
         return this;
     }
+
     Sqe flags(int flags) {
         this.flags = flags;
         return this;
     }
     public Sqe xxx_flags(int xxx_flags) {
-        this.xxx_flags = xxx_flags;
+	checkOptionalInt(poll_events, "poll_events can't be set if xxx_flags is");
+        this.xxx_flags = OptionalInt.of(xxx_flags);
+        return this;
+    }
+    public Sqe poll_events(int poll_events) {
+	checkOptionalInt(xxx_flags, "xxx_flags can't be set if poll_events is");
+        this.poll_events = OptionalInt.of(poll_events);
         return this;
     }
     public Sqe fd(int fd) {
         this.fd = fd;
         return this;
     }
+    public Sqe user_data(long user_data) {
+        this.user_data = user_data;
+        return this;
+    }
     public Sqe addr(MemorySegment buffer) {
         this.addr = Optional.of(buffer);
         return this;
     }
+
     Sqe addr2(MemorySegment buffer) {
-        if (off.isPresent())
-            throw new IllegalArgumentException("addr2 cannot be set with off");
+        checkOptionalLong(off, "addr2 can't be set if off is already");
         this.addr2 = Optional.of(buffer);
         return this;
+    }
+    private void checkOptionalInt(OptionalInt opt, String exceptionMsg) {
+	if (opt.isPresent())
+	    throw new IllegalArgumentException(exceptionMsg);
+    }
+    private void checkOptionalLong(OptionalLong opt, String exceptionmsg) {
+	if (opt.isPresent())
+	    throw new IllegalArgumentException(exceptionmsg);
+    }
+    private void checkOptionalMemSeg(Optional<MemorySegment> opt, String exceptionMsg) {
+	if (opt.isPresent())
+	    throw new IllegalArgumentException(exceptionMsg);
     }
     public Sqe len(int len) {
         this.len = OptionalInt.of(len);
@@ -122,12 +148,20 @@ public class Sqe {
         return flags;
     }
 
-    public int xxx_flags() {
+    public OptionalInt xxx_flags() {
         return xxx_flags;
+    }
+
+    public OptionalInt poll_events() {
+        return poll_events;
     }
 
     public int fd() {
         return fd;
+    }
+
+    public long user_data() {
+        return user_data;
     }
 
     public Optional<MemorySegment> addr() {

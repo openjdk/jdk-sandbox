@@ -41,7 +41,7 @@ import static sun.nio.ch.iouring.Util.locateStdHandle;
 import static sun.nio.ch.iouring.foreign.iouring_h.*;
 
 /**
- * Low level interface to a Linux io_uring. Each IOUring needs to be owned
+ * Low level interface to a Linux io_uring. Each IOUringImpl needs to be owned
  * and used by one thread. It provides an asynchronous interface.
  * Requests are submitted through the {@link #submit(Sqe)} method. Completion
  * events can be awaited by calling {@link #enter(int, int, int)}. Completions
@@ -58,15 +58,15 @@ import static sun.nio.ch.iouring.foreign.iouring_h.*;
  *    the ring itself is managed by two background threads.</li>
  * </ol>
  * <p>
- * Some IOUring operations work with kernel registered direct ByteBuffers. When creating
- * an IOUring instance, a number of these buffers can be created in a pool.
- * Registered buffers are not used with regular IOUring read/write operations.
+ * Some IOUringImpl operations work with kernel registered direct ByteBuffers. When creating
+ * an IOUringImpl instance, a number of these buffers can be created in a pool.
+ * Registered buffers are not used with regular IOUringImpl read/write operations.
  */
 @SuppressWarnings("restricted")
-public class IOUring {
-    private static Arena arena = Arena.ofAuto();
+public class IOUringImpl {
+    private static final Arena arena = Arena.ofAuto();
 
-    private static boolean TRACE = System
+    private static final boolean TRACE = System
             .getProperty("sun.nio.ch.iouring.trace", "false")
             .equalsIgnoreCase("true");
     private final SubmissionQueue sq;
@@ -75,21 +75,20 @@ public class IOUring {
     private int epollfd = -1;           // The epoll(7) if set
     private static final int INT_SIZE = (int)ValueLayout.JAVA_INT.byteSize();
 
-    private static long lowestRequestID = 0x1000000;
-    private long nextRequestID = lowestRequestID;
     private final Arena autoArena = Arena.ofAuto();
 
     private final KMappedBuffers mappedBuffers;
 
     /**
-     * Creates an IOURing and initializes the ring structures. {@code entries} (or the next higher power of 2)
-     * is the size of the Submission Queue. Currently, the completion queue returned
-     * will be double the size of the Submission queue.
+     * Creates an IOURing and initializes the ring structures. {@code entries} 
+     * (or the next higher power of 2) is the size of the Submission Queue. 
+     * Currently, the completion queue returned will be double the size 
+     * of the Submission queue.
      * <p>
      * This constructor invokes {@code IOURing(entries, 0, -1)}
      * </p>
      */
-    public IOUring(int entries) throws IOException {
+    public IOUringImpl(int entries) throws IOException {
         this(entries, 0, -1);
     }
 
@@ -100,10 +99,10 @@ public class IOUring {
      *
      * @param entries requested size of submission queue
      * @param nmappedBuffers number of mapped direct ByteBuffers to create
-     * @param mappedBufsize
-     * @throws IOException
+     * @param mappedBufsize size of each buffer in bytes
+     * @throws IOException if an IOException occurs
      */
-    public IOUring(int entries, int nmappedBuffers, int mappedBufsize) throws IOException {
+    public IOUringImpl(int entries, int nmappedBuffers, int mappedBufsize) throws IOException {
         MemorySegment params_seg = getSegmentFor(io_uring_params.$LAYOUT());
         // call setup
         fd = io_uring_setup(entries, params_seg);
@@ -189,23 +188,21 @@ public class IOUring {
         return ret;
     }
     /**
-     * Asynchronously submits an Sqe to this IOUring. Can be called multiple times
+     * Asynchronously submits an Sqe to this IOUringImpl. Can be called multiple times
      * before enter().
      * <p>
      * If a timed wait is required then set the {@code IOSQE_IO_LINK()} flag
      * on this request and immediately submit an Sqe returned from
-     * {@link #getTimeoutSqe(Duration)} after this one, before calling enter();
+     * {@link #getTimeoutSqe(Duration,int)} after this one, before calling enter();
      * </p>
      *
      * @param sqe
-     * @return user_data of submitted request (request id)
      * @throws IOException if submission q full
      */
-    public long submit(Sqe sqe) throws IOException {
-        long id = sq.submit(sqe);
+    public void submit(Sqe sqe) throws IOException {
+        sq.submit(sqe);
         if (TRACE)
-            System.out.printf("submit: %s -> %X\n", sqe, id);
-        return id;
+            System.out.printf("submit: %s \n", sqe);
     }
 
     private static final int EINTR = -4;
@@ -272,6 +269,10 @@ public class IOUring {
         return cq.ringSize;
     }
 
+    public int epoll_fd() {
+        return epollfd;
+    }
+
     /**
      * Polls the Completion Queue for results.
      *
@@ -325,7 +326,7 @@ public class IOUring {
 
     /**
      * Returns a mapped direct ByteBuffer or {@code null} if none available. Mapped buffers must
-     * be used with some IOUring operations such as {@code IORING_OP_WRITE_FIXED} and
+     * be used with some IOUringImpl operations such as {@code IORING_OP_WRITE_FIXED} and
      * {@code IORING_OP_READ_FIXED}. Buffers must be returned after use with
      * {@link #returnRegisteredBuffer(ByteBuffer)}.
      *
@@ -427,10 +428,9 @@ public class IOUring {
         /**
          * Submits an Sqe to Submission Q.
          * @param sqe
-         * @return Returns a +ve user_data if succeeds
          * @throws IOException if Q full
          */
-        public long submit(Sqe sqe) throws IOException {
+        public void submit(Sqe sqe) throws IOException {
             if (ringFull()) {
                 throw new IOException("Submission Queue full");
             }
@@ -439,17 +439,24 @@ public class IOUring {
             int tailIndex = tailVal & ringMask;
 
             MemorySegment slot = sqes.asSlice(
-                    tailIndex * sqe_layout_size,
+                    (long) tailIndex * sqe_layout_size,
                     sqe_layout_size, sqe_alignment).fill((byte)0);
             if (slot == null)
                 throw new IOException("Q full"); // shouldn't happen
-            long requestID = nextRequestID++;
             // Populate the slot as an io_uring_sqe
-            //
-            io_uring_sqe.user_data(slot, requestID);
+            // Note. Sqe has already validated that overlapping fields not set
+            io_uring_sqe.user_data(slot, sqe.user_data());
             io_uring_sqe.fd(slot, sqe.fd());
             io_uring_sqe.opcode(slot, (byte)sqe.opcode());
-            io_uring_sqe.open_flags(slot, sqe.xxx_flags());
+	    // This statement handles the large flags union
+	    // For simplicity all __u32 variants are handled
+	    // as xxx_flags. poll_events (__u16) are special
+	    sqe.xxx_flags().ifPresentOrElse(
+                u32 -> io_uring_sqe.open_flags(slot, u32),
+		// xxx_flags not present, poll_events may be
+		() -> sqe.poll_events().ifPresent(
+                    u16 -> io_uring_sqe.poll_events(slot, (short)u16)));
+	    
             io_uring_sqe.flags(slot, (byte)sqe.flags());
             io_uring_sqe.addr(slot, sqe.addr().orElse(MemorySegment.NULL).address());
             io_uring_sqe.addr2(slot, sqe.addr2().orElse(MemorySegment.NULL).address());
@@ -460,7 +467,6 @@ public class IOUring {
             ringSeg.setAtIndex(ValueLayout.JAVA_INT, tailIndex, tailIndex);
             //Util.print(slot, "SQE");
             setTail(++tailVal);
-            return requestID;
         }
     }
 
@@ -489,7 +495,7 @@ public class IOUring {
     };
 
     /**
-     * Adds the given FD to this ring's epoll(7) instance
+     * Adds the given fd to this ring's epoll(7) instance
      * and creates the epoll instance if it hasn't already been created
      *
      * If using the EPOLLONESHOT mode (in flags) the opaque field
@@ -498,29 +504,29 @@ public class IOUring {
      *
      * @param fd target fd to manage
      * @param poll_events bit mask of events to activate
-     * @param opaque a 64 bit value to return with event notifications
-     * @return
+     * @param opaque a 64 bit value to return with event notifications.
+     *               A value of -1L is ignored.
      * @throws IOException
      * @throws InterruptedException
      */
-    public long epoll_add(FD fd, int poll_events, long opaque) throws IOException, InterruptedException {
-        return epoll_op(fd, poll_events, opaque, EPOLL_CTL_ADD());
+    public void epoll_add(int fd, int poll_events, long opaque) throws IOException, InterruptedException {
+        epoll_op(fd, poll_events, opaque, EPOLL_CTL_ADD());
     }
 
-    public long epoll_del(FD fd, int poll_events) throws IOException, InterruptedException {
-        return epoll_op(fd, poll_events, -1L, EPOLL_CTL_DEL());
+    public void epoll_del(int fd, int poll_events) throws IOException, InterruptedException {
+        epoll_op(fd, poll_events, -1L, EPOLL_CTL_DEL());
     }
 
-    public long epoll_mod(FD fd, int poll_events, long opaque) throws IOException, InterruptedException {
-        return epoll_op(fd, poll_events, -1L, EPOLL_CTL_DEL());
+    public void epoll_mod(int fd, int poll_events, long opaque) throws IOException, InterruptedException {
+        epoll_op(fd, poll_events, opaque, EPOLL_CTL_DEL());
     }
-    private long epoll_op(FD fd, int poll_events, long opaque, int op) throws IOException, InterruptedException {
+
+    private void epoll_op(int fd, int poll_events, long opaque, int op) throws IOException, InterruptedException {
         if (this.epollfd == -1) {
             this.epollfd = initEpoll();
         }
-        FDImpl fdi = (FDImpl)fd;
 
-        MemorySegment targetfd = arena.allocateFrom(ValueLayout.OfInt.JAVA_INT, fdi.fd());
+        MemorySegment targetfd = arena.allocateFrom(ValueLayout.OfInt.JAVA_INT, fd);
 
         Sqe request = new Sqe()
                 .opcode(IORING_OP_EPOLL_CTL())
@@ -536,9 +542,7 @@ public class IOUring {
             epoll_data_t.u64(dataSlice, opaque);
             request = request.off(event.address());
         }
-
-        long id = submit(request);
-        return id;
+        submit(request);
     }
 
     static MemorySegment getSegmentFor(MemoryLayout layout) {
@@ -551,14 +555,15 @@ public class IOUring {
         return "Error: " + strerror(errno);
     }
 
-    public Sqe getTimeoutSqe(Duration maxwait) {
+    public Sqe getTimeoutSqe(Duration maxwait, int opcode, int completionCount) {
         MemorySegment seg = arena.allocate(__kernel_timespec.$LAYOUT()).fill((byte)(0));
         __kernel_timespec.tv_sec(seg, maxwait.getSeconds());
         __kernel_timespec.tv_nsec(seg, maxwait.getNano());
         return new Sqe()
-                .opcode(IORING_OP_LINK_TIMEOUT())
+                .opcode(opcode)
                 .addr(seg)
-                //.flags(IOSQE_IO_LINK())
+                .off(completionCount)
+                .user_data(IoUring.TIMER_OP)
                 .len(1);
     }
     private final static ValueLayout POINTER = ValueLayout.ADDRESS.withTargetLayout(
@@ -607,6 +612,7 @@ public class IOUring {
                     ValueLayout.JAVA_INT,
                     ValueLayout.ADDRESS) // sigset_t UNUSED for now
     );
+    
     // mmap constants used internally
     private static final int PROT_READ = 1;
     private static final int PROT_WRITE = 2;

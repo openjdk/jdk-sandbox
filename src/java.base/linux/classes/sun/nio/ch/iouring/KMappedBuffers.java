@@ -45,7 +45,7 @@ import static sun.nio.ch.iouring.foreign.iouring_h.IORING_REGISTER_BUFFERS2;
 
 /**
  * Kernel mapped direct ByteBuffers. Buffers are allocated by the constructor
- * and later registered with an IOUring. Users must obtain a buffer from
+ * and later registered with an IOUringImpl. Users must obtain a buffer from
  * this object to be used with any async/fixed I/O operation on the ring.
  */
 class KMappedBuffers {
@@ -63,7 +63,7 @@ class KMappedBuffers {
     }
 
     /**
-     * Registers this List of (direct) ByteBuffers with an IOUring such
+     * Registers this List of (direct) ByteBuffers with an IOUringImpl such
      * that the buffers can be accessed directly by user code
      * and by the kernel without copying, as part of
      * fixed read and write operations.

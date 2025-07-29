@@ -30,7 +30,7 @@ import java.time.Duration;
 import java.util.Optional;
 
 /**
- * An IOUring with blocking semantics. Two implementations currently provided.
+ * An IOUringImpl with blocking semantics. Two implementations currently provided.
  *
  * A single threaded ring performs all work in the calling thread. Therefore, only
  * one operation can be in flight at a time
@@ -40,7 +40,7 @@ import java.util.Optional;
  * respectively.
  *
  * These implementations are mainly provided for testing/experimental purposes.
- * It's likely that real IOUring use cases will be based on the lower level
+ * It's likely that real IOUringImpl use cases will be based on the lower level
  * asynchronous API
  *
  * {@link IOURingSocket} and {@link IOURingFile} are example APIs built on
@@ -48,20 +48,20 @@ import java.util.Optional;
  */
 public abstract class BlockingRing {
 
-    protected final IOUring ring;
+    protected final IOUringImpl ring;
 
-    public BlockingRing(IOUring ring) {
+    public BlockingRing(IOUringImpl ring) {
         this.ring = ring;
     }
-    public static BlockingRing getMultiThreadedRing(IOUring r) throws IOException {
+    public static BlockingRing getMultiThreadedRing(IOUringImpl r) throws IOException {
         return new BlockingRingImpl(r);
     }
 
-    public static BlockingRing getSingleThreadedRing(IOUring r) throws IOException {
+    public static BlockingRing getSingleThreadedRing(IOUringImpl r) throws IOException {
         return new SimpleRingImpl(r);
     }
 
-    public IOUring ring() {
+    public IOUringImpl ring() {
         return ring;
     }
 

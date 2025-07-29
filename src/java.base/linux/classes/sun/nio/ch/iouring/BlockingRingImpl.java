@@ -37,10 +37,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static sun.nio.ch.iouring.Util.strerror;
 import static sun.nio.ch.iouring.foreign.iouring_h.IORING_OP_NOP;
 import static sun.nio.ch.iouring.foreign.iouring_h.IORING_ENTER_SQ_WAIT;
+import static sun.nio.ch.iouring.foreign.iouring_h.IORING_OP_TIMEOUT;
 import static sun.nio.ch.iouring.foreign.iouring_h.IOSQE_IO_LINK;
 
 /**
- * A simple multi threaded blocking interface over IOUring which supports
+ * A simple multi threaded blocking interface over IOUringImpl which supports
  * cancellation (by the kernel) of requests after a pre-defined timeout.
  */
 public class BlockingRingImpl extends BlockingRing {
@@ -69,7 +70,7 @@ public class BlockingRingImpl extends BlockingRing {
     //private final HashSet<Long> timerOperations
             //= new HashSet<>();
 
-    BlockingRingImpl(IOUring ring) throws IOException {
+    BlockingRingImpl(IOUringImpl ring) throws IOException {
         super(ring);
         // set limit to 5, which means calling threads will block
         // if there are 5 requests submitted simultaneously
@@ -96,7 +97,9 @@ public class BlockingRingImpl extends BlockingRing {
         if (deadline != -1) {
             // link this request to the following timeout request
             request.flags(request.flags() | IOSQE_IO_LINK());
-            timeout = ring.getTimeoutSqe(duration.get());
+            timeout = ring.getTimeoutSqe(duration.get(), 
+			                 IORING_OP_TIMEOUT(), 1); 
+	                                 // TODO: check third arg
             timerSub = new Submission(timeout, null);
         }
         submissionQ.put(submission);
@@ -171,8 +174,9 @@ public class BlockingRingImpl extends BlockingRing {
         Sqe sqe = sub.sqe();
         sqfree--;
         submissions++;
-        long id = ring.submit(sub.sqe());
-        operations.put(id, sub);
+        ring.submit(sub.sqe());
+        if (operations.putIfAbsent(sqe.user_data(), sub) != null)
+		throw new IllegalArgumentException("duplicate user_data");
         if (sqe.opcode() == IORING_OP_NOP()) {
             // signifies a shutdown
             return true;
@@ -258,7 +262,7 @@ public class BlockingRingImpl extends BlockingRing {
         }
     }
 
-    public IOUring iouring() {
+    public IOUringImpl iouring() {
         return ring;
     }
 }

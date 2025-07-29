@@ -47,7 +47,7 @@ public class IOURingFile extends IOURingReaderWriter {
 
     private final static int AT_FDCWD       = -100;
 
-    private IOURingFile(BlockingRing ring, FDImpl fd) {
+    private IOURingFile(BlockingRing ring, int fd) {
         super(ring, fd);
     }
 
@@ -64,7 +64,7 @@ public class IOURingFile extends IOURingReaderWriter {
         if (result < 0) {
             throw new IOException("Open failed: " + strerror(-result));
         }
-        return new IOURingFile(ring, new FDImpl(result));
+        return new IOURingFile(ring, result);
     }
 
     // fsync ?
@@ -73,7 +73,7 @@ public class IOURingFile extends IOURingReaderWriter {
     public void close() throws Throwable {
         Sqe request = new Sqe()
                 .opcode(IORING_OP_CLOSE())
-                .fd(fd.fd())
+                .fd(fd)
                 .addr(MemorySegment.NULL);
 
         Cqe response = ring.blockingSubmit(request);

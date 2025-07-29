@@ -121,6 +121,14 @@ public final class FileDescriptor {
     private PhantomCleanable<FileDescriptor> cleanup;
 
     /**
+     * Retirn fd
+     * @return fd
+     */
+    public int getFD() {
+	return fd;
+    }
+
+    /**
      * Constructs an (invalid) FileDescriptor object.
      * The fd or handle is set later.
      */

@@ -47,13 +47,14 @@ import static sun.nio.ch.iouring.foreign.iouring_h.*;
 abstract class IOURingReaderWriter {
     protected final BlockingRing ring;
 
-    protected final FDImpl fd;
+    protected final int fd;
     protected final SystemCallContext ctx;
     protected final Arena autoArena = Arena.ofAuto();
 
-    protected final IOUring iouring;
+    protected final IOUringImpl iouring;
+    private long nextid = 1;
 
-    IOURingReaderWriter(BlockingRing ring, FDImpl fd) {
+    IOURingReaderWriter(BlockingRing ring, int fd) {
         this.ring = ring;
         this.iouring = ring.ring();
         this.fd = fd;
@@ -65,7 +66,7 @@ abstract class IOURingReaderWriter {
         MemorySegment data = MemorySegment.ofBuffer(buffer);
         Sqe request = new Sqe()
                 .opcode(IORING_OP_WRITE())
-                .fd(fd.fd())
+                .fd(fd)
                 .addr(data)
                 .off(-1)
                 .len(len);
@@ -83,17 +84,18 @@ abstract class IOURingReaderWriter {
         MemorySegment data = MemorySegment.ofBuffer(buffer);
         Sqe request = new Sqe()
                 .opcode(IORING_OP_WRITE())
-                .fd(fd.fd())
+                .fd(fd)
                 .addr(data)
                 .off(-1L)
+		.user_data(nextid)
                 .len(len);
-        long id = iouring.submit(request);
+        long id = nextid++;
         return id;
     }
 
     /**
      * Writes the contents of the supplied (registered) buffer. When this call
-     * returns the buffer has already been returned to the IOUring registered
+     * returns the buffer has already been returned to the IOUringImpl registered
      * buffer list and should not be accessed again.
      *
      * @param buffer
@@ -106,7 +108,7 @@ abstract class IOURingReaderWriter {
         MemorySegment data = MemorySegment.ofBuffer(buffer);
         Sqe request = new Sqe()
                 .opcode(IORING_OP_WRITE_FIXED())
-                .fd(fd.fd())
+                .fd(fd)
                 .buf_index(index)
                 .off(-1)
                 .addr(data)
@@ -131,7 +133,7 @@ abstract class IOURingReaderWriter {
         MemorySegment data = MemorySegment.ofBuffer(buffer);
         Sqe request = new Sqe()
                 .opcode(IORING_OP_READ())
-                .fd(fd.fd())
+                .fd(fd)
                 .addr(data)
                 .len(len);
         Cqe response = ring.blockingSubmit(request);
@@ -146,7 +148,7 @@ abstract class IOURingReaderWriter {
      * Reads into the supplied (registered) buffer. When this call returns
      * and subsequently when the caller is finished with registered
      * buffer, it should be returned to the IOURing with
-     * {@link IOUring#returnRegisteredBuffer(ByteBuffer)}
+     * {@link IOUringImpl#returnRegisteredBuffer(ByteBuffer)}
      *
      * @param buffer
      * @throws IOException
@@ -160,7 +162,7 @@ abstract class IOURingReaderWriter {
         MemorySegment data = MemorySegment.ofBuffer(buffer);
         Sqe request = new Sqe()
                 .opcode(IORING_OP_READ_FIXED())
-                .fd(fd.fd())
+                .fd(fd)
                 .buf_index(index)
                 .addr(data)
                 .len(len);
