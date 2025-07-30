@@ -126,24 +126,22 @@ public class IoUring {
 
         int n = impl.enter(submissions, mineventswait, 0);
 	System.out.printf("Enter returns %d\n", n);
-	assert n == mineventswait;
+	assert n == submissions;
 	additions = deletions = timers = 0;
 	// For now, only check the result of the poll op itself
 	// and the timer, if it fires
 	Cqe cqe;
-	int result = -1;
-	for (int i=0; i<n; i++) {
+	int result = 0;
+	while(!impl.cqempty()) {
 	    cqe = impl.pollCompletion();
 	    assert cqe != null;
 	    int res = cqe.res();
 	    long udata = cqe.user_data();
 	    if ((udata & ADD_OP) != 0) {
-		System.out.printf("POLLER: res = %d\n", res);
-	        result = 1;
+		//System.out.printf("POLLER: res = %d\n", res);
+	        result++;
 	    } else if ((udata & TIMER_OP) != 0) {
-		System.out.printf("TIMER: res = %d\n", res);
-		(new Exception("Stack Trace")).printStackTrace(System.out);
-	        result = 0;
+	        continue; // nothing more to do
 	    } else {
 		throw new InternalError();
 	    }
