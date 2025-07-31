@@ -188,8 +188,8 @@ public class IOUringImpl {
         return ret;
     }
     /**
-     * Asynchronously submits an Sqe to this IOUringImpl. Can be called multiple times
-     * before enter().
+     * Asynchronously submits an Sqe to this IOUringImpl. Can be called 
+     * multiple times before enter().
      * <p>
      * If a timed wait is required then set the {@code IOSQE_IO_LINK()} flag
      * on this request and immediately submit an Sqe returned from
@@ -208,19 +208,20 @@ public class IOUringImpl {
     private static final int EINTR = -4;
 
     /**
-     * Notifies the kernel of entries on the Submission Q and waits for a number
-     * of responses (completion events). If this returns normally with value {@code n > 0},
-     * this means that n requests have been accepted by the kernel and that number
-     * of free slots have been added to the Submission Q. A normal return
-     * also means that the requested number of completion events have been received
-     * {@link #pollCompletion()} can be called {@code nreceive} times to obtain
-     * the results.
+     * Notifies the kernel of entries on the Submission Q and waits for a 
+     * number of responses (completion events). If this returns normally 
+     * with value {@code n > 0}, this means that n requests have been accepted 
+     * by the kernel and that number of free slots have been added to the 
+     * Submission Q. A normal return also means that the requested number of 
+     * completion events have been received {@link #pollCompletion()} can be 
+     * called {@code nreceive} times to obtain the results.
      *
      * @param nsubmit number of requests to submit
      * @param nreceive block until this number of events received
+     * @param flags flags to pass to io_uring_enter
      *
-     * @return if return value less than 0 means an error occurred. Otherwise, the number of
-     *          Sqes successfully processed.
+     * @return if return value less than 0 means an error occurred. Otherwise, 
+     *         the number of Sqes successfully processed.
      */
     public int enter(int nsubmit, int nreceive, int flags) throws IOException {
         if (nreceive > 0) {
@@ -563,7 +564,6 @@ public class IOUringImpl {
                 .opcode(opcode)
                 .addr(seg)
                 .off(completionCount)
-                .user_data(IoUring.TIMER_OP)
                 .len(1);
     }
     private final static ValueLayout POINTER = ValueLayout.ADDRESS.withTargetLayout(

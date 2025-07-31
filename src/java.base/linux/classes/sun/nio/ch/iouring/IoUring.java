@@ -27,6 +27,9 @@ package sun.nio.ch.iouring;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import static sun.nio.ch.iouring.foreign.iouring_h_1.IORING_OP_TIMEOUT;
 import static sun.nio.ch.iouring.foreign.iouring_h_1.IORING_OP_POLL_ADD;
 import static sun.nio.ch.iouring.foreign.iouring_h_1.IORING_OP_POLL_REMOVE;
@@ -62,74 +65,141 @@ public class IoUring {
     
     /*
      * flags used in user_data field
-     * Flags set in upper 32 bits. Lower 32 bits used for fd
+     * Flags set in upper 32 bits. 
+     * Lower 32 bits used for requestID
      */
-    public static final long ADD_OP   = 0x100000000L;
-    public static final long DEL_OP   = 0x200000000L;
-    public static final long TIMER_OP = 0x400000000L;
+    private static final int TIMER_OP   = 0x1;
 
     private static final int SQ_ENTRIES = 5;
  
+    // Linux errno values
+    private static final int ETIME = 62;
+    private static final int ECANCELED = 125;
+
     private final int event;
     private final IOUringImpl impl;
-    // Counter incremented for each operation and reset after poll() returns
-    private int additions, deletions, timers;
+    private final ConcurrentHashMap<Long,CompletableFuture<Integer>> map;
+    private final AtomicInteger requestID = new AtomicInteger(1);
 
     private IoUring(int event) throws IOException, InterruptedException {
 	this.event = event;
 	this.impl = new IOUringImpl(SQ_ENTRIES);
-	this.additions = 0;
-	this.deletions = 0;
-	this.timers = 0;
+	this.map = new ConcurrentHashMap<>();
     }
 
-    public static IoUring create(int event) throws IOException, InterruptedException {
+    /**
+     * Get a requestID with no flags
+     */
+    private long getNextRequestID() {
+	return getNextRequestID(0);
+    }
+
+    private long getNextRequestID(int flags) {
+        long v = flags << 32;
+	v |= requestID.getAndIncrement();
+	return v;
+    }
+	
+    public static IoUring create(int event) 
+		    throws IOException, InterruptedException {
 	return new IoUring(event);
     }
 
-    public void poll_add(int sock) throws IOException, InterruptedException {
+    /**
+     * Adds the given file descriptor to the iouring poller.
+     * Submission errors may be reported immediately.
+     *
+     * @return a CompletableFuture for the operation result
+     */
+    public CompletableFuture<Integer> poll_add(int sock) {
+	var cf = new CompletableFuture<Integer>();
+	long udata = getNextRequestID();
 	Sqe sqe = new Sqe()
 		.opcode(IORING_OP_POLL_ADD())
 		.fd(sock)
-		.user_data(sock | ADD_OP)
+		.user_data(udata)
 		.poll_events(event);
-	impl.submit(sqe);
-	additions++;
+	try {
+	    impl.submit(sqe);
+	    int ret = impl.enter(1, 0, 0);
+	    if (ret < 1) {
+	        cf.completeExceptionally(
+	           new IOException(
+		      String.format("poll_add failed: on submission %d", ret)));
+	    }
+	} catch (IOException e) {
+	    cf.completeExceptionally(e);
+	}
+	map.put(udata,cf);
+	return cf;
     }
 	
 
-    public void cancel_poll(int sock) throws IOException, InterruptedException {
+    /**
+     * Removes the given file descriptor to the iouring poller.
+     * Submission errors may be reported immediately.
+     *
+     * @return a CompletableFuture for the operation result
+     */
+    public CompletableFuture<Integer> poll_cancel(int sock) throws 
+                     IOException, InterruptedException 
+    {
+	var cf = new CompletableFuture<Integer>();
+	long udata = getNextRequestID();
 	Sqe sqe = new Sqe()
 		.opcode(IORING_OP_POLL_REMOVE())
 		.fd(sock)
-		.user_data(sock | DEL_OP);
+		.user_data(udata);
 	impl.submit(sqe);
-	deletions++;
+	int ret = impl.enter(1, 0, 0);
+	if (ret < 1) {
+	    cf.completeExceptionally(
+	        new IOException(
+		   String.format("poll_cancel failed: on submission %d", ret)));
+	}
+	map.put(udata,cf);
+	return cf;
     }
 
+    /**
+     * Blocks until some file descriptor is ready or an error
+     * has occurred.
+     *
+     * @return the number of added CompletableFutures that were completed
+     *         normally or exceptionally
+     */
     public int poll() throws IOException, InterruptedException {
 	return poll(null);
     }
 
-    public int poll(Duration duration) throws IOException, InterruptedException {
+    /**
+     * Blocks until some file descriptor is ready or an error
+     * has occurred or the given timeout has expired.
+     * For any file descriptors that are ready, the CompletableFuture
+     * is completed normally or exceptionally depending on the
+     * Cqe result.
+     * <p>
+     * If this operation timesout, currently registered operations
+     * remain active and are not cancelled.
+     *
+     * @return the number of added CompletableFutures that were completed
+     *         normally or exceptionally or {@code -1} on timeout.
+     */
+    public int poll(Duration duration) throws IOException {
 	Sqe timeout = null;
-        // we want results for all deletions and at least one poll op
-	int mineventswait = deletions + 1;
+	int submissions = 0;
 
 	if (duration != null) {
-	    timers = 1;
-	    timeout = impl.getTimeoutSqe(duration,
-			                 IORING_OP_TIMEOUT(), mineventswait);
+	    // timeout will complete if at least one fd is ready
+	    // or if the timer timesout. Difference seen in Cqe result
+	    timeout = impl.getTimeoutSqe(duration, IORING_OP_TIMEOUT(), 1);
+	    timeout.user_data(getNextRequestID(TIMER_OP));
 	    impl.submit(timeout);
+	    submissions++;
 	}
-	int submissions = additions + deletions + timers;
-
-        int n = impl.enter(submissions, mineventswait, 0);
-	System.out.printf("Enter returns %d\n", n);
+        int n = impl.enter(submissions, 1, 0);
+	//System.out.printf("Enter returns %d\n", n);
 	assert n == submissions;
-	additions = deletions = timers = 0;
-	// For now, only check the result of the poll op itself
-	// and the timer, if it fires
 	Cqe cqe;
 	int result = 0;
 	while(!impl.cqempty()) {
@@ -137,13 +207,28 @@ public class IoUring {
 	    assert cqe != null;
 	    int res = cqe.res();
 	    long udata = cqe.user_data();
-	    if ((udata & ADD_OP) != 0) {
-		//System.out.printf("POLLER: res = %d\n", res);
-	        result++;
-	    } else if ((udata & TIMER_OP) != 0) {
-	        continue; // nothing more to do
+	    
+	    if ((udata & TIMER_OP) != 0) {
+	        if (res == 0) {
+		    // Normal event completion
+		    continue;
+		} else if (res == -ETIME) {
+	            result = -1;
+		} else if (res == -ECANCELED) {
+		    // TODO: what do we do?
+		}
 	    } else {
-		throw new InternalError();
+	        // Timeout should not occur if other completions available
+	        assert result != -1; 
+	    }
+	    CompletableFuture<Integer> cf = map.remove(udata);
+	    assert cf != null;
+	    if (res < 0) {
+		var err = String.format("operation failed: %d", -res);
+		cf.completeExceptionally(new IOException(err));
+	    } else {
+		cf.complete(res);
+		result++;
 	    }
 	}
 	return result;
