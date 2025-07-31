@@ -90,10 +90,17 @@ void write(int fd, const char *buf) {
 }
 
 void log0(const char *msg) {
+    // Add timestamp and newline to message, write on stderr.
     char buffer[BUFLEN];
+#ifndef WINDOWS
     struct timeval t;
     gettimeofday(&t, nullptr);
     snprintf(buffer, BUFLEN - 1, "%ld.%ld: %s\n", t.tv_sec, (long) t.tv_usec, msg);
+#else
+    // TODO timestamp on Windows
+    snprintf(buffer, BUFLEN - 1, "%s\n", msg);
+
+#endif
     write(2 /* stderr */, buffer);
 }
 
@@ -119,9 +126,33 @@ void logv(const char* format, ...) {
     }
 }
 
+void warn(const char *format, ...) {
+    char buffer[BUFLEN];
+    memset(buffer, 0, BUFLEN);
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buffer, BUFLEN - 1, format, args);
+    va_end(args);
+    write(2 /* stderr */, buffer);
+    write(2, "\n");
+}
+
+void error(const char *format, ...) {
+    char buffer[BUFLEN];
+    memset(buffer, 0, BUFLEN);
+    va_list args;
+    va_start(args, format);
+    vsnprintf(buffer, BUFLEN - 1, format, args);
+    va_end(args);
+    write(2 /* stderr */, buffer);
+    write(2, "\n");
+    exit(1);
+}
+
+
 void waitHitRet() {
     if (_wait) {
-        printf("hit return");
+        warn("hit return");
         getchar();
     }
 }
@@ -132,7 +163,7 @@ void waitHitRet() {
 unsigned long long file_size(const char *filename) {
     struct stat sb;
     if (stat(filename, &sb) == -1) {
-       printf("cannot stat '%s': %d: %s\n", filename, errno, strerror(errno));
+       warn("cannot stat '%s': %d: %s", filename, errno, strerror(errno));
        return -1;
    }
    return (long long) sb.st_size;
@@ -144,7 +175,7 @@ unsigned long long file_size(const char *filename) {
 unsigned long long file_time(const char *filename) {
     struct stat sb;
     if (stat(filename, &sb) == -1) {
-       printf("cannot stat '%s': %d: %s\n", filename, errno, strerror(errno));
+       warn("cannot stat '%s': %d: %s", filename, errno, strerror(errno));
        return -1;
    }
    return (long long) sb.st_mtime;
@@ -316,19 +347,19 @@ int revival_mapping_copy(void *vaddr, size_t length, off_t offset, bool allocate
     }
     // Check permission
     if (!mem_canwrite_pd(vaddr, length)) {
-        printf("  revival_mapping_copy: cannot write at vaddr 0x%p\n", vaddr);
+        warn("  revival_mapping_copy: cannot write at vaddr 0x%p", vaddr);
         return -1;
     }
 
     // Copy data to allocation:
     FILE *f = fopen(filename, "rb");
     if (!f) {
-        printf("cannot open: '%s': %d: %s\n", filename, errno, strerror(errno));
+        warn("cannot open: '%s': %d: %s", filename, errno, strerror(errno));
         return -1;
     }
     e = fseek(f, offset, SEEK_SET);
     if (e != 0) {
-        printf("cannot seek '%s' to offset %llx: returns %d: %d: %s\n", filename, (long long) offset, e, errno, strerror(errno));
+        warn("cannot seek '%s' to offset %llx: returns %d: %d: %s", filename, (long long) offset, e, errno, strerror(errno));
         fclose(f);
         return -1;
     }
@@ -341,7 +372,7 @@ int revival_mapping_copy(void *vaddr, size_t length, off_t offset, bool allocate
     for (size_t i = 0; i < length/4; i++) {
         e = (int) fread(&value, 4, 1, f);
         if (e != 1) {
-            printf("COPY fread failed: returns %d at %p pos=%zu : %d %s\n", e, p, i, errno, strerror(errno));
+            fprintf(stderr, "COPY fread failed: returns %d at %p pos=%zu : %d %s\n", e, p, i, errno, strerror(errno));
             break;
         }
         *p++ = value;
@@ -390,13 +421,13 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
 
     FILE *f = fopen(mappings_filename, "r"); 
     if (!f) {
-        printf("cannot open: '%s': %s\n", mappings_filename, strerror(errno));
+        warn("cannot open: '%s': %s", mappings_filename, strerror(errno));
         return -1;
     }
     // corefile details:
     e = fscanf(f, "core %s %s\n", s1 /* core filename */, s2 /* length */); 
     if (e != 2) {
-        printf("mappings_file_read: unrecognised header in: %s\n", mappings_filename);
+        warn("mappings_file_read: unrecognised header in: %s", mappings_filename);
         return -1;
     }
     lines++;
@@ -428,7 +459,7 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
 #ifdef LINUX
     core_fd = open(core_filename, (mapWrite ? O_RDWR : O_RDONLY));
     if (core_fd < 0) {
-        printf("%s: %s", core_filename, strerror(errno));
+        warn("%s: %s", core_filename, strerror(errno));
         return -1;
     }
 #endif
@@ -455,7 +486,7 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
                 log("load_sharedlibrary_fromdir returns: %p", h);
             }
             if (h == (void *) -1) {
-                fprintf(stderr, "Load library '%s' failed to load at %p\n", s1, vaddr);
+                warn("Load library '%s' failed to load at %p", s1, vaddr);
                 return -1;
             }
             continue;
@@ -934,18 +965,18 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
     init_pd();
 
     if (corename == nullptr) {
-        printf("revive_image: core file name required.\n");
+        warn("revive_image: core file name required.");
         return -1;
     }
     if (revivaldir || revivalthread) {
-        fprintf(stderr, "revive_image: already called.\n");
+        warn("revive_image: already called.");
         log("revive_image FAIL 2");
         return -1;
     }
     // Record our copy of core file name:
     core_filename = strdup(corename);
     if (core_filename == nullptr) {
-        fprintf(stderr, "revive: alloc copy of core_filename failed.\n");
+        warn("revive: alloc copy of core_filename failed.");
         log(">>> revive_image FAIL 3");
         return -1;
     }
@@ -953,14 +984,14 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
     // Check core file exists:
     e = open(core_filename, O_RDONLY);
     if (e < 0) {
-        fprintf(stderr, "revive_image: open '%s' failed: %d: %s\n", core_filename, errno, strerror(errno));
+        warn("revive_image: open '%s' failed: %d: %s", core_filename, errno, strerror(errno));
         return e;
     }
     close(e);
 
     dirname = revival_dirname(corename);
     if (dirname == nullptr) {
-        fprintf(stderr, "revive_image: failed to allocate dirname.\n");
+        warn("revive_image: failed to allocate dirname.");
         return -1;
     }
     if (verbose) {
@@ -977,13 +1008,13 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
             log("revive_image: create_revivalbits return code: %d", e);
         }
         if (e < 0) {
-            fprintf(stderr, "revive_image: create_revivalbits failed.  Return code: %d\n", e);
+            warn("revive_image: create_revivalbits failed.  Return code: %d", e);
             return e;
         }
     }
 
     if (revival_checks_pd(dirname) < 0) {
-        fprintf(stderr, "revive_image: revival_checks failed: %s\n", dirname);
+        warn("revive_image: revival_checks failed: %s", dirname);
         return -1;
     }
 
@@ -1009,7 +1040,7 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
     snprintf(buf, BUFLEN, "%s%s", dirname, "/" MAPPINGS_FILENAME);
     e = mappings_file_read(corename, dirname, buf);
     if (e < 0) {
-        fprintf(stderr, "revive_image: mappings_file_read failed: %d\n", e);
+        warn("revive_image: mappings_file_read failed: %d", e);
         return -1;
     }
     revivaldir = dirname;
@@ -1019,7 +1050,7 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
         uint64_t jdkvi;
         void * s = symbol(SYM_JVM_VERSION);
         if (s == (void*) -1) {
-            fprintf(stderr, "Error: revival: failed symbol lookup for " SYM_JVM_VERSION "\n");
+            warn("Error: revival: failed symbol lookup for " SYM_JVM_VERSION);
             return -1; // fatal?
         } else {
             int(*func)() = (int(*)()) s;
@@ -1045,7 +1076,7 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
 
     e = revive_image_cooperative();
     if (!e) {
-        fprintf(stderr, "revival: revive_image failed: %d\n", e);
+        warn("revival: revive_image failed: %d", e);
     } else if (verbose) {
         log("revive_image: OK");
     }
@@ -1054,7 +1085,7 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
 
 void *revived_vm_thread() {
     if (!revivaldir || !revivalthread) {
-        printf("revived_vm_thread: call revive_imagefirst.\n");
+        warn("revived_vm_thread: call revive_imagefirst.");
         return nullptr;
     }
     return revivalthread;
@@ -1062,7 +1093,7 @@ void *revived_vm_thread() {
 
 void *revival_tty_existing() {
     if (!revivaldir) {
-        printf("revival_tty: call revive_image first.\n");
+        warn("revival_tty: call revive_image first.");
         return nullptr;
     }
     if (!_tty) {
@@ -1082,14 +1113,14 @@ void *revival_tty_existing() {
 
 void *revived_tty() {
     if (!revivaldir) {
-        printf("revival_tty: call revive_image first.\n");
+        warn("revival_tty: call revive_image first.");
         return nullptr;
     }
     if (!_tty) {
         if (verbose) printf("Resolving tty...");
         void *tty1 = symbol(SYM_TTY);
         if (tty1 == (void*) -1) {
-            printf("Failed to resolve symbol '%s'\n", SYM_TTY);
+            warn("Failed to resolve symbol '%s'", SYM_TTY);
         } else {
             unsigned long long tty2 = * (unsigned long long *) tty1;
             _tty = (void*) tty2;
@@ -1103,16 +1134,18 @@ void *revived_tty() {
 int revival_dcmd(const char *command) {
     void *s = symbol(SYM_PARSE_AND_EXECUTE);
     if (s == (void*) -1) {
-        printf("revival: symbol lookup failed: " SYM_PARSE_AND_EXECUTE "\n");
+        warn("revival: symbol lookup failed: " SYM_PARSE_AND_EXECUTE);
         return -1;
     }
     if (revived_tty() == (void*) 0L) {
         // null tty will cause a crash during DCmd output.
-        printf("revival: tty failed.\n");
+        warn("revival: tty failed.");
         return -1;
     }
     int(*dcmd_parse)(int, void*, const char*, char, void*) = (int(*)(int, void*, const char *, char, void*)) s;
-    if (verbose) printf("dcmd_parse: '%s'\n", command);
+    if (verbose) {
+        log("dcmd_parse: '%s'\n", command);
+    }
     (dcmd_parse)(DCMD_SOURCE, revived_tty(), command, ' ', revived_vm_thread());
 
     return 0;

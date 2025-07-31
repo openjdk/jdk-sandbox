@@ -51,8 +51,7 @@ static void* lookup_kernelbase_library() {
     const char* const name = "KernelBase";
     void* const handle = LoadLibrary(name);
     if (handle == nullptr) {
-        fprintf(stderr, "LoadLibrary failed");
-        exit(1);
+        error("LoadLibrary failed");
     }
     return handle;
 }
@@ -64,8 +63,7 @@ static void* lookup_kernelbase_symbol(const char* name) {
     }
     void* ret = ::GetProcAddress((HMODULE) handle, name);
     if (ret == nullptr) {
-        fprintf(stderr, "failed to lookup kernelbase symbol: %s", name);
-        exit(1);
+        error("failed to lookup kernelbase symbol: %s", name);
     }
     return ret;
 }
@@ -79,8 +77,7 @@ template <typename Fn>
 static void install_kernelbase_1803_symbol_or_exit(Fn*& fn, const char* name) {
     install_kernelbase_symbol(fn, name);
     if (fn == nullptr) {
-        fprintf(stderr, "Failed to find 1803 symbol: %s", name);
-        exit(1);
+        error("Failed to find 1803 symbol: %s", name);
     }
 }
 
@@ -111,7 +108,7 @@ void init_pd() {
     }
     if (valign != 0xffff) {
         // expected: dwAllocationGranularity = 65536
-        fprintf(stderr, "Note: dwAllocationGranularity not 64k, valign = %lld\n", valign);
+        warn("Note: dwAllocationGranularity not 64k, valign = %lld", valign);
     }
 
     // Function lookups
@@ -208,7 +205,7 @@ void *symbol_dynamiclookup_pd(void *h, const char*str) {
     }
     if (s == 0) {
         if (verbose) {
-            fprintf(stderr, "GetProcAddress failed: 0x%x\n", GetLastError());
+            warn("GetProcAddress failed: 0x%x", GetLastError());
         }
         return (void *) -1;
     }
@@ -227,7 +224,7 @@ void *load_sharedobject_pd(const char *name, void *vaddr) {
         fprintf(stderr, "load_sharedobject_pd: %s: will unload as 0x%p != requested 0x%p. error=0x%lx\n", name, h, vaddr, GetLastError());
         int unloaded = FreeLibrary(h);
         if (unloaded == 0) {
-            fprintf(stderr, "load_sharedobject_pd: unload failed.\n");
+            warn("load_sharedobject_pd: unload failed.\n");
             break;
         }
         tries++;
@@ -248,7 +245,6 @@ int unload_sharedobject_pd(void *h) {
 
 
 bool mem_canwrite_pd(void *vaddr, size_t length) {
-
     MEMORY_BASIC_INFORMATION meminfo;
     HANDLE hProc = GetCurrentProcess();
     size_t q = VirtualQueryEx(hProc, vaddr, &meminfo, sizeof(meminfo));
@@ -345,7 +341,7 @@ void *do_mmap_pd(void *addr, size_t length, off_t offset) {
 int do_munmap_pd(void *addr, size_t length) {
     int e = UnmapViewOfFile(addr); // Returns non-zero on success.  Zero on failure.
     if (e == 0) {
-        fprintf(stderr, "UnmapViewOfFile 0x%p: failed: returns 0x%d: 0x%lx\n", addr, e, GetLastError());
+        warn("UnmapViewOfFile 0x%p: failed: returns 0x%d: 0x%lx\n", addr, e, GetLastError());
     }
     return e;
 }
@@ -361,7 +357,7 @@ void *do_map_allocate_pd_MapViewOfFile(void *vaddr, size_t length) {
 
     HANDLE h = CreateFileMapping(INVALID_HANDLE_VALUE, nullptr, mappingProt, 0, (DWORD) length_aligned, nullptr);
     if (h == nullptr) {
-        printf("    do_map_allocate_pd_MapViewOfFile: CreateFileMapping returns = 0x%p : error = 0x%lx\n", h, GetLastError());
+        warn("    do_map_allocate_pd_MapViewOfFile: CreateFileMapping returns = 0x%p : error = 0x%lx\n", h, GetLastError());
         return (void *) -1;
     }
 
@@ -443,7 +439,6 @@ void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length) {
     p = pVirtualAlloc2(hProc, (PVOID) addr_aligned, length_aligned, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE, nullptr, 0);
 
     if (verbose) {
-
         printf("    do_map_allocate_pd_VirtualAlloc2: first alloc attempt 0x%p len 0x%zx : returns = 0x%p, error = 0x%lx\n",
                 (void *) addr_aligned, length_aligned, p, GetLastError());
     }
@@ -464,7 +459,7 @@ void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length) {
                 printf("    do_map_allocate_pd_VirtualAlloc2: retry new base 0x%llx len 0x%llx\n", new_ptr, length_aligned);
                 return do_map_allocate_pd_VirtualAlloc2((void*) new_ptr, length_aligned);
             } else {
-                printf("VirtualQueryEx failed");
+                warn("VirtualQueryEx failed");
                 return (void*) -1;
             }
 
@@ -494,7 +489,7 @@ void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length) {
                         DWORD lpfOldProtect;
                         // DWORD prot = PAGE_EXECUTE_READ;
                         if (!VirtualProtect((PVOID) meminfo.BaseAddress, length_aligned, PAGE_EXECUTE_READWRITE, &lpfOldProtect)) {
-                            printf("    do_map_allocate_pd: existing, failed setting rw: 0x%x.\n", GetLastError());
+                            warn("    do_map_allocate_pd: existing, failed setting rw: 0x%x.\n", GetLastError());
                             return (void *) -1;
                         }
                     }
@@ -557,28 +552,28 @@ char *readstring_minidump(int fd) {
     wchar_t *wbuf = (wchar_t *) calloc(BUFLEN, 1);
     char *mbuf = (char *) calloc(BUFLEN, 1);
     if (wbuf == nullptr || mbuf == nullptr) {
-        fprintf(stderr, "Failed to allocate buf for readstring\n");
+        warn("Failed to allocate buf for readstring\n");
         return nullptr;
     }
     ULONG32 length;
     int e = read(fd, &length, sizeof(ULONG32));
     if (e != sizeof(ULONG32)) {
-        fprintf(stderr, "Failed to read MINIDUMP_STRING length: %d\n", e);
+        warn("Failed to read MINIDUMP_STRING length: %d\n", e);
         return nullptr;
     }
     if (length >= BUFLEN) {
-        fprintf(stderr, "MINIDUMP_STRING length too long: %d\n", length);
+        warn("MINIDUMP_STRING length too long: %d\n", length);
         return nullptr;
     }
     e = read(fd, wbuf, length);
     if (e != length) {
-        fprintf(stderr, "Failed to read MINIDUMP_STRING chars: %d\n", e);
+        warn("Failed to read MINIDUMP_STRING chars: %d\n", e);
         return nullptr;
     }
 
     e = (int) wcstombs(mbuf, wbuf, length);
     if (e < (int) (length/2)) {
-        fprintf(stderr, "MINIDUMP_STRING length %d, short bad results from wcstombs: %d\n", length, e);
+        warn("MINIDUMP_STRING length %d, short bad results from wcstombs: %d\n", length, e);
         return nullptr;
     }
 
@@ -611,7 +606,7 @@ struct minidump *open_minidump(const char *filename) {
 
     int fd = open(filename, O_RDONLY);
     if (fd < 0) {
-        fprintf(stderr, "open '%s' failed: %d: %s\n", core_filename, errno, strerror(errno));
+        warn("open '%s' failed: %d: %s\n", core_filename, errno, strerror(errno));
         return nullptr;
     }
     struct minidump *dump = (struct minidump *) malloc(sizeof(struct minidump));
@@ -621,7 +616,7 @@ struct minidump *open_minidump(const char *filename) {
     // _MINIDUMP_HEADER hdr;
     int e = read(fd, &(dump->hdr), sizeof(_MINIDUMP_HEADER));
     if (dump->hdr.Signature != MINIDUMP_SIGNATURE) {
-        fprintf(stderr, "Minidump header unexpected: %lx\n", dump->hdr.Signature);
+        warn("Minidump header unexpected: %lx\n", dump->hdr.Signature);
         return nullptr;
     }
     if (verbose) {
@@ -672,7 +667,7 @@ char *resolve_jvm_info_pd(const char *filename) {
 
     MINIDUMP_DIRECTORY *md = minidump_find_stream(dump, ModuleListStream);
     if (md == nullptr) {
-        fprintf(stderr, "Minidump ModuleListStream not found\n");
+        warn("Minidump ModuleListStream not found\n");
         return nullptr;
     }
 
@@ -680,7 +675,6 @@ char *resolve_jvm_info_pd(const char *filename) {
     ULONG32 size = md->Location.DataSize;
     ULONG32 n;
     int e = read(dump->fd, &n, sizeof(n));
-    // fprintf(stderr, "number of modules = %d\n", n);
     for (unsigned int j = 0; j < n; j++) {
         MINIDUMP_MODULE module;
         e = read(dump->fd, &module, sizeof(module));
@@ -752,7 +746,7 @@ int relocate_sharedlib_pd(const char *filename, const void *addr) {
     // Call editbin.exe
     char *editbin = getenv("EDITBIN");
     if (editbin  == nullptr) {
-        fprintf(stderr, "EDITBIN not set\n");
+        warn("EDITBIN not set\n");
         return -1;
     }
     // EDITBIN.EXE /DYNAMICBASE:NO /REBASE:BASE=0xaddress jvm.dll
@@ -782,7 +776,7 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
 
     MINIDUMP_DIRECTORY *md = minidump_find_stream(dump, Memory64ListStream); // or MemoryListStream
     if (md == nullptr) {
-        fprintf(stderr, "Minidump MemoryListStream not found\n");
+        warn("Minidump MemoryListStream not found\n");
         return -1;
     }
 
@@ -829,7 +823,7 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
 
     char *jvm = get_jvm_filename_pd(corename);
     if (jvm == nullptr) {
-        fprintf(stderr, "revival: cannot locate JVM in minidump.\n") ;
+        warn("revival: cannot locate JVM in minidump.\n") ;
         return -1;
     }
     if (verbose) log("JVM = '%s'", jvm);
@@ -839,7 +833,7 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
     // make core.revival dir
     int e = _mkdir(revival_dirname);
     if (e < 0) {
-        fprintf(stderr, "Cannot create directory: %s: %s\n", revival_dirname, strerror(errno));
+        warn("Cannot create directory: %s: %s\n", revival_dirname, strerror(errno));
         return e;
     }
 
@@ -854,21 +848,21 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
     strncat(jvm_copy, "\\" JVM_FILENAME, BUFLEN - 1);
     e = copy_file_pd(jvm, jvm_copy);
     if (e != 0) {
-        fprintf(stderr, "Cannot copy JVM: %s to  %s\n", jvm_copy, revival_dirname);
+        warn("Cannot copy JVM: %s to  %s\n", jvm_copy, revival_dirname);
         return -1;
     }
 
     // relocate copy of libjvm:
     e = relocate_sharedlib_pd(jvm_copy, addr);
     if (e != 0) {
-        fprintf(stderr, "Failed to relocate JVM: %d\n", e);
+        warn("Failed to relocate JVM: %d\n", e);
         //    return -1; // temp ignore to test mappings when editbin not found...
     }
 
     // Create core.mappings file:
     int fd = mappings_file_create(revival_dirname, corename);
     if (fd < 0) {
-        fprintf(stderr, "Failed to create mappings file\n");
+        warn("Failed to create mappings file\n");
         return -1;
     }
 
@@ -876,7 +870,7 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
 
     close(fd);
     if (e != 0) {
-        fprintf(stderr, "Failed to create memory mappings: %d\n", e);
+        warn("Failed to create memory mappings: %d\n", e);
         return -1;
     }
     return 0;

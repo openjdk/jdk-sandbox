@@ -38,8 +38,7 @@
  * Show usage message, and exit with an error status.
  */
 void usageExit(const char* s) {
-    printf("usage: %s [ -L/path/path/libdir ] COREFILE jcmd DCOMMAND...\n", s);
-    exit(1);
+    error("usage: %s [ -L/path/path/libdir ] COREFILE jcmd DCOMMAND...\n", s);
 }
 
 
@@ -62,10 +61,11 @@ int main(int argc, char **argv) {
     char *s = strstr(argv[0], MY_NAME);
     if (s != nullptr) {
         strncpy(javahome, argv[0], (s - argv[0]));
-        fprintf(stderr, "revivalhelper: Using JDK home: %s.\n", javahome);
+        if (verbose) {
+            log("revivalhelper: Using JDK home: '%s'\n", javahome);
+        }
     } else {
-        printf("revivalhelper: cannot find JDK home in '%s'.\n", argv[0]);
-        exit(1);
+        error("revivalhelper: cannot find JDK home in '%s'.\n", argv[0]);
     }
 
     if (argc < 4 ) {
@@ -77,8 +77,7 @@ int main(int argc, char **argv) {
             libdir = argv[n]+2;
             n++;
         } else {
-            printf("Use -L/path/to/libdir to specify library directory.\n");
-            exit(2);
+            error("Use -L/path/to/libdir to specify library directory.\n");
         }
     }
     if ((argc - n) < 2 ) {
@@ -89,8 +88,7 @@ int main(int argc, char **argv) {
 
     // jcmd expected argument:
     if (strcmp(argv[n++], "jcmd") != 0) {
-        printf("jcmd keyword expected.\n");
-        exit(3);
+        error("jcmd keyword expected.\n");
     }
     // Build jcmd from all additional arguments:
     for (int i = n; i < argc; i++) {
@@ -105,6 +103,7 @@ int main(int argc, char **argv) {
 
     if (e < 0) {
         fprintf(stderr, "Error: revive failed: %d\n", e);
+        // Will call _exit below, don't call error().
     } else {
         e = revival_dcmd(command);
     }

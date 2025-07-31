@@ -53,11 +53,6 @@
 
 #include "revival.hpp"
 
-// moved to common header: struct SharedLibMapping
-void error(const char* msg) {
-    printf("%s", msg);
-    exit(1);
-}
 
 // A minimal set of operations for doing what we need to do on ELF files.
 // ELFOperations is passed an open file. 
@@ -100,7 +95,7 @@ struct ELFOperations {
     T read_type() {
         T ret;
         if (read(file, &ret, sizeof(T)) != sizeof(T)) {
-            error(strerror(errno));
+            error("read_type: %s", strerror(errno));
         }
         return ret;
     }
@@ -108,7 +103,7 @@ struct ELFOperations {
     template <typename T>
     T read_type_at(unsigned long at) {
         if (lseek(file, at, SEEK_SET) == -1) {
-            error(strerror(errno));
+            error("read_type_at: %s", strerror(errno));
         };
         return read_type<T>();
     }
@@ -116,11 +111,11 @@ struct ELFOperations {
     template <typename T>
     void write_type_at(T content, unsigned long at) {
         if (lseek(file, at, SEEK_SET) == -1) {
-            error(strerror(errno));
+            error("write_type_at: %s", strerror(errno));
         };
 
         if (write(file, &content, sizeof(T)) != sizeof(T)) {
-            error(strerror(errno));
+            error("write_type_at: %s", strerror(errno));
         }
     }
 
@@ -315,16 +310,16 @@ struct ELFOperations {
 
     void read_bytes_at(unsigned long at, ssize_t bytes, char* buffer) {
         if (lseek(file, at, SEEK_SET) == -1) {
-            error(strerror(errno));
+            error("read_bytes_at: %s", strerror(errno));
         };
         if (read(file, buffer, bytes) != bytes) {
-            error(strerror(errno));
+            error("read_bytes_at: %s", strerror(errno));
         }
     }
 
     void read_bytes(ssize_t bytes, char* buffer) {
         if (read(file, buffer, bytes) != bytes) {
-            error(strerror(errno));
+            error("read_bytes: %s", strerror(errno));
         }
     }
     
@@ -420,7 +415,7 @@ struct ELFOperations {
                 // TODO where's this freed?
                 char *name = (char *) malloc(nhdr.n_namesz);
                 if (name == nullptr) {
-                    fprintf(stderr, "Failed malloc for namesz %d\n", nhdr.n_namesz);
+                    warn("Failed malloc for namesz %d\n", nhdr.n_namesz);
                     return;
                 }
                 read_bytes(nhdr.n_namesz, name);
@@ -463,7 +458,7 @@ struct ELFOperations {
                 }
             }
         }
-        fprintf(stderr, "No NT_FILE NOTE found?\n");
+        warn("No NT_FILE NOTE found?\n");
     }
 
     SharedLibMapping* get_library_mapping(const char* filename) {
@@ -600,7 +595,7 @@ void init_pd() {
     // pagesize, expect 0x1000
     long value = sysconf(_SC_PAGESIZE);
     if (value < 0) {
-        fprintf(stderr, "init_pd: sysconf retuns 0x%lx: %s\n", value, strerror(errno));
+        warn("init_pd: sysconf retuns 0x%lx: %s", value, strerror(errno));
         value = 0x1000; // consider exiting
     }
     vaddr_align = value;
@@ -610,7 +605,7 @@ bool revival_direxists_pd(const char *dirname) {
     int fd = open(dirname, O_DIRECTORY);
     if (fd < 0) {
         if (errno != ENOENT) {
-            fprintf(stderr, "checking revivaldirectory '%s': %d: %s\n", dirname, errno, strerror(errno));
+            warn("checking revivaldirectory '%s': %d: %s", dirname, errno, strerror(errno));
         }
     } else {
         close(fd);
@@ -667,7 +662,7 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, off_t offset
         }
     }
     if (e == (void*) -1L) {
-        fprintf(stderr, "do_mmap_pd: mmap(%p, %zu, %d, %d, %d, offset %zu) failed: returns: %p: errno = %d: %s\n",
+        warn("do_mmap_pd: mmap(%p, %zu, %d, %d, %d, offset %zu) failed: returns: %p: errno = %d: %s",
                 addr, length, prot, flags, fd, offset, e, errno, strerror(errno));
     }
     return e;
@@ -680,7 +675,7 @@ void *do_mmap_pd(void *addr, size_t length, off_t offset) {
 int do_munmap_pd(void *addr, size_t length) {
     int e = munmap(addr, length);
     if (e) {
-        fprintf(stderr, "munmap_pd: %p failed: returns: %d: errno = %d: %s\n",  addr, e, errno, strerror(errno));
+        warn("munmap_pd: %p failed: returns: %d: errno = %d: %s",  addr, e, errno, strerror(errno));
     }
     return e;
 }
@@ -711,13 +706,13 @@ int revival_checks_pd(const char *dirname) {
     // Check dirname is valid:
     int e = open(dirname, O_DIRECTORY);
     if (e < 0) {
-        fprintf(stderr, "revival_checks: cannot open directory '%s'.\n", dirname);
+        warn("revival_checks: cannot open directory '%s'", dirname);
         return -1;
     }
     // Check LD_USE_LOAD_BIAS is set:
     char * env = getenv("LD_USE_LOAD_BIAS");
     if (env == NULL || strncmp(env, "1", 1) != 0) {
-        fprintf(stderr, "Error: LD_USE_LOAD_BIAS not set.\n");
+        warn("Error: LD_USE_LOAD_BIAS not set.");
         return -1;
     }
     return 0;
@@ -729,7 +724,7 @@ void pmap_pd() {
     snprintf(buf, BUFLEN, "pmap %d", pid);
     int e = system(buf);
     if (e != 0) {
-        fprintf(stderr, "pmap: %d\n", e);
+        warn("pmap: %d", e);
     }
 }
 
@@ -740,7 +735,7 @@ void *symbol_dynamiclookup_pd(void *h, const char *str) {
     }
     if (s == 0) {
         if (verbose) {
-            fprintf(stderr, "dlsym: %s\n", dlerror());
+            warn("dlsym: %s", dlerror());
         }
         return (void *) -1;
     }
@@ -799,11 +794,11 @@ const char *createTempFilename() {
             }
             int e = unlink(tempName);
             if (e < 0) {
-                fprintf(stderr, "revival: remove existing core page file failed: %d.\n", e);
+                warn("revival: remove existing core page file failed: %d", e);
             }
             fdTemp = open(tempName, O_WRONLY | O_CREAT | O_EXCL, 0600); 
             if (fdTemp < 0) {
-                fprintf(stderr, "cannot remove open existing core page file '%s': %d\n", tempName, fdTemp);
+                warn("cannot remove open existing core page file '%s': %d", tempName, fdTemp);
                 return NULL;
             }
         }
@@ -819,7 +814,7 @@ const char *getCorePageFilename() {
     if (corePageFilename == NULL) {
         corePageFilename = createTempFilename();
         if (corePageFilename == NULL) {
-            fprintf(stderr, "cannot create page file for writes to core file memory.\n");
+            warn("cannot create page file for writes to core file memory.");
             abort();
         }
     }
@@ -837,7 +832,7 @@ off_t writeTempFileBytes(const char *tempName, Segment seg) {
     }
     off_t pos = lseek(fdTemp, 0, SEEK_END);
     if (pos < 0) {
-        fprintf(stderr, "writeTempFileBytes: lseek fails %d : %s\n", errno, strerror(errno));
+        warn("writeTempFileBytes: lseek fails %d : %s", errno, strerror(errno));
         close(fdTemp);
     }
     // Write bytes
@@ -857,29 +852,29 @@ off_t writeTempFileBytes(const char *tempName, Segment seg) {
 void remap(Segment seg) {
     const char *tempName = getCorePageFilename();
     if (tempName == NULL) {
-        fprintf(stderr, "remap: failed to create temp file. errno = %d: %s\n",  errno, strerror(errno));
+        warn("remap: failed to create temp file. errno = %d: %s",  errno, strerror(errno));
         abort();
     }
     off_t offset = writeTempFileBytes(tempName, seg);
     if (offset == (off_t) -1 ) {
-        fprintf(stderr, "remap: failed to write bytes to temp file '%s'. errno = %d: %s\n", tempName, errno, strerror(errno));
+        warn("remap: failed to write bytes to temp file '%s'. errno = %d: %s", tempName, errno, strerror(errno));
         abort();
     }
     int fd = open(tempName, O_RDWR);
     if (fd<0) {
-        fprintf(stderr, "remap: failed to open temp file. errno = %d: %s\n",  errno, strerror(errno));
+        warn("remap: failed to open temp file. errno = %d: %s",  errno, strerror(errno));
         abort();
     }
     int e1 = do_munmap_pd(seg.vaddr, seg.length);
     if (e1) {
-        fprintf(stderr, "remap: failed to munmap 0x%p failed: returns: %d: errno = %d: %s\n",  seg.vaddr, e1, errno, strerror(errno));
+        warn("remap: failed to munmap 0x%p failed: returns: %d: errno = %d: %s",  seg.vaddr, e1, errno, strerror(errno));
         abort();
     }
     int flags = MAP_PRIVATE | MAP_FIXED; // previously also MAP_SHARED
     int prot = PROT_READ | PROT_EXEC | PROT_WRITE; // should use mappings file info
     void * e = mmap(seg.vaddr, seg.length, prot, flags, fd, offset);
     if ((long long) e < 0) {
-        fprintf(stderr, "remap: mmap 0x%p failed: returns: 0x%p: errno = %d: %s\n",  seg.vaddr, e, errno, strerror(errno));
+        warn("remap: mmap 0x%p failed: returns: 0x%p: errno = %d: %s",  seg.vaddr, e, errno, strerror(errno));
         abort();
     }
     close(fd);
@@ -921,7 +916,7 @@ void handler(int sig, siginfo_t *info, void *ucontext) {
     for (iter = failedSegments.begin(); iter != failedSegments.end(); iter++) {
         if (addr >= iter->vaddr && 
                 (unsigned long long) addr < (unsigned long long) (iter->vaddr) + (unsigned long long)(iter->length) ) {
-            fprintf(stderr, "Access to segment that failed to revive: si_addr = %p found failed segment %p\n", addr, iter->vaddr);
+            warn("Access to segment that failed to revive: si_addr = %p found failed segment %p", addr, iter->vaddr);
             abort();
         }
     }
@@ -940,7 +935,7 @@ void handler(int sig, siginfo_t *info, void *ucontext) {
             return;
         }
     }
-    fprintf(stderr, "handler: si_addr = %p : not handling, abort...\n", addr);
+    warn("handler: si_addr = %p : not handling, abort...", addr);
     abort(); 
 }
 
@@ -985,7 +980,7 @@ void *base_address_for_sharedobject_live(void *h) {
 
     int e = dlinfo(h, RTLD_DI_LINKMAP, (struct link_map **) lpp);
     if (e == -1) {
-        fprintf(stderr, "base_address_for_sharedobject_live: dlinfo error %d: %s\n", e, dlerror());
+        warn("base_address_for_sharedobject_live: dlinfo error %d: %s", e, dlerror());
         return (void *) -1;
     }
     return (void *) (*lpp)->l_addr;
@@ -1007,7 +1002,7 @@ void *load_sharedobject_verify_pd(const char *name, void *vaddr) {
         void *h = dlopen(name,  RTLD_NOW | RTLD_GLOBAL);
 
         if (!h) {
-            fprintf(stderr, "load_sharedobject_pd: %s: %s\n", name, dlerror());
+            warn("load_sharedobject_pd: %s: %s", name, dlerror());
             return (void *) -1;
         }
 
@@ -1027,7 +1022,7 @@ void *load_sharedobject_verify_pd(const char *name, void *vaddr) {
     }
 
     if (actual != (void *) 0 && actual != vaddr) {
-        fprintf(stderr, "load_sharedobject_pd: %s: failed, loads at %p\n", name, actual);
+        warn("load_sharedobject_pd: %s: failed, loads at %p", name, actual);
         unload_sharedobject_pd(h);
         return (void *) -1;
     }
@@ -1042,14 +1037,14 @@ void *load_sharedobject_mmap_pd(const char *filename, void *vaddr) {
     int loaded = 0;
     int fd = open(filename, O_RDONLY);
     if (fd < 0) {
-        fprintf(stderr, "load_sharedobject_mmap_pd: cannot open %s\n", filename);
+        warn("load_sharedobject_mmap_pd: cannot open %s", filename);
         return (void *) -1;
     }
     // Read ELF header, find Program Headers.
     Elf64_Ehdr hdr;
     size_t e = read(fd, &hdr, sizeof(hdr));
     if (e < sizeof(hdr)) {
-        fprintf(stderr, "load_sharedobject_mmap_pd: failed to read ELF header %s: %ld\n", filename, e);
+        warn("load_sharedobject_mmap_pd: failed to read ELF header %s: %ld", filename, e);
         return (void *) -1;
     }
     lseek(fd, hdr.e_phoff, SEEK_SET);
@@ -1058,7 +1053,7 @@ void *load_sharedobject_mmap_pd(const char *filename, void *vaddr) {
     for (int i = 0; i < hdr.e_phnum; i++) {
         e = read(fd, &phdr, sizeof(phdr));
         if (e < sizeof(phdr)) {
-            fprintf(stderr, "load_sharedobject_mmap_pd: failed to read ELF Program Header %s: %ld\n", filename, e);
+            warn("load_sharedobject_mmap_pd: failed to read ELF Program Header %s: %ld", filename, e);
             return (void *) -1;
         }
         fprintf(stderr, "load_sharedobject_mmap_pd: PH %d: type 0x%x flags 0x%x vaddr 0x%lx\n", i, phdr.p_type, phdr.p_flags, phdr.p_vaddr);
@@ -1101,7 +1096,7 @@ void *load_sharedobject_pd(const char *name, void *vaddr) {
     } else {
         void *h = dlopen(name,  RTLD_NOW | RTLD_GLOBAL);
         if (!h) {
-            fprintf(stderr, "load_sharedobject_pd: %s: %s\n", name, dlerror());
+            warn("load_sharedobject_pd: %s: %s", name, dlerror());
             return (void *) -1;
         }
         return h;
@@ -1126,7 +1121,7 @@ void copy_file_pd(const char *srcfile, const char *destfile) {
     int e = system(command);
     logv("copy: '%s' returns %d", command, e);
     if (e != 0) {
-        error(strerror(errno));
+        warn("copy_file_pd: %s", strerror(errno));
     }
 }
 
@@ -1149,7 +1144,7 @@ const char *JVM_SYMS[N_JVM_SYMS] = {
 int open_for_read(const char* filename) {
     int fd = open(filename, O_RDONLY);
     if (fd < 0) {
-        fprintf(stderr, "Cannot open %s: %s\n", filename, strerror(errno));
+        warn("Cannot open %s: %s\n", filename, strerror(errno));
         return -1;
     }
     return fd;
@@ -1158,7 +1153,7 @@ int open_for_read(const char* filename) {
 int open_for_read_and_write(const char* filename) {
     int fd = open(filename, O_RDWR);
     if (fd < 0) {
-        fprintf(stderr, "Cannot open %s: %s\n", filename, strerror(errno));
+        warn("Cannot open %s: %s\n", filename, strerror(errno));
         return -1;
     }
     return fd;
@@ -1166,13 +1161,13 @@ int open_for_read_and_write(const char* filename) {
 
 void close_file_descriptor(int fd, const char* name) {
     if (close(fd) < 0) {
-        error(strerror(errno));
+        error("close_file_descriptor: %s", strerror(errno));
     }
 }
 
 void create_directory(const char* dirname) {
     if (mkdir(dirname, S_IRUSR | S_IWUSR | S_IXUSR) < 0) {
-        error(strerror(errno));
+        error("create_directory: %s", strerror(errno));
     }
 }
 
@@ -1225,7 +1220,7 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
     // Create symbols file
     int symbols_fd = symbols_file_create(revival_dirname);
     if (symbols_fd < 0) {
-        fprintf(stderr, "Failed to create mappings file\n");
+        warn("Failed to create mappings file\n");
         return -1;
     }
     logv("Write libjvm symbols");

@@ -37,7 +37,6 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 #include <time.h>
 
 #include <cinttypes>
@@ -75,7 +74,6 @@ typedef uint64_t address;
 #include <libgen.h>
 #include <pthread.h>
 #include <unistd.h>
-#include <time.h>
 #include <sys/mman.h>
 #include <sys/time.h>
 
@@ -119,6 +117,7 @@ void tls_fixup_pd(void *tlsPtr);
 
 #include <libgen.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 #define JVM_FILENAME "libjvm.dylib"
 
@@ -317,12 +316,28 @@ void waitHitRet();
 // Possibly implement a process memory map display for debugging.
 void pmap_pd();
 
-// Diagnostic message.
-// Adds newline to given message.
-void log0(const char *msg);
-void log(const char *format, ...);
-void logv(const char *format, ...);
 
+//
+// Diagnostics:
+//
+
+// Avoid "error: format string is not a string literal [-Werror,-Wformat-nonliteral]"
+// on Mac, but __attribute__ not a feature on MSVC/Windows.
+#if !defined(__GNUC__) && !defined(__clang__)
+#define __attribute__(x)
+#endif
+#define ATTRIBUTE_PRINTF(fmt,vargs)  __attribute__((format(printf, fmt, vargs)))
+
+// Log to stderr.  Adds timestamp and newline to given message.
+void log(const char *format, ...) ATTRIBUTE_PRINTF(1, 2);
+// With verbose check.
+void logv(const char *format, ...) ATTRIBUTE_PRINTF(1, 2);
+
+// Write to stderr.  Adds newline.
+void warn(const char *format, ...) ATTRIBUTE_PRINTF(1, 2);
+
+// Write to stderr and exit.  Adds newline.
+void error(const char *format, ...) ATTRIBUTE_PRINTF(1, 2);
 
 
 #endif /* REVIVAL_H */
