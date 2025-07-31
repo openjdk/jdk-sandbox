@@ -38,6 +38,11 @@ import java.util.concurrent.CompletableFuture;
  *  The exception is the xxx_flags field. This sets/gets any/all of
  *  the 32 bit values in the unnamed union in io_uring_sqe with 
  *  the large number of 32bit flag variants.
+ *  <p>
+ *  The (externally set) user_data field acts as a request id. 
+ *  This (64 bit) value must be unique in the context of operations on 
+ *  the same ring that may overlap, as the same user_data is returned
+ *  in the {@link Cqe} for that operation.
  */
 
 public class Sqe {
