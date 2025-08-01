@@ -100,8 +100,8 @@ class Util {
             return "IORING_OP_MSG_RING";
         else return String.format("UNKNOWN(%d)", code);
     }
-    static MethodHandle locateStdHandle(String name, 
-                                        FunctionDescriptor descriptor, 
+    static MethodHandle locateStdHandle(String name,
+                                        FunctionDescriptor descriptor,
                                         Linker.Option... options) {
         Linker linker = Linker.nativeLinker();
         SymbolLookup stdlib = linker.defaultLookup();

@@ -36,11 +36,11 @@ import java.util.concurrent.CompletableFuture;
  *  class have the same name as the respective field in the io_uring_sqe
  *  structure. Support for all fields is not provided yet.
  *  The exception is the xxx_flags field. This sets/gets any/all of
- *  the 32 bit values in the unnamed union in io_uring_sqe with 
+ *  the 32 bit values in the unnamed union in io_uring_sqe with
  *  the large number of 32bit flag variants.
  *  <p>
- *  The (externally set) user_data field acts as a request id. 
- *  This (64 bit) value must be unique in the context of operations on 
+ *  The (externally set) user_data field acts as a request id.
+ *  This (64 bit) value must be unique in the context of operations on
  *  the same ring that may overlap, as the same user_data is returned
  *  in the {@link Cqe} for that operation.
  */
@@ -59,7 +59,7 @@ public class Sqe {
     long user_data;
 
     public String toString() {
-        return "[opcode: " + Util.sqe_opcode(opcode) + " user_data: 0x" + 
+        return "[opcode: " + Util.sqe_opcode(opcode) + " user_data: 0x" +
                 Long.toHexString(user_data) + " flags: " + flags +
                 " addr: " + addr + " addr2: " + addr2 + " xxx_flags: " +
                 xxx_flags + " buf_index: " + buf_index + " fd: " + fd + " len: " + len + "]";

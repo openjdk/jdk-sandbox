@@ -80,9 +80,9 @@ public class IOUringImpl {
     private final KMappedBuffers mappedBuffers;
 
     /**
-     * Creates an IOURing and initializes the ring structures. {@code entries} 
-     * (or the next higher power of 2) is the size of the Submission Queue. 
-     * Currently, the completion queue returned will be double the size 
+     * Creates an IOURing and initializes the ring structures. {@code entries}
+     * (or the next higher power of 2) is the size of the Submission Queue.
+     * Currently, the completion queue returned will be double the size
      * of the Submission queue.
      * <p>
      * This constructor invokes {@code IOURing(entries, 0, -1)}
@@ -146,9 +146,9 @@ public class IOUringImpl {
         }
 
         // Masks
-        int sq_mask = sqe_seg.get(ValueLayout.JAVA_INT, 
+        int sq_mask = sqe_seg.get(ValueLayout.JAVA_INT,
                                   io_sqring_offsets.ring_mask(sq_off_seg));
-        int cq_mask = cqes_seg.get(ValueLayout.JAVA_INT, 
+        int cq_mask = cqes_seg.get(ValueLayout.JAVA_INT,
                                    io_cqring_offsets.ring_mask(cq_off_seg));
 
         var sqes = mmap(sq_entries * io_uring_sqe.sizeof(), fd, IORING_OFF_SQES());
@@ -190,7 +190,7 @@ public class IOUringImpl {
         return ret;
     }
     /**
-     * Asynchronously submits an Sqe to this IOUringImpl. Can be called 
+     * Asynchronously submits an Sqe to this IOUringImpl. Can be called
      * multiple times before enter().
      * <p>
      * If a timed wait is required then set the {@code IOSQE_IO_LINK()} flag
@@ -210,19 +210,19 @@ public class IOUringImpl {
     private static final int EINTR = -4;
 
     /**
-     * Notifies the kernel of entries on the Submission Q and waits for a 
-     * number of responses (completion events). If this returns normally 
-     * with value {@code n > 0}, this means that n requests have been accepted 
-     * by the kernel and that number of free slots have been added to the 
-     * Submission Q. A normal return also means that the requested number of 
-     * completion events have been received {@link #pollCompletion()} can be 
+     * Notifies the kernel of entries on the Submission Q and waits for a
+     * number of responses (completion events). If this returns normally
+     * with value {@code n > 0}, this means that n requests have been accepted
+     * by the kernel and that number of free slots have been added to the
+     * Submission Q. A normal return also means that the requested number of
+     * completion events have been received {@link #pollCompletion()} can be
      * called {@code nreceive} times to obtain the results.
      *
      * @param nsubmit number of requests to submit
      * @param nreceive block until this number of events received
      * @param flags flags to pass to io_uring_enter
      *
-     * @return if return value less than 0 means an error occurred. Otherwise, 
+     * @return if return value less than 0 means an error occurred. Otherwise,
      *         the number of Sqes successfully processed.
      */
     public int enter(int nsubmit, int nreceive, int flags) throws IOException {
@@ -404,7 +404,7 @@ public class IOUringImpl {
             int val = (int)(withAcquire ? addrH.getAcquire(tail, 0L) : addrH.get(tail, 0L));
             return val;
         }
-        
+
         // Used by CompletionQueue
         protected void setHead(int val) {
             addrH.setRelease(head, 0L, val);
@@ -459,7 +459,7 @@ public class IOUringImpl {
                 // xxx_flags not present, poll_events may be
                 () -> sqe.poll_events().ifPresent(
                     u16 -> io_uring_sqe.poll_events(slot, (short)u16)));
-            
+
             io_uring_sqe.flags(slot, (byte)sqe.flags());
             io_uring_sqe.addr(slot, sqe.addr().orElse(MemorySegment.NULL).address());
             io_uring_sqe.addr2(slot, sqe.addr2().orElse(MemorySegment.NULL).address());
@@ -615,7 +615,7 @@ public class IOUringImpl {
                     ValueLayout.JAVA_INT,
                     ValueLayout.ADDRESS) // sigset_t UNUSED for now
     );
-    
+
     // mmap constants used internally
     private static final int PROT_READ = 1;
     private static final int PROT_WRITE = 2;

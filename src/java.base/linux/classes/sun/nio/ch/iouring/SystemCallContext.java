@@ -49,9 +49,9 @@ class SystemCallContext {
     private final MemorySegment captureSegment = autoArena.allocate(capturedStateLayout);
 
     private static ThreadLocal<SystemCallContext> TL = new ThreadLocal<>() {
-	protected SystemCallContext initialValue() {
-	    return new SystemCallContext();
-	}
+        protected SystemCallContext initialValue() {
+            return new SystemCallContext();
+        }
     };
 
     private SystemCallContext() {

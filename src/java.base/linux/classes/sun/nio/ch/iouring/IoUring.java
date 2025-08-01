@@ -58,14 +58,14 @@ public class IoUring implements Closeable {
      */
     public static final int POLLERR = 0x0008;
     /**
-     * poll event: Hang up 
+     * poll event: Hang up
      */
     public static final int POLLHUP = 0x0010;
     /**
      * poll event: Invalid request
      */
     public static final int POLLNVAL = 0x0020;
-    
+
     /*
      * fd is encoded in upper 32 bits
      * Lower 32 bits used for requestID
@@ -74,7 +74,7 @@ public class IoUring implements Closeable {
     private static final int TIMER_FD = -1;
 
     private static final int SQ_ENTRIES = 5;
- 
+
     // Linux errno values
     private static final int ETIME = 62;
     private static final int ECANCELED = 125;
@@ -95,7 +95,7 @@ public class IoUring implements Closeable {
         v |= requestID.getAndIncrement();
         return v;
     }
-        
+
     private int getFdFromUserData(long udata) {
         long v = udata >> 32;
         return (int)v;
@@ -108,7 +108,7 @@ public class IoUring implements Closeable {
         } catch (IOException e) {}
     }
 
-    public static IoUring create(int event) 
+    public static IoUring create(int event)
                     throws IOException, InterruptedException {
         return new IoUring(event);
     }
@@ -143,7 +143,7 @@ public class IoUring implements Closeable {
         map.put(udata,cf);
         return cf;
     }
-        
+
 
     /**
      * Removes the given file descriptor to the iouring poller.
@@ -153,8 +153,8 @@ public class IoUring implements Closeable {
      *         The returned integer is the file descriptor of the
      *         cancelled poll
      */
-    public synchronized CompletableFuture<Integer> poll_cancel(int sock) throws 
-                     IOException, InterruptedException 
+    public synchronized CompletableFuture<Integer> poll_cancel(int sock) throws
+                     IOException, InterruptedException
     {
         var cf = new CompletableFuture<Integer>();
         long udata = getUserData(sock);
@@ -225,7 +225,7 @@ public class IoUring implements Closeable {
             int res = cqe.res();
             long udata = cqe.user_data();
             int fd = getFdFromUserData(udata);
-            
+
             if (fd == TIMER_FD) {
                 if (res == 0) {
                     // Normal event completion
@@ -237,7 +237,7 @@ public class IoUring implements Closeable {
                 }
             } else {
                 // Timeout should not occur if other completions available
-                assert result != -1; 
+                assert result != -1;
                 CompletableFuture<Integer> cf = map.remove(udata);
                 assert cf != null;
                 if (res < 0) {
