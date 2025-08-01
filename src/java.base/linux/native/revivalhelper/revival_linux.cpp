@@ -119,14 +119,14 @@ struct ELFOperations {
         }
     }
 
-    #define RELOCATE(Offset, Typ, Field)        \
+#define RELOCATE(Offset, Typ, Field)            \
     {                                           \
         Typ obj = read_type_at<Typ>(Offset);    \
         obj.Field += relocation_amount;         \
         write_type_at<Typ>(obj, Offset);        \
     }
 
-    #define RELOCATE_IF(Offset, Typ, Field, Condition) \
+#define RELOCATE_IF(Offset, Typ, Field, Condition)     \
     {                                                  \
         Typ obj = read_type_at<Typ>(Offset);           \
         if (Condition(obj)) {                          \
@@ -172,11 +172,14 @@ struct ELFOperations {
 
     bool should_relocate_addend(Elf64_Rela& rela) {
         switch (ELF64_R_TYPE(rela.r_info)) {
-    #if defined(AARCH64)
+#if defined(__aarch64__)
             case R_AARCH64_RELATIVE: // just a placeholder guess...
-    #else
+            case R_AARCH64_ABS64:
+            case R_AARCH64_JUMP_SLOT:
+            case R_AARCH64_GLOB_DAT:
+#else
             case R_X86_64_RELATIVE:
-    #endif
+#endif
                 return true;
             default:
                 return false;
@@ -195,11 +198,11 @@ struct ELFOperations {
         assert(EHDR.e_version == EV_CURRENT);
 
     // elf.h in devkit on Linux x86_64 does not define EM_AARCH64
-    #if defined(AARCH64)
+#if defined(__aarch64__)
         assert(EHDR.e_machine == EM_AARCH64);
-    #else
+#else
         assert(EHDR.e_machine == EM_X86_64);
-    #endif
+#endif
         if (EHDR.e_phnum == PN_XNUM) {
             error("Too many program headers, handling not implemented.");
         }
@@ -215,6 +218,9 @@ struct ELFOperations {
     }
 
     bool should_relocate_program_header(Elf64_Phdr& phdr) {
+#ifdef __aarch64__
+        phdr.p_align = 0x1000; // Need a better place to do this.
+#endif
         return phdr.p_type != PT_GNU_STACK;
     }
 
@@ -897,7 +903,7 @@ void handler(int sig, siginfo_t *info, void *ucontext) {
         // Check if this is a safefetch which we should handle:
 #if defined (X86_64) || defined (__x86_64__)
         pc = (void *) ((ucontext_t*)ucontext)->uc_mcontext.gregs[REG_RIP];
-#else // i.e. AARCH64
+#else // i.e. __aarch64__
         pc = (void *) ((ucontext_t*)ucontext)->uc_mcontext.pc;
 #endif
         // fprintf(stderr, "handler: pc = %p\n", pc);
@@ -905,7 +911,7 @@ void handler(int sig, siginfo_t *info, void *ucontext) {
             void * new_pc = continuation_for_safefetch_fault(pc);
 #if defined (X86_64) || defined (__x86_64__)
             ((ucontext_t*)ucontext)->uc_mcontext.gregs[REG_RIP] = (greg_t) new_pc;
-#else // i.e. AARCH64
+#else // i.e. __arch64__
             ((ucontext_t*)ucontext)->uc_mcontext.pc = (greg_t) new_pc;
 #endif
             return;
