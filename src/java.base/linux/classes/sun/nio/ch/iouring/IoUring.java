@@ -25,6 +25,7 @@
 
 package sun.nio.ch.iouring;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
@@ -35,8 +36,10 @@ import static sun.nio.ch.iouring.foreign.iouring_h_1.IORING_OP_POLL_ADD;
 import static sun.nio.ch.iouring.foreign.iouring_h_1.IORING_OP_POLL_REMOVE;
 
 /**
+ * Submission operations are synchronized (but non-blocking) so
+ * they can be called from multiple threads
  */
-public class IoUring {
+public class IoUring implements Closeable {
 
     /**
      * poll event: There is data to read.
@@ -64,11 +67,11 @@ public class IoUring {
     public static final int POLLNVAL = 0x0020;
     
     /*
-     * flags used in user_data field
-     * Flags set in upper 32 bits. 
+     * fd is encoded in upper 32 bits
      * Lower 32 bits used for requestID
+     * Special fd value which denotes a timer
      */
-    private static final int TIMER_OP   = 0x1;
+    private static final int TIMER_FD = -1;
 
     private static final int SQ_ENTRIES = 5;
  
@@ -82,83 +85,92 @@ public class IoUring {
     private final AtomicInteger requestID = new AtomicInteger(1);
 
     private IoUring(int event) throws IOException, InterruptedException {
-	this.event = event;
-	this.impl = new IOUringImpl(SQ_ENTRIES);
-	this.map = new ConcurrentHashMap<>();
+        this.event = event;
+        this.impl = new IOUringImpl(SQ_ENTRIES);
+        this.map = new ConcurrentHashMap<>();
     }
 
-    /**
-     * Get a requestID with no flags
-     */
-    private long getNextRequestID() {
-	return getNextRequestID(0);
+    private long getUserData(int fd) {
+        long v = (long)fd << 32;
+        v |= requestID.getAndIncrement();
+        return v;
+    }
+        
+    private int getFdFromUserData(long udata) {
+        long v = udata >> 32;
+        return (int)v;
     }
 
-    private long getNextRequestID(int flags) {
-        long v = flags << 32;
-	v |= requestID.getAndIncrement();
-	return v;
+    @Override
+    public void close() {
+        try {
+            impl.close();
+        } catch (IOException e) {}
     }
-	
+
     public static IoUring create(int event) 
-		    throws IOException, InterruptedException {
-	return new IoUring(event);
+                    throws IOException, InterruptedException {
+        return new IoUring(event);
     }
 
     /**
      * Adds the given file descriptor to the iouring poller.
      * Submission errors may be reported immediately.
      *
-     * @return a CompletableFuture for the operation result
+     * @return a CompletableFuture<Integer> for the operation result
+     *         The returned integer is the file descriptor of the
+     *         polled socket
      */
-    public CompletableFuture<Integer> poll_add(int sock) {
-	var cf = new CompletableFuture<Integer>();
-	long udata = getNextRequestID();
-	Sqe sqe = new Sqe()
-		.opcode(IORING_OP_POLL_ADD())
-		.fd(sock)
-		.user_data(udata)
-		.poll_events(event);
-	try {
-	    impl.submit(sqe);
-	    int ret = impl.enter(1, 0, 0);
-	    if (ret < 1) {
-	        cf.completeExceptionally(
-	           new IOException(
-		      String.format("poll_add failed: on submission %d", ret)));
-	    }
-	} catch (IOException e) {
-	    cf.completeExceptionally(e);
-	}
-	map.put(udata,cf);
-	return cf;
+    public synchronized CompletableFuture<Integer> poll_add(int sock) {
+        var cf = new CompletableFuture<Integer>();
+        long udata = getUserData(sock);
+        Sqe sqe = new Sqe()
+                .opcode(IORING_OP_POLL_ADD())
+                .fd(sock)
+                .user_data(udata)
+                .poll_events(event);
+        try {
+            impl.submit(sqe);
+            int ret = impl.enter(1, 0, 0);
+            if (ret < 1) {
+                cf.completeExceptionally(
+                   new IOException(
+                      String.format("poll_add error %d", ret)));
+            }
+        } catch (IOException e) {
+            cf.completeExceptionally(e);
+        }
+        map.put(udata,cf);
+        return cf;
     }
-	
+        
 
     /**
      * Removes the given file descriptor to the iouring poller.
      * Submission errors may be reported immediately.
      *
-     * @return a CompletableFuture for the operation result
+     * @return a CompletableFuture<Integer> for the operation result
+     *         The returned integer is the file descriptor of the
+     *         cancelled poll
      */
-    public CompletableFuture<Integer> poll_cancel(int sock) throws 
+    public synchronized CompletableFuture<Integer> poll_cancel(int sock) throws 
                      IOException, InterruptedException 
     {
-	var cf = new CompletableFuture<Integer>();
-	long udata = getNextRequestID();
-	Sqe sqe = new Sqe()
-		.opcode(IORING_OP_POLL_REMOVE())
-		.fd(sock)
-		.user_data(udata);
-	impl.submit(sqe);
-	int ret = impl.enter(1, 0, 0);
-	if (ret < 1) {
-	    cf.completeExceptionally(
-	        new IOException(
-		   String.format("poll_cancel failed: on submission %d", ret)));
-	}
-	map.put(udata,cf);
-	return cf;
+        var cf = new CompletableFuture<Integer>();
+        long udata = getUserData(sock);
+        Sqe sqe = new Sqe()
+                .opcode(IORING_OP_POLL_REMOVE())
+                .fd(sock)
+                .user_data(udata);
+        impl.submit(sqe);
+        int ret = impl.enter(1, 0, 0);
+        if (ret < 1) {
+            cf.completeExceptionally(
+                new IOException(
+                   String.format("poll_cancel failed: on submission %d", ret)));
+        }
+        map.put(udata,cf);
+        return cf;
     }
 
     /**
@@ -169,7 +181,7 @@ public class IoUring {
      *         normally or exceptionally
      */
     public int poll() throws IOException, InterruptedException {
-	return poll(null);
+        return poll(null);
     }
 
     /**
@@ -186,52 +198,65 @@ public class IoUring {
      *         normally or exceptionally or {@code -1} on timeout.
      */
     public int poll(Duration duration) throws IOException {
-	Sqe timeout = null;
-	int submissions = 0;
+        Sqe timeout = null;
+        int ret = 0;
 
-	if (duration != null) {
-	    // timeout will complete if at least one fd is ready
-	    // or if the timer timesout. Difference seen in Cqe result
-	    timeout = impl.getTimeoutSqe(duration, IORING_OP_TIMEOUT(), 1);
-	    timeout.user_data(getNextRequestID(TIMER_OP));
-	    impl.submit(timeout);
-	    submissions++;
-	}
-        int n = impl.enter(submissions, 1, 0);
-	//System.out.printf("Enter returns %d\n", n);
-	assert n == submissions;
-	Cqe cqe;
-	int result = 0;
-	while(!impl.cqempty()) {
-	    cqe = impl.pollCompletion();
-	    assert cqe != null;
-	    int res = cqe.res();
-	    long udata = cqe.user_data();
-	    
-	    if ((udata & TIMER_OP) != 0) {
-	        if (res == 0) {
-		    // Normal event completion
-		    continue;
-		} else if (res == -ETIME) {
-	            result = -1;
-		} else if (res == -ECANCELED) {
-		    // TODO: what do we do?
-		}
-	    } else {
-	        // Timeout should not occur if other completions available
-	        assert result != -1; 
-	    }
-	    CompletableFuture<Integer> cf = map.remove(udata);
-	    assert cf != null;
-	    if (res < 0) {
-		var err = String.format("operation failed: %d", -res);
-		cf.completeExceptionally(new IOException(err));
-	    } else {
-		cf.complete(res);
-		result++;
-	    }
-	}
-	return result;
+        if (duration != null) {
+            // must synchronize with other submitters (non-blocking)
+            synchronized (this) {
+                // timeout will complete if at least one fd is ready
+                // or if the timer timesout. Difference seen in Cqe result
+                timeout = impl.getTimeoutSqe(duration, IORING_OP_TIMEOUT(), 1);
+                timeout.user_data(getUserData(TIMER_FD));
+                impl.submit(timeout);
+                ret = impl.enter(1, 0, 0); // submit, no-wait
+                throwIOExceptionOnErr(ret);
+            }
+        }
+        ret = impl.enter(0, 1, 0);
+        throwIOExceptionOnErr(ret);
+        Cqe cqe;
+        int result = 0;
+        int i=0;
+        while(!impl.cqempty()) {
+            cqe = impl.pollCompletion();
+            i++;
+            assert cqe != null;
+            int res = cqe.res();
+            long udata = cqe.user_data();
+            int fd = getFdFromUserData(udata);
+            
+            if (fd == TIMER_FD) {
+                if (res == 0) {
+                    // Normal event completion
+                    continue;
+                } else if (res == -ETIME) {
+                    result = -1;
+                } else if (res == -ECANCELED) {
+                    // TODO: what do we do?
+                }
+            } else {
+                // Timeout should not occur if other completions available
+                assert result != -1; 
+                CompletableFuture<Integer> cf = map.remove(udata);
+                assert cf != null;
+                if (res < 0) {
+                    var err = String.format("operation failed: %d", -res);
+                    cf.completeExceptionally(new IOException(err));
+                    result++;
+                } else {
+                    cf.complete(fd);
+                    result++;
+                }
+            }
+        }
+        assert result != 0;
+        return result;
+    }
+
+    private static void throwIOExceptionOnErr(int ret) throws IOException {
+        if (ret < 0)
+            throw new IOException("Error: " + ret);
     }
 }
 

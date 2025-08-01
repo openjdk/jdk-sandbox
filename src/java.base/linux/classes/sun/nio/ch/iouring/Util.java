@@ -84,6 +84,12 @@ class Util {
             return "IORING_OP_READ_FIXED";
         else if (code == IORING_OP_WRITE_FIXED())
             return "IORING_OP_WRITE_FIXED";
+        else if (code == IORING_OP_POLL_ADD())
+            return "IORING_OP_POLL_ADD";
+        else if (code == IORING_OP_POLL_REMOVE())
+            return "IORING_OP_POLL_REMOVE";
+        else if (code == IORING_OP_TIMEOUT())
+            return "IORING_OP_TIMEOUT";
         else if (code == IORING_OP_READ())
             return "IORING_OP_READ";
         else if (code == IORING_OP_LINK_TIMEOUT())
@@ -94,7 +100,9 @@ class Util {
             return "IORING_OP_MSG_RING";
         else return String.format("UNKNOWN(%d)", code);
     }
-    static MethodHandle locateStdHandle(String name, FunctionDescriptor descriptor, Linker.Option... options) {
+    static MethodHandle locateStdHandle(String name, 
+                                        FunctionDescriptor descriptor, 
+                                        Linker.Option... options) {
         Linker linker = Linker.nativeLinker();
         SymbolLookup stdlib = linker.defaultLookup();
         return linker.downcallHandle(

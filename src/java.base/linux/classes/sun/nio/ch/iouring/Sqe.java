@@ -59,7 +59,8 @@ public class Sqe {
     long user_data;
 
     public String toString() {
-        return "[opcode: " + Util.sqe_opcode(opcode) + " flags: " + flags +
+        return "[opcode: " + Util.sqe_opcode(opcode) + " user_data: 0x" + 
+                Long.toHexString(user_data) + " flags: " + flags +
                 " addr: " + addr + " addr2: " + addr2 + " xxx_flags: " +
                 xxx_flags + " buf_index: " + buf_index + " fd: " + fd + " len: " + len + "]";
     }
@@ -79,7 +80,7 @@ public class Sqe {
     }
 
     public Sqe off(long off) {
-	checkOptionalMemSeg(addr2, "off may not be set if addr2 is already set");
+        checkOptionalMemSeg(addr2, "off may not be set if addr2 is already set");
         this.off = OptionalLong.of(off);
         return this;
     }
@@ -99,12 +100,12 @@ public class Sqe {
         return this;
     }
     public Sqe xxx_flags(int xxx_flags) {
-	checkOptionalInt(poll_events, "poll_events can't be set if xxx_flags is");
+        checkOptionalInt(poll_events, "poll_events can't be set if xxx_flags is");
         this.xxx_flags = OptionalInt.of(xxx_flags);
         return this;
     }
     public Sqe poll_events(int poll_events) {
-	checkOptionalInt(xxx_flags, "xxx_flags can't be set if poll_events is");
+        checkOptionalInt(xxx_flags, "xxx_flags can't be set if poll_events is");
         this.poll_events = OptionalInt.of(poll_events);
         return this;
     }
@@ -127,16 +128,16 @@ public class Sqe {
         return this;
     }
     private void checkOptionalInt(OptionalInt opt, String exceptionMsg) {
-	if (opt.isPresent())
-	    throw new IllegalArgumentException(exceptionMsg);
+        if (opt.isPresent())
+            throw new IllegalArgumentException(exceptionMsg);
     }
     private void checkOptionalLong(OptionalLong opt, String exceptionmsg) {
-	if (opt.isPresent())
-	    throw new IllegalArgumentException(exceptionmsg);
+        if (opt.isPresent())
+            throw new IllegalArgumentException(exceptionmsg);
     }
     private void checkOptionalMemSeg(Optional<MemorySegment> opt, String exceptionMsg) {
-	if (opt.isPresent())
-	    throw new IllegalArgumentException(exceptionMsg);
+        if (opt.isPresent())
+            throw new IllegalArgumentException(exceptionMsg);
     }
     public Sqe len(int len) {
         this.len = OptionalInt.of(len);

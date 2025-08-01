@@ -140,7 +140,7 @@ class KMappedBuffers {
     }
     private void registerBufferSegment(int ringfd, MemorySegment segment, int nentries) throws IOException {
         int ret;
-        SystemCallContext ctx = new SystemCallContext();
+        SystemCallContext ctx = SystemCallContext.get();
         try {
             ret = (int)register_fn
                     .invokeExact(ctx.errnoCaptureSegment(), ringfd, IORING_REGISTER_BUFFERS2(),

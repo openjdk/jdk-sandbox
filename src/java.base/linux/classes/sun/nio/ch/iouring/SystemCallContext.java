@@ -46,8 +46,23 @@ class SystemCallContext {
             Linker.Option.captureStateLayout();
     private final VarHandle errnoHandle =
             capturedStateLayout.varHandle(MemoryLayout.PathElement.groupElement("errno"));
-    //private final MemorySegment captureSegment = confinedArena.allocate(capturedStateLayout);
     private final MemorySegment captureSegment = autoArena.allocate(capturedStateLayout);
+
+    private static ThreadLocal<SystemCallContext> TL = new ThreadLocal<>() {
+	protected SystemCallContext initialValue() {
+	    return new SystemCallContext();
+	}
+    };
+
+    private SystemCallContext() {
+    }
+
+    /**
+     * Returns a thread local SystemCallContext
+     */
+    public static SystemCallContext get() {
+        return TL.get();
+    }
 
     public static Linker.Option errnoLinkerOption() {
         return ccs;

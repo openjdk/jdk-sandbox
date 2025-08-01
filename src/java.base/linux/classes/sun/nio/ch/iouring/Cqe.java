@@ -34,8 +34,8 @@ package sun.nio.ch.iouring;
  */
 public record Cqe(long user_data, int res, int flags) {
     public String toString() {
-        return "[user_data: " + String.format("0X%X ", user_data) + "res: " + res + " flags: " + flags
-                + "]";
+        return "[user_data: " + String.format("0x%X ", user_data) 
+		+ "res: " + res + " flags: " + flags + "]";
     }
 };
 

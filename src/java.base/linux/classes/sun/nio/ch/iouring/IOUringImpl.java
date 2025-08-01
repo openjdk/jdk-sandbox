@@ -146,8 +146,10 @@ public class IOUringImpl {
         }
 
         // Masks
-        int sq_mask = sqe_seg.get(ValueLayout.JAVA_INT, io_sqring_offsets.ring_mask(sq_off_seg));
-        int cq_mask = cqes_seg.get(ValueLayout.JAVA_INT, io_cqring_offsets.ring_mask(cq_off_seg));
+        int sq_mask = sqe_seg.get(ValueLayout.JAVA_INT, 
+                                  io_sqring_offsets.ring_mask(sq_off_seg));
+        int cq_mask = cqes_seg.get(ValueLayout.JAVA_INT, 
+                                   io_cqring_offsets.ring_mask(cq_off_seg));
 
         var sqes = mmap(sq_entries * io_uring_sqe.sizeof(), fd, IORING_OFF_SQES());
 
@@ -166,7 +168,7 @@ public class IOUringImpl {
 
     public void close() throws IOException {
         int ret;
-        SystemCallContext ctx = new SystemCallContext();
+        SystemCallContext ctx = SystemCallContext.get();
         try {
             ret = (int)close_fn.invokeExact(ctx.errnoCaptureSegment(), ringFd());
         } catch (Throwable e) {
@@ -178,7 +180,7 @@ public class IOUringImpl {
 
     private int initEpoll() throws IOException {
         int ret;
-        SystemCallContext ctx = new SystemCallContext();
+        SystemCallContext ctx = SystemCallContext.get();
         try {
             ret = (int)epoll_create_fn.invokeExact(ctx.errnoCaptureSegment(), ringFd(), 1);
         } catch (Throwable e) {
@@ -228,9 +230,9 @@ public class IOUringImpl {
             flags |= IORING_ENTER_GETEVENTS();
         }
         int ret;
-        while ((ret = io_uring_enter(this.fd, nsubmit, nreceive, flags)) == EINTR)
-            ;
-        return ret;
+        //while ((ret = io_uring_enter(this.fd, nsubmit, nreceive, flags)) == EINTR)
+            //;
+        return io_uring_enter(this.fd, nsubmit, nreceive, flags);
     }
 
     /**
@@ -449,15 +451,15 @@ public class IOUringImpl {
             io_uring_sqe.user_data(slot, sqe.user_data());
             io_uring_sqe.fd(slot, sqe.fd());
             io_uring_sqe.opcode(slot, (byte)sqe.opcode());
-	    // This statement handles the large flags union
-	    // For simplicity all __u32 variants are handled
-	    // as xxx_flags. poll_events (__u16) are special
-	    sqe.xxx_flags().ifPresentOrElse(
+            // This statement handles the large flags union
+            // For simplicity all __u32 variants are handled
+            // as xxx_flags. poll_events (__u16) are special
+            sqe.xxx_flags().ifPresentOrElse(
                 u32 -> io_uring_sqe.open_flags(slot, u32),
-		// xxx_flags not present, poll_events may be
-		() -> sqe.poll_events().ifPresent(
+                // xxx_flags not present, poll_events may be
+                () -> sqe.poll_events().ifPresent(
                     u16 -> io_uring_sqe.poll_events(slot, (short)u16)));
-	    
+            
             io_uring_sqe.flags(slot, (byte)sqe.flags());
             io_uring_sqe.addr(slot, sqe.addr().orElse(MemorySegment.NULL).address());
             io_uring_sqe.addr2(slot, sqe.addr2().orElse(MemorySegment.NULL).address());
@@ -563,6 +565,7 @@ public class IOUringImpl {
         return new Sqe()
                 .opcode(opcode)
                 .addr(seg)
+                .xxx_flags(0)  // timeout_flags
                 .off(completionCount)
                 .len(1);
     }
