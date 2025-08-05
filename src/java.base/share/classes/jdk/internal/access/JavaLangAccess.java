@@ -43,8 +43,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import jdk.internal.loader.NativeLibraries;
@@ -55,6 +55,7 @@ import jdk.internal.vm.Continuation;
 import jdk.internal.vm.ContinuationScope;
 import jdk.internal.vm.StackableScope;
 import jdk.internal.vm.ThreadContainer;
+import sun.nio.ch.NativeThread;
 import sun.reflect.annotation.AnnotationType;
 import sun.nio.ch.Interruptible;
 
@@ -567,6 +568,16 @@ public interface JavaLangAccess {
     Object scopedValueBindings();
 
     /**
+     * Returns the NativeThread for signalling, null if not set.
+     */
+    NativeThread nativeThread(Thread thread);
+
+    /**
+     * Sets the NativeThread for the current platform thread.
+     */
+    void setNativeThread(NativeThread nt);
+
+    /**
      * Returns the innermost mounted continuation
      */
     Continuation getContinuation(Thread thread);
@@ -604,9 +615,28 @@ public interface JavaLangAccess {
     void unparkVirtualThread(Thread thread);
 
     /**
-     * Returns the virtual thread default scheduler.
+     * Returns the default virtual thread scheduler.
      */
-    Executor virtualThreadDefaultScheduler();
+    Thread.VirtualThreadScheduler defaultVirtualThreadScheduler();
+
+    /**
+     * Returns true if using a custom default virtual thread scheduler.
+     */
+    boolean isCustomDefaultVirtualThreadScheduler();
+
+    /**
+     * Returns the scheduler for the given virtual thread.
+     */
+    Thread.VirtualThreadScheduler virtualThreadScheduler(Thread thread);
+
+    /**
+     * Invokes a supplier to produce a non-null result if this virtual thread is unmounted.
+     * @param supplier1 invoked if this virtual thread is unmounted and alive. The virtual
+     *     thread is suspended while this supplier executes
+     * @param supplier2 invoked if this virtual thread is not alive
+     * @return the result; {@code null} if mounted, suspended or in transition
+     */
+    <T> T supplyIfUnmounted(Thread thread, Supplier<T> supplier1, Supplier<T> supplier2);
 
     /**
      * Creates a new StackWalker

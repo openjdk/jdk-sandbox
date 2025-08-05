@@ -31,13 +31,17 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Objects;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.StructureViolationException;
 import java.util.concurrent.locks.LockSupport;
 import jdk.internal.event.ThreadSleepEvent;
+import jdk.internal.javac.Restricted;
 import jdk.internal.misc.TerminatingThreadLocal;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.misc.VM;
+import jdk.internal.reflect.CallerSensitive;
+import jdk.internal.reflect.Reflection;
 import jdk.internal.vm.Continuation;
 import jdk.internal.vm.ScopedValueContainer;
 import jdk.internal.vm.StackableScope;
@@ -47,6 +51,8 @@ import jdk.internal.vm.annotation.Hidden;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.vm.annotation.Stable;
 import sun.nio.ch.Interruptible;
+import sun.nio.ch.NativeThread;
+
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
@@ -175,8 +181,8 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
  * or method in this class will cause a {@link NullPointerException} to be thrown.
  *
  * @implNote
- * In the JDK Reference Implementation, the virtual thread scheduler may be configured
- * with the following system properties:
+ * In the JDK Reference Implementation, the following system properties may be used to
+ * configure the built-in default virtual thread scheduler:
  * <table class="striped">
  * <caption style="display:none">System properties</caption>
  *   <thead>
@@ -190,14 +196,14 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
  *     <th scope="row">
  *       {@systemProperty jdk.virtualThreadScheduler.parallelism}
  *     </th>
- *     <td> The number of platform threads available for scheduling virtual
- *       threads. It defaults to the number of available processors. </td>
+ *     <td> The default scheduler's target parallelism. It defaults to the number of
+ *       available processors. </td>
  *   </tr>
  *   <tr>
  *     <th scope="row">
  *       {@systemProperty jdk.virtualThreadScheduler.maxPoolSize}
  *     </th>
- *     <td> The maximum number of platform threads available to the scheduler.
+ *     <td> The maximum number of platform threads available to the default scheduler.
  *       It defaults to 256. </td>
  *   </tr>
  *   </tbody>
@@ -244,6 +250,9 @@ public class Thread implements Runnable {
         volatile boolean daemon;
         volatile int threadStatus;
 
+        // Native thread used for signalling, set lazily, read from any thread
+        volatile NativeThread nativeThread;
+
         // This map is maintained by the ThreadLocal class
         ThreadLocal.ThreadLocalMap terminatingThreadLocals;
 
@@ -268,6 +277,14 @@ public class Thread implements Runnable {
 
     void setTerminatingThreadLocals(ThreadLocal.ThreadLocalMap map) {
         holder.terminatingThreadLocals = map;
+    }
+
+    NativeThread nativeThread() {
+        return holder.nativeThread;
+    }
+
+    void setNativeThread(NativeThread nt) {
+        holder.nativeThread = nt;
     }
 
     /*
@@ -684,7 +701,6 @@ public class Thread implements Runnable {
      *        zero to indicate that this parameter is to be ignored.
      */
     Thread(ThreadGroup g, String name, int characteristics, Runnable task, long stackSize) {
-
         Thread parent = currentThread();
         boolean attached = (parent == this);   // primordial or JNI attached
 
@@ -765,6 +781,73 @@ public class Thread implements Runnable {
             this.holder = new FieldHolder(g, null, -1, pri, true);
         } else {
             this.holder = null;
+        }
+    }
+
+    /**
+     * Virtual thread scheduler.
+     *
+     * @apiNote The following example creates a virtual thread scheduler that uses a small
+     * set of platform threads.
+     * {@snippet lang=java :
+     *     ExecutorService pool = Executors.newFixedThreadPool(4);
+     *     VirtualThreadScheduler scheduler = (vthread, task) -> {
+     *          pool.submit(() -> {
+     *              Thread carrier = Thread.currentThread();
+     *
+     *              // runs the virtual thread task
+     *              task.run();
+     *
+     *              assert Thread.currentThread() == carrier;
+     *         });
+     *     };
+     * }
+     *
+     * <p> Unless otherwise specified, passing a null argument to a method in
+     * this interface causes a {@code NullPointerException} to be thrown.
+     *
+     * @see Builder.OfVirtual#scheduler(VirtualThreadScheduler)
+     * @since 99
+     */
+    @FunctionalInterface
+    public interface VirtualThreadScheduler {
+        /**
+         * Continue execution of given virtual thread by executing the given task on
+         * a platform thread.
+         *
+         * @param vthread the virtual thread
+         * @param task the task to execute
+         */
+        void execute(Thread vthread, Runnable task);
+
+        /**
+         * {@return a virtual thread scheduler that delegates tasks to the given executor}
+         * @param executor the executor
+         */
+        static VirtualThreadScheduler adapt(Executor executor) {
+            Objects.requireNonNull(executor);
+            return (_, task) -> executor.execute(task);
+        }
+
+        /**
+         * {@return the virtual thread scheduler for the current virtual thread}
+         * @throws UnsupportedOperationException if the current thread is not a virtual
+         * thread or scheduling virtual threads to a user-provided scheduler is not
+         * supported by this VM
+         */
+        @CallerSensitive
+        @Restricted
+        static VirtualThreadScheduler current() {
+            Class<?> caller = Reflection.getCallerClass();
+            caller.getModule().ensureNativeAccess(VirtualThreadScheduler.class,
+                    "current",
+                    caller,
+                    false);
+            if (Thread.currentThread() instanceof VirtualThread vthread) {
+                return vthread.scheduler(false);
+            } else {
+                throw new UnsupportedOperationException();
+            }
         }
     }
 
@@ -1022,6 +1105,31 @@ public class Thread implements Runnable {
 
             @Override OfVirtual inheritInheritableThreadLocals(boolean inherit);
             @Override OfVirtual uncaughtExceptionHandler(UncaughtExceptionHandler ueh);
+
+            /**
+             * Sets the scheduler.
+             *
+             * The thread will be scheduled by the Java virtual machine with the given
+             * scheduler. The scheduler's {@link VirtualThreadScheduler#execute(Thread, Runnable)}
+             * method may be invoked in the context of a virtual thread. The scheduler
+             * must arrange to execute the {@code Runnable}'s {@code run} method on a
+             * platform thread. Attempting to execute the run method in a virtual thread
+             * causes {@link WrongThreadException} to be thrown.
+             *
+             * The {@code execute} method may be invoked at sensitive times (e.g. when
+             * unparking a thread) so care should be taken to not directly execute the
+             * task on the <em>current thread</em>.
+             *
+             * @param scheduler the scheduler
+             * @return this builder
+             * @throws UnsupportedOperationException if scheduling virtual threads to a
+             *         user-provided scheduler is not supported by this VM
+             *
+             * @since 99
+             */
+            @CallerSensitive
+            @Restricted
+            OfVirtual scheduler(VirtualThreadScheduler scheduler);
         }
     }
 
@@ -1372,6 +1480,7 @@ public class Thread implements Runnable {
 
     /**
      * Creates a virtual thread to execute a task and schedules it to execute.
+     * The thread is scheduled to the default virtual thread scheduler.
      *
      * <p> This method is equivalent to:
      * <pre>{@code Thread.ofVirtual().start(task); }</pre>

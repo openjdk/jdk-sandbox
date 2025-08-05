@@ -24,11 +24,9 @@
  */
 package com.sun.management.internal;
 
-import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
 import javax.management.ObjectName;
 import jdk.management.VirtualThreadSchedulerMXBean;
-import jdk.internal.access.JavaLangAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.vm.ContinuationSupport;
 import sun.management.Util;
@@ -90,10 +88,10 @@ public class VirtualThreadSchedulerImpls {
          * Holder class for scheduler.
          */
         private static class Scheduler {
-            private static final Executor scheduler =
-                SharedSecrets.getJavaLangAccess().virtualThreadDefaultScheduler();
-            static Executor instance() {
-                return scheduler;
+            private static final Thread.VirtualThreadScheduler SCHEDULER =
+                SharedSecrets.getJavaLangAccess().defaultVirtualThreadScheduler();
+            static Thread.VirtualThreadScheduler instance() {
+                return SCHEDULER;
             }
         }
 
@@ -102,7 +100,7 @@ public class VirtualThreadSchedulerImpls {
             if (Scheduler.instance() instanceof ForkJoinPool pool) {
                 return pool.getParallelism();
             }
-            throw new InternalError();  // should not get here
+            return -1;  // unknown
         }
 
         @Override
@@ -113,10 +111,9 @@ public class VirtualThreadSchedulerImpls {
                     // FJ worker thread creation is on-demand
                     Thread.startVirtualThread(() -> { });
                 }
-
                 return;
             }
-            throw new UnsupportedOperationException();  // should not get here
+            throw new UnsupportedOperationException();
         }
 
         @Override
@@ -124,7 +121,7 @@ public class VirtualThreadSchedulerImpls {
             if (Scheduler.instance() instanceof ForkJoinPool pool) {
                 return pool.getPoolSize();
             }
-            return -1;  // should not get here
+            return -1;  // unknown
         }
 
         @Override
@@ -132,7 +129,7 @@ public class VirtualThreadSchedulerImpls {
             if (Scheduler.instance() instanceof ForkJoinPool pool) {
                 return pool.getActiveThreadCount();
             }
-            return -1;  // should not get here
+            return -1;  // unknown
         }
 
         @Override
@@ -140,7 +137,7 @@ public class VirtualThreadSchedulerImpls {
             if (Scheduler.instance() instanceof ForkJoinPool pool) {
                 return pool.getQueuedTaskCount() + pool.getQueuedSubmissionCount();
             }
-            return -1L;  // should not get here
+            return -1L;  // unknown
         }
     }
 

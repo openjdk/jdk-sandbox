@@ -25,6 +25,8 @@
 package sun.nio.ch;
 
 import java.io.IOException;
+import java.lang.ref.Cleaner.Cleanable;
+import jdk.internal.ref.CleanerFactory;
 import static sun.nio.ch.EPoll.*;
 
 /**
@@ -38,12 +40,45 @@ class EPollPoller extends Poller {
     private final int event;
     private final int maxEvents;
     private final long address;
+    private final Cleanable cleaner;
+
+    // file descriptors used for wakeup
+    private final int fd0;
+    private final int fd1;
 
     EPollPoller(boolean subPoller, boolean read) throws IOException {
         this.epfd = EPoll.create();
         this.event = (read) ? EPOLLIN : EPOLLOUT;
         this.maxEvents = (subPoller) ? 64 : 512;
         this.address = EPoll.allocatePollArray(maxEvents);
+
+        long fds =  IOUtil.makePipe(false);
+        this.fd0 = (int) (fds >>> 32);
+        this.fd1 = (int) fds;
+        EPoll.ctl(epfd, EPOLL_CTL_ADD, fd0, EPOLLIN);
+
+        this.cleaner = CleanerFactory.cleaner()
+                .register(this, releaser(epfd, address, fd0, fd1));
+    }
+
+    @Override
+    void close() {
+        cleaner.clean();
+    }
+
+    /**
+     * Releases the epoll instance and other resources.
+     */
+    private static Runnable releaser(int epfd, long address, int fd0, int fd1) {
+        return () -> {
+            try {
+                FileDispatcherImpl.closeIntFD(epfd);
+                EPoll.freePollArray(address);
+
+                FileDispatcherImpl.closeIntFD(fd0);
+                FileDispatcherImpl.closeIntFD(fd1);
+            } catch (IOException _) { }
+        };
     }
 
     @Override
@@ -53,7 +88,7 @@ class EPollPoller extends Poller {
 
     @Override
     void implRegister(int fdVal) throws IOException {
-        // re-arm
+        // re-enable if already added but disabled (previously polled)
         int err = EPoll.ctl(epfd, EPOLL_CTL_MOD, fdVal, (event | EPOLLONESHOT));
         if (err == ENOENT)
             err = EPoll.ctl(epfd, EPOLL_CTL_ADD, fdVal, (event | EPOLLONESHOT));
@@ -67,6 +102,11 @@ class EPollPoller extends Poller {
         if (!polled) {
             EPoll.ctl(epfd, EPOLL_CTL_DEL, fdVal, 0);
         }
+    }
+
+    @Override
+    void wakeupPoller() throws IOException {
+        IOUtil.write1(fd1, (byte)0);
     }
 
     @Override

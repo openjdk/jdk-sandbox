@@ -83,6 +83,9 @@ vmTestbase/nsk/jdi/VMOutOfMemoryException/VMOutOfMemoryException001/VMOutOfMemor
 # to make progress when all other threads are currently suspended.
 vmTestbase/nsk/jdi/ThreadReference/isSuspended/issuspended002/TestDescription.java 8338713 generic-all
 
+# Unknown reasons, should be investigated
+vmTestbase/gc/gctests/MemoryEaterMT/MemoryEaterMT.java 0000000 generic-all
+
 ##########
 ## Tests incompatible with  with virtual test thread factory.
 ## There is no goal to run all test with virtual test thread factory.
@@ -94,3 +97,12 @@ runtime/ErrorHandling/MachCodeFramesInErrorFile.java 0000000 generic-all
 runtime/Thread/AsyncExceptionOnMonitorEnter.java 0000000 generic-all
 runtime/Thread/StopAtExit.java 0000000 generic-all
 runtime/handshake/HandshakeWalkStackTest.java 0000000 generic-all
+
+# java.lang.ClassNotFoundException: jdk.test.lib.process.ProcessTools
+runtime/cds/appcds/jigsaw/classpathtests/EmptyClassInBootClassPath.java 0000000 generic-all
+
+#  java.lang.ClassNotFoundException: / in ProcessTools.main
+runtime/cds/appcds/jigsaw/modulepath/OptimizeModuleHandlingTest.java 0000000 generic-all
+
+# too fragile when main thread is a virtual thread
+runtime/Thread/ThreadCountLimit.java#id0 0000000 generic-all

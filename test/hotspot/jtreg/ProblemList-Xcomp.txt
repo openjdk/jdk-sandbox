@@ -53,3 +53,12 @@ vmTestbase/nsk/stress/thread/thread006.java 8321476 linux-all
 compiler/cha/TypeProfileFinalMethod.java 8341039 generic-all
 
 gc/arguments/TestNewSizeFlags.java 8299116 macosx-aarch64
+
+############################################################################
+
+# Loom, fibers branch
+
+gc/g1/plab/TestPLABPromotion.java                                       8278126 generic-all
+gc/g1/plab/TestPLABResize.java                                          8278126 generic-all
+
+gc/z/TestGarbageCollectorMXBean.java                                    8278129 generic-all

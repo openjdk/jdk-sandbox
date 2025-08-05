@@ -35,6 +35,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadFactory;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.invoke.MhUtil;
+import jdk.internal.reflect.CallerSensitive;
+import jdk.internal.reflect.Reflection;
 import jdk.internal.vm.ContinuationSupport;
 
 /**
@@ -210,16 +212,9 @@ class ThreadBuilders {
      */
     static final class VirtualThreadBuilder
             extends BaseThreadBuilder implements OfVirtual {
-        private Executor scheduler;
+        private Thread.VirtualThreadScheduler scheduler;
 
         VirtualThreadBuilder() {
-        }
-
-        // invoked by tests
-        VirtualThreadBuilder(Executor scheduler) {
-            if (!ContinuationSupport.isSupported())
-                throw new UnsupportedOperationException();
-            this.scheduler = Objects.requireNonNull(scheduler);
         }
 
         @Override
@@ -267,6 +262,18 @@ class ThreadBuilders {
         public ThreadFactory factory() {
             return new VirtualThreadFactory(scheduler, name(), counter(), characteristics(),
                     uncaughtExceptionHandler());
+        }
+
+        @CallerSensitive
+        @Override
+        public OfVirtual scheduler(Thread.VirtualThreadScheduler scheduler) {
+            Class<?> caller = Reflection.getCallerClass();
+            caller.getModule().ensureNativeAccess(OfVirtual.class, "scheduler", caller, false);
+            if (!ContinuationSupport.isSupported()) {
+                throw new UnsupportedOperationException();
+            }
+            this.scheduler = Objects.requireNonNull(scheduler);
+            return this;
         }
     }
 
@@ -369,9 +376,9 @@ class ThreadBuilders {
      * ThreadFactory for virtual threads.
      */
     private static class VirtualThreadFactory extends BaseThreadFactory {
-        private final Executor scheduler;
+        private final Thread.VirtualThreadScheduler scheduler;
 
-        VirtualThreadFactory(Executor scheduler,
+        VirtualThreadFactory(Thread.VirtualThreadScheduler scheduler,
                              String name,
                              long start,
                              int characteristics,
@@ -395,7 +402,7 @@ class ThreadBuilders {
     /**
      * Creates a new virtual thread to run the given task.
      */
-    static Thread newVirtualThread(Executor scheduler,
+    static Thread newVirtualThread(Thread.VirtualThreadScheduler scheduler,
                                    String name,
                                    int characteristics,
                                    Runnable task) {

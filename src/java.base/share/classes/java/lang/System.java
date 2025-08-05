@@ -83,6 +83,7 @@ import jdk.internal.vm.StackableScope;
 import jdk.internal.vm.ThreadContainer;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.vm.annotation.Stable;
+import sun.nio.ch.NativeThread;
 import sun.reflect.annotation.AnnotationType;
 import sun.nio.ch.Interruptible;
 import sun.nio.cs.UTF_8;
@@ -2269,6 +2270,14 @@ public final class System {
                 return Thread.scopedValueBindings();
             }
 
+            public NativeThread nativeThread(Thread thread) {
+                return thread.nativeThread();
+            }
+
+            public void setNativeThread(NativeThread nt) {
+                Thread.currentThread().setNativeThread(nt);
+            }
+
             public Continuation getContinuation(Thread thread) {
                 return thread.getContinuation();
             }
@@ -2303,12 +2312,32 @@ public final class System {
                 if (thread instanceof BaseVirtualThread vthread) {
                     vthread.unpark();
                 } else {
-                    throw new WrongThreadException();
+                    throw new IllegalArgumentException();
                 }
             }
 
-            public Executor virtualThreadDefaultScheduler() {
+            public Thread.VirtualThreadScheduler defaultVirtualThreadScheduler() {
                 return VirtualThread.defaultScheduler();
+            }
+
+            public boolean isCustomDefaultVirtualThreadScheduler() {
+                return VirtualThread.isCustomDefaultScheduler();
+            }
+
+            public Thread.VirtualThreadScheduler virtualThreadScheduler(Thread thread) {
+                if (thread instanceof VirtualThread vthread) {
+                    return vthread.scheduler(true);
+                } else {
+                    throw new IllegalArgumentException();
+                }
+            }
+
+            public <T> T supplyIfUnmounted(Thread thread, Supplier<T> supplier1, Supplier<T> supplier2) {
+                if (thread instanceof VirtualThread vthread) {
+                    return vthread.supplyIfUnmounted(supplier1, supplier2);
+                } else {
+                    throw new IllegalArgumentException();
+                }
             }
 
             public StackWalker newStackWalkerInstance(Set<StackWalker.Option> options,

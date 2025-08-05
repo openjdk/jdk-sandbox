@@ -55,6 +55,7 @@ class ObjectWaiter : public CHeapObj<mtThread> {
   bool           _is_wait;
   bool        _at_reenter;
   bool       _interrupted;
+  bool     _interruptible;
   bool            _active;    // Contention monitoring is enabled
  public:
   ObjectWaiter(JavaThread* current);
@@ -199,6 +200,8 @@ class ObjectMonitor : public CHeapObj<mtObjectMonitor> {
                                     // along with other fields to determine if an ObjectMonitor can be
                                     // deflated. It is also used by the async deflation protocol. See
                                     // ObjectMonitor::deflate_monitor().
+  int64_t _unmounted_vthreads;      // Number of nodes in the _entry_list associated with unmounted vthreads.
+                                    // It might be temporarily more than the actual number but never less.
 
   ObjectWaiter* volatile _wait_set; // LL of threads waiting on the monitor - wait()
   volatile int  _waiters;           // number of waiting threads
@@ -332,6 +335,9 @@ class ObjectMonitor : public CHeapObj<mtObjectMonitor> {
   intx      recursions() const                                         { return _recursions; }
   void      set_recursions(size_t recursions);
   void      increment_recursions(JavaThread* current);
+  void      inc_unmounted_vthreads();
+  void      dec_unmounted_vthreads();
+  bool      has_unmounted_vthreads() const;
 
   // JVM/TI GetObjectMonitorUsage() needs this:
   int waiters() const;
@@ -408,7 +414,7 @@ class ObjectMonitor : public CHeapObj<mtObjectMonitor> {
   ObjectWaiter* entry_list_tail(JavaThread* current);
 
   bool      vthread_monitor_enter(JavaThread* current, ObjectWaiter* node = nullptr);
-  void      vthread_wait(JavaThread* current, jlong millis);
+  void      vthread_wait(JavaThread* current, jlong millis, bool interruptible);
   bool      vthread_wait_reenter(JavaThread* current, ObjectWaiter* node, ContinuationWrapper& cont);
   void      vthread_epilog(JavaThread* current, ObjectWaiter* node);
 
