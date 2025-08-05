@@ -193,6 +193,12 @@ public abstract class SocketChannel
     }
 
     /**
+     * No comment
+     * @return jj
+     */
+    public abstract int getFDVal();
+
+    /**
      * Opens a socket channel. The {@code family} parameter specifies the
      * {@link ProtocolFamily protocol family} of the channel's socket.
      *

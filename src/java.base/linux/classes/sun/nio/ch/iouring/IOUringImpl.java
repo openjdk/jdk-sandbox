@@ -213,8 +213,7 @@ public class IOUringImpl {
      * Notifies the kernel of entries on the Submission Q and waits for a
      * number of responses (completion events). If this returns normally
      * with value {@code n > 0}, this means that n requests have been accepted
-     * by the kernel and that number of free slots have been added to the
-     * Submission Q. A normal return also means that the requested number of
+     * by the kernel. A normal return also means that the requested number of
      * completion events have been received {@link #pollCompletion()} can be
      * called {@code nreceive} times to obtain the results.
      *
@@ -223,15 +222,12 @@ public class IOUringImpl {
      * @param flags flags to pass to io_uring_enter
      *
      * @return if return value less than 0 means an error occurred. Otherwise,
-     *         the number of Sqes successfully processed.
+     *         the number of Sqes successfully submitted.
      */
     public int enter(int nsubmit, int nreceive, int flags) throws IOException {
         if (nreceive > 0) {
             flags |= IORING_ENTER_GETEVENTS();
         }
-        int ret;
-        //while ((ret = io_uring_enter(this.fd, nsubmit, nreceive, flags)) == EINTR)
-            //;
         return io_uring_enter(this.fd, nsubmit, nreceive, flags);
     }
 
