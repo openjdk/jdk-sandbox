@@ -41,32 +41,7 @@ import static sun.nio.ch.iouring.foreign.iouring_h_1.IORING_OP_POLL_REMOVE;
  */
 public class IoUring implements Closeable {
 
-    /**
-     * poll event: There is data to read.
-     */
-    public static final int POLLIN = 0x0001;
-    /**
-     * poll event: There is some exceptional condition on the file descriptor.
-     */
-    public static final int POLLPRI = 0x0002;
-    /**
-     * poll event: Writing is now possible,
-     */
-    public static final int POLLOUT = 0x0004;
-    /**
-     * poll event: Error condition
-     */
-    public static final int POLLERR = 0x0008;
-    /**
-     * poll event: Hang up
-     */
-    public static final int POLLHUP = 0x0010;
-    /**
-     * poll event: Invalid request
-     */
-    public static final int POLLNVAL = 0x0020;
-
-    /*
+    /* SQE/CQE user_data
      * fd is encoded in upper 32 bits
      * Lower 32 bits used for requestID
      * Special fd value which denotes a timer
@@ -153,8 +128,8 @@ public class IoUring implements Closeable {
      *         The returned integer is the file descriptor of the
      *         cancelled poll
      */
-    public synchronized CompletableFuture<Integer> poll_cancel(int sock) throws
-                     IOException, InterruptedException
+    public synchronized CompletableFuture<Integer> poll_cancel(int sock) 
+        throws IOException, InterruptedException
     {
         var cf = new CompletableFuture<Integer>();
         long udata = getUserData(sock);
@@ -259,5 +234,3 @@ public class IoUring implements Closeable {
             throw new IOException("Error: " + ret);
     }
 }
-
-
