@@ -58,9 +58,9 @@ extern unsigned long long file_size(const char *filename);
 // A minimal set of operations for doing what we need to do on ELF files.
 class ELFOperations {
   private:
-    Elf64_Ehdr *EHDR;
-    Elf64_Phdr *ph; // First Program Header absolute address
-    Elf64_Shdr *sh; // First Section Header absolute address or nullptr
+    Elf64_Ehdr *EHDR; // Main ELF Header
+    Elf64_Phdr *ph;   // First Program Header absolute address
+    Elf64_Shdr *sh;   // First Section Header absolute address or nullptr
 
     char* SHDRSTR_BUFFER = nullptr;
     SharedLibMapping* NT_Mappings = 0;
@@ -116,7 +116,7 @@ class ELFOperations {
         assert(EHDR->e_ident[7] == ELFOSABI_SYSV);
         assert(EHDR->e_version == EV_CURRENT);
 
-    // elf.h in devkit on Linux x86_64 does not define EM_AARCH64
+        // elf.h in devkit on Linux x86_64 does not define EM_AARCH64
 #if defined(__aarch64__)
         assert(EHDR->e_machine == EM_AARCH64);
 #else
@@ -131,6 +131,9 @@ class ELFOperations {
         assert(EHDR->e_phentsize == sizeof(Elf64_Phdr));
         assert(EHDR->e_shentsize == 0 || EHDR->e_shentsize == sizeof(Elf64_Shdr));
 
+        // Sanity check the pointer arithmetic:
+        bool debug = false;
+        if (debug) {
         Elf64_Phdr* p0 = program_header(0);
         Elf64_Phdr* p1 = program_header(1);
         long diff = (long) ((uint64_t) p1 - (uint64_t) p0);
@@ -146,6 +149,7 @@ class ELFOperations {
         warn("sh %p %p %p diff: %ld", s0, s1, s1a, diff);
         assert(s1 == s1a);
         assert(diff == EHDR->e_shentsize);
+        }
     }
 
     ~ELFOperations() {
@@ -170,7 +174,7 @@ class ELFOperations {
         }
     }
 
-    template <typename T>
+/*    template <typename T>
     T read_type() {
         T ret;
         if (read(fd, &ret, sizeof(T)) != sizeof(T)) {
@@ -179,7 +183,7 @@ class ELFOperations {
         return ret;
     }
 
-/*    template <typename T>
+    template <typename T>
     T read_type_at(unsigned long at) {
         if (lseek(file, at, SEEK_SET) == -1) {
             error("read_type_at: %s", strerror(errno));
@@ -231,7 +235,7 @@ class ELFOperations {
             s = next_sh(s);
         }
         error("Section not found: %s", name);
-        return nullptr;
+        return nullptr; // Will not reach here
     }
 
     Elf64_Shdr* section_by_index(unsigned long index) {
@@ -278,8 +282,6 @@ class ELFOperations {
     }
 
     void relocate_execution_header(long displacement) {
-        // My x64 tests don't mind if we relocate a zero entry point,
-        // but my aarch64 tests don't like it.
         if (EHDR->e_entry != 0) {
             EHDR->e_entry += displacement;
         }
@@ -381,7 +383,7 @@ class ELFOperations {
     void relocate_dyn_array(long displacement, Elf64_Dyn* dyn, int count) {
         warn("relocate dyn array, updating %d", count);
         // Get our mmapped address of the array:
-        uint64_t *p = (uint64_t*) ((uint64_t) m +  dyn->d_un.d_val);
+        uint64_t *p = (uint64_t*) ((uint64_t) m + dyn->d_un.d_ptr);
         // Relocate contents:
         for (int i = 0; i < count; i++) {
             if (*p != 0) {
@@ -449,8 +451,9 @@ class ELFOperations {
   public:
     // Relocate file by some amount.
     void relocate(long displacement) {
-        assert(SHDRSTR_BUFFER != 0);
         assert(EHDR->e_type == ET_DYN);
+        assert(sh != 0);
+        assert(SHDRSTR_BUFFER != 0);
 
         relocate_execution_header(displacement);
         relocate_program_headers(displacement);
@@ -475,7 +478,7 @@ class ELFOperations {
 
             for (int j = 0; j < N_SYMS; j++) {
                 int ret = strcmp(symbols[j], SYMTAB_BUFFER + sym->st_name);
-                if(ret == 0) {
+                if (ret == 0) {
                     char buf[2048];
                     snprintf(buf, 2048, "%s %llx %llx\n",
                             SYMTAB_BUFFER + sym->st_name,
@@ -510,7 +513,7 @@ class ELFOperations {
         Elf64_Nhdr* end  = nhdr + notes_ph->p_filesz;
 
         while (nhdr < end) {
-            if (verbose) fprintf(stderr, "NOTE at %p  type 0x%x namesz %x descsz %x\n", nhdr, nhdr->n_type, nhdr->n_namesz, nhdr->n_descsz);
+            logv("NOTE at %p type 0x%x namesz %x descsz %x", nhdr, nhdr->n_type, nhdr->n_namesz, nhdr->n_descsz);
             char *pos = (char*) nhdr;
             pos += sizeof(Elf64_Nhdr);
             if (nhdr->n_namesz > 0) {
@@ -549,21 +552,19 @@ class ELFOperations {
         }
         logv("NT_FILE note data at %p", note_nt_file);
         // Read NT_FILE:
-        NT_Mappings_count = *(long*)note_nt_file; // read_type<int>();
+        NT_Mappings_count = *(long*)note_nt_file;
         note_nt_file += 8;
-        long pagesize = *(long*) note_nt_file; //  read_type<long>();
+        long pagesize = *(long*) note_nt_file;
         note_nt_file += 8;
-        if (verbose) {
-            fprintf(stderr, "NT_FILE count %d pagesize 0x%lx\n", NT_Mappings_count, pagesize);
-        }
+        logv("NT_FILE count %d pagesize 0x%lx", NT_Mappings_count, pagesize);
 
         NT_Mappings = new SharedLibMapping[NT_Mappings_count];
         for (int i = 0; i < NT_Mappings_count; i++) {
-            NT_Mappings[i].start = *(long*) note_nt_file; // read_type<long>();
+            NT_Mappings[i].start = *(long*) note_nt_file;
             note_nt_file += 8;
-            NT_Mappings[i].end = *(long*) note_nt_file; // read_type<long>();;
+            NT_Mappings[i].end = *(long*) note_nt_file;
             note_nt_file += 8;
-            note_nt_file += 8; // offset
+            note_nt_file += 8; // skip offset
         }
         for (int i = 0; i < NT_Mappings_count; i++) {
             NT_Mappings[i].path = note_nt_file; // readstring(file);
