@@ -30,6 +30,7 @@ import java.lang.invoke.MethodHandle;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
+import java.util.NoSuchElementException;
 import java.util.List;
 
 import static java.lang.foreign.ValueLayout.JAVA_BYTE;
@@ -100,30 +101,46 @@ class Util {
             return "IORING_OP_MSG_RING";
         else return String.format("UNKNOWN(%d)", code);
     }
+
     static MethodHandle locateStdHandle(String name,
                                         FunctionDescriptor descriptor,
                                         Linker.Option... options) {
-        Linker linker = Linker.nativeLinker();
-        SymbolLookup stdlib = linker.defaultLookup();
-        return linker.downcallHandle(
+        try {
+            Linker linker = Linker.nativeLinker();
+            SymbolLookup stdlib = linker.defaultLookup();
+            return linker.downcallHandle(
                     stdlib.find(name).orElseThrow(),
                     descriptor,
                     options
-        );
+            );
+        } catch (NoSuchElementException e) {
+            String msg = String.format("Error loading %s from standard lib",
+                name);
+            throw new RuntimeException(msg);
+        }
     }
+
     static MethodHandle locateHandleFromLib(String libname,
                                             String symbol,
                                             FunctionDescriptor descriptor,
                                             Linker.Option... options) {
-        Linker linker = Linker.nativeLinker();
-        SymbolLookup lib = SymbolLookup.libraryLookup(libname, Arena.global());
-        MethodHandle fn = linker.downcallHandle(
+        try {
+            Linker linker = Linker.nativeLinker();
+            SymbolLookup lib = SymbolLookup.libraryLookup(
+                libname, Arena.global());
+            MethodHandle fn = linker.downcallHandle(
                 lib.find(symbol).orElseThrow(),
                 descriptor,
                 options
-        );
-        return fn;
+            );
+            return fn;
+        } catch (NoSuchElementException e) {
+            String msg = String.format("Error loading %s from %s",
+                symbol, libname);
+            throw new RuntimeException(msg);
+        }
     }
+
     private final static ValueLayout POINTER = ValueLayout.ADDRESS.withTargetLayout(
             MemoryLayout.sequenceLayout(Long.MAX_VALUE, JAVA_BYTE)
     );

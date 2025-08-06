@@ -163,6 +163,8 @@ public class IOUringImpl {
                 cqes_seg.asSlice(io_cqring_offsets.tail(sq_off_seg)),
                 sq_mask,
                 sqes);
+        if (TRACE)
+            System.out.printf("IOUringImpl: ringfd: %d\n", fd);
     }
 
 
@@ -293,6 +295,7 @@ public class IOUringImpl {
     public static String strerror(int errno) {
         return Util.strerror(errno);
     }
+
     private static int io_uring_setup(int entries, MemorySegment params) throws IOException {
         try {
             return (int) setup_fn.invokeExact(entries, params);

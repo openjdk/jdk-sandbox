@@ -32,7 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.concurrent.atomic.AtomicInteger;
 import static sun.nio.ch.iouring.foreign.iouring_h.IOSQE_IO_LINK;
-import static sun.nio.ch.iouring.foreign.iouring_h_1.IORING_OP_TIMEOUT;
+import static sun.nio.ch.iouring.foreign.iouring_h_1.IORING_OP_MSG_RING;
 import static sun.nio.ch.iouring.foreign.iouring_h_1.IORING_OP_POLL_ADD;
 import static sun.nio.ch.iouring.foreign.iouring_h_1.IORING_OP_POLL_REMOVE;
 
@@ -41,12 +41,6 @@ import static sun.nio.ch.iouring.foreign.iouring_h_1.IORING_OP_POLL_REMOVE;
  * they can be called from multiple threads
  */
 public class IoUring implements Closeable {
-
-    /* SQE/CQE user_data
-     * fd is encoded in lower 32 bits
-     * Some higher bits used for flags
-     */
-    private static final int TIMER_FD = -1;
 
     private static final int SQ_ENTRIES = 5;
 
@@ -58,9 +52,14 @@ public class IoUring implements Closeable {
         this.impl = new IOUringImpl(SQ_ENTRIES);
     }
 
-    /* Flags signifying the operation type */
+    /* SQE/CQE user_data
+     * fd is encoded in lower 32 bits
+     * Some higher bits used for flags
+     *
+     * Flags signifying the operation type */
     private static final long OP_ADD = 0x1L << 32;
     private static final long OP_DEL = 0x2L << 32;
+    private static final long OP_CLOSE = 0x4L << 32;
 
     private long getUserData(int fd) {
         return getUserData(fd, 0L);
@@ -75,9 +74,23 @@ public class IoUring implements Closeable {
         return (int)udata;
     }
 
+    /**
+     * Closes this IoUring. If a thread is blocked in
+     * poll() it will be unblocked and poll() will
+     * return -1.
+     */
     @Override
     public void close() {
+        // Send a message to wakeup Poller
+        Sqe sqe = new Sqe()
+                .opcode(IORING_OP_MSG_RING())
+                .fd(impl.ringFd()) // send msg to self
+                .user_data(0L)
+                .off(OP_CLOSE)     // delivered as Cqe user_data
+                .len(-1);          // delivered as Cqe res
         try {
+            impl.submit(sqe);
+            enterNSubmissions(1);
             impl.close();
         } catch (IOException e) {}
     }
@@ -104,13 +117,16 @@ public class IoUring implements Closeable {
                 .user_data(udata)
                 .poll_events(event);
         impl.submit(sqe);
-        int ret = impl.enter(1, 0, 0);
-        if (ret < 1) {
-            throw new IOException(
-                  String.format("poll_add error %d", ret));
-        }
+        enterNSubmissions(1);
     }
 
+    private void enterNSubmissions(int n) throws IOException {
+        int ret = impl.enter(n, 0, 0);
+        if (ret < 1) {
+            throw new IOException(
+                String.format("enterNSubmissions error %d", ret));
+        }
+    }
 
     /**
      * Removes the given file descriptor to the iouring poller.
@@ -126,11 +142,7 @@ public class IoUring implements Closeable {
                 .fd(sock)
                 .user_data(udata);
         impl.submit(sqe);
-        int ret = impl.enter(1, 0, 0);
-        if (ret < 1) {
-            throw new IOException(
-                String.format("poll_cancel failed: on submission %d", ret));
-        }
+        enterNSubmissions(1);
     }
 
     /**
@@ -139,8 +151,10 @@ public class IoUring implements Closeable {
      *
      * @param polled callback informed which fd is signalled
      *               and the error (if any) relating to it
+     *
      * @return the number of events signalled. Will be {@code 1} 
-     *         on success. 
+     *         on success. {@code -1} signifies that the ring has
+     *         been closed.
      * 
      * @throws IOException Non fd specific errors are signaled 
      *         via exception
@@ -154,13 +168,15 @@ public class IoUring implements Closeable {
      * has occurred
      *
      * @param polled callback informed which/if any fd is signalled
-     *               and the error if one occurred on that fd
+     *               and the error if one occurred on that fd.
      *
      * @param block true if call should block waiting for event
      *              {@code false} if call should not block
      *
      * @return the number of events signalled. Will be either
-     *         {@code 1} or {@code 0} if block is {@code false}
+     *         {@code 1} or {@code 0} if block is {@code false}.
+     *         {@code -1} signifies that the ring has
+     *         been closed.
      *
      * @throws IOException Non fd specific errors are signaled 
      *         via exception
@@ -173,15 +189,10 @@ public class IoUring implements Closeable {
             return 1;
         if (!block)
             return 0;
-
         do {
             // the blocking op may have to be repeated in case
             // where a deregister result is returned which we ignore
-            r = impl.enter(0, 1, 0);
-            if (r < 0) {
-                String msg = String.format("poll: error %d", r);
-                throw new IOException(msg);
-            }
+            impl.enter(0, 1, 0);
         } while ((r = pollCompletionQueue(polled)) == 0);
         return r;
     }
@@ -196,15 +207,14 @@ public class IoUring implements Closeable {
             assert cqe != null;
             int res = cqe.res();
             long udata = cqe.user_data();
-            if (res == 0 && ((udata & OP_DEL) > 0)) {
-                // Don't report successful deregister
-                // which implies a failed dereg does
-                continue;
+            if (res == -1 && ((udata & OP_CLOSE) > 0)) {
+                return -1;
+            } else {
+                int fd = getFdFromUserData(udata);
+                assert fd >= 0;
+                polled.accept(fd, res);
+                return 1;
             }
-            int fd = getFdFromUserData(udata);
-            assert fd >= 0;
-            polled.accept(fd, res);
-            return 1;
         }
         return 0;
     }
