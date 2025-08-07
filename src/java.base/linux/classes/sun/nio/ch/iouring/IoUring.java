@@ -94,6 +94,14 @@ public class IoUring implements Closeable {
         enterNSubmissions(1);
     }
 
+    /**
+     * For testing register_eventfd()
+     * Will remove eventually
+     */
+    public int eventfd() throws IOException {
+        return impl.eventfd();
+    }
+
     private void enterNSubmissions(int n) throws IOException {
         int ret = impl.enter(n, 0, 0);
         if (ret < 1) {
@@ -114,6 +122,20 @@ public class IoUring implements Closeable {
                 .user_data(data);
         impl.submit(sqe);
         enterNSubmissions(1);
+    }
+
+    /**
+     * Adds the given eventfd(2) file descriptor to the iouring poller.
+     */
+    public void register_eventfd(int efd) throws IOException {
+        impl.register_eventfd(efd);
+    }
+
+    /**
+     * Removes the previously registered eventfd(2) descriptor
+     */
+    public void unregister_eventfd() throws IOException {
+        impl.unregister_eventfd();
     }
 
     /**

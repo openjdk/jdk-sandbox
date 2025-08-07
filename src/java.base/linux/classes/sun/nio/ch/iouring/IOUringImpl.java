@@ -38,7 +38,10 @@ import static java.lang.foreign.ValueLayout.JAVA_BYTE;
 import static sun.nio.ch.iouring.Util.strerror;
 import static sun.nio.ch.iouring.Util.locateHandleFromLib;
 import static sun.nio.ch.iouring.Util.locateStdHandle;
+import static sun.nio.ch.iouring.Util.INT_POINTER;
 import static sun.nio.ch.iouring.foreign.iouring_h.*;
+import static sun.nio.ch.iouring.foreign.iouring_h_1.IORING_REGISTER_EVENTFD;
+import static sun.nio.ch.iouring.foreign.iouring_h_1.IORING_UNREGISTER_EVENTFD;
 
 /**
  * Low level interface to a Linux io_uring. Each IOUringImpl needs to be owned
@@ -176,6 +179,19 @@ public class IOUringImpl {
 
     }
 
+    public int eventfd() throws IOException {
+        int ret;
+        SystemCallContext ctx = SystemCallContext.get();
+        try {
+            ret = (int)eventfd_fn.invokeExact(ctx.errnoCaptureSegment(),
+                                            0, 0);
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
+        }
+        ctx.throwIOExceptionOnError(ret);
+        return ret;
+    }       
+
     private int initEpoll() throws IOException {
         int ret;
         SystemCallContext ctx = SystemCallContext.get();
@@ -188,6 +204,46 @@ public class IOUringImpl {
         ctx.throwIOExceptionOnError(ret);
         return ret;
     }
+
+    public void register_eventfd(int efd) throws IOException {
+        int ret;
+        SystemCallContext ctx = SystemCallContext.get();
+        MemorySegment fdseg = 
+            arena.allocateFrom(ValueLayout.JAVA_INT, efd);
+
+        try {
+            ret = (int)evregister_fn
+                    .invokeExact(
+                            ctx.errnoCaptureSegment(), 
+                            NR_io_uring_register,
+                            fd, IORING_REGISTER_EVENTFD(),
+                            fdseg, 1
+                    );
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
+        }
+        ctx.throwIOExceptionOnError(ret);
+    }
+
+    public void unregister_eventfd() throws IOException {
+        int ret;
+        SystemCallContext ctx = SystemCallContext.get();
+        
+        try {
+            ret = (int)evregister_fn
+                    .invokeExact(
+                            ctx.errnoCaptureSegment(), 
+                            NR_io_uring_register,
+                            fd, IORING_UNREGISTER_EVENTFD(),
+                            MemorySegment.NULL, 0
+                    );
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
+        }
+        ctx.throwIOExceptionOnError(ret);
+
+    }
+
     /**
      * Asynchronously submits an Sqe to this IOUringImpl. Can be called
      * multiple times before enter().
@@ -618,6 +674,15 @@ public class IOUringImpl {
         SystemCallContext.errnoLinkerOption()
     );
 
+    private static final MethodHandle eventfd_fn = locateStdHandle(
+        "eventfd",
+        FunctionDescriptor.of(
+            ValueLayout.JAVA_INT, 
+            ValueLayout.JAVA_INT, 
+            ValueLayout.JAVA_INT),
+        SystemCallContext.errnoLinkerOption()
+    );
+
     // Linux syscall numbers. Allows to invoke the system call
     // directly in systems where there are no wrappers
     // for these functions in libc or liburing.
@@ -625,6 +690,7 @@ public class IOUringImpl {
 
     private static final int NR_io_uring_setup = 425;
     private static final int NR_io_uring_enter = 426;
+    private static final int NR_io_uring_register = 427;
 
     private static final MethodHandle setup_fn = locateStdHandle(
         "syscall", FunctionDescriptor.of(
@@ -642,6 +708,19 @@ public class IOUringImpl {
                 ValueLayout.JAVA_INT,
                 ValueLayout.JAVA_INT,
                 ValueLayout.ADDRESS) // sigset_t UNUSED for now
+    );
+
+    // io_uring_register specifically for 
+    // IORING_REGISTER_EVENTFD and IORING_UNREGISTER_EVENTFD
+    private static final MethodHandle evregister_fn = locateStdHandle(
+            "syscall",
+            FunctionDescriptor.of(ValueLayout.JAVA_INT,  // result
+                    ValueLayout.JAVA_INT, // syscall
+                    ValueLayout.JAVA_INT, // ring fd
+                    ValueLayout.JAVA_INT, // opcode
+                    INT_POINTER,          // pointer to fd
+                    ValueLayout.JAVA_INT),// integer value 1
+            SystemCallContext.errnoLinkerOption()
     );
 
     // mmap constants used internally

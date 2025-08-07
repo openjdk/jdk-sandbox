@@ -141,9 +141,16 @@ class Util {
         }
     }
 
-    private final static ValueLayout POINTER = ValueLayout.ADDRESS.withTargetLayout(
+    public final static ValueLayout INT_POINTER = 
+        ValueLayout.ADDRESS.withTargetLayout(
+            ValueLayout.JAVA_INT
+    );
+
+    private final static ValueLayout POINTER = 
+        ValueLayout.ADDRESS.withTargetLayout(
             MemoryLayout.sequenceLayout(Long.MAX_VALUE, JAVA_BYTE)
     );
+
     private static final MethodHandle strerror_fn = locateStdHandle(
             "strerror",
             FunctionDescriptor.of(
