@@ -37,8 +37,10 @@ import static sun.nio.ch.iouring.foreign.iouring_h_1.IORING_OP_POLL_ADD;
 import static sun.nio.ch.iouring.foreign.iouring_h_1.IORING_OP_POLL_REMOVE;
 
 /**
- * Provides an API to io_ring. Callers should use synchronzation when submitting
- * or polling from more than one thread.
+ * Provides an API to io_ring. Submission is synchronized so can be called
+ * from multiple threads. Polling() is not synchronized and should
+ * only be done from one thread, which can be a different thread to
+ * the submitters.
  */
 public class IoUring implements Closeable {
 
@@ -48,6 +50,10 @@ public class IoUring implements Closeable {
 
     private IoUring() throws IOException {
         this.impl = new IOUringImpl(SQ_ENTRIES);
+    }
+
+    private IoUring(int entries) throws IOException {
+        this.impl = new IOUringImpl(entries);
     }
 
     /**
@@ -75,8 +81,24 @@ public class IoUring implements Closeable {
     public static final int POLLIN = 1;
     public static final int POLLOUT = 4;
 
+    /**
+     * Creates an io_uring with a default submission queue size.
+     * The completion queue is always twice the size of the
+     * submission queue
+     */
     public static IoUring create() throws IOException {
         return new IoUring();
+    }
+
+    /**
+     * Creates an io_uring with the given submission queue size.
+     * The completion queue is always twice the size of the
+     * submission queue
+     *
+     * @param entries the size of the submission queue
+     */
+    public static IoUring create(int entries) throws IOException {
+        return new IoUring(entries );
     }
 
     /**
