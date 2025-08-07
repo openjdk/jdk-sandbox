@@ -102,7 +102,8 @@ public class IOUringImpl {
      * @param mappedBufsize size of each buffer in bytes
      * @throws IOException if an IOException occurs
      */
-    public IOUringImpl(int entries, int nmappedBuffers, int mappedBufsize) throws IOException {
+    public IOUringImpl(int entries, int nmappedBuffers, int mappedBufsize) 
+            throws IOException {
         MemorySegment params_seg = getSegmentFor(io_uring_params.$LAYOUT());
         // call setup
         fd = io_uring_setup(entries, params_seg);
@@ -298,7 +299,8 @@ public class IOUringImpl {
 
     private static int io_uring_setup(int entries, MemorySegment params) throws IOException {
         try {
-            return (int) setup_fn.invokeExact(entries, params);
+            return (int) setup_fn.invokeExact(NR_io_uring_setup, 
+                                              entries, params);
         } catch (Throwable t) {
             throw ioexception(t);
         }
@@ -307,8 +309,8 @@ public class IOUringImpl {
     private static int io_uring_enter(int fd, int to_submit, int min_complete,
                                       int flags) throws IOException {
         try {
-            return (int) enter_fn.invokeExact(fd, to_submit,
-                    min_complete, flags, MemorySegment.NULL);
+            return (int) enter_fn.invokeExact(NR_io_uring_enter,
+                    fd, to_submit, min_complete, flags, MemorySegment.NULL);
         } catch (Throwable t) {
             throw ioexception(t);
         }
@@ -591,23 +593,33 @@ public class IOUringImpl {
                     ValueLayout.JAVA_INT // int size (ignored)
             ), SystemCallContext.errnoLinkerOption()
     );
-    private static final MethodHandle setup_fn = locateHandleFromLib(
-            "liburing.so",
-            "io_uring_setup",
-            FunctionDescriptor.of(ValueLayout.JAVA_INT,
-                    ValueLayout.JAVA_INT,
-                    ValueLayout.ADDRESS)
-    );
 
     private static final MethodHandle close_fn = locateStdHandle(
             "close",
             FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT),
             SystemCallContext.errnoLinkerOption()
     );
-    private static final MethodHandle enter_fn = locateHandleFromLib(
-            "liburing.so",
-            "io_uring_enter",
+
+    // Linux syscall numbers. Allows to invoke the system
+    // directly in systems where there are no wrappers
+    // for these functions in libc or liburing.
+    // Also means we no longer use liburing
+
+    private static final int NR_io_uring_setup = 425;
+    private static final int NR_io_uring_enter = 426;
+
+    private static final MethodHandle setup_fn = locateStdHandle(
+            "syscall", FunctionDescriptor.of(
+                    ValueLayout.JAVA_INT,
+                    ValueLayout.JAVA_INT,
+                    ValueLayout.JAVA_INT,
+                    ValueLayout.ADDRESS)
+    );
+
+    private static final MethodHandle enter_fn = locateStdHandle(
+            "syscall",
             FunctionDescriptor.of(ValueLayout.JAVA_INT,
+                    ValueLayout.JAVA_INT,
                     ValueLayout.JAVA_INT,
                     ValueLayout.JAVA_INT,
                     ValueLayout.JAVA_INT,
