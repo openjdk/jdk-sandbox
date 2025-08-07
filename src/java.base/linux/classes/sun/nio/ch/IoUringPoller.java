@@ -40,6 +40,8 @@ import sun.nio.ch.iouring.IoUring;
 public class IoUringPoller extends Poller implements BiConsumer<Long, Integer> {
     private final int event;
     private final IoUring ring;
+    private final EventFD readyEvent;   // completions posted to CQ ring
+    private final EventFD wakeupEvent;
     private final Cleanable cleaner;
 
     // used to coordinate access to submission queue
@@ -48,26 +50,57 @@ public class IoUringPoller extends Poller implements BiConsumer<Long, Integer> {
     // maps file descriptor to Thread when cancelling poll
     private final Map<Integer, Thread> cancels = new ConcurrentHashMap<>();
 
-    // file descriptors used for wakeup
-    private final int fd0;
-    private final int fd1;
-
-    IoUringPoller(boolean read) throws IOException {
+    IoUringPoller(boolean subPoller, boolean read) throws IOException {
         IoUring ring = IoUring.create();
 
-        long fds =  IOUtil.makePipe(false);
-        this.fd0 = (int) (fds >>> 32);
-        this.fd1 = (int) fds;
-        ring.poll_add(fd0, Net.POLLIN, fd0);
+        if (subPoller) {
+            this.readyEvent = new EventFD();
+            //ring.register_eventfd(readyEvent.efd());
+        } else {
+            this.readyEvent = null;
+        }
+
+        this.wakeupEvent = new EventFD();
+        IOUtil.configureBlocking(wakeupEvent.efd(), false);
+        int efd = wakeupEvent.efd();
+        ring.poll_add(efd, Net.POLLIN, efd);
 
         this.event = (read) ? Net.POLLIN : Net.POLLOUT;
         this.ring = ring;
-        this.cleaner = CleanerFactory.cleaner().register(this, ring::close);
+        this.cleaner = CleanerFactory.cleaner()
+                .register(this, releaser(ring, readyEvent, wakeupEvent));
+    }
+
+    /**
+     * Releases resources.
+     */
+    private static Runnable releaser(IoUring ring, EventFD readyEvent, EventFD wakeupEvent) {
+        return () -> {
+            try {
+                ring.close();
+                if (readyEvent != null) readyEvent.close();
+                wakeupEvent.close();
+            } catch (IOException _) { }
+        };
     }
 
     @Override
     void close() throws IOException {
         cleaner.clean();
+    }
+
+    @Override
+    int fdVal() {
+        if (readyEvent == null) {
+            throw new UnsupportedOperationException();
+        } else {
+            return readyEvent.efd();
+        }
+    }
+
+    @Override
+    void pollerPolled() throws IOException {
+        readyEvent.reset();
     }
 
     @Override
@@ -95,7 +128,7 @@ public class IoUringPoller extends Poller implements BiConsumer<Long, Integer> {
 
     @Override
     void wakeupPoller() throws IOException {
-        IOUtil.write1(fd1, (byte)0);
+        wakeupEvent.set();
     }
 
     @Override
@@ -110,7 +143,7 @@ public class IoUringPoller extends Poller implements BiConsumer<Long, Integer> {
     @Override
     public void accept(Long data, Integer errno) {
         int fd = data.intValue();
-        if (fd > 0 && fd != fd0) {
+        if (fd > 0 && fd != wakeupEvent.efd()) {
             // poll done
             polled(fd);
         } else if (fd < 0) {
