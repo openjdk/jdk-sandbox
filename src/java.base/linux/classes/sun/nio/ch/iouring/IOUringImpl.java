@@ -48,14 +48,14 @@ import static sun.nio.ch.iouring.foreign.iouring_h_1.IORING_UNREGISTER_EVENTFD;
  * and used by one thread. It provides an asynchronous interface.
  * Requests are submitted through the {@link #submit(Sqe)} method. Completion
  * events can be awaited by calling {@link #enter(int, int, int)}. Completions
- * represented by {@link Cqe} are then obtained by calling 
- * {@link #pollCompletion()}. Completions are linked to submissions by the 
- * {@link Cqe#user_data()} field of the {@code Cqe} which contains the 
+ * represented by {@link Cqe} are then obtained by calling
+ * {@link #pollCompletion()}. Completions are linked to submissions by the
+ * {@link Cqe#user_data()} field of the {@code Cqe} which contains the
  * same 64-bit (long) value that was returned from {@link #submit(Sqe)}.
  * <p>
  * Some IOUringImpl operations work with kernel registered direct ByteBuffers.
- * When creating an IOUringImpl instance, a number of these buffers can be 
- * created in a pool. Registered buffers are not used with regular 
+ * When creating an IOUringImpl instance, a number of these buffers can be
+ * created in a pool. Registered buffers are not used with regular
  * IOUringImpl read/write operations.
  */
 @SuppressWarnings("restricted")
@@ -89,8 +89,8 @@ public class IOUringImpl {
     }
 
     /**
-     * Creates an IOURing initializes the ring structures and allocates a 
-     * number of direct {@link ByteBuffer}s which are additionally mapped 
+     * Creates an IOURing initializes the ring structures and allocates a
+     * number of direct {@link ByteBuffer}s which are additionally mapped
      * into the kernel address space.
      *
      * @param entries requested size of submission queue
@@ -98,7 +98,7 @@ public class IOUringImpl {
      * @param mappedBufsize size of each buffer in bytes
      * @throws IOException if an IOException occurs
      */
-    public IOUringImpl(int entries, int nmappedBuffers, int mappedBufsize) 
+    public IOUringImpl(int entries, int nmappedBuffers, int mappedBufsize)
             throws IOException {
         MemorySegment params_seg = getSegmentFor(io_uring_params.$LAYOUT());
         // call setup
@@ -148,7 +148,7 @@ public class IOUringImpl {
         int cq_mask = cqes_seg.get(ValueLayout.JAVA_INT,
                                    io_cqring_offsets.ring_mask(cq_off_seg));
 
-        var sqes = mmap(sq_entries * io_uring_sqe.sizeof(), 
+        var sqes = mmap(sq_entries * io_uring_sqe.sizeof(),
                         fd, IORING_OFF_SQES());
 
         cq = new CompletionQueue(cqes_seg.asSlice(cq_off_cqes),
@@ -170,7 +170,7 @@ public class IOUringImpl {
         int ret;
         SystemCallContext ctx = SystemCallContext.get();
         try {
-            ret = (int)close_fn.invokeExact(ctx.errnoCaptureSegment(), 
+            ret = (int)close_fn.invokeExact(ctx.errnoCaptureSegment(),
                                             ringFd());
         } catch (Throwable e) {
             throw new RuntimeException(e);
@@ -190,13 +190,13 @@ public class IOUringImpl {
         }
         ctx.throwIOExceptionOnError(ret);
         return ret;
-    }       
+    }
 
     private int initEpoll() throws IOException {
         int ret;
         SystemCallContext ctx = SystemCallContext.get();
         try {
-            ret = (int)epoll_create_fn.invokeExact(ctx.errnoCaptureSegment(), 
+            ret = (int)epoll_create_fn.invokeExact(ctx.errnoCaptureSegment(),
                                                    ringFd(), 1);
         } catch (Throwable e) {
             throw new RuntimeException(e);
@@ -208,13 +208,13 @@ public class IOUringImpl {
     public void register_eventfd(int efd) throws IOException {
         int ret;
         SystemCallContext ctx = SystemCallContext.get();
-        MemorySegment fdseg = 
+        MemorySegment fdseg =
             arena.allocateFrom(ValueLayout.JAVA_INT, efd);
 
         try {
             ret = (int)evregister_fn
                     .invokeExact(
-                            ctx.errnoCaptureSegment(), 
+                            ctx.errnoCaptureSegment(),
                             NR_io_uring_register,
                             fd, IORING_REGISTER_EVENTFD(),
                             fdseg, 1
@@ -228,11 +228,11 @@ public class IOUringImpl {
     public void unregister_eventfd() throws IOException {
         int ret;
         SystemCallContext ctx = SystemCallContext.get();
-        
+
         try {
             ret = (int)evregister_fn
                     .invokeExact(
-                            ctx.errnoCaptureSegment(), 
+                            ctx.errnoCaptureSegment(),
                             NR_io_uring_register,
                             fd, IORING_UNREGISTER_EVENTFD(),
                             MemorySegment.NULL, 0
@@ -250,7 +250,7 @@ public class IOUringImpl {
      * <p>
      * If a timed wait is required then set the {@code IOSQE_IO_LINK()} flag
      * on this request and immediately submit an Sqe returned from
-     * {@link #getTimeoutSqe(Duration,int)} after this one, before 
+     * {@link #getTimeoutSqe(Duration,int)} after this one, before
      * calling enter();
      * </p>
      *
@@ -350,10 +350,10 @@ public class IOUringImpl {
         return Util.strerror(errno);
     }
 
-    private static int io_uring_setup(int entries, MemorySegment params) 
+    private static int io_uring_setup(int entries, MemorySegment params)
             throws IOException {
         try {
-            return (int) setup_fn.invokeExact(NR_io_uring_setup, 
+            return (int) setup_fn.invokeExact(NR_io_uring_setup,
                                               entries, params);
         } catch (Throwable t) {
             throw ioexception(t);
@@ -383,9 +383,9 @@ public class IOUringImpl {
     }
 
     /**
-     * Returns a mapped direct ByteBuffer or {@code null} if none available. 
-     * Mapped buffers must be used with some IOUringImpl operations such as 
-     * {@code IORING_OP_WRITE_FIXED} and {@code IORING_OP_READ_FIXED}. 
+     * Returns a mapped direct ByteBuffer or {@code null} if none available.
+     * Mapped buffers must be used with some IOUringImpl operations such as
+     * {@code IORING_OP_WRITE_FIXED} and {@code IORING_OP_READ_FIXED}.
      * Buffers must be returned after use with
      * {@link #returnRegisteredBuffer(ByteBuffer)}.
      *
@@ -427,8 +427,8 @@ public class IOUringImpl {
          * @param ringMask
          * @param ringLayout
          */
-        QueueImplBase(MemorySegment ringSeg, MemorySegment head, 
-                      MemorySegment tail, int ringMask, 
+        QueueImplBase(MemorySegment ringSeg, MemorySegment head,
+                      MemorySegment tail, int ringMask,
                       MemoryLayout ringLayout) {
             this.ringSeg = ringSeg;
             this.head = head;
@@ -454,13 +454,13 @@ public class IOUringImpl {
             return ringSize - nEntries();
         }
         protected int getHead(boolean withAcquire) {
-            int val = (int)(withAcquire 
+            int val = (int)(withAcquire
                 ? addrH.getAcquire(head, 0) : addrH.get(head, 0));
             return val;
         }
 
         protected int getTail(boolean withAcquire) {
-            int val = (int)(withAcquire 
+            int val = (int)(withAcquire
                 ? addrH.getAcquire(tail, 0L) : addrH.get(tail, 0L));
             return val;
         }
@@ -479,13 +479,13 @@ public class IOUringImpl {
     final class SubmissionQueue extends QueueImplBase {
         final MemorySegment sqes;
         final int n_sqes;
-        static final int sqe_layout_size = 
+        static final int sqe_layout_size =
             (int)io_uring_sqe.$LAYOUT().byteSize();
 
-        static final int sqe_alignment = 
+        static final int sqe_alignment =
             (int)io_uring_sqe.$LAYOUT().byteAlignment();
 
-        SubmissionQueue(MemorySegment ringSeg, MemorySegment head, 
+        SubmissionQueue(MemorySegment ringSeg, MemorySegment head,
                         MemorySegment tail, int mask, MemorySegment sqes) {
             super(ringSeg, head, tail, mask, ValueLayout.JAVA_INT);
             this.sqes = sqes;
@@ -540,7 +540,7 @@ public class IOUringImpl {
     }
 
     final class CompletionQueue extends QueueImplBase {
-        CompletionQueue(MemorySegment ringSeg, MemorySegment head, 
+        CompletionQueue(MemorySegment ringSeg, MemorySegment head,
                         MemorySegment tail, int mask) {
             super(ringSeg, head, tail, mask, io_uring_cqe.$LAYOUT());
         }
@@ -579,28 +579,28 @@ public class IOUringImpl {
      * @throws IOException
      * @throws InterruptedException
      */
-    public void epoll_add(int fd, int poll_events, long opaque) 
+    public void epoll_add(int fd, int poll_events, long opaque)
             throws IOException, InterruptedException {
         epoll_op(fd, poll_events, opaque, EPOLL_CTL_ADD());
     }
 
-    public void epoll_del(int fd, int poll_events) 
+    public void epoll_del(int fd, int poll_events)
             throws IOException, InterruptedException {
         epoll_op(fd, poll_events, -1L, EPOLL_CTL_DEL());
     }
 
-    public void epoll_mod(int fd, int poll_events, long opaque) 
+    public void epoll_mod(int fd, int poll_events, long opaque)
             throws IOException, InterruptedException {
         epoll_op(fd, poll_events, opaque, EPOLL_CTL_DEL());
     }
 
-    private void epoll_op(int fd, int poll_events, long opaque, int op) 
+    private void epoll_op(int fd, int poll_events, long opaque, int op)
             throws IOException, InterruptedException {
         if (this.epollfd == -1) {
             this.epollfd = initEpoll();
         }
 
-        MemorySegment targetfd = 
+        MemorySegment targetfd =
             arena.allocateFrom(ValueLayout.OfInt.JAVA_INT, fd);
 
         Sqe request = new Sqe()
@@ -631,7 +631,7 @@ public class IOUringImpl {
     }
 
     public Sqe getTimeoutSqe(Duration maxwait, int opcode, int completionCount) {
-        MemorySegment seg = 
+        MemorySegment seg =
             arena.allocate(__kernel_timespec.$LAYOUT()).fill((byte)(0));
 
         __kernel_timespec.tv_sec(seg, maxwait.getSeconds());
@@ -643,7 +643,7 @@ public class IOUringImpl {
                 .off(completionCount)
                 .len(1);
     }
-    private final static ValueLayout POINTER = 
+    private final static ValueLayout POINTER =
         ValueLayout.ADDRESS.withTargetLayout(
             MemoryLayout.sequenceLayout(Long.MAX_VALUE, JAVA_BYTE)
     );
@@ -677,8 +677,8 @@ public class IOUringImpl {
     private static final MethodHandle eventfd_fn = locateStdHandle(
         "eventfd",
         FunctionDescriptor.of(
-            ValueLayout.JAVA_INT, 
-            ValueLayout.JAVA_INT, 
+            ValueLayout.JAVA_INT,
+            ValueLayout.JAVA_INT,
             ValueLayout.JAVA_INT),
         SystemCallContext.errnoLinkerOption()
     );
@@ -710,7 +710,7 @@ public class IOUringImpl {
                 ValueLayout.ADDRESS) // sigset_t UNUSED for now
     );
 
-    // io_uring_register specifically for 
+    // io_uring_register specifically for
     // IORING_REGISTER_EVENTFD and IORING_UNREGISTER_EVENTFD
     private static final MethodHandle evregister_fn = locateStdHandle(
             "syscall",

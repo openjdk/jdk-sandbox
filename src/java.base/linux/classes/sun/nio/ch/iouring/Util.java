@@ -141,12 +141,12 @@ class Util {
         }
     }
 
-    public final static ValueLayout INT_POINTER = 
+    public final static ValueLayout INT_POINTER =
         ValueLayout.ADDRESS.withTargetLayout(
             ValueLayout.JAVA_INT
     );
 
-    private final static ValueLayout POINTER = 
+    private final static ValueLayout POINTER =
         ValueLayout.ADDRESS.withTargetLayout(
             MemoryLayout.sequenceLayout(Long.MAX_VALUE, JAVA_BYTE)
     );

@@ -177,7 +177,7 @@ public class IoUring implements Closeable {
      * @throws IOException Non fd specific errors are signaled
      *         via exception
      */
-    public int poll(BiConsumer<Long, Integer> polled, boolean block) 
+    public int poll(BiConsumer<Long, Integer> polled, boolean block)
             throws IOException {
         if (pollCompletionQueue(polled) == 1)
             return 1;

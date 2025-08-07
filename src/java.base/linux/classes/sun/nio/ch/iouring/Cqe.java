@@ -28,9 +28,9 @@ package sun.nio.ch.iouring;
 /**
  * Completion Q entry (user view)
  *
- * @param user_data the long value that was returned from {@link 
+ * @param user_data the long value that was returned from {@link
  *                  IOUringImpl#submit(Sqe)}
- * @param res if {@code res >=0} signifies success, {@code res < 0} 
+ * @param res if {@code res >=0} signifies success, {@code res < 0}
  *            means error occurred where -res == errno
  * @param flags
  */

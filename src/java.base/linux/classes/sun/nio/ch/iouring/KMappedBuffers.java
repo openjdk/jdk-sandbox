@@ -145,7 +145,7 @@ class KMappedBuffers {
             ret = (int)register_fn
                     .invokeExact(
                             NR_io_uring_register,
-                            ctx.errnoCaptureSegment(), 
+                            ctx.errnoCaptureSegment(),
                             ringfd, IORING_REGISTER_BUFFERS2(),
                             segment.address(), nentries
                     );
