@@ -40,7 +40,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import static sun.nio.ch.iouring.Util.locateHandleFromLib;
+import static sun.nio.ch.iouring.Util.locateStdHandle;
 import static sun.nio.ch.iouring.foreign.iouring_h.IORING_REGISTER_BUFFERS2;
 
 /**
@@ -143,7 +143,10 @@ class KMappedBuffers {
         SystemCallContext ctx = SystemCallContext.get();
         try {
             ret = (int)register_fn
-                    .invokeExact(ctx.errnoCaptureSegment(), ringfd, IORING_REGISTER_BUFFERS2(),
+                    .invokeExact(
+                            NR_io_uring_register,
+                            ctx.errnoCaptureSegment(), 
+                            ringfd, IORING_REGISTER_BUFFERS2(),
                             segment.address(), nentries
                     );
         } catch (Throwable e) {
@@ -151,10 +154,14 @@ class KMappedBuffers {
         }
         ctx.throwIOExceptionOnError(ret);
     }
-    private static final MethodHandle register_fn = locateHandleFromLib(
-            "liburing.so",
-            "io_uring_register",
+
+    // syscall number
+    private static final int NR_io_uring_register = 427;
+
+    private static final MethodHandle register_fn = locateStdHandle(
+            "syscall",
             FunctionDescriptor.of(ValueLayout.JAVA_INT,  // result
+                    ValueLayout.JAVA_INT, // syscall
                     ValueLayout.JAVA_INT, // ring fd
                     ValueLayout.JAVA_INT, // opcode
                     ValueLayout.JAVA_LONG, // iovec array
