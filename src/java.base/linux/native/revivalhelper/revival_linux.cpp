@@ -269,9 +269,6 @@ class ELFOperations {
         switch (ELF64_R_TYPE(rela->r_info)) {
 #if defined(__aarch64__)
             case R_AARCH64_RELATIVE:
-            case R_AARCH64_ABS64:
-            case R_AARCH64_JUMP_SLOT:
-            case R_AARCH64_GLOB_DAT:
 #else
             case R_X86_64_RELATIVE:
 #endif
