@@ -50,6 +50,15 @@ public final class JsonObjectImpl implements JsonObject {
     }
 
     @Override
+    public JsonValue objectMember(String name) {
+        return switch (theMembers.get(name)) {
+            case JsonValue jv -> jv;
+            case null -> throw new IllegalArgumentException(
+                "Object member '%s' does not exist".formatted(name));
+        };
+    }
+
+    @Override
     public String toString() {
         var s = new StringBuilder("{");
         for (Map.Entry<String, JsonValue> kv: members().entrySet()) {

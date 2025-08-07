@@ -89,4 +89,32 @@ public sealed interface JsonValue
      * @see Json#toDisplayString(JsonValue, int)
      */
     String toString();
+
+    /**
+     * {@return the member of this {@code JsonObject} associated with the
+     * {@code name}} If this is not a {@code JsonObject}, an
+     * {@code IllegalArgumentException} will be thrown.
+     *
+     * @param name the member name
+     * @throws IllegalStateException if this is not a {@code JsonObject}.
+     * @throws IllegalArgumentException if the specified {@code name} does
+     *      not exist in this {@code JsonObject}.
+     */
+    default JsonValue objectMember(String name) {
+        throw new IllegalStateException("Not a JsonObject");
+    }
+
+    /**
+     * {@return the element of this {@code JsonArray} at the
+     * {@code index}} If this is not a {@code JsonArray}, an
+     * {@code IllegalArgumentException} will be thrown.
+     *
+     * @param index the index of the array
+     * @throws IllegalStateException if this is not a {@code JsonArray}.
+     * @throws IndexOutOfBoundsException if the specified {@code index}
+     *      is out of bounds of this {@code JsonArray}.
+     */
+    default JsonValue arrayElement(int index) {
+        throw new IllegalStateException("Not a JsonArray");
+    }
 }
