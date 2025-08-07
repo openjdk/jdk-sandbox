@@ -101,7 +101,14 @@ public sealed interface JsonValue
      *      not exist in this {@code JsonObject}.
      */
     default JsonValue member(String name) {
-        throw new IllegalStateException("Not a JsonObject");
+        return switch (this) {
+            case JsonObject jo -> switch (jo.members().get(name)) {
+                case JsonValue jv -> jv;
+                case null -> throw new IllegalArgumentException(
+                        "Object member '%s' does not exist".formatted(name));
+            };
+            default -> throw new IllegalStateException("Not a JsonObject");
+        };
     }
 
     /**
@@ -115,6 +122,9 @@ public sealed interface JsonValue
      *      is out of bounds of this {@code JsonArray}.
      */
     default JsonValue element(int index) {
-        throw new IllegalStateException("Not a JsonArray");
+        return switch (this) {
+            case JsonArray ja -> ja.values().get(index);
+            default -> throw new IllegalStateException("Not a JsonArray");
+        };
     }
 }

@@ -50,11 +50,6 @@ public final class JsonArrayImpl implements JsonArray {
     }
 
     @Override
-    public JsonValue element(int index) {
-        return theValues.get(index);
-    }
-
-    @Override
     public String toString() {
         var s = new StringBuilder("[");
         for (JsonValue v: values()) {
