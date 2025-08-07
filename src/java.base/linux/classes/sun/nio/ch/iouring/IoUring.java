@@ -50,29 +50,23 @@ public class IoUring implements Closeable {
         this.impl = new IOUringImpl(SQ_ENTRIES);
     }
 
-    /* SQE/CQE user_data
-     * fd is encoded in lower 32 bits
-     * Some higher bits used for flags
-     *
-     * Flags signifying the operation type */
-    private static final long OP_CLOSE = 0x4L << 32;
     /**
      * Closes this IoUring. If a thread is blocked in
-     * poll() it will be unblocked and poll() will
-     * return -1.
+     * poll() it will be unblocked and its callback
+     * will be invoked with a data value of {@code -1}
      */
     @Override
     public void close() {
-        // Send a message to wakeup Poller
-        Sqe sqe = new Sqe()
-                .opcode(IORING_OP_MSG_RING())
-                .fd(impl.ringFd()) // send msg to self
-                .user_data(0L)
-                .off(OP_CLOSE)     // delivered as Cqe user_data
-                .len(-1);          // delivered as Cqe res
+        // Experiment. This could be implemented
+        // as a IORING_OP_MSG_RING message passed to
+        // the receiving poller thread. But, this has
+        // the same effect and MSG_RING is not supported
+        // in all kernels. Any fd can be used, whether
+        // it is registered with the ring or not
+        // Seems safest to use the fd that we are about
+        // to close anyway.
         try {
-            impl.submit(sqe);
-            enterNSubmissions(1);
+            poll_remove(impl.ringFd(), -1);
             impl.close();
         } catch (IOException e) {}
     }
@@ -127,11 +121,13 @@ public class IoUring implements Closeable {
      * has occurred.
      *
      * @param polled callback informed with the user data
-     *               and the error (if any) relating to it
+     *               and the error (if any) relating to it.
+     *               If the ring is closed while blocked
+     *               in this method, the callback will be
+     *               invoked with a data value of {@code -1}
      *
      * @return the number of events signalled. Will be {@code 1}
-     *         on success. {@code -1} signifies that the ring has
-     *         been closed.
+     *         on success.
      *
      * @throws IOException Non fd specific errors are signaled
      *         via exception
@@ -145,31 +141,28 @@ public class IoUring implements Closeable {
      * has occurred
      *
      * @param polled callback informed with the user data
-     *               and the error if one occurred
+     *               and the error if one occurred.
+     *               If the ring is closed while blocked
+     *               in this method, the callback will be
+     *               invoked with a data value of {@code -1}
      *
      * @param block true if call should block waiting for event
      *              {@code false} if call should not block
      *
      * @return the number of events signalled. Will be either
      *         {@code 1} or {@code 0} if block is {@code false}.
-     *         {@code -1} signifies that the ring has
-     *         been closed.
      *
      * @throws IOException Non fd specific errors are signaled
      *         via exception
      */
-    public int poll(BiConsumer<Long, Integer> polled, boolean block) throws IOException {
-        int r = pollCompletionQueue(polled);
-        if (r == 1)
+    public int poll(BiConsumer<Long, Integer> polled, boolean block) 
+            throws IOException {
+        if (pollCompletionQueue(polled) == 1)
             return 1;
         if (!block)
             return 0;
-        do {
-            // the blocking op may have to be repeated in case
-            // where a deregister result is returned which we ignore
-            impl.enter(0, 1, 0);
-        } while ((r = pollCompletionQueue(polled)) == 0);
-        return r;
+        impl.enter(0, 1, 0);
+        return pollCompletionQueue(polled); // should return 1
     }
 
     /**
@@ -177,20 +170,13 @@ public class IoUring implements Closeable {
      * if an event found and the completion consumer was called
      */
     private int pollCompletionQueue(BiConsumer<Long, Integer> polled) {
-        while (!impl.cqempty()) {
-            Cqe cqe = impl.pollCompletion();
-            assert cqe != null;
-            int res = cqe.res();
-            long data = cqe.user_data();
-            if (res == -1 && ((udata & OP_CLOSE) > 0)) {
-                return -1;
-            } else {
-                int fd = getFdFromUserData(udata);
-                assert fd >= 0;
-                polled.accept(fd, res);
-                return 1;
-            }
+        Cqe cqe = impl.pollCompletion();
+        if (cqe == null) {
+            return 0;
         }
-        return 0;
+        int res = cqe.res();
+        long data = cqe.user_data();
+        polled.accept(data, res);
+        return 1;
     }
 }
