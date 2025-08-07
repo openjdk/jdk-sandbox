@@ -50,7 +50,7 @@ public final class JsonObjectImpl implements JsonObject {
     }
 
     @Override
-    public JsonValue objectMember(String name) {
+    public JsonValue member(String name) {
         return switch (theMembers.get(name)) {
             case JsonValue jv -> jv;
             case null -> throw new IllegalArgumentException(

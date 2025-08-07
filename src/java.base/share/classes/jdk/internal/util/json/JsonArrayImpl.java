@@ -50,7 +50,7 @@ public final class JsonArrayImpl implements JsonArray {
     }
 
     @Override
-    public JsonValue arrayElement(int index) {
+    public JsonValue element(int index) {
         return theValues.get(index);
     }
 
