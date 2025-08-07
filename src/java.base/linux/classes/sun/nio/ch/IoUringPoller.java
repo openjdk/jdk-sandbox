@@ -55,7 +55,7 @@ public class IoUringPoller extends Poller implements BiConsumer<Long, Integer> {
 
         if (subPoller) {
             this.readyEvent = new EventFD();
-            //ring.register_eventfd(readyEvent.efd());
+            ring.register_eventfd(readyEvent.efd());
         } else {
             this.readyEvent = null;
         }
@@ -133,11 +133,11 @@ public class IoUringPoller extends Poller implements BiConsumer<Long, Integer> {
 
     @Override
     int poll(int timeout) throws IOException {
-        if (timeout != -1) {
+        if (timeout > 0) {
             throw new UnsupportedOperationException();
         }
-        ring.poll(this);
-        return 0;
+        boolean block = (timeout == -1);
+        return ring.poll(this, block);
     }
 
     @Override
