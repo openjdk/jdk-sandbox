@@ -55,7 +55,14 @@
 
 extern unsigned long long file_size(const char *filename);
 
-// A minimal set of operations for doing what we need to do on ELF files.
+/**
+ * Operations on ELF files.
+ * To mmap the file and update in-memory proves faster than lseek and read/write.
+ *
+ * But some core files may be unreasonable to mmap fully.
+ * Currently we only mmmap, may need to change that above some file size, or ensure
+ * what we need is mapped in.
+ */
 class ELFOperations {
   private:
     Elf64_Ehdr *EHDR; // Main ELF Header
@@ -76,7 +83,7 @@ class ELFOperations {
         if (fd < 0) {
             error("cannot open '%s': %s", filename, strerror(errno));
         }
-        long long length = file_size(filename);
+        length = file_size(filename);
         m = mmap(0, length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
         if (m == (void *) -1) {
             error("mmap of ELF file failed: %s", strerror(errno));
@@ -153,13 +160,16 @@ class ELFOperations {
     }
 
     ~ELFOperations() {
+        // Free NT_mappings
+
         if (fd >= 0) {
             ::close(fd);
         }
         if (m != 0) {
-            munmap(m, length);
+            logv("ELFOperations: destructor munmap");
+            do_munmap_pd(m, length);
         }
-        logv("ELFOperations: destructor");
+        logv("ELFOperations: destructor done");
     }
 
   public:
@@ -576,6 +586,10 @@ class ELFOperations {
     }
 
   public:
+    /**
+     * Return mapping information.  Data is valid while this ELFOperations is alive,
+     * information should be copied to retain.
+     */
     SharedLibMapping* get_library_mapping(const char* filename) {
         read_NT_mappings();
         for (int i = 0; i < NT_Mappings_count; i++) {
@@ -1300,7 +1314,7 @@ void create_directory(const char* dirname) {
 
 void init_jvm_filename_and_address(ELFOperations& core) {
     SharedLibMapping* jvm_mapping = core.get_library_mapping(JVM_FILENAME);
-    jvm_filename = jvm_mapping->path;
+    jvm_filename = strdup(jvm_mapping->path);
     jvm_address = (void*) jvm_mapping->start;
     logv("JVM = '%s'", jvm_filename);
     logv("JVM addr = %p", jvm_address);
