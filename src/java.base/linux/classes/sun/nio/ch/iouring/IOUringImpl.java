@@ -44,14 +44,13 @@ import static sun.nio.ch.iouring.foreign.iouring_h_1.IORING_REGISTER_EVENTFD;
 import static sun.nio.ch.iouring.foreign.iouring_h_1.IORING_UNREGISTER_EVENTFD;
 
 /**
- * Low level interface to a Linux io_uring. Each IOUringImpl needs to be owned
- * and used by one thread. It provides an asynchronous interface.
- * Requests are submitted through the {@link #submit(Sqe)} method. Completion
- * events can be awaited by calling {@link #enter(int, int, int)}. Completions
- * represented by {@link Cqe} are then obtained by calling
+ * Low level interface to a Linux io_uring. It provides an asynchronous
+ * interface. Requests are submitted through the {@link #submit(Sqe)} method.
+ * Completion events can be awaited by calling {@link #enter(int, int, int)}.
+ * Completions represented by {@link Cqe} are then obtained by calling
  * {@link #pollCompletion()}. Completions are linked to submissions by the
  * {@link Cqe#user_data()} field of the {@code Cqe} which contains the
- * same 64-bit (long) value that was returned from {@link #submit(Sqe)}.
+ * same 64-bit (long) value that was supplied in the submitted {@link Sqe}.
  * <p>
  * Some IOUringImpl operations work with kernel registered direct ByteBuffers.
  * When creating an IOUringImpl instance, a number of these buffers can be
@@ -247,12 +246,6 @@ public class IOUringImpl {
     /**
      * Asynchronously submits an Sqe to this IOUringImpl. Can be called
      * multiple times before enter().
-     * <p>
-     * If a timed wait is required then set the {@code IOSQE_IO_LINK()} flag
-     * on this request and immediately submit an Sqe returned from
-     * {@link #getTimeoutSqe(Duration,int)} after this one, before
-     * calling enter();
-     * </p>
      *
      * @param sqe
      * @throws IOException if submission q full
@@ -262,8 +255,6 @@ public class IOUringImpl {
         if (TRACE)
             System.out.printf("submit: %s \n", sqe);
     }
-
-    private static final int EINTR = -4;
 
     /**
      * Notifies the kernel of entries on the Submission Q and waits for a
@@ -630,6 +621,8 @@ public class IOUringImpl {
         return "Error: " + strerror(errno);
     }
 
+    // This is obsolete. There is a better way of doing a timed
+    // poll by providing a timeval to io_uring_enter
     public Sqe getTimeoutSqe(Duration maxwait, int opcode, int completionCount) {
         MemorySegment seg =
             arena.allocate(__kernel_timespec.$LAYOUT()).fill((byte)(0));
@@ -643,6 +636,7 @@ public class IOUringImpl {
                 .off(completionCount)
                 .len(1);
     }
+
     private final static ValueLayout POINTER =
         ValueLayout.ADDRESS.withTargetLayout(
             MemoryLayout.sequenceLayout(Long.MAX_VALUE, JAVA_BYTE)
