@@ -32,22 +32,22 @@
  */
 
 /**
- * @test id=JCmdRevivalOom
+ * @test id=JCmdRevivalOOM
  * @summary Test process revival for serviceability: jcmd on a core file (OOM crash).
  * @requires os.family == "linux" | os.family == "windows"
  * @library /test/lib
  *
- * @run main/othervm JCmdRevival oom     VM.version help Thread.print GC.class_histogram GC.heap_dump Compiler.CodeHeap_Analytics Compiler.codecache Compiler.codelist Compiler.memory GC.heap_info System.dump_map System.map VM.class_hierarchy VM.classes VM.classloader_stats VM.classloaders VM.command_line VM.dynlibs VM.events VM.flags VM.metaspace VM.native_memory VM.stringtable VM.symboltable VM.systemdictionary VM.version_UNKNOWN VM.unknowncommand VM.flags_UNKNOWNARG
+ * @run main/othervm -Djdk.attach.core.verobse=true -XX:ConcGCThreads=3 JCmdRevival oom     VM.version help Thread.print GC.class_histogram GC.heap_dump Compiler.CodeHeap_Analytics Compiler.codecache Compiler.codelist Compiler.memory GC.heap_info System.dump_map System.map VM.class_hierarchy VM.classes VM.classloader_stats VM.classloaders VM.command_line VM.dynlibs VM.events VM.flags VM.metaspace VM.native_memory VM.stringtable VM.symboltable VM.systemdictionary VM.version_UNKNOWN VM.unknowncommand VM.flags_UNKNOWNARG
  */
 
 /*
- * @test id=JCmdRevivalCrash
+ * @test id=JCmdRevivalCICrash
  * @summary Test process revival for serviceability: jcmd on a core file (CI crash, debug VM).
  * @requires os.family == "linux" | os.family == "windows"
  * @library /test/lib
  * @requires vm.debug == true
  *
- * @run main/othervm JCmdRevival cicrash VM.version help Thread.print GC.class_histogram GC.heap_dump Compiler.CodeHeap_Analytics Compiler.codecache Compiler.codelist Compiler.memory GC.heap_info System.dump_map System.map VM.class_hierarchy VM.classes VM.classloader_stats VM.classloaders VM.command_line VM.dynlibs VM.events VM.flags VM.metaspace VM.native_memory VM.stringtable VM.symboltable VM.systemdictionary VM.version_UNKNOWN VM.unknowncommand VM.flags_UNKNOWNARG
+ * @run main/othervm -XX:ConcGCThreads=3 JCmdRevival cicrash VM.version help Thread.print GC.class_histogram GC.heap_dump Compiler.CodeHeap_Analytics Compiler.codecache Compiler.codelist Compiler.memory GC.heap_info System.dump_map System.map VM.class_hierarchy VM.classes VM.classloader_stats VM.classloaders VM.command_line VM.dynlibs VM.events VM.flags VM.metaspace VM.native_memory VM.stringtable VM.symboltable VM.systemdictionary VM.version_UNKNOWN VM.unknowncommand VM.flags_UNKNOWNARG
  *
  */
 
@@ -148,7 +148,7 @@ public class JCmdRevival {
             }
         }
         if (!failures.isEmpty()) {
-            //for (Throwable thr : failures) {
+            System.err.println("FAILURE(s): ");
             for (Object [] f: failures) {
                 System.err.println(f[0]);
                 ((Throwable) f[1]).printStackTrace(System.err);
@@ -295,7 +295,9 @@ public class JCmdRevival {
                 break;
             }
             case "VM.flags": {
+                out.shouldContain("-XX:+CreateCoredumpOnCrash");
                 out.shouldContain("-XX:ReservedCodeCacheSize=");
+                out.shouldContain("-XX:ConcGCThreads=3"); // Recognise ConcGCThreads value set in test header
                 break;
             }
             case "VM.log": {
