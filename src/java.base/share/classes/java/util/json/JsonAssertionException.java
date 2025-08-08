@@ -23,51 +23,28 @@
  * questions.
  */
 
-package jdk.internal.util.json;
+package java.util.json;
 
-import java.util.json.JsonNull;
+import java.io.Serial;
 
-import jdk.internal.ValueBased;
+import jdk.internal.javac.PreviewFeature;
 
 /**
- * JsonNull implementation class
+ * Signals that an error has been detected while traversing the {@code JsonValue}.
+ *
+ * @since 99
  */
-@ValueBased
-public final class JsonNullImpl implements JsonNull, JsonValueImpl {
+@PreviewFeature(feature = PreviewFeature.Feature.JSON)
+public class JsonAssertionException extends RuntimeException {
 
-    public static final JsonNullImpl NULL = new JsonNullImpl(-1, -1);
-    private static final String VALUE = "null";
-    private static final int HASH = VALUE.hashCode();
-    private final int row;
-    private final int col;
+    @Serial
+    private static final long serialVersionUID = 2040280066622450939L;
 
-    JsonNullImpl(int r, int c) {
-        row = r;
-        col = c;
-    }
-
-    @Override
-    public String toString() {
-        return VALUE;
-    }
-
-    @Override
-    public int row() {
-        return row;
-    }
-
-    @Override
-    public int col() {
-        return col;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        return obj instanceof JsonNull;
-    }
-
-    @Override
-    public int hashCode() {
-        return HASH;
+    /**
+     * Constructs a JsonAssertionException with the specified detail message.
+     * @param message the detail message
+     */
+    public JsonAssertionException(String message) {
+        super(message);
     }
 }

@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 
 import jdk.internal.javac.PreviewFeature;
 import jdk.internal.util.json.JsonObjectImpl;
+import jdk.internal.util.json.JsonValueImpl;
 
 /**
  * The interface that represents JSON object.
@@ -78,8 +79,10 @@ public non-sealed interface JsonObject extends JsonValue {
     default JsonValue member(String name) {
         return switch (members().get(name)) {
             case JsonValue jv -> jv;
-            case null -> throw new IllegalArgumentException(
-                "Object member '%s' does not exist".formatted(name));
+            case null -> throw new JsonAssertionException(
+                    "Object member '%s' does not exist.".formatted(name) +
+                    (this instanceof JsonValueImpl jvi && jvi.row() > -1 && jvi.col() > -1 ?
+                    " Location in the document: row %d, col %d.".formatted(jvi.row(), jvi.col()) : ""));
         };
     }
 

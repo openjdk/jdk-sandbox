@@ -33,20 +33,34 @@ import jdk.internal.ValueBased;
  * JsonBoolean implementation class
  */
 @ValueBased
-public final class JsonBooleanImpl implements JsonBoolean {
+public final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
 
     private final Boolean theBoolean;
 
-    public static final JsonBooleanImpl TRUE = new JsonBooleanImpl(true);
-    public static final JsonBooleanImpl FALSE = new JsonBooleanImpl(false);
+    public static final JsonBooleanImpl TRUE = new JsonBooleanImpl(true, -1, -1);
+    public static final JsonBooleanImpl FALSE = new JsonBooleanImpl(false, -1, -1);
+    private final int row;
+    private final int col;
 
-    private JsonBooleanImpl(Boolean bool) {
+    JsonBooleanImpl(Boolean bool, int r, int c) {
         theBoolean = bool;
+        row = r;
+        col = c;
     }
 
     @Override
     public boolean value() {
         return theBoolean;
+    }
+
+    @Override
+    public int row() {
+        return row;
+    }
+
+    @Override
+    public int col() {
+        return col;
     }
 
     @Override

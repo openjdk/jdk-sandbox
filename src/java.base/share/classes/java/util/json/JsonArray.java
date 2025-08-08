@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 
 import jdk.internal.javac.PreviewFeature;
 import jdk.internal.util.json.JsonArrayImpl;
+import jdk.internal.util.json.JsonValueImpl;
 
 /**
  * The interface that represents JSON array.
@@ -73,7 +74,14 @@ public non-sealed interface JsonArray extends JsonValue {
      */
     @Override
     default JsonValue element(int index) {
-        return values().get(index);
+        try {
+            return values().get(index);
+        } catch (IndexOutOfBoundsException _) {
+            throw new JsonAssertionException(
+                    "Array index '%d' is out of bounds.".formatted(index) +
+                    (this instanceof JsonValueImpl jvi && jvi.row() > -1 && jvi.col() > -1 ?
+                    " Location in the document: row %d, col %d.".formatted(jvi.row(), jvi.col()) : ""));
+        }
     }
 
     /**

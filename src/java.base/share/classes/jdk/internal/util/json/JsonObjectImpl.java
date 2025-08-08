@@ -36,17 +36,35 @@ import jdk.internal.ValueBased;
  * JsonObject implementation class
  */
 @ValueBased
-public final class JsonObjectImpl implements JsonObject {
+public final class JsonObjectImpl implements JsonObject, JsonValueImpl {
 
     private final Map<String, JsonValue> theMembers;
+    private final int row;
+    private final int col;
 
     public JsonObjectImpl(Map<String, JsonValue> map) {
+        this(map, -1, -1);
+    }
+
+    public JsonObjectImpl(Map<String, JsonValue> map, int r, int c) {
         theMembers = map;
+        row = r;
+        col = c;
     }
 
     @Override
     public Map<String, JsonValue> members() {
         return Collections.unmodifiableMap(theMembers);
+    }
+
+    @Override
+    public int row() {
+        return row;
+    }
+
+    @Override
+    public int col() {
+        return col;
     }
 
     @Override

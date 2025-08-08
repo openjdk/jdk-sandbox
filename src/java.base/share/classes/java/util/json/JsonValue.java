@@ -26,6 +26,7 @@
 package java.util.json;
 
 import jdk.internal.javac.PreviewFeature;
+import jdk.internal.util.json.JsonValueImpl;
 
 /**
  * The interface that represents a JSON value.
@@ -93,33 +94,35 @@ public sealed interface JsonValue
     /**
      * If this {@code JsonValue} is a {@code JsonObject}, this method returns
      * the member associated with the {@code name}. If this is not a
-     * {@code JsonObject}, an {@code IllegalStateException} will be thrown.
+     * {@code JsonObject}, a {@code JsonAssertionException} will be thrown.
      *
      * @param name the member name
-     * @throws IllegalStateException if this is not a {@code JsonObject}.
-     * @throws IllegalArgumentException if the specified {@code name} does
-     *      not exist in this {@code JsonObject}.
-     * @return the member of this {@code JsonObject} associated with the
-     *      {@code name}}.
+     * @throws JsonAssertionException if this is not a {@code JsonObject} or
+     *      if the specified {@code name} does not exist in this {@code JsonObject}.
+     * @return the member of this {@code JsonObject} associated with the {@code name}}.
      */
     default JsonValue member(String name) {
-        throw new IllegalStateException("Not a JsonObject");
+        throw new JsonAssertionException(
+                "Not a JsonObject." +
+                (this instanceof JsonValueImpl jvi && jvi.row() > -1 && jvi.col() > -1 ?
+                " Location in the document: row %d, col %d.".formatted(jvi.row(), jvi.col()) : ""));
     }
 
     /**
      * If this {@code JsonValue} is a {@code JsonArray}, this method returns
      * the element of this {@code JsonArray} at the {@code index}. If this is
-     * not a {@code JsonArray}, an {@code IllegalStateException} will be
+     * not a {@code JsonArray}, a {@code JsonAssertionException} will be
      * thrown.
      *
      * @param index the index of the array
-     * @throws IllegalStateException if this is not a {@code JsonArray}.
-     * @throws IndexOutOfBoundsException if the specified {@code index}
-     *      is out of bounds of this {@code JsonArray}.
-     * @return the element of this {@code JsonArray} at the
-     *      {@code index}.
+     * @throws JsonAssertionException if this is not a {@code JsonArray} or if
+     *      the specified {@code index} is out of bounds of this {@code JsonArray}.
+     * @return the element of this {@code JsonArray} at the {@code index}.
      */
     default JsonValue element(int index) {
-        throw new IllegalStateException("Not a JsonArray");
+        throw new JsonAssertionException(
+                "Not a JsonArray." +
+                (this instanceof JsonValueImpl jvi && jvi.row() > -1 && jvi.col() > -1 ?
+                " Location in the document: row %d, col %d.".formatted(jvi.row(), jvi.col()) : ""));
     }
 }
