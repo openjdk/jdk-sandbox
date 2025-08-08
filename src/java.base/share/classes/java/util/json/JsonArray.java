@@ -71,6 +71,8 @@ public non-sealed interface JsonArray extends JsonValue {
 
     /**
      * {@return the element of this {@code JsonArray} at the {@code index}}
+     * @throws IllegalArgumentException if the specified {@code index} is out of
+     *      bounds of this {@code JsonArray}.
      */
     @Override
     default JsonValue element(int index) {

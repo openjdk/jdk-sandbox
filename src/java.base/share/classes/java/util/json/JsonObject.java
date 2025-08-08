@@ -74,6 +74,8 @@ public non-sealed interface JsonObject extends JsonValue {
     }
     /**
      * {@return the member associated with the {@code name}}
+     * @throws IllegalArgumentException if the specified {@code name} does not
+     *      exist in this {@code JsonObject}.
      */
     @Override
     default JsonValue member(String name) {
