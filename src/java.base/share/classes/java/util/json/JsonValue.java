@@ -104,7 +104,7 @@ public sealed interface JsonValue
      *      exist in this {@code JsonObject}.
      * @throws NullPointerException if {@code name} is {@code null}.
      * @throws JsonAssertionException if {@code this} is not a {@code JsonObject}.
-     * @return the member of this {@code JsonObject} associated with the {@code name}}.
+     * @return the member of this {@code JsonObject} associated with the {@code name}.
      */
     default JsonValue member(String name) {
         Objects.requireNonNull(name);
