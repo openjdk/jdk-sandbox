@@ -43,7 +43,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class TestAssertion {
 
-    private static final JsonValue JSON = Json.parse(
+    private static final JsonValue JSON_ROOT_OBJECT = Json.parse(
             """
             {
                 "id" : 1,
@@ -51,25 +51,42 @@ public class TestAssertion {
             }
             """);
 
+    private static final JsonValue JSON_NESTED_ARRAY =
+            JSON_ROOT_OBJECT.member("values");
+
 
     @Test
     void basicTraverseTest() {
-        JSON.member("id");
-        assertEquals(JsonString.of("value"), JSON.member("values").element(0));
-        assertEquals(JsonNull.of(), JSON.member("values").element(1));
+        JSON_ROOT_OBJECT.member("id");
+        assertEquals(JsonString.of("value"), JSON_ROOT_OBJECT.member("values").element(0));
+        assertEquals(JsonNull.of(), JSON_ROOT_OBJECT.member("values").element(1));
+    }
+
+    // Operations on JsonObject
+    @Test
+    void failObjectTraverseTest() {
+        // Points to the start of the root object -> { ...
+        assertEquals("JsonObject is not a JsonArray. Document location: row 0, col 0.",
+                assertThrows(JsonAssertionException.class, () -> JSON_ROOT_OBJECT.element(0)).getMessage());
+        assertEquals("JsonObject member 'car' does not exist. Document location: row 0, col 0.",
+                assertThrows(IllegalArgumentException.class, () -> JSON_ROOT_OBJECT.member("car")).getMessage());
+    }
+
+    // Operations on JsonArray
+    @Test
+    void failArrayTraverseTest() {
+        // Points to the JsonArray value of "values"; starts at -> [ "value", null ] ...
+        assertEquals("JsonArray is not a JsonObject. Document location: row 2, col 15.",
+                assertThrows(JsonAssertionException.class, () -> JSON_NESTED_ARRAY.member("foo")).getMessage());
+        assertEquals("JsonArray index '3' is out of bounds. Document location: row 2, col 15.",
+                assertThrows(IllegalArgumentException.class, () -> JSON_NESTED_ARRAY.element(3)).getMessage());
     }
 
     @Test
-    void failTraverseTest() {
-        // Points to the start of the root object -> { ...
-        assertEquals("Not a JsonArray. Location in the document: row 0, col 0.",
-                assertThrows(JsonAssertionException.class, () -> JSON.element(0)).getMessage());
-        assertEquals("Object member 'car' does not exist. Location in the document: row 0, col 0.",
-                assertThrows(IllegalArgumentException.class, () -> JSON.member("car")).getMessage());
-        // Points to the JsonArray value of "values"; starts at -> [ "value", null ] ...
-        assertEquals("Not a JsonObject. Location in the document: row 2, col 15.",
-                assertThrows(JsonAssertionException.class, () -> JSON.member("values").member("foo")).getMessage());
-        assertEquals("Array index '3' is out of bounds. Location in the document: row 2, col 15.",
-                assertThrows(IllegalArgumentException.class, () -> JSON.member("values").element(3)).getMessage());
+    void failNPETest() {
+        // NPE at JsonObject
+        assertThrows(NullPointerException.class, () -> JSON_ROOT_OBJECT.member(null));
+        // NPE at JsonValue
+        assertThrows(NullPointerException.class, () -> JSON_NESTED_ARRAY.member(null));
     }
 }

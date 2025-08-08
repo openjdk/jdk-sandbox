@@ -78,9 +78,10 @@ public non-sealed interface JsonArray extends JsonValue {
             return values().get(index);
         } catch (IndexOutOfBoundsException _) {
             throw new IllegalArgumentException(
-                    "Array index '%d' is out of bounds.".formatted(index) +
+                    "JsonArray index '%d' is out of bounds.".formatted(index) +
                     (this instanceof JsonValueImpl jvi && jvi.row() > -1 && jvi.col() > -1 ?
-                    " Location in the document: row %d, col %d.".formatted(jvi.row(), jvi.col()) : ""));
+                    " Document location: row %d, col %d."
+                    .formatted(jvi.row(), jvi.col()) : ""));
         }
     }
 

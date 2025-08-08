@@ -28,7 +28,12 @@ package jdk.internal.util.json;
 import java.util.List;
 import java.util.Map;
 import java.util.json.JsonArray;
+import java.util.json.JsonAssertionException;
+import java.util.json.JsonBoolean;
+import java.util.json.JsonNull;
+import java.util.json.JsonNumber;
 import java.util.json.JsonObject;
+import java.util.json.JsonString;
 import java.util.json.JsonValue;
 
 /**
@@ -92,5 +97,21 @@ public class Utils {
             }
         }
         return sb == null ? str : sb.toString();
+    }
+
+    // Use to compose an exception when casting to an incorrect type
+    public static JsonAssertionException composeTypeError(JsonValue jv, String expected) {
+        var actual = switch (jv) {
+            case JsonObject _ -> "JsonObject";
+            case JsonArray _ -> "JsonArray";
+            case JsonBoolean _ -> "JsonBoolean";
+            case JsonNull _ -> "JsonNull";
+            case JsonNumber _ -> "JsonNumber";
+            case JsonString _ -> "JsonString";
+        };
+        return new JsonAssertionException(
+                "%s is not a %s.".formatted(actual, expected) +
+                (jv instanceof JsonValueImpl jvi && jvi.row() > -1 && jvi.col() > -1 ?
+                " Document location: row %d, col %d.".formatted(jvi.row(), jvi.col()) : ""));
     }
 }

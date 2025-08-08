@@ -27,6 +27,9 @@ package java.util.json;
 
 import jdk.internal.javac.PreviewFeature;
 import jdk.internal.util.json.JsonValueImpl;
+import jdk.internal.util.json.Utils;
+
+import java.util.Objects;
 
 /**
  * The interface that represents a JSON value.
@@ -99,14 +102,13 @@ public sealed interface JsonValue
      * @param name the member name
      * @throws IllegalArgumentException if the specified {@code name} does not
      *      exist in this {@code JsonObject}.
+     * @throws NullPointerException if {@code name} is {@code null}.
      * @throws JsonAssertionException if {@code this} is not a {@code JsonObject}.
      * @return the member of this {@code JsonObject} associated with the {@code name}}.
      */
     default JsonValue member(String name) {
-        throw new JsonAssertionException(
-                "Not a JsonObject." +
-                (this instanceof JsonValueImpl jvi && jvi.row() > -1 && jvi.col() > -1 ?
-                " Location in the document: row %d, col %d.".formatted(jvi.row(), jvi.col()) : ""));
+        Objects.requireNonNull(name);
+        throw Utils.composeTypeError(this, "JsonObject");
     }
 
     /**
@@ -122,9 +124,6 @@ public sealed interface JsonValue
      * @return the element of this {@code JsonArray} at the {@code index}.
      */
     default JsonValue element(int index) {
-        throw new JsonAssertionException(
-                "Not a JsonArray." +
-                (this instanceof JsonValueImpl jvi && jvi.row() > -1 && jvi.col() > -1 ?
-                " Location in the document: row %d, col %d.".formatted(jvi.row(), jvi.col()) : ""));
+        throw Utils.composeTypeError(this, "JsonArray");
     }
 }
