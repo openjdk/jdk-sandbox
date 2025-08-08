@@ -65,11 +65,11 @@ public class TestAssertion {
         assertEquals("Not a JsonArray. Location in the document: row 0, col 0.",
                 assertThrows(JsonAssertionException.class, () -> JSON.element(0)).getMessage());
         assertEquals("Object member 'car' does not exist. Location in the document: row 0, col 0.",
-                assertThrows(JsonAssertionException.class, () -> JSON.member("car")).getMessage());
-        // Points to where the value of "values" starts at -> [ "value", null ]
+                assertThrows(IllegalArgumentException.class, () -> JSON.member("car")).getMessage());
+        // Points to the JsonArray value of "values"; starts at -> [ "value", null ] ...
         assertEquals("Not a JsonObject. Location in the document: row 2, col 15.",
                 assertThrows(JsonAssertionException.class, () -> JSON.member("values").member("foo")).getMessage());
         assertEquals("Array index '3' is out of bounds. Location in the document: row 2, col 15.",
-                assertThrows(JsonAssertionException.class, () -> JSON.member("values").element(3)).getMessage());
+                assertThrows(IllegalArgumentException.class, () -> JSON.member("values").element(3)).getMessage());
     }
 }

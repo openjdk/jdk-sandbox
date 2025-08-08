@@ -93,12 +93,13 @@ public sealed interface JsonValue
 
     /**
      * If this {@code JsonValue} is a {@code JsonObject}, this method returns
-     * the member associated with the {@code name}. If this is not a
+     * the member associated with the {@code name}. If {@code this} is not a
      * {@code JsonObject}, a {@code JsonAssertionException} will be thrown.
      *
      * @param name the member name
-     * @throws JsonAssertionException if this is not a {@code JsonObject} or
-     *      if the specified {@code name} does not exist in this {@code JsonObject}.
+     * @throws IllegalArgumentException if the specified {@code name} does not
+     *      exist in this {@code JsonObject}.
+     * @throws JsonAssertionException if {@code this} is not a {@code JsonObject}.
      * @return the member of this {@code JsonObject} associated with the {@code name}}.
      */
     default JsonValue member(String name) {
@@ -110,13 +111,14 @@ public sealed interface JsonValue
 
     /**
      * If this {@code JsonValue} is a {@code JsonArray}, this method returns
-     * the element of this {@code JsonArray} at the {@code index}. If this is
-     * not a {@code JsonArray}, a {@code JsonAssertionException} will be
+     * the element of this {@code JsonArray} at the {@code index}. If {@code this}
+     * is not a {@code JsonArray}, a {@code JsonAssertionException} will be
      * thrown.
      *
      * @param index the index of the array
-     * @throws JsonAssertionException if this is not a {@code JsonArray} or if
-     *      the specified {@code index} is out of bounds of this {@code JsonArray}.
+     * @throws IllegalArgumentException if the specified {@code index} is out of
+     *      bounds of this {@code JsonArray}.
+     * @throws JsonAssertionException if {@code this} is not a {@code JsonArray}.
      * @return the element of this {@code JsonArray} at the {@code index}.
      */
     default JsonValue element(int index) {
