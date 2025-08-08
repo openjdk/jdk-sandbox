@@ -34,7 +34,7 @@ import java.util.NoSuchElementException;
 import java.util.List;
 
 import static java.lang.foreign.ValueLayout.JAVA_BYTE;
-import static sun.nio.ch.iouring.foreign.iouring_h.*;
+import static jdk.internal.ffi.generated.iouring.iouring_h.*;
 
 @SuppressWarnings("restricted")
 class Util {

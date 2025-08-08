@@ -31,10 +31,10 @@ import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.concurrent.atomic.AtomicInteger;
-import static sun.nio.ch.iouring.foreign.iouring_h.IOSQE_IO_LINK;
-import static sun.nio.ch.iouring.foreign.iouring_h_1.IORING_OP_MSG_RING;
-import static sun.nio.ch.iouring.foreign.iouring_h_1.IORING_OP_POLL_ADD;
-import static sun.nio.ch.iouring.foreign.iouring_h_1.IORING_OP_POLL_REMOVE;
+import static jdk.internal.ffi.generated.iouring.iouring_h.IOSQE_IO_LINK;
+import static jdk.internal.ffi.generated.iouring.iouring_h_1.IORING_OP_MSG_RING;
+import static jdk.internal.ffi.generated.iouring.iouring_h_1.IORING_OP_POLL_ADD;
+import static jdk.internal.ffi.generated.iouring.iouring_h_1.IORING_OP_POLL_REMOVE;
 
 /**
  * Provides an API to io_ring. Submission is synchronized so can be called

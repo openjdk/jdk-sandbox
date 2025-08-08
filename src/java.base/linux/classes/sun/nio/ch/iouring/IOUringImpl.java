@@ -25,7 +25,7 @@
 
 package sun.nio.ch.iouring;
 
-import sun.nio.ch.iouring.foreign.*;
+import jdk.internal.ffi.generated.iouring.*;
 
 import java.io.IOException;
 import java.lang.foreign.*;
@@ -39,9 +39,9 @@ import static sun.nio.ch.iouring.Util.strerror;
 import static sun.nio.ch.iouring.Util.locateHandleFromLib;
 import static sun.nio.ch.iouring.Util.locateStdHandle;
 import static sun.nio.ch.iouring.Util.INT_POINTER;
-import static sun.nio.ch.iouring.foreign.iouring_h.*;
-import static sun.nio.ch.iouring.foreign.iouring_h_1.IORING_REGISTER_EVENTFD;
-import static sun.nio.ch.iouring.foreign.iouring_h_1.IORING_UNREGISTER_EVENTFD;
+import static jdk.internal.ffi.generated.iouring.iouring_h.*;
+import static jdk.internal.ffi.generated.iouring.iouring_h_1.IORING_REGISTER_EVENTFD;
+import static jdk.internal.ffi.generated.iouring.iouring_h_1.IORING_UNREGISTER_EVENTFD;
 
 /**
  * Low level interface to a Linux io_uring. It provides an asynchronous
@@ -725,9 +725,9 @@ public class IOUringImpl {
 
     /**
      * offset (when mapping IOURING segments) must be one of:
-     *      sun.nio.ch.iouring.foreign.iouring_h.IORING_OFF_SQ_RING()
-     *      sun.nio.ch.iouring.foreign.iouring_h.IORING_OFF_CQ_RING()
-     *      sun.nio.ch.iouring.foreign.iouring_h.IORING_OFF_SQES()
+     *      jdk.internal.ffi.generated.iouring.iouring_h.IORING_OFF_SQ_RING()
+     *      jdk.internal.ffi.generated.iouring.iouring_h.IORING_OFF_CQ_RING()
+     *      jdk.internal.ffi.generated.iouring.iouring_h.IORING_OFF_SQES()
      *
      * @param size
      * @param fd

@@ -25,8 +25,8 @@
 
 package sun.nio.ch.iouring;
 
-import sun.nio.ch.iouring.foreign.io_uring_rsrc_register;
-import sun.nio.ch.iouring.foreign.iovec;
+import jdk.internal.ffi.generated.iouring.io_uring_rsrc_register;
+import jdk.internal.ffi.generated.iouring.iovec;
 
 import java.io.IOException;
 import java.lang.foreign.Arena;
@@ -41,7 +41,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static sun.nio.ch.iouring.Util.locateStdHandle;
-import static sun.nio.ch.iouring.foreign.iouring_h.IORING_REGISTER_BUFFERS2;
+import static jdk.internal.ffi.generated.iouring.iouring_h.IORING_REGISTER_BUFFERS2;
 
 /**
  * Kernel mapped direct ByteBuffers. Buffers are allocated by the constructor
