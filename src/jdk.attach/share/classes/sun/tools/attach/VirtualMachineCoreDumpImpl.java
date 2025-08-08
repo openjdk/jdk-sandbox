@@ -28,9 +28,12 @@ import com.sun.tools.attach.AgentLoadException;
 import com.sun.tools.attach.AttachNotSupportedException;
 import com.sun.tools.attach.spi.AttachProvider;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -77,7 +80,7 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
     /**
      * Execute the given command in the target VM.
      */
-    InputStream execute(String cmd, Object ... args) throws AgentLoadException, IOException {
+    InputStream execute(String cmd, Object ... args) throws IOException {
         checkNulls(args);
 
         // Only 'jcmd' command is implemented.
@@ -121,9 +124,37 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
         String path = System.getenv("PATH");
         newEnv.put("PATH", System.getProperty("java.home") + File.separator + "bin" + File.pathSeparator + path);
 
+        // Run the helper.
+        // Be prepared for it to fail, if Address Space Layout Randomization is unkind, and causes a clash.
+        // Recognise the process return value and retry some small number of times.
+        int tries = 5;
         Process p = pb.start();
-        InputStream is = null;
-        is = p.getInputStream();
+        InputStream is = p.getInputStream();
+
+        for (int i = 0; i < tries; i++) {
+            try {
+                // Need a better signal here...
+                Thread.sleep(1000);
+                if (!p.isAlive()) {
+                    int e = p.waitFor();
+                    if (e == 7 || e == 134) {
+                    // Possibly show if verbose:
+                    if (Boolean.getBoolean("jdk.attach.core.verbose")) {
+                        // Show failed attempt
+                        // drainUTF8(is, System.out); 
+                    }
+                    System.out.println("RETRY");
+                    p = pb.start();
+                    is = p.getInputStream();
+                    continue;
+                    // ...and re-check.
+                    }
+                }
+                break; // No retry.
+            } catch (InterruptedException ie) {
+                // ignore
+            }
+        }
 /*        try {
             int e = p.waitFor();
         if (e != 0) {
@@ -135,9 +166,29 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
         return is;
     }
 
-//    static native void write(int fd, byte buf[], int off, int bufLen) throws IOException;
+    public static long drainUTF8(InputStream is, PrintStream ps) throws IOException {
+        long result = 0;
 
-    static {
-        System.loadLibrary("attach");
+        try (BufferedInputStream bis = new BufferedInputStream(is);
+             InputStreamReader isr = new InputStreamReader(bis, UTF_8)) {
+            char c[] = new char[256];
+            int n;
+
+            do {
+                n = isr.read(c);
+
+                if (n > 0) {
+                    result += n;
+                    ps.print(n == c.length ? c : Arrays.copyOf(c, n));
+                }
+            } while (n > 0);
+        }
+
+        return result;
     }
+
+//    static native void write(int fd, byte buf[], int off, int bufLen) throws IOException;
+/*    static {
+        System.loadLibrary("attach");
+    } */
 }
