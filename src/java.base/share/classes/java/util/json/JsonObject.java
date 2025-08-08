@@ -71,6 +71,17 @@ public non-sealed interface JsonObject extends JsonValue {
                         e -> Objects.requireNonNull(e.getKey()), Map.Entry::getValue, // Implicit NPE on val
                         (_, v) -> v, LinkedHashMap::new)));
     }
+    /**
+     * {@return the member associated with the {@code name}}
+     */
+    @Override
+    default JsonValue member(String name) {
+        return switch (members().get(name)) {
+            case JsonValue jv -> jv;
+            case null -> throw new IllegalArgumentException(
+                "Object member '%s' does not exist".formatted(name));
+        };
+    }
 
     /**
      * {@return {@code true} if the given object is also a {@code JsonObject}

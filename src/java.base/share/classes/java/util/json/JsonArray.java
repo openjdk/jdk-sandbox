@@ -69,6 +69,14 @@ public non-sealed interface JsonArray extends JsonValue {
     }
 
     /**
+     * {@return the member associated with the {@code name}}
+     */
+    @Override
+    default JsonValue element(int index) {
+        return values().get(index);
+    }
+
+    /**
      * {@return {@code true} if the given object is also a {@code JsonArray}
      * and the two {@code JsonArray}s represent the same elements} Two
      * {@code JsonArray}s {@code ja1} and {@code ja2} represent the same

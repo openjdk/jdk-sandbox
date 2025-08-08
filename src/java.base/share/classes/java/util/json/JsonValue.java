@@ -91,40 +91,35 @@ public sealed interface JsonValue
     String toString();
 
     /**
-     * {@return the member of this {@code JsonObject} associated with the
-     * {@code name}} If this is not a {@code JsonObject}, an
-     * {@code IllegalStateException} will be thrown.
+     * If this {@code JsonValue} is a {@code JsonObject}, this method returns
+     * the member associated with the {@code name}. If this is not a
+     * {@code JsonObject}, an {@code IllegalStateException} will be thrown.
      *
      * @param name the member name
      * @throws IllegalStateException if this is not a {@code JsonObject}.
      * @throws IllegalArgumentException if the specified {@code name} does
      *      not exist in this {@code JsonObject}.
+     * @return the member of this {@code JsonObject} associated with the
+     *      {@code name}}.
      */
     default JsonValue member(String name) {
-        return switch (this) {
-            case JsonObject jo -> switch (jo.members().get(name)) {
-                case JsonValue jv -> jv;
-                case null -> throw new IllegalArgumentException(
-                        "Object member '%s' does not exist".formatted(name));
-            };
-            default -> throw new IllegalStateException("Not a JsonObject");
-        };
+        throw new IllegalStateException("Not a JsonObject");
     }
 
     /**
-     * {@return the element of this {@code JsonArray} at the
-     * {@code index}} If this is not a {@code JsonArray}, an
-     * {@code IllegalStateException} will be thrown.
+     * If this {@code JsonValue} is a {@code JsonArray}, this method returns
+     * the element of this {@code JsonArray} at the {@code index}. If this is
+     * not a {@code JsonArray}, an {@code IllegalStateException} will be
+     * thrown.
      *
      * @param index the index of the array
      * @throws IllegalStateException if this is not a {@code JsonArray}.
      * @throws IndexOutOfBoundsException if the specified {@code index}
      *      is out of bounds of this {@code JsonArray}.
+     * @return the element of this {@code JsonArray} at the
+     *      {@code index}.
      */
     default JsonValue element(int index) {
-        return switch (this) {
-            case JsonArray ja -> ja.values().get(index);
-            default -> throw new IllegalStateException("Not a JsonArray");
-        };
+        throw new IllegalStateException("Not a JsonArray");
     }
 }
