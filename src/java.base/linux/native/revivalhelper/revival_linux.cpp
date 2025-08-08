@@ -401,7 +401,6 @@ class ELFOperations {
             p++;
         }
         // Adjust dynamic table entry:
-        //dyn->d_un.d_val += displacement;
         dyn->d_un.d_ptr += displacement;
     }
 
@@ -416,8 +415,10 @@ class ELFOperations {
             if (dyn->d_tag == DT_INIT_ARRAY) {
                 int count = find_dynamic_value(s, DT_INIT_ARRAYSZ) / sizeof(uint64_t);
                 relocate_dyn_array(displacement, dyn, count);
+            } else if (dyn->d_tag == DT_FINI_ARRAY) {
+                int count = find_dynamic_value(s, DT_FINI_ARRAYSZ) / sizeof(uint64_t);
+                relocate_dyn_array(displacement, dyn, count);
             } else if (should_relocate_dynamic_tag(dyn)) {
-               //dyn->d_un.d_val += displacement;
                dyn->d_un.d_ptr += displacement;
             }
         }
@@ -912,7 +913,8 @@ bool is_safefetch_fault(void *pc) {
 void *continuation_for_safefetch_fault(void *pc) {
     if (pc == safefetch32_fault_pc) return safefetch32_continuation_pc;
     if (pc == safefetchN_fault_pc) return safefetchN_continuation_pc;
-    abort();
+    exitForRetry();
+    abort(); // Not reached
 }
 
 
@@ -1060,8 +1062,8 @@ void handler(int sig, siginfo_t *info, void *ucontext) {
     for (iter = failedSegments.begin(); iter != failedSegments.end(); iter++) {
         if (addr >= iter->vaddr &&
                 (unsigned long long) addr < (unsigned long long) (iter->vaddr) + (unsigned long long)(iter->length) ) {
-            warn("Access to segment that failed to revive: si_addr = %p found failed segment %p", addr, iter->vaddr);
-            abort();
+            warn("Access to segment that failed to revive: si_addr = %p in failed segment %p", addr, iter->vaddr);
+            exitForRetry();
         }
     }
 
@@ -1079,8 +1081,8 @@ void handler(int sig, siginfo_t *info, void *ucontext) {
             return;
         }
     }
-    warn("handler: si_addr = %p : not handling, abort...", addr);
-    abort();
+    warn("handler: si_addr = %p : not handled.", addr);
+    exitForRetry();
 }
 
 /*
@@ -1140,26 +1142,32 @@ void *base_address_for_sharedobject_live(void *h) {
 void *load_sharedobject_verify_pd(const char *name, void *vaddr) {
 
     void *actual = nullptr;
-    int tries = 1; // can try unload and retry if not as requested.
+    int tries = 1; // could try unload and retry if final vaddr not as requested.
 
     for (int i = 0; i < tries; i++) {
         void *h = dlopen(name,  RTLD_NOW | RTLD_GLOBAL);
 
         if (!h) {
-            warn("load_sharedobject_pd: %s: %s", name, dlerror());
+            warn("load_sharedobject_pd: dlopen failed: %s: %s", name, dlerror());
             return (void *) -1;
         }
 
         actual = base_address_for_sharedobject_live(h);
         if (verbose) {
-            fprintf(stderr, "%d  load_sharedobject_pd: actual = %p \n", i, actual);
+            fprintf(stderr, "load_sharedobject_pd %d: actual = %p \n", i, actual);
         }
 
         if (actual == (void *) 0 || actual == vaddr) {
-            break;
+            return h;
         }
 
-        // Wrong address, dlclose and map/block.
+        // Wrong address:
+        // Most likely, Address Space Layout Randomisation has given us an inhospitable layout,
+        // e.g. libc where we want to have libjvm.
+        // Terminate with a value that means caller should retry:
+        exitForRetry();
+
+        // Other alternative tested was: dlclose and map/block.  But not successful.
         unload_sharedobject_pd(h);
         /* void *block = */ do_map_allocate_pd(actual, vaddr_alignment_pd());
         i++;

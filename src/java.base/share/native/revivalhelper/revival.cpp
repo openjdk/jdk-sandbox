@@ -64,6 +64,9 @@ char *jvm_filename = nullptr;
 void *jvm_address = nullptr;
 std::list<Segment> avoidSegments;
 
+void exitForRetry() {
+    _exit(7);
+}
 
 address align_down(address ptr, uint64_t mask) {
     return ptr & ~mask;

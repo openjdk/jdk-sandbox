@@ -172,6 +172,7 @@ extern const char *revivaldir;
 extern void *revivalthread;
 extern void *h; // handle to libjvm
 
+extern void exitForRetry(); // Signal an address space clash that may be temporary.
 
 struct SharedLibMapping {
     uint64_t start;
