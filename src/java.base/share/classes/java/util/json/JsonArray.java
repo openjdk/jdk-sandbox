@@ -69,7 +69,7 @@ public non-sealed interface JsonArray extends JsonValue {
     }
 
     /**
-     * {@return the member associated with the {@code name}}
+     * {@return the element of this {@code JsonArray} at the {@code index}}
      */
     @Override
     default JsonValue element(int index) {
