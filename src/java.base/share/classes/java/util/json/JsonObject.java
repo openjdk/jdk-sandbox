@@ -25,6 +25,7 @@
 
 package java.util.json;
 
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -87,6 +88,14 @@ public non-sealed interface JsonObject extends JsonValue {
                     " Document location: row %d, col %d."
                     .formatted(jvi.row(), jvi.col()) : ""));
         };
+    }
+
+    @Override
+    default Object untyped() {
+        return members().entrySet().stream()
+            .collect(LinkedHashMap::new, // Avoid Collectors.toMap, to allow `null` value
+                (m, e) -> m.put(e.getKey(), e.getValue().untyped()),
+                HashMap::putAll);
     }
 
     /**

@@ -46,6 +46,11 @@ public non-sealed interface JsonNull extends JsonValue {
         return JsonNullImpl.NULL;
     }
 
+    @Override
+    default Object untyped() {
+        return null;
+    }
+
     /**
      * {@return true if the given {@code obj} is a {@code JsonNull}}
      */

@@ -56,6 +56,11 @@ public non-sealed interface JsonBoolean extends JsonValue {
         return src ? JsonBooleanImpl.TRUE : JsonBooleanImpl.FALSE;
     }
 
+    @Override
+    default Object untyped() {
+        return value();
+    }
+
     /**
      * {@return {@code true} if the given object is also a {@code JsonBoolean}
      * and the two {@code JsonBoolean}s represent the same boolean value} Two

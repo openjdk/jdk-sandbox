@@ -183,6 +183,11 @@ public non-sealed interface JsonNumber extends JsonValue {
     @Override
     String toString();
 
+    @Override
+    default Object untyped() {
+        return toNumber();
+    }
+
     /**
      * {@return true if the given {@code obj} is equal to this {@code JsonNumber}}
      * The comparison is based on the string representation of this {@code JsonNumber},

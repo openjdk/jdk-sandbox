@@ -87,6 +87,13 @@ public non-sealed interface JsonArray extends JsonValue {
         }
     }
 
+    @Override
+    default Object untyped() {
+        return values().stream()
+            .map(JsonValue::untyped)
+            .toList();
+    }
+
     /**
      * {@return {@code true} if the given object is also a {@code JsonArray}
      * and the two {@code JsonArray}s represent the same elements} Two

@@ -86,6 +86,11 @@ public non-sealed interface JsonString extends JsonValue {
      */
     String value();
 
+    @Override
+    default Object untyped() {
+        return value();
+    }
+
     /**
      * {@return true if the given {@code obj} is equal to this {@code JsonString}}
      * Two {@code JsonString}s {@code js1} and {@code js2} represent the same value

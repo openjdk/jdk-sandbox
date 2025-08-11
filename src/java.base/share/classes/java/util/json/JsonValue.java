@@ -26,7 +26,6 @@
 package java.util.json;
 
 import jdk.internal.javac.PreviewFeature;
-import jdk.internal.util.json.JsonValueImpl;
 import jdk.internal.util.json.Utils;
 
 import java.util.Objects;
@@ -126,4 +125,9 @@ public sealed interface JsonValue
     default JsonValue element(int index) {
         throw Utils.composeTypeError(this, "JsonArray");
     }
+
+    /**
+     * {@return an untyped {@code Object} for this {@code JsonValue}}
+     */
+    Object untyped();
 }
