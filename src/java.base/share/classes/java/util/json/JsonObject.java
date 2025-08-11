@@ -91,10 +91,10 @@ public non-sealed interface JsonObject extends JsonValue {
     }
 
     @Override
-    default Object untyped() {
+    default Object untype() {
         return members().entrySet().stream()
             .collect(LinkedHashMap::new, // Avoid Collectors.toMap, to allow `null` value
-                (m, e) -> m.put(e.getKey(), e.getValue().untyped()),
+                (m, e) -> m.put(e.getKey(), e.getValue().untype()),
                 HashMap::putAll);
     }
 

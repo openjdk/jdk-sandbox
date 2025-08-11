@@ -57,7 +57,7 @@ public non-sealed interface JsonBoolean extends JsonValue {
     }
 
     @Override
-    default Object untyped() {
+    default Object untype() {
         return value();
     }
 

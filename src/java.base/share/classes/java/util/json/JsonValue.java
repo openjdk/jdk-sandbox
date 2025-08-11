@@ -129,5 +129,5 @@ public sealed interface JsonValue
     /**
      * {@return an untyped {@code Object} for this {@code JsonValue}}
      */
-    Object untyped();
+    Object untype();
 }

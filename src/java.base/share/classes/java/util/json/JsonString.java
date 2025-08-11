@@ -87,7 +87,7 @@ public non-sealed interface JsonString extends JsonValue {
     String value();
 
     @Override
-    default Object untyped() {
+    default Object untype() {
         return value();
     }
 

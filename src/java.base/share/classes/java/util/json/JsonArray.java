@@ -88,9 +88,9 @@ public non-sealed interface JsonArray extends JsonValue {
     }
 
     @Override
-    default Object untyped() {
+    default Object untype() {
         return values().stream()
-            .map(JsonValue::untyped)
+            .map(JsonValue::untype)
             .toList();
     }
 

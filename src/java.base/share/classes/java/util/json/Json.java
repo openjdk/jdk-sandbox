@@ -248,7 +248,7 @@ public final class Json {
      * @see #fromUntyped(Object)
      */
     public static Object toUntyped(JsonValue src) {
-        return Objects.requireNonNull(src).untyped();
+        return Objects.requireNonNull(src).untype();
     }
 
     /**

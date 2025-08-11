@@ -47,7 +47,7 @@ public non-sealed interface JsonNull extends JsonValue {
     }
 
     @Override
-    default Object untyped() {
+    default Object untype() {
         return null;
     }
 
