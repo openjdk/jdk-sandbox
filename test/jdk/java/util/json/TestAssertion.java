@@ -33,7 +33,9 @@
 
 import java.util.json.Json;
 import java.util.json.JsonAssertionException;
+import java.util.json.JsonBoolean;
 import java.util.json.JsonNull;
+import java.util.json.JsonObject;
 import java.util.json.JsonString;
 import java.util.json.JsonValue;
 
@@ -45,30 +47,57 @@ public class TestAssertion {
 
     private static final JsonValue JSON_ROOT_OBJECT = Json.parse(
             """
-            {
+               {
                 "id" : 1,
-                "values" : [ "value", null ]
+                "values" : [ "value", null ],
+                "foo" : { "bar" : "baz" },
+                "qux" : [ [true], { "in" : { } } ],
+                "ba\\"zz" : ["Key with escape"]
             }
             """);
 
     private static final JsonValue JSON_NESTED_ARRAY =
-            JSON_ROOT_OBJECT.member("values");
-
+            // Don't use the API we are testing (member(String))
+            ((JsonObject) JSON_ROOT_OBJECT).members().get("values");
 
     @Test
     void basicTraverseTest() {
         JSON_ROOT_OBJECT.member("id");
         assertEquals(JsonString.of("value"), JSON_ROOT_OBJECT.member("values").element(0));
         assertEquals(JsonNull.of(), JSON_ROOT_OBJECT.member("values").element(1));
+        assertEquals(JsonBoolean.of(true), JSON_ROOT_OBJECT.member("qux").element(0).element(0));
+    }
+
+    // Ensure member name with escapes works
+    @Test
+    void escapedKeyTest() {
+        assertEquals("JsonArray index '1' is out of bounds. Path: \"{ba\\\"zz\". Location: row 5, col 15.",
+                assertThrows(IllegalArgumentException.class,
+                        () -> JSON_ROOT_OBJECT.member("ba\"zz").element(1)).getMessage());
+    }
+
+    @Test
+    void multiNestedTest() {
+        assertEquals("JsonObject member 'zap' does not exist. Path: \"{qux[1{in\". Location: row 4, col 31.",
+                assertThrows(IllegalArgumentException.class,
+                        () -> JSON_ROOT_OBJECT.member("qux").element(1).member("in").member("zap")).getMessage());
+    }
+
+    // Check array path building behavior for first element, expects '['.
+    @Test
+    void firstArrayElementTest() {
+        assertEquals("JsonArray index '5' is out of bounds. Path: \"{qux[0\". Location: row 4, col 14.",
+                assertThrows(IllegalArgumentException.class,
+                    () -> JSON_ROOT_OBJECT.member("qux").element(0).element(5)).getMessage());
     }
 
     // Operations on JsonObject
     @Test
     void failObjectTraverseTest() {
         // Points to the start of the root object -> { ...
-        assertEquals("JsonObject is not a JsonArray. Document location: row 0, col 0.",
+        assertEquals("JsonObject is not a JsonArray. Path: \"\". Location: row 0, col 3.",
                 assertThrows(JsonAssertionException.class, () -> JSON_ROOT_OBJECT.element(0)).getMessage());
-        assertEquals("JsonObject member 'car' does not exist. Document location: row 0, col 0.",
+        assertEquals("JsonObject member 'car' does not exist. Path: \"\". Location: row 0, col 3.",
                 assertThrows(IllegalArgumentException.class, () -> JSON_ROOT_OBJECT.member("car")).getMessage());
     }
 
@@ -76,9 +105,9 @@ public class TestAssertion {
     @Test
     void failArrayTraverseTest() {
         // Points to the JsonArray value of "values"; starts at -> [ "value", null ] ...
-        assertEquals("JsonArray is not a JsonObject. Document location: row 2, col 15.",
+        assertEquals("JsonArray is not a JsonObject. Path: \"{values\". Location: row 2, col 15.",
                 assertThrows(JsonAssertionException.class, () -> JSON_NESTED_ARRAY.member("foo")).getMessage());
-        assertEquals("JsonArray index '3' is out of bounds. Document location: row 2, col 15.",
+        assertEquals("JsonArray index '3' is out of bounds. Path: \"{values\". Location: row 2, col 15.",
                 assertThrows(IllegalArgumentException.class, () -> JSON_NESTED_ARRAY.element(3)).getMessage());
     }
 

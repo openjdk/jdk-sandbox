@@ -33,14 +33,12 @@ import jdk.internal.ValueBased;
  * JsonString implementation class
  */
 @ValueBased
-public final class JsonStringImpl implements JsonString, JsonValueImpl {
+public final class JsonStringImpl implements JsonString {
 
     private final char[] doc;
     private final int startOffset;
     private final int endOffset;
     private final boolean hasEscape;
-    private final int row;
-    private final int col;
 
     // The String instance representing this JSON string for `toString()`.
     // It always conforms to JSON syntax. If created by parsing a JSON document,
@@ -62,32 +60,18 @@ public final class JsonStringImpl implements JsonString, JsonValueImpl {
         startOffset = -1;
         endOffset = -1;
         hasEscape = false;
-        row = -1;
-        col = -1;
     }
 
-    public JsonStringImpl(char[] doc, int start, int end, boolean escape, int r, int c) {
+    public JsonStringImpl(char[] doc, int start, int end, boolean escape) {
         this.doc = doc;
         startOffset = start;
         endOffset = end;
         hasEscape = escape;
-        row = r;
-        col = c;
     }
 
     @Override
     public String value() {
         return value.orElseSet(this::unescape);
-    }
-
-    @Override
-    public int row() {
-        return row;
-    }
-
-    @Override
-    public int col() {
-        return col;
     }
 
     @Override

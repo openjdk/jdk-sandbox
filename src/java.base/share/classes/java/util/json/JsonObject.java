@@ -33,7 +33,8 @@ import java.util.stream.Collectors;
 
 import jdk.internal.javac.PreviewFeature;
 import jdk.internal.util.json.JsonObjectImpl;
-import jdk.internal.util.json.JsonValueImpl;
+import jdk.internal.util.json.JsonStructuralImpl;
+import jdk.internal.util.json.Utils;
 
 /**
  * The interface that represents JSON object.
@@ -73,6 +74,7 @@ public non-sealed interface JsonObject extends JsonValue {
                         e -> Objects.requireNonNull(e.getKey()), Map.Entry::getValue, // Implicit NPE on val
                         (_, v) -> v, LinkedHashMap::new)));
     }
+
     /**
      * {@return the member associated with the {@code name}}
      * @throws IllegalArgumentException if the specified {@code name} does not
@@ -84,9 +86,9 @@ public non-sealed interface JsonObject extends JsonValue {
             case JsonValue jv -> jv;
             case null -> throw new IllegalArgumentException(
                     "JsonObject member '%s' does not exist.".formatted(name) +
-                    (this instanceof JsonValueImpl jvi && jvi.row() > -1 && jvi.col() > -1 ?
-                    " Document location: row %d, col %d."
-                    .formatted(jvi.row(), jvi.col()) : ""));
+                    (this instanceof JsonStructuralImpl jsi && jsi.row() > -1 && jsi.col() > -1 ?
+                    " Path: \"%s\". Location: row %d, col %d."
+                    .formatted(Utils.toPath(jsi), jsi.row(), jsi.col()) : ""));
         };
     }
 

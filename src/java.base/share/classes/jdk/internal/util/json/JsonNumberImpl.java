@@ -36,7 +36,7 @@ import jdk.internal.ValueBased;
  * JsonNumber implementation class
  */
 @ValueBased
-public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
+public final class JsonNumberImpl implements JsonNumber {
 
     private final char[] doc;
     private final int startOffset;
@@ -45,8 +45,6 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     private final StableValue<Number> theNumber = StableValue.of();
     private final StableValue<String> numString = StableValue.of();
     private final StableValue<BigDecimal> cachedBD = StableValue.of();
-    private final int row;
-    private final int col;
 
     public JsonNumberImpl(Number num) {
         // Called by factories. Input is Double, Long, BI, or BD.
@@ -59,19 +57,15 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
         // unused
         startOffset = -1;
         endOffset = -1;
-        row = -1;
-        col = -1;
         isFp = false;
         doc = null;
     }
 
-    public JsonNumberImpl(char[] doc, int start, int end, boolean fp, int r, int c) {
+    public JsonNumberImpl(char[] doc, int start, int end, boolean fp) {
         this.doc = doc;
         startOffset = start;
         endOffset = end;
         isFp = fp;
-        row = r;
-        col = c;
     }
 
     @Override
@@ -105,16 +99,6 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
                 return new BigDecimal(toString());
             }
         });
-    }
-
-    @Override
-    public int row() {
-        return row;
-    }
-
-    @Override
-    public int col() {
-        return col;
     }
 
     @Override

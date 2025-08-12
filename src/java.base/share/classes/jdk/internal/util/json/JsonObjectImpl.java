@@ -36,25 +36,39 @@ import jdk.internal.ValueBased;
  * JsonObject implementation class
  */
 @ValueBased
-public final class JsonObjectImpl implements JsonObject, JsonValueImpl {
+public final class JsonObjectImpl implements JsonObject, JsonStructuralImpl {
 
     private final Map<String, JsonValue> theMembers;
     private final int row;
     private final int col;
+    private final int offset;
+    private final char[] doc;
 
     public JsonObjectImpl(Map<String, JsonValue> map) {
-        this(map, -1, -1);
+        this(map, -1, -1, -1, null);
     }
 
-    public JsonObjectImpl(Map<String, JsonValue> map, int r, int c) {
+    public JsonObjectImpl(Map<String, JsonValue> map, int r, int c, int o, char[] d) {
         theMembers = map;
         row = r;
         col = c;
+        offset = o;
+        doc = d;
     }
 
     @Override
     public Map<String, JsonValue> members() {
         return Collections.unmodifiableMap(theMembers);
+    }
+
+    @Override
+    public char[] doc() {
+        return doc;
+    }
+
+    @Override
+    public int offset() {
+        return offset;
     }
 
     @Override
