@@ -36,7 +36,7 @@ import jdk.internal.ValueBased;
  * JsonArray implementation class
  */
 @ValueBased
-public final class JsonArrayImpl implements JsonArray, JsonStructuralImpl {
+public final class JsonArrayImpl implements JsonArray, JsonValueImpl {
 
     private final List<JsonValue> theValues;
     private final int row;

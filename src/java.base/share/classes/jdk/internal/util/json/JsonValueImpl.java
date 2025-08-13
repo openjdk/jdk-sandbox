@@ -3,7 +3,8 @@ package jdk.internal.util.json;
 /**
  * Used for JsonAssertionException error message building.
  */
-public sealed interface JsonStructuralImpl permits JsonArrayImpl, JsonObjectImpl {
+public sealed interface JsonValueImpl
+        permits JsonArrayImpl, JsonBooleanImpl, JsonNullImpl, JsonNumberImpl, JsonObjectImpl, JsonStringImpl {
 
     /**
      * Return access to the underlying document, if it was parsed.

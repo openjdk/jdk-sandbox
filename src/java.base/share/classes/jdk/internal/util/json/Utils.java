@@ -111,14 +111,14 @@ public class Utils {
         };
         return new JsonAssertionException(
                 "%s is not a %s.".formatted(actual, expected) +
-                (jv instanceof JsonStructuralImpl jsi && jsi.row() > -1 && jsi.col() > -1 ?
+                (jv instanceof JsonValueImpl jvi && jvi.row() > -1 && jvi.col() > -1 ?
                 " Path: \"%s\". Location: row %d, col %d."
-                .formatted(toPath(jsi), jsi.row(), jsi.col()) : ""));
+                .formatted(toPath(jvi), jvi.row(), jvi.col()) : ""));
     }
 
-    public static String toPath(JsonStructuralImpl jsi) {
+    public static String toPath(JsonValueImpl jvi) {
         var sb = new StringBuilder();
-        toPath(jsi.offset(), jsi.doc(), sb);
+        toPath(jvi.offset(), jvi.doc(), sb);
         return sb.toString();
     }
 

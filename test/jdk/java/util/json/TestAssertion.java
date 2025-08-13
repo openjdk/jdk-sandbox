@@ -82,6 +82,13 @@ public class TestAssertion {
     }
 
     @Test
+    void leafExceptionTest() {
+        assertEquals("JsonNumber is not a JsonString. Path: \"[1{age\". Location: row 6, col 11.",
+                assertThrows(JsonAssertionException.class,
+                        () -> JSON_ROOT_ARRAY.element(1).member("age").string()).getMessage());
+    }
+
+    @Test
     void rootArrayTest() {
         assertEquals("JsonObject member 'asge' does not exist. Path: \"[1\". Location: row 4, col 2.",
                 assertThrows(IllegalArgumentException.class,

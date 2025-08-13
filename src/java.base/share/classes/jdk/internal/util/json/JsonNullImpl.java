@@ -33,13 +33,43 @@ import jdk.internal.ValueBased;
  * JsonNull implementation class
  */
 @ValueBased
-public final class JsonNullImpl implements JsonNull {
+public final class JsonNullImpl implements JsonNull, JsonValueImpl {
 
-    public static final JsonNullImpl NULL = new JsonNullImpl();
+    private final int offset;
+    private final char[] doc;
+    private final int row;
+    private final int col;
+
+    public static final JsonNullImpl NULL = new JsonNullImpl(null, -1, -1, -1);
     private static final String VALUE = "null";
     private static final int HASH = VALUE.hashCode();
 
-    private JsonNullImpl() {}
+    public JsonNullImpl(char[] doc, int offset, int row, int col) {
+        this.doc = doc;
+        this.offset = offset;
+        this.row = row;
+        this.col = col;
+    }
+
+    @Override
+    public char[] doc() {
+        return doc;
+    }
+
+    @Override
+    public int offset() {
+        return offset;
+    }
+
+    @Override
+    public int row() {
+        return row;
+    }
+
+    @Override
+    public int col() {
+        return col;
+    }
 
     @Override
     public String toString() {

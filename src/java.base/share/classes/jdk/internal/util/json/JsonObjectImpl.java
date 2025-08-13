@@ -36,7 +36,7 @@ import jdk.internal.ValueBased;
  * JsonObject implementation class
  */
 @ValueBased
-public final class JsonObjectImpl implements JsonObject, JsonStructuralImpl {
+public final class JsonObjectImpl implements JsonObject, JsonValueImpl {
 
     private final Map<String, JsonValue> theMembers;
     private final int row;
