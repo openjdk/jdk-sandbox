@@ -62,10 +62,11 @@ public class TestAssertion {
             """
                {
                 "id" : 1,
-                "values" : [ "value", null ],
+                "values" : [ "value", null ], "valuesWithCommas" : [ "v[a]lu}\\"e", "va,,,[lue,", "value,,", 15],
                 "foo" : { "bar" : "baz" },
                 "qux" : [ [true], { "in" : { } } ],
-                "ba\\"zz" : ["Key with escape"]
+                "ba\\"zz" : ["Key with escape"],
+                "obj" : { "1" : "{", "z" : 2}
             }
             """);
 
@@ -79,6 +80,17 @@ public class TestAssertion {
         assertEquals(JsonString.of("value"), JSON_ROOT_OBJECT.member("values").element(0));
         assertEquals(JsonNull.of(), JSON_ROOT_OBJECT.member("values").element(1));
         assertEquals(JsonBoolean.of(true), JSON_ROOT_OBJECT.member("qux").element(0).element(0));
+    }
+
+    // Ensure that syntactical chars w/in JsonString do not affect path building
+    @Test
+    void stringTest() {
+        assertEquals("Conversion from JsonNumber to JsonString is not supported. Path: \"{valuesWithCommas[3\". Location: row 2, col 96.",
+                assertThrows(JsonAssertionException.class,
+                        () -> JSON_ROOT_OBJECT.member("valuesWithCommas").element(3).string()).getMessage());
+        assertEquals("Conversion from JsonNumber to JsonBoolean is not supported. Path: \"{obj{z\". Location: row 6, col 31.",
+                assertThrows(JsonAssertionException.class,
+                        () -> JSON_ROOT_OBJECT.member("obj").member("z").boolean_()).getMessage());
     }
 
     @Test

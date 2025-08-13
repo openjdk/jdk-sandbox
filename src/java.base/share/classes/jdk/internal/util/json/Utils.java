@@ -159,21 +159,30 @@ public class Utils {
         int aDepth = 0;
         int oDepth = 0;
         int values = 0;
+        boolean inString = false;
         while (offset > 0) {
             var c = doc[offset];
-            if (c == '[') {
-                aDepth++;
-            } else if (c == ']') {
-                aDepth--;
-            } else if (c == '{') {
-                oDepth++;
-            } else if (c == '}') {
-                oDepth--;
-            } else if (c == ',' && aDepth == 0 && oDepth == 0) {
-                values++;
-            }
-            if (aDepth > 0) {
-                break;
+            if (inString) {
+                if (c == '"' && doc[offset - 1] != '\\') {
+                    inString = false;
+                }
+            } else {
+                if (c == '[') {
+                    aDepth++;
+                } else if (c == ']') {
+                    aDepth--;
+                } else if (c == '{') {
+                    oDepth++;
+                } else if (c == '}') {
+                    oDepth--;
+                } else if (c == ',' && aDepth == 0 && oDepth == 0) {
+                    values++;
+                } else if (c == '"') {
+                    inString = true;
+                }
+                if (aDepth > 0) {
+                    break;
+                }
             }
             offset--;
         }
@@ -200,6 +209,7 @@ public class Utils {
                 // Pre-escape check should not throw AIOOBE because guaranteed
                 // to have enclosing opening bracket
                 nameStart = offset + 1;
+                offset--; // Walk past quote
                 break;
             }
             offset--;
@@ -208,16 +218,25 @@ public class Utils {
         // Add the name
         sb.insert(0, '{' + new String(doc, nameStart, nameEnd - nameStart));
 
+        boolean inString = false;
         // Move to parent offset
         while (offset > 0) {
             var c = doc[offset];
-            if (c == '{') {
-                depth++;
-            } else if (c == '}') {
-                depth--;
-            }
-            if (depth > 0) {
-                break;
+            if (inString) {
+                if (c == '"' && doc[offset - 1] != '\\') {
+                    inString = false;
+                }
+            } else {
+                if (c == '{') {
+                    depth++;
+                } else if (c == '}') {
+                    depth--;
+                } else if (c == '"') {
+                    inString = true;
+                }
+                if (depth > 0) {
+                    break;
+                }
             }
             offset--;
         }
