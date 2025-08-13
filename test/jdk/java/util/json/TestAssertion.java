@@ -45,6 +45,19 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class TestAssertion {
 
+    private static final JsonValue JSON_ROOT_ARRAY = Json.parse(
+            """
+            [
+              {     "name": "John",
+                "age": 42
+              },
+              {
+                "name": "Mary",
+                "age": 31
+              }
+            ]
+            """);
+
     private static final JsonValue JSON_ROOT_OBJECT = Json.parse(
             """
                {
@@ -66,6 +79,13 @@ public class TestAssertion {
         assertEquals(JsonString.of("value"), JSON_ROOT_OBJECT.member("values").element(0));
         assertEquals(JsonNull.of(), JSON_ROOT_OBJECT.member("values").element(1));
         assertEquals(JsonBoolean.of(true), JSON_ROOT_OBJECT.member("qux").element(0).element(0));
+    }
+
+    @Test
+    void rootArrayTest() {
+        assertEquals("JsonObject member 'asge' does not exist. Path: \"[1\". Location: row 4, col 2.",
+                assertThrows(IllegalArgumentException.class,
+                        () -> JSON_ROOT_ARRAY.element(1).member("asge").number()).getMessage());
     }
 
     // Ensure member name with escapes works

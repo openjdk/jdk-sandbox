@@ -156,18 +156,23 @@ public class Utils {
     // Backtracking from an element in a JsonArray either expects a ',' or '['
     // E.g. " [ val ... " or " [ foo, val "
     private static int arrayNode(int offset, char[] doc, StringBuilder sb) {
-        int depth = 0;
+        int aDepth = 0;
+        int oDepth = 0;
         int values = 0;
         while (offset > 0) {
             var c = doc[offset];
             if (c == '[') {
-                depth++;
+                aDepth++;
             } else if (c == ']') {
-                depth--;
-            } else if (c == ',' && depth == 0) {
+                aDepth--;
+            } else if (c == '{') {
+                oDepth++;
+            } else if (c == '}') {
+                oDepth--;
+            } else if (c == ',' && aDepth == 0 && oDepth == 0) {
                 values++;
             }
-            if (depth > 0) {
+            if (aDepth > 0) {
                 break;
             }
             offset--;
