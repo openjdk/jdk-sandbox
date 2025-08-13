@@ -110,8 +110,8 @@ public class Utils {
             case JsonString _ -> "JsonString";
         };
         return new JsonAssertionException(
-                "%s is not a %s.".formatted(actual, expected) +
-                (jv instanceof JsonValueImpl jvi && jvi.row() > -1 && jvi.col() > -1 ?
+                "Conversion from %s to %s is not supported.".formatted(actual, expected) +
+                (jv instanceof JsonValueImpl jvi && jvi.doc() != null  ?
                 " Path: \"%s\". Location: row %d, col %d."
                 .formatted(toPath(jvi), jvi.row(), jvi.col()) : ""));
     }

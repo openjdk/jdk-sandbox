@@ -83,14 +83,14 @@ public class TestAssertion {
 
     @Test
     void leafExceptionTest() {
-        assertEquals("JsonNumber is not a JsonString. Path: \"[1{age\". Location: row 6, col 11.",
+        assertEquals("Conversion from JsonNumber to JsonString is not supported. Path: \"[1{age\". Location: row 6, col 11.",
                 assertThrows(JsonAssertionException.class,
                         () -> JSON_ROOT_ARRAY.element(1).member("age").string()).getMessage());
     }
 
     @Test
     void rootArrayTest() {
-        assertEquals("JsonObject member 'asge' does not exist. Path: \"[1\". Location: row 4, col 2.",
+        assertEquals("JsonObject member \"asge\" does not exist. Path: \"[1\". Location: row 4, col 2.",
                 assertThrows(IllegalArgumentException.class,
                         () -> JSON_ROOT_ARRAY.element(1).member("asge").number()).getMessage());
     }
@@ -98,14 +98,14 @@ public class TestAssertion {
     // Ensure member name with escapes works
     @Test
     void escapedKeyTest() {
-        assertEquals("JsonArray index '1' is out of bounds. Path: \"{ba\\\"zz\". Location: row 5, col 15.",
+        assertEquals("JsonArray index 1 out of bounds for length 1. Path: \"{ba\\\"zz\". Location: row 5, col 15.",
                 assertThrows(IllegalArgumentException.class,
                         () -> JSON_ROOT_OBJECT.member("ba\"zz").element(1)).getMessage());
     }
 
     @Test
     void multiNestedTest() {
-        assertEquals("JsonObject member 'zap' does not exist. Path: \"{qux[1{in\". Location: row 4, col 31.",
+        assertEquals("JsonObject member \"zap\" does not exist. Path: \"{qux[1{in\". Location: row 4, col 31.",
                 assertThrows(IllegalArgumentException.class,
                         () -> JSON_ROOT_OBJECT.member("qux").element(1).member("in").member("zap")).getMessage());
     }
@@ -113,7 +113,7 @@ public class TestAssertion {
     // Check array path building behavior for first element, expects '['.
     @Test
     void firstArrayElementTest() {
-        assertEquals("JsonArray index '5' is out of bounds. Path: \"{qux[0\". Location: row 4, col 14.",
+        assertEquals("JsonArray index 5 out of bounds for length 1. Path: \"{qux[0\". Location: row 4, col 14.",
                 assertThrows(IllegalArgumentException.class,
                     () -> JSON_ROOT_OBJECT.member("qux").element(0).element(5)).getMessage());
     }
@@ -122,9 +122,9 @@ public class TestAssertion {
     @Test
     void failObjectTraverseTest() {
         // Points to the start of the root object -> { ...
-        assertEquals("JsonObject is not a JsonArray. Path: \"\". Location: row 0, col 3.",
+        assertEquals("Conversion from JsonObject to JsonArray is not supported. Path: \"\". Location: row 0, col 3.",
                 assertThrows(JsonAssertionException.class, () -> JSON_ROOT_OBJECT.element(0)).getMessage());
-        assertEquals("JsonObject member 'car' does not exist. Path: \"\". Location: row 0, col 3.",
+        assertEquals("JsonObject member \"car\" does not exist. Path: \"\". Location: row 0, col 3.",
                 assertThrows(IllegalArgumentException.class, () -> JSON_ROOT_OBJECT.member("car")).getMessage());
     }
 
@@ -132,9 +132,9 @@ public class TestAssertion {
     @Test
     void failArrayTraverseTest() {
         // Points to the JsonArray value of "values"; starts at -> [ "value", null ] ...
-        assertEquals("JsonArray is not a JsonObject. Path: \"{values\". Location: row 2, col 15.",
+        assertEquals("Conversion from JsonArray to JsonObject is not supported. Path: \"{values\". Location: row 2, col 15.",
                 assertThrows(JsonAssertionException.class, () -> JSON_NESTED_ARRAY.member("foo")).getMessage());
-        assertEquals("JsonArray index '3' is out of bounds. Path: \"{values\". Location: row 2, col 15.",
+        assertEquals("JsonArray index 3 out of bounds for length 2. Path: \"{values\". Location: row 2, col 15.",
                 assertThrows(IllegalArgumentException.class, () -> JSON_NESTED_ARRAY.element(3)).getMessage());
     }
 
