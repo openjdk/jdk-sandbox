@@ -184,7 +184,7 @@ public non-sealed interface JsonNumber extends JsonValue {
     String toString();
 
     @Override
-    default Object untype() {
+    default Number number() {
         return toNumber();
     }
 

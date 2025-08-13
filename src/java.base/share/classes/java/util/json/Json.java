@@ -28,6 +28,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -248,7 +249,20 @@ public final class Json {
      * @see #fromUntyped(Object)
      */
     public static Object toUntyped(JsonValue src) {
-        return Objects.requireNonNull(src).untype();
+        Objects.requireNonNull(src);
+        return switch (src) {
+            case JsonObject jo -> jo.members().entrySet().stream()
+                    .collect(LinkedHashMap::new, // Avoid Collectors.toMap, to allow `null` value
+                            (m, e) -> m.put(e.getKey(), Json.toUntyped(e.getValue())),
+                            HashMap::putAll);
+            case JsonArray ja -> ja.values().stream()
+                    .map(Json::toUntyped)
+                    .toList();
+            case JsonBoolean jb -> jb.value();
+            case JsonNull _ -> null;
+            case JsonNumber n -> n.toNumber();
+            case JsonString js -> js.value();
+        };
     }
 
     /**

@@ -127,7 +127,51 @@ public sealed interface JsonValue
     }
 
     /**
-     * {@return an untyped {@code Object} for this {@code JsonValue}}
+     * If this {@code JsonValue} is a {@code JsonBoolean}, this method returns
+     * the boolean value of this {@code JsonBoolean}. If {@code this}
+     * is not a {@code JsonBoolean}, a {@code JsonAssertionException} will be
+     * thrown.
+     *
+     * @throws JsonAssertionException if {@code this} is not a {@code JsonBoolean}.
+     * @return the value of this {@code JsonBoolean}.
      */
-    Object untype();
+    default boolean boolean_() {
+        throw Utils.composeTypeError(this, "JsonBoolean");
+    }
+
+    /**
+     * If this {@code JsonValue} is a {@code JsonNull}, this method returns
+     * {@code null}. If {@code this} is not a {@code JsonNull}, a
+     * {@code JsonAssertionException} will be thrown.
+     *
+     * @throws JsonAssertionException if {@code this} is not a {@code JsonNull}.
+     * @return null
+     */
+    default Object null_() {
+        throw Utils.composeTypeError(this, "JsonNull");
+    }
+
+    /**
+     * If this {@code JsonValue} is a {@code JsonNumber}, this method returns
+     * a {@code Number}. If {@code this} is not a {@code JsonNumber}, a
+     * {@code JsonAssertionException} will be thrown.
+     *
+     * @throws JsonAssertionException if {@code this} is not a {@code JsonNumber}.
+     * @return the {@code toNumber()} value of this {@code JsonNumber}.
+     */
+    default Number number() {
+        throw Utils.composeTypeError(this, "JsonNumber");
+    }
+
+    /**
+     * If this {@code JsonValue} is a {@code JsonString}, this method returns
+     * a {@code String}. If {@code this} is not a {@code JsonString}, a
+     * {@code JsonAssertionException} will be thrown.
+     *
+     * @throws JsonAssertionException if {@code this} is not a {@code JsonString}.
+     * @return the value of this {@code JsonString}.
+     */
+    default String string() {
+        throw Utils.composeTypeError(this, "JsonString");
+    }
 }
