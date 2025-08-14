@@ -85,17 +85,17 @@ public class TestAssertion {
     // Ensure that syntactical chars w/in JsonString do not affect path building
     @Test
     void stringTest() {
-        assertEquals("Conversion from JsonNumber to JsonString is not supported. Path: \"{valuesWithCommas[3\". Location: row 2, col 96.",
+        assertEquals("JsonNumber is not a JsonString. Path: \"{valuesWithCommas[3\". Location: row 2, col 96.",
                 assertThrows(JsonAssertionException.class,
                         () -> JSON_ROOT_OBJECT.member("valuesWithCommas").element(3).string()).getMessage());
-        assertEquals("Conversion from JsonNumber to JsonBoolean is not supported. Path: \"{obj{z\". Location: row 6, col 31.",
+        assertEquals("JsonNumber is not a JsonBoolean. Path: \"{obj{z\". Location: row 6, col 31.",
                 assertThrows(JsonAssertionException.class,
                         () -> JSON_ROOT_OBJECT.member("obj").member("z").boolean_()).getMessage());
     }
 
     @Test
     void leafExceptionTest() {
-        assertEquals("Conversion from JsonNumber to JsonString is not supported. Path: \"[1{age\". Location: row 6, col 11.",
+        assertEquals("JsonNumber is not a JsonString. Path: \"[1{age\". Location: row 6, col 11.",
                 assertThrows(JsonAssertionException.class,
                         () -> JSON_ROOT_ARRAY.element(1).member("age").string()).getMessage());
     }
@@ -134,7 +134,7 @@ public class TestAssertion {
     @Test
     void failObjectTraverseTest() {
         // Points to the start of the root object -> { ...
-        assertEquals("Conversion from JsonObject to JsonArray is not supported. Path: \"\". Location: row 0, col 3.",
+        assertEquals("JsonObject is not a JsonArray. Path: \"\". Location: row 0, col 3.",
                 assertThrows(JsonAssertionException.class, () -> JSON_ROOT_OBJECT.element(0)).getMessage());
         assertEquals("JsonObject member \"car\" does not exist. Path: \"\". Location: row 0, col 3.",
                 assertThrows(IllegalArgumentException.class, () -> JSON_ROOT_OBJECT.member("car")).getMessage());
@@ -144,7 +144,7 @@ public class TestAssertion {
     @Test
     void failArrayTraverseTest() {
         // Points to the JsonArray value of "values"; starts at -> [ "value", null ] ...
-        assertEquals("Conversion from JsonArray to JsonObject is not supported. Path: \"{values\". Location: row 2, col 15.",
+        assertEquals("JsonArray is not a JsonObject. Path: \"{values\". Location: row 2, col 15.",
                 assertThrows(JsonAssertionException.class, () -> JSON_NESTED_ARRAY.member("foo")).getMessage());
         assertEquals("JsonArray index 3 out of bounds for length 2. Path: \"{values\". Location: row 2, col 15.",
                 assertThrows(IllegalArgumentException.class, () -> JSON_NESTED_ARRAY.element(3)).getMessage());
