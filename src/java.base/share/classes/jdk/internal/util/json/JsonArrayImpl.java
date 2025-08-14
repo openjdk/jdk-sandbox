@@ -39,19 +39,15 @@ import jdk.internal.ValueBased;
 public final class JsonArrayImpl implements JsonArray, JsonValueImpl {
 
     private final List<JsonValue> theValues;
-    private final int row;
-    private final int col;
     private final int offset;
     private final char[] doc;
 
     public JsonArrayImpl(List<JsonValue> from) {
-        this(from, -1, -1, -1, null);
+        this(from, -1, null);
     }
 
-    public JsonArrayImpl(List<JsonValue> from, int r, int c, int o, char[] d) {
+    public JsonArrayImpl(List<JsonValue> from, int o, char[] d) {
         theValues = from;
-        row = r;
-        col = c;
         offset = o;
         doc = d;
     }
@@ -69,16 +65,6 @@ public final class JsonArrayImpl implements JsonArray, JsonValueImpl {
     @Override
     public int offset() {
         return offset;
-    }
-
-    @Override
-    public int row() {
-        return row;
-    }
-
-    @Override
-    public int col() {
-        return col;
     }
 
     @Override

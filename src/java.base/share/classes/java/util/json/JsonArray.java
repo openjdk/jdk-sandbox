@@ -84,8 +84,7 @@ public non-sealed interface JsonArray extends JsonValue {
                     "JsonArray index %d out of bounds for length %d."
                     .formatted(index, this.values().size()) +
                     (this instanceof JsonValueImpl jvi && jvi.doc() != null  ?
-                    " Path: \"%s\". Location: row %d, col %d."
-                    .formatted(Utils.toPath(jvi), jvi.row(), jvi.col()) : ""));
+                    Utils.getPath(jvi) : ""));
         }
     }
 

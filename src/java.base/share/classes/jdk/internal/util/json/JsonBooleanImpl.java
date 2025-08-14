@@ -38,18 +38,14 @@ public final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
     private final Boolean theBoolean;
     private final int offset;
     private final char[] doc;
-    private final int row;
-    private final int col;
 
-    public static final JsonBooleanImpl TRUE = new JsonBooleanImpl(true, null, -1, -1, -1);
-    public static final JsonBooleanImpl FALSE = new JsonBooleanImpl(false, null, -1, -1, -1);
+    public static final JsonBooleanImpl TRUE = new JsonBooleanImpl(true, null, -1);
+    public static final JsonBooleanImpl FALSE = new JsonBooleanImpl(false, null, -1);
 
-    public JsonBooleanImpl(Boolean bool, char[] doc, int offset, int row, int col) {
+    public JsonBooleanImpl(Boolean bool, char[] doc, int offset) {
         theBoolean = bool;
         this.doc = doc;
         this.offset = offset;
-        this.row = row;
-        this.col = col;
     }
 
     @Override
@@ -65,16 +61,6 @@ public final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
     @Override
     public int offset() {
         return offset;
-    }
-
-    @Override
-    public int row() {
-        return row;
-    }
-
-    @Override
-    public int col() {
-        return col;
     }
 
     @Override

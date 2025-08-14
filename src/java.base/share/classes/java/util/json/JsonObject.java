@@ -86,8 +86,7 @@ public non-sealed interface JsonObject extends JsonValue {
             case null -> throw new IllegalArgumentException(
                     "JsonObject member \"%s\" does not exist.".formatted(name) +
                     (this instanceof JsonValueImpl jvi && jvi.doc() != null ?
-                    " Path: \"%s\". Location: row %d, col %d."
-                    .formatted(Utils.toPath(jvi), jvi.row(), jvi.col()) : ""));
+                    Utils.getPath(jvi) : ""));
         };
     }
 

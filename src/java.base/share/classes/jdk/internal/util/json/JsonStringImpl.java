@@ -39,8 +39,6 @@ public final class JsonStringImpl implements JsonString, JsonValueImpl {
     private final int startOffset;
     private final int endOffset;
     private final boolean hasEscape;
-    private final int row;
-    private final int col;
 
     // The String instance representing this JSON string for `toString()`.
     // It always conforms to JSON syntax. If created by parsing a JSON document,
@@ -62,17 +60,13 @@ public final class JsonStringImpl implements JsonString, JsonValueImpl {
         startOffset = -1;
         endOffset = -1;
         hasEscape = false;
-        row = -1;
-        col = -1;
     }
 
-    public JsonStringImpl(char[] doc, int start, int end, boolean escape, int row, int col) {
+    public JsonStringImpl(char[] doc, int start, int end, boolean escape) {
         this.doc = doc;
         startOffset = start;
         endOffset = end;
         hasEscape = escape;
-        this.row = row;
-        this.col = col;
     }
 
     @Override
@@ -88,16 +82,6 @@ public final class JsonStringImpl implements JsonString, JsonValueImpl {
     @Override
     public int offset() {
         return startOffset;
-    }
-
-    @Override
-    public int row() {
-        return row;
-    }
-
-    @Override
-    public int col() {
-        return col;
     }
 
     @Override

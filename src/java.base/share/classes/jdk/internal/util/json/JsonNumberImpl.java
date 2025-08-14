@@ -40,8 +40,6 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
     private final char[] doc;
     private final int startOffset;
-    private final int row;
-    private final int col;
     private final int endOffset;
     private final boolean isFp;
     private final StableValue<Number> theNumber = StableValue.of();
@@ -61,17 +59,13 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
         endOffset = -1;
         isFp = false;
         doc = null;
-        row = -1;
-        col = -1;
     }
 
-    public JsonNumberImpl(char[] doc, int start, int end, boolean fp, int row, int col) {
+    public JsonNumberImpl(char[] doc, int start, int end, boolean fp) {
         this.doc = doc;
         startOffset = start;
         endOffset = end;
         isFp = fp;
-        this.row = row;
-        this.col = col;
     }
 
     @Override
@@ -115,16 +109,6 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     @Override
     public int offset() {
         return startOffset;
-    }
-
-    @Override
-    public int row() {
-        return row;
-    }
-
-    @Override
-    public int col() {
-        return col;
     }
 
     @Override

@@ -17,16 +17,4 @@ public sealed interface JsonValueImpl
      * Otherwise, return -1.
      */
     int offset();
-
-    /**
-     * Return the row where the JsonValue occurs in the document, if it was parsed.
-     * Otherwise, return -1.
-     */
-    int row();
-
-    /**
-     * Return the row where the JsonValue occurs in the document, if it was parsed.
-     * Otherwise, return -1.
-     */
-    int col();
 }

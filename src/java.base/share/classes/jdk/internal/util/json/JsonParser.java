@@ -102,13 +102,11 @@ public final class JsonParser {
      * See https://datatracker.ietf.org/doc/html/rfc8259#section-4
      */
     private JsonObject parseObject() {
-        var startRow = line;
-        var startCol = col();
         var startO = offset++; // Walk past the '{'
         skipWhitespaces();
         // Check for empty case
         if (charEquals('}')) {
-            return new JsonObjectImpl(Map.of(), startRow, startCol, startO, doc);
+            return new JsonObjectImpl(Map.of(), startO, doc);
         }
         var members = new LinkedHashMap<String, JsonValue>();
         while (hasInput()) {
@@ -130,7 +128,7 @@ public final class JsonParser {
             members.put(name, parseValue());
             // Ensure current char is either ',' or '}'
             if (charEquals('}')) {
-                return new JsonObjectImpl(members, startRow, startCol, startO, doc);
+                return new JsonObjectImpl(members, startO, doc);
             } else if (charEquals(',')) {
                 skipWhitespaces();
             } else {
@@ -205,13 +203,11 @@ public final class JsonParser {
      * See https://datatracker.ietf.org/doc/html/rfc8259#section-5
      */
     private JsonArray parseArray() {
-        var startRow = line;
-        var startCol = col();
         var startO = offset++; // Walk past the '['
         skipWhitespaces();
         // Check for empty case
         if (charEquals(']')) {
-            return new JsonArrayImpl(List.of(), startRow, startCol, startO, doc);
+            return new JsonArrayImpl(List.of(), startO, doc);
         }
         var list = new ArrayList<JsonValue>();
         while (hasInput()) {
@@ -219,7 +215,7 @@ public final class JsonParser {
             list.add(parseValue());
             // Ensure current char is either ']' or ','
             if (charEquals(']')) {
-                return new JsonArrayImpl(list, startRow, startCol, startO, doc);
+                return new JsonArrayImpl(list, startO, doc);
             } else if (!charEquals(',')) {
                 break;
             }
@@ -236,8 +232,6 @@ public final class JsonParser {
      * See https://datatracker.ietf.org/doc/html/rfc8259#section-7
      */
     private JsonString parseString() {
-        var startRow = line;
-        var startCol = col();
         int start = offset++; // Move past the starting quote
         var escape = false;
         boolean hasEscape = false;
@@ -255,7 +249,7 @@ public final class JsonParser {
                 hasEscape = true;
                 escape = true;
             } else if (c == '\"') {
-                return new JsonStringImpl(doc, start, ++offset, hasEscape, startRow, startCol);
+                return new JsonStringImpl(doc, start, ++offset, hasEscape);
             } else if (c < ' ') {
                 throw failure(UNESCAPED_CONTROL_CODE);
             }
@@ -268,32 +262,26 @@ public final class JsonParser {
      * do not require offsets to lazily compute their values.
      */
     private JsonBooleanImpl parseTrue() {
-        var startRow = line;
-        var startCol = col();
         offset++;
         if (charEquals('r') && charEquals('u') && charEquals('e')) {
-            return new JsonBooleanImpl(true, doc, offset, startRow, startCol);
+            return new JsonBooleanImpl(true, doc, offset);
         }
         throw failure(UNEXPECTED_VAL);
     }
 
     private JsonBooleanImpl parseFalse() {
-        var startRow = line;
-        var startCol = col();
         offset++;
         if (charEquals('a') && charEquals('l') && charEquals('s')
                 && charEquals('e')) {
-            return new JsonBooleanImpl(false, doc, offset, startRow, startCol);
+            return new JsonBooleanImpl(false, doc, offset);
         }
         throw failure(UNEXPECTED_VAL);
     }
 
     private JsonNullImpl parseNull() {
-        var startRow = line;
-        var startCol = col();
         offset++;
         if (charEquals('u') && charEquals('l') && charEquals('l')) {
-            return new JsonNullImpl(doc, offset, startRow, startCol);
+            return new JsonNullImpl(doc, offset);
         }
         throw failure(UNEXPECTED_VAL);
     }
@@ -305,8 +293,6 @@ public final class JsonParser {
      * See https://datatracker.ietf.org/doc/html/rfc8259#section-6
      */
     private JsonNumberImpl parseNumber() {
-        var startRow = line;
-        var startCol = col();
         boolean sawDecimal = false;
         boolean sawExponent = false;
         boolean sawZero = false;
@@ -371,7 +357,7 @@ public final class JsonParser {
         if (!havePart) {
             throw failure("Input expected after '[.|e|E]'");
         }
-        return new JsonNumberImpl(doc, start, offset, sawDecimal || sawExponent, startRow, startCol);
+        return new JsonNumberImpl(doc, start, offset, sawDecimal || sawExponent);
     }
 
     // Utility functions
