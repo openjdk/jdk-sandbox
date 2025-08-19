@@ -29,10 +29,12 @@ import com.sun.tools.attach.AttachNotSupportedException;
 import com.sun.tools.attach.spi.AttachProvider;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.StringBufferInputStream;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -80,6 +82,7 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
     /**
      * Execute the given command in the target VM.
      */
+    @SuppressWarnings("deprecation")
     InputStream execute(String cmd, Object ... args) throws IOException {
         checkNulls(args);
 
@@ -126,44 +129,57 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
 
         // Run the helper.
         // Be prepared for it to fail, if Address Space Layout Randomization is unkind, and causes a clash.
-        // Recognise the process return value and retry some small number of times.
-        int tries = 5;
-        Process p = pb.start();
-        InputStream is = p.getInputStream();
+        // Recognise the process return value and retry with some limit.
+        //
+        // This method returns an InputStream, although until recently there was no streaming from jcmd implementations,
+        // the full output was written to a buffer and then printed.
+        // For core files, for now, we can read the whole output, and only return it if it is a successful run.
+        int TRIES = 10;
+        int tries = Integer.getInteger("jdk.attach.core.tries", TRIES);
+        String out = null;
 
         for (int i = 0; i < tries; i++) {
+            System.out.println("revivalhelper TRY " + i);
+            Process p = pb.start();
+            BufferedReader outReader = p.inputReader();
+            BufferedReader errReader = p.errorReader();
+            out = drain(p, outReader);
             try {
-                // Need a better signal here...
-                Thread.sleep(1000);
-                if (!p.isAlive()) {
-                    int e = p.waitFor();
-                    if (e == 7 || e == 134) {
-                    // Possibly show if verbose:
+                int e = p.waitFor();
+                if (e == 7) { //  || e == 134) {
+                    System.out.println("ERROR (" + e + ")");
+                    // Possibly show errors if verbose:
                     if (Boolean.getBoolean("jdk.attach.core.verbose")) {
-                        // Show failed attempt
-                        // drainUTF8(is, System.out); 
+                        String err = drain(p, errReader);
+                        System.err.println(err);
                     }
-                    System.out.println("RETRY");
-                    p = pb.start();
-                    is = p.getInputStream();
-                    continue;
-                    // ...and re-check.
+                    continue; // ...and retry.
+                } else {
+                    if (e != 0) {
+                        System.out.println("ERROR (" + e + ")");
+                        String err = drain(p, errReader);
+                        System.err.println(err);
                     }
+                    System.out.println("DONE (" + e + ") " + out);
                 }
-                break; // No retry.
             } catch (InterruptedException ie) {
-                // ignore
+                System.err.println("VirtualMachineCoreDumpImpl.execute: " + ie);
             }
+            break; // No retry except for explicit continue above.
         }
-/*        try {
-            int e = p.waitFor();
-        if (e != 0) {
-            System.err.println("revival helper error = " + e);
-        } 
-        } catch (InterruptedException ie) {
-            System.err.println("revival helper: " + ie);
-        } */
-        return is;
+        return new StringBufferInputStream(out);
+    }
+
+    public static String drain(Process p, BufferedReader r) throws IOException {
+        StringBuilder s = new StringBuilder();
+        do {
+            while (r.ready()) {
+                s.append(r.readLine()).append("\n");
+            }
+        } while (p.isAlive());
+
+        // System.out.println("DRAIN: p = " + p.isAlive());
+        return s.toString();
     }
 
     public static long drainUTF8(InputStream is, PrintStream ps) throws IOException {
