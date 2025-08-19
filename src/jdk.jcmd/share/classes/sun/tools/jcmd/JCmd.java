@@ -67,7 +67,7 @@ public class JCmd {
         }
 
         ProcessArgumentMatcher ap = null;
-        boolean coredump = false;
+        // if (!arg.isForceCore()) { ...
         try {
             ap = new ProcessArgumentMatcher(arg.getProcessString());
         } catch (IllegalArgumentException iae) {
@@ -84,7 +84,7 @@ public class JCmd {
 
         Collection<String> pids = ap.getVirtualMachinePids(JCmd.class);
 
-        if (arg.isCore() ||
+        if (arg.isForceCore() ||
             (pids.isEmpty() && new File(arg.getProcessString()).exists())) {
             // core or minidump
             System.out.println("Opening dump file '" + arg.getProcessString() + "'...");

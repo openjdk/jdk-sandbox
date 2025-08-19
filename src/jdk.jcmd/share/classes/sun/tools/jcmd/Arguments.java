@@ -37,7 +37,7 @@ class Arguments {
     private boolean showUsage     = false;
     private String  command       = null;
     private String  processString = null;
-    private boolean core = false;
+    private boolean forceCore = false;
     private List<String> libDirs = new ArrayList<>(1);
 
     public boolean isListProcesses() { return listProcesses; }
@@ -45,7 +45,7 @@ class Arguments {
     public boolean isShowUsage() { return showUsage; }
     public String getCommand() { return command; }
     public String getProcessString() { return processString; }
-    public boolean isCore() { return core; }
+    public boolean isForceCore() { return forceCore; }
     public List<String> getLibDirs() { return libDirs; }
 
     public Arguments(String[] args) {
@@ -66,7 +66,7 @@ class Arguments {
                 showUsage = true;
                 return;
             } else if (args[i].equals("-c") || args[i].equals("--core")) {
-                core = true;
+                forceCore = true;
             } else if (args[i].equals("-L") || args[i].equals("--libdir")) {
                 i++;
                 libDirs.add(args[i]);
@@ -130,6 +130,7 @@ class Arguments {
 
     public static void usage() {
         System.out.println("Usage: jcmd <pid | main class> <command ...|PerfCounter.print|-f file>");
+        System.out.println("   or: jcmd [ -c ]  <corefile> <command... | -f file>");
         System.out.println("   or: jcmd -l                                                    ");
         System.out.println("   or: jcmd -h                                                    ");
         System.out.println("                                                                  ");
@@ -138,6 +139,10 @@ class Arguments {
         System.out.println("  If the pid is 0, commands will be sent to all Java processes.   ");
         System.out.println("  The main class argument will be used to match (either partially ");
         System.out.println("  or fully) the class used to start Java.                         ");
+        System.out.println("                                                                  ");
+        System.out.println("  Optional -c or --core forces reading a core file, in case of    ");
+        System.out.println("  clash with a live process name.");
+        System.out.println("                                                                  ");
         System.out.println("  If no options are given, lists Java processes (same as -l).     ");
         System.out.println("                                                                  ");
         System.out.println("  PerfCounter.print display the counters exposed by this process  ");
