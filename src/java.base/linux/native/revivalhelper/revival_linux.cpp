@@ -1354,7 +1354,7 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
         int mappings_fd = mappings_file_create(revival_dirname, corename);
         if (mappings_fd < 0) {
             // error already printed
-        return -1;
+            return -1;
         }
         core.write_mappings(mappings_fd, "bin/java");
         close_file_descriptor(mappings_fd, "mappings file");
@@ -1367,7 +1367,6 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
     strncat(jvm_copy_path, "/" JVM_FILENAME, BUFLEN - 1);
     copy_file_pd(jvm_filename, jvm_copy_path);
 
-
     // Relocate copy of libjvm:
     {
         ELFOperations jvm_copy(jvm_copy_path);
@@ -1378,7 +1377,7 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
         // Create symbols file
         int symbols_fd = symbols_file_create(revival_dirname);
         if (symbols_fd < 0) {
-            warn("Failed to create mappings file\n");
+            warn("Failed to create symbols file\n");
             return -1;
         }
         logv("Write libjvm symbols");
