@@ -925,7 +925,7 @@ void *continuation_for_safefetch_fault(void *pc) {
 const char *createTempFilename() {
     char *tempName  = (char*) calloc(1, BUFLEN); // never free'd
     if (tempName == NULL) {
-        return NULL;
+        error("createTempFilename: calloc failed");
     }
     char *p = strncat(tempName, revivaldir, BUFLEN - 1);
     p = strncat(p, "/revivaltemp", BUFLEN - 1);
@@ -944,8 +944,7 @@ const char *createTempFilename() {
             }
             fdTemp = open(tempName, O_WRONLY | O_CREAT | O_EXCL, 0600); 
             if (fdTemp < 0) {
-                warn("cannot remove open existing core page file '%s': %d", tempName, fdTemp);
-                return NULL;
+                error("cannot remove open existing core page file '%s': %d", tempName, fdTemp);
             }
         }
     }
@@ -954,14 +953,13 @@ const char *createTempFilename() {
 
 /*
  * Return the name of the temp file to use for writing.
- * Create if necessary.
  */
 const char *getCorePageFilename() {
     if (corePageFilename == NULL) {
+        // Create filename on demand.
         corePageFilename = createTempFilename();
         if (corePageFilename == NULL) {
-            warn("cannot create page file for writes to core file memory.");
-            abort();
+            error("cannot create page file for writes to core file memory.");
         }
     }
     return corePageFilename;
@@ -998,8 +996,7 @@ off_t writeTempFileBytes(const char *tempName, Segment seg) {
 void remap(Segment seg) {
     const char *tempName = getCorePageFilename();
     if (tempName == NULL) {
-        warn("remap: failed to create temp file. errno = %d: %s",  errno, strerror(errno));
-        abort();
+        error("remap: failed to create temp filename. errno = %d: %s",  errno, strerror(errno));
     }
     off_t offset = writeTempFileBytes(tempName, seg);
     if (offset == (off_t) -1 ) {
@@ -1039,6 +1036,12 @@ void handler(int sig, siginfo_t *info, void *ucontext) {
     if (verbose) {
         fprintf(stderr, "handler: sig = %d for address %p\n", sig, addr);
     }
+
+    if (addr == nullptr) {
+        warn("handler: null address");
+        abort();
+    }
+
     if (info != NULL && ucontext != NULL) {
         // Check if this is a safefetch which we should handle:
 #if defined (X86_64) || defined (__x86_64__)
@@ -1077,7 +1080,7 @@ void handler(int sig, siginfo_t *info, void *ucontext) {
             if (verbose) {
                 fprintf(stderr, "handler: si_addr = %p found writable segment %p\n", addr, iter->vaddr);
             }
-            remap((Segment)*iter);
+            remap((Segment) *iter);
             return;
         }
     }
@@ -1329,16 +1332,19 @@ void init_jvm_filename_and_address(ELFOperations& core) {
 }
 
 /**
- * Create "core.revival" directory containing what's needed to revive a corefile.
- *  * A copy of libjvm.so, relocated to load at the same address as it was in the corefile
- *  * "core.mappings" a text file with instructions on which segments to load from the core
- *  * "jvm.symbols" a text file with information about important symbols in libjvm.so
+ * Create a "core.revival" directory containing what's needed to revive a corefile:
+ *
+ *  - A copy of libjvm.so, which this method then relocates to load at the same address as it was in the corefile
+ *  - "core.mappings" a text file with instructions on which segments to load from the core
+ *  - "jvm.symbols" a text file with information about important symbols in libjvm.so
+ *
+ * Also take a copy of libjvm.debuginfo if present.
  */
 int create_revivalbits_native_pd(const char *corename, const char *javahome, const char *revival_dirname, const char *libdir) {
     logv("create_revivalbits_native_pd");
     create_directory(revival_dirname);
 
-    // find libjvm and its load address from core
+    // Find libjvm and its load address from core
     // Q will this make sense in a "transported core" scenario? / Ludvig
     {
         ELFOperations core(corename);
@@ -1354,7 +1360,7 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
         close_file_descriptor(mappings_fd, "mappings file");
     }
 
-    // copy libjvm into core.revival dir
+    // Copy libjvm into core.revival dir
     char jvm_copy_path[BUFLEN];
     memset(jvm_copy_path, 0, BUFLEN);
     strncpy(jvm_copy_path, revival_dirname, BUFLEN - 1);
@@ -1362,7 +1368,7 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
     copy_file_pd(jvm_filename, jvm_copy_path);
 
 
-    // relocate copy of libjvm:
+    // Relocate copy of libjvm:
     {
         ELFOperations jvm_copy(jvm_copy_path);
         logv("Relocate copy of libjvm to %p", jvm_address);
@@ -1379,6 +1385,18 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
         jvm_copy.write_symbols(symbols_fd, JVM_SYMS, N_JVM_SYMS);
         logv("Write libjvm symbols done");
         close_file_descriptor(symbols_fd, "symbols file");
+    }
+
+    // Copy libjvm.debuginfo if present
+    char jvm_debuginfo_path[BUFLEN];
+    char jvm_debuginfo_copy_path[BUFLEN];
+    snprintf(jvm_debuginfo_path, BUFLEN, "%s", jvm_filename);
+    char *p = strstr(jvm_debuginfo_path, ".so");
+    if (p != nullptr) {
+        snprintf(p, BUFLEN, ".debuginfo");
+        warn("DEBUGINFO: '%s'", jvm_debuginfo_path);
+        snprintf(jvm_debuginfo_copy_path, BUFLEN - 1, "%s/libjvm.debuginfo", revival_dirname);
+        copy_file_pd(jvm_debuginfo_path, jvm_debuginfo_copy_path);
     }
 
     logv("create_revivalbits_native_pd returning %d", 0);

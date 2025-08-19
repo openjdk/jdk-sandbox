@@ -520,6 +520,8 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
                 failedSegments.push_back(*thisSeg);
                 if (_abortOnClash) {
                     abort();
+                } else {
+                    exitForRetry();
                 }
                 continue;
             } 
