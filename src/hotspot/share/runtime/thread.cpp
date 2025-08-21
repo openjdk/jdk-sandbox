@@ -636,12 +636,16 @@ Thread* Thread::process_revival() {
   os::Linux::revive_init();
 #endif
 #ifdef WINDOWS
-  // os::Windows::revive_init();
+  os::Windows::revive_init();
 #endif
   // A Thread object is needed to call the dcmd parser, and use a
   // VMThread so commands invoking a VMOperation will run it themselves.
   // VMThread constructor is now private, so not: VMThread *jt = new VMThread();
   VMThread *jt = VMThread::vm_thread(); // access the _vm_thread singleton
+  if (jt == nullptr) {
+    fprintf(stderr, "Error: process_revival: null VMThread::vm_thread()\n");
+    return nullptr;
+  }
   jt->initialize_thread_current(); // call before using tty
   jt->record_stack_base_and_size();
   jt->set_osthread(new OSThread()); // was; (nullptr, nullptr));
@@ -665,7 +669,7 @@ Thread* Thread::process_revival() {
 
   vm_revival_data.vm_thread = jt;
   vm_revival_data.tty = tty;
-  tty->print_cr("Thread::process_revival done");
+  // tty->print_cr("Thread::process_revival done");
   //return &vm_revival_data;
   return jt;
 }
