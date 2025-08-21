@@ -612,7 +612,12 @@ void *symbol0(const char *dirname, const char *sym) {
         printf("symbol: %s = %p (contained %s)\n", sym, addr, s3);
     }
     fclose(f);
-    return addr;
+
+    if (addr == 0) {
+        return (void *) -1;
+    } else {
+        return addr;
+    }
 }
 
 
@@ -1056,7 +1061,7 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
         void * s = symbol(SYM_JVM_VERSION);
         if (s == (void*) -1) {
             warn("Error: revival: failed symbol lookup for " SYM_JVM_VERSION);
-            return -1; // fatal?
+            // return -1; // Skip, not fatal, ?sym changed...
         } else {
             int(*func)() = (int(*)()) s;
             jdkvi = (*func)();  

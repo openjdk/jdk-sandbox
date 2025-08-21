@@ -35,6 +35,9 @@
 #include <windows.h>
 #include <minidumpapiset.h>
 
+#include <imagehlp.h>
+// #include <dbghelp.h>
+
 #include "revival.hpp"
 
 uint64_t valign; // set from dwAllocationGranularity
@@ -200,13 +203,9 @@ void pmap_pd() {
 
 void *symbol_dynamiclookup_pd(void *h, const char*str) {
     FARPROC s = GetProcAddress((HMODULE) h, str);
-    if (verbose) {
-        fprintf(stderr, "symbol_dynamiclookup: %s = %p \n", str, s);
-    }
+    logv("symbol_dynamiclookup: %s = %p", str, s);
     if (s == 0) {
-        if (verbose) {
-            warn("GetProcAddress failed: 0x%x", GetLastError());
-        }
+        logv("GetProcAddress failed: 0x%x", GetLastError());
         return (void *) -1;
     }
     return (void*) s;
@@ -215,20 +214,18 @@ void *symbol_dynamiclookup_pd(void *h, const char*str) {
 
 void *load_sharedobject_pd(const char *name, void *vaddr) {
     int tries = 0;
-    int max_tries = 20;
-    while (true) {
+    int max_tries = 2;
+
+    while (tries++ < max_tries) {
         HMODULE h = LoadLibraryA(name);
         if ((void*) h == vaddr) {
             return (void*) h; // success
         }
-        fprintf(stderr, "load_sharedobject_pd: %s: will unload as 0x%p != requested 0x%p. error=0x%lx\n", name, h, vaddr, GetLastError());
+        warn("load_sharedobject_pd: %s: will unload as 0x%p != requested 0x%p. error=0x%lx\n", name, h, vaddr, GetLastError());
         int unloaded = FreeLibrary(h);
+        // If we want to try re-trying, should map some memory at the address we just got.
         if (unloaded == 0) {
             warn("load_sharedobject_pd: unload failed.\n");
-            break;
-        }
-        tries++;
-        if (tries > max_tries) {
             break;
         }
     }
@@ -254,9 +251,7 @@ bool mem_canwrite_pd(void *vaddr, size_t length) {
                 || meminfo.Protect == PAGE_WRITECOPY) {
             return true;
         } else {
-            if (verbose) {
-                fprintf(stderr, "    mem_canwrite_pd: %p protect: %lx: NO\n", vaddr, meminfo.Protect);
-            }
+            logv("    mem_canwrite_pd: %p protect: %lx: NO", vaddr, meminfo.Protect);
             return false;
         }
     } else {
@@ -736,8 +731,9 @@ int copy_file_pd(const char *srcfile, const char *destfile) {
     free(s);
     free(d);
 
+    logv("copy: '%s'", command);
     int e = system(command);
-    if (verbose) log("copy: '%s' returns %d", command, e);
+    logv("copy: '%s' returns %d", command, e);
     return e;
 }
 
@@ -785,27 +781,43 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
     RVA64 BaseRVA;
     int e = read(dump->fd, &NumberOfMemoryRanges, sizeof(NumberOfMemoryRanges));
     e = read(dump->fd, &BaseRVA, sizeof(BaseRVA));
-    if (verbose) fprintf(stderr, "create_mappings_pd: %lld memory ranges at base RVA=0x%llx\n", NumberOfMemoryRanges, BaseRVA);
+    logv("create_mappings_pd: %lld memory ranges at base RVA=0x%llx\n", NumberOfMemoryRanges, BaseRVA);
     RVA64 currentRVA = BaseRVA;
     MINIDUMP_MEMORY_DESCRIPTOR64 d;
     ULONG64 prevAddr = 0;
+
+    // After 80 iterations, read starts returning 2 then zero.
     for (ULONG64 i = 0; i < NumberOfMemoryRanges; i++) {
-        e = read(dump->fd, &d, sizeof(d));
+
+        int e = read(dump->fd, &d, sizeof(d));
+        if (e < 0) {
+            warn("create_mappings: read: %s", strerror(errno));
+            break;
+        } else if (e < sizeof(d)) {
+            long pos = _lseek(dump->fd, 0, SEEK_CUR);
+            warn("create_mappings: read expects %d, got %d, at pos %ld", sizeof(d), e, pos);
+            // Retry a short read.
+            // memset (&d, 0, sizeof(d));
+            i--;
+            continue;
+        }
+
         if (d.StartOfMemoryRange == prevAddr) {
-            break; // Repeated data in minidump can be observed at end
+            logv("create_mappings: skipping due to repetition, 0x%llx", prevAddr);
+            continue; // Repeated data in minidump can be observed at end
         }
         if (max_user_vaddr_pd() > 0 && d.StartOfMemoryRange >= max_user_vaddr_pd()) {
+            logv("create_mappings: terminating as address 0x%llx >= 0x%llx", d.StartOfMemoryRange, max_user_vaddr_pd());
             break; // End of user space mappings.
         }
-        if (verbose) {
-            fprintf(stderr, "create_mappings_pd: %8lld 0x%16llx 0x%16llx   dump file offset 0x%16llx \n",
-                    i, d.StartOfMemoryRange, d.DataSize, currentRVA);
-        }
+        logv("create_mappings_pd: %8lld 0x%16llx 0x%16llx   dump file offset 0x%16llx \n",
+              i, d.StartOfMemoryRange, d.DataSize, currentRVA);
         currentRVA += d.DataSize;
         prevAddr = d.StartOfMemoryRange;
 
         Segment seg((void *) d.StartOfMemoryRange, (size_t) d.DataSize, (off_t) currentRVA, (size_t) d.DataSize);
         if (!seg.is_relevant()) {
+            logv("create_mappings: not relevant: 0x%llx", d.StartOfMemoryRange);
             continue;
         }
         // PRS_TODO
@@ -818,46 +830,121 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
     return 0;
 }
 
+
+const int N_JVM_SYMS = 7;
+const char *JVM_SYMS[N_JVM_SYMS] = {
+    SYM_REVIVE_VM,
+    SYM_TTY,
+    SYM_JVM_VERSION,
+    SYM_TC_OWNER,
+    SYM_PARSE_AND_EXECUTE,
+    SYM_THROWABLE_PRINT,
+    SYM_THREAD_KEY
+};
+
+void write_symbols(int fd, const char* symbols[], int count, const char *revival_dirname) {
+
+    PLOADED_IMAGE image = ImageLoad("jvm.dll", revival_dirname);
+    if (image == nullptr) {
+    	error("ImageLoad error : %d", GetLastError());
+    }
+
+    HANDLE hCurrentProcess = GetCurrentProcess();
+    HANDLE h2 = (HANDLE) 1;
+
+    bool e = SymInitialize(h2, nullptr, false);
+    if (e != TRUE) {
+    	error("SymInitialize error : 0x%lx", GetLastError());
+    }
+
+    char moduleFilename[BUFLEN];
+    snprintf(moduleFilename, BUFLEN, "%s\\jvm.dll", revival_dirname);
+    SymLoadModuleEx(h2, NULL, moduleFilename, NULL, 0, 0, NULL, 0);
+
+    TCHAR szSymbolName[MAX_SYM_NAME];
+    ULONG64 buffer[(sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR) + sizeof(ULONG64) - 1) / sizeof(ULONG64)];
+    PSYMBOL_INFO pSymbol = (PSYMBOL_INFO) buffer;
+ 	pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+   	pSymbol->MaxNameLen = MAX_SYM_NAME;
+    char buf[MAX_SYM_NAME];
+
+    // Using SymFromName() on jvm.dll after relocation, gets us final absoulute addresses.
+    for (int i = 0; i < count; i++) {
+        warn("SYM: %d %s", i, symbols[i]);
+    	strncpy(szSymbolName, symbols[i], MAX_SYM_NAME);
+        unsigned long long address = 0;
+
+      	if (SymFromName(h2, szSymbolName, pSymbol)) {
+        	//	warn("SYM: %s = %s %p", (char *) pSymbol->Name, pSymbol->Address);
+        	address = pSymbol->Address;
+    	} else {
+    		warn("SymFromName returned error : %d", GetLastError());
+    	}
+        snprintf(buf, MAX_SYM_NAME, "%s %llx 0\n", szSymbolName, address);
+        write(fd, buf);
+    }
+    e = SymCleanup(h2);
+    if (e != TRUE) {
+    	warn("SymCleanup error: %d", GetLastError());
+    }
+    e = ImageUnload(image);
+    if (e != TRUE) {
+    	warn("ImageUnload error : %d", GetLastError());
+    }
+}
+
+
 int create_revivalbits_native_pd(const char *corename, const char *javahome, const char *revival_dirname, const char *libdir) {
     char jvm_copy[BUFLEN];
 
-    char *jvm = get_jvm_filename_pd(corename);
-    if (jvm == nullptr) {
+    char *jvm_path = get_jvm_filename_pd(corename);
+    if (jvm_path == nullptr) {
         warn("revival: cannot locate JVM in minidump.\n") ;
         return -1;
     }
-    if (verbose) log("JVM = '%s'", jvm);
+    logv("JVM = '%s'", jvm_path);
     void *addr = get_jvm_load_adddress_pd(corename);
-    if (verbose) log("JVM addr = %p", addr);
+    logv("JVM addr = %p", addr);
 
-    // make core.revival dir
+    // Create core.revival dir
     int e = _mkdir(revival_dirname);
     if (e < 0) {
         warn("Cannot create directory: %s: %s\n", revival_dirname, strerror(errno));
         return e;
     }
 
-    // use libdir if specified
+    // Use libdir if specified
     if (libdir != nullptr) {
         // find jvm.dll in libdir, use that instead of dump's jvm filename
     }
 
-    // copy libjvm into core.revival dir
+    // Copy jvm.dll into core.revival dir
     memset(jvm_copy, 0, BUFLEN);
     strncpy(jvm_copy, revival_dirname, BUFLEN - 1);
     strncat(jvm_copy, "\\" JVM_FILENAME, BUFLEN - 1);
-    e = copy_file_pd(jvm, jvm_copy);
+    e = copy_file_pd(jvm_path, jvm_copy);
     if (e != 0) {
         warn("Cannot copy JVM: %s to  %s\n", jvm_copy, revival_dirname);
         return -1;
     }
 
-    // relocate copy of libjvm:
+    // Relocate copy of libjvm:
     e = relocate_sharedlib_pd(jvm_copy, addr);
     if (e != 0) {
         warn("Failed to relocate JVM: %d\n", e);
         //    return -1; // temp ignore to test mappings when editbin not found...
     }
+
+    // Create symbols file
+    int symbols_fd = symbols_file_create(revival_dirname);
+    if (symbols_fd < 0) {
+        warn("Failed to create mappings file\n");
+        return -1;
+    }
+    logv("Write jvm symbols");
+    write_symbols(symbols_fd, JVM_SYMS, N_JVM_SYMS, revival_dirname);
+    logv("Write jvm symbols done");
+    close(symbols_fd);
 
     // Create core.mappings file:
     int fd = mappings_file_create(revival_dirname, corename);
@@ -873,6 +960,20 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
         warn("Failed to create memory mappings: %d\n", e);
         return -1;
     }
+
+    // Copy jvm.dll.pdb if present
+    char jvm_debuginfo_path[BUFLEN];
+    char jvm_debuginfo_copy_path[BUFLEN];
+    snprintf(jvm_debuginfo_path, BUFLEN, "%s", jvm_path);
+    char *p = strstr(jvm_debuginfo_path, ".dll");
+    if (p != nullptr) {
+        snprintf(p, BUFLEN, ".dll.pdb");
+        warn("DEBUGINFO: '%s'", jvm_debuginfo_path);
+        snprintf(jvm_debuginfo_copy_path, BUFLEN - 1, "%s/jvm.dll.pdb", revival_dirname);
+        copy_file_pd(jvm_debuginfo_path, jvm_debuginfo_copy_path);
+    }
+
+    logv("create_revivalbits_native_pd returning %d", 0);
     return 0;
 }
 

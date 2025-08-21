@@ -102,11 +102,11 @@ void tls_fixup_pd(void *tlsPtr);
 #define JVM_FILENAME "jvm.dll"
 
 #define SYM_JVM_VERSION "?jvm_version@Abstract_VM_Version@@SAIXZ"
-#define SYM_THROWABLE_PRINT "?print@java_lang_Throwable@@SAXVoop@@PEAVoutputStream@@@Z"
+#define SYM_THROWABLE_PRINT "?print@java_lang_Throwable@@SAXPEAVoopDesc@@PEAVoutputStream@@@Z"
 #define SYM_TC_OWNER "?lock_owner@@3KA"
 #define SYM_PARSE_AND_EXECUTE "?parse_and_execute@DCmd@@SAXW4DCmdSource@@PEAVoutputStream@@PEBDDPEAVJavaThread@@@Z"
 #define SYM_TTY "?tty@@3PEAVoutputStream@@EA"
-#define SYM_THREAD_KEY "_thread_key"
+#define SYM_THREAD_KEY "?_thread_key@@3KA"
 
 #define _exit _Exit
 

@@ -476,7 +476,7 @@ class ELFOperations {
     // Write info for given symbols.
     // If dlopen relocated libjvm, should use dlsym results.
     // Write symbol list for revived process.
-    void write_symbols(int fd, const char* symbols[], int N_SYMS) {
+    void write_symbols(int fd, const char* symbols[], int count) {
         Elf64_Shdr* strtab = section_by_name(".strtab");
         char* SYMTAB_BUFFER = (char *) m + strtab->sh_offset;
 
@@ -484,7 +484,7 @@ class ELFOperations {
         for (long unsigned int i = 0; i < symtab->sh_size / symtab->sh_entsize; i++) {
             Elf64_Sym* sym = (Elf64_Sym*) ((uint64_t) m + (symtab->sh_offset + i * symtab->sh_entsize));
 
-            for (int j = 0; j < N_SYMS; j++) {
+            for (int j = 0; j < count; j++) {
                 int ret = strcmp(symbols[j], SYMTAB_BUFFER + sym->st_name);
                 if (ret == 0) {
                     char buf[2048];
