@@ -37,7 +37,7 @@
  * @requires os.family == "linux" | os.family == "windows"
  * @library /test/lib
  *
- * @run main/othervm -Djdk.attach.core.verobse=true -XX:ConcGCThreads=3 JCmdRevival oom     VM.version help Thread.print GC.class_histogram GC.heap_dump Compiler.CodeHeap_Analytics Compiler.codecache Compiler.codelist Compiler.memory GC.heap_info System.dump_map System.map VM.class_hierarchy VM.classes VM.classloader_stats VM.classloaders VM.command_line VM.dynlibs VM.events VM.flags VM.metaspace VM.native_memory VM.stringtable VM.symboltable VM.systemdictionary VM.version_UNKNOWN VM.unknowncommand VM.flags_UNKNOWNARG
+ * @run main/othervm -Djdk.attach.core.verobse=true JCmdRevival oom     VM.version help Thread.print GC.class_histogram GC.heap_dump Compiler.CodeHeap_Analytics Compiler.codecache Compiler.codelist Compiler.memory GC.heap_info System.dump_map System.map VM.class_hierarchy VM.classes VM.classloader_stats VM.classloaders VM.command_line VM.dynlibs VM.events VM.flags VM.metaspace VM.native_memory VM.stringtable VM.symboltable VM.systemdictionary VM.version_UNKNOWN VM.unknowncommand VM.flags_UNKNOWNARG
  */
 
 /*
@@ -47,7 +47,7 @@
  * @library /test/lib
  * @requires vm.debug == true
  *
- * @run main/othervm -XX:ConcGCThreads=3 JCmdRevival cicrash VM.version help Thread.print GC.class_histogram GC.heap_dump Compiler.CodeHeap_Analytics Compiler.codecache Compiler.codelist Compiler.memory GC.heap_info System.dump_map System.map VM.class_hierarchy VM.classes VM.classloader_stats VM.classloaders VM.command_line VM.dynlibs VM.events VM.flags VM.metaspace VM.native_memory VM.stringtable VM.symboltable VM.systemdictionary VM.version_UNKNOWN VM.unknowncommand VM.flags_UNKNOWNARG
+ * @run main/othervm JCmdRevival cicrash VM.version help Thread.print GC.class_histogram GC.heap_dump Compiler.CodeHeap_Analytics Compiler.codecache Compiler.codelist Compiler.memory GC.heap_info System.dump_map System.map VM.class_hierarchy VM.classes VM.classloader_stats VM.classloaders VM.command_line VM.dynlibs VM.events VM.flags VM.metaspace VM.native_memory VM.stringtable VM.symboltable VM.systemdictionary VM.version_UNKNOWN VM.unknowncommand VM.flags_UNKNOWNARG
  *
  */
 
@@ -297,7 +297,9 @@ public class JCmdRevival {
             case "VM.flags": {
                 out.shouldContain("-XX:+CreateCoredumpOnCrash");
                 out.shouldContain("-XX:ReservedCodeCacheSize=");
-                out.shouldContain("-XX:ConcGCThreads=3"); // Recognise ConcGCThreads value set in test header
+                // Should find a flag with a value we can verify.
+                // ConcGCThreads can be set, but is changed on some test machines, e.g. to 2.
+                // out.shouldContain("-XX:ConcGCThreads=3"); // Recognise value set in test header
                 break;
             }
             case "VM.log": {
