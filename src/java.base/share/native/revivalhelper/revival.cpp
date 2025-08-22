@@ -30,6 +30,7 @@ using namespace std;
 
 #include "revival.hpp"
 
+struct revival_data* rdata;
 
 // Behaviour settings:
 // Diagnostics
@@ -874,12 +875,7 @@ if (verbose) {
 printf("Patched tc_owner = %p -> %p\n", tc, (void *) *tc);
 }
 } */
-
-// Changes in revival to reset tty mean this is not required:
-// glibc: set IO_accept_foreign_vtables = 1 to aovid asserts.
-// symbol_set("IO_accept_foreign_vtables", 1);
-
-return 0;
+    return 0;
 }
 
 /**
@@ -897,27 +893,29 @@ bool env_check(char *s) {
 
 /**
  * Attempt to complete the revival using a helper method in the target JVM.
+ *
+ * Return 0 for success, -1 for error.
  */
 int revive_image_cooperative() {
-    // Check for the helper method:
+
+    // Check for, then call the helper method:
     void *s = symbol(SYM_REVIVE_VM);
     if (s == (void*) -1) {
-        fprintf(stderr, "revive: JVM helper function not found.");
-        return false;
+        warn("revive_image: JVM helper function not found.");
+        return -1;
     }  
 
-    // Call the VM helper method, save the VMThread pointer it returns.
-    if (verbose) log("calling revival helper %p", s);
+    logv("revive_image: calling revival helper %p", s);
     void*(*helper)() = (void*(*)()) s;
-    revivalthread = (helper)();
-    if (verbose) {
-        log("revive_image: JVM returned VM Thread object = %p", revivalthread);
-    }
-    if ((long long) revivalthread == 0) {
-        fprintf(stderr, "revive_image: JVM helper failed\n");
-        return false;
+    rdata = (struct revival_data *) (helper)();
+    if (rdata == nullptr) {
+        warn("revive_image: JVM helper failed\n");
+        return -1;
     } 
-    return true;
+    revivalthread = rdata->vm_thread;
+    logv("revive_image: revival_data 0x%llx 0x%llx", (unsigned long long) rdata->magic, (unsigned long long) rdata->version);
+    logv("revive_image: VM Thread object = %p", revivalthread);
+    return 0;
 }
 
 
@@ -955,14 +953,6 @@ char *revival_dirname(const char *corename) {
     return dirname;
 }
 
-/**
- * revive_image
- * 
- * Main revival setup entry point.
- *
- * Given a core file name, create mappings data if necessary, and 
- * revive the process.
- */
 int revive_image(const char *corename, const char *javahome, const char *libdir) {
     int e;
     char buf[BUFLEN];
@@ -1085,49 +1075,28 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
 #endif
 
     e = revive_image_cooperative();
-    if (!e) {
+    if (e < 0) {
         warn("revival: revive_image failed: %d", e);
-    } else if (verbose) {
-        log("revive_image: OK");
+    } else {
+        logv("revive_image: OK");
     }
     return e;
 }
 
 void *revived_vm_thread() {
-    if (!revivaldir || !revivalthread) {
-        warn("revived_vm_thread: call revive_imagefirst.");
-        return nullptr;
+    if (!revivaldir || !rdata || !revivalthread) {
+        error("revived_vm_thread: call revive_image first.");
     }
     return revivalthread;
 }
 
-void *revival_tty_existing() {
-    if (!revivaldir) {
-        warn("revival_tty: call revive_image first.");
-        return nullptr;
-    }
-    if (!_tty) {
-        if (verbose) {
-            printf("Resolving tty... ");
-        }
-        void *tty1 = symbol(SYM_TTY);
-        unsigned long long tty2 = * (unsigned long long *) tty1;
-        _tty = (void*) tty2;
-        if (verbose) {
-            printf("%p\n", _tty);
-        }
-    }
-    return _tty;
-}
-
-
 void *revived_tty() {
-    if (!revivaldir) {
-        warn("revival_tty: call revive_image first.");
-        return nullptr;
+    if (!revivaldir || !rdata) {
+        error("revival_tty: call revive_image first.");
     }
+    _tty = rdata->tty;
     if (!_tty) {
-        if (verbose) printf("Resolving tty...");
+        logv("Resolving tty...");
         void *tty1 = symbol(SYM_TTY);
         if (tty1 == (void*) -1) {
             warn("Failed to resolve symbol '%s'", SYM_TTY);
@@ -1142,22 +1111,23 @@ void *revived_tty() {
 
 
 int revival_dcmd(const char *command) {
-    void *s = symbol(SYM_PARSE_AND_EXECUTE);
-    if (s == (void*) -1) {
-        warn("revival: symbol lookup failed: " SYM_PARSE_AND_EXECUTE);
-        return -1;
+
+    void *s = rdata->parse_and_execute;
+    if (s == nullptr) {
+        warn("revival: no parse_and_execute in revival data.");
+        void *s = rdata->parse_and_execute;
+        if (s == (void*) -1) {
+            warn("revival: symbol lookup failed: " SYM_PARSE_AND_EXECUTE);
+            return -1;
+        }
     }
-    if (revived_tty() == (void*) 0L) {
+    if (revived_tty() == nullptr) {
         // null tty will cause a crash during DCmd output.
-        warn("revival: tty failed.");
-        return -1;
+        error("revival: tty failed.");
     }
     int(*dcmd_parse)(int, void*, const char*, char, void*) = (int(*)(int, void*, const char *, char, void*)) s;
-    if (verbose) {
-        log("dcmd_parse: '%s'\n", command);
-    }
+    logv("dcmd_parse: '%s'\n", command);
     (dcmd_parse)(DCMD_SOURCE, revived_tty(), command, ' ', revived_vm_thread());
-
     return 0;
 }
 

@@ -280,7 +280,7 @@ class Thread: public ThreadShadow {
   static void clear_thread_current(); // TLS cleanup needed before threads terminate
 
   // Process Revival for Serviceability:
-  JNIEXPORT static Thread* process_revival();
+  JNIEXPORT static void* process_revival();
   JNIEXPORT static bool is_revived() { return _revived_vm; }
   static jboolean _revived_vm;
 

@@ -137,8 +137,23 @@ void tls_fixup_pd(void *tlsPtr);
 // revivalhelper tool uses only these two functions.
 //
 
+// One structure to keep in sync with the JVM:
+struct revival_data {
+  uint64_t magic;
+  uint64_t version;
+  uint64_t jvm_version;
+  void* vm_thread;
+  void* parse_and_execute;
+  void* tty;
+  void* info;
+};
+
 /**
- * Revive the specified core file into the current process.
+ * Main revival setup entry point.
+ * Given a core file name, create mappings data if necessary, and
+ * revive into the current process.
+ *
+ * Return 0 for success, -1 for failure.
  */
 int revive_image(const char *corefile, const char *javahome, const char *libdir);
 

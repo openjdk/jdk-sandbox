@@ -46,6 +46,8 @@
 #include "runtime/safepointMechanism.inline.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadSMR.inline.hpp"
+#include "services/diagnosticArgument.hpp"
+#include "services/diagnosticFramework.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
 #include "utilities/spinYield.hpp"
@@ -620,17 +622,20 @@ void Thread::SpinRelease(volatile int * adr) {
 
 jboolean Thread::_revived_vm = false;
 
-// Consider revival returning more info:
 struct revival_data {
-  void* info;
+  uint64_t magic;
+  uint64_t version;
+  uint64_t jvm_version;
   void* vm_thread;
+  void* parse_and_execute;
   void* tty;
+  void* info;
 };
 
 struct revival_data vm_revival_data;
 
 // VM Process Revival for Serviceability
-Thread* Thread::process_revival() {
+void* Thread::process_revival() {
   _revived_vm = true;
 #ifdef LINUX
   os::Linux::revive_init();
@@ -667,11 +672,14 @@ Thread* Thread::process_revival() {
   UnlockDiagnosticVMOptions = true;
   DebuggingContext::force(); // Disable asserts
 
+  vm_revival_data.magic = 0x100000001;
+  vm_revival_data.version = 0x1;
+  vm_revival_data.jvm_version = 26;
   vm_revival_data.vm_thread = jt;
+  vm_revival_data.parse_and_execute = (void*) &DCmd::parse_and_execute;
   vm_revival_data.tty = tty;
-  // tty->print_cr("Thread::process_revival done");
-  //return &vm_revival_data;
-  return jt;
+  vm_revival_data.info = nullptr;
+  return (void*) &vm_revival_data;
 }
 
 void* process_revival() { return (void*) Thread::process_revival(); }
