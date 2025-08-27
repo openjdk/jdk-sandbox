@@ -208,7 +208,7 @@ public abstract class VirtualMachine {
 
     /*
      * Alternate attach method accepting library directory list, for core files.
-     * @since 25
+     * @since 26
      */
     public static VirtualMachine attach(String id, List<String> libDirs)
         throws AttachNotSupportedException, IOException

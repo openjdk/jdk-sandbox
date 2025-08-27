@@ -141,7 +141,7 @@ public abstract class AttachProvider {
       * Attaches to a Java virtual machine, with a list of library directories to use when
       * attaching to a crash dump (core file or minidump).
       *
-      * @since 25
+      * @since 26
       */
     public VirtualMachine attachVirtualMachine(String id, List<String> libDirs)
         throws AttachNotSupportedException, IOException {
