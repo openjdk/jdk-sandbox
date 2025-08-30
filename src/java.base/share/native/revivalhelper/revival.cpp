@@ -292,6 +292,16 @@ int revival_mapping_mmap(void *vaddr, size_t length, off_t offset, int lines, ch
     return e;
 }
 
+
+int revival_mapping_allocate(void *vaddr, size_t length) {
+    void *e = do_map_allocate_pd(vaddr, length);
+    if (e != vaddr) {
+        return -1;
+    }
+    return 0;
+}
+
+
 /**
  * revival_mapping_copy
  *
@@ -303,13 +313,13 @@ int revival_mapping_mmap(void *vaddr, size_t length, off_t offset, int lines, ch
  */
 int revival_mapping_copy(void *vaddr, size_t length, off_t offset, bool allocate, char *filename, int fd) {
     int e = 0;
-    if (verbose) {
-        printf("  revival_mapping_copy: alloc=%d vaddr " PTR_FORMAT " - " PTR_FORMAT " len=" SIZE_FORMAT_X_0 " from file offset 0x%llx\n",
-                allocate, (uintptr_t) vaddr, (uintptr_t) ((address) vaddr + length), length, (long long) offset);
-    }
-    // Need to create a mapping:
+    logv("  revival_mapping_copy: alloc=%d vaddr " PTR_FORMAT " - " PTR_FORMAT " len=" SIZE_FORMAT_X_0 " from file offset 0x%llx\n",
+         allocate, (uintptr_t) vaddr, (uintptr_t) ((address) vaddr + length), length, (long long) offset);
+
     if (allocate) {
-        // Alignment: align address down, if address changes then extend mapping length.
+        // Need to create a mapping: (not normally true)
+
+/*      // Alignment: align address down, if address changes then extend mapping length.
         //
         // vaddr is from core.mappings, and should not really be misaligned, BUT on Windows it may not be 64k aligned.
         // As only Windows affected by that, check alignment in do_map_allocate_pd called below.
@@ -330,9 +340,8 @@ int revival_mapping_copy(void *vaddr, size_t length, off_t offset, bool allocate
         if (verbose) {
             printf("  revival_mapping_copy: allocate vaddr = 0x%p vaddrAligned = 0x%p vaddr_alignment = 0x%lx alignedLength = 0x%lx\n",
                     vaddr, (void *) vaddrAligned, (unsigned long) vaddr_alignment_pd(), (unsigned long) alignedLength);
-        }
+        } 
 
-        // Create allocation:
         void *newAddr = do_map_allocate_pd((void *) vaddr, length);
         if (newAddr != vaddr) {
             // Was it an alignment change?
@@ -347,7 +356,15 @@ int revival_mapping_copy(void *vaddr, size_t length, off_t offset, bool allocate
                 waitHitRet();
                 return -1;
             }
+        } */
+
+        // Create allocation:
+        e = revival_mapping_allocate(vaddr, length);
+        if (e < 0) {
+            warn("  revival_mapping_copy: allocation required, but failed.");
+            return -1;
         }
+
     }
     // Check permission
     if (!mem_canwrite_pd(vaddr, length)) {
@@ -358,12 +375,12 @@ int revival_mapping_copy(void *vaddr, size_t length, off_t offset, bool allocate
     // Copy data to allocation:
     FILE *f = fopen(filename, "rb");
     if (!f) {
-        warn("cannot open: '%s': %d: %s", filename, errno, strerror(errno));
+        warn("revival_mapping_copy: cannot open: '%s': %d: %s", filename, errno, strerror(errno));
         return -1;
     }
     e = fseek(f, offset, SEEK_SET);
     if (e != 0) {
-        warn("cannot seek '%s' to offset %llx: returns %d: %d: %s", filename, (long long) offset, e, errno, strerror(errno));
+        warn("revival_mapping_copy: cannot seek '%s' to offset %llx: returns %d: %d: %s", filename, (long long) offset, e, errno, strerror(errno));
         fclose(f);
         return -1;
     }
@@ -371,7 +388,9 @@ int revival_mapping_copy(void *vaddr, size_t length, off_t offset, bool allocate
     int *p = (int*) vaddr;
     // printf("map test\n");
     *p = 123;
-    // printf("map test done\n");
+    //warn("map test done\n");
+
+    // Read.  --> todo: use ptr to destination, read to there directly...
     int value;
     for (size_t i = 0; i < length/4; i++) {
         e = (int) fread(&value, 4, 1, f);
@@ -385,7 +404,7 @@ int revival_mapping_copy(void *vaddr, size_t length, off_t offset, bool allocate
     if (verbose) {
         printf("  revival_mapping_copy: done, copied %zd.\n", length);
     }
-    return 0; // Success
+    return 0;
 }
 
 
@@ -475,6 +494,7 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
     // Read and process the mappings:
     while (1) {
         lines++;
+        logv("mappings_file_read: line %d", lines);
         s1[0] = '\0';
         char s3[BUFLEN];
         char s4[BUFLEN];
@@ -541,18 +561,24 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
                 }
             } else if (strncmp(s1, "m", 1) == 0) {
                 // Allocate only, file offset/length not used:
-                void *e = do_map_allocate_pd(vaddr, length);
-                if (e != vaddr) {
+                int e = revival_mapping_allocate(vaddr, length);
+                if (e < 0) {
                     m_bad++;
                 } else {
                     m_good++;
                 }
             } else if (strncmp(s1, "CA", 2) == 0) { 
                 // Copy with allocation:
-                revival_mapping_copy(vaddr, length, offset, true, core_filename, core_fd);
+                int e = revival_mapping_copy(vaddr, length, offset, true, core_filename, core_fd);
+                if (e < 0) {
+                    warn("mappings_file_read: copy with allocation failed for seg at 0x%llx", vaddr);
+                }
             } else if (strncmp(s1, "C", 1) == 0) { 
                 // Copy, no allocation needed:
-                revival_mapping_copy(vaddr, length, offset, false, core_filename, core_fd);
+                int e = revival_mapping_copy(vaddr, length, offset, false, core_filename, core_fd);
+                if (e < 0) {
+                    warn("mappings_file_read: copy failed for seg at 0x%llx", vaddr);
+                }
             } else {
                 // Not recognised:
                 printf("mappings_file_read: unrecognised line %d: '%s'", lines, s1);
@@ -833,20 +859,36 @@ bool Segment::is_relevant() {
  * Write this Segment, formatted as a core.mappings line, to the given fd.
  */
 int Segment::write_mapping(int fd) {
-    // M vaddr endaddress fileoffset filesize memsize perms
+    return write_mapping(fd, "M");
+}
+
+int Segment::write_mapping(int fd, const char *type) {
+    // type vaddr endaddress fileoffset filesize memsize perms
     // e.g.
     // M 2d05a12e000 2d05a12f000 19615fd4 1000 1000 RW-
     char buf[BUFLEN];
-    snprintf(buf, BUFLEN, "M %llx %llx %llx %llx %llx %s\n",
+    snprintf(buf, BUFLEN, "%s %llx %llx %llx %llx %llx %s\n",
+             type,
              (unsigned long long) vaddr,
-             (unsigned long long) vaddr + length,
+             (unsigned long long) end(), // vaddr + length,
              (unsigned long long) file_offset,
              (unsigned long long) file_length,
-             (unsigned long long) file_length,
+             (unsigned long long) length,
              "RWX" // temp
             );
     write(fd, buf); // includes warning on error
     return 0;
+}
+
+char *Segment::toString() {
+    char* buf = (char *) malloc(BUFLEN);
+    snprintf(buf, BUFLEN, "Segment: %llx - %llx off: %llx len:%llx",
+             (unsigned long long) vaddr,
+             (unsigned long long) end(), // vaddr + length,
+             (unsigned long long) file_offset,
+             (unsigned long long) file_length
+            );
+    return buf;
 }
 
 

@@ -247,11 +247,14 @@ bool mem_canwrite_pd(void *vaddr, size_t length) {
     size_t q = VirtualQueryEx(hProc, vaddr, &meminfo, sizeof(meminfo));
 
     if (q == sizeof(meminfo)) {
-        if (meminfo.Protect == PAGE_EXECUTE_READWRITE || meminfo.Protect == PAGE_EXECUTE_WRITECOPY|| meminfo.Protect == PAGE_READWRITE
-                || meminfo.Protect == PAGE_WRITECOPY) {
+        if (meminfo.Protect == PAGE_EXECUTE_READWRITE
+            || meminfo.Protect == PAGE_EXECUTE_WRITECOPY
+            //|| meminfo.Protect == PAGE_READWRITE
+            || meminfo.Protect == PAGE_WRITECOPY) {
+            logv("    mem_canwrite_pd: %p protect: 0x%lx: YES", vaddr, meminfo.Protect);
             return true;
         } else {
-            logv("    mem_canwrite_pd: %p protect: %lx: NO", vaddr, meminfo.Protect);
+            logv("    mem_canwrite_pd: %p protect: 0x%lx: NO", vaddr, meminfo.Protect);
             return false;
         }
     } else {
@@ -280,11 +283,12 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, off_t offset
     DWORD createFileDesiredAccess = GENERIC_READ | GENERIC_EXECUTE;
     DWORD mappingProt = PAGE_EXECUTE_READ;
     DWORD mapViewAccess = FILE_MAP_READ | FILE_MAP_EXECUTE;
-    /*  if (mapWrite) {
+    bool mapWrite = true;
+      if (mapWrite) {
         createFileDesiredAccess |= GENERIC_WRITE;
         mappingProt |= PAGE_READWRITE;
-        mapViewProt |= 
-        } */
+//        mapViewProt |= 
+        }
     h = CreateFile(filename, createFileDesiredAccess, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (h == nullptr) {
         printf("    do_mmap_pd: CreateFile failed: %s: 0x%lx\n", filename, GetLastError());
@@ -350,6 +354,10 @@ void *do_map_allocate_pd_MapViewOfFile(void *vaddr, size_t length) {
     uint64_t diff = (uint64_t) vaddr -  (uint64_t) addr_aligned;
     size_t length_aligned = length + diff;
 
+    if (addr_aligned != (address) vaddr) {
+        warn("    do_map_allocate_pd_MapViewOfFile: was not aligned. 0x%llx -> 0x%llx", vaddr, addr_aligned);
+    }
+
     HANDLE h = CreateFileMapping(INVALID_HANDLE_VALUE, nullptr, mappingProt, 0, (DWORD) length_aligned, nullptr);
     if (h == nullptr) {
         warn("    do_map_allocate_pd_MapViewOfFile: CreateFileMapping returns = 0x%p : error = 0x%lx\n", h, GetLastError());
@@ -359,22 +367,19 @@ void *do_map_allocate_pd_MapViewOfFile(void *vaddr, size_t length) {
     LPVOID p = MapViewOfFileEx(h, mapViewAccess, 0, 0, length, (void *) vaddr);
 
     if ((void*) p == vaddr || (void*) p == (void*) addr_aligned) {
-        if (verbose) {
-            printf("    do_map_allocate_pd_MapViewOfFile: OK.\n");
-        }
+        logv("do_map_allocate_pad: MapViewOfFile 0x%llx 0x%llx OK", (unsigned long long) vaddr, length);
         return vaddr;
     }
 
+    logv("do_map_allocate_pad: MapViewOfFile 0x%llx 0x%llx bad, gets 0x%llx", (unsigned long long) vaddr, length, (unsigned long long) p);
+
     p = MapViewOfFileEx(h, mapViewAccess, 0, 0, length_aligned, (void *) addr_aligned);
     if ((void*) p == (void*) addr_aligned) {
-        if (verbose) {
-            printf("    do_map_allocate_pd_MapViewOfFile: OK aligned.\n");
-        }
+        logv("    do_map_allocate_pd_MapViewOfFile: OK aligned.\n");
         return vaddr;
     }
-    if (verbose) {
-        printf("    do_map_allocate_pd_MapViewOfFile: 0x%p fail, gets 0x%p.\n", vaddr, p);
-    }
+
+    logv("    do_map_allocate_pd_MapViewOfFile: 0x%p fail, gets 0x%p.\n", vaddr, p);
 
     /*
        if ((void*) p != (void*) vaddrAligned) {
@@ -528,14 +533,9 @@ void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length) {
 }
 
 
-/**
- * Create a memory mapping at a given address, length.
- *
- * Allocate, ready for copying data in, as direct mapping from file has failed.
- */
 void *do_map_allocate_pd(void *addr, size_t length) {
-    return do_map_allocate_pd_MapViewOfFile(addr, length);
-    //return do_map_allocate_pd_VirtualAlloc2(addr, length);
+//    return do_map_allocate_pd_MapViewOfFile(addr, length);
+    return do_map_allocate_pd_VirtualAlloc2(addr, length);
 }
 
 
@@ -763,8 +763,56 @@ int relocate_sharedlib_pd(const char *filename, const void *addr) {
 }
 
 
+
+/**
+ * Read the next Minidump Memory Descriptor.
+ * Return nullptr for not found, should terminate.
+ */
+Segment* readSegment(struct minidump* dump, MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA) {
+    do {
+        int e = read(dump->fd, d, sizeof(*d));
+        if (e < 0) {
+            warn("create_mappings: read: %s", strerror(errno));
+            return nullptr;
+        } else if (e < sizeof(d)) {
+            long pos = _lseek(dump->fd, 0, SEEK_CUR);
+            warn("create_mappings: read expects %d, got %d, at pos %ld.  Retry...", sizeof(d), e, pos);
+            // Retry a short read.
+            // e.g. test where after 80 iterations, read returns 2.
+            continue;
+        } else {
+            break;
+        }
+    } while (true);
+
+    if (max_user_vaddr_pd() > 0 && d->StartOfMemoryRange >= max_user_vaddr_pd()) {
+        logv("create_mappings: terminating as address 0x%llx >= 0x%llx", d->StartOfMemoryRange, max_user_vaddr_pd());
+        return nullptr; // End of user space mappings.
+    }
+
+    Segment *seg = new Segment((void *) d->StartOfMemoryRange, (size_t) d->DataSize, (off_t) *currentRVA, (size_t) d->DataSize);
+    *currentRVA += d->DataSize;
+    return seg;
+}
+
+uint64_t resolve_tls(struct minidump* dump) {
+    // Find Minidump ThreadListStream
+    // Read _MINIDUMP_THREAD
+    // Read TEB
+    // Return _tls_array
+    MINIDUMP_DIRECTORY *md = minidump_find_stream(dump, ThreadListStream);
+    if (md == nullptr) {
+        warn("Minidump ThreadListStream not found\n");
+        return 0;
+    }
+    return 0;
+}
+
 int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const char *javahome, void *addr) {
-    // Read minidump memory list.
+    // Read minidump memory list, create text of mappings list.
+    // Plan to map data directly from core where possible.
+    // If alignment simply does not work (segments too close), copy bytes.
+
     struct minidump *dump = open_minidump(corename);
     if (dump == nullptr) {
         return -1;
@@ -776,6 +824,9 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
         return -1;
     }
 
+    // Maintain a list of segments to copy bytes later.
+    std::list<Segment> segsToCopy;
+
     // Read MINIDUMP_MEMORY64_LIST 
     ULONG64 NumberOfMemoryRanges;
     RVA64 BaseRVA;
@@ -786,46 +837,98 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
     MINIDUMP_MEMORY_DESCRIPTOR64 d;
     ULONG64 prevAddr = 0;
 
-    // After 80 iterations, read starts returning 2 then zero.
+    Segment *seg = readSegment(dump, &d, &currentRVA);
+    Segment *segNext = nullptr;
+
     for (ULONG64 i = 0; i < NumberOfMemoryRanges; i++) {
 
-        int e = read(dump->fd, &d, sizeof(d));
-        if (e < 0) {
-            warn("create_mappings: read: %s", strerror(errno));
-            break;
-        } else if (e < sizeof(d)) {
-            long pos = _lseek(dump->fd, 0, SEEK_CUR);
-            warn("create_mappings: read expects %d, got %d, at pos %ld", sizeof(d), e, pos);
-            // Retry a short read.
-            // memset (&d, 0, sizeof(d));
-            i--;
-            continue;
+        // Either read, or use a segNext we already read (but did not use):
+        if (segNext != nullptr) {
+            seg = segNext;
+            segNext = nullptr;
+        } else {
+            seg = readSegment(dump, &d, &currentRVA);
+            if (seg == nullptr) {
+                break;
+            }
         }
 
+        // Repeated data in minidump can be observed at end - this may have been only seen before the read retry above...
         if (d.StartOfMemoryRange == prevAddr) {
             logv("create_mappings: skipping due to repetition, 0x%llx", prevAddr);
-            continue; // Repeated data in minidump can be observed at end
+            continue; 
         }
-        if (max_user_vaddr_pd() > 0 && d.StartOfMemoryRange >= max_user_vaddr_pd()) {
-            logv("create_mappings: terminating as address 0x%llx >= 0x%llx", d.StartOfMemoryRange, max_user_vaddr_pd());
-            break; // End of user space mappings.
-        }
-        logv("create_mappings_pd: %8lld 0x%16llx 0x%16llx   dump file offset 0x%16llx \n",
-              i, d.StartOfMemoryRange, d.DataSize, currentRVA);
-        currentRVA += d.DataSize;
+
+        logv("create_mappings_pd: %8lld 0x%16llx 0x%16llx   dump file offset 0x%16llx \n", i, d.StartOfMemoryRange, d.DataSize, currentRVA);
+//        currentRVA += d.DataSize; ( in readSegment() now)
         prevAddr = d.StartOfMemoryRange;
 
-        Segment seg((void *) d.StartOfMemoryRange, (size_t) d.DataSize, (off_t) currentRVA, (size_t) d.DataSize);
-        if (!seg.is_relevant()) {
+        if (!seg->is_relevant()) {
             logv("create_mappings: not relevant: 0x%llx", d.StartOfMemoryRange);
             continue;
         }
-        // PRS_TODO
-        // Check avoidSegments
 
-        // Write to mappings file.
-        e = seg.write_mapping(fd);
+        // Consider the NEXT region as well, in case it is too close for vaddralignment to work.
+        // Will grow a bigger segment to map, that contains all these neighbouring segments (copied).
+        segNext = readSegment(dump, &d, &currentRVA);
+        if (segNext != nullptr) { i++; }  // Maintain outer loop counter
+        Segment *biggerSeg = nullptr;
+
+        while (segNext != nullptr && seg->end() + vaddr_alignment_pd() >= segNext->start()) {
+            // Will copy these segs:
+            warn("create_mappings: segs too close for alignment, seg: %p - %p next seg: %p", seg->vaddr, seg->end(), segNext->vaddr);
+            char *b = seg->toString();
+            fprintf(stderr, "later seg    : %s\n", b);
+            free(b);
+            b = segNext->toString();
+            fprintf(stderr, "later segNext: %s\n", segNext->toString());
+            free(b);
+
+            // Save segs, will write "C" copy lines later.
+            if (biggerSeg == nullptr) {
+                segsToCopy.push_back(seg);   // Write first seg only on first time through this loop
+                biggerSeg = new Segment(seg); // Start with copy of seg info.
+            }
+            segsToCopy.push_back(segNext);      // Write segNext on all iterations
+
+            biggerSeg->set_end(segNext->end());  // Expand to cover both.
+            b = biggerSeg->toString();
+            fprintf(stderr, "BIGGER seg expanded: %s\n", b);
+            free(b);
+
+            // Next...
+            seg = segNext;
+            segNext = readSegment(dump, &d, &currentRVA);
+            if (segNext != nullptr) { i++; }
+        }
+
+        // Write line to mappings file.
+        // Use the biggerSeg if we were in the above loop.
+        if (biggerSeg != nullptr) {
+            char *b = biggerSeg->toString();
+            fprintf(stderr, "write BIGGER seg    : %s\n", b);
+            free(b);
+            e = biggerSeg->write_mapping(fd, "m");
+            biggerSeg = nullptr;
+        } else {
+            e = seg->write_mapping(fd, "M");
+        }
+    } // End loop reading minidump memory descriptors.
+
+    // Write regions to copy
+    std::list<Segment>::iterator iter;
+    for (iter = segsToCopy.begin(); iter != segsToCopy.end(); iter++) {
+        iter->write_mapping(fd, "C");
     }
+
+    // Windows TLS
+    uint64_t tls = resolve_tls(dump);
+    if (tls != 0) {
+        // write...
+    } else {
+        warn("TLS not resovled");
+    }
+
     close_minidump(dump);
     return 0;
 }

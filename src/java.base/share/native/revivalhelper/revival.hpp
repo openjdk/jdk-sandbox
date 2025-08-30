@@ -187,7 +187,7 @@ extern const char *revivaldir;
 extern void *revivalthread;
 extern void *h; // handle to libjvm
 
-extern void exitForRetry(); // Signal an address space clash that may be temporary.
+extern void exitForRetry(); // Exit with value signalling an address space clash that may be temporary.
 
 struct SharedLibMapping {
     uint64_t start;
@@ -201,13 +201,23 @@ class Segment {
         Segment(void *v, size_t len, off_t offset, size_t file_len) : 
             vaddr(v), length(len), file_offset(offset), file_length(file_len) {}
 
+        Segment(Segment *s) : 
+            vaddr(s->vaddr), length(s->length), file_offset(s->file_offset), file_length(s->file_length) {}
+
         void   *vaddr;
         size_t length;
         off_t  file_offset;
         size_t file_length;
 
+        uint64_t start() { return (uint64_t) vaddr; }
+        uint64_t end() { return (uint64_t) vaddr + length; }
+        void set_end(uint64_t addr) { length = addr - (uint64_t) vaddr; }
+
         bool is_relevant();
         int write_mapping(int fd);
+        int write_mapping(int fd, const char* type);
+
+        char *toString();
 };
 
 extern std::list<Segment> writableSegments;
@@ -269,10 +279,13 @@ void *do_map_allocate_pd(void *addr, size_t length);
 void *revived_vm_thread();
 
 SharedLibMapping* read_NT_mappings2(int core_fd, int& count_out);
+
 /**
  * Return a boolean true if the given revival directory exists.
  */
 bool revival_direxists_pd(const char *dirname);
+
+int revival_mapping_allocate(void *vaddr, size_t length);
 
 int revival_mapping_copy(void *vaddr, size_t length, off_t offset, bool allocate, char *filename, int fd);
 
