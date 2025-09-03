@@ -333,7 +333,9 @@ unsigned long long max_user_vaddr_pd();
 /**
  * Write string fully to fd, log if error.
  */
-void write(int fd, const char *buf);
+void write0(int fd, const char *buf);
+
+void writef(int fd, const char *format, ...);
 
 /**
  * Diagnostic utils:

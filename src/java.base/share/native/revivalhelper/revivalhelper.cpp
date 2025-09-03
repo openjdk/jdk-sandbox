@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
     // Deduce JDK home from our executable name.
     // This program is built into the JDK lib directory.
 #ifdef WINDOWS
-#define MY_NAME "\\lib\\revivalhelper.exe"
+#define MY_NAME "\\lib\\revivalhelper"
 #else
 #define MY_NAME "/lib/revivalhelper"
 #endif
