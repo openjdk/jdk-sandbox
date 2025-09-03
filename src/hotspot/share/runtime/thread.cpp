@@ -651,6 +651,7 @@ void* Thread::process_revival() {
     fprintf(stderr, "Error: process_revival: null VMThread::vm_thread()\n");
     return nullptr;
   }
+  ThreadLocalStorage::revive(jt);
   jt->initialize_thread_current(); // call before using tty
   jt->record_stack_base_and_size();
   jt->set_osthread(new OSThread()); // was; (nullptr, nullptr));
@@ -672,15 +673,20 @@ void* Thread::process_revival() {
   UnlockDiagnosticVMOptions = true;
   DebuggingContext::force(); // Disable asserts
 
-  vm_revival_data.magic = 0x100000001;
-  vm_revival_data.version = 0x1;
-  vm_revival_data.jvm_version = 26;
-  vm_revival_data.vm_thread = jt;
-  vm_revival_data.parse_and_execute = (void*) &DCmd::parse_and_execute;
-  vm_revival_data.tty = tty;
-  vm_revival_data.info = nullptr;
-  return (void*) &vm_revival_data;
+  struct revival_data* rdata = &vm_revival_data;
+  rdata->magic = 0x100000001;
+  rdata->version = 0x1;
+  rdata->jvm_version = 26;
+  rdata->vm_thread = jt;
+
+  rdata->parse_and_execute = (void*) &DCmd::parse_and_execute;
+  rdata->tty = tty;
+  rdata->info = nullptr;
+
+  return (void*) rdata;
 }
 
-void* process_revival() { return (void*) Thread::process_revival(); }
+void* process_revival() {
+  return (void*) Thread::process_revival();
+}
 

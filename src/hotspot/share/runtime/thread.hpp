@@ -282,6 +282,7 @@ class Thread: public ThreadShadow {
   // Process Revival for Serviceability:
   JNIEXPORT static void* process_revival();
   JNIEXPORT static bool is_revived() { return _revived_vm; }
+ private:
   static jboolean _revived_vm;
 
  protected:
