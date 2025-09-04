@@ -72,7 +72,6 @@ typedef uint64_t address;
 #ifdef LINUX
 
 #include <libgen.h>
-#include <pthread.h>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/time.h>
@@ -84,7 +83,6 @@ typedef uint64_t address;
 #define SYM_TC_OWNER "_ZL8tc_owner"
 #define SYM_PARSE_AND_EXECUTE "_ZN4DCmd17parse_and_executeE10DCmdSourceP12outputStreamPKccP10JavaThread"
 #define SYM_TTY "tty"
-#define SYM_THREAD_KEY "_ZL11_thread_key"
 
 void install_handler();
 
@@ -96,8 +94,7 @@ void install_handler();
 #include <io.h>
 #include <windows.h>
 
-static DWORD _thread_key;
-void tls_fixup_pd(void *tlsPtr);
+//void tls_fixup_pd(void *tlsPtr);
 
 #define JVM_FILENAME "jvm.dll"
 
@@ -106,7 +103,6 @@ void tls_fixup_pd(void *tlsPtr);
 #define SYM_TC_OWNER "?lock_owner@@3KA"
 #define SYM_PARSE_AND_EXECUTE "?parse_and_execute@DCmd@@SAXW4DCmdSource@@PEAVoutputStream@@PEBDDPEAVJavaThread@@@Z"
 #define SYM_TTY "?tty@@3PEAVoutputStream@@EA"
-#define SYM_THREAD_KEY "?_thread_key@@3KA"
 
 #define _exit _Exit
 
@@ -126,7 +122,6 @@ void tls_fixup_pd(void *tlsPtr);
 #define SYM_TC_OWNER "_ZL8tc_owner"
 #define SYM_PARSE_AND_EXECUTE "parse_and_execute@DCmd@@SAXW4DCmdSource@@PEAVoutputStream@@PEBDDPEAVThread@@@Z"
 #define SYM_TTY "tty"
-#define SYM_THREAD_KEY "_ZL11_thread_key"
 
 #define _exit _Exit
 
@@ -331,13 +326,6 @@ const char *dangerous( void *vaddr, unsigned long long length);
 unsigned long long max_user_vaddr_pd();
 
 /**
- * Write string fully to fd, log if error.
- */
-void write0(int fd, const char *buf);
-
-void writef(int fd, const char *format, ...);
-
-/**
  * Diagnostic utils:
  */
 
@@ -359,8 +347,14 @@ void pmap_pd();
 #endif
 #define ATTRIBUTE_PRINTF(fmt,vargs)  __attribute__((format(printf, fmt, vargs)))
 
+// Write string fully to fd, log if error.
+void write0(int fd, const char *buf);
+
+void writef(int fd, const char *format, ...) ATTRIBUTE_PRINTF(2, 3);
+
 // Log to stderr.  Adds timestamp and newline to given message.
 void log(const char *format, ...) ATTRIBUTE_PRINTF(1, 2);
+
 // With verbose check.
 void logv(const char *format, ...) ATTRIBUTE_PRINTF(1, 2);
 

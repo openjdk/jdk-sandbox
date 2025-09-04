@@ -278,6 +278,7 @@ class Thread: public ThreadShadow {
   // Manage Thread::current()
   void initialize_thread_current();
   static void clear_thread_current(); // TLS cleanup needed before threads terminate
+  void revive_thread_current(); // Process Revival for Serviceability
 
   // Process Revival for Serviceability:
   JNIEXPORT static void* process_revival();

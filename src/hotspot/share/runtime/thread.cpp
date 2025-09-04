@@ -190,6 +190,11 @@ void Thread::clear_thread_current() {
   ThreadLocalStorage::set_thread(nullptr);
 }
 
+void Thread::revive_thread_current() {
+  _thr_current = this;
+  ThreadLocalStorage::set_thread(this);
+}
+
 void Thread::record_stack_base_and_size() {
   // Note: at this point, Thread object is not yet initialized. Do not rely on
   // any members being initialized. Do not rely on Thread::current() being set.
@@ -651,10 +656,11 @@ void* Thread::process_revival() {
     fprintf(stderr, "Error: process_revival: null VMThread::vm_thread()\n");
     return nullptr;
   }
+  // Reset current thread:
   ThreadLocalStorage::revive(jt);
-  jt->initialize_thread_current(); // call before using tty
+  jt->revive_thread_current();
   jt->record_stack_base_and_size();
-  jt->set_osthread(new OSThread()); // was; (nullptr, nullptr));
+  jt->set_osthread(new OSThread());
 
   // If creating a JavaThread, do:
   //  jt->set_thread_state(_thread_in_vm);

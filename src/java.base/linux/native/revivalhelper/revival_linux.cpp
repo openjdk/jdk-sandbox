@@ -28,7 +28,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <libgen.h>
-#include <pthread.h>
 #include <signal.h>
 #include <cassert>
 #include <stdint.h>
@@ -488,11 +487,14 @@ class ELFOperations {
                 int ret = strcmp(symbols[j], SYMTAB_BUFFER + sym->st_name);
                 if (ret == 0) {
                     char buf[2048];
-                    snprintf(buf, 2048, "%s %llx %llx\n",
+                    int len = snprintf(buf, 2048, "%s %llx %llx\n",
                             SYMTAB_BUFFER + sym->st_name,
                             (unsigned long long) sym->st_value,
                             (unsigned long long) 0);
-                    write(fd, buf);
+                    int e = write(fd, buf, len);
+                    if (e != len) {
+                        warn("write_symbols: write error: %s", strerror(errno));
+                    }
                 }
             }
         }
@@ -1085,7 +1087,8 @@ void handler(int sig, siginfo_t *info, void *ucontext) {
         }
     }
     warn("handler: si_addr = %p : not handled.", addr);
-    exitForRetry();
+//    exitForRetry();
+    abort();
 }
 
 /*
@@ -1277,15 +1280,14 @@ void copy_file_pd(const char *srcfile, const char *destfile) {
     }
 }
 
-const int N_JVM_SYMS = 7;
+const int N_JVM_SYMS = 6;
 const char *JVM_SYMS[N_JVM_SYMS] = {
     SYM_REVIVE_VM,
     SYM_TTY,
     SYM_JVM_VERSION,
     SYM_TC_OWNER,
     SYM_PARSE_AND_EXECUTE,
-    SYM_THROWABLE_PRINT,
-    SYM_THREAD_KEY
+    SYM_THROWABLE_PRINT
     /* safefetch syms: not required in latest JDK.
     "_ZN12StubRoutines21_safefetch32_fault_pcE",
     "_ZN12StubRoutines28_safefetch32_continuation_pcE",

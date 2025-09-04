@@ -120,31 +120,6 @@ void init_pd() {
     install_kernelbase_1803_symbol_or_exit(pMapViewOfFile3,     "MapViewOfFile3");
 }
 
-/*
- * https://en.wikipedia.org/wiki/Win32_Thread_Information_Block#Accessing_the_TIB
- */
-void *getTIB() {
-#ifdef _M_AMD64
-    return (void *)__readgsqword(0x30);
-#elif _M_IX86
-    return (void *)__readfsdword(0x18); // not x64, not needed if 32-bit not implemented
-#else
-#error unsupported architecture
-#endif
-}
-
-void *getTLS() {
-#ifdef _M_AMD64
-    return (void*) ( (unsigned long long) getTIB() + 0x58);
-#else
-#error Unsupported architecture for getTLS implementation
-#endif
-}
-
-void printTLS() {
-    log("TIB = 0x%p", getTIB());
-    log("TLS = 0x%p contains 0x%p", getTLS(), (void *) *(long long *)getTLS());
-}
 
 bool revival_direxists_pd(const char *dirname) {
     DWORD attr = GetFileAttributes(dirname);
@@ -153,23 +128,6 @@ bool revival_direxists_pd(const char *dirname) {
 
 int revival_checks_pd(const char *dirname) {
     return 0;
-}
-
-void tls_fixup_pd(void *tebPtr) {
-/*    if (verbose) {
-        printTLS();
-        log("tls_fixup using TEB %p", tebPtr);
-    }
-    // Given we have revived memory, read TEB->TlsSlots;
-    PVOID pebPtr = ((TEB*)tebPtr)->ProcessEnvironmentBlock;
-    PVOID tlsPtr = ((TEB*)tebPtr)->TlsSlots;
-    logv("tls_fixup: PEB      = %lx contains %lx", pebPtr, *(uint64_t*) pebPtr);
-    logv("tls_fixup: TlsSlots = %lx contains %lx", tlsPtr, *(uint64_t*) tlsPtr);
-    uint64_t *this_tls = (uint64_t*) getTLS();
-    *this_tls = (int64_t) tlsPtr;
-    if (verbose) {
-        printTLS();
-     } */
 }
 
 
@@ -821,7 +779,7 @@ int minidump_read_memory(MiniDump* dump, uint64_t addres, void* dest, size_t siz
     return 0;
 }
 
-uint64_t resolve_teb(MiniDump* dump) {
+/*uint64_t resolve_teb(MiniDump* dump) {
     // Find Minidump ThreadListStream
     // Read _MINIDUMP_THREAD
     // Read TEB
@@ -851,16 +809,9 @@ uint64_t resolve_teb(MiniDump* dump) {
         if (thread.Teb != 0) {
             return (uint64_t) thread.Teb;
         }
-/*        TEB teb;
-        e = minidump_read_memory(dump, thread.Teb, &teb, sizeof(teb));
-        if (e < sizeof(thread)) {
-            warn("read of Teb %i 0x%lx failed: %d", i, thread.Teb, e);
-            continue;
-        }
-        logv("XXX MINIDUMP_THREAD id 0x%lx _tls_array %lx", thread.ThreadId, teb.TlsSlots); */
     }
     return 0;
-}
+} */
 
 int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const char *javahome, void *addr) {
     // Read minidump memory list, create text of mappings list.
@@ -979,28 +930,19 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
         iter->write_mapping(fd, "C");
     }
 
-    // Windows TEB: used to setup TLS.  Not necessary, with JVM cooperation.
-/*    uint64_t tls = resolve_teb(dump);
-    if (tls != 0) {
-        writef(fd, "TEB %llx 0\n", tls);
-    } else {
-        warn("TEB not resolved");
-    }  */
-
     writef(fd, "\n");
     return 0;
 }
 
 
-const int N_JVM_SYMS = 7;
+const int N_JVM_SYMS = 6;
 const char *JVM_SYMS[N_JVM_SYMS] = {
     SYM_REVIVE_VM,
     SYM_TTY,
     SYM_JVM_VERSION,
     SYM_TC_OWNER,
     SYM_PARSE_AND_EXECUTE,
-    SYM_THROWABLE_PRINT,
-    SYM_THREAD_KEY
+    SYM_THROWABLE_PRINT
 };
 
 void write_symbols(int fd, const char* symbols[], int count, const char *revival_dirname) {

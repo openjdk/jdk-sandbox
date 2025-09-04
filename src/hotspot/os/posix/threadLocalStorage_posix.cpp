@@ -69,6 +69,8 @@ void ThreadLocalStorage::set_thread(Thread* current) {
 }
 
 void ThreadLocalStorage::revive(Thread* thread) {
-  int rslt = pthread_setspecific(_thread_key, current);
+  int rslt = pthread_key_create(&_thread_key, restore_thread_pointer);
+  assert_status(rslt == 0, rslt, "pthread_key_create");
+  rslt = pthread_setspecific(_thread_key, thread);
   assert_status(rslt == 0, rslt, "pthread_setspecific");
 }

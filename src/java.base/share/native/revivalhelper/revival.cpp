@@ -76,11 +76,6 @@ address align_up(address ptr, uint64_t mask) {
 }
 
 
-#if defined(LINUX) || defined(__APPLE__)
-pthread_key_t _pthread_key;
-#endif /* LINUX */
-
-
 void write0(int fd, const char *buf) {
     size_t len = strlen(buf);
     int e = (int) write(fd, buf, (unsigned int) len);
@@ -491,30 +486,6 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
             continue;
         }
 
-        // Previous impl of revival data resolved TLS:
-/*        e = fscanf(f, "TLS %s %s\n", s1, s2); 
-        if (e == 2) {
-#ifdef WINDOWS
-            void *tls_addr = (void *) strtoull(s1, nullptr, 16);
-            tls_fixup_pd(tls_addr);
-#else
-            warn("TLS line invalid on non-Windows.");
-#endif
-            continue;
-        } */
-
-        // Now, revival data only records TEB, to resolve TLS on revival:
-        e = fscanf(f, "TEB %s %s\n", s1, s2); 
-        if (e == 2) {
-#ifdef WINDOWS
-            void *teb_addr = (void *) strtoull(s1, nullptr, 16);
-            tls_fixup_pd(teb_addr);
-#else
-            warn("TEB line invalid on non-Windows.");
-#endif
-            continue;
-        }
-
         e = fscanf(f, "%s %s %s %s %s %s %s\n", s1, s2, s3, s4, s5, s6, s7);
         if (e == 7) {
             // virtual address, virtual address end, source file offset, source file mapping size, length in memory, RWX
@@ -544,7 +515,7 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
             // Most mapping lines are "M": map from core.
             if (strncmp(s1, "M", 1) == 0) { 
                 int e = revival_mapping_mmap(vaddr, length, offset, lines, core_filename, core_fd);
-                if (e == -1) {
+                if (e < 0) {
                     M_bad++;
                 } else {
                     M_good++;
@@ -561,7 +532,7 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
                 // Copy, no allocation needed:
                 int e = revival_mapping_copy(vaddr, length, offset, false, core_filename, core_fd);
                 if (e < 0) {
-                    warn("mappings_file_read: copy failed for seg at 0x%llx", vaddr);
+                    warn("mappings_file_read: copy failed for seg at 0x%llx", (unsigned long long) vaddr);
                     C_bad++;
                 } else {
                     C_good++;
@@ -1047,23 +1018,6 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
         return -1;
     }
 
-    // Thread specific data:
-    // Previously, Linux loaded libjvm.so NOW, before calling pthread_key_create.
-    // Unnecessary.  Windows was OK when NOT loading jvm.dll here.
-#if defined(LINUX) || defined(__APPLE__)
-    // h = load_sharedlibrary_fromdir(dirname, JVM_FILENAME, 0, nullptr);
-    e = pthread_key_create(&_pthread_key, nullptr);
-    int pksize = sizeof(_pthread_key);
-    if (verbose) {
-        log("pthread_key_create: result %d", e);
-        log("pthread_key size = %d", pksize); 
-    }
-#endif
-#ifdef WINDOWS
-/*    _thread_key = TlsAlloc();
-      logv("TlsAlloc: thread_key = %d", _thread_key); */
-#endif
-
     snprintf(buf, BUFLEN, "%s%s", dirname, "/" MAPPINGS_FILENAME);
     e = mappings_file_read(corename, dirname, buf);
     if (e < 0) {
@@ -1089,11 +1043,6 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
             }
         }
     }
-
-/*    unsigned long * _jvm_thread_key = (unsigned long *) symbol(SYM_THREAD_KEY);
-    if (verbose) {
-        printf("JVM's _thread_key = %p\n", _jvm_thread_key);
-    } */
 
 #ifdef LINUX
     // Install signal handler on Linux before revival:
