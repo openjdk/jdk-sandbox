@@ -476,7 +476,7 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
         e = fscanf(f, "L %s %s %s\n", s1, s2, s3);
         if (e == 3) {
             void *vaddr = (void *) strtoull(s2, nullptr, 16);
-            log("Load library '%s' required at %p...\n", s1, vaddr);
+            printf("Load library '%s' required at %p...\n", s1, vaddr);
             h = load_sharedlibrary_fromdir(dirname, s1, vaddr, s3);
             logv("load_sharedlibrary_fromdir returns: %p", h);
             if (h == (void *) -1) {

@@ -139,15 +139,13 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
         String out = null;
 
         for (int i = 0; i < tries; i++) {
-            System.out.println("revivalhelper TRY " + i);
             Process p = pb.start();
             BufferedReader outReader = p.inputReader();
             BufferedReader errReader = p.errorReader();
             out = drain(p, outReader);
             try {
                 int e = p.waitFor();
-                if (e == 7) { //  || e == 134) {
-                    System.out.println("ERROR (" + e + ")");
+                if (e == 7) {
                     // Possibly show errors if verbose:
                     if (Boolean.getBoolean("jdk.attach.core.verbose")) {
                         String err = drain(p, errReader);
@@ -160,7 +158,7 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
                         String err = drain(p, errReader);
                         System.err.println(err);
                     }
-                    System.out.println("DONE (" + e + ") " + out);
+                    // System.out.println("DONE (" + e + ") " + out);
                 }
             } catch (InterruptedException ie) {
                 System.err.println("VirtualMachineCoreDumpImpl.execute: " + ie);
@@ -178,7 +176,6 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
             }
         } while (p.isAlive());
 
-        // System.out.println("DRAIN: p = " + p.isAlive());
         return s.toString();
     }
 
