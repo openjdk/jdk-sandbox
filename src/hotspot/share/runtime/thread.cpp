@@ -630,11 +630,19 @@ jboolean Thread::_revived_vm = false;
 struct revival_data {
   uint64_t magic;
   uint64_t version;
-  uint64_t jvm_version;
+
+  const char *runtime_name;
+  const char *runtime_version;
+  const char *runtime_vendor_version;
+  const char *jdk_debug_level;
+
   void* vm_thread;
-  void* parse_and_execute;
   void* tty;
-  void* info;
+  void* parse_and_execute;
+  void* throwable_print;
+  void* info1;
+  void* info2;
+  void* info3;
 };
 
 struct revival_data vm_revival_data;
@@ -683,12 +691,17 @@ void* Thread::process_revival() {
   memset(&vm_revival_data, 0, sizeof(struct revival_data));
   rdata->magic = 0x100000001;
   rdata->version = 0x1;
-  rdata->jvm_version = 26;
+
+  rdata->runtime_name = JDK_Version::runtime_name();
+  rdata->runtime_version = JDK_Version::runtime_version();
+  rdata->runtime_vendor_version = JDK_Version::runtime_version();
+  rdata->jdk_debug_level = VM_Version::printable_jdk_debug_level();
+
   rdata->vm_thread = jt;
+  rdata->tty = tty;
 
   rdata->parse_and_execute = (void*) &DCmd::parse_and_execute;
-  rdata->tty = tty;
-  rdata->info = nullptr;
+  rdata->throwable_print = (void*) &java_lang_Throwable::print;
 
   return (void*) rdata;
 }

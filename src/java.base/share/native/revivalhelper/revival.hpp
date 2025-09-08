@@ -61,7 +61,7 @@ typedef uint64_t address;
 #define SYMBOLS_FILENAME "jvm.symbols"
 #define REVIVAL_SUFFIX ".revival"
 
-// The few essential known symbols are defined in SYM_... macros.
+// Essential symbols to resolve are defined in SYM_... macros.
 // This one is "C" and common to all platforms:
 #define SYM_REVIVE_VM "process_revival"
 
@@ -78,11 +78,6 @@ typedef uint64_t address;
 
 #define JVM_FILENAME "libjvm.so"
 
-#define SYM_JVM_VERSION "_ZN19Abstract_VM_Version11jvm_versionEv"
-#define SYM_THROWABLE_PRINT "_ZN19java_lang_Throwable5printE3oopP12outputStream"
-#define SYM_PARSE_AND_EXECUTE "_ZN4DCmd17parse_and_executeE10DCmdSourceP12outputStreamPKccP10JavaThread"
-#define SYM_TTY "tty"
-
 void install_handler();
 
 #endif /* LINUX */
@@ -97,11 +92,6 @@ void install_handler();
 
 #define JVM_FILENAME "jvm.dll"
 
-#define SYM_JVM_VERSION "?jvm_version@Abstract_VM_Version@@SAIXZ"
-#define SYM_THROWABLE_PRINT "?print@java_lang_Throwable@@SAXPEAVoopDesc@@PEAVoutputStream@@@Z"
-#define SYM_PARSE_AND_EXECUTE "?parse_and_execute@DCmd@@SAXW4DCmdSource@@PEAVoutputStream@@PEBDDPEAVJavaThread@@@Z"
-#define SYM_TTY "?tty@@3PEAVoutputStream@@EA"
-
 #define _exit _Exit
 
 #endif /* WINDOWS */
@@ -115,11 +105,6 @@ void install_handler();
 
 #define JVM_FILENAME "libjvm.dylib"
 
-#define SYM_JVM_VERSION "?jvm_version@Abstract_VM_Version@@SAIXZ"
-#define SYM_THROWABLE_PRINT "_ZN19java_lang_Throwable5printE3oopP12outputStream"
-#define SYM_PARSE_AND_EXECUTE "parse_and_execute@DCmd@@SAXW4DCmdSource@@PEAVoutputStream@@PEBDDPEAVThread@@@Z"
-#define SYM_TTY "tty"
-
 #define _exit _Exit
 
 #endif /* MACOSX */
@@ -130,15 +115,25 @@ void install_handler();
 //
 
 // One structure to keep in sync with the JVM:
+
 struct revival_data {
   uint64_t magic;
   uint64_t version;
-  uint64_t jvm_version;
+
+  const char *runtime_name;
+  const char *runtime_version;
+  const char *runtime_vendor_version;
+  const char *jdk_debug_level;
+
   void* vm_thread;
-  void* parse_and_execute;
   void* tty;
-  void* info;
+  void* parse_and_execute;
+  void* throwable_print;
+  void* info1;
+  void* info2;
+  void* info3;
 };
+
 
 /**
  * Main revival setup entry point.
@@ -170,7 +165,7 @@ extern int _abortOnClash;   // set from env: REVIVAL_ABORT
 // Optionally map core files with write permission:
 // On Linux, map core files read only, signal handler remaps to handle writes.
 // If true, core file is actually changed by writes.
-extern int mapWrite;
+extern int openCoreWrite;
 
 // Revival state:
 extern char *core_filename;

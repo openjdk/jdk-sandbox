@@ -102,6 +102,8 @@ unsigned long long max_user_vaddr_pd() {
 }
 
 void init_pd() {
+    openCoreWrite = true;
+
     _SYSTEM_INFO systemInfo;
     GetSystemInfo(&systemInfo);
     valign = systemInfo.dwAllocationGranularity - 1;
@@ -258,8 +260,7 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, off_t offset
     DWORD createFileDesiredAccess = GENERIC_READ | GENERIC_EXECUTE;
     DWORD mappingProt = PAGE_EXECUTE_READ;
     DWORD mapViewAccess = FILE_MAP_READ | FILE_MAP_EXECUTE;
-    bool mapWrite = true;
-      if (mapWrite) {
+      if (openCoreWrite) {
         createFileDesiredAccess |= GENERIC_WRITE;
         mappingProt |= PAGE_READWRITE;
 //        mapViewProt |= 
@@ -967,10 +968,6 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
 const int N_JVM_SYMS = 1;
 const char *JVM_SYMS[N_JVM_SYMS] = {
     SYM_REVIVE_VM
-/*    SYM_TTY,
-    SYM_JVM_VERSION,
-    SYM_PARSE_AND_EXECUTE,
-    SYM_THROWABLE_PRINT */
 };
 
 void write_symbols(int fd, const char* symbols[], int count, const char *revival_dirname) {

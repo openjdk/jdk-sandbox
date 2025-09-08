@@ -561,7 +561,7 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
  * Lookup a symbol in jvm.symbols.
  * Read and process a jvm.symbols file in a given direcory.
  */
-void *symbol0(const char *dirname, const char *sym) {
+void *symbol_resolve_from_file(const char *dirname, const char *sym) {
     char buf[BUFLEN];
     snprintf(buf, BUFLEN, "%s/%s", dirname, SYMBOLS_FILENAME);
     int e = 0;
@@ -611,16 +611,16 @@ void *symbol_deref(const char *sym) {
  * Lookup a symbol, return as a void * or (void *) -1 on failure.
  *
  * Try symbol.mappings first, then a live, platform-specific lookup.
+ *
  * Using platform-specific lookups such as dlsym() are not expected
  * to work for private symbols.
  */
 void *symbol(const char *sym) {
-
     if (!revivaldir) {
         printf("symbol: call revive_image first.\n");
         return (void *) -1;
     }
-    void *s = symbol0(revivaldir, sym);
+    void *s = symbol_resolve_from_file(revivaldir, sym);
     if (s == (void *) -1) {
         // Lookup e.g. with dlsym:
         s = symbol_dynamiclookup_pd(h, sym);
@@ -633,9 +633,7 @@ void *symbol(const char *sym) {
 }
 
 void verbose_call(void *p) {
-    if (verbose) {
-        printf("symbol call: %p\n", p);
-    }
+    logv("symbol call: %p\n", p);
 }
 
 /**
@@ -655,7 +653,7 @@ void *symbol_call(const char *sym) {
 }
 
 /**
- * Resolve and call with 1 argument...
+ * Functions to make a function call, or resolve and call:
  */
 void *symbol_call1(const char *sym, void *arg) {
     void *s = symbol(sym);
@@ -697,15 +695,21 @@ void *symbol_call4(const char *sym, void *arg1, void *arg2, void *arg3, void *ar
     return (func)(arg1, arg2, arg3, arg4);
 }
 
+// Only using call5 at the moment:
+void *call5(void *s, void *arg1, void *arg2, void *arg3, void *arg4, void *arg5) {
+    verbose_call(s);
+    void* (*func)(void*,void*,void*,void*,void*) = (void*(*)(void*,void*,void*,void*,void*)) s;
+    return (func)(arg1, arg2, arg3, arg4, arg5);
+}
+
 void *symbol_call5(const char *sym, void *arg1, void *arg2, void *arg3, void *arg4, void *arg5) {
     void *s = symbol(sym);
     if (s == (void*) -1) {
         return (void*) -1;
     }
-    verbose_call(s);
-    void* (*func)(void*,void*,void*,void*,void*) = (void*(*)(void*,void*,void*,void*,void*)) s;
-    return (func)(arg1, arg2, arg3, arg4, arg5);
+    return call5(s, arg1, arg2, arg3, arg4, arg5);
 }
+
 
 /**
  * Resolve a symbol, and store the given value in that location.
@@ -777,9 +781,7 @@ int mappings_file_create(const char *dirname, const char *corename) {
 int symbols_file_create(const char *dirname) {
     char buf[BUFLEN];
     snprintf(buf, BUFLEN, "%s%s", dirname, "/" SYMBOLS_FILENAME);
-    if (verbose) {
-        log("symbols_file_create: %s", buf);
-    }
+    logv("symbols_file_create: %s", buf);
 #ifdef WINDOWS
     int fd = _open(buf, _O_CREAT | _O_WRONLY | _O_TRUNC, _S_IREAD | _S_IWRITE);
 #else
@@ -861,7 +863,6 @@ bool env_check(char *s) {
  * Return 0 for success, -1 for error.
  */
 int revive_image_cooperative() {
-
     void *s = symbol(SYM_REVIVE_VM);
     if (s == (void*) -1) {
         warn("revive_image: JVM helper function not found.");
@@ -878,9 +879,11 @@ int revive_image_cooperative() {
         return -1;
     } 
     if (rdata->version != 1) {
-        error("revival data wrong version: %llx", rdata->version);
+        error("revival data wrong version: %llx", (unsigned long long) rdata->version);
     }
     logv("revive_image: revival_data 0x%llx 0x%llx", (unsigned long long) rdata->magic, (unsigned long long) rdata->version);
+    logv("revive_image: revival_data %s / %s / %s / %s", rdata->runtime_name, rdata->runtime_version, rdata->runtime_vendor_version,
+         rdata->jdk_debug_level);
     logv("revive_image: VM Thread object = %p", rdata->vm_thread);
     return 0;
 }
@@ -969,9 +972,7 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
     // Does revival data directory exist? If not, create data:
     if (!revival_direxists_pd(dirname)) {
         e = create_revivalbits(corename, javahome, dirname, libdir);
-        if (verbose) {
-            log("revive_image: create_revivalbits return code: %d", e);
-        }
+        logv("revive_image: create_revivalbits return code: %d", e);
         if (e < 0) {
             warn("revive_image: create_revivalbits failed.  Return code: %d", e);
             return e;
@@ -990,24 +991,6 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
         return -1;
     }
     revivaldir = dirname;
-
-    if (false) {
-        // Query JVM version: this was done as a sanity check.
-        uint64_t jdkvi;
-        void * s = symbol(SYM_JVM_VERSION);
-        if (s == (void*) -1) {
-            warn("Error: revival: failed symbol lookup for " SYM_JVM_VERSION);
-            // return -1; // Skip, not fatal, ?sym changed...
-        } else {
-            int(*func)() = (int(*)()) s;
-            jdkvi = (*func)();  
-            int jvmMajor = (int) (jdkvi >> 24);
-            if (verbose) {
-                printf("jvm_version = %p\n", (void*)jdkvi);
-                printf("jvm major version = %d\n", jvmMajor);
-            }
-        }
-    }
 
 #ifdef LINUX
     // Install signal handler on Linux before revival:
@@ -1034,45 +1017,29 @@ void *revived_tty() {
     if (!revivaldir || !rdata) {
         error("revival_tty: call revive_image first.");
     }
-    if (rdata->tty != nullptr) {
-        return rdata->tty;
-    }
-/*
-    if (!_tty) {
-        logv("Resolving tty...");
-        void *tty1 = symbol(SYM_TTY);
-        if (tty1 == (void*) -1) {
-            warn("Failed to resolve symbol '%s'", SYM_TTY);
-        } else {
-            unsigned long long tty2 = * (unsigned long long *) tty1;
-            _tty = (void*) tty2;
-            if (verbose) printf("tty = %p\n", _tty);
-        }
-    }
-    return _tty; */
-    return nullptr;
+    return rdata->tty;
 }
 
 
 int revival_dcmd(const char *command) {
-
+    if (!revivaldir || !rdata) {
+        error("revival_dcmd: call revive_image first.");
+    }
     void *s = rdata->parse_and_execute;
     if (s == nullptr) {
-        warn("revival: no parse_and_execute in revival data.");
-/*        void *s = rdata->parse_and_execute;
-        if (s == (void*) -1) {
-            warn("revival: symbol lookup failed: " SYM_PARSE_AND_EXECUTE);
-            return -1;
-        } */
+        error("revival_dcmd: no parse_and_execute in revival data.");
     }
     if (revived_tty() == nullptr) {
         // null tty will cause a crash during DCmd output.
-        error("revival: tty not set.");
+        error("revival_dcmd: tty not set.");
     }
-    int(*dcmd_parse)(int, void*, const char*, char, void*) = (int(*)(int, void*, const char *, char, void*)) s;
-    logv("dcmd_parse: '%s'\n", command);
-    waitHitRet();
-    (dcmd_parse)(DCMD_SOURCE, revived_tty(), command, ' ', revived_vm_thread());
+
+    logv("revival_dcmd: '%s'\n", command);
+    // We can call parse_and_execute like this:
+    //   int(*dcmd_parse)(int, void*, const char*, char, void*) = (int(*)(int, void*, const char *, char, void*)) s;
+    //   (dcmd_parse)(DCMD_SOURCE, revived_tty(), command, ' ', revived_vm_thread());
+    // Or with:
+    call5(s, (void*) DCMD_SOURCE, revived_tty(), (void*) command, (void*) ' ', revived_vm_thread());
     return 0;
 }
 

@@ -770,7 +770,7 @@ bool mem_canwrite_pd(void *vaddr, size_t length) {
 void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, off_t offset) {
     int flags = MAP_SHARED | MAP_PRIVATE | MAP_FIXED;
     int prot = PROT_READ | PROT_EXEC;
-    if (mapWrite) {
+    if (openCoreWrite) {
         prot |= PROT_WRITE;
     }
     // Try with literal values.  Should work for a regular Linux core file.
@@ -1280,19 +1280,9 @@ void copy_file_pd(const char *srcfile, const char *destfile) {
     }
 }
 
-const int N_JVM_SYMS = 6;
+const int N_JVM_SYMS = 1;
 const char *JVM_SYMS[N_JVM_SYMS] = {
-    SYM_REVIVE_VM,
-    SYM_TTY,
-    SYM_JVM_VERSION,
-    SYM_TC_OWNER,
-    SYM_PARSE_AND_EXECUTE,
-    SYM_THROWABLE_PRINT
-    /* safefetch syms: not required in latest JDK.
-    "_ZN12StubRoutines21_safefetch32_fault_pcE",
-    "_ZN12StubRoutines28_safefetch32_continuation_pcE",
-    "_ZN12StubRoutines20_safefetchN_fault_pcE",
-    "_ZN12StubRoutines27_safefetchN_continuation_pcE" */
+    SYM_REVIVE_VM
 };
 
 int open_for_read(const char* filename) {
@@ -1395,7 +1385,6 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
     char *p = strstr(jvm_debuginfo_path, ".so");
     if (p != nullptr) {
         snprintf(p, BUFLEN, ".debuginfo");
-        warn("DEBUGINFO: '%s'", jvm_debuginfo_path);
         snprintf(jvm_debuginfo_copy_path, BUFLEN - 1, "%s/libjvm.debuginfo", revival_dirname);
         copy_file_pd(jvm_debuginfo_path, jvm_debuginfo_copy_path);
     }
