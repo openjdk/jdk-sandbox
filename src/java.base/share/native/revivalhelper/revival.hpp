@@ -80,7 +80,6 @@ typedef uint64_t address;
 
 #define SYM_JVM_VERSION "_ZN19Abstract_VM_Version11jvm_versionEv"
 #define SYM_THROWABLE_PRINT "_ZN19java_lang_Throwable5printE3oopP12outputStream"
-#define SYM_TC_OWNER "_ZL8tc_owner"
 #define SYM_PARSE_AND_EXECUTE "_ZN4DCmd17parse_and_executeE10DCmdSourceP12outputStreamPKccP10JavaThread"
 #define SYM_TTY "tty"
 
@@ -100,7 +99,6 @@ void install_handler();
 
 #define SYM_JVM_VERSION "?jvm_version@Abstract_VM_Version@@SAIXZ"
 #define SYM_THROWABLE_PRINT "?print@java_lang_Throwable@@SAXPEAVoopDesc@@PEAVoutputStream@@@Z"
-#define SYM_TC_OWNER "?lock_owner@@3KA"
 #define SYM_PARSE_AND_EXECUTE "?parse_and_execute@DCmd@@SAXW4DCmdSource@@PEAVoutputStream@@PEBDDPEAVJavaThread@@@Z"
 #define SYM_TTY "?tty@@3PEAVoutputStream@@EA"
 
@@ -119,7 +117,6 @@ void install_handler();
 
 #define SYM_JVM_VERSION "?jvm_version@Abstract_VM_Version@@SAIXZ"
 #define SYM_THROWABLE_PRINT "_ZN19java_lang_Throwable5printE3oopP12outputStream"
-#define SYM_TC_OWNER "_ZL8tc_owner"
 #define SYM_PARSE_AND_EXECUTE "parse_and_execute@DCmd@@SAXW4DCmdSource@@PEAVoutputStream@@PEBDDPEAVThread@@@Z"
 #define SYM_TTY "tty"
 
@@ -207,6 +204,7 @@ class Segment {
         uint64_t start() { return (uint64_t) vaddr; }
         uint64_t end() { return (uint64_t) vaddr + length; }
         void set_end(uint64_t addr) { length = addr - (uint64_t) vaddr; }
+        void set_length(uint64_t len) { length = len; file_length = len; }
 
         bool is_relevant();
         int write_mapping(int fd);

@@ -36,10 +36,9 @@ using namespace std;
 int verbose = false;
 
 // Unmap segments before mapping them.
-// Was true on aarch64 (needs re-testing).
-int unmapFirst = false;
+int unmapFirst = false; // was used in testing, likely remove
 
-int mapWrite = false;
+int openCoreWrite = false;
 
 int _wait;           // set from env: REVIVAL_WAIT
 int _abortOnClash = false;
@@ -251,45 +250,36 @@ const char * dangerous(void *vaddr, unsigned long long length) {
  * Create a memory mapping, at some virtual address, directly from a file/offset/length.
  * Return -1 on failure.
  */
-int revival_mapping_mmap(void *vaddr, size_t length, off_t offset, int lines, char *sourceBinary, int fd) {
+int revival_mapping_mmap(void *vaddr, size_t length, off_t offset, int lines, char *filename, int fd) {
     int e = 0;
-    if (verbose) {
-        printf("  revival_mapping_mmap: map %d: " PTR_FORMAT " (to " PTR_FORMAT ") len=0x%zx fileoffset=0x%llx\n",
-                lines, (uintptr_t) vaddr, (uintptr_t) ((uint64_t) vaddr + length), length, (long long) offset);
-    }
+    logv("  revival_mapping_mmap: map %d: " PTR_FORMAT " (to " PTR_FORMAT ") len=0x%zx fileoffset=0x%llx\n",
+         lines, (uintptr_t) vaddr, (uintptr_t) ((uint64_t) vaddr + length), length, (long long) offset);
 
     if (unmapFirst) {
-        if (verbose) {
-            printf("  revival_mapping_mmap: try UNMAP %p len=0x%zx\n", vaddr, length);
-        }
+        logv("  revival_mapping_mmap: try UNMAP %p len=0x%zx\n", vaddr, length);
         e = do_munmap_pd(vaddr, length);
         if (e) {
-            printf("  revival_mapping_mmap: unmap %d failed: vaddr %p: returns: %d\n", lines, vaddr, e);
+            warn("  revival_mapping_mmap: unmap %d failed: vaddr %p: returns: %d\n", lines, vaddr, e);
         }
     }
 
     // Mapping:
-    void *mapped_addr = do_mmap_pd(vaddr, length, sourceBinary, fd, offset);
+    void *mapped_addr = do_mmap_pd(vaddr, length, filename, fd, offset);
 
+    // Accept the wanted address, or if it was aligned-down:
     if (mapped_addr != vaddr && mapped_addr != (void *) align_down((address) vaddr, vaddr_alignment_pd())) {
-        if (verbose) {
-            printf("  revival_mapping_mmap: line %d: mapping failed: wanted vaddr: %p returned: %p\n", lines, vaddr, mapped_addr);
-        }
+        logv("  revival_mapping_mmap: line %d: mapping failed: wanted vaddr: %p returned: %p\n", lines, vaddr, mapped_addr);
         e = -1;
     } else {
-        if (verbose) {
-            printf("  revival_mapping_mmap: line %d: mapping OK %p - %p\n", lines, vaddr, (void *) ((uint64_t) vaddr + length));
-        }
+        logv("  revival_mapping_mmap: line %d: mapping OK %p - %p\n", lines, vaddr, (void *) ((uint64_t) vaddr + length));
         e = 0;
     }
 #ifdef WINDOWS
-    // Windows: alignment is more difficult as vaddr and file offset are aligned.
-    // Fallback to copying.
+    // Windows: alignment is more difficult as vaddr and file offset must be aligned.  Fallback to alloc and copy:
     if (e) {
-        e = revival_mapping_copy(vaddr, length, offset, true, core_filename, core_fd);
-        if (verbose) {
-            printf("  revival_mapping_mmap: mapping retry using copy returns: %d\n", e);
-        }
+        logv("  revival_mapping_mmap: map failed, will retry using alloc + copy");
+        e = revival_mapping_copy(vaddr, length, offset, true /* allocate */, filename, core_fd);
+        logv("  revival_mapping_mmap: retry using revival_mapping_copy returns: %d\n", e);
     }
 #endif
     return e;
@@ -452,7 +442,7 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
     // Linux needs an fd to pass to mmap.  Windows will pass a filename.
     int core_fd = -1;
 #ifdef LINUX
-    core_fd = open(core_filename, (mapWrite ? O_RDWR : O_RDONLY));
+    core_fd = open(core_filename, (openCoreWrite ? O_RDWR : O_RDONLY));
     if (core_fd < 0) {
         warn("%s: %s", core_filename, strerror(errno));
         return -1;
@@ -466,7 +456,6 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
     // Read and process the mappings:
     while (1) {
         lines++;
-        logv("mappings_file_read: line %d", lines);
         s1[0] = '\0';
         char s3[BUFLEN];
         char s4[BUFLEN];
@@ -495,9 +484,10 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
             size_t length = strtoul(s6, &endptr, 16);
             off_t offset = strtoul(s4, &endptr, 16);
             size_t length_file = strtoul(s5, &endptr, 16);
+
             const char *danger = dangerous(vaddr, length);
             if (danger != nullptr) {
-                printf("skipping (%s): %p - %p len=%zx\n", danger, vaddr, (void*) ((unsigned long long) vaddr + length), length);
+                warn("skipping (%s): %p - %p len=%zx\n", danger, vaddr, (void*) ((unsigned long long) vaddr + length), length);
                 Segment* thisSeg = new Segment(vaddr, length, offset, length_file);
                 failedSegments.push_back(*thisSeg);
                 if (_abortOnClash) {
@@ -512,9 +502,10 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
                 Segment* thisSeg = new Segment(vaddr, length, offset, length_file);
                 writableSegments.push_back(*thisSeg);
             } 
-            // Most mapping lines are "M": map from core.
             if (strncmp(s1, "M", 1) == 0) { 
+                // Map memory from core:
                 int e = revival_mapping_mmap(vaddr, length, offset, lines, core_filename, core_fd);
+                // Windows: will try revival_mapping_copy (allocate) on failure.
                 if (e < 0) {
                     M_bad++;
                 } else {
@@ -851,34 +842,6 @@ char *Segment::toString() {
 }
 
 
-
-// REMOVE:
-int revive_common() {
-    // ThreadCritical: check if fixup still needed.
-    //  tc_owner which needs to be us, or some operations can block.
-    // Testing without this to see if the deadlock can still happen.
-    /*  void *s;
-        s = symbol(SYM_TC_OWNER);
-        if (s == (void*) -1) {
-        printf("Cannot lookup tc_owner.\n");
-        } else {
-        uint64_t *tc = (uint64_t*) s;
-        if (verbose) {
-        printf("Found  tc_owner = %p -> %p\n", tc, (void *) *tc);
-        }
-
-#ifdef LINUX
-     *tc = pthread_self();
-#else 
-     *tc = 0;
-#endif
-if (verbose) {
-printf("Patched tc_owner = %p -> %p\n", tc, (void *) *tc);
-}
-} */
-    return 0;
-}
-
 /**
  * Return true if the given character pointer is a valid, set
  * environment variable (one which exists and is not null).
@@ -907,12 +870,16 @@ int revive_image_cooperative() {
 
     logv("revive_image: calling revival helper %p", s);
     void*(*helper)() = (void*(*)()) s;
+    waitHitRet();
     rdata = (struct revival_data *) (helper)();
     logv("revive_image: helper returns %p", rdata);
     if (rdata == nullptr) {
         warn("revive_image: JVM helper failed\n");
         return -1;
     } 
+    if (rdata->version != 1) {
+        error("revival data wrong version: %llx", rdata->version);
+    }
     logv("revive_image: revival_data 0x%llx 0x%llx", (unsigned long long) rdata->magic, (unsigned long long) rdata->version);
     logv("revive_image: VM Thread object = %p", rdata->vm_thread);
     return 0;
@@ -970,14 +937,12 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
     }
     if (rdata != nullptr && rdata->vm_thread) {
         warn("revive_image: already called.");
-        log("revive_image FAIL 2");
         return -1;
     }
     // Record our copy of core file name:
     core_filename = strdup(corename);
     if (core_filename == nullptr) {
         warn("revive: alloc copy of core_filename failed.");
-        log(">>> revive_image FAIL 3");
         return -1;
     }
 
@@ -1106,6 +1071,7 @@ int revival_dcmd(const char *command) {
     }
     int(*dcmd_parse)(int, void*, const char*, char, void*) = (int(*)(int, void*, const char *, char, void*)) s;
     logv("dcmd_parse: '%s'\n", command);
+    waitHitRet();
     (dcmd_parse)(DCMD_SOURCE, revived_tty(), command, ' ', revived_vm_thread());
     return 0;
 }

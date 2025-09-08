@@ -106,9 +106,13 @@ void init_pd() {
     GetSystemInfo(&systemInfo);
     valign = systemInfo.dwAllocationGranularity - 1;
     pagesize = systemInfo.dwPageSize;
+
     if (verbose) {
-        log("dwPageSize = %d", systemInfo.dwPageSize);
-        log("dwAllocationGranularity = %d", systemInfo.dwAllocationGranularity);
+        logv("dwPageSize = %d", systemInfo.dwPageSize);
+        logv("dwAllocationGranularity = %d", systemInfo.dwAllocationGranularity);
+        logv("vaddr_alignment_pd() = 0x%lx", vaddr_alignment_pd());
+        int x;
+        logv("approx sp = 0x%lx", &x);
     }
     if (valign != 0xffff) {
         // expected: dwAllocationGranularity = 65536
@@ -244,10 +248,9 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, off_t offset
     // Fail quickly if unaligned:
     uint64_t offsetAligned = align_down(offset, vaddr_alignment_pd());
     if (offsetAligned != offset) {
-        logv("do_mmap_pd: file offset 0x%lx not aligned, not mapping directly.", offset);
+        logv("do_mmap_pd: address 0x%llx file offset 0x%lx not aligned, do not try mapping directly, return", addr, offset);
         return (void *) -1;
     }
-
 
     LPVOID p = nullptr;
     HANDLE h;
@@ -396,11 +399,12 @@ void *do_map_allocate_pd_MapViewOfFile(void *vaddr, size_t length) {
 
 void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length) {
     void *p;
-    // TODO: figure out the flags to get VirtualAlloc2 to give finer-than-64k address alignment.
+    // TODO: Can VirtualAlloc2 give finer-than-64k address alignment?
 
     // (1)
     address addr_aligned = align_down((uint64_t) addr, vaddr_alignment_pd());
     uint64_t diff = (uint64_t) addr -  (uint64_t) addr_aligned;
+    //size_t length_aligned = align_up(length + diff, vaddr_alignment_pd());
     size_t length_aligned = length + diff;
 
     printf("    do_map_allocate_pd_VirtualAlloc2: vaddr 0x%p aligns -> 0x%p  len 0x%llx aligns -> 0x%llx\n",
@@ -865,8 +869,7 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
             continue; 
         }
 
-        logv("create_mappings_pd: %8lld 0x%16llx 0x%16llx   dump file offset 0x%16llx \n", i, d.StartOfMemoryRange, d.DataSize, currentRVA);
-//        currentRVA += d.DataSize; ( in readSegment() now)
+        logv("create_mappings_pd: %lld: addr 0x%llx size 0x%llx   file offset: 0x%llx \n", i, d.StartOfMemoryRange, d.DataSize, currentRVA);
         prevAddr = d.StartOfMemoryRange;
 
         if (!seg->is_relevant()) {
@@ -874,15 +877,41 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
             continue;
         }
 
-        // Can we coalesce (join) neighbouring regions during the following iteration,
-        // if the file offsets work, to reduce number of mappings (there are likely >600).
-
-        // Consider the NEXT region as well, in case it is too close for vaddralignment to work.
-        // Will grow a bigger segment to map, that contains all these neighbouring segments (copied).
+        // Consider the next region also:
         segNext = readSegment(dump, &d, &currentRVA);
         if (segNext != nullptr) { i++; }  // Maintain outer loop counter
-        Segment *biggerSeg = nullptr;
 
+        // (1) Can we coalesce (join) touching regions, if the file offsets work,
+        //     to reduce number of mappings (there are likely >600).
+        bool coalesce = false;
+        if (coalesce) {
+        Segment *joinedSeg = nullptr;
+        while (segNext != nullptr && seg->end() == segNext->start()
+               && (seg->file_offset + seg->file_length == segNext->file_offset)) {
+
+            logv("XXXX join 0x%llx - 0x%llx and 0x%llx - 0x%llx", seg->start(), seg->end(), segNext->start(), segNext->end());
+            if (joinedSeg == nullptr) {
+                joinedSeg = new Segment(seg);
+            }
+            joinedSeg->set_length(seg->length + segNext->length);
+
+            char *b = joinedSeg->toString();
+            fprintf(stderr, "JOINED seg expanded: %s\n", b);
+            free(b);
+
+            seg = joinedSeg;
+            segNext = readSegment(dump, &d, &currentRVA);
+            if (segNext != nullptr) { i++; }
+        }
+        if (joinedSeg != nullptr) {
+            seg = joinedSeg;  // Which may yet be relevant in (2) below.
+            // segNext may still be set, but we seg is not joined to it.
+        }
+        }
+
+        // (2) Is next region too close for vaddralignment to work.
+        //     Grow a bigger segment to map, that contains all these neighbouring segments (copied).
+        Segment *biggerSeg = nullptr;
         while (segNext != nullptr && seg->end() + vaddr_alignment_pd() >= segNext->start()) {
             // Will copy these segs:
             warn("create_mappings: segs too close for alignment, seg: %p - %p next seg: %p", seg->vaddr, seg->end(), segNext->vaddr);
@@ -935,14 +964,13 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
 }
 
 
-const int N_JVM_SYMS = 6;
+const int N_JVM_SYMS = 1;
 const char *JVM_SYMS[N_JVM_SYMS] = {
-    SYM_REVIVE_VM,
-    SYM_TTY,
+    SYM_REVIVE_VM
+/*    SYM_TTY,
     SYM_JVM_VERSION,
-    SYM_TC_OWNER,
     SYM_PARSE_AND_EXECUTE,
-    SYM_THROWABLE_PRINT
+    SYM_THROWABLE_PRINT */
 };
 
 void write_symbols(int fd, const char* symbols[], int count, const char *revival_dirname) {
@@ -984,6 +1012,7 @@ void write_symbols(int fd, const char* symbols[], int count, const char *revival
     		warn("SymFromName returned error : %d", GetLastError());
     	}
         snprintf(buf, MAX_SYM_NAME, "%s %llx 0\n", szSymbolName, address);
+        logv("SYM: %s", buf);
         write0(fd, buf);
     }
     e = SymCleanup(h2);
@@ -1071,7 +1100,6 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
     char *p = strstr(jvm_debuginfo_path, ".dll");
     if (p != nullptr) {
         snprintf(p, BUFLEN, ".dll.pdb");
-        warn("DEBUGINFO: '%s'", jvm_debuginfo_path);
         snprintf(jvm_debuginfo_copy_path, BUFLEN - 1, "%s/jvm.dll.pdb", revival_dirname);
         copy_file_pd(jvm_debuginfo_path, jvm_debuginfo_copy_path);
     }

@@ -653,7 +653,7 @@ void* Thread::process_revival() {
   // VMThread constructor is now private, so not: VMThread *jt = new VMThread();
   VMThread *jt = VMThread::vm_thread(); // access the _vm_thread singleton
   if (jt == nullptr) {
-    fprintf(stderr, "Error: process_revival: null VMThread::vm_thread()\n");
+    // fprintf(stderr, "Error: process_revival: null VMThread::vm_thread()\n");
     return nullptr;
   }
   // Reset current thread:
@@ -680,6 +680,7 @@ void* Thread::process_revival() {
   DebuggingContext::force(); // Disable asserts
 
   struct revival_data* rdata = &vm_revival_data;
+  memset(&vm_revival_data, 0, sizeof(struct revival_data));
   rdata->magic = 0x100000001;
   rdata->version = 0x1;
   rdata->jvm_version = 26;
