@@ -1008,7 +1008,7 @@ void write_symbols(int fd, const char* symbols[], int count, const char *revival
     	} else {
     		warn("SymFromName returned error : %d", GetLastError());
     	}
-        snprintf(buf, MAX_SYM_NAME, "%s %llx 0\n", szSymbolName, address);
+        snprintf(buf, MAX_SYM_NAME, "%s %llx\n", szSymbolName, address);
         logv("SYM: %s", buf);
         write0(fd, buf);
     }

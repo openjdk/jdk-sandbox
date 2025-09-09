@@ -561,7 +561,7 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
  * Lookup a symbol in jvm.symbols.
  * Read and process a jvm.symbols file in a given direcory.
  */
-void *symbol_resolve_from_file(const char *dirname, const char *sym) {
+void *symbol_resolve_from_symbol_file(const char *dirname, const char *sym) {
     char buf[BUFLEN];
     snprintf(buf, BUFLEN, "%s/%s", dirname, SYMBOLS_FILENAME);
     int e = 0;
@@ -575,8 +575,11 @@ void *symbol_resolve_from_file(const char *dirname, const char *sym) {
     char s2[BUFLEN];
     char s3[BUFLEN];
     while (1) {
-        e = fscanf(f, "%s %s %s\n", s1, s2, s3);  // symbol address contents
-        if (e < 3) {
+        memset(s1, 0, BUFLEN);
+        memset(s2, 0, BUFLEN);
+        memset(s3, 0, BUFLEN);
+        e = fscanf(f, "%s %s %s\n", s1, s2, s3);  // symbol address [contents]
+        if (e < 2) {
             break;
         }
         if (strncmp(s1, sym, BUFLEN) == 0) {
@@ -586,7 +589,11 @@ void *symbol_resolve_from_file(const char *dirname, const char *sym) {
         } 
     }
     if (verbose) {
-        printf("symbol: %s = %p (contained %s)\n", sym, addr, s3);
+        if (e == 2) {
+            printf("symbol: %s = %p\n", sym, addr);
+        } else {
+            printf("symbol: %s = %p (contained %s)\n", sym, addr, s3);
+        }
     }
     fclose(f);
 
@@ -620,7 +627,7 @@ void *symbol(const char *sym) {
         printf("symbol: call revive_image first.\n");
         return (void *) -1;
     }
-    void *s = symbol_resolve_from_file(revivaldir, sym);
+    void *s = symbol_resolve_from_symbol_file(revivaldir, sym);
     if (s == (void *) -1) {
         // Lookup e.g. with dlsym:
         s = symbol_dynamiclookup_pd(h, sym);
@@ -791,7 +798,6 @@ int symbols_file_create(const char *dirname) {
         warn("symbols_file_create: %s: %s\n", buf, strerror(errno));
         return fd;
     }
-
     return fd;
 }
 
