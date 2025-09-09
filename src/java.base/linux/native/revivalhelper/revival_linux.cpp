@@ -487,10 +487,9 @@ class ELFOperations {
                 int ret = strcmp(symbols[j], SYMTAB_BUFFER + sym->st_name);
                 if (ret == 0) {
                     char buf[2048];
-                    int len = snprintf(buf, 2048, "%s %llx %llx\n",
+                    int len = snprintf(buf, 2048, "%s %llx\n",
                             SYMTAB_BUFFER + sym->st_name,
-                            (unsigned long long) sym->st_value,
-                            (unsigned long long) 0);
+                            (unsigned long long) sym->st_value);
                     int e = write(fd, buf, len);
                     if (e != len) {
                         warn("write_symbols: write error: %s", strerror(errno));
