@@ -51,6 +51,16 @@
  *
  */
 
+/*
+ * @test id=JCmdRevivalAbortOnException
+ * @summary Test process revival for serviceability: jcmd on a core file (AbortVMOnException).
+ * @requires os.family == "linux" | os.family == "windows"
+ * @library /test/lib
+ *
+ * @run main/othervm JCmdRevival abortvmonexception VM.version help Thread.print GC.class_histogram GC.heap_dump Compiler.CodeHeap_Analytics Compiler.codecache Compiler.codelist Compiler.memory GC.heap_info System.dump_map System.map VM.class_hierarchy VM.classes VM.classloader_stats VM.classloaders VM.command_line VM.dynlibs VM.events VM.flags VM.metaspace VM.native_memory VM.stringtable VM.symboltable VM.systemdictionary VM.version_UNKNOWN VM.unknowncommand VM.flags_UNKNOWNARG
+ *
+ */
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -92,8 +102,11 @@ public class JCmdRevival {
 
     public static void testAndCrash(String[] args) {
         // Type of run (cicrash, oom) is passed as arg.
-        // Just cause some activity...
+        // Do the thing that will cause a crash, or if cicrash, then any activity will trigger crash.
         System.out.println("JCmdRevival in main for test type '" + args[0] + "'");
+        if (args[0].equals("abortvmonexception")) {
+            throw new NullPointerException("testing NPE");
+        }
         Object[] oa = new Object[Integer.MAX_VALUE / 2];
         for(int i = 0; i < oa.length; i++) {
             oa[i] = new Object[Integer.MAX_VALUE / 2];
@@ -107,13 +120,19 @@ public class JCmdRevival {
         switch (type) {
             case ("cicrash"): {
                 return ProcessTools.createTestJavaProcessBuilder("-XX:+CreateCoredumpOnCrash",
-                "-Xmx128m", "-XX:CICrashAt=1", "-XX:CompileThreshold=1",
-                JCmdRevival.class.getName(), type);
+                       "-Xmx128m", "-XX:CICrashAt=1", "-XX:CompileThreshold=1",
+                       JCmdRevival.class.getName(), type);
             }
             case ("oom"): {
                 return ProcessTools.createTestJavaProcessBuilder("-XX:+CreateCoredumpOnCrash",
-                "-Xmx128m", "-XX:MaxMetaspaceSize=64m", "-XX:+CrashOnOutOfMemoryError",
-                JCmdRevival.class.getName(), type);
+                       "-Xmx128m", "-XX:MaxMetaspaceSize=64m", "-XX:+CrashOnOutOfMemoryError",
+                       JCmdRevival.class.getName(), type);
+            }
+            case ("abortvmonexception"): {
+                return ProcessTools.createTestJavaProcessBuilder("-XX:+CreateCoredumpOnCrash",
+                       "-XX:+UnlockDiagnosticVMOptions", "-XX:AbortVMOnException=java.lang.NullPointerException",
+                       "-Xmx128m", "-XX:MaxMetaspaceSize=64m",
+                       JCmdRevival.class.getName(), type);
             }
             default: {
                 throw new RuntimeException("unknown test type");
