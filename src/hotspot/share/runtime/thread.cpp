@@ -694,7 +694,7 @@ void* Thread::process_revival() {
 
   rdata->runtime_name = JDK_Version::runtime_name();
   rdata->runtime_version = JDK_Version::runtime_version();
-  rdata->runtime_vendor_version = JDK_Version::runtime_version();
+  rdata->runtime_vendor_version = JDK_Version::runtime_vendor_version();
   rdata->jdk_debug_level = VM_Version::printable_jdk_debug_level();
 
   rdata->vm_thread = jt;
