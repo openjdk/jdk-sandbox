@@ -39,6 +39,7 @@
 #define TRUE 1
 #define FALSE 0
 
+#ifndef WINDOWS
 int clock_enabled = FALSE;
 
 struct timespec local_ts;
@@ -71,7 +72,7 @@ void set_revival_time_ns(unsigned long long t) {
 JNIEXPORT
 int clock_gettime(clockid_t clockid, struct timespec *tp) {
 
-    static int (*func)(); /* the real function */
+    static int (*func)(clockid_t, struct timespec *); /* the real function */
     int e = 0;
 
     if (!clock_enabled) {
@@ -85,4 +86,5 @@ int clock_gettime(clockid_t clockid, struct timespec *tp) {
     tp->tv_nsec = local_ts.tv_nsec;
     return e;
 }
+#endif // WINDOWS
 

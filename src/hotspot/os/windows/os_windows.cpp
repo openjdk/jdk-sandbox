@@ -1283,6 +1283,14 @@ void os::javaTimeNanos_info(jvmtiTimerInfo *info_ptr) {
   info_ptr->kind = JVMTI_TIMER_ELAPSED;                // elapsed not CPU time
 }
 
+jlong os::initial_time_count() {
+  return 0;
+}
+
+uint64_t os::initial_time_date() {
+  return 0;
+}
+
 char* os::local_time_string(char *buf, size_t buflen) {
   SYSTEMTIME st;
   GetLocalTime(&st);

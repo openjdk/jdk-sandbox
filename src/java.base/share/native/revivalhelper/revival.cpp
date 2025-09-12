@@ -897,9 +897,9 @@ int revive_image_cooperative() {
     logv("revive_image: VM Thread object = %p", rdata->vm_thread);
     warn("revive_image: initial_time_count ns = %lld", (unsigned long long) rdata->initial_time_count);
     warn("revive_image: initial_time_date  s  = %lld", (unsigned long long) rdata->initial_time_date);
-    uint64_t lifetime_s = core_timestamp - rdata->initial_time_date;
 
 #ifdef LINUX
+        uint64_t lifetime_s = core_timestamp - rdata->initial_time_date;
         // Set clock_getting in revival support library (preloaded)
         void (*func)(unsigned long long) = (void(*)(unsigned long long)) dlsym(RTLD_NEXT, "set_revival_time_s");
         if (func != nullptr) {
