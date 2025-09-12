@@ -93,7 +93,8 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
         // Invoke "JDK/lib/revivalhelper corefilename jcmd command..."
         // (Putting revivalhelper in JDK/lib works if jlink is updated also,
         // see DefaultImageBuilder.java and its jspawnhelper/jexec special case).
-        String helper = System.getProperty("java.home") + File.separator + "lib" + File.separator + "revivalhelper"
+        String jdkLibDir = System.getProperty("java.home") + File.separator + "lib";
+        String helper = jdkLibDir + File.separator + "revivalhelper"
                         + (System.getProperty("os.name").startsWith("Windows") ? ".exe" : "");
         if (!(new File(helper).exists())) {
             throw new IOException("Revival helper '" + helper + "' not found");
@@ -117,18 +118,20 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
         pb.redirectErrorStream(true);
 
         Map<String, String> newEnv = pb.environment();
+
+        String path = System.getenv("PATH");
+        newEnv.put("PATH", System.getProperty("java.home") + File.separator + "bin" + File.pathSeparator + path);
+
         if (Boolean.getBoolean("jdk.attach.core.verbose")) {
             newEnv.put("REVIVAL_VERBOSE", "1");
         }
         if (System.getProperty("os.name").startsWith("Linux")) {
             newEnv.put("LD_USE_LOAD_BIAS", "1");
+            newEnv.put("LD_PRELOAD", jdkLibDir + File.separator + "librevival_support.so");
         }
 
-        String path = System.getenv("PATH");
-        newEnv.put("PATH", System.getProperty("java.home") + File.separator + "bin" + File.pathSeparator + path);
-
         // Run the helper.
-        // Be prepared for it to fail, if Address Space Layout Randomization is unkind, and causes a clash.
+        // Be prepared for it to fail, if Address Space Layout Randomization is unkind and causes a clash.
         // Recognise the process return value and retry with some limit.
         //
         // This method returns an InputStream, although until recently there was no streaming from jcmd implementations,

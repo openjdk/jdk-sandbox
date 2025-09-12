@@ -45,6 +45,7 @@ int _abortOnClash = false;
 
 // Set during revive_image:
 char *core_filename;
+unsigned long long core_timestamp;
 int core_fd;
 const char *revivaldir;
 
@@ -165,24 +166,26 @@ void waitHitRet() {
 
 /**
  * File size utility.
+ * Return the file size in bytes, or zero on error.
  */
 unsigned long long file_size(const char *filename) {
     struct stat sb;
     if (stat(filename, &sb) == -1) {
        warn("cannot stat '%s': %d: %s", filename, errno, strerror(errno));
-       return -1;
+       return 0;
    }
    return (long long) sb.st_size;
 }
 
 /**
  * File time utility.
+ * Return the file creation time in seconds, or 0 on error.
  */
 unsigned long long file_time(const char *filename) {
     struct stat sb;
     if (stat(filename, &sb) == -1) {
        warn("cannot stat '%s': %d: %s", filename, errno, strerror(errno));
-       return -1;
+       return 0;
    }
    return (long long) sb.st_mtime;
 }
@@ -430,12 +433,13 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
 
     // time:
     // time of crash or core file generation.  millis since epoch.
+    core_timestamp = 0;
     e = fscanf(f, "time %s\n", s1);
     if (e == 1) {
-        long long coretime = (long long) strtoll(s1, nullptr, 10);
-        if (verbose) {
-            printf("core time: %lld\n", coretime);
-        }
+        core_timestamp = (long long) strtoll(s1, nullptr, 10);
+        warn("core time: %lld\n", core_timestamp);
+    } else {
+        warn("time record not found in file");
     }
     lines++;
 
@@ -777,7 +781,7 @@ int mappings_file_create(const char *dirname, const char *corename) {
     unsigned long long coresize = file_size(corename);
     snprintf(buf, BUFLEN, "core %s %lld\n", basename((char *) corename), coresize);
     write0(fd, buf);
-    snprintf(buf, BUFLEN, "time %llu\n",file_time(corename));
+    snprintf(buf, BUFLEN, "time %llu\n", file_time(corename));
     write0(fd, buf);
     const char *checksum = "0";
     snprintf(buf, BUFLEN, "L %s %llx %s\n", basename(jvm_filename), (unsigned long long) jvm_address, checksum);
@@ -891,6 +895,20 @@ int revive_image_cooperative() {
     logv("revive_image: revival_data %s / %s / %s / %s", rdata->runtime_name, rdata->runtime_version, rdata->runtime_vendor_version,
          rdata->jdk_debug_level);
     logv("revive_image: VM Thread object = %p", rdata->vm_thread);
+    warn("revive_image: initial_time_count ns = %lld", (unsigned long long) rdata->initial_time_count);
+    warn("revive_image: initial_time_date  s  = %lld", (unsigned long long) rdata->initial_time_date);
+    uint64_t lifetime_s = core_timestamp - rdata->initial_time_date;
+
+#ifdef LINUX
+        // Set clock_getting in revival support library (preloaded)
+        void (*func)(unsigned long long) = (void(*)(unsigned long long)) dlsym(RTLD_NEXT, "set_revival_time_s");
+        if (func != nullptr) {
+            func(lifetime_s + (rdata->initial_time_count / 1000000000));
+        } else {
+            warn("set_revival_time: symbol lookup failed.");
+        }
+#endif
+
     return 0;
 }
 

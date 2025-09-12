@@ -387,7 +387,7 @@ class ELFOperations {
      * Relocate e.g. INIT_ARRAY contents.
      */
     void relocate_dyn_array(long displacement, Elf64_Dyn* dyn, int count) {
-        warn("relocate dyn array, updating %d", count);
+        logv("relocate_dyn_array: updating %d", count);
         // Get our mmapped address of the array:
         uint64_t *p = (uint64_t*) ((uint64_t) m + dyn->d_un.d_ptr);
         // Relocate contents:

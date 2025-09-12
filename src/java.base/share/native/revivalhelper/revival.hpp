@@ -71,6 +71,7 @@ typedef uint64_t address;
 //
 #ifdef LINUX
 
+#include <dlfcn.h>
 #include <libgen.h>
 #include <unistd.h>
 #include <sys/mman.h>
@@ -116,6 +117,7 @@ void install_handler();
 
 // One structure to keep in sync with the JVM:
 
+
 struct revival_data {
   uint64_t magic;
   uint64_t version;
@@ -125,6 +127,9 @@ struct revival_data {
   const char *runtime_vendor_version;
   const char *jdk_debug_level;
 
+  uint64_t initial_time_count; // e.g. clock_gettime MONOTONIC (since system boot)
+  uint64_t initial_time_date;  // e.g. time_t since epoch
+
   void* vm_thread;
   void* tty;
   void* parse_and_execute;
@@ -133,7 +138,6 @@ struct revival_data {
   void* info2;
   void* info3;
 };
-
 
 /**
  * Main revival setup entry point.

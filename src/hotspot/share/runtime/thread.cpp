@@ -636,6 +636,9 @@ struct revival_data {
   const char *runtime_vendor_version;
   const char *jdk_debug_level;
 
+  uint64_t initial_time_count; // e.g. clock_gettime MONOTONIC (since system boot), ns
+  uint64_t initial_time_date;  // e.g. time_t since epoch, seconds
+
   void* vm_thread;
   void* tty;
   void* parse_and_execute;
@@ -702,6 +705,9 @@ void* Thread::process_revival() {
 
   rdata->parse_and_execute = (void*) &DCmd::parse_and_execute;
   rdata->throwable_print = (void*) &java_lang_Throwable::print;
+
+  rdata->initial_time_count = os::initial_time_count();
+  rdata->initial_time_date = os::initial_time_date();
 
   return (void*) rdata;
 }

@@ -4340,7 +4340,6 @@ void os::Linux::revive_init(void) {
   os::Posix::init();
   os::Linux::fast_thread_clock_init();
   init_mallinfo();
-//  fprintf(stderr, "os::Linux::revive_init done\n");
 }
 
 // To install functions for atexit system call
