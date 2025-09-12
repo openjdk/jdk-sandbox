@@ -597,11 +597,11 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
 
   # CXXFLAGS C++ language level for all of JDK, including Hotspot.
   if test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang; then
-    LANGSTD_CXXFLAGS="-std=c++14"
+    LANGSTD_CXXFLAGS="-std=c++17"
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
-    LANGSTD_CXXFLAGS="-std:c++14"
+    LANGSTD_CXXFLAGS="-std:c++17"
   else
-    AC_MSG_ERROR([Cannot enable C++14 for this toolchain])
+    AC_MSG_ERROR([Cannot enable C++17 for this toolchain])
   fi
   TOOLCHAIN_CFLAGS_JDK_CXXONLY="$TOOLCHAIN_CFLAGS_JDK_CXXONLY $LANGSTD_CXXFLAGS"
   TOOLCHAIN_CFLAGS_JVM="$TOOLCHAIN_CFLAGS_JVM $LANGSTD_CXXFLAGS"
@@ -940,7 +940,7 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_CPU_DEP],
   # ACLE and this flag are required to build the aarch64 SVE related functions in
   # libvectormath. Apple Silicon does not support SVE; use macOS as a proxy for
   # that check.
-  if test "x$OPENJDK_TARGET_CPU" = "xaarch64" && test "x$OPENJDK_TARGET_CPU" = "xlinux"; then
+  if test "x$OPENJDK_TARGET_CPU" = "xaarch64" && test "x$OPENJDK_TARGET_OS" = "xlinux"; then
     if test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang; then
       AC_LANG_PUSH(C)
       OLD_CFLAGS="$CFLAGS"
