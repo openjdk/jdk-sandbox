@@ -72,19 +72,24 @@ public non-sealed interface JsonArray extends JsonValue {
 
     /**
      * {@return the element of this {@code JsonArray} at the {@code index}}
-     * @throws IllegalArgumentException if the specified {@code index} is out of
-     *      bounds of this {@code JsonArray}.
+     * @throws IllegalArgumentException if the specified {@code index} is less than zero.
+     * @throws JsonAssertionException if {@code this} is not a {@code JsonArray} or
+     *      the specified index is out of bounds of this {@code JsonArray}.
      */
     @Override
     default JsonValue element(int index) {
         try {
             return values().get(index);
         } catch (IndexOutOfBoundsException _) {
-            throw new IllegalArgumentException(
-                    "JsonArray index %d out of bounds for length %d."
+            var msg = "JsonArray index %d out of bounds for length %d."
                     .formatted(index, this.values().size()) +
-                    (this instanceof JsonValueImpl jvi && jvi.doc() != null  ?
-                    Utils.getPath(jvi) : ""));
+                    (this instanceof JsonValueImpl jvi && jvi.doc() != null
+                            ? Utils.getPath(jvi) : "");
+            if (index < 0) {
+                throw new IllegalArgumentException(msg);
+            } else {
+                throw new JsonAssertionException(msg);
+            }
         }
     }
 

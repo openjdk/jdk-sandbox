@@ -76,14 +76,14 @@ public non-sealed interface JsonObject extends JsonValue {
 
     /**
      * {@return the member associated with the {@code name}}
-     * @throws IllegalArgumentException if the specified {@code name} does not
+     * @throws JsonAssertionException if the specified {@code name} does not
      *      exist in this {@code JsonObject}.
      */
     @Override
     default JsonValue member(String name) {
         return switch (members().get(Objects.requireNonNull(name))) {
             case JsonValue jv -> jv;
-            case null -> throw new IllegalArgumentException(
+            case null -> throw new JsonAssertionException(
                     "JsonObject member \"%s\" does not exist.".formatted(name) +
                     (this instanceof JsonValueImpl jvi && jvi.doc() != null ?
                     Utils.getPath(jvi) : ""));
