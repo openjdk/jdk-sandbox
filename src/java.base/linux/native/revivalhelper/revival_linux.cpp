@@ -1379,6 +1379,13 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
 
     if (libdir != nullptr) {
         init_jvm_filename_from_libdir(libdir);
+    } else {
+        // verify libjvm.so from coreexists
+        if (!try_init_jvm_filename_if_exists(jvm_filename, "")) {
+            warn("JVM library required in core not found at: %s", jvm_filename);
+            warn("If using a transported core, you must use -L to specify a copy of the JDK.");
+            return -1;
+        }
     }
 
     // Copy libjvm into core.revival dir
