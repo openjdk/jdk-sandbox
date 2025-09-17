@@ -130,7 +130,7 @@ class Arguments {
 
     public static void usage() {
         System.out.println("Usage: jcmd <pid | main class> <command ...|PerfCounter.print|-f file>");
-        System.out.println("   or: jcmd [ -c ]  <corefile> <command... | -f file>");
+        System.out.println("   or: jcmd [ -c ] [ -L jdk_path ] <corefile> <command... | -f file>");
         System.out.println("   or: jcmd -l                                                    ");
         System.out.println("   or: jcmd -h                                                    ");
         System.out.println("                                                                  ");
@@ -140,10 +140,14 @@ class Arguments {
         System.out.println("  The main class argument will be used to match (either partially ");
         System.out.println("  or fully) the class used to start Java.                         ");
         System.out.println("                                                                  ");
-        System.out.println("  Optional -c or --core forces reading a core file, in case of    ");
-        System.out.println("  clash with a live process name.");
-        System.out.println("                                                                  ");
         System.out.println("  If no options are given, lists Java processes (same as -l).     ");
+        System.out.println("                                                                  ");
+        System.out.println("  Core files (postmortem analysis):                               ");
+        System.out.println("  -c or --core forces reading a core file, in case of clash with  ");
+        System.out.println("      a live process name.                                        ");
+        System.out.println("  -L jdk_path must be passed if the core file originates from     ");
+        System.out.println("      another system. jdk_path must point to a copy of            ");
+        System.out.println("      the same JDK that the corefile originated from.             ");
         System.out.println("                                                                  ");
         System.out.println("  PerfCounter.print display the counters exposed by this process  ");
         System.out.println("  -f  read and execute commands from the file                     ");
