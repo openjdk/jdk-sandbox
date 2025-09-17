@@ -1359,13 +1359,25 @@ void init_jvm_filename_from_libdir(const char* libdir) {
  */
 int create_revivalbits_native_pd(const char *corename, const char *javahome, const char *revival_dirname, const char *libdir) {
     logv("create_revivalbits_native_pd");
-    create_directory(revival_dirname);
 
     // Find libjvm and its load address from core
     // Q will this make sense in a "transported core" scenario? / Ludvig
     {
         ELFOperations core(corename);
         init_jvm_filename_and_address(core);
+
+        if (libdir != nullptr) {
+            init_jvm_filename_from_libdir(libdir);
+        } else {
+            // verify libjvm.so from coreexists
+            if (!try_init_jvm_filename_if_exists(jvm_filename, "")) {
+                warn("JVM library required in core not found at: %s", jvm_filename);
+                warn("If using a transported core, you must use -L to specify a copy of the JDK.");
+                return -1;
+            }
+        }
+
+        create_directory(revival_dirname);
 
         // Create mappings file
         int mappings_fd = mappings_file_create(revival_dirname, corename);
@@ -1375,17 +1387,6 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
         }
         core.write_mappings(mappings_fd, "bin/java");
         close_file_descriptor(mappings_fd, "mappings file");
-    }
-
-    if (libdir != nullptr) {
-        init_jvm_filename_from_libdir(libdir);
-    } else {
-        // verify libjvm.so from coreexists
-        if (!try_init_jvm_filename_if_exists(jvm_filename, "")) {
-            warn("JVM library required in core not found at: %s", jvm_filename);
-            warn("If using a transported core, you must use -L to specify a copy of the JDK.");
-            return -1;
-        }
     }
 
     // Copy libjvm into core.revival dir
