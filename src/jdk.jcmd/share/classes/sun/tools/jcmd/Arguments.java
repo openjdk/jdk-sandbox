@@ -148,6 +148,8 @@ class Arguments {
         System.out.println("  -L jdk_path must be passed if the core file originates from     ");
         System.out.println("      another system. jdk_path must point to a copy of            ");
         System.out.println("      the same JDK that the corefile originated from.             ");
+        System.out.println("  When analyzing a corefile a corefile.revival directory is ");
+        System.out.println("  created, containing cache files.");
         System.out.println("                                                                  ");
         System.out.println("  PerfCounter.print display the counters exposed by this process  ");
         System.out.println("  -f  read and execute commands from the file                     ");
