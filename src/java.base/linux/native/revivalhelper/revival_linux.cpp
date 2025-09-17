@@ -1328,14 +1328,11 @@ bool try_init_jvm_filename_if_exists(const char* path, const char* suffix) {
     strncpy(search_path, path, BUFLEN - 1);
     strncat(search_path, suffix, BUFLEN - 1);
     int fd = open(search_path, O_RDONLY);
-    if (fd < 0) {
-        warn("libjvm.so not found in %s", search_path);
-    } else {
+    if (fd >= 0) {
         struct stat buffer;
         fstat(fd, &buffer);
         if (!S_ISDIR(buffer.st_mode)) {
             free(jvm_filename);
-            warn("libjvm.so found in %s", search_path);
             jvm_filename = strdup(search_path);
             return true;
         }
@@ -1389,6 +1386,7 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
     memset(jvm_copy_path, 0, BUFLEN);
     strncpy(jvm_copy_path, revival_dirname, BUFLEN - 1);
     strncat(jvm_copy_path, "/" JVM_FILENAME, BUFLEN - 1);
+    warn("Copying libjvm.so from %s", jvm_filename);
     copy_file_pd(jvm_filename, jvm_copy_path);
 
     // Relocate copy of libjvm:
