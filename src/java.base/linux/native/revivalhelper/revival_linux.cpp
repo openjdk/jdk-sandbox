@@ -1322,6 +1322,35 @@ void init_jvm_filename_and_address(ELFOperations& core) {
     logv("JVM addr = %p", jvm_address);
 }
 
+bool try_init_jvm_filename_if_exists(const char* path, const char* suffix) {
+    char search_path[BUFLEN];
+    memset(search_path, 0, BUFLEN);
+    strncpy(search_path, path, BUFLEN - 1);
+    strncat(search_path, suffix, BUFLEN - 1);
+    int fd = open(search_path, O_RDONLY);
+    if (fd < 0) {
+        warn("libjvm.so not found in %s", search_path);
+    } else {
+        struct stat buffer;
+        fstat(fd, &buffer);
+        if (!S_ISDIR(buffer.st_mode)) {
+            free(jvm_filename);
+            warn("libjvm.so found in %s", search_path);
+            jvm_filename = strdup(search_path);
+            return true;
+        }
+    }
+    return false;
+}
+
+void init_jvm_filename_from_libdir(const char* libdir) {
+    if (try_init_jvm_filename_if_exists(libdir, "")) return;
+    if (try_init_jvm_filename_if_exists(libdir, "/libjvm.so")) return;
+    if (try_init_jvm_filename_if_exists(libdir, "/server/libjvm.so")) return;
+    if (try_init_jvm_filename_if_exists(libdir, "/lib/server/libjvm.so")) return;
+    warn("Could not find libjvm.so in %s", libdir);
+}
+
 /**
  * Create a "core.revival" directory containing what's needed to revive a corefile:
  *
@@ -1349,6 +1378,10 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
         }
         core.write_mappings(mappings_fd, "bin/java");
         close_file_descriptor(mappings_fd, "mappings file");
+    }
+
+    if (libdir != nullptr) {
+        init_jvm_filename_from_libdir(libdir);
     }
 
     // Copy libjvm into core.revival dir
