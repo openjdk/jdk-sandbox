@@ -437,7 +437,7 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
     e = fscanf(f, "time %s\n", s1);
     if (e == 1) {
         core_timestamp = (long long) strtoll(s1, nullptr, 10);
-        warn("core time: %lld\n", core_timestamp);
+        logv("core time: %lld\n", core_timestamp);
     } else {
         warn("time record not found in file");
     }
@@ -895,8 +895,8 @@ int revive_image_cooperative() {
     logv("revive_image: revival_data %s / %s / %s / %s", rdata->runtime_name, rdata->runtime_version, rdata->runtime_vendor_version,
          rdata->jdk_debug_level);
     logv("revive_image: VM Thread object = %p", rdata->vm_thread);
-    warn("revive_image: initial_time_count ns = %lld", (unsigned long long) rdata->initial_time_count);
-    warn("revive_image: initial_time_date  s  = %lld", (unsigned long long) rdata->initial_time_date);
+    logv("revive_image: initial_time_count ns = %lld", (unsigned long long) rdata->initial_time_count);
+    logv("revive_image: initial_time_date  s  = %lld", (unsigned long long) rdata->initial_time_date);
 
 #ifdef LINUX
         uint64_t lifetime_s = core_timestamp - rdata->initial_time_date;

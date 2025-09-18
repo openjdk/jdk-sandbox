@@ -130,7 +130,7 @@ class Arguments {
 
     public static void usage() {
         System.out.println("Usage: jcmd <pid | main class> <command ...|PerfCounter.print|-f file>");
-        System.out.println("   or: jcmd [ -c ] [ -L jdk_path ] <corefile> <command... | -f file>");
+        System.out.println("   or: jcmd [ -c ] [ -L PATH ] <corefile> <command... | -f file>");
         System.out.println("   or: jcmd -l                                                    ");
         System.out.println("   or: jcmd -h                                                    ");
         System.out.println("                                                                  ");
@@ -142,14 +142,14 @@ class Arguments {
         System.out.println("                                                                  ");
         System.out.println("  If no options are given, lists Java processes (same as -l).     ");
         System.out.println("                                                                  ");
-        System.out.println("  Core files (postmortem analysis):                               ");
-        System.out.println("  -c or --core forces reading a core file, in case of clash with  ");
+        System.out.println("  Using core files (post-mortem analysis):                        ");
+        System.out.println("  -c or --core forces reading a core file, in case of a clash with");
         System.out.println("      a live process name.                                        ");
-        System.out.println("  -L jdk_path must be passed if the core file originates from     ");
-        System.out.println("      another system. jdk_path must point to a copy of            ");
-        System.out.println("      the same JDK that the corefile originated from.             ");
+        System.out.println("  -L PATH must be given if the core file originates from another  ");
+        System.out.println("  system, or the JDK at the path in the core has changed.         ");
+        System.out.println("  PATH must point to a copy of the same JDK that the corefile originated from.");
         System.out.println("  When analyzing a corefile a corefile.revival directory is ");
-        System.out.println("  created, containing cache files.");
+        System.out.println("  created, containing cache files. -L is not required once the cache is created.");
         System.out.println("                                                                  ");
         System.out.println("  PerfCounter.print display the counters exposed by this process  ");
         System.out.println("  -f  read and execute commands from the file                     ");
