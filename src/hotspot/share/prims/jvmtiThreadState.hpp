@@ -167,6 +167,7 @@ class JvmtiVTSuspender : AllStatic {
  public:
   static void register_all_vthreads_suspend();
   static void register_all_vthreads_resume();
+  static void register_vthread_suspend(int64_t id);
   static void register_vthread_suspend(oop vt);
   static void register_vthread_resume(oop vt);
   static bool is_vthread_suspended(oop vt);
@@ -443,15 +444,6 @@ class JvmtiThreadState : public CHeapObj<mtInternal> {
     }
     return klass;
   }
-
-  // Todo: get rid of this!
- private:
-  bool _debuggable;
- public:
-  // Should the thread be enumerated by jvmtiInternal::GetAllThreads?
-  bool is_debuggable()                 { return _debuggable; }
-  // If a thread cannot be suspended (has no valid last_java_frame) then it gets marked !debuggable
-  void set_debuggable(bool debuggable) { _debuggable = debuggable; }
 
  public:
 
