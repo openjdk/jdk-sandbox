@@ -165,7 +165,6 @@ void waitHitRet() {
 }
 
 /**
- * File size utility.
  * Return the file size in bytes, or zero on error.
  */
 unsigned long long file_size(const char *filename) {
@@ -178,8 +177,7 @@ unsigned long long file_size(const char *filename) {
 }
 
 /**
- * File time utility.
- * Return the file creation time in seconds, or 0 on error.
+ * Return the file modification time in seconds, or 0 on error.
  */
 unsigned long long file_time(const char *filename) {
     struct stat sb;
@@ -355,7 +353,6 @@ int revival_mapping_copy(void *vaddr, size_t length, off_t offset, bool allocate
         *p++ = value;
     }
     fclose(f);
-    // logv("  revival_mapping_copy: done, copied %zd.", length);
     return 0;
 }
 
@@ -367,15 +364,10 @@ int revival_mapping_copy(void *vaddr, size_t length, off_t offset, bool allocate
 void *load_sharedlibrary_fromdir(const char *dirname, const char *libname, void *vaddr, char *sum) {
     char buf[BUFLEN];
     snprintf(buf, BUFLEN, "%s/%s", dirname, libname); 
-    if (verbose) {
-        log("load_sharedlibrary_fromdir: %s\n", buf);
-    }
-
+    logv("load_sharedlibrary_fromdir: %s\n", buf);
     void *a = load_sharedobject_pd(buf, vaddr);
-
-    if (verbose) {
-        log("load_sharedobject_pd: %s: returns %p\n", buf, a);
-    }
+    logv("load_sharedobject_pd: %s: returns %p\n", buf, a);
+    waitHitRet();
     return a;
 }
 
@@ -810,6 +802,13 @@ int symbols_file_create(const char *dirname) {
  * Segment
  */
 
+bool Segment::contains(Segment* seg) {
+  return seg->start() >= this->start() && seg->end() <= this->end();
+}
+bool Segment::contains(uint64_t addr) {
+  return addr >= this->start() && addr <= this->end();
+}
+
 /**
  * Is this Segment not trivially ignorable, e.g. zero-length.
  */
@@ -990,7 +989,6 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
         printf("revive_image:\n");
         printf("revival directory: '%s'\n", dirname);
         printf("vaddr_alignment = %llu\n", (unsigned long long) vaddr_alignment_pd());
-        printf("check if revivaldir exists? %s = %d\n",( const char *) dirname, revival_direxists_pd(dirname));
     }
 
     // Does revival data directory exist? If not, create data:

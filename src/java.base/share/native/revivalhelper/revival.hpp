@@ -205,6 +205,9 @@ class Segment {
         void set_end(uint64_t addr) { length = addr - (uint64_t) vaddr; }
         void set_length(uint64_t len) { length = len; file_length = len; }
 
+        bool contains(Segment *seg);
+        bool contains(uint64_t addr);
+
         bool is_relevant();
         int write_mapping(int fd);
         int write_mapping(int fd, const char* type);

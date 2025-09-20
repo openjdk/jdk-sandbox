@@ -1072,6 +1072,8 @@ void handler(int sig, siginfo_t *info, void *ucontext) {
     }
 
     // Handle writing to the core:
+    // Check again if PRIVATE mapping makes this unnecessary. XXXX
+    //
     // If this is a fault in an address covered by an area we mapped from the core,
     // which should be writable, then create a new mapping that can be written
     // without changing the core.
