@@ -114,10 +114,7 @@ public final class JsonParser {
             // Why not parse the name as a JsonString and then return its value()?
             // Would requires 2 passes; we should build the String as we parse.
             var name = parseName();
-
-            if (members.containsKey(name)) {
-                throw failure("The duplicate member name: \"%s\" was already parsed".formatted(name));
-            }
+            var nameOffset = offset;
 
             // Move from name to ':'
             skipWhitespaces();
@@ -125,7 +122,11 @@ public final class JsonParser {
                 throw failure(
                         "Expected a colon after the member name");
             }
-            members.put(name, parseValue());
+
+            if (members.putIfAbsent(name, parseValue()) != null) {
+                throw failure(nameOffset, "The duplicate member name: \"%s\" was already parsed".formatted(name));
+            }
+
             // Ensure current char is either ',' or '}'
             if (charEquals('}')) {
                 return new JsonObjectImpl(members, startO, doc);
@@ -427,15 +428,15 @@ public final class JsonParser {
         return false;
     }
 
-    // Return the col position reflective of the current row
-    private int col() {
-        return offset - lineStart;
+    private JsonParseException failure(String message) {
+        return failure(offset, message);
     }
 
-    private JsonParseException failure(String message) {
+    private JsonParseException failure(int off, String message) {
         // Non-revealing message does not produce input source String
+        var col = off - lineStart;
         return new JsonParseException("%s. Location: row %d, col %d."
-                .formatted(message, line, col()), line, col());
+                .formatted(message, line, col), line, col);
     }
 
     // Parsing error messages ----------------------
