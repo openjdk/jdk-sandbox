@@ -36,7 +36,6 @@
 #include "opto/graphKit.hpp"
 #include "opto/idealKit.hpp"
 #include "opto/macro.hpp"
-#include "opto/movenode.hpp"
 #include "opto/narrowptrnode.hpp"
 #include "opto/output.hpp"
 #include "opto/rootnode.hpp"
