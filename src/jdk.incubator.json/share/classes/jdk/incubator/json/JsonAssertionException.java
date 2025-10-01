@@ -23,59 +23,25 @@
  * questions.
  */
 
-package java.util.json;
+package jdk.incubator.json;
 
 import java.io.Serial;
 
-import jdk.internal.javac.PreviewFeature;
-
 /**
- * Signals that an error has been detected while parsing the
- * JSON document.
+ * Signals that an error has been detected while traversing the {@code JsonValue}.
  *
  * @since 99
  */
-@PreviewFeature(feature = PreviewFeature.Feature.JSON)
-public class JsonParseException extends RuntimeException {
+public class JsonAssertionException extends RuntimeException {
 
     @Serial
-    private static final long serialVersionUID = 7022545379651073390L;
+    private static final long serialVersionUID = 2040280066622450939L;
 
     /**
-     * Position of the error row in the document
-     * @serial
-     */
-    private final int row;
-
-    /**
-     * Position of the error column in the document
-     * @serial
-     */
-    private final int col;
-
-    /**
-     * Constructs a JsonParseException with the specified detail message.
+     * Constructs a JsonAssertionException with the specified detail message.
      * @param message the detail message
-     * @param row the row of the error on parsing the document
-     * @param col the column of the error on parsing the document
      */
-    public JsonParseException(String message, int row, int col) {
+    public JsonAssertionException(String message) {
         super(message);
-        this.row = row;
-        this.col = col;
-    }
-
-    /**
-     * {@return the row of the error on parsing the document}
-     */
-    public int getErrorRow() {
-        return row;
-    }
-
-    /**
-     * {@return the column of the error on parsing the document}
-     */
-    public int getErrorColumn() {
-        return col;
     }
 }

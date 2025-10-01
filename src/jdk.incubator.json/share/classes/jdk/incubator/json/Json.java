@@ -22,21 +22,20 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package java.util.json;
+package jdk.incubator.json;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.LinkedHashMap;
 
-import jdk.internal.javac.PreviewFeature;
-import jdk.internal.util.json.JsonParser;
-import jdk.internal.util.json.Utils;
+import jdk.incubator.json.impl.JsonParser;
+import jdk.incubator.json.impl.Utils;
 
 /**
  * This class provides static methods for producing and manipulating a {@link JsonValue}.
@@ -54,7 +53,6 @@ import jdk.internal.util.json.Utils;
  *      Object Notation (JSON) Data Interchange Format
  * @since 99
  */
-@PreviewFeature(feature = PreviewFeature.Feature.JSON)
 public final class Json {
 
     /**

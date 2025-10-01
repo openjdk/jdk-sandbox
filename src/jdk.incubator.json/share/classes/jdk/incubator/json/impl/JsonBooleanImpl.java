@@ -23,16 +23,13 @@
  * questions.
  */
 
-package jdk.internal.util.json;
+package jdk.incubator.json.impl;
 
-import java.util.json.JsonBoolean;
-
-import jdk.internal.ValueBased;
+import jdk.incubator.json.JsonBoolean;
 
 /**
  * JsonBoolean implementation class
  */
-@ValueBased
 public final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
 
     private final Boolean theBoolean;

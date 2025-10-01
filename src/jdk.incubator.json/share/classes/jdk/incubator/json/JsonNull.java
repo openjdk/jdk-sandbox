@@ -23,28 +23,36 @@
  * questions.
  */
 
-package java.util.json;
+package jdk.incubator.json;
 
-import java.io.Serial;
-
-import jdk.internal.javac.PreviewFeature;
+import jdk.incubator.json.impl.JsonNullImpl;
 
 /**
- * Signals that an error has been detected while traversing the {@code JsonValue}.
+ * The interface that represents JSON null.
+ * <p>
+ * A {@code JsonNull} can be produced by {@link Json#parse(String)}.
+ * <p> Alternatively, {@link #of()} can be used to obtain a {@code JsonNull}.
  *
  * @since 99
  */
-@PreviewFeature(feature = PreviewFeature.Feature.JSON)
-public class JsonAssertionException extends RuntimeException {
-
-    @Serial
-    private static final long serialVersionUID = 2040280066622450939L;
+public non-sealed interface JsonNull extends JsonValue {
 
     /**
-     * Constructs a JsonAssertionException with the specified detail message.
-     * @param message the detail message
+     * {@return a {@code JsonNull}}
      */
-    public JsonAssertionException(String message) {
-        super(message);
+    static JsonNull of() {
+        return JsonNullImpl.NULL;
     }
+
+    /**
+     * {@return true if the given {@code obj} is a {@code JsonNull}}
+     */
+    @Override
+    boolean equals(Object obj);
+
+    /**
+     * {@return the hash code value of this {@code JsonNull}}
+     */
+    @Override
+    int hashCode();
 }

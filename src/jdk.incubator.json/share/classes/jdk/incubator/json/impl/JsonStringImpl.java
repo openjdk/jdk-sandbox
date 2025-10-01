@@ -23,16 +23,13 @@
  * questions.
  */
 
-package jdk.internal.util.json;
+package jdk.incubator.json.impl;
 
-import java.util.json.JsonString;
-
-import jdk.internal.ValueBased;
+import jdk.incubator.json.JsonString;
 
 /**
  * JsonString implementation class
  */
-@ValueBased
 public final class JsonStringImpl implements JsonString, JsonValueImpl {
 
     private final char[] doc;

@@ -23,19 +23,17 @@
  * questions.
  */
 
-package jdk.internal.util.json;
+package jdk.incubator.json.impl;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.json.JsonArray;
-import java.util.json.JsonValue;
 
-import jdk.internal.ValueBased;
+import jdk.incubator.json.JsonArray;
+import jdk.incubator.json.JsonValue;
 
 /**
  * JsonArray implementation class
  */
-@ValueBased
 public final class JsonArrayImpl implements JsonArray, JsonValueImpl {
 
     private final List<JsonValue> theValues;

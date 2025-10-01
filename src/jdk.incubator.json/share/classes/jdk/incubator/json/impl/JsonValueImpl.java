@@ -1,4 +1,4 @@
-package jdk.internal.util.json;
+package jdk.incubator.json.impl;
 
 /**
  * Used for JsonAssertionException error message building.

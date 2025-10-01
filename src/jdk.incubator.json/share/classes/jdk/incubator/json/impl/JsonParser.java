@@ -23,18 +23,19 @@
  * questions.
  */
 
-package jdk.internal.util.json;
+package jdk.incubator.json.impl;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
-import java.util.json.JsonArray;
-import java.util.json.JsonObject;
-import java.util.json.JsonParseException;
-import java.util.json.JsonString;
-import java.util.json.JsonValue;
+
+import jdk.incubator.json.JsonArray;
+import jdk.incubator.json.JsonObject;
+import jdk.incubator.json.JsonParseException;
+import jdk.incubator.json.JsonString;
+import jdk.incubator.json.JsonValue;
 
 /**
  * Parses a JSON Document char[] into a tree of JsonValues. JsonObject and JsonArray
@@ -114,7 +115,10 @@ public final class JsonParser {
             // Why not parse the name as a JsonString and then return its value()?
             // Would requires 2 passes; we should build the String as we parse.
             var name = parseName();
-            var nameOffset = offset;
+
+            if (members.containsKey(name)) {
+                throw failure("The duplicate member name: \"%s\" was already parsed".formatted(name));
+            }
 
             // Move from name to ':'
             skipWhitespaces();
@@ -122,11 +126,7 @@ public final class JsonParser {
                 throw failure(
                         "Expected a colon after the member name");
             }
-
-            if (members.putIfAbsent(name, parseValue()) != null) {
-                throw failure(nameOffset, "The duplicate member name: \"%s\" was already parsed".formatted(name));
-            }
-
+            members.put(name, parseValue());
             // Ensure current char is either ',' or '}'
             if (charEquals('}')) {
                 return new JsonObjectImpl(members, startO, doc);
@@ -428,15 +428,15 @@ public final class JsonParser {
         return false;
     }
 
-    private JsonParseException failure(String message) {
-        return failure(offset, message);
+    // Return the col position reflective of the current row
+    private int col() {
+        return offset - lineStart;
     }
 
-    private JsonParseException failure(int off, String message) {
+    private JsonParseException failure(String message) {
         // Non-revealing message does not produce input source String
-        var col = off - lineStart;
         return new JsonParseException("%s. Location: row %d, col %d."
-                .formatted(message, line, col), line, col);
+                .formatted(message, line, col()), line, col());
     }
 
     // Parsing error messages ----------------------

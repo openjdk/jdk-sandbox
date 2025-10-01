@@ -23,16 +23,13 @@
  * questions.
  */
 
-package jdk.internal.util.json;
+package jdk.incubator.json.impl;
 
-import java.util.json.JsonNull;
-
-import jdk.internal.ValueBased;
+import jdk.incubator.json.JsonNull;
 
 /**
  * JsonNull implementation class
  */
-@ValueBased
 public final class JsonNullImpl implements JsonNull, JsonValueImpl {
 
     private final int offset;

@@ -23,10 +23,9 @@
  * questions.
  */
 
-package java.util.json;
+package jdk.incubator.json;
 
-import jdk.internal.javac.PreviewFeature;
-import jdk.internal.util.json.JsonBooleanImpl;
+import jdk.incubator.json.impl.JsonBooleanImpl;
 
 /**
  * The interface that represents JSON boolean.
@@ -37,7 +36,6 @@ import jdk.internal.util.json.JsonBooleanImpl;
  *
  * @since 99
  */
-@PreviewFeature(feature = PreviewFeature.Feature.JSON)
 public non-sealed interface JsonBoolean extends JsonValue {
 
     /**
@@ -54,11 +52,6 @@ public non-sealed interface JsonBoolean extends JsonValue {
      */
     static JsonBoolean of(boolean src) {
         return src ? JsonBooleanImpl.TRUE : JsonBooleanImpl.FALSE;
-    }
-
-    @Override
-    default boolean boolean_() {
-        return value();
     }
 
     /**

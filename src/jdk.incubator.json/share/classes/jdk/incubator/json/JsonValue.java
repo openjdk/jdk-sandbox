@@ -23,12 +23,14 @@
  * questions.
  */
 
-package java.util.json;
+package jdk.incubator.json;
 
-import jdk.internal.javac.PreviewFeature;
-import jdk.internal.util.json.Utils;
+import jdk.incubator.json.impl.JsonValueImpl;
+import jdk.incubator.json.impl.Utils;
 
 import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
  * The interface that represents a JSON value.
@@ -76,9 +78,8 @@ import java.util.Objects;
  *
  * @since 99
  */
-@PreviewFeature(feature = PreviewFeature.Feature.JSON)
-public sealed interface JsonValue
-        permits JsonString, JsonNumber, JsonObject, JsonArray, JsonBoolean, JsonNull {
+
+public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, JsonArray, JsonBoolean, JsonNull {
 
     /**
      * {@return the String representation of this {@code JsonValue} that conforms
@@ -99,14 +100,24 @@ public sealed interface JsonValue
      * {@code JsonObject}, a {@code JsonAssertionException} will be thrown.
      *
      * @param name the member name
+     * @throws IllegalArgumentException if the specified {@code name} does not
+     *      exist in this {@code JsonObject}.
      * @throws NullPointerException if {@code name} is {@code null}.
-     * @throws JsonAssertionException if the specified {@code name} does not
-     *      exist in this {@code JsonObject} or {@code this} is not a {@code JsonObject}.
+     * @throws JsonAssertionException if {@code this} is not a {@code JsonObject}.
      * @return the member of this {@code JsonObject} associated with the {@code name}.
      */
     default JsonValue member(String name) {
         Objects.requireNonNull(name);
-        throw Utils.composeTypeError(this, "JsonObject");
+        return switch (this) {
+            case JsonObject jo -> switch (jo.members().get(Objects.requireNonNull(name))) {
+                case JsonValue jv -> jv;
+                case null -> throw new IllegalArgumentException(
+                        "JsonObject member \"%s\" does not exist.".formatted(name) +
+                                (this instanceof JsonValueImpl jvi && jvi.doc() != null ?
+                                        Utils.getPath(jvi) : ""));
+            };
+            default -> throw Utils.composeTypeError(this, "JsonObject");
+        };
     }
 
     /**
@@ -116,13 +127,26 @@ public sealed interface JsonValue
      * thrown.
      *
      * @param index the index of the array
-     * @throws IllegalArgumentException if the specified {@code index} is less than zero.
-     * @throws JsonAssertionException if {@code this} is not a {@code JsonArray} or
-     *      the specified index is out of bounds of this {@code JsonArray}.
+     * @throws IllegalArgumentException if the specified {@code index} is out of
+     *      bounds of this {@code JsonArray}.
+     * @throws JsonAssertionException if {@code this} is not a {@code JsonArray}.
      * @return the element of this {@code JsonArray} at the {@code index}.
      */
     default JsonValue element(int index) {
-        throw Utils.composeTypeError(this, "JsonArray");
+        return switch (this) {
+            case JsonArray ja -> {
+                try {
+                    yield ja.values().get(index);
+                } catch (IndexOutOfBoundsException _) {
+                    throw new IllegalArgumentException(
+                            "JsonArray index %d out of bounds for length %d."
+                                    .formatted(index, ja.values().size()) +
+                                    (this instanceof JsonValueImpl jvi && jvi.doc() != null  ?
+                                            Utils.getPath(jvi) : ""));
+                }
+            }
+            default -> throw Utils.composeTypeError(this, "JsonArray");
+        };
     }
 
     /**
@@ -135,19 +159,10 @@ public sealed interface JsonValue
      * @return the value of this {@code JsonBoolean}.
      */
     default boolean boolean_() {
-        throw Utils.composeTypeError(this, "JsonBoolean");
-    }
-
-    /**
-     * If this {@code JsonValue} is a {@code JsonNull}, this method returns
-     * {@code null}. If {@code this} is not a {@code JsonNull}, a
-     * {@code JsonAssertionException} will be thrown.
-     *
-     * @throws JsonAssertionException if {@code this} is not a {@code JsonNull}.
-     * @return null
-     */
-    default Object null_() {
-        throw Utils.composeTypeError(this, "JsonNull");
+        return switch (this) {
+            case JsonBoolean jb -> jb.value();
+            default -> throw Utils.composeTypeError(this, "JsonBoolean");
+        };
     }
 
     /**
@@ -159,7 +174,10 @@ public sealed interface JsonValue
      * @return the {@code toNumber()} value of this {@code JsonNumber}.
      */
     default Number number() {
-        throw Utils.composeTypeError(this, "JsonNumber");
+        return switch (this) {
+            case JsonNumber jn -> jn.toNumber();
+            default -> throw Utils.composeTypeError(this, "JsonNumber");
+        };
     }
 
     /**
@@ -171,6 +189,66 @@ public sealed interface JsonValue
      * @return the value of this {@code JsonString}.
      */
     default String string() {
-        throw Utils.composeTypeError(this, "JsonString");
+        return switch (this) {
+            case JsonString js -> js.value();
+            default -> throw Utils.composeTypeError(this, "JsonString");
+        };
+    }
+
+    // Direct accessors to structural content
+
+    /**
+     * tbd
+     * @return tbd
+     */
+    default JsonObject object() {
+        if (this instanceof JsonObject o) {
+            return o;
+        }
+        throw Utils.composeTypeError(this, "JsonObject");
+    }
+
+    /**
+     * tbd
+     * @return tbd
+     */
+    default JsonArray array() {
+        if (this instanceof JsonArray a) {
+            return a;
+        }
+
+        throw Utils.composeTypeError(this, "JsonArray");
+    }
+
+    /**
+     * tbd
+     * @return tbd
+     */
+    default Optional<JsonValue> orNull() {
+        return switch (this) {
+            case JsonNull _ -> Optional.empty();
+            case JsonValue _ -> Optional.of(this);
+        };
+    }
+
+    // Indirect accessors to structural content
+    /**
+     * tbd
+     * @return tbd
+     */
+    default Stream<JsonValue> elements() {
+        return array().values().stream();
+    }
+
+    /**
+     * tbd
+     * @param s tbd
+     * @return tbd
+     */
+    default Optional<JsonValue> memberOrAbsent(String s) {
+        return switch (object().members().get(s)) {
+            case JsonValue mv -> Optional.of(mv);
+            case null -> Optional.empty();
+        };
     }
 }

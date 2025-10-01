@@ -23,17 +23,14 @@
  * questions.
  */
 
-package java.util.json;
+package jdk.incubator.json;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import jdk.internal.javac.PreviewFeature;
-import jdk.internal.util.json.JsonArrayImpl;
-import jdk.internal.util.json.JsonValueImpl;
-import jdk.internal.util.json.Utils;
+import jdk.incubator.json.impl.JsonArrayImpl;
 
 /**
  * The interface that represents JSON array.
@@ -43,7 +40,6 @@ import jdk.internal.util.json.Utils;
  *
  * @since 99
  */
-@PreviewFeature(feature = PreviewFeature.Feature.JSON)
 public non-sealed interface JsonArray extends JsonValue {
 
     /**
@@ -68,29 +64,6 @@ public non-sealed interface JsonArray extends JsonValue {
                 .map(Objects::requireNonNull)
                 .collect(Collectors.toCollection(ArrayList::new))
         );
-    }
-
-    /**
-     * {@return the element of this {@code JsonArray} at the {@code index}}
-     * @throws IllegalArgumentException if the specified {@code index} is less than zero.
-     * @throws JsonAssertionException if {@code this} is not a {@code JsonArray} or
-     *      the specified index is out of bounds of this {@code JsonArray}.
-     */
-    @Override
-    default JsonValue element(int index) {
-        try {
-            return values().get(index);
-        } catch (IndexOutOfBoundsException _) {
-            var msg = "JsonArray index %d out of bounds for length %d."
-                    .formatted(index, this.values().size()) +
-                    (this instanceof JsonValueImpl jvi && jvi.doc() != null
-                            ? Utils.getPath(jvi) : "");
-            if (index < 0) {
-                throw new IllegalArgumentException(msg);
-            } else {
-                throw new JsonAssertionException(msg);
-            }
-        }
     }
 
     /**

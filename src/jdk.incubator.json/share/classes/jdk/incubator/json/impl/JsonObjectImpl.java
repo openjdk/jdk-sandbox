@@ -23,19 +23,17 @@
  * questions.
  */
 
-package jdk.internal.util.json;
+package jdk.incubator.json.impl;
 
 import java.util.Collections;
 import java.util.Map;
-import java.util.json.JsonObject;
-import java.util.json.JsonValue;
 
-import jdk.internal.ValueBased;
+import jdk.incubator.json.JsonObject;
+import jdk.incubator.json.JsonValue;
 
 /**
  * JsonObject implementation class
  */
-@ValueBased
 public final class JsonObjectImpl implements JsonObject, JsonValueImpl {
 
     private final Map<String, JsonValue> theMembers;

@@ -23,43 +23,56 @@
  * questions.
  */
 
-package java.util.json;
+package jdk.incubator.json;
 
-import jdk.internal.javac.PreviewFeature;
-import jdk.internal.util.json.JsonNullImpl;
+import java.io.Serial;
 
 /**
- * The interface that represents JSON null.
- * <p>
- * A {@code JsonNull} can be produced by {@link Json#parse(String)}.
- * <p> Alternatively, {@link #of()} can be used to obtain a {@code JsonNull}.
+ * Signals that an error has been detected while parsing the
+ * JSON document.
  *
  * @since 99
  */
-@PreviewFeature(feature = PreviewFeature.Feature.JSON)
-public non-sealed interface JsonNull extends JsonValue {
+public class JsonParseException extends RuntimeException {
+
+    @Serial
+    private static final long serialVersionUID = 7022545379651073390L;
 
     /**
-     * {@return a {@code JsonNull}}
+     * Position of the error row in the document
+     * @serial
      */
-    static JsonNull of() {
-        return JsonNullImpl.NULL;
+    private final int row;
+
+    /**
+     * Position of the error column in the document
+     * @serial
+     */
+    private final int col;
+
+    /**
+     * Constructs a JsonParseException with the specified detail message.
+     * @param message the detail message
+     * @param row the row of the error on parsing the document
+     * @param col the column of the error on parsing the document
+     */
+    public JsonParseException(String message, int row, int col) {
+        super(message);
+        this.row = row;
+        this.col = col;
     }
 
-    @Override
-    default Object null_() {
-        return null;
+    /**
+     * {@return the row of the error on parsing the document}
+     */
+    public int getErrorRow() {
+        return row;
     }
 
     /**
-     * {@return true if the given {@code obj} is a {@code JsonNull}}
+     * {@return the column of the error on parsing the document}
      */
-    @Override
-    boolean equals(Object obj);
-
-    /**
-     * {@return the hash code value of this {@code JsonNull}}
-     */
-    @Override
-    int hashCode();
+    public int getErrorColumn() {
+        return col;
+    }
 }

@@ -78,8 +78,4 @@
  *      Object Notation (JSON) Data Interchange Format
  * @since 99
  */
-
-@PreviewFeature(feature = PreviewFeature.Feature.JSON)
-package java.util.json;
-
-import jdk.internal.javac.PreviewFeature;
+package jdk.incubator.json;

@@ -118,7 +118,6 @@ module java.base {
     exports java.util.concurrent.locks;
     exports java.util.function;
     exports java.util.jar;
-    exports java.util.json;
     exports java.util.random;
     exports java.util.regex;
     exports java.util.spi;
@@ -155,7 +154,8 @@ module java.base {
     // module declaration be annotated with jdk.internal.javac.ParticipatesInPreview
     exports jdk.internal.javac to
         java.compiler,
-        jdk.compiler;
+        jdk.compiler,
+        jdk.incubator.json;
     exports jdk.internal.access to
         java.desktop,
         java.logging,

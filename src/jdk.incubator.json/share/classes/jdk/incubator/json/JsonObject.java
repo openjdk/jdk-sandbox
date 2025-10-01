@@ -23,17 +23,14 @@
  * questions.
  */
 
-package java.util.json;
+package jdk.incubator.json;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import jdk.internal.javac.PreviewFeature;
-import jdk.internal.util.json.JsonObjectImpl;
-import jdk.internal.util.json.JsonValueImpl;
-import jdk.internal.util.json.Utils;
+import jdk.incubator.json.impl.JsonObjectImpl;
 
 /**
  * The interface that represents JSON object.
@@ -46,7 +43,6 @@ import jdk.internal.util.json.Utils;
  *
  * @since 99
  */
-@PreviewFeature(feature = PreviewFeature.Feature.JSON)
 public non-sealed interface JsonObject extends JsonValue {
 
     /**
@@ -72,22 +68,6 @@ public non-sealed interface JsonObject extends JsonValue {
                 .collect(Collectors.toMap(
                         e -> Objects.requireNonNull(e.getKey()), Map.Entry::getValue, // Implicit NPE on val
                         (_, v) -> v, LinkedHashMap::new)));
-    }
-
-    /**
-     * {@return the member associated with the {@code name}}
-     * @throws JsonAssertionException if the specified {@code name} does not
-     *      exist in this {@code JsonObject}.
-     */
-    @Override
-    default JsonValue member(String name) {
-        return switch (members().get(Objects.requireNonNull(name))) {
-            case JsonValue jv -> jv;
-            case null -> throw new JsonAssertionException(
-                    "JsonObject member \"%s\" does not exist.".formatted(name) +
-                    (this instanceof JsonValueImpl jvi && jvi.doc() != null ?
-                    Utils.getPath(jvi) : ""));
-        };
     }
 
     /**

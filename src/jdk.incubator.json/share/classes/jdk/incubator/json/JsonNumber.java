@@ -23,13 +23,12 @@
  * questions.
  */
 
-package java.util.json;
+package jdk.incubator.json;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
-import jdk.internal.javac.PreviewFeature;
-import jdk.internal.util.json.JsonNumberImpl;
+import jdk.incubator.json.impl.JsonNumberImpl;
 
 /**
  * The interface that represents JSON number, an arbitrary-precision
@@ -51,7 +50,6 @@ import jdk.internal.util.json.JsonNumberImpl;
  *      The JavaScript Object Notation (JSON) Data Interchange Format - Numbers
  * @since 99
  */
-@PreviewFeature(feature = PreviewFeature.Feature.JSON)
 public non-sealed interface JsonNumber extends JsonValue {
 
     /**

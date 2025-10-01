@@ -23,18 +23,19 @@
  * questions.
  */
 
-package jdk.internal.util.json;
+package jdk.incubator.json.impl;
 
 import java.util.List;
 import java.util.Map;
-import java.util.json.JsonArray;
-import java.util.json.JsonAssertionException;
-import java.util.json.JsonBoolean;
-import java.util.json.JsonNull;
-import java.util.json.JsonNumber;
-import java.util.json.JsonObject;
-import java.util.json.JsonString;
-import java.util.json.JsonValue;
+
+import jdk.incubator.json.JsonArray;
+import jdk.incubator.json.JsonAssertionException;
+import jdk.incubator.json.JsonBoolean;
+import jdk.incubator.json.JsonNull;
+import jdk.incubator.json.JsonNumber;
+import jdk.incubator.json.JsonObject;
+import jdk.incubator.json.JsonString;
+import jdk.incubator.json.JsonValue;
 
 /**
  * Shared utilities for Json classes.

@@ -23,12 +23,11 @@
  * questions.
  */
 
-package java.util.json;
+package jdk.incubator.json;
 
 import java.util.Objects;
 
-import jdk.internal.javac.PreviewFeature;
-import jdk.internal.util.json.JsonStringImpl;
+import jdk.incubator.json.impl.JsonStringImpl;
 
 /**
  * The interface that represents a JSON string.
@@ -40,17 +39,16 @@ import jdk.internal.util.json.JsonStringImpl;
  * (U+0000 through U+001F) must be escaped.
  * <p> Alternatively, {@link #of(String)} can be used to obtain a {@code JsonString}
  * directly from a {@code String}. The following expressions are all equivalent,
- * {@snippet lang="java" :
- *     Json.parse("\"foo\\t\"");
+ * {@snippet lang = "java":
+ *     import Json;Json.parse("\"foo\\t\"");
  *     Json.parse("\"foo\\u0009\"");
  *     JsonString.of("foo\t");
- * }
+ *}
  *
  * @spec https://datatracker.ietf.org/doc/html/rfc8259#section-7 RFC 8259:
  *      The JavaScript Object Notation (JSON) Data Interchange Format - Strings
  * @since 99
  */
-@PreviewFeature(feature = PreviewFeature.Feature.JSON)
 public non-sealed interface JsonString extends JsonValue {
 
     /**
