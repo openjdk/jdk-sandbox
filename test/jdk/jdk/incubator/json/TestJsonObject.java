@@ -25,7 +25,7 @@
 
 /*
  * @test
- * @enablePreview
+ * @modules jdk.incubator.json
  * @run junit TestJsonObject
  */
 

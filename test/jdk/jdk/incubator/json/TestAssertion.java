@@ -25,9 +25,9 @@
 
 /*
  * @test
- * @enablePreview
  * @summary Checks traversal methods at JsonValue level as well as correct
  *          assertion errors.
+ * @modules jdk.incubator.json
  * @run junit TestAssertion
  */
 

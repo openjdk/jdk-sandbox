@@ -27,6 +27,7 @@
  * @test
  * @enablePreview
  * @summary Checks non JSON subtype specific parse behavior
+ * @modules jdk.incubator.json
  * @run junit TestParse
  */
 

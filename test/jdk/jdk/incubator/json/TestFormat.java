@@ -25,8 +25,8 @@
 
 /*
  * @test
- * @enablePreview
  * @summary Checks formatting of JsonValue
+ * @modules jdk.incubator.json
  * @run junit TestFormat
  */
 

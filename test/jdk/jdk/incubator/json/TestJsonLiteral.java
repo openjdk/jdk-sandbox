@@ -25,8 +25,8 @@
 
 /*
  * @test
- * @enablePreview
  * @summary JsonBoolean and JsonNull
+ * @modules jdk.incubator.json
  * @run junit TestJsonLiteral
  */
 
