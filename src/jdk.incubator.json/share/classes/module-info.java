@@ -25,8 +25,8 @@
 
 import jdk.internal.javac.ParticipatesInPreview;
 
-/*
- * JSON API
+/**
+ * Defines the JSON API.
  * {@incubating}
  *
  * @moduleGraph
