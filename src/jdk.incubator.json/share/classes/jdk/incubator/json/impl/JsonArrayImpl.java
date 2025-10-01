@@ -30,10 +30,12 @@ import java.util.List;
 
 import jdk.incubator.json.JsonArray;
 import jdk.incubator.json.JsonValue;
+import jdk.internal.ValueBased;
 
 /**
  * JsonArray implementation class
  */
+@ValueBased
 public final class JsonArrayImpl implements JsonArray, JsonValueImpl {
 
     private final List<JsonValue> theValues;

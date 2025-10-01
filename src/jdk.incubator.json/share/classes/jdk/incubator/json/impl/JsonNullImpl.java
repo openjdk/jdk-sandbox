@@ -26,10 +26,12 @@
 package jdk.incubator.json.impl;
 
 import jdk.incubator.json.JsonNull;
+import jdk.internal.ValueBased;
 
 /**
  * JsonNull implementation class
  */
+@ValueBased
 public final class JsonNullImpl implements JsonNull, JsonValueImpl {
 
     private final int offset;

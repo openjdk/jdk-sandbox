@@ -26,10 +26,12 @@
 package jdk.incubator.json.impl;
 
 import jdk.incubator.json.JsonBoolean;
+import jdk.internal.ValueBased;
 
 /**
  * JsonBoolean implementation class
  */
+@ValueBased
 public final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
 
     private final Boolean theBoolean;

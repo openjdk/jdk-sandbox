@@ -25,15 +25,17 @@
 
 package jdk.incubator.json.impl;
 
-import jdk.incubator.json.JsonNumber;
-
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Locale;
 
+import jdk.incubator.json.JsonNumber;
+import jdk.internal.ValueBased;
+
 /**
  * JsonNumber implementation class
  */
+@ValueBased
 public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
     private final char[] doc;

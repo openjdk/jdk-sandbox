@@ -26,10 +26,12 @@
 package jdk.incubator.json.impl;
 
 import jdk.incubator.json.JsonString;
+import jdk.internal.ValueBased;
 
 /**
  * JsonString implementation class
  */
+@ValueBased
 public final class JsonStringImpl implements JsonString, JsonValueImpl {
 
     private final char[] doc;
