@@ -34,9 +34,9 @@ import org.junit.jupiter.api.Test;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Objects;
-import java.util.json.Json;
-import java.util.json.JsonObject;
-import java.util.json.JsonString;
+import jdk.incubator.json.Json;
+import jdk.incubator.json.JsonObject;
+import jdk.incubator.json.JsonString;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;

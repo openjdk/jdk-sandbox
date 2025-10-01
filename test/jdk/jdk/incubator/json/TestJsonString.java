@@ -31,9 +31,9 @@
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.json.Json;
-import java.util.json.JsonParseException;
-import java.util.json.JsonString;
+import jdk.incubator.json.Json;
+import jdk.incubator.json.JsonParseException;
+import jdk.incubator.json.JsonString;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 

@@ -37,10 +37,10 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.FieldSource;
 
 import java.util.List;
-import java.util.json.Json;
-import java.util.json.JsonBoolean;
-import java.util.json.JsonNull;
-import java.util.json.JsonParseException;
+import jdk.incubator.json.Json;
+import jdk.incubator.json.JsonBoolean;
+import jdk.incubator.json.JsonNull;
+import jdk.incubator.json.JsonParseException;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;

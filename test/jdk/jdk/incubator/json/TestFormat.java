@@ -31,9 +31,9 @@
  */
 
 import java.util.List;
-import java.util.json.Json;
-import java.util.json.JsonString;
-import java.util.json.JsonValue;
+import jdk.incubator.json.Json;
+import jdk.incubator.json.JsonString;
+import jdk.incubator.json.JsonValue;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

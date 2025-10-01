@@ -32,9 +32,9 @@
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.List;
-import java.util.json.Json;
-import java.util.json.JsonNumber;
-import java.util.json.JsonParseException;
+import jdk.incubator.json.Json;
+import jdk.incubator.json.JsonNumber;
+import jdk.incubator.json.JsonParseException;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Nested;
