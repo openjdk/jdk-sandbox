@@ -41,6 +41,8 @@ import jdk.incubator.json.JsonValue;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Optional;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestAssertion {
@@ -80,6 +82,23 @@ public class TestAssertion {
         assertEquals(JsonString.of("value"), JSON_ROOT_OBJECT.member("values").element(0));
         assertEquals(JsonNull.of(), JSON_ROOT_OBJECT.member("values").element(1));
         assertEquals(JsonBoolean.of(true), JSON_ROOT_OBJECT.member("qux").element(0).element(0));
+    }
+
+    @Test
+    void basicTraverseAbsenceTest() {
+        var json = Json.parse("{ \"foo\" : null, \"bar\" : \"words\" }");
+        assertEquals(Optional.empty(), json.memberOrAbsent("baz"));
+        assertNull(json.memberOrAbsent("baz").map(JsonValue::string).orElse(null));
+        assertEquals("words", json.memberOrAbsent("bar").map(JsonValue::string).orElse(null));
+        assertThrows(JsonAssertionException.class, () -> json.member("foo").memberOrAbsent("baz"));
+    }
+
+    @Test
+    void basicTraverseNullTest() {
+        var json = Json.parse("{ \"foo\" : null, \"bar\" : \"words\" }");
+        assertEquals(Optional.empty(), json.member("foo").orNull());
+        assertNull(json.member("foo").orNull().map(JsonValue::string).orElse(null));
+        assertEquals("words", json.member("bar").orNull().map(JsonValue::string).orElse(null));
     }
 
     // Ensure that syntactical chars w/in JsonString do not affect path building

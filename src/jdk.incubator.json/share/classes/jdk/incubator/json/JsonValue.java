@@ -108,15 +108,12 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      */
     default JsonValue member(String name) {
         Objects.requireNonNull(name);
-        return switch (this) {
-            case JsonObject jo -> switch (jo.members().get(Objects.requireNonNull(name))) {
-                case JsonValue jv -> jv;
-                case null -> throw new IllegalArgumentException(
-                        "JsonObject member \"%s\" does not exist.".formatted(name) +
-                                (this instanceof JsonValueImpl jvi && jvi.doc() != null ?
-                                        Utils.getPath(jvi) : ""));
-            };
-            default -> throw Utils.composeTypeError(this, "JsonObject");
+        return switch (object().members().get(Objects.requireNonNull(name))) {
+            case JsonValue jv -> jv;
+            case null -> throw new IllegalArgumentException(
+                    "JsonObject member \"%s\" does not exist.".formatted(name) +
+                            (this instanceof JsonValueImpl jvi && jvi.doc() != null ?
+                                    Utils.getPath(jvi) : ""));
         };
     }
 
