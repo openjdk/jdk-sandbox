@@ -263,26 +263,26 @@ public final class JsonParser {
      * do not require offsets to lazily compute their values.
      */
     private JsonBooleanImpl parseTrue() {
-        offset++;
+        var start = offset++;
         if (charEquals('r') && charEquals('u') && charEquals('e')) {
-            return new JsonBooleanImpl(true, doc, offset);
+            return new JsonBooleanImpl(true, doc, start);
         }
         throw failure(UNEXPECTED_VAL);
     }
 
     private JsonBooleanImpl parseFalse() {
-        offset++;
+        var start = offset++;
         if (charEquals('a') && charEquals('l') && charEquals('s')
                 && charEquals('e')) {
-            return new JsonBooleanImpl(false, doc, offset);
+            return new JsonBooleanImpl(false, doc, start);
         }
         throw failure(UNEXPECTED_VAL);
     }
 
     private JsonNullImpl parseNull() {
-        offset++;
+        var start = offset++;
         if (charEquals('u') && charEquals('l') && charEquals('l')) {
-            return new JsonNullImpl(doc, offset);
+            return new JsonNullImpl(doc, start);
         }
         throw failure(UNEXPECTED_VAL);
     }

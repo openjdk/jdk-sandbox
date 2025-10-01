@@ -85,6 +85,14 @@ public class TestAssertion {
     }
 
     @Test
+    void boolAndNullFailureTest() {
+        var json = Json.parse("{ \"foo\" : null, \"bar\" : false, \"baz\" : true }");
+        assertThrows(JsonAssertionException.class, () -> json.member("foo").memberOrAbsent("_"));
+        assertThrows(JsonAssertionException.class, () -> json.member("bar").memberOrAbsent("_"));
+        assertThrows(JsonAssertionException.class, () -> json.member("baz").memberOrAbsent("_"));
+    }
+
+    @Test
     void basicTraverseAbsenceTest() {
         var json = Json.parse("{ \"foo\" : null, \"bar\" : \"words\" }");
         assertEquals(Optional.empty(), json.memberOrAbsent("baz"));
