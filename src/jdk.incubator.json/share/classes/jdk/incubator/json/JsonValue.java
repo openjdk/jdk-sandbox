@@ -195,31 +195,39 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
     // Direct accessors to structural content
 
     /**
-     * tbd
-     * @return tbd
+     * If this {@code JsonValue} is a {@code JsonObject}, this method returns
+     * the {@code JsonObject} itself. If {@code this} is not a {@code JsonObject}, a
+     * {@code JsonAssertionException} will be thrown.
+     *
+     * @throws JsonAssertionException if {@code this} is not a {@code JsonObject}.
+     * @return this {@code JsonObject}.
      */
     default JsonObject object() {
-        if (this instanceof JsonObject o) {
-            return o;
+        if (this instanceof JsonObject jo) {
+            return jo;
         }
         throw Utils.composeTypeError(this, "JsonObject");
     }
 
     /**
-     * tbd
-     * @return tbd
+     * If this {@code JsonValue} is a {@code JsonArray}, this method returns
+     * the {@code JsonArray} itself. If {@code this} is not a {@code JsonArray}, a
+     * {@code JsonAssertionException} will be thrown.
+     *
+     * @throws JsonAssertionException if {@code this} is not a {@code JsonArray}.
+     * @return this {@code JsonArray}.
      */
     default JsonArray array() {
-        if (this instanceof JsonArray a) {
-            return a;
+        if (this instanceof JsonArray ja) {
+            return ja;
         }
-
         throw Utils.composeTypeError(this, "JsonArray");
     }
 
     /**
-     * tbd
-     * @return tbd
+     * {@return the {@code Optional} of this {@code JsonValue}}
+     * If this {@code JsonValue} is a {@code JsonNull}, this method returns
+     * an empty {@code Optional}.
      */
     default Optional<JsonValue> orNull() {
         return switch (this) {
@@ -229,21 +237,34 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
     }
 
     // Indirect accessors to structural content
+
     /**
-     * tbd
-     * @return tbd
+     * If this {@code JsonValue} is a {@code JsonArray}, this method returns
+     * the {@code Stream} of elements in this {@code JsonArray}. If {@code this}
+     * is not a {@code JsonArray}, a {@code JsonAssertionException} will be thrown.
+     *
+     * @throws JsonAssertionException if {@code this} is not a {@code JsonArray}.
+     * @return a {@code Stream} of elements in this {@code JsonArray}
      */
     default Stream<JsonValue> elements() {
         return array().values().stream();
     }
 
     /**
-     * tbd
-     * @param s tbd
-     * @return tbd
+     * If this {@code JsonValue} is a {@code JsonObject}, this method returns
+     * the {@code Optional} of the member associated with the {@code name}. If
+     * there is no member associated with the {@code name}, an empty
+     * {@code Optional} is returned. If {@code this} is not a {@code JsonObject}, a
+     * {@code JsonAssertionException} will be thrown.
+     *
+     * @param name the member name
+     * @throws NullPointerException if {@code name} is {@code null}.
+     * @throws JsonAssertionException if {@code this} is not a {@code JsonObject}.
+     * @return an {@code Optional} of the member of this {@code JsonObject}
+     *          associated with the {@code name}, or an empty {@code Optional}.
      */
-    default Optional<JsonValue> memberOrAbsent(String s) {
-        return switch (object().members().get(s)) {
+    default Optional<JsonValue> memberOrAbsent(String name) {
+        return switch (object().members().get(name)) {
             case JsonValue mv -> Optional.of(mv);
             case null -> Optional.empty();
         };
