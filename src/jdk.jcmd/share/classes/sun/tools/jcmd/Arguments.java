@@ -39,6 +39,7 @@ class Arguments {
     private String  processString = null;
     private boolean forceCore = false;
     private List<String> libDirs = new ArrayList<>(1);
+    private String revivalDataPath = null;
 
     public boolean isListProcesses() { return listProcesses; }
     public boolean isListCounters() { return listCounters; }
@@ -47,6 +48,7 @@ class Arguments {
     public String getProcessString() { return processString; }
     public boolean isForceCore() { return forceCore; }
     public List<String> getLibDirs() { return libDirs; }
+    public String getRevivalDataPath() { return revivalDataPath; }
 
     public Arguments(String[] args) {
         if (args.length == 0 || args[0].equals("-l")) {
@@ -70,6 +72,9 @@ class Arguments {
             } else if (args[i].equals("-L") || args[i].equals("--libdir")) {
                 i++;
                 libDirs.add(args[i]);
+            } else if (args[i].equals("-R") || args[i].equals("--revivaldata")) {
+                i++;
+                revivalDataPath = args[i];
             } else {
                 // Not a known argument, move on to read process string/pid.
                 break;
@@ -143,13 +148,18 @@ class Arguments {
         System.out.println("  If no options are given, lists Java processes (same as -l).     ");
         System.out.println("                                                                  ");
         System.out.println("  Using core files (post-mortem analysis):                        ");
-        System.out.println("  -c or --core forces reading a core file, in case of a clash with");
-        System.out.println("      a live process name.                                        ");
-        System.out.println("  -L PATH must be given if the core file originates from another  ");
-        System.out.println("  system, or the JDK at the path in the core has changed.         ");
-        System.out.println("  PATH must point to a copy of the same JDK that the corefile originated from.");
-        System.out.println("  When analyzing a corefile a corefile.revival directory is ");
-        System.out.println("  created, containing cache files. -L is not required once the cache is created.");
+        System.out.println("    -c or --core forces reading a core file, in case of a clash with");
+        System.out.println("                 a live process name.                               ");
+        System.out.println("    -L PATH must be given if the core file originates from another  ");
+        System.out.println("            system, or the JDK at the path in the core has changed. ");
+        System.out.println("            PATH must point to a copy of the same JDK that the corefile originated from.");
+        System.out.println("            When analyzing a corefile a corefile.revival directory is ");
+        System.out.println("            created, containing cache files. -L is not required once the cache is created.");
+        System.out.println("                                                                  ");
+        System.out.println("    -R PATH should be specified when the core file is in a non-writable");
+        System.out.println("            location, to give a path where cache files may be stored.  ");
+        System.out.println("            this must be specified on subsequent invocation.           ");
+        System.out.println("                                                                  ");
         System.out.println("                                                                  ");
         System.out.println("  PerfCounter.print display the counters exposed by this process  ");
         System.out.println("  -f  read and execute commands from the file                     ");

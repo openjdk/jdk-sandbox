@@ -90,7 +90,7 @@ public class JCmd {
             System.out.println("Opening dump file '" + arg.getProcessString() + "'...");
 
             try {
-                executeCommandForCrashDump(arg.getProcessString(), arg.getLibDirs(), arg.getCommand());
+                executeCommandForCrashDump(arg.getProcessString(), arg.getLibDirs(), arg.getRevivalDataPath(), arg.getCommand());
                 System.exit(0);
             } catch (Throwable thr) {
                 thr.printStackTrace();
@@ -133,10 +133,10 @@ public class JCmd {
         vm.detach();
     }
 
-    private static void executeCommandForCrashDump(String pid, List<String> libDirs, String command)
+    private static void executeCommandForCrashDump(String pid, List<String> libDirs, String revivalDataPath, String command)
         throws AttachNotSupportedException, IOException, UnsupportedEncodingException {
 
-        VirtualMachine vm = VirtualMachine.attach(pid, libDirs);
+        VirtualMachine vm = VirtualMachine.attach(pid, libDirs, revivalDataPath);
         executeCommandCommon(vm, command);
         vm.detach();
     }

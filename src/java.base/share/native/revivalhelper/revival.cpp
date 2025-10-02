@@ -63,8 +63,9 @@ char *jvm_filename = nullptr;
 void *jvm_address = nullptr;
 std::list<Segment> avoidSegments;
 
+
 void exitForRetry() {
-    _exit(7);
+    _exit(EXIT_CODE_SUGGEST_RETRY);
 }
 
 address align_down(address ptr, uint64_t mask) {
@@ -219,9 +220,8 @@ int dangerous0(void *vaddr, unsigned long long length, address xaddr) {
 
 /**
  * dangerous
- * Return true if the given vaddr, length appear dangerous to unmap/remap,
- * e.g. that range is in use the by calling stack.
- * Also possible that the address contains the current program.
+ * Return true if the given vaddr, length appear dangerous to map or unmap,
+ * e.g. that range is in use the by calling stack or contains the current program.
  */
 const char * dangerous(void *vaddr, unsigned long long length) {
     // Check against a local variable (on stack):
@@ -251,28 +251,27 @@ const char * dangerous(void *vaddr, unsigned long long length) {
  * Create a memory mapping, at some virtual address, directly from a file/offset/length.
  * Return -1 on failure.
  */
-int revival_mapping_mmap(void *vaddr, size_t length, off_t offset, int lines, char *filename, int fd) {
+int revival_mapping_mmap(void *vaddr, size_t length, size_t offset, int lines, char *filename, int fd) {
     int e = 0;
-    logv("  revival_mapping_mmap: map %d: " PTR_FORMAT " (to " PTR_FORMAT ") len=0x%zx fileoffset=0x%llx\n",
+    logv("  revival_mapping_mmap: map %d: " PTR_FORMAT " (to " PTR_FORMAT ") len=0x%zx fileoffset=0x%llx",
          lines, (uintptr_t) vaddr, (uintptr_t) ((uint64_t) vaddr + length), length, (long long) offset);
 
     if (unmapFirst) {
-        logv("  revival_mapping_mmap: try UNMAP %p len=0x%zx\n", vaddr, length);
+        logv("  revival_mapping_mmap: try UNMAP %p len=0x%zx", vaddr, length);
         e = do_munmap_pd(vaddr, length);
         if (e) {
-            warn("  revival_mapping_mmap: unmap %d failed: vaddr %p: returns: %d\n", lines, vaddr, e);
+            warn("  revival_mapping_mmap: unmap %d failed: vaddr %p: returns: %d", lines, vaddr, e);
         }
     }
 
-    // Mapping:
     void *mapped_addr = do_mmap_pd(vaddr, length, filename, fd, offset);
 
     // Accept the wanted address, or if it was aligned-down:
     if (mapped_addr != vaddr && mapped_addr != (void *) align_down((address) vaddr, vaddr_alignment_pd())) {
-        logv("  revival_mapping_mmap: line %d: mapping failed: wanted vaddr: %p returned: %p\n", lines, vaddr, mapped_addr);
+        logv("  revival_mapping_mmap: line %d: mapping failed: wanted vaddr: %p returned: %p", lines, vaddr, mapped_addr);
         e = -1;
     } else {
-        logv("  revival_mapping_mmap: line %d: mapping OK %p - %p\n", lines, vaddr, (void *) ((uint64_t) vaddr + length));
+        logv("  revival_mapping_mmap: line %d: mapping OK %p - %p", lines, vaddr, (void *) ((uint64_t) vaddr + length));
         e = 0;
     }
 #ifdef WINDOWS
@@ -280,7 +279,7 @@ int revival_mapping_mmap(void *vaddr, size_t length, off_t offset, int lines, ch
     if (e) {
         logv("  revival_mapping_mmap: map failed, will retry using alloc + copy");
         e = revival_mapping_copy(vaddr, length, offset, true /* allocate */, filename, core_fd);
-        logv("  revival_mapping_mmap: retry using revival_mapping_copy returns: %d\n", e);
+        logv("  revival_mapping_mmap: retry using revival_mapping_copy returns: %d", e);
     }
 #endif
     return e;
@@ -305,16 +304,16 @@ int revival_mapping_allocate(void *vaddr, size_t length) {
  *
  * Return -1 on error.
  */
-int revival_mapping_copy(void *vaddr, size_t length, off_t offset, bool allocate, char *filename, int fd) {
+int revival_mapping_copy(void *vaddr, size_t length, size_t offset, bool allocate, char *filename, int fd) {
     int e = 0;
-//    logv("  revival_mapping_copy: alloc=%d vaddr " PTR_FORMAT " - " PTR_FORMAT " len=" SIZE_FORMAT_X_0 " from file offset 0x%llx\n",
+//    logv("  revival_mapping_copy: alloc=%d vaddr " PTR_FORMAT " - " PTR_FORMAT " len=" SIZE_FORMAT_X_0 " from file offset 0x%llx",
 //         allocate, (uintptr_t) vaddr, (uintptr_t) ((address) vaddr + length), length, (long long) offset);
 
     if (allocate) {
         // Need to create a mapping: (not normally true)
         e = revival_mapping_allocate(vaddr, length);
         if (e < 0) {
-            warn("  revival_mapping_copy: allocation required, but failed.");
+            warn("  revival_mapping_copy: allocation required at 0x%llx : allocation failed: %d", (unsigned long long) vaddr, e);
             return -1;
         }
     }
@@ -330,9 +329,9 @@ int revival_mapping_copy(void *vaddr, size_t length, off_t offset, bool allocate
         warn("revival_mapping_copy: cannot open: '%s': %d: %s", filename, errno, strerror(errno));
         return -1;
     }
-    e = fseek(f, offset, SEEK_SET);
+    e = fseek(f, (long) offset, SEEK_SET);
     if (e != 0) {
-        warn("revival_mapping_copy: cannot seek '%s' to offset %llx: returns %d: %d: %s", filename, (long long) offset, e, errno, strerror(errno));
+        warn("revival_mapping_copy: cannot seek '%s' to offset %lx: returns %d: %d: %s", filename, (long) offset, e, errno, strerror(errno));
         fclose(f);
         return -1;
     }
@@ -347,7 +346,7 @@ int revival_mapping_copy(void *vaddr, size_t length, off_t offset, bool allocate
     for (size_t i = 0; i < length/4; i++) {
         e = (int) fread(&value, 4, 1, f);
         if (e != 1) {
-            warn("COPY fread failed: returns %d at %p pos=%zu : %d %s\n", e, p, i, errno, strerror(errno));
+            warn("COPY fread failed: returns %d at %p pos=%zu : %d %s", e, p, i, errno, strerror(errno));
             break;
         }
         *p++ = value;
@@ -359,15 +358,13 @@ int revival_mapping_copy(void *vaddr, size_t length, off_t offset, bool allocate
 
 /**
  * Load a shared library, using directory name and library name, at the given address.
- * Returns the value from load_sharedobject_pd(), which is an opaque handle (not the address), or -1 for error.
+ * Returns the value from load_sharedobject_pd(), which is an opaque handle (not necessarily the address), or -1 for error.
  */
 void *load_sharedlibrary_fromdir(const char *dirname, const char *libname, void *vaddr, char *sum) {
     char buf[BUFLEN];
     snprintf(buf, BUFLEN, "%s/%s", dirname, libname); 
-    logv("load_sharedlibrary_fromdir: %s\n", buf);
     void *a = load_sharedobject_pd(buf, vaddr);
-    logv("load_sharedobject_pd: %s: returns %p\n", buf, a);
-    waitHitRet();
+    logv("load_sharedobject_pd: %s: returns %p", buf, a);
     return a;
 }
 
@@ -415,11 +412,8 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
     // Compare size: this should match.
     unsigned long long parsedSize = strtoull(s2, nullptr, 10);
     unsigned long long coresize = file_size(corename);
-    if (verbose || (unsigned long long) coresize != parsedSize) {
-        printf("%s: revival data recorded core size %lld, actual file size %lld\n", core_filename, parsedSize, coresize);
-    }
-    if (coresize != parsedSize) {
-        return -1;
+    if ((unsigned long long) coresize != parsedSize) {
+        error("%s: revival data recorded core size %lld, actual file size %lld", core_filename, parsedSize, coresize);
     }
     // Consider a checksum.
 
@@ -429,7 +423,7 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
     e = fscanf(f, "time %s\n", s1);
     if (e == 1) {
         core_timestamp = (long long) strtoll(s1, nullptr, 10);
-        logv("core time: %lld\n", core_timestamp);
+        logv("core time: %lld", core_timestamp);
     } else {
         warn("time record not found in file");
     }
@@ -461,7 +455,7 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
         e = fscanf(f, "L %s %s %s\n", s1, s2, s3);
         if (e == 3) {
             void *vaddr = (void *) strtoull(s2, nullptr, 16);
-            printf("Load library '%s' required at %p...\n", s1, vaddr);
+            logv("Load library '%s' required at %p...\n", s1, vaddr);
             h = load_sharedlibrary_fromdir(dirname, s1, vaddr, s3);
             logv("load_sharedlibrary_fromdir returns: %p", h);
             if (h == (void *) -1) {
@@ -473,22 +467,23 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
 
         e = fscanf(f, "%s %s %s %s %s %s %s\n", s1, s2, s3, s4, s5, s6, s7);
         if (e == 7) {
-            // virtual address, virtual address end, source file offset, source file mapping size, length in memory, RWX
-            //  s2                s3                  s4                  s5                          s6             s7
+            // command, virtual address, virtual address end, source file offset, source file mapping size, length in memory, RWX
+            //  s1      s2               s3                   s4                  s5                        s6                s7
             char *endptr;
             void *vaddr = (void *) strtoull(s2, &endptr, 16);
             size_t length = strtoul(s6, &endptr, 16);
-            off_t offset = strtoul(s4, &endptr, 16);
+            size_t offset = strtoul(s4, &endptr, 16);
             size_t length_file = strtoul(s5, &endptr, 16);
 
             const char *danger = dangerous(vaddr, length);
             if (danger != nullptr) {
-                warn("skipping (%s): %p - %p len=%zx\n", danger, vaddr, (void*) ((unsigned long long) vaddr + length), length);
+                warn("skipping (%s): %p - %p len=%zx", danger, vaddr, (void*) ((unsigned long long) vaddr + length), length);
                 Segment* thisSeg = new Segment(vaddr, length, offset, length_file);
                 failedSegments.push_back(*thisSeg);
                 if (_abortOnClash) {
                     abort();
                 } else {
+                    warn("mappings_file_read: danger 0x%llx", (unsigned long long) vaddr);
                     exitForRetry();
                 }
                 continue;
@@ -512,6 +507,8 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
                 int e = revival_mapping_allocate(vaddr, length);
                 if (e < 0) {
                     m_bad++;
+                    warn("mappings_file_read: m 0x%llx failed!", (unsigned long long) vaddr);
+//                    exitForRetry();
                 } else {
                     m_good++;
                 }
@@ -526,19 +523,19 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
                 }
             } else {
                 // Not recognised:
-                printf("mappings_file_read: unrecognised mapping line %d: '%s'", lines, s1);
+                error("mappings_file_read: unrecognised mapping line %d: '%s'", lines, s1);
             }
             continue;
         } 
         if (strlen(s1) > 0) {
-            printf("mappings_file_read: unrecognised line (2) %d: '%s'\n", lines, s1);
+            error("mappings_file_read: unrecognised line %d: '%s'", lines, s1);
         }
         break;
     }
     if (verbose) {
-        printf("mappings_file_read: read %d lines, Mappings: %d good, %d bad. map allocs: %d good, %d bad.  Copies: %d good, %d bad\n",
+        warn("mappings_file_read: read %d lines, Mappings: %d good, %d bad. map allocs: %d good, %d bad.  Copies: %d good, %d bad",
                lines, M_good, M_bad, m_good, m_bad, C_good, C_bad);
-        printf("writableSegments.size = %d\n", (int) writableSegments.size());
+        warn("writableSegments.size = %d", (int) writableSegments.size());
     }
     if (core_fd >= 0) {
         close(core_fd);
@@ -636,7 +633,7 @@ void *symbol(const char *sym) {
 }
 
 void verbose_call(void *p) {
-    logv("symbol call: %p\n", p);
+    logv("symbol call: %p", p);
 }
 
 /**
@@ -749,6 +746,37 @@ char *basename(char *s) {
 #endif
 
 
+bool try_init_jvm_filename_if_exists(const char* path, const char* suffix) {
+    char search_path[BUFLEN];
+    memset(search_path, 0, BUFLEN);
+    strncpy(search_path, path, BUFLEN - 1);
+    strncat(search_path, suffix, BUFLEN - 1);
+    int fd = open(search_path, O_RDONLY);
+    if (fd >= 0) {
+        struct stat buffer;
+        fstat(fd, &buffer);
+#ifdef WINDOWS
+        if (!(buffer.st_mode & S_IFDIR)) {
+#else
+        if (!S_ISDIR(buffer.st_mode)) {
+#endif
+            free(jvm_filename);
+            jvm_filename = strdup(search_path);
+            return true;
+        }
+    }
+    return false;
+}
+
+void init_jvm_filename_from_libdir(const char* libdir) {
+    if (try_init_jvm_filename_if_exists(libdir, "")) return;
+    if (try_init_jvm_filename_if_exists(libdir, "/libjvm.so")) return;
+    if (try_init_jvm_filename_if_exists(libdir, "/server/libjvm.so")) return;
+    if (try_init_jvm_filename_if_exists(libdir, "/lib/server/libjvm.so")) return;
+    warn("Could not find libjvm.so in %s", libdir);
+}
+
+
 int mappings_file_create(const char *dirname, const char *corename) {
 // Create file and write 3 header lines:
 // core FILENAME size
@@ -766,7 +794,7 @@ int mappings_file_create(const char *dirname, const char *corename) {
     int fd = open(buf, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR);
 #endif
     if (fd < 0) {
-        warn("mappings_file_create: %s: %s\n", buf, strerror(errno));
+        warn("mappings_file_create: %s: %s", buf, strerror(errno));
         return fd;
     }
 
@@ -791,7 +819,7 @@ int symbols_file_create(const char *dirname) {
     int fd = open(buf, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR);
 #endif
     if (fd < 0) {
-        warn("symbols_file_create: %s: %s\n", buf, strerror(errno));
+        warn("symbols_file_create: %s: %s", buf, strerror(errno));
         return fd;
     }
     return fd;
@@ -884,7 +912,7 @@ int revive_image_cooperative() {
     rdata = (struct revival_data *) (helper)();
     logv("revive_image: helper returns %p", rdata);
     if (rdata == nullptr) {
-        warn("revive_image: JVM helper failed\n");
+        warn("revive_image: JVM helper failed");
         return -1;
     } 
     if (rdata->version != 1) {
@@ -921,10 +949,10 @@ int revive_image_cooperative() {
  *
  * Return zero on success.
  */
-int create_revivalbits(const char *corename, const char *javahome, const char *dirname, const char *libdir) {
+int create_revivalbits(const char* corename, const char* javahome, const char* dirname, const char* libdir) {
+
     // Currenly per-platform implementations.  Could hoist some common work here.
-    //
-    // make core.revival dir
+
     // find libjvm and its load address from core
     // copy libjvm into .revival dir
     // relocate copy of libjvm
@@ -935,18 +963,29 @@ int create_revivalbits(const char *corename, const char *javahome, const char *d
 }
 
 /**
- * Create revivaldir name from corefile name.
+ * Create revival cache directory name from corefile name.
+ * Use revival_data_path as prefix if non-null.
  */
-char *revival_dirname(const char *corename) {
-    char *dirname = (char *) calloc(1, BUFLEN);
-    if (dirname) {
-        strncpy(dirname, corename, BUFLEN - 1);
-        strncat(dirname, REVIVAL_SUFFIX, BUFLEN - 1);
+char *revival_dirname(const char *corename, const char* revival_data_path) {
+    char* buf = (char *) calloc(1, BUFLEN);
+    if (!buf) {
+        error("Failed to allocate buffer for revival eirectory name.");
     }
-    return dirname;
+
+    int len;
+    if (revival_data_path != nullptr) {
+        len = snprintf(buf, BUFLEN, "%s%s%s%s", revival_data_path, FILE_SEPARATOR, basename((char*) corename), REVIVAL_SUFFIX);
+    } else {
+        len = snprintf(buf, BUFLEN, "%s%s", corename, REVIVAL_SUFFIX);
+    }
+    if (len >= BUFLEN) {
+        error("Revival directory name too long.");
+    }
+    return buf;
 }
 
-int revive_image(const char *corename, const char *javahome, const char *libdir) {
+
+int revive_image(const char* corename, const char *javahome, const char* libdir, const char* revival_data_path) {
     int e;
     char buf[BUFLEN];
     char *dirname;
@@ -980,23 +1019,21 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
     }
     close(e);
 
-    dirname = revival_dirname(corename);
-    if (dirname == nullptr) {
-        warn("revive_image: failed to allocate dirname.");
-        return -1;
-    }
-    if (verbose) {
-        printf("revive_image:\n");
-        printf("revival directory: '%s'\n", dirname);
-        printf("vaddr_alignment = %llu\n", (unsigned long long) vaddr_alignment_pd());
-    }
+    // Decide core.revival directory name:
+    dirname = revival_dirname(corename, revival_data_path);
 
-    // Does revival data directory exist? If not, create data:
+    // Does revival data directory exist? If not, create:
     if (!revival_direxists_pd(dirname)) {
+        // Create core.revival dir:
+        if (!create_directory_pd(dirname)) {
+            error("revival: cannot create directory '%s': use -R to specify usable location for cache directory.", dirname);
+        }
         e = create_revivalbits(corename, javahome, dirname, libdir);
         logv("revive_image: create_revivalbits return code: %d", e);
+        waitHitRet();
         if (e < 0) {
             warn("revive_image: create_revivalbits failed.  Return code: %d", e);
+            // Delete core.revival dir if empty?
             return e;
         }
     }
@@ -1014,10 +1051,8 @@ int revive_image(const char *corename, const char *javahome, const char *libdir)
     }
     revivaldir = dirname;
 
-#ifdef LINUX
-    // Install signal handler on Linux before revival:
+    // Install signal handler:
     install_handler();
-#endif
 
     e = revive_image_cooperative();
     if (e < 0) {
@@ -1056,7 +1091,7 @@ int revival_dcmd(const char *command) {
         error("revival_dcmd: tty not set.");
     }
 
-    logv("revival_dcmd: '%s'\n", command);
+    logv("revival_dcmd: '%s'", command);
     // We can call parse_and_execute like this:
     //   int(*dcmd_parse)(int, void*, const char*, char, void*) = (int(*)(int, void*, const char *, char, void*)) s;
     //   (dcmd_parse)(DCMD_SOURCE, revived_tty(), command, ' ', revived_vm_thread());

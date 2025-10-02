@@ -101,8 +101,8 @@ bool mem_canwrite_pd(void *vaddr, size_t length) {
     return true;
 }
 
-void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, off_t offset) {
-    fprintf(stderr, ">>> do_mmap_pd(%p, %zu, %s, %d, %lld)\n", addr, length, filename, fd, offset);
+void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offset) {
+    logv("do_mmap_pd(%p, %zu, %s, %d, %ld)\n", addr, length, filename, fd, offset);
     int prot = PROT_READ | PROT_EXEC;
     if (openCoreWrite) {
         prot |= PROT_WRITE;
@@ -113,21 +113,21 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, off_t offset
         if (errno == EINVAL) {
             // EINVAL is likely on a Linux gcore (gdb) due to unaligned file offsets.
             // mmap requires offset to be a multiple of pagesize, retry with aligned offset.
-            if (verbose) printf("do_mmap_pd: 1 mmap(%p, %zu, %d, %d, %d, offset %lld) EINVAL\n", addr, length, prot, flags, fd, offset);
+            logv("do_mmap_pd: 1 mmap(%p, %zu, %d, %d, %d, offset %ld) EINVAL\n", addr, length, prot, flags, fd, offset);
 
             long align_mask = offset_alignment_pd() - 1;
-            off_t offset_aligned = align_down((uint64_t) offset, align_mask);
+            size_t offset_aligned = align_down((uint64_t) offset, align_mask);
             size_t shift = (offset - offset_aligned);
             size_t length_aligned = length + shift;
             void *addr_aligned = (void*) (((unsigned long long) addr) - shift);
-            if (verbose) printf(" offset_alignment = %p offset = %lld offset aligned = %lld shift = %zu new length = %zu new addr = %p\n",
+            logv(" offset_alignment = %p offset = %ld offset aligned = %ld shift = %zu new length = %zu new addr = %p\n",
                     (void*) align_mask, offset, offset_aligned, shift, length_aligned, addr_aligned);
             e = mmap(addr_aligned, length_aligned, prot, flags, fd, offset_aligned);
 
             if (e == (void*) -1L) {
                 if (errno == EINVAL) {
                     // But the above made the address badly aligned...  Will need to allocate and copy data.
-                    if (verbose) printf("do_mmap_pd: 2 mmap(%p, %zu, %d, %d, %d, offset %lld) EINVAL\n", addr_aligned, length_aligned, prot, flags, fd, offset_aligned);
+                    if (verbose) printf("do_mmap_pd: 2 mmap(%p, %zu, %d, %d, %d, offset %ld) EINVAL\n", addr_aligned, length_aligned, prot, flags, fd, offset_aligned);
                     int e2 = revival_mapping_copy(addr, length, offset, true, filename, fd);
                     if (e2 == -1L) {
                         printf("do_mmap_pd called revival_mapping_copy and failed: %d\n", e2);
@@ -140,13 +140,13 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, off_t offset
         }
     }
     if (e == (void*) -1L) {
-        printf("do_mmap_pd: mmap(%p, %zu, %d, %d, %d, offset %lld) failed: returns: %p: errno = %d: %s\n",
+        printf("do_mmap_pd: mmap(%p, %zu, %d, %d, %d, offset %ld) failed: returns: %p: errno = %d: %s\n",
                 addr, length, prot, flags, fd, offset, e, errno, strerror(errno));
     }
     return e;
 }
 
-void *do_mmap_pd(void *addr, size_t length, off_t offset) {
+void *do_mmap_pd(void *addr, size_t length, size_t offset) {
     return do_mmap_pd(addr, length, NULL, core_fd, offset);
 }
 
@@ -300,7 +300,7 @@ const char *getCorePageFilename() {
  * Open a named file and append data for a Segment from the core.
  * Return the offset at which we wrote, or negative on error.
  */
-off_t writeTempFileBytes(const char *tempName, Segment seg) {
+size_t writeTempFileBytes(const char *tempName, Segment seg) {
     int fdTemp = open(tempName, O_WRONLY | O_APPEND);
     if (fdTemp < 0) {
         return fdTemp;
@@ -316,7 +316,7 @@ off_t writeTempFileBytes(const char *tempName, Segment seg) {
         printf("writeTempFileBytes: written %d of %d.\n", (int) s, (int) seg.length);
     }
     close (fdTemp);
-    return pos;
+    return (size_t) pos;
 }
 
 /*
@@ -331,8 +331,8 @@ void remap(Segment seg) {
         printf("remap: failed to create temp file. errno = %d: %s\n",  errno, strerror(errno));
         abort();
     }
-    off_t offset = writeTempFileBytes(tempName, seg);
-    if (offset == (off_t) -1 ) {
+    size_t offset = writeTempFileBytes(tempName, seg);
+    if (offset == (size_t) -1 ) {
         printf("remap: failed to write bytes to temp file '%s'. errno = %d: %s\n", tempName, errno, strerror(errno));
         abort();
     }
@@ -358,20 +358,10 @@ void remap(Segment seg) {
 }
 
 
-/*
- * Signal handler.
- * Used for safefetch, and for mapping writeable areas on demand.
- *
- * Could be used to map all memory lazily, for faster startup.
- */
 void handler(int sig, siginfo_t *info, void *ucontext) {
     void * addr  = (void *) info->si_addr;
     void * pc = nullptr;
-    if (verbose) {
-        printf("handler: sig = %d for address %p\n", sig, addr);
-    }
     if (info != NULL && ucontext != NULL) {
-        // Check if this is a safefetch which we should handle.
 #if defined (X86_64) || defined (__x86_64__)
         pc = (void *) ((ucontext_t*)ucontext)->uc_mcontext->__es.__faultvaddr;
 #else // i.e. AARCH64
@@ -379,21 +369,12 @@ void handler(int sig, siginfo_t *info, void *ucontext) {
                 ((ucontext_t*)ucontext)->uc_mcontext->__ss
                 );
 #endif
-        // printf("handler: pc = %p\n", pc);
-        if (is_safefetch_fault(pc)) {
-            void * new_pc = continuation_for_safefetch_fault(pc);
-#if defined (X86_64) || defined (__x86_64__)
-            // XXX Where to set PC?  Can't be __faultvaddr? (check hotspot impl?)
-            // But safefetch has changed: JDK-8283326
-            ((ucontext_t*)ucontext)->uc_mcontext->__es.__faultvaddr = (uint64_t) new_pc;
-#else // i.e. AARCH64
-            arm_thread_state64_set_pc_fptr(
-                    ((ucontext_t*)ucontext)->uc_mcontext->__ss, new_pc
-                    );
-#endif
-            return;
-        }
     }
+
+    if (verbose) {
+        printf("handler: sig = %d for pc %p address %p\n", sig, pc, addr);
+    }
+
     // Catch access to areas we failed to map (dangerous):
     std::list<Segment>::iterator iter;
     for (iter = failedSegments.begin(); iter != failedSegments.end(); iter++) {
@@ -405,9 +386,6 @@ void handler(int sig, siginfo_t *info, void *ucontext) {
     }
 
     // Handle writing to the core:
-    // If this is a fault in an address covered by an area we mapped from the core,
-    // which should be writable, then create a new mapping that can be written
-    // without changing the core.
     for (iter = writableSegments.begin(); iter != writableSegments.end(); iter++) {
         if (addr >= iter->vaddr &&
                 (unsigned long long) addr < (unsigned long long) (iter->vaddr) + (unsigned long long)(iter->length) ) {
@@ -422,19 +400,7 @@ void handler(int sig, siginfo_t *info, void *ucontext) {
     abort();
 }
 
-/*
- * Install the signal hander for safefetch.
- *
- * Handling SEGV is enough with a serial GC for safefetch to work,
- * using G1, we see SIGBUS also.
- */
 void install_handler() {
-    fprintf(stderr, ">>> install_handler()\n");
-    safefetch32_fault_pc = symbol_deref("_ZN12StubRoutines21_safefetch32_fault_pcE");
-    safefetch32_continuation_pc = symbol_deref("_ZN12StubRoutines28_safefetch32_continuation_pcE");
-    safefetchN_fault_pc = symbol_deref("_ZN12StubRoutines20_safefetchN_fault_pcE");
-    safefetchN_continuation_pc = symbol_deref("_ZN12StubRoutines27_safefetchN_continuation_pcE");
-
     struct sigaction sa, old_sa;
     sigfillset(&sa.sa_mask);
     sa.sa_sigaction = handler;
@@ -448,7 +414,6 @@ void install_handler() {
         printf("sigaction SIGBUS: %d\n", e);
     }
 }
-
 
 
 void *load_sharedobject_pd(const char *name, void *vaddr) {
@@ -466,13 +431,15 @@ int unload_sharedobject_pd(void *h) {
     return 0;
 }
 
+bool create_directory_pd(char* dirname) {
+    return mkdir(dirname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+}
 
 /**
  *
  */
-int create_revivalbits_native_pd(const char *corename, const char *javahome, const char *dirname, const char *libdir) {
+int create_revivalbits_native_pd(const char* corename, const char* javahome, const char* dirname, const char* libdir) {
 
-    return mkdir(dirname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 
     // Copy libjvm/native libraries: find path in core.
 

@@ -207,10 +207,11 @@ public abstract class VirtualMachine {
     }
 
     /*
-     * Alternate attach method accepting library directory list, for core files.
+     * Alternate attach method for core files.
+     *
      * @since 26
      */
-    public static VirtualMachine attach(String id, List<String> libDirs)
+    public static VirtualMachine attach(String id, List<String> libDirs, String revivalDataPath)
         throws AttachNotSupportedException, IOException
     {
         if (id == null) {
@@ -223,7 +224,7 @@ public abstract class VirtualMachine {
         AttachNotSupportedException lastExc = null;
         for (AttachProvider provider: providers) {
             try {
-                return provider.attachVirtualMachine(id, libDirs);
+                return provider.attachVirtualMachine(id, libDirs, revivalDataPath);
             } catch (AttachNotSupportedException x) {
                 lastExc = x;
             }

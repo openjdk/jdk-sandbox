@@ -41,10 +41,10 @@
 
 #include "revival.hpp"
 
-uint64_t valign; // set from dwAllocationGranularity
+
+uint64_t valign;
 uint64_t pagesize;
 
-// With hints from ZGC:
 typedef PVOID (*VirtualAlloc2Fn)(HANDLE, PVOID, SIZE_T, ULONG, ULONG, MEM_EXTENDED_PARAMETER*, ULONG);
 typedef PVOID (*MapViewOfFile3Fn)(HANDLE, HANDLE, PVOID, ULONG64, SIZE_T, ULONG, ULONG, MEM_EXTENDED_PARAMETER*, ULONG);
 
@@ -85,6 +85,8 @@ static void install_kernelbase_1803_symbol_or_exit(Fn*& fn, const char* name) {
     }
 }
 
+
+
 uint64_t vaddr_alignment_pd() {
     return valign;
 }
@@ -110,11 +112,9 @@ void init_pd() {
     pagesize = systemInfo.dwPageSize;
 
     if (verbose) {
-        logv("dwPageSize = %d", systemInfo.dwPageSize);
-        logv("dwAllocationGranularity = %d", systemInfo.dwAllocationGranularity);
-        logv("vaddr_alignment_pd() = 0x%lx", vaddr_alignment_pd());
         int x;
-        logv("approx sp = 0x%lx", &x);
+        logv("revival: init_pd: dwPageSize = %d  dwAllocationGranularity = %d  vaddr_alignment_pd() = 0x%lx  approx sp = 0x%llx",
+              pagesize, systemInfo.dwAllocationGranularity, vaddr_alignment_pd(), &x);
     }
     if (valign != 0xffff) {
         // expected: dwAllocationGranularity = 65536
@@ -137,6 +137,50 @@ int revival_checks_pd(const char *dirname) {
 }
 
 
+// Exception handler:
+
+LPTOP_LEVEL_EXCEPTION_FILTER previousUnhandledExceptionFilter = nullptr;
+
+LONG WINAPI topLevelUnhandledExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo) {
+
+#if defined(_M_ARM64)
+    address pc = (address) exceptionInfo->ContextRecord->Pc;
+#elif defined(_M_AMD64)
+    address pc = (address) exceptionInfo->ContextRecord->Rip;
+#else
+    error("revival: handler: unsupported platform");
+#endif
+
+    address addr = (address) exceptionInfo->ExceptionRecord->ExceptionInformation[1];
+
+    warn("revival: handler: pc 0x%llx address 0x%llx", pc, addr);
+    if (addr == (address) nullptr) {
+        warn("handler: null address");
+        abort();
+    }
+
+    // Catch access to areas we failed to map:
+    std::list<Segment>::iterator iter;
+    for (iter = failedSegments.begin(); iter != failedSegments.end(); iter++) {
+        if (addr >= (address) iter->vaddr &&
+                (unsigned long long) addr < (unsigned long long) (iter->vaddr) + (unsigned long long)(iter->length) ) {
+            warn("Access to segment that failed to revive: si_addr = %p in failed segment %p", addr, iter->vaddr);
+            exitForRetry();
+        }
+    }
+
+    waitHitRet();
+    exitForRetry();
+    abort();
+}
+
+void install_handler() {
+    previousUnhandledExceptionFilter = SetUnhandledExceptionFilter(topLevelUnhandledExceptionFilter);
+}
+
+
+// Utils...
+
 void printMemBasicInfo(MEMORY_BASIC_INFORMATION meminfo) {
 
     uint64_t end = (uint64_t) meminfo.BaseAddress + meminfo.RegionSize;
@@ -145,6 +189,15 @@ void printMemBasicInfo(MEMORY_BASIC_INFORMATION meminfo) {
             (uint64_t) meminfo.AllocationBase,
             (uint64_t) meminfo.BaseAddress, end, (uint64_t) meminfo.RegionSize, meminfo.AllocationProtect, meminfo.Protect);
 
+}
+
+void printMemBasicInfo(uint64_t addr) {
+    HANDLE hProc = GetCurrentProcess();
+    MEMORY_BASIC_INFORMATION meminfo;
+    size_t q = VirtualQueryEx(hProc, (PVOID) addr, &meminfo, sizeof(meminfo));
+    if (q == sizeof(meminfo)) {
+        printMemBasicInfo(meminfo);
+    }
 }
 
 void pmap_pd() {
@@ -184,20 +237,25 @@ void *symbol_dynamiclookup_pd(void *h, const char*str) {
 
 
 void *load_sharedobject_pd(const char *name, void *vaddr) {
-    int tries = 0;
-    int max_tries = 2;
+    int max_tries = 1; // Retrying, even when allocating to force a new address, is not usually succesfull.
 
-    while (tries++ < max_tries) {
+    for (int i = 0; i < max_tries; i++) {
         HMODULE h = LoadLibraryA(name);
         if ((void*) h == vaddr) {
             return (void*) h; // success
         }
-        warn("load_sharedobject_pd: %s: will unload as 0x%p != requested 0x%p. error=0x%lx\n", name, h, vaddr, GetLastError());
-        int unloaded = FreeLibrary(h);
-        // If we want to try re-trying, should map some memory at the address we just got.
-        if (unloaded == 0) {
-            warn("load_sharedobject_pd: unload failed.\n");
-            break;
+        warn("load_sharedobject_pd: %s: load failed 0x%p != requested 0x%p. error=0x%lx", name, h, vaddr, GetLastError());
+        if (h != nullptr) {
+            // Loaded, wrong address.
+            exitForRetry(); // or just fatal
+            // Alterntatively:
+            int unloaded = FreeLibrary(h);
+            if (unloaded == 0) {
+                warn("load_sharedobject_pd: unload failed.");
+                break;
+            }
+            // If we want to try re-trying, should map some memory at the address we just saw.
+            // void* addr = do_map_allocate_pd((void*) h, 1024 * 1024);
         }
     }
     return (void *) -1;
@@ -217,6 +275,7 @@ bool mem_canwrite_pd(void *vaddr, size_t length) {
     HANDLE hProc = GetCurrentProcess();
     size_t q = VirtualQueryEx(hProc, vaddr, &meminfo, sizeof(meminfo));
 
+
     if (q == sizeof(meminfo)) {
         if (meminfo.Protect == PAGE_EXECUTE_READWRITE
             || meminfo.Protect == PAGE_EXECUTE_WRITECOPY
@@ -229,7 +288,7 @@ bool mem_canwrite_pd(void *vaddr, size_t length) {
             return false;
         }
     } else {
-        fprintf(stderr, "    mem_canwrite_pd: %p VirtualQueryEx failed: NO\n", vaddr);
+        logv("    mem_canwrite_pd: %p VirtualQueryEx failed: NO", vaddr);
     }
     return false;
 }
@@ -244,13 +303,13 @@ bool mem_canwrite_pd(void *vaddr, size_t length) {
  * and changing file offset to be aligned means mapping to a different vaddr, which will then not be aligned.
  *
  */
-void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, off_t offset) {
+void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offset) {
     // TODO test FILE_MAP_COPY (COW)
 
     // Fail quickly if unaligned:
     uint64_t offsetAligned = align_down(offset, vaddr_alignment_pd());
     if (offsetAligned != offset) {
-        logv("do_mmap_pd: address 0x%llx file offset 0x%lx not aligned, do not try mapping directly, return", addr, offset);
+        logv("do_mmap_pd: address 0x%llx file offset 0x%llx not aligned, do not try mapping directly, return", addr, offset);
         return (void *) -1;
     }
 
@@ -263,15 +322,14 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, off_t offset
       if (openCoreWrite) {
         createFileDesiredAccess |= GENERIC_WRITE;
         mappingProt |= PAGE_READWRITE;
-//        mapViewProt |= 
         }
     h = CreateFile(filename, createFileDesiredAccess, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (h == nullptr) {
-        printf("    do_mmap_pd: CreateFile failed: %s: 0x%lx\n", filename, GetLastError());
+        logv("    do_mmap_pd: CreateFile failed: %s: 0x%lx", filename, GetLastError());
     } else {
         h2 = CreateFileMapping(h, nullptr, mappingProt, 0, 0, nullptr);
         if (h2 == nullptr) {
-            printf("    do_mmap_pd: CreateFileMapping failed: %s: 0x%lx\n", filename, GetLastError());
+            logv("    do_mmap_pd: CreateFileMapping failed: %s: 0x%lx", filename, GetLastError());
             return (void *) -1;
         }
     }
@@ -279,26 +337,20 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, off_t offset
     address addr_aligned = align_down((uint64_t) addr, vaddr_alignment_pd());
     // If vaddr changed, update offset:
     if (addr_aligned != (address) addr) {
-        offset -= (off_t) ((address) addr - addr_aligned);
+        offset -= (size_t) ((address) addr - addr_aligned);
         // But offset must be multiple of allocation granularity
         if (offset != align_down(offset, vaddr_alignment_pd())) {
-            if (verbose) {
-                printf("    do_mmap_pd: file offset becomes unalinged.\n");
-            }
+            logv("    do_mmap_pd: file offset becomes unalinged.");
         }
     }
-    if (verbose) {
-        printf("  do_mmap_pd: will map: addr 0x%p length 0x%lx file offset 0x%lx -> offset aligned 0x%lx\n",
-                addr, (unsigned long) length, (unsigned long) offset, (unsigned long) offsetAligned);
-    }
+    logv("  do_mmap_pd: will map: addr 0x%p length 0x%llx file offset 0x%llx -> offset aligned 0x%llx",
+         addr, (unsigned long) length, (unsigned long) offset, (unsigned long) offsetAligned);
 
     HANDLE hProc = GetCurrentProcess();
     DWORD prot = PAGE_EXECUTE_READ; // PAGE_EXECUTE_READWRITE;
     p = pMapViewOfFile3(h2, hProc, (PVOID) addr, offset, length, MEM_REPLACE_PLACEHOLDER, prot, nullptr, 0);
     if ((address) p != (address) addr) {
-        if (verbose) {
-            printf("    do_mmap_pd: MapViewOfFile3 0x%p failed, ret=0x%p error=0x%lx\n", addr, p, GetLastError());
-        }
+        logv("    do_mmap_pd: MapViewOfFile3 0x%p failed, ret=0x%p error=0x%lx", addr, p, GetLastError());
         p = (void *) -1;
         waitHitRet();
     }
@@ -307,7 +359,7 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, off_t offset
 }
 
 
-void *do_mmap_pd(void *addr, size_t length, off_t offset) {
+void *do_mmap_pd(void *addr, size_t length, size_t offset) {
     return do_mmap_pd(addr, length, core_filename, -1, offset);
 }
 
@@ -315,7 +367,7 @@ void *do_mmap_pd(void *addr, size_t length, off_t offset) {
 int do_munmap_pd(void *addr, size_t length) {
     int e = UnmapViewOfFile(addr); // Returns non-zero on success.  Zero on failure.
     if (e == 0) {
-        warn("UnmapViewOfFile 0x%p: failed: returns 0x%d: 0x%lx\n", addr, e, GetLastError());
+        warn("UnmapViewOfFile 0x%p: failed: returns 0x%d: 0x%lx", addr, e, GetLastError());
     }
     return e;
 }
@@ -325,36 +377,20 @@ void *do_map_allocate_pd_MapViewOfFile(void *vaddr, size_t length) {
     DWORD mappingProt = PAGE_EXECUTE_READWRITE;
     DWORD mapViewAccess = FILE_MAP_READ | FILE_MAP_WRITE | FILE_MAP_EXECUTE;
 
-    address addr_aligned = align_down((uint64_t) vaddr, vaddr_alignment_pd());
-    uint64_t diff = (uint64_t) vaddr -  (uint64_t) addr_aligned;
-    size_t length_aligned = length + diff;
-
-    if (addr_aligned != (address) vaddr) {
-        warn("    do_map_allocate_pd_MapViewOfFile: was not aligned. 0x%llx -> 0x%llx", vaddr, addr_aligned);
-    }
-
-    HANDLE h = CreateFileMapping(INVALID_HANDLE_VALUE, nullptr, mappingProt, 0, (DWORD) length_aligned, nullptr);
+    HANDLE h = CreateFileMapping(INVALID_HANDLE_VALUE, nullptr, mappingProt, 0, (DWORD) length, nullptr);
     if (h == nullptr) {
-        warn("    do_map_allocate_pd_MapViewOfFile: CreateFileMapping returns = 0x%p : error = 0x%lx\n", h, GetLastError());
+        warn("    do_map_allocate_pd_MapViewOfFile: CreateFileMapping returns = 0x%p : error = 0x%lx", h, GetLastError());
         return (void *) -1;
     }
 
     LPVOID p = MapViewOfFileEx(h, mapViewAccess, 0, 0, length, (void *) vaddr);
 
-    if ((void*) p == vaddr || (void*) p == (void*) addr_aligned) {
-        logv("do_map_allocate_pad: MapViewOfFile 0x%llx 0x%llx OK", (unsigned long long) vaddr, length);
+    if ((void*) p == vaddr) {
+        logv("do_map_allocate_pd: MapViewOfFile 0x%llx 0x%llx OK", (unsigned long long) vaddr, length);
         return vaddr;
     }
 
-    logv("do_map_allocate_pad: MapViewOfFile 0x%llx 0x%llx bad, gets 0x%llx", (unsigned long long) vaddr, length, (unsigned long long) p);
-
-    p = MapViewOfFileEx(h, mapViewAccess, 0, 0, length_aligned, (void *) addr_aligned);
-    if ((void*) p == (void*) addr_aligned) {
-        logv("    do_map_allocate_pd_MapViewOfFile: OK aligned.\n");
-        return vaddr;
-    }
-
-    logv("    do_map_allocate_pd_MapViewOfFile: 0x%p fail, gets 0x%p.\n", vaddr, p);
+    logv("do_map_allocate_pd: MapViewOfFile 0x%llx 0x%llx bad, gets 0x%llx", (unsigned long long) vaddr, length, (unsigned long long) p);
 
     /*
        if ((void*) p != (void*) vaddrAligned) {
@@ -397,122 +433,116 @@ void *do_map_allocate_pd_MapViewOfFile(void *vaddr, size_t length) {
     return p;
 }
 
+void set_prot(uint64_t addr, uint64_t length) {
+    //DWORD prot = PAGE_READWRITE;
+    DWORD prot = PAGE_EXECUTE_READWRITE;
+
+    printMemBasicInfo(addr);
+    DWORD lpfOldProtect;
+    if (!VirtualProtect((PVOID) addr, length, prot, &lpfOldProtect)) {
+           warn("    do_map_allocate_pd: failed setting rw: 0x%p: 0x%x.", addr, GetLastError());
+    } else {
+        printMemBasicInfo(addr);
+    }
+}
 
 void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length) {
-    void *p;
-    // TODO: Can VirtualAlloc2 give finer-than-64k address alignment?
-
-    // (1)
-    address addr_aligned = align_down((uint64_t) addr, vaddr_alignment_pd());
-    uint64_t diff = (uint64_t) addr -  (uint64_t) addr_aligned;
-    //size_t length_aligned = align_up(length + diff, vaddr_alignment_pd());
-    size_t length_aligned = length + diff;
-
-    printf("    do_map_allocate_pd_VirtualAlloc2: vaddr 0x%p aligns -> 0x%p  len 0x%llx aligns -> 0x%llx\n",
-            (void*) addr, (void*) addr_aligned, length, length_aligned);
-
     HANDLE hProc = GetCurrentProcess();
-    p = pVirtualAlloc2(hProc, (PVOID) addr_aligned, length_aligned, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE, nullptr, 0);
+    //DWORD prot = PAGE_READWRITE;
+    DWORD prot = PAGE_EXECUTE_READWRITE;
 
-    if (verbose) {
-        printf("    do_map_allocate_pd_VirtualAlloc2: first alloc attempt 0x%p len 0x%zx : returns = 0x%p, error = 0x%lx\n",
-                (void *) addr_aligned, length_aligned, p, GetLastError());
-    }
+    void* p = pVirtualAlloc2(hProc, (PVOID) addr, length, MEM_RESERVE | MEM_COMMIT, prot, nullptr, 0);
+    logv("    do_map_allocate_pd_VirtualAlloc2: first alloc attempt 0x%p len 0x%zx : returns = 0x%p, error = 0x%lx",
+         (void *) addr, length, p, GetLastError());
 
-    if ((void*) p != (void*) addr_aligned) {
+        MEMORY_BASIC_INFORMATION meminfo;
+        size_t q = VirtualQueryEx(hProc, addr, &meminfo, sizeof(meminfo));
+        if (q != sizeof(meminfo)) {
+            warn("VirtualQueryEx failed");
+            return (void*) -1;
+        }
+        uint64_t requested_end = (uint64_t) addr + (uint64_t) length;
+        uint64_t existing_end = (uint64_t) meminfo.BaseAddress + (uint64_t) meminfo.RegionSize;
+        uint64_t remaining = requested_end - existing_end;
+        logv("    do_map_allocate_pd_VirtualAlloc2: meminfo: base 0x%llx len 0x%llx end: 0x%llx", meminfo.BaseAddress, meminfo.RegionSize, existing_end);
 
+    if ((void*) p != (void*) addr) {
+        // Did not get requested address
         if (GetLastError() == 0) {
-            //  e.g. first alloc attempt 0x000000E69850B000 len 0x5000 : returns = 0x000000E698500000, error = 0x0
             // No error, but requested address was re-aligned.
-            // If length was not increased, will be a problem. length is pagesize aligned, 4k = 0x1000
+            //  e.g. first alloc attempt 0x000000E69850B000 len 0x5000 : returns = 0x000000E698500000, error = 0x0
+            // If all already mapped, just return as if alloc worked.
 
-            // Query aligned address, expand?
-            MEMORY_BASIC_INFORMATION meminfo;
-            size_t q = VirtualQueryEx(hProc, addr, &meminfo, sizeof(meminfo));
-            if (q == sizeof(meminfo)) {
-                uint64_t new_ptr = (uint64_t) meminfo.BaseAddress + (uint64_t) meminfo.RegionSize;
-                length_aligned = length_aligned - ((uint64_t)addr - new_ptr);
-                printf("    do_map_allocate_pd_VirtualAlloc2: retry new base 0x%llx len 0x%llx\n", new_ptr, length_aligned);
-                return do_map_allocate_pd_VirtualAlloc2((void*) new_ptr, length_aligned);
-            } else {
-                warn("VirtualQueryEx failed");
-                return (void*) -1;
+            if (p <= addr && requested_end <= existing_end) {
+                logv("do_map_allocate: requested 0x%llx got 0x%lx contains all needed", addr, p);
+                return addr;
             }
 
-        }
-
-        if (GetLastError() == ERROR_INVALID_ADDRESS /* 0x1e7 */) {
-            // Already mapped, conflict.
-            // If we aligned down, either manually above (1), or because VirtualAlloc2 did it for us, we can overlap with the previous region.
-
-            // Query to find the gaps that need mapping, return success to proceed with copy.
-            printf("    invalid address: already mapped?\n");
-            MEMORY_BASIC_INFORMATION meminfo;
-            size_t q = VirtualQueryEx(hProc, (PVOID) addr_aligned, &meminfo, sizeof(meminfo));
-            if (q != sizeof(meminfo)) {
-                printf("    do_map_allocate_pd_VirtualAlloc2: VirtualQueryEX: returns %lld (fail)\n",  q);
-                return (void *) -1;
+            // Expand allocation?
+            logv("    do_map_allocate_pd_VirtualAlloc2: clash, retry new base 0x%llx len 0x%llx", existing_end, remaining);
+            void * r = do_map_allocate_pd_VirtualAlloc2((void*) existing_end, remaining);
+            // Return original requested address on success:
+            if ((uint64_t) r == (uint64_t) existing_end) {
+                return addr;
             } else {
+                return r;
+            }
 
-                printf("    VirtualQueryEx: 1 base 0x%llx len 0x%llx allocationprotect: 0x%lx protect: 0x%lx\n",
-                        (uint64_t) meminfo.BaseAddress, (uint64_t) meminfo.RegionSize, meminfo.AllocationProtect, meminfo.Protect);
-                printMemBasicInfo(meminfo);
+        } else if (GetLastError() == ERROR_INVALID_ADDRESS) { // 0x1e7
+            logv("do_map_allocate: requested 0x%llx got 0x%lx not valid, already mapped?", addr, p);
+            // Already mapped, conflict?
+            // Return success to proceed with copy.
+            logv("    VirtualQueryEx: 1 base 0x%llx len 0x%llx allocationprotect: 0x%lx protect: 0x%lx",
+                 (uint64_t) meminfo.BaseAddress, (uint64_t) meminfo.RegionSize, meminfo.AllocationProtect, meminfo.Protect);
 
-                if ((uint64_t) meminfo.BaseAddress == addr_aligned) {
-                    // matches existing mapping
-                    printf("    invalid address: already mapped region matches base\n");
-                    if (meminfo.Protect == 0 || meminfo.Protect == PAGE_READONLY || meminfo.Protect == PAGE_EXECUTE_READ) {
-                        DWORD lpfOldProtect;
-                        // DWORD prot = PAGE_EXECUTE_READ;
-                        if (!VirtualProtect((PVOID) meminfo.BaseAddress, length_aligned, PAGE_EXECUTE_READWRITE, &lpfOldProtect)) {
-                            warn("    do_map_allocate_pd: existing, failed setting rw: 0x%x.\n", GetLastError());
-                            return (void *) -1;
-                        }
-                    }
-
-                    // Is more allocation needed?
-                    // Compare region with originally requested address.
-                    uint64_t existing_end = (uint64_t) meminfo.BaseAddress + (uint64_t) meminfo.RegionSize;
-                    uint64_t wanted_end = (uint64_t) addr + (uint64_t) length;
-                    if (existing_end >= wanted_end) {
-                        printf("    do_map_allocate_pd: mapping covered by existing_end at 0x%llx.\n", existing_end);
-                        return addr;
-                    }
-                    size_t remaining = (uint64_t) addr  - existing_end;
-                    printf("    do_map_allocate_pd: existing. remaining = 0x%llx.\n", remaining);
-                    if (remaining <= 0) {
-                        printf("    do_map_allocate_pd: done.\n");
-                        return addr;
-                    } else {
-                        printf("    do_map_allocate_pd: recurse for next part 0x%p len 0x%zx.\n", (void *) existing_end, remaining);
-                        void *p2 = do_map_allocate_pd((void *) existing_end, remaining);
-                        if (p2 != (void *) existing_end) {
-                            printf("    do_map_allocate_pd: recursion failed, got 0x%p\n", p2);
-                            p = (void *) -1;
-                        }
-                    }
+            // Is more allocation needed?
+            uint64_t wanted_end = (uint64_t) addr + (uint64_t) length;
+            if (wanted_end <= existing_end) {
+                logv("    do_map_allocate_pd: mapping covered by existing_end at 0x%llx", existing_end);
+                return addr;
+            } else {
+                size_t remaining = (uint64_t) wanted_end - existing_end;
+                logv("    do_map_allocate_pd: existing. remaining = 0x%llx", remaining);
+                void * r = do_map_allocate_pd_VirtualAlloc2((void*) existing_end, remaining);
+                // Return original requested address on success:
+                if ((uint64_t) r == (uint64_t) existing_end) {
+                    return addr;
+                } else {
+                  return r;
                 }
             }
+        } else {
+            logv("do_map_allocate: failed");
         }
     }
-
-    if ((void*) p == (void*) addr_aligned) {
-        if (verbose) {
-            printf("    do_map_allocate_pd_VirtualAlloc2: OK at requested 0x%p len 0x%zx (called with 0x%p, length 0x%zx), returns 0x%p : error = 0x%lx\n",
-                    (void *) addr_aligned, length_aligned, addr, length, p, GetLastError());
-            return addr; // original requested address
-        }
-    }
-
-    waitHitRet();
-    return (void*) -1;
+    return p;
 }
 
 
-void *do_map_allocate_pd(void *addr, size_t length) {
+void *do_map_allocate_pd(void *vaddr, size_t length) {
 
-//    return do_map_allocate_pd_MapViewOfFile(addr, length);
-    return do_map_allocate_pd_VirtualAlloc2(addr, length);
+    // mappings file is created with minidump addresses, but not 64k aligned addresses,
+
+    address vaddr_aligned = align_down((uint64_t) vaddr, vaddr_alignment_pd());
+    uint64_t diff = (uint64_t) vaddr -  (uint64_t) vaddr_aligned;
+    size_t length_aligned = length + diff;
+//     length_aligned = align_up(length_aligned, vaddr_alignment_pd());
+
+    if (vaddr_aligned != (address) vaddr) {
+        logv("    do_map_allocate_pd: vaddr 0x%p aligns -> 0x%p  len 0x%p adjusts -> 0x%p",
+            (void*) vaddr, (void*) vaddr_aligned, length, length_aligned);
+    }
+
+    // address r = (address) do_map_allocate_pd_MapViewOfFile(vaddr_aligned, length_aligned);
+    address r = (address) do_map_allocate_pd_VirtualAlloc2((void*) vaddr_aligned, length_aligned);
+
+    // Accept the aligned down address and return as if the requested vaddr was honoured.
+    if (r == vaddr_aligned) {
+        set_prot((uint64_t) vaddr, length);
+        return vaddr;
+    } else {
+        return (void*) r;
+    }
 }
 
 
@@ -524,28 +554,28 @@ char *readstring_minidump(int fd) {
     wchar_t *wbuf = (wchar_t *) calloc(BUFLEN, 1);
     char *mbuf = (char *) calloc(BUFLEN, 1);
     if (wbuf == nullptr || mbuf == nullptr) {
-        warn("Failed to allocate buf for readstring\n");
+        warn("Failed to allocate buf for readstring");
         return nullptr;
     }
     ULONG32 length;
     int e = read(fd, &length, sizeof(ULONG32));
     if (e != sizeof(ULONG32)) {
-        warn("Failed to read MINIDUMP_STRING length: %d\n", e);
+        warn("Failed to read MINIDUMP_STRING length: %d", e);
         return nullptr;
     }
     if (length >= BUFLEN) {
-        warn("MINIDUMP_STRING length too long: %d\n", length);
+        warn("MINIDUMP_STRING length too long: %d", length);
         return nullptr;
     }
     e = read(fd, wbuf, length);
     if (e != length) {
-        warn("Failed to read MINIDUMP_STRING chars: %d\n", e);
+        warn("Failed to read MINIDUMP_STRING chars: %d", e);
         return nullptr;
     }
 
     e = (int) wcstombs(mbuf, wbuf, length);
     if (e < (int) (length/2)) {
-        warn("MINIDUMP_STRING length %d, short bad results from wcstombs: %d\n", length, e);
+        warn("MINIDUMP_STRING length %d, short bad results from wcstombs: %d", length, e);
         return nullptr;
     }
 
@@ -574,20 +604,23 @@ class MiniDump {
     ~MiniDump();
     MINIDUMP_DIRECTORY* find_stream(int stream);
     Segment* readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA);
-    Segment* readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA);
 
     char* get_jvm_filename() { return jvm_filename; }
     void* get_jvm_address() { return jvm_address; }
+
+    void prepare_memory_ranges();
 
     Segment* get_jvm_seg() { return jvm_seg; }
     Segment* get_jvm_rdata_seg() { return jvm_rdata_seg; }
     Segment* get_jvm_data_seg() { return jvm_data_seg; }
 
     int get_fd() { return fd; }
+    RVA64 getBaseRVA() { return BaseRVA; }
 
   private:
     void open(const char* filename);
     int read_modules(); // populate module list, and locate jvm
+    Segment* readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA);
 
     int fd;
     _MINIDUMP_HEADER hdr;
@@ -599,6 +632,10 @@ class MiniDump {
     Segment* jvm_rdata_seg;
     Segment* jvm_data_seg;
     void populate_jvm_data_segs(const char *filename);
+
+    ULONG64 NumberOfMemoryRanges;
+    RVA64 BaseRVA;
+    int rangesRead;
 };
 
 MiniDump::MiniDump(const char* filename) {
@@ -618,13 +655,13 @@ MiniDump *dump = nullptr;
 void MiniDump::open(const char *filename) {
     fd = ::open(filename, O_RDONLY);
     if (fd < 0) {
-        warn("MiniDump::open '%s' failed: %d: %s\n", core_filename, errno, strerror(errno));
+        warn("MiniDump::open '%s' failed: %d: %s", core_filename, errno, strerror(errno));
         return;
     }
     // Read MiniDump header
     int e = read(fd, &hdr, sizeof(_MINIDUMP_HEADER));
     if (hdr.Signature != MINIDUMP_SIGNATURE) {
-        warn("Minidump header unexpected: %lx\n", hdr.Signature);
+        warn("Minidump header unexpected: %lx", hdr.Signature);
     }
 }
 
@@ -700,7 +737,7 @@ int MiniDump::read_modules() {
     }
     MINIDUMP_DIRECTORY *md = find_stream(ModuleListStream);
     if (md == nullptr) {
-        warn("Minidump ModuleListStream not found\n");
+        warn("Minidump ModuleListStream not found.");
         return -1;
     }
 
@@ -785,13 +822,6 @@ void MiniDump::populate_jvm_data_segs(const char *filename) {
 }
 
 
-char* get_jvm_filename_pd(const char *filename) {
-    return strdup(dump->get_jvm_filename());
-}
-
-void* get_jvm_address_pd(const char*corename) {
-    return dump->get_jvm_address();
-}
 
 void normalize(char *s) {
     for (char *p = s; *p != '\0'; p++) {
@@ -834,7 +864,7 @@ int relocate_sharedlib_pd(const char *filename, const void *addr) {
     if (editbin  == nullptr) {
         error("EDITBIN must be set in environment.");
     }
-    // EDITBIN.EXE /DYNAMICBASE:NO /REBASE:BASE=0xaddress jvm.dll
+    // EDITBIN.EXE /DYNAMICBASE:NO /REBASE:BASE=0xaddress filename
     char command[BUFLEN];
     memset(command, 0, BUFLEN);
 
@@ -851,12 +881,34 @@ int relocate_sharedlib_pd(const char *filename, const void *addr) {
     return e;
 }
 
+/**
+ * Prepare for caller to read memory ranges.
+ *
+ * Leaves dump fd positioned to read the array of MINIDUMP_MEMORY_DESCRIPTOR64
+ * by calling readSegment().
+ */
+void MiniDump::prepare_memory_ranges() {
+    MINIDUMP_DIRECTORY *md = dump->find_stream(Memory64ListStream);
+    if (md == nullptr) {
+        error("Minidump Memory64ListStream not found.");
+    }
+    int e = read(dump->get_fd(), &NumberOfMemoryRanges, sizeof(NumberOfMemoryRanges));
+    e = read(dump->get_fd(), &BaseRVA, sizeof(BaseRVA));
+    logv("MiniDump: NumberOfMemoryRanges %d, BaseRVA 0x%llx", NumberOfMemoryRanges, BaseRVA);
+    rangesRead = 0;
+}
+
 
 /**
  * Read the next Minidump Memory Descriptor.
+ * Return a Segment* and update the output parameters.  current RVA will be the dump file offset of the next segment.
  * Return nullptr when no further memory descriptors are found.
  */
 Segment* MiniDump::readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA) {
+    if (rangesRead >= NumberOfMemoryRanges) {
+        return nullptr;
+    }
+
     int size = sizeof(MINIDUMP_MEMORY_DESCRIPTOR64);
     do {
         long pos1 = _lseek(fd, 0, SEEK_CUR);
@@ -869,6 +921,7 @@ Segment* MiniDump::readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentR
             long pos2 = _lseek(fd, 0, SEEK_CUR);
             if (pos2 - pos1 == size) {
                 // Well that's fine, why did read return an odd value?...
+                warn("MiniDump::readSegment0: read expects %d, got %d, at pos1 %ld pos2 %ld.  But looks OK.", size, e, pos1, pos2);
                 break;
             }
             // Retry a short read.
@@ -877,8 +930,7 @@ Segment* MiniDump::readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentR
             waitHitRet();
             continue;
         } else {
-            // Read fully.
-            break;
+            break; // Done
         }
     } while (true);
 
@@ -887,14 +939,22 @@ Segment* MiniDump::readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentR
         return nullptr; // End of user space mappings.
     }
 
-    Segment *seg = new Segment((void *) d->StartOfMemoryRange, (size_t) d->DataSize, (off_t) *currentRVA, (size_t) d->DataSize);
+    Segment *seg = new Segment((void *) d->StartOfMemoryRange, (size_t) d->DataSize, (size_t) *currentRVA, (size_t) d->DataSize);
+                char *b = seg->toString();
+                warn("XXX readSegment0 range %d new seg = %s", rangesRead, b);
+                free(b);
     *currentRVA += d->DataSize;
+    rangesRead++;
     return seg;
 }
 
 /**
  * Read a Segment from the MiniDump.
- * Populate the output parameters, and return a Segment*, or return null if no Segment can be read.
+ *
+ * Handle skipping of clashes with libraries/modules (DLLs), they are the "avoid list".
+ *
+ * Return a Segment* and update the output parameters.  current RVA will be the dump file offset of the next segment.
+ * Return nullptr when no further memory descriptors are found.
  */
 Segment* MiniDump::readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA) {
     Segment *seg = nullptr;
@@ -906,15 +966,13 @@ Segment* MiniDump::readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRV
         if (seg == nullptr) {
             return nullptr;
         }
-        // Check against the modules (DLLs), they are the "avoid list".
         // Simple check for clashes.  Comparing module list from dump, with memory list from dump,
         // so complex overlaps not possible.
         // Module extents (iter) likely to be larger than individual memory descriptors.
         for (std::list<Segment>::iterator iter = modules.begin(); iter != modules.end(); iter++) {
             if (seg->start() >= iter->start() && seg->end() <= iter->end()) {
-
                 // But the JVM .data Section located earlier is needed.
-               if (jvm_data_seg != nullptr && (seg->contains(jvm_data_seg) || jvm_data_seg->contains(seg))) {
+                if (jvm_data_seg != nullptr && (seg->contains(jvm_data_seg) || jvm_data_seg->contains(seg))) {
                     logv("readSegment: Using (JVM .data) seg: 0x%llx - 0x%llx ", seg->start(), seg->end());
                 } else {
                     logv("readSegment: Skipping seg 0x%llx - 0x%llx due to hit in module list", seg->start(), seg->end());
@@ -928,41 +986,6 @@ Segment* MiniDump::readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRV
     return seg;
 }
 
-/*
-uint64_t resolve_teb(MiniDump* dump) {
-    // Find Minidump ThreadListStream
-    // Read _MINIDUMP_THREAD
-    // Read TEB
-    MINIDUMP_DIRECTORY *md = dump->find_stream(ThreadListStream);
-    if (md == nullptr) {
-        warn("Minidump ThreadListStream not found\n");
-        return 0;
-    }
-    // Read MINIDUMP_THREAD_LIST 
-    ULONG32 NumberOfThreads;
-    int e = read(dump->fd, &NumberOfThreads, sizeof(NumberOfThreads));
-    if (e < sizeof(NumberOfThreads)) {
-        warn("read of NumberOfThreads failed");
-        return 0;
-    }
-    logv("XXXX NumberOfThreads: %ld", NumberOfThreads);
-
-    MINIDUMP_THREAD thread;
-    for (unsigned int i = 0; i < NumberOfThreads; i++) {
-        memset(&thread, 0, sizeof(thread));
-        e = read(dump->fd, &thread, sizeof(thread));
-        if (e < sizeof(thread)) {
-            warn("read of MINIDUMP_THREAD %d failed: %d", i, e);
-            return 0;
-        }
-        logv("XXX MINIDUMP_THREAD id 0x%lx teb 0x%lx", thread.ThreadId, thread.Teb);
-        if (thread.Teb != 0) {
-            return (uint64_t) thread.Teb;
-        }
-    }
-    return 0;
-} */
-
 int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const char *javahome, void *addr) {
 
     // Read minidump memory list, create text of mappings list.
@@ -973,24 +996,13 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
         error("MiniDump not initialized");
     }
 
-    // Will need JVM .data location.
-    //
-
-    MINIDUMP_DIRECTORY *md = dump->find_stream(Memory64ListStream);
-    if (md == nullptr) {
-        warn("Minidump Memory64ListStream not found\n");
-        return -1;
-    }
-
     // Maintain a list of segments to copy bytes later.
     std::list<Segment> segsToCopy;
 
+    dump->prepare_memory_ranges();
+
     // Read MINIDUMP_MEMORY64_LIST 
-    ULONG64 NumberOfMemoryRanges;
-    RVA64 BaseRVA;
-    int e = read(dump->get_fd(), &NumberOfMemoryRanges, sizeof(NumberOfMemoryRanges));
-    e = read(dump->get_fd(), &BaseRVA, sizeof(BaseRVA));
-    RVA64 currentRVA = BaseRVA;
+    RVA64 currentRVA = dump->getBaseRVA(); // current offset in file
     MINIDUMP_MEMORY_DESCRIPTOR64 d;
     ULONG64 prevAddr = 0;
 
@@ -998,8 +1010,7 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
     Segment *seg = dump->readSegment(&d, &currentRVA);
     Segment *segNext = nullptr;
 
-    for (ULONG64 i = 0; i < NumberOfMemoryRanges; i++) {
-
+    while (true) {
         // Use a segNext we already read (but did not use), or read a new Segment:
         if (segNext != nullptr) {
             seg = segNext;
@@ -1011,27 +1022,25 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
             }
         }
 
-        // Repeated data in minidump can be observed at end - this may have been only seen before the read retry above...
-        if (d.StartOfMemoryRange == prevAddr) {
+/*        if (d.StartOfMemoryRange == prevAddr) {
             logv("create_mappings: skipping due to repetition, 0x%llx", prevAddr);
             continue; 
-        }
+        } */
 
-        logv("create_mappings_pd: %lld: addr 0x%llx size 0x%llx   file offset: 0x%llx \n", i, d.StartOfMemoryRange, d.DataSize, currentRVA);
+        logv("create_mappings_pd: addr 0x%llx size 0x%llx   current RVA/file offset: 0x%llx", d.StartOfMemoryRange, d.DataSize, currentRVA);
         prevAddr = d.StartOfMemoryRange;
 
         if (!seg->is_relevant()) {
-            logv("create_mappings: not relevant: 0x%llx", d.StartOfMemoryRange);
+            logv("create_mappings_pd: not relevant: 0x%llx", d.StartOfMemoryRange);
             continue;
         }
 
         // Consider the next region also:
         segNext = dump->readSegment(&d, &currentRVA);
-        if (segNext != nullptr) { i++; }  // Maintain outer loop counter
 
         // (1) Can we coalesce (join) touching regions, if the file offsets work,
         //     to reduce number of mappings (there are likely >600).
-        bool coalesce = false;
+        bool coalesce = false; // not currently using this..
         if (coalesce) {
         Segment *joinedSeg = nullptr;
         while (segNext != nullptr && seg->end() == segNext->start()
@@ -1042,14 +1051,14 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
                 joinedSeg = new Segment(seg);
             }
             joinedSeg->set_length(seg->length + segNext->length);
-
-            char *b = joinedSeg->toString();
-            fprintf(stderr, "JOINED seg expanded: %s\n", b);
-            free(b);
+            if (verbose) {
+                char *b = joinedSeg->toString();
+                warn("JOINED seg expanded: %s", b);
+                free(b);
+            }
 
             seg = joinedSeg;
             segNext = dump->readSegment(&d, &currentRVA);
-            if (segNext != nullptr) { i++; }
         }
         if (joinedSeg != nullptr) {
             seg = joinedSeg;  // Which may yet be relevant in (2) below.
@@ -1057,43 +1066,46 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
         }
         }
 
-        // (2) Is next region too close for vaddralignment to work.
-        //     Grow a bigger segment to map, that contains all these neighbouring segments (copied).
+        // (2) Is next region too close for vaddralignment to work?
+        //     Grow a bigger segment to map, that will have these neighbouring segments' data copied in.
         Segment *biggerSeg = nullptr;
-        while (segNext != nullptr && seg->end() + vaddr_alignment_pd() >= segNext->start()) {
-            // Will copy these segs:
-            warn("create_mappings: segs too close for alignment, seg: %p - %p next seg: %p", seg->vaddr, seg->end(), segNext->vaddr);
-            char *b = seg->toString();
-            fprintf(stderr, "later seg    : %s\n", b);
-            free(b);
-            b = segNext->toString();
-            fprintf(stderr, "later segNext: %s\n", segNext->toString());
-            free(b);
-
+        while (segNext != nullptr && align_up(seg->end(), vaddr_alignment_pd()) >= segNext->start()) {
+            if (verbose) {
+                warn("create_mappings: segs too close for alignment, seg: %p - %p next seg: %p", seg->vaddr, seg->end(), segNext->vaddr);
+                char *b = seg->toString();
+                warn("later seg    : %s", b);
+                free(b);
+                b = segNext->toString();
+                warn("later segNext: %s", segNext->toString());
+                free(b);
+            }
             // Save segs, will write "C" copy lines later.
             if (biggerSeg == nullptr) {
-                segsToCopy.push_back(seg);   // Write first seg only on first time through this loop
+                segsToCopy.push_back(seg);    // Write first seg only on first time through this loop
                 biggerSeg = new Segment(seg); // Start with copy of seg info.
             }
             segsToCopy.push_back(segNext);      // Write segNext on all iterations
 
             biggerSeg->set_end(segNext->end());  // Expand to cover both.
-            b = biggerSeg->toString();
-            fprintf(stderr, "BIGGER seg expanded: %s\n", b);
-            free(b);
-
+            if (verbose) {
+                char *b = biggerSeg->toString();
+                warn("BIGGER seg expanded: %s", b);
+                free(b);
+            }
             // Next...
             seg = segNext;
             segNext = dump->readSegment(&d, &currentRVA);
-            if (segNext != nullptr) { i++; }
         }
 
         // Write line to mappings file.
         // Use the biggerSeg if we were in the above loop.
+        int e = 0;
         if (biggerSeg != nullptr) {
-            char *b = biggerSeg->toString();
-            fprintf(stderr, "write BIGGER seg    : %s\n", b);
-            free(b);
+            if (verbose) {
+                char *b = biggerSeg->toString();
+                warn("write BIGGER seg    : %s", b);
+                free(b);
+            }
             e = biggerSeg->write_mapping(fd, "m"); // map only, copy later
             biggerSeg = nullptr;
         } else {
@@ -1106,7 +1118,6 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
     for (iter = segsToCopy.begin(); iter != segsToCopy.end(); iter++) {
         iter->write_mapping(fd, "C");
     }
-
 
     writef(fd, "\n");
     return 0;
@@ -1170,8 +1181,12 @@ void write_symbols(int fd, const char* symbols[], int count, const char *revival
     }
 }
 
+bool create_directory_pd(char* dirname) {
+    return _mkdir(dirname) == 0;
+}
 
-int create_revivalbits_native_pd(const char *corename, const char *javahome, const char *revival_dirname, const char *libdir) {
+
+int create_revivalbits_native_pd(const char* corename, const char* javahome, const char* revival_dirname, const char* libdir) {
     char jvm_copy[BUFLEN];
 
     dump = new MiniDump(corename);
@@ -1181,32 +1196,28 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
         return -1;
     }
 
-    jvm_filename = get_jvm_filename_pd(corename);
-    if (jvm_filename == nullptr) {
-        warn("revival: cannot locate JVM in minidump.\n") ;
-        return -1;
-    }
-    logv("JVM = '%s'", jvm_filename);
-    jvm_address = get_jvm_address_pd(corename);
-    logv("JVM addr = %p", jvm_address);
-
-    // Create core.revival dir
-    int e = _mkdir(revival_dirname);
-    if (e < 0) {
-        warn("Cannot create directory: %s: %s\n", revival_dirname, strerror(errno));
-        return e;
-    }
-
     // Use libdir if specified
     if (libdir != nullptr) {
-        // find jvm.dll in libdir, use that instead of dump's jvm filename
+        init_jvm_filename_from_libdir(libdir); // Possibly set jvm_filename from libdir
     }
+    if (jvm_filename == nullptr) {
+        jvm_filename = strdup(dump->get_jvm_filename()); // Use MiniDump jvm filename
+    }
+    if (jvm_filename == nullptr) {
+        error("revival: cannot locate JVM in minidump.") ;
+    }
+    logv("JVM = '%s'", jvm_filename);
+    jvm_address = dump->get_jvm_address(); // JVM address is from dump, even if file path is not
+    if (jvm_address == nullptr) {
+        error("revival: cannot find address for JVM in minidump.") ;
+    }
+    logv("JVM addr = %p", jvm_address);
 
     // Copy jvm.dll into core.revival dir
     memset(jvm_copy, 0, BUFLEN);
     strncpy(jvm_copy, revival_dirname, BUFLEN - 1);
     strncat(jvm_copy, "\\" JVM_FILENAME, BUFLEN - 1);
-    e = copy_file_pd(jvm_filename, jvm_copy);
+    int e = copy_file_pd(jvm_filename, jvm_copy);
     if (e != 0) {
         warn("Failed copying JVM '%s' to '%s'", jvm_filename, jvm_copy);
         return -1;
@@ -1215,15 +1226,13 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
     // Relocate copy of libjvm:
     e = relocate_sharedlib_pd(jvm_copy, jvm_address);
     if (e != 0) {
-        warn("Failed to relocate JVM: %d\n", e);
-        //    return -1; // temp ignore to test mappings when editbin not found...
+        error("Failed to relocate JVM: %d", e);
     }
 
     // Create symbols file
     int symbols_fd = symbols_file_create(revival_dirname);
     if (symbols_fd < 0) {
-        warn("Failed to create mappings file\n");
-        return -1;
+        error("Failed to create mappings file");
     }
     logv("Write jvm symbols");
     write_symbols(symbols_fd, JVM_SYMS, N_JVM_SYMS, revival_dirname);
@@ -1233,16 +1242,14 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
     // Create core.mappings file:
     int fd = mappings_file_create(revival_dirname, corename);
     if (fd < 0) {
-        warn("Failed to create mappings file\n");
-        return -1;
+        error("Failed to create mappings file");
     }
 
     e = create_mappings_pd(fd, corename, jvm_copy, javahome, jvm_address);
 
     close(fd);
     if (e != 0) {
-        warn("Failed to create memory mappings: %d\n", e);
-        return -1;
+        error("Failed to create memory mappings: %d", e);
     }
 
     // Copy jvm.dll.pdb if present

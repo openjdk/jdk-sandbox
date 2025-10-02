@@ -143,7 +143,7 @@ public abstract class AttachProvider {
       *
       * @since 26
       */
-    public VirtualMachine attachVirtualMachine(String id, List<String> libDirs)
+    public VirtualMachine attachVirtualMachine(String id, List<String> libDirs, String revivalDataPath)
         throws AttachNotSupportedException, IOException {
 
         return attachVirtualMachine(id);

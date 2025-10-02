@@ -29,7 +29,6 @@
 
 #include <errno.h>
 #include <fcntl.h>
-//#include <inttypes.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -66,6 +65,8 @@ typedef uint64_t address;
 #define SYM_REVIVE_VM "process_revival"
 
 
+void install_handler();
+
 //
 // Platform specifics (break into seprate headers when makes sense...)
 //
@@ -78,8 +79,8 @@ typedef uint64_t address;
 #include <sys/time.h>
 
 #define JVM_FILENAME "libjvm.so"
+#define FILE_SEPARATOR  "/"
 
-void install_handler();
 
 #endif /* LINUX */
 
@@ -89,11 +90,12 @@ void install_handler();
 #include <io.h>
 #include <windows.h>
 
-//void tls_fixup_pd(void *tlsPtr);
 
 #define JVM_FILENAME "jvm.dll"
+#define FILE_SEPARATOR  "\\"
 
 #define _exit _Exit
+
 
 #endif /* WINDOWS */
 
@@ -105,10 +107,12 @@ void install_handler();
 #include <sys/time.h>
 
 #define JVM_FILENAME "libjvm.dylib"
+#define FILE_SEPARATOR  "/"
 
 #define _exit _Exit
 
 #endif /* MACOSX */
+
 
 //
 // The revival interface:
@@ -117,10 +121,10 @@ void install_handler();
 
 // One structure to keep in sync with the JVM:
 
-
 struct revival_data {
   uint64_t magic;
   uint64_t version;
+  uint64_t status;
 
   const char *runtime_name;
   const char *runtime_version;
@@ -144,9 +148,11 @@ struct revival_data {
  * Given a core file name, create mappings data if necessary, and
  * revive into the current process.
  *
+ * Accept optional library search directory, and directory for stored revival data directory, which may both be null.
+ *
  * Return 0 for success, -1 for failure.
  */
-int revive_image(const char *corefile, const char *javahome, const char *libdir);
+int revive_image(const char* corefile, const char* javahome, const char* libdir, const char* revival_data_path);
 
 /**
  * Invoke the given jcmd operation, e.g. "Thread.print" or a string containing command and parameters
@@ -178,7 +184,10 @@ extern const char *revivaldir;
 extern void *revivalthread;
 extern void *h; // handle to libjvm
 
-extern void exitForRetry(); // Exit with value signalling an address space clash that may be temporary.
+// Exit code signalling an address space clash that may be temporary, caller should retry.
+#define EXIT_CODE_SUGGEST_RETRY 7
+
+extern void exitForRetry(); // exit process using above exit code to signal a retry
 
 struct SharedLibMapping {
     uint64_t start;
@@ -189,15 +198,15 @@ struct SharedLibMapping {
 
 class Segment {
     public:
-        Segment(void *v, size_t len, off_t offset, size_t file_len) : 
+        Segment(void *v, size_t len, size_t offset, size_t file_len) :
             vaddr(v), length(len), file_offset(offset), file_length(file_len) {}
 
-        Segment(Segment *s) : 
+        Segment(Segment* s) :
             vaddr(s->vaddr), length(s->length), file_offset(s->file_offset), file_length(s->file_length) {}
 
         void   *vaddr;
         size_t length;
-        off_t  file_offset;
+        size_t file_offset;
         size_t file_length;
 
         uint64_t start() { return (uint64_t) vaddr; }
@@ -224,6 +233,11 @@ extern std::list<Segment> failedSegments;
 extern char *jvm_filename;
 extern void *jvm_address;
 extern std::list<Segment> avoidSegments;
+
+bool create_directory_pd(char* dirname);
+
+bool try_init_jvm_filename_if_exists(const char* path, const char* suffix);
+void init_jvm_filename_from_libdir(const char* libdir);
 
 
 // Symbol lookup
@@ -260,9 +274,8 @@ void init_pd();
 
 // Create a memory mapping from the core/dump file.
 // Return address of allocation, or -1 for failure.
-void *do_mmap_pd(void *addr, size_t length, off_t offset);
-void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, off_t offset);
-void *do_mmap_pd(void *addr, size_t length, off_t offset);
+void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offset);
+void *do_mmap_pd(void *addr, size_t length, size_t offset);
 
 int do_munmap_pd(void *addr, size_t length);
 
@@ -273,8 +286,6 @@ void *do_map_allocate_pd(void *addr, size_t length);
  */
 void *revived_vm_thread();
 
-SharedLibMapping* read_NT_mappings2(int core_fd, int& count_out);
-
 /**
  * Return a boolean true if the given revival directory exists.
  */
@@ -282,16 +293,17 @@ bool revival_direxists_pd(const char *dirname);
 
 int revival_mapping_allocate(void *vaddr, size_t length);
 
-int revival_mapping_copy(void *vaddr, size_t length, off_t offset, bool allocate, char *filename, int fd);
+int revival_mapping_copy(void *vaddr, size_t length, size_t offset, bool allocate, char *filename, int fd);
 
 int relocate_sharedlib_pd(const char* filename, const void *addr);
 
 
-int create_revivalbits_native_pd(const char *corename, const char *javahome, const char *dirname, const char *libdir);
+int create_revivalbits_native_pd(const char* corename, const char* javahome, const char* dirname, const char *libdir);
 
 /**
- * Create core.mappings file and write the header lines.
- * Return the fd so other code can write the memory mapping lines.
+ * Create the named "core.mappings" file and write the header lines.
+ * Return the fd so other code can write the memory mapping lines,
+ * or negative on error.
  */
 int mappings_file_create(const char *filename, const char *corename);
 

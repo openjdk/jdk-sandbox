@@ -56,15 +56,19 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
 
     protected String filename;
     protected List<String> libDirs;
+    protected String revivalDataPath;
 
     /**
      * Attaches to a core file or minidump.
      */
-    VirtualMachineCoreDumpImpl(AttachProvider provider, String vmid, List<String> libDirs) throws AttachNotSupportedException, IOException {
+    VirtualMachineCoreDumpImpl(AttachProvider provider, String vmid, List<String> libDirs, String revivalDataPath)
+            throws AttachNotSupportedException, IOException {
+
         // super HotSpotVirtualMachine modified to accept String that is not a PID.
         super(provider, vmid);
         filename = vmid;
         this.libDirs = libDirs;
+        this.revivalDataPath = revivalDataPath;
         attach();
     }
 
@@ -101,6 +105,7 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
         }
         List<String> pargs = new ArrayList<String>();
         pargs.add(helper);
+
         // Pass library directories as -L/path
         // Do we need > 1 ?
         if (libDirs != null) {
@@ -108,6 +113,12 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
                 pargs.add("-L" + s);
             }
         }
+
+        // Revival data location
+        if (revivalDataPath != null) {
+            pargs.add("-R" + revivalDataPath);
+        }
+
         pargs.add(filename);
         pargs.add(cmd);
         for (Object o : args) {
@@ -140,6 +151,7 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
         int TRIES = 10;
         int tries = Integer.getInteger("jdk.attach.core.tries", TRIES);
         String out = null;
+        boolean verbose = Boolean.getBoolean("jdk.attach.core.verbose");
 
         for (int i = 0; i < tries; i++) {
             Process p = pb.start();
@@ -148,12 +160,13 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
             out = drain(p, outReader);
             try {
                 int e = p.waitFor();
-                if (e == 7) {
-                    // Possibly show errors if verbose:
-                    if (Boolean.getBoolean("jdk.attach.core.verbose")) {
+
+                if (e == 7 || e >= 127 || e < -1) {
+                    if (verbose) {
                         String err = drain(p, errReader);
                         System.err.println(err);
                     }
+                    System.out.println("RETRY (" + e + ") ");
                     continue; // ...and retry.
                 } else {
                     if (e != 0) {

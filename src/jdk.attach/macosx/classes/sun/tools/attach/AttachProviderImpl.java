@@ -51,7 +51,7 @@ public class AttachProviderImpl extends HotSpotAttachProvider {
     public VirtualMachine attachVirtualMachine(String vmid)
         throws AttachNotSupportedException, IOException
     {
-        return attachVirtualMachine(vmid, null);
+        return attachVirtualMachine(vmid, null, null);
     }
 
     public VirtualMachine attachVirtualMachine(VirtualMachineDescriptor vmd)
@@ -61,7 +61,7 @@ public class AttachProviderImpl extends HotSpotAttachProvider {
             throw new AttachNotSupportedException("provider mismatch");
         }
         if (new File(vmd.id()).exists()) {
-            return new VirtualMachineCoreDumpImpl(this, vmd.id(), null);
+            return new VirtualMachineCoreDumpImpl(this, vmd.id(), null, null);
         }
         // To avoid re-checking if the VM if attachable, we check if the descriptor
         // is for a hotspot VM - these descriptors are created by the listVirtualMachines

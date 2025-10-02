@@ -52,7 +52,7 @@ public class AttachProviderImpl extends HotSpotAttachProvider {
     public VirtualMachine attachVirtualMachine(String vmid)
         throws AttachNotSupportedException, IOException
     {
-        return attachVirtualMachine(vmid, null);
+        return attachVirtualMachine(vmid, null, null);
     }
 
     public List<VirtualMachineDescriptor> listVirtualMachines() {

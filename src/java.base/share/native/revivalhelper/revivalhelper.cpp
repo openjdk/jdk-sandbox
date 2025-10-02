@@ -38,13 +38,14 @@
  * Show usage message, and exit with an error status.
  */
 void usageExit(const char* s) {
-    error("usage: %s [ -L/path/path/libdir ] COREFILE jcmd DCOMMAND...\n", s);
+    error("usage: %s [ -L/path/to/libdir ] [ -R/path/for/revival_data ] COREFILE jcmd DCOMMAND...\n", s);
 }
 
 
 int main(int argc, char **argv) {
     char *corename;
     const char *libdir = nullptr;
+    const char *revival_data = nullptr;
     char command[BUFLEN];
     char javahome[BUFLEN];
     memset(command, 0, BUFLEN);
@@ -71,13 +72,26 @@ int main(int argc, char **argv) {
     if (argc < 4 ) {
         usageExit(argv[0]);
     }
-    // -L/libdir
-    if (strncmp(argv[n], "-L", 2) == 0) {
-        if (strlen(argv[n]) > 2) {
-            libdir = argv[n]+2;
-            n++;
+    // Arguments:
+    while (true) {
+        if (strncmp(argv[n], "-L", 2) == 0) {
+            // -L/path/to/libdir
+            if (strlen(argv[n]) > 2) {
+                libdir = argv[n]+2;
+                n++;
+            } else {
+                error("Use -L/PATH to specify library directory.\n");
+            }
+        } else if (strncmp(argv[n], "-R", 2) == 0) {
+            // -R/path/for/revival_data
+            if (strlen(argv[n]) > 2) {
+                revival_data = argv[n]+2;
+                n++;
+            } else {
+                error("Use -R/PATH to specify revival data path.\n");
+            }
         } else {
-            error("Use -L/path/to/libdir to specify library directory.\n");
+            break;
         }
     }
     if ((argc - n) < 2 ) {
@@ -99,7 +113,7 @@ int main(int argc, char **argv) {
         strncat(command, argv[i], BUFLEN - 1);
     }
 
-    int e = revive_image(corename, javahome, libdir);
+    int e = revive_image(corename, javahome, libdir, revival_data);
 
     if (e < 0) {
         fprintf(stderr, "Error: revive failed: %d\n", e);

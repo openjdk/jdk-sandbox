@@ -740,6 +740,7 @@ void init_pd() {
         value = 0x1000; // consider exiting
     }
     vaddr_align = value;
+    logv("revival: init_pd: vaddr_alignment = 0x%llx\n", (unsigned long long) vaddr_alignment_pd());
 }
 
 bool revival_direxists_pd(const char *dirname) {
@@ -761,7 +762,7 @@ bool mem_canwrite_pd(void *vaddr, size_t length) {
 }
 
 
-void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, off_t offset) {
+void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offset) {
     int flags = MAP_SHARED | MAP_PRIVATE | MAP_FIXED;
     int prot = PROT_READ | PROT_EXEC;
     if (openCoreWrite) {
@@ -776,7 +777,7 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, off_t offset
             logv("do_mmap_pd: 1 mmap(%p, %zu, %d, %d, %d, offset %zu) EINVAL\n", addr, length, prot, flags, fd, offset);
 
             long align_mask = offset_alignment_pd() - 1;
-            off_t offset_aligned = align_down((uint64_t) offset, align_mask);
+            size_t offset_aligned = align_down((uint64_t) offset, align_mask);
             size_t shift = (offset - offset_aligned);
             size_t length_aligned = length + shift;
             void *addr_aligned = (void*) (((unsigned long long) addr) - shift);
@@ -807,7 +808,7 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, off_t offset
     return e;
 }
 
-void *do_mmap_pd(void *addr, size_t length, off_t offset) {
+void *do_mmap_pd(void *addr, size_t length, size_t offset) {
     return do_mmap_pd(addr, length, NULL, core_fd, offset);
 }
 
@@ -955,7 +956,7 @@ const char *getCorePageFilename() {
  * Open a named file and append data for a Segment from the core.
  * Return the offset at which we wrote, or negative on error.
  */
-off_t writeTempFileBytes(const char *tempName, Segment seg) {
+size_t writeTempFileBytes(const char *tempName, Segment seg) {
     int fdTemp = open(tempName, O_WRONLY | O_APPEND);
     if (fdTemp < 0) {
         return fdTemp;
@@ -971,7 +972,7 @@ off_t writeTempFileBytes(const char *tempName, Segment seg) {
         warn("writeTempFileBytes: written %d of %d.\n", (int) s, (int) seg.length);
     }
     close (fdTemp);
-    return pos;
+    return (size_t) pos;
 }
 
 /*
@@ -984,8 +985,8 @@ void remap(Segment seg) {
     if (tempName == NULL) {
         error("remap: failed to create temp filename. errno = %d: %s",  errno, strerror(errno));
     }
-    off_t offset = writeTempFileBytes(tempName, seg);
-    if (offset == (off_t) -1 ) {
+    size_t offset = writeTempFileBytes(tempName, seg);
+    if (offset == (size_t) -1 ) {
         warn("remap: failed to write bytes to temp file '%s'. errno = %d: %s", tempName, errno, strerror(errno));
         abort();
     }
@@ -1019,7 +1020,7 @@ void remap(Segment seg) {
 void handler(int sig, siginfo_t *info, void *ucontext) {
     void * addr  = (void *) info->si_addr;
     void * pc;
-    logv("handler: sig = %d for address %p\n", sig, addr);
+    logv("revival: handler: sig = %d for address %p\n", sig, addr);
 
     if (addr == nullptr) {
         warn("handler: null address");
@@ -1044,7 +1045,7 @@ void handler(int sig, siginfo_t *info, void *ucontext) {
             return;
         }
     }
-    // Catch access to areas we failed to map (dangerous):
+    // Catch access to areas we failed to map:
     std::list<Segment>::iterator iter;
     for (iter = failedSegments.begin(); iter != failedSegments.end(); iter++) {
         if (addr >= iter->vaddr &&
@@ -1074,16 +1075,16 @@ void handler(int sig, siginfo_t *info, void *ucontext) {
 }
 
 /*
- * Install the signal hander for safefetch.
+ * Install the signal hander.
  *
  * Handling SEGV is enough with a serial GC for safefetch to work,
  * using G1, we see SIGBUS also.
  */
 void install_handler() {
-    safefetch32_fault_pc = symbol_deref("_ZN12StubRoutines21_safefetch32_fault_pcE");
+/*    safefetch32_fault_pc = symbol_deref("_ZN12StubRoutines21_safefetch32_fault_pcE");
     safefetch32_continuation_pc = symbol_deref("_ZN12StubRoutines28_safefetch32_continuation_pcE");
     safefetchN_fault_pc = symbol_deref("_ZN12StubRoutines20_safefetchN_fault_pcE");
-    safefetchN_continuation_pc = symbol_deref("_ZN12StubRoutines27_safefetchN_continuation_pcE");
+    safefetchN_continuation_pc = symbol_deref("_ZN12StubRoutines27_safefetchN_continuation_pcE"); */
 
     struct sigaction sa, old_sa;
     sigfillset(&sa.sa_mask);
@@ -1130,9 +1131,9 @@ void *base_address_for_sharedobject_live(void *h) {
 void *load_sharedobject_verify_pd(const char *name, void *vaddr) {
 
     void *actual = nullptr;
-    int tries = 1; // could try unload and retry if final vaddr not as requested.
+    int max_tries = 1; // Retrying, even when allocating to force a new address, is not usually succesfull.
 
-    for (int i = 0; i < tries; i++) {
+    for (int i = 0; i < max_tries; i++) {
         void *h = dlopen(name,  RTLD_NOW | RTLD_GLOBAL);
 
         if (!h) {
@@ -1153,10 +1154,9 @@ void *load_sharedobject_verify_pd(const char *name, void *vaddr) {
         // Terminate with a value that means caller should retry:
         exitForRetry();
 
-        // Other alternative tested was: dlclose and map/block.  But not successful.
+        // dlclose and map/block.  Not successful.
         unload_sharedobject_pd(h);
         /* void *block = */ do_map_allocate_pd(actual, vaddr_alignment_pd());
-        i++;
     }
 
     if (actual != (void *) 0 && actual != vaddr) {
@@ -1201,7 +1201,7 @@ void *load_sharedobject_mmap_pd(const char *filename, void *vaddr) {
                 // Map PH at the given vaddr plus PH vaddr.
                 uint64_t va = (uint64_t) vaddr + (uint64_t) phdr.p_vaddr;
                 warn("load_sharedobject_mmap_pd: LOAD offset %lx vaddr %p \n", phdr.p_offset, (void *) va);
-                void * a = do_mmap_pd((void *) va, phdr.p_filesz, (char *) filename, fd, phdr.p_offset);
+                void * a = do_mmap_pd((void *) va, (size_t) phdr.p_filesz, (char *) filename, fd, (size_t) phdr.p_offset);
                 warn("load_sharedobject_mmap_pd: %s: %p\n", filename, a);
                 if ((uint64_t) a > 0) {
                     warn("load_sharedobject_mmap_pd OK\n");
@@ -1289,10 +1289,8 @@ void close_file_descriptor(int fd, const char* name) {
     }
 }
 
-void create_directory(const char* dirname) {
-    if (mkdir(dirname, S_IRUSR | S_IWUSR | S_IXUSR) < 0) {
-        error("create_directory: %s", strerror(errno));
-    }
+bool create_directory_pd(char* dirname) {
+    return mkdir(dirname, S_IRUSR | S_IWUSR | S_IXUSR) == 0;
 }
 
 void init_jvm_filename_and_address(ELFOperations& core) {
@@ -1303,31 +1301,6 @@ void init_jvm_filename_and_address(ELFOperations& core) {
     logv("JVM addr = %p", jvm_address);
 }
 
-bool try_init_jvm_filename_if_exists(const char* path, const char* suffix) {
-    char search_path[BUFLEN];
-    memset(search_path, 0, BUFLEN);
-    strncpy(search_path, path, BUFLEN - 1);
-    strncat(search_path, suffix, BUFLEN - 1);
-    int fd = open(search_path, O_RDONLY);
-    if (fd >= 0) {
-        struct stat buffer;
-        fstat(fd, &buffer);
-        if (!S_ISDIR(buffer.st_mode)) {
-            free(jvm_filename);
-            jvm_filename = strdup(search_path);
-            return true;
-        }
-    }
-    return false;
-}
-
-void init_jvm_filename_from_libdir(const char* libdir) {
-    if (try_init_jvm_filename_if_exists(libdir, "")) return;
-    if (try_init_jvm_filename_if_exists(libdir, "/libjvm.so")) return;
-    if (try_init_jvm_filename_if_exists(libdir, "/server/libjvm.so")) return;
-    if (try_init_jvm_filename_if_exists(libdir, "/lib/server/libjvm.so")) return;
-    warn("Could not find libjvm.so in %s", libdir);
-}
 
 /**
  * Create a "core.revival" directory containing what's needed to revive a corefile:
@@ -1338,7 +1311,7 @@ void init_jvm_filename_from_libdir(const char* libdir) {
  *
  * Also take a copy of libjvm.debuginfo if present.
  */
-int create_revivalbits_native_pd(const char *corename, const char *javahome, const char *revival_dirname, const char *libdir) {
+int create_revivalbits_native_pd(const char* corename, const char* javahome, const char* revival_dirname, const char* libdir) {
 
     // Find libjvm and its load address from core
     {
@@ -1355,8 +1328,6 @@ int create_revivalbits_native_pd(const char *corename, const char *javahome, con
                 return -1;
             }
         }
-
-        create_directory(revival_dirname);
 
         // Create mappings file
         int mappings_fd = mappings_file_create(revival_dirname, corename);
