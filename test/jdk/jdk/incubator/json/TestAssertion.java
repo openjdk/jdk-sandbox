@@ -73,40 +73,40 @@ public class TestAssertion {
             """);
 
     private static final JsonValue JSON_NESTED_ARRAY =
-            // Don't use the API we are testing (member(String))
+            // Don't use the API we are testing (get(String))
             ((JsonObject) JSON_ROOT_OBJECT).members().get("values");
 
     @Test
     void basicTraverseTest() {
-        JSON_ROOT_OBJECT.member("id");
-        assertEquals(JsonString.of("value"), JSON_ROOT_OBJECT.member("values").element(0));
-        assertEquals(JsonNull.of(), JSON_ROOT_OBJECT.member("values").element(1));
-        assertEquals(JsonBoolean.of(true), JSON_ROOT_OBJECT.member("qux").element(0).element(0));
+        JSON_ROOT_OBJECT.get("id");
+        assertEquals(JsonString.of("value"), JSON_ROOT_OBJECT.get("values").element(0));
+        assertEquals(JsonNull.of(), JSON_ROOT_OBJECT.get("values").element(1));
+        assertEquals(JsonBoolean.of(true), JSON_ROOT_OBJECT.get("qux").element(0).element(0));
     }
 
     @Test
     void boolAndNullFailureTest() {
         var json = Json.parse("{ \"foo\" : null, \"bar\" : false, \"baz\" : true }");
-        assertThrows(JsonAssertionException.class, () -> json.member("foo").memberOrAbsent("_"));
-        assertThrows(JsonAssertionException.class, () -> json.member("bar").memberOrAbsent("_"));
-        assertThrows(JsonAssertionException.class, () -> json.member("baz").memberOrAbsent("_"));
+        assertThrows(JsonAssertionException.class, () -> json.get("foo").find("_"));
+        assertThrows(JsonAssertionException.class, () -> json.get("bar").find("_"));
+        assertThrows(JsonAssertionException.class, () -> json.get("baz").find("_"));
     }
 
     @Test
     void basicTraverseAbsenceTest() {
         var json = Json.parse("{ \"foo\" : null, \"bar\" : \"words\" }");
-        assertEquals(Optional.empty(), json.memberOrAbsent("baz"));
-        assertNull(json.memberOrAbsent("baz").map(JsonValue::string).orElse(null));
-        assertEquals("words", json.memberOrAbsent("bar").map(JsonValue::string).orElse(null));
-        assertThrows(JsonAssertionException.class, () -> json.member("foo").memberOrAbsent("baz"));
+        assertEquals(Optional.empty(), json.find("baz"));
+        assertNull(json.find("baz").map(JsonValue::string).orElse(null));
+        assertEquals("words", json.find("bar").map(JsonValue::string).orElse(null));
+        assertThrows(JsonAssertionException.class, () -> json.get("foo").find("baz"));
     }
 
     @Test
     void basicTraverseNullTest() {
         var json = Json.parse("{ \"foo\" : null, \"bar\" : \"words\" }");
-        assertEquals(Optional.empty(), json.member("foo").orNull());
-        assertNull(json.member("foo").orNull().map(JsonValue::string).orElse(null));
-        assertEquals("words", json.member("bar").orNull().map(JsonValue::string).orElse(null));
+        assertEquals(Optional.empty(), json.get("foo").orNull());
+        assertNull(json.get("foo").orNull().map(JsonValue::string).orElse(null));
+        assertEquals("words", json.get("bar").orNull().map(JsonValue::string).orElse(null));
     }
 
     // Ensure that syntactical chars w/in JsonString do not affect path building
@@ -114,24 +114,24 @@ public class TestAssertion {
     void stringTest() {
         assertEquals("JsonNumber is not a JsonString. Path: \"{valuesWithCommas[3\". Location: row 2, col 96.",
                 assertThrows(JsonAssertionException.class,
-                        () -> JSON_ROOT_OBJECT.member("valuesWithCommas").element(3).string()).getMessage());
+                        () -> JSON_ROOT_OBJECT.get("valuesWithCommas").element(3).string()).getMessage());
         assertEquals("JsonNumber is not a JsonBoolean. Path: \"{obj{z\". Location: row 6, col 31.",
                 assertThrows(JsonAssertionException.class,
-                        () -> JSON_ROOT_OBJECT.member("obj").member("z").boolean_()).getMessage());
+                        () -> JSON_ROOT_OBJECT.get("obj").get("z").boolean_()).getMessage());
     }
 
     @Test
     void leafExceptionTest() {
         assertEquals("JsonNumber is not a JsonString. Path: \"[1{age\". Location: row 6, col 11.",
                 assertThrows(JsonAssertionException.class,
-                        () -> JSON_ROOT_ARRAY.element(1).member("age").string()).getMessage());
+                        () -> JSON_ROOT_ARRAY.element(1).get("age").string()).getMessage());
     }
 
     @Test
     void rootArrayTest() {
         assertEquals("JsonObject member \"asge\" does not exist. Path: \"[1\". Location: row 4, col 2.",
                 assertThrows(IllegalArgumentException.class,
-                        () -> JSON_ROOT_ARRAY.element(1).member("asge").number()).getMessage());
+                        () -> JSON_ROOT_ARRAY.element(1).get("asge").number()).getMessage());
     }
 
     // Ensure member name with escapes works
@@ -139,14 +139,14 @@ public class TestAssertion {
     void escapedKeyTest() {
         assertEquals("JsonArray index 1 out of bounds for length 1. Path: \"{ba\\\"zz\". Location: row 5, col 15.",
                 assertThrows(IllegalArgumentException.class,
-                        () -> JSON_ROOT_OBJECT.member("ba\"zz").element(1)).getMessage());
+                        () -> JSON_ROOT_OBJECT.get("ba\"zz").element(1)).getMessage());
     }
 
     @Test
     void multiNestedTest() {
         assertEquals("JsonObject member \"zap\" does not exist. Path: \"{qux[1{in\". Location: row 4, col 31.",
                 assertThrows(IllegalArgumentException.class,
-                        () -> JSON_ROOT_OBJECT.member("qux").element(1).member("in").member("zap")).getMessage());
+                        () -> JSON_ROOT_OBJECT.get("qux").element(1).get("in").get("zap")).getMessage());
     }
 
     // Check array path building behavior for first element, expects '['.
@@ -154,7 +154,7 @@ public class TestAssertion {
     void firstArrayElementTest() {
         assertEquals("JsonArray index 5 out of bounds for length 1. Path: \"{qux[0\". Location: row 4, col 14.",
                 assertThrows(IllegalArgumentException.class,
-                    () -> JSON_ROOT_OBJECT.member("qux").element(0).element(5)).getMessage());
+                    () -> JSON_ROOT_OBJECT.get("qux").element(0).element(5)).getMessage());
     }
 
     // Operations on JsonObject
@@ -164,7 +164,7 @@ public class TestAssertion {
         assertEquals("JsonObject is not a JsonArray. Path: \"\". Location: row 0, col 3.",
                 assertThrows(JsonAssertionException.class, () -> JSON_ROOT_OBJECT.element(0)).getMessage());
         assertEquals("JsonObject member \"car\" does not exist. Path: \"\". Location: row 0, col 3.",
-                assertThrows(IllegalArgumentException.class, () -> JSON_ROOT_OBJECT.member("car")).getMessage());
+                assertThrows(IllegalArgumentException.class, () -> JSON_ROOT_OBJECT.get("car")).getMessage());
     }
 
     // Operations on JsonArray
@@ -172,7 +172,7 @@ public class TestAssertion {
     void failArrayTraverseTest() {
         // Points to the JsonArray value of "values"; starts at -> [ "value", null ] ...
         assertEquals("JsonArray is not a JsonObject. Path: \"{values\". Location: row 2, col 15.",
-                assertThrows(JsonAssertionException.class, () -> JSON_NESTED_ARRAY.member("foo")).getMessage());
+                assertThrows(JsonAssertionException.class, () -> JSON_NESTED_ARRAY.get("foo")).getMessage());
         assertEquals("JsonArray index 3 out of bounds for length 2. Path: \"{values\". Location: row 2, col 15.",
                 assertThrows(IllegalArgumentException.class, () -> JSON_NESTED_ARRAY.element(3)).getMessage());
     }
@@ -180,8 +180,8 @@ public class TestAssertion {
     @Test
     void failNPETest() {
         // NPE at JsonObject
-        assertThrows(NullPointerException.class, () -> JSON_ROOT_OBJECT.member(null));
+        assertThrows(NullPointerException.class, () -> JSON_ROOT_OBJECT.get(null));
         // NPE at JsonValue
-        assertThrows(NullPointerException.class, () -> JSON_NESTED_ARRAY.member(null));
+        assertThrows(NullPointerException.class, () -> JSON_NESTED_ARRAY.get(null));
     }
 }
