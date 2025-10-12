@@ -191,7 +191,7 @@ void printMemBasicInfo(MEMORY_BASIC_INFORMATION meminfo) {
 
 }
 
-void printMemBasicInfo(uint64_t addr) {
+void printMemBasicInfo(void* addr) {
     HANDLE hProc = GetCurrentProcess();
     MEMORY_BASIC_INFORMATION meminfo;
     size_t q = VirtualQueryEx(hProc, (PVOID) addr, &meminfo, sizeof(meminfo));
@@ -269,6 +269,38 @@ int unload_sharedobject_pd(void *h) {
     }
 }
 
+void set_prot(void* addr, uint64_t length) {
+    //DWORD prot = PAGE_READWRITE;
+    DWORD prot = PAGE_EXECUTE_READWRITE;
+
+    // Likely we can't set protection of some sub-range we are given, but can find the containing MEMORY_BASIC_INFORMATION
+    // and set protection of that.
+
+    DWORD lpfOldProtect;
+    if (!VirtualProtect((PVOID) addr, length, prot, &lpfOldProtect)) {
+        logv("    set_prot: failed setting rw (0x%lx) for: 0x%p, len 0x%lx: error 0x%x.",  prot, addr, length, GetLastError());
+        if (verbose) {
+            fprintf(stderr, "    ");
+            printMemBasicInfo(addr);
+        }
+
+        HANDLE hProc = GetCurrentProcess();
+        MEMORY_BASIC_INFORMATION meminfo;
+        size_t q = VirtualQueryEx(hProc, (PVOID) addr, &meminfo, sizeof(meminfo));
+        if (q != sizeof(meminfo)) {
+            warn("set_prot: VirtualQueryEx failed: returned 0x%x, error 0x%x", q, GetLastError());
+        } else {
+            if (!VirtualProtect((PVOID) meminfo.AllocationBase, meminfo.RegionSize, prot, &lpfOldProtect)) {
+                warn("        set_prot: failed setting rw (0x%lx) for: 0x%p, len 0x%lx: error 0x%x.",
+                    prot, meminfo.AllocationBase, meminfo.RegionSize, GetLastError());
+            } else {
+                logv("        set_prot: OK setting rw (0x%lx) for: 0x%p, len 0x%lx",
+                    prot, meminfo.AllocationBase, meminfo.RegionSize);
+
+            }
+        }
+    }
+}
 
 bool mem_canwrite_pd(void *vaddr, size_t length) {
     MEMORY_BASIC_INFORMATION meminfo;
@@ -279,12 +311,15 @@ bool mem_canwrite_pd(void *vaddr, size_t length) {
     if (q == sizeof(meminfo)) {
         if (meminfo.Protect == PAGE_EXECUTE_READWRITE
             || meminfo.Protect == PAGE_EXECUTE_WRITECOPY
-            //|| meminfo.Protect == PAGE_READWRITE
+            || meminfo.Protect == PAGE_READWRITE
             || meminfo.Protect == PAGE_WRITECOPY) {
             //logv("    mem_canwrite_pd: %p protect: 0x%lx: YES", vaddr, meminfo.Protect);
             return true;
         } else {
-            logv("    mem_canwrite_pd: %p protect: 0x%lx: NO", vaddr, meminfo.Protect);
+            warn("    mem_canwrite_pd: %p protect: 0x%lx: NO", vaddr, meminfo.Protect);
+            fprintf(stderr, "    ");
+            printMemBasicInfo(meminfo);
+            set_prot(vaddr, length);
             return false;
         }
     } else {
@@ -347,7 +382,8 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offse
          addr, (unsigned long) length, (unsigned long) offset, (unsigned long) offsetAligned);
 
     HANDLE hProc = GetCurrentProcess();
-    DWORD prot = PAGE_EXECUTE_READ; // PAGE_EXECUTE_READWRITE;
+    DWORD prot = PAGE_EXECUTE_READ;
+    //DWORD prot = PAGE_EXECUTE_READWRITE;
     p = pMapViewOfFile3(h2, hProc, (PVOID) addr, offset, length, MEM_REPLACE_PLACEHOLDER, prot, nullptr, 0);
     if ((address) p != (address) addr) {
         logv("    do_mmap_pd: MapViewOfFile3 0x%p failed, ret=0x%p error=0x%lx", addr, p, GetLastError());
@@ -433,19 +469,6 @@ void *do_map_allocate_pd_MapViewOfFile(void *vaddr, size_t length) {
     return p;
 }
 
-void set_prot(uint64_t addr, uint64_t length) {
-    //DWORD prot = PAGE_READWRITE;
-    DWORD prot = PAGE_EXECUTE_READWRITE;
-
-    printMemBasicInfo(addr);
-    DWORD lpfOldProtect;
-    if (!VirtualProtect((PVOID) addr, length, prot, &lpfOldProtect)) {
-           warn("    do_map_allocate_pd: failed setting rw: 0x%p: 0x%x.", addr, GetLastError());
-    } else {
-        printMemBasicInfo(addr);
-    }
-}
-
 void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length) {
     HANDLE hProc = GetCurrentProcess();
     //DWORD prot = PAGE_READWRITE;
@@ -464,7 +487,8 @@ void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length) {
         uint64_t requested_end = (uint64_t) addr + (uint64_t) length;
         uint64_t existing_end = (uint64_t) meminfo.BaseAddress + (uint64_t) meminfo.RegionSize;
         uint64_t remaining = requested_end - existing_end;
-        logv("    do_map_allocate_pd_VirtualAlloc2: meminfo: base 0x%llx len 0x%llx end: 0x%llx", meminfo.BaseAddress, meminfo.RegionSize, existing_end);
+        logv("    do_map_allocate_pd_VirtualAlloc2: meminfo: base 0x%llx len 0x%llx end: 0x%llx",
+             meminfo.BaseAddress, meminfo.RegionSize, existing_end);
 
     if ((void*) p != (void*) addr) {
         // Did not get requested address
@@ -521,12 +545,12 @@ void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length) {
 
 void *do_map_allocate_pd(void *vaddr, size_t length) {
 
-    // mappings file is created with minidump addresses, but not 64k aligned addresses,
+    // mappings file is created with minidump addresses, not necessarily 64k aligned.
 
     address vaddr_aligned = align_down((uint64_t) vaddr, vaddr_alignment_pd());
     uint64_t diff = (uint64_t) vaddr -  (uint64_t) vaddr_aligned;
     size_t length_aligned = length + diff;
-//     length_aligned = align_up(length_aligned, vaddr_alignment_pd());
+    length_aligned = align_up(length_aligned, vaddr_alignment_pd());
 
     if (vaddr_aligned != (address) vaddr) {
         logv("    do_map_allocate_pd: vaddr 0x%p aligns -> 0x%p  len 0x%p adjusts -> 0x%p",
@@ -538,7 +562,7 @@ void *do_map_allocate_pd(void *vaddr, size_t length) {
 
     // Accept the aligned down address and return as if the requested vaddr was honoured.
     if (r == vaddr_aligned) {
-        set_prot((uint64_t) vaddr, length);
+        set_prot(vaddr, length);
         return vaddr;
     } else {
         return (void*) r;
@@ -1240,6 +1264,7 @@ int create_revivalbits_native_pd(const char* corename, const char* javahome, con
     close(symbols_fd);
 
     // Create core.mappings file:
+    // Normalize corename, so basename works. XXX
     int fd = mappings_file_create(revival_dirname, corename);
     if (fd < 0) {
         error("Failed to create mappings file");
