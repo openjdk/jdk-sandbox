@@ -179,6 +179,33 @@ void install_handler() {
 }
 
 
+void tls_fixup_pd(void *old_teb) {
+    // Given we have revived memory, can read old TEB address, to find old TLS pointer.
+    logv("tls_fixup: old TEB addr 0x%llx", old_teb);
+
+    if (verbose) {
+//        printTLS();
+    }
+
+    uint64_t* old_tls = (uint64_t*) ((char*) old_teb + 0x58);
+    logv("tls_fixup: old _tls_array = 0x%llx contains 0x%llx", old_tls, *old_tls);
+
+    // TEB pointer on x64 is: __readgsqword(0x30) + 0x58
+    //
+    uint64_t* new_teb = (uint64_t*) NtCurrentTeb();
+    uint64_t* new_tls = (uint64_t*) ((char*) new_teb + 0x58);
+    logv("tls_fixup: new teb = 0x%llx", new_teb);
+    logv("tls_fixup: new tls = 0x%llx contains 0x%llx", new_tls, *new_tls);
+
+    *new_tls = *old_tls;
+    logv("tls_fixup: fixed new tls = 0x%llx contains 0x%llx", new_tls, *new_tls);
+
+    if (verbose) {
+//        printTLS();
+     } 
+}
+
+
 // Utils...
 
 void printMemBasicInfo(MEMORY_BASIC_INFORMATION meminfo) {
@@ -1010,6 +1037,41 @@ Segment* MiniDump::readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRV
     return seg;
 }
 
+
+uint64_t resolve_teb(MiniDump* dump) {
+    // Find Minidump ThreadListStream
+    // Read _MINIDUMP_THREAD
+    // Read TEB
+    MINIDUMP_DIRECTORY *md = dump->find_stream(ThreadListStream);
+    if (md == nullptr) {
+        warn("resolve_teb: Minidump ThreadListStream not found\n");
+        return 0;
+    }
+    // Read MINIDUMP_THREAD_LIST
+    ULONG32 NumberOfThreads;
+    int e = read(dump->get_fd(), &NumberOfThreads, sizeof(NumberOfThreads));
+    if (e < sizeof(NumberOfThreads)) {
+        warn("resolve_teb: read of NumberOfThreads failed");
+        return 0;
+    }
+
+    MINIDUMP_THREAD thread;
+    for (unsigned int i = 0; i < NumberOfThreads; i++) {
+        memset(&thread, 0, sizeof(thread));
+        e = read(dump->get_fd(), &thread, sizeof(thread));
+        if (e < sizeof(thread)) {
+            warn("resolve_teb: read of MINIDUMP_THREAD %d failed: %d", i, e);
+            return 0;
+        }
+        logv("resolve_teb: MINIDUMP_THREAD id 0x%lx TEB: 0x%llx", thread.ThreadId, thread.Teb);
+        if (thread.Teb != 0) {
+            return (uint64_t) thread.Teb;
+        }
+    }
+    return 0;
+}
+
+
 int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const char *javahome, void *addr) {
 
     // Read minidump memory list, create text of mappings list.
@@ -1141,6 +1203,15 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
     std::list<Segment>::iterator iter;
     for (iter = segsToCopy.begin(); iter != segsToCopy.end(); iter++) {
         iter->write_mapping(fd, "C");
+    }
+
+    // Windows TEB: used to setup TLS on revival.
+    // Could this be not necessary, with JVM cooperation?
+    uint64_t tls = resolve_teb(dump);
+    if (tls != 0) {
+        writef(fd, "TEB %llx\n", tls);
+    } else {
+        warn("TEB not resolved");
     }
 
     writef(fd, "\n");

@@ -4506,7 +4506,7 @@ void os::init(void) {
   main_thread_id = (int) GetCurrentThreadId();
 }
 
-void os::revive_init(void) {
+void os::win32::revive_init(void) {
 
 }
 

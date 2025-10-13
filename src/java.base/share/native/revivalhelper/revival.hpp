@@ -90,6 +90,7 @@ void install_handler();
 #include <io.h>
 #include <windows.h>
 
+void tls_fixup_pd(void* tlsPtr);
 
 #define JVM_FILENAME "jvm.dll"
 #define FILE_SEPARATOR  "\\"

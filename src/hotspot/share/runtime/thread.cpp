@@ -628,6 +628,7 @@ jboolean Thread::_revived_vm = false;
 struct revival_data {
   uint64_t magic;
   uint64_t version;
+  uint64_t status;
 
   const char *runtime_name;
   const char *runtime_version;
@@ -654,11 +655,11 @@ void* Thread::process_revival() {
 #ifdef LINUX
   os::Linux::revive_init();
 #endif
-#ifdef WINDOWS
-  os::Windows::revive_init();
+#ifdef _WINDOWS
+  os::win32::revive_init();
 #endif
-  // A Thread object is needed to call the dcmd parser, and use a
-  // VMThread so commands invoking a VMOperation will run it themselves.
+  // A Thread object is needed to call the dcmd parser.
+  // Use a VMThread so commands invoking a VMOperation will run it themselves.
   // VMThread constructor is now private, so not: VMThread *jt = new VMThread();
   VMThread *jt = VMThread::vm_thread(); // access the _vm_thread singleton
   if (jt == nullptr) {
@@ -666,10 +667,16 @@ void* Thread::process_revival() {
     return nullptr;
   }
   // Reset current thread:
-  ThreadLocalStorage::revive(jt);
+//  ThreadLocalStorage::revive(jt);
   jt->revive_thread_current();
+
   jt->record_stack_base_and_size();
   jt->set_osthread(new OSThread());
+
+  Thread *c = Thread::current_or_null();
+  if (c == nullptr) {
+    return nullptr;
+  }
 
   // If creating a JavaThread, do:
   //  jt->set_thread_state(_thread_in_vm);

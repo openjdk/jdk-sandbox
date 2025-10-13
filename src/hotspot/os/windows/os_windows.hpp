@@ -109,6 +109,8 @@ class os::win32 {
   // load dll from Windows system directory or Windows directory
   static HINSTANCE load_Windows_dll(const char* name, char *ebuf, int ebuflen);
 
+  static void revive_init();
+
  private:
 
   static void initialize_performance_counter();

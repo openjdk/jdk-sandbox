@@ -465,6 +465,18 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
             continue;
         }
 
+        // Windows revival preparation records TEB, to fixup TLS on revival:
+        e = fscanf(f, "TEB %s\n", s1);
+        if (e == 1) {
+#ifdef WINDOWS
+            void *teb_addr = (void *) strtoull(s1, nullptr, 16);
+            tls_fixup_pd(teb_addr);
+#else
+            warn("TEB line invalid on non-Windows.");
+#endif
+            continue;
+        }
+
         e = fscanf(f, "%s %s %s %s %s %s %s\n", s1, s2, s3, s4, s5, s6, s7);
         if (e == 7) {
             // command, virtual address, virtual address end, source file offset, source file mapping size, length in memory, RWX
@@ -741,6 +753,7 @@ char *basename(char *s) {
             return p;
         }
 	}
+    // consider checking for forward slashes if no backslashes found?
     return s;
 }
 #endif
