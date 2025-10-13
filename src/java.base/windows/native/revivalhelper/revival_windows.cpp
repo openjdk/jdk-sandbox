@@ -756,7 +756,7 @@ Segment* data_section(const char *filename) {
     // Create a Segment from .data, and use the next Section to set its end address.
     Segment *seg = nullptr;
     for (unsigned int i = 0; i < image->NumberOfSections; i++) {
-        warn("data_section image: %s vaddr 0x%llx size 0x%llx", image->Sections[i].Name, image->Sections[i].VirtualAddress,
+        logv("data_section image: %s vaddr 0x%llx size 0x%llx", image->Sections[i].Name, image->Sections[i].VirtualAddress,
              image->Sections[i].SizeOfRawData);
 
         if (strncmp((char*) image->Sections[i].Name, ".data", 8) == 0) {
@@ -991,9 +991,11 @@ Segment* MiniDump::readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentR
     }
 
     Segment *seg = new Segment((void *) d->StartOfMemoryRange, (size_t) d->DataSize, (size_t) *currentRVA, (size_t) d->DataSize);
-                char *b = seg->toString();
-                warn("XXX readSegment0 range %d new seg = %s", rangesRead, b);
-                free(b);
+    if (verbose) {
+        char *b = seg->toString();
+        warn("readSegment0: minidump range %d new seg = %s", rangesRead, b);
+        free(b);
+    }
     *currentRVA += d->DataSize;
     rangesRead++;
     return seg;
@@ -1093,25 +1095,22 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
     ULONG64 prevAddr = 0;
 
     // Iterate, reading segments from dump, considering a current and next segment, so we can check for "too close" addresses.
-    Segment *seg = dump->readSegment(&d, &currentRVA);
-    Segment *segNext = nullptr;
+    Segment* seg = nullptr;
+    Segment* segNext = nullptr;
 
     while (true) {
-        // Use a segNext we already read (but did not use), or read a new Segment:
-        if (segNext != nullptr) {
+        if (seg == nullptr || segNext == nullptr) {
+            // First iteration or no segNext waiting:
+            seg = dump->readSegment(&d, &currentRVA);
+        } else {
+            // Use a segNext we already read (but did not use):
             seg = segNext;
             segNext = nullptr;
-        } else {
-            seg = dump->readSegment(&d, &currentRVA);
-            if (seg == nullptr) {
-                break;
-            }
         }
 
-/*        if (d.StartOfMemoryRange == prevAddr) {
-            logv("create_mappings: skipping due to repetition, 0x%llx", prevAddr);
-            continue; 
-        } */
+        if (seg == nullptr) {
+            break;
+        }
 
         logv("create_mappings_pd: addr 0x%llx size 0x%llx   current RVA/file offset: 0x%llx", d.StartOfMemoryRange, d.DataSize, currentRVA);
         prevAddr = d.StartOfMemoryRange;
@@ -1132,7 +1131,7 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
         while (segNext != nullptr && seg->end() == segNext->start()
                && (seg->file_offset + seg->file_length == segNext->file_offset)) {
 
-            logv("XXXX join 0x%llx - 0x%llx and 0x%llx - 0x%llx", seg->start(), seg->end(), segNext->start(), segNext->end());
+            logv("create_mappings_pd: join 0x%llx - 0x%llx and 0x%llx - 0x%llx", seg->start(), seg->end(), segNext->start(), segNext->end());
             if (joinedSeg == nullptr) {
                 joinedSeg = new Segment(seg);
             }
@@ -1252,7 +1251,7 @@ void write_symbols(int fd, const char* symbols[], int count, const char *revival
 
     // Using SymFromName() on jvm.dll after relocation, gets us final absoulute addresses.
     for (int i = 0; i < count; i++) {
-        warn("SYM: %d %s", i, symbols[i]);
+        logv("SYM: %d %s", i, symbols[i]);
     	strncpy(szSymbolName, symbols[i], MAX_SYM_NAME);
         unsigned long long address = 0;
 
