@@ -263,7 +263,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      * @return an {@code Optional} of the member of this {@code JsonObject}
      *          associated with the {@code name}, or an empty {@code Optional}.
      */
-    default Optional<JsonValue> find(String name) {
+    default Optional<JsonValue> getOrAbsent(String name) {
         return switch (object().members().get(name)) {
             case JsonValue mv -> Optional.of(mv);
             case null -> Optional.empty();

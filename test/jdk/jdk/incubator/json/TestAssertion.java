@@ -87,18 +87,18 @@ public class TestAssertion {
     @Test
     void boolAndNullFailureTest() {
         var json = Json.parse("{ \"foo\" : null, \"bar\" : false, \"baz\" : true }");
-        assertThrows(JsonAssertionException.class, () -> json.get("foo").find("_"));
-        assertThrows(JsonAssertionException.class, () -> json.get("bar").find("_"));
-        assertThrows(JsonAssertionException.class, () -> json.get("baz").find("_"));
+        assertThrows(JsonAssertionException.class, () -> json.get("foo").getOrAbsent("_"));
+        assertThrows(JsonAssertionException.class, () -> json.get("bar").getOrAbsent("_"));
+        assertThrows(JsonAssertionException.class, () -> json.get("baz").getOrAbsent("_"));
     }
 
     @Test
     void basicTraverseAbsenceTest() {
         var json = Json.parse("{ \"foo\" : null, \"bar\" : \"words\" }");
-        assertEquals(Optional.empty(), json.find("baz"));
-        assertNull(json.find("baz").map(JsonValue::string).orElse(null));
-        assertEquals("words", json.find("bar").map(JsonValue::string).orElse(null));
-        assertThrows(JsonAssertionException.class, () -> json.get("foo").find("baz"));
+        assertEquals(Optional.empty(), json.getOrAbsent("baz"));
+        assertNull(json.getOrAbsent("baz").map(JsonValue::string).orElse(null));
+        assertEquals("words", json.getOrAbsent("bar").map(JsonValue::string).orElse(null));
+        assertThrows(JsonAssertionException.class, () -> json.get("foo").getOrAbsent("baz"));
     }
 
     @Test
