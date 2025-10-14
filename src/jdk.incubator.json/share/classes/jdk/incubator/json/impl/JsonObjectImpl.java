@@ -28,7 +28,6 @@ package jdk.incubator.json.impl;
 import java.util.Collections;
 import java.util.Map;
 
-import jdk.incubator.json.JsonArray;
 import jdk.incubator.json.JsonObject;
 import jdk.incubator.json.JsonValue;
 import jdk.internal.ValueBased;
