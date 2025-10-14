@@ -253,13 +253,13 @@ public final class Json {
                     .collect(LinkedHashMap::new, // Avoid Collectors.toMap, to allow `null` value
                             (m, e) -> m.put(e.getKey(), Json.toUntyped(e.getValue())),
                             HashMap::putAll);
-            case JsonArray ja -> ja.values().stream()
+            case JsonArray ja -> ja.elements().stream()
                     .map(Json::toUntyped)
                     .toList();
-            case JsonBoolean jb -> jb.value();
+            case JsonBoolean jb -> jb.bool();
             case JsonNull _ -> null;
-            case JsonNumber n -> n.toNumber();
-            case JsonString js -> js.value();
+            case JsonNumber n -> n.number();
+            case JsonString js -> js.string();
         };
     }
 
@@ -320,11 +320,11 @@ public final class Json {
     private static String toDisplayString(JsonArray ja, int col, int indent, boolean isField) {
         var prefix = " ".repeat(col);
         var s = new StringBuilder(isField ? " " : prefix);
-        if (ja.values().isEmpty()) {
+        if (ja.elements().isEmpty()) {
             s.append("[]");
         } else {
             s.append("[\n");
-            for (JsonValue v: ja.values()) {
+            for (JsonValue v: ja.elements()) {
                 if (v instanceof JsonValue jv) {
                     s.append(Json.toDisplayString(jv, col + indent, indent, false)).append(",\n");
                 } else {

@@ -53,7 +53,7 @@ public final class JsonArrayImpl implements JsonArray, JsonValueImpl {
     }
 
     @Override
-    public List<JsonValue> values() {
+    public List<JsonValue> elements() {
         return Collections.unmodifiableList(theValues);
     }
 
@@ -70,10 +70,10 @@ public final class JsonArrayImpl implements JsonArray, JsonValueImpl {
     @Override
     public String toString() {
         var s = new StringBuilder("[");
-        for (JsonValue v: values()) {
+        for (JsonValue v: elements()) {
             s.append(v.toString()).append(",");
         }
-        if (!values().isEmpty()) {
+        if (!elements().isEmpty()) {
             s.setLength(s.length() - 1); // trim final comma
         }
         return s.append("]").toString();
@@ -82,11 +82,11 @@ public final class JsonArrayImpl implements JsonArray, JsonValueImpl {
     @Override
     public boolean equals(Object o) {
         return o instanceof JsonArray oja &&
-                values().equals(oja.values());
+                elements().equals(oja.elements());
     }
 
     @Override
     public int hashCode() {
-        return values().hashCode();
+        return elements().hashCode();
     }
 }

@@ -49,6 +49,7 @@ public non-sealed interface JsonObject extends JsonValue {
      * {@return an unmodifiable map of the {@code String} to {@code JsonValue}
      * members in this {@code JsonObject}}
      */
+    @Override
     Map<String, JsonValue> members();
 
     /**

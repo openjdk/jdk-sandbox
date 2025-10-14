@@ -46,7 +46,8 @@ public non-sealed interface JsonArray extends JsonValue {
      * {@return an unmodifiable list of the {@code JsonValue} elements in
      * this {@code JsonArray}}
      */
-    List<JsonValue> values();
+    @Override
+    List<JsonValue> elements();
 
     /**
      * {@return the {@code JsonArray} created from the given
@@ -72,7 +73,7 @@ public non-sealed interface JsonArray extends JsonValue {
      * {@code JsonArray}s {@code ja1} and {@code ja2} represent the same
      * elements if {@code ja1.values().equals(ja2.values())}.
      *
-     * @see #values()
+     * @see #elements()
      */
     @Override
     boolean equals(Object obj);
@@ -80,12 +81,12 @@ public non-sealed interface JsonArray extends JsonValue {
     /**
      * {@return the hash code value for this {@code JsonArray}} The hash code value
      * of a {@code JsonArray} is derived from the hash code of {@code JsonArray}'s
-     * {@link #values()}.
+     * {@link #elements()}.
      * Thus, for two {@code JsonArray}s {@code ja1} and {@code ja2},
      * {@code ja1.equals(ja2)} implies that {@code ja1.hashCode() == ja2.hashCode()}
      * as required by the general contract of {@link Object#hashCode}.
      *
-     * @see #values()
+     * @see #elements()
      */
     @Override
     int hashCode();

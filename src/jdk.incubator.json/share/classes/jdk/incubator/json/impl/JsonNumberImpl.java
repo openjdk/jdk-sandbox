@@ -69,7 +69,7 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     }
 
     @Override
-    public Number toNumber() {
+    public Number number() {
         return theNumber.orElseSet(() -> {
             var str = toString();
             if (isFp) {

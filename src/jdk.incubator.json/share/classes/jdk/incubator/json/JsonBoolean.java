@@ -42,7 +42,8 @@ public non-sealed interface JsonBoolean extends JsonValue {
      * {@return the {@code boolean} value represented by this
      * {@code JsonBoolean}}
      */
-    boolean value();
+    @Override
+    boolean bool();
 
     /**
      * {@return the {@code JsonBoolean} created from the given
@@ -60,7 +61,7 @@ public non-sealed interface JsonBoolean extends JsonValue {
      * {@code JsonBoolean}s {@code jb1} and {@code jb2} represent the same
      * boolean values if {@code jb1.value().equals(jb2.value())}.
      *
-     * @see #value()
+     * @see #bool()
      */
     @Override
     boolean equals(Object obj);
@@ -68,11 +69,11 @@ public non-sealed interface JsonBoolean extends JsonValue {
     /**
      * {@return the hash code value for this {@code JsonBoolean}} The hash code value
      * of a {@code JsonBoolean} is derived from the hash code of {@code JsonBoolean}'s
-     * {@link #value()}. Thus, for two {@code JsonBooleans}s {@code jb1} and {@code jb2},
+     * {@link #bool()}. Thus, for two {@code JsonBooleans}s {@code jb1} and {@code jb2},
      * {@code jb1.equals(jb2)} implies that {@code jb1.hashCode() == jb2.hashCode()}
      * as required by the general contract of {@link Object#hashCode}.
      *
-     * @see #value()
+     * @see #bool()
      */
     @Override
     int hashCode();

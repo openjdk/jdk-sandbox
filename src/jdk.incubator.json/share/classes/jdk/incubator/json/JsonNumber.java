@@ -43,7 +43,7 @@ import jdk.incubator.json.impl.JsonNumberImpl;
  * syntax</a>. The value of the {@code JsonNumber}
  * can be retrieved from {@link #toString()} as the string representation
  * from which the JSON number is originally parsed, with
- * {@link #toNumber()} as a {@code Number} instance, or with
+ * {@link #number()} as a {@code Number} instance, or with
  * {@link #toBigDecimal()}.
  *
  * @spec https://datatracker.ietf.org/doc/html/rfc8259#section-6 RFC 8259:
@@ -98,7 +98,8 @@ public non-sealed interface JsonNumber extends JsonValue {
      * @see #toBigDecimal()
      * @see #toString()
      */
-    Number toNumber();
+    @Override
+    Number number();
 
     /**
      * {@return the {@code BigDecimal} translated from the
@@ -180,11 +181,6 @@ public non-sealed interface JsonNumber extends JsonValue {
      */
     @Override
     String toString();
-
-    @Override
-    default Number number() {
-        return toNumber();
-    }
 
     /**
      * {@return true if the given {@code obj} is equal to this {@code JsonNumber}}

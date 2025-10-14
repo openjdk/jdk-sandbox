@@ -28,9 +28,10 @@ package jdk.incubator.json;
 import jdk.incubator.json.impl.JsonValueImpl;
 import jdk.incubator.json.impl.Utils;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 /**
  * The interface that represents a JSON value.
@@ -94,113 +95,118 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      */
     String toString();
 
-    /**
-     * If this {@code JsonValue} is a {@code JsonObject}, this method returns
-     * the member associated with the {@code name}. If {@code this} is not a
-     * {@code JsonObject}, a {@code JsonAssertionException} will be thrown.
-     *
-     * @param name the member name
-     * @throws IllegalArgumentException if the specified {@code name} does not
-     *      exist in this {@code JsonObject}.
-     * @throws NullPointerException if {@code name} is {@code null}.
-     * @throws JsonAssertionException if {@code this} is not a {@code JsonObject}.
-     * @return the member of this {@code JsonObject} associated with the {@code name}.
-     */
-    default JsonValue get(String name) {
-        Objects.requireNonNull(name);
-        return switch (object().members().get(Objects.requireNonNull(name))) {
-            case JsonValue jv -> jv;
-            case null -> throw new IllegalArgumentException(
-                    "JsonObject member \"%s\" does not exist.".formatted(name) +
-                            (this instanceof JsonValueImpl jvi && jvi.doc() != null ?
-                                    Utils.getPath(jvi) : ""));
-        };
-    }
+
+    // Accessors to content of leaf values
 
     /**
-     * If this {@code JsonValue} is a {@code JsonArray}, this method returns
-     * the element of this {@code JsonArray} at the {@code index}. If {@code this}
-     * is not a {@code JsonArray}, a {@code JsonAssertionException} will be
-     * thrown.
+     * {@return the {@code boolean} value represented by a {@code JsonBoolean}}.
      *
-     * @param index the index of the array
-     * @throws IllegalArgumentException if the specified {@code index} is out of
-     *      bounds of this {@code JsonArray}.
-     * @throws JsonAssertionException if {@code this} is not a {@code JsonArray}.
-     * @return the element of this {@code JsonArray} at the {@code index}.
-     */
-    default JsonValue element(int index) {
-        return switch (this) {
-            case JsonArray ja -> {
-                try {
-                    yield ja.values().get(index);
-                } catch (IndexOutOfBoundsException _) {
-                    throw new IllegalArgumentException(
-                            "JsonArray index %d out of bounds for length %d."
-                                    .formatted(index, ja.values().size()) +
-                                    (this instanceof JsonValueImpl jvi && jvi.doc() != null  ?
-                                            Utils.getPath(jvi) : ""));
-                }
-            }
-            default -> throw Utils.composeTypeError(this, "JsonArray");
-        };
-    }
-
-    /**
-     * If this {@code JsonValue} is a {@code JsonBoolean}, this method returns
-     * the boolean value of this {@code JsonBoolean}. If {@code this}
-     * is not a {@code JsonBoolean}, a {@code JsonAssertionException} will be
-     * thrown.
+     * @implSpec
+     * The default implementation checks if this {@code JsonValue} is an instance
+     * of {@code JsonBoolean} and if so returns the result of invoking {@link JsonBoolean#bool()},
+     * otherwise throws {@code JsonAssertionException}.
      *
-     * @throws JsonAssertionException if {@code this} is not a {@code JsonBoolean}.
-     * @return the value of this {@code JsonBoolean}.
+     * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonBoolean}.
      */
-    default boolean boolean_() {
+    default boolean bool() {
         return switch (this) {
-            case JsonBoolean jb -> jb.value();
+            case JsonBoolean jb -> jb.bool();
             default -> throw Utils.composeTypeError(this, "JsonBoolean");
         };
     }
 
     /**
-     * If this {@code JsonValue} is a {@code JsonNumber}, this method returns
-     * a {@code Number}. If {@code this} is not a {@code JsonNumber}, a
-     * {@code JsonAssertionException} will be thrown.
+     * {@return the {@code Number} parsed or translated from the string representation
+     * of a {@code JsonNumber}}
      *
-     * @throws JsonAssertionException if {@code this} is not a {@code JsonNumber}.
-     * @return the {@code toNumber()} value of this {@code JsonNumber}.
+     * @implSpec
+     * The default implementation checks if this {@code JsonValue} is an instance
+     * of {@code JsonNumber} and if so returns the result of invoking {@link JsonNumber#number()},
+     * otherwise throws {@code JsonAssertionException}.
+     *
+     * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonNumber}.
      */
     default Number number() {
         return switch (this) {
-            case JsonNumber jn -> jn.toNumber();
+            case JsonNumber jn -> jn.number();
             default -> throw Utils.composeTypeError(this, "JsonNumber");
         };
     }
 
     /**
-     * If this {@code JsonValue} is a {@code JsonString}, this method returns
-     * a {@code String}. If {@code this} is not a {@code JsonString}, a
-     * {@code JsonAssertionException} will be thrown.
+     * {@return the {@code String} value represented by a {@code JsonString}}.
      *
-     * @throws JsonAssertionException if {@code this} is not a {@code JsonString}.
-     * @return the value of this {@code JsonString}.
+     * @implSpec
+     * The default implementation checks if this {@code JsonValue} is an instance
+     * of {@code JsonString} and if so returns the result of invoking {@link JsonString#string()},
+     * otherwise throws {@code JsonAssertionException}.
+     *
+     * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonString}.
      */
     default String string() {
         return switch (this) {
-            case JsonString js -> js.value();
+            case JsonString js -> js.string();
             default -> throw Utils.composeTypeError(this, "JsonString");
         };
     }
 
-    // Direct accessors to structural content
+    // Accessor to JsonValue, except JsonNull
 
     /**
-     * If this {@code JsonValue} is a {@code JsonObject}, this method returns
-     * the {@code JsonObject} itself. If {@code this} is not a {@code JsonObject}, a
-     * {@code JsonAssertionException} will be thrown.
+     * {@return an {@code Optional} containing this {@code JsonValue} if it
+     * is not an instance of {@code JsonNull}, otherwise an empty {@code Optional}}
      *
-     * @throws JsonAssertionException if {@code this} is not a {@code JsonObject}.
-     * @return this {@code JsonObject}.
+     * @implSpec
+     * The default implementation checks if this {@code JsonValue} is an instance
+     * of {@code JsonNull} and if so returns the result of invoking {@link Optional#empty},
+     * returns the result of invoking {@link Optional#of} with this {@code JsonValue} as the argument.
+     */
+    default Optional<JsonValue> valueOrNull() {
+        return switch (this) {
+            case JsonNull _ -> Optional.empty();
+            case JsonValue _ -> Optional.of(this);
+        };
+    }
+
+    // Accessors to content of structural values
+
+    /**
+     * {@return the {@link JsonArray#elements() elements} of a {@code JsonArray}}
+     *
+     * @implSpec
+     * The default implementation returns the result of invoking {@link JsonArray#elements()} on the result
+     * of invoking {@link JsonValue#array()}.
+     *
+     * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonArray}.
+     */
+    default List<JsonValue> elements() {
+        return array().elements();
+    }
+
+    /**
+     * {@return the {@link JsonObject#members() members} of a {@code JsonObject}}
+     *
+     * @implSpec
+     * The default implementation returns the result of invoking {@link JsonObject#members()} on the result
+     * of invoking {@link JsonValue#object()}.
+     *
+     * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonObject}.
+     */
+    default Map<String, JsonValue> members() {
+        return object().members();
+    }
+
+    // Accessors to structural values
+
+    /**
+     * {@return this {@code JsonValue} as a {@code JsonObject}}.
+     *
+     * @implSpec
+     * The default implementation checks if this {@code JsonValue} is an instance
+     * of {@code JsonObject} and if so returns the result of casting this {@code JsonValue}
+     * to {@code JsonObject}, otherwise throws {@code JsonAssertionException}.
+     *
+     * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonObject}.
      */
     default JsonObject object() {
         if (this instanceof JsonObject jo) {
@@ -210,12 +216,14 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
     }
 
     /**
-     * If this {@code JsonValue} is a {@code JsonArray}, this method returns
-     * the {@code JsonArray} itself. If {@code this} is not a {@code JsonArray}, a
-     * {@code JsonAssertionException} will be thrown.
+     * {@return this {@code JsonValue} as a {@code JsonArray}}.
      *
-     * @throws JsonAssertionException if {@code this} is not a {@code JsonArray}.
-     * @return this {@code JsonArray}.
+     * @implSpec
+     * The default implementation checks if this {@code JsonValue} is an instance
+     * of {@code JsonArray} and if so returns the result of casting this {@code JsonValue}
+     * to {@code JsonArray}, otherwise throws {@code JsonAssertionException}.
+     *
+     * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonArray}.
      */
     default JsonArray array() {
         if (this instanceof JsonArray ja) {
@@ -224,49 +232,76 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
         throw Utils.composeTypeError(this, "JsonArray");
     }
 
-    /**
-     * {@return the {@code Optional} of this {@code JsonValue}}
-     * If this {@code JsonValue} is a {@code JsonNull}, this method returns
-     * an empty {@code Optional}.
-     */
-    default Optional<JsonValue> orNull() {
-        return switch (this) {
-            case JsonNull _ -> Optional.empty();
-            case JsonValue _ -> Optional.of(this);
-        };
-    }
 
-    // Indirect accessors to structural content
+    // Accessors to values of structural values
 
     /**
-     * If this {@code JsonValue} is a {@code JsonArray}, this method returns
-     * the {@code Stream} of elements in this {@code JsonArray}. If {@code this}
-     * is not a {@code JsonArray}, a {@code JsonAssertionException} will be thrown.
+     * {@return the {@code JsonValue} associated with the given member name of a {@code JsonObject}}
      *
-     * @throws JsonAssertionException if {@code this} is not a {@code JsonArray}.
-     * @return a {@code Stream} of elements in this {@code JsonArray}
-     */
-    default Stream<JsonValue> elements() {
-        return array().values().stream();
-    }
-
-    /**
-     * If this {@code JsonValue} is a {@code JsonObject}, this method returns
-     * the {@code Optional} of the member associated with the {@code name}. If
-     * there is no member associated with the {@code name}, an empty
-     * {@code Optional} is returned. If {@code this} is not a {@code JsonObject}, a
-     * {@code JsonAssertionException} will be thrown.
+     * @implSpec
+     * The default implementation obtains a {@code JsonValue} that is the result of the
+     * invoking {@link Map#get} within the given member name on the result of invoking
+     * {@link JsonValue#members()}, and returns that {@code JsonValue} if not {@code null},
+     * otherwise throws {@code JsonAssertionException}.
      *
      * @param name the member name
-     * @throws NullPointerException if {@code name} is {@code null}.
-     * @throws JsonAssertionException if {@code this} is not a {@code JsonObject}.
-     * @return an {@code Optional} of the member of this {@code JsonObject}
-     *          associated with the {@code name}, or an empty {@code Optional}.
+     * @throws NullPointerException if the member name is {@code null}
+     * @throws JsonAssertionException if this {@code JsonValue} is not an instance of a {@code JsonObject} or
+     * there is no association with the member name
+     */
+    default JsonValue get(String name) {
+        Objects.requireNonNull(name);
+        return switch (members().get(name)) {
+            case JsonValue jv -> jv;
+            // @@@ throw JsonAssertionException
+            case null -> throw new IllegalArgumentException(
+                    "JsonObject member \"%s\" does not exist.".formatted(name) +
+                            (this instanceof JsonValueImpl jvi && jvi.doc() != null ?
+                                    Utils.getPath(jvi) : ""));
+        };
+    }
+
+    /**
+     * {@return an {@code Optional} containing the {@code JsonValue} associated with the given member
+     * name of a {@code JsonObject}, otherwise if there is no association an empty {@code Optional}}
+     *
+     * @implSpec
+     * The default implementation obtains a {@code JsonValue} that is the result of the
+     * invoking {@link Map#get} within the given member name on the result of invoking
+     * {@link JsonValue#members()}, and returns result of invoking {@link Optional#ofNullable}
+     * with that {@code JsonValue}.
+     *
+     * @param name the member name
+     * @throws NullPointerException if the member name is {@code null}
+     * @throws JsonAssertionException if this {@code JsonValue} is not an instance of a {@code JsonObject}
      */
     default Optional<JsonValue> getOrAbsent(String name) {
-        return switch (object().members().get(name)) {
-            case JsonValue mv -> Optional.of(mv);
-            case null -> Optional.empty();
-        };
+        Objects.requireNonNull(name);
+        return Optional.ofNullable(members().get(name));
+    }
+
+    /**
+     * {@return the {@code JsonValue} associated with the given index of a {@code JsonArray}}
+     *
+     * @implSpec
+     * The default implementation returns the result of invoking {@link List#get} with the given index
+     * on the result of invoking {@link JsonValue#elements()}, otherwise if the index is out of bounds
+     * throws {@code JsonAssertionException}.
+     *
+     * @param index the index of the array
+     * @throws JsonAssertionException if this {@code JsonValue} is not an instance of a {@code JsonArray}
+     * or the given index is outside the bounds
+     */
+    default JsonValue element(int index) {
+        List<JsonValue> elements = elements();
+        try {
+            return elements.get(index);
+        } catch (IndexOutOfBoundsException _) {
+            throw new IllegalArgumentException(
+                    "JsonArray index %d out of bounds for length %d."
+                            .formatted(index, elements.size()) +
+                            (this instanceof JsonValueImpl jvi && jvi.doc() != null  ?
+                                    Utils.getPath(jvi) : ""));
+        }
     }
 }

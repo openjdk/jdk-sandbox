@@ -70,8 +70,9 @@ public non-sealed interface JsonString extends JsonValue {
      * preserves the text representation of the corresponding JSON String. Otherwise,
      * the {@code value} is escaped to produce the JSON {@code String}.
      *
-     * @see #value()
+     * @see #string()
      */
+    @Override
     String toString();
 
     /**
@@ -82,19 +83,15 @@ public non-sealed interface JsonString extends JsonValue {
      *
      * @see #toString()
      */
-    String value();
-
     @Override
-    default String string() {
-        return value();
-    }
+    String string();
 
     /**
      * {@return true if the given {@code obj} is equal to this {@code JsonString}}
      * Two {@code JsonString}s {@code js1} and {@code js2} represent the same value
      * if {@code js1.value().equals(js2.value())}.
      *
-     * @see #value()
+     * @see #string()
      */
     @Override
     boolean equals(Object obj);
@@ -102,9 +99,9 @@ public non-sealed interface JsonString extends JsonValue {
     /**
      * {@return the hash code value of this {@code JsonString}} The hash code of a
      * {@code JsonString} is derived from the hash code of {@code JsonString}'s
-     * {@link #value()}.
+     * {@link #string()}.
      *
-     * @see #value()
+     * @see #string()
      */
     @Override
     int hashCode();

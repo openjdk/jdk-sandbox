@@ -40,14 +40,14 @@
  *
  * <p> This API relies on pattern matching to allow for the extraction of a
  * JSON Value in a <i>single and class safe expression</i> as follows:
- * {@snippet lang=java:
+ * {@snippet lang = java:
  * JsonValue doc = Json.parse(text);
  * if (doc instanceof JsonObject o && o.members() instanceof Map<String, JsonValue> members
- *     && members.get("name") instanceof JsonString js && js.value() instanceof String name
- *     && members.get("age") instanceof JsonNumber jn && jn.toNumber() instanceof long age) {
+ *     && members.get("name") instanceof JsonString js && js.string() instanceof String name
+ *     && members.get("age") instanceof JsonNumber jn && jn.number() instanceof long age) {
  *         // can use both "name" and "age" from a single expression
  * }
- * }
+ *}
  *
  * Both {@code JsonValue} instances and their underlying values are immutable.
  *

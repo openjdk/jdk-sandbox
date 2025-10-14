@@ -69,7 +69,7 @@ public final class JsonStringImpl implements JsonString, JsonValueImpl {
     }
 
     @Override
-    public String value() {
+    public String string() {
         return value.orElseSet(this::unescape);
     }
 
@@ -133,11 +133,11 @@ public final class JsonStringImpl implements JsonString, JsonValueImpl {
     @Override
     public boolean equals(Object o) {
         return o instanceof JsonString ojs &&
-                value().equals(ojs.value());
+                string().equals(ojs.string());
     }
 
     @Override
     public int hashCode() {
-        return value().hashCode();
+        return string().hashCode();
     }
 }
