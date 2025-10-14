@@ -253,8 +253,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
         Objects.requireNonNull(name);
         return switch (members().get(name)) {
             case JsonValue jv -> jv;
-            // @@@ throw JsonAssertionException
-            case null -> throw new IllegalArgumentException(
+            case null -> throw new JsonAssertionException(
                     "JsonObject member \"%s\" does not exist.".formatted(name) +
                             (this instanceof JsonValueImpl jvi && jvi.doc() != null ?
                                     Utils.getPath(jvi) : ""));
@@ -297,7 +296,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
         try {
             return elements.get(index);
         } catch (IndexOutOfBoundsException _) {
-            throw new IllegalArgumentException(
+            throw new JsonAssertionException(
                     "JsonArray index %d out of bounds for length %d."
                             .formatted(index, elements.size()) +
                             (this instanceof JsonValueImpl jvi && jvi.doc() != null  ?
