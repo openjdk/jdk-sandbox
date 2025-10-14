@@ -79,7 +79,7 @@ public class TestOtherImpl {
         }
 
         @Override
-        public String value() {
+        public String string() {
             // For testing purposes, just return the String.
             // Real implementations must adhere to un-escaping as specified.
             return theString;
@@ -93,12 +93,12 @@ public class TestOtherImpl {
         @Override
         public boolean equals(Object o) {
             return this == o ||
-                    o instanceof JsonString ojs && value().equals(ojs.value());
+                    o instanceof JsonString ojs && string().equals(ojs.string());
         }
 
         @Override
         public int hashCode() {
-            return value().hashCode();
+            return string().hashCode();
         }
     }
 }

@@ -58,18 +58,18 @@ public class TestJsonString {
         void valueTest() {
             var untypedStr = "\t";
             var jsonStr = "\"\\u0009\"";
-            // Both should compare as equals via value() which is \t
-            assertEquals(JsonString.of(untypedStr).value(), ((JsonString) Json.parse(jsonStr)).value());
+            // Both should compare as equals via string() which is \t
+            assertEquals(JsonString.of(untypedStr).string(), ((JsonString) Json.parse(jsonStr)).string());
             // Factory escapes \t to \\t but parse retains the original U sequence
             // (due to its lazy nature) and that is OK
             assertNotEquals(JsonString.of(untypedStr).toString(), Json.parse(jsonStr).toString());
         }
 
-        // Escape sequence tests on value()
+        // Escape sequence tests on string()
         @ParameterizedTest
         @MethodSource
         void escapeTest(String src, String expected) {
-            assertEquals(((JsonString)Json.parse(src)).value(), expected);
+            assertEquals(((JsonString)Json.parse(src)).string(), expected);
         }
         private static Stream<Arguments> escapeTest() {
             return Stream.of(
@@ -119,10 +119,10 @@ public class TestJsonString {
                     arg1 instanceof char[] ca ? Json.parse(ca) : null;
             var jv2 = arg2 instanceof String s ? Json.parse(s) :
                     arg2 instanceof char[] ca ? Json.parse(ca) : null;
-            var val1 = jv1 instanceof JsonString js ? js.value() : null;
-            var val2 = jv2 instanceof JsonString js ? js.value() : null;
+            var val1 = jv1 instanceof JsonString js ? js.string() : null;
+            var val2 = jv2 instanceof JsonString js ? js.string() : null;
 
-            // two JsonValue arguments should have the same value()
+            // two JsonValue arguments should have the same string()
             assertEquals(val1, val2);
 
             // assert their toString() returns the original text
@@ -172,10 +172,10 @@ public class TestJsonString {
             for (int i : reservedChars) {
                 var js = JsonString.of(String.valueOf((char)i));
                 Json.parse(js.toString());
-                JsonString.of(js.value());
+                JsonString.of(js.string());
                 js = (JsonString) Json.fromUntyped(String.valueOf((char)i));
                 Json.parse(js.toString());
-                Json.fromUntyped(js.value());
+                Json.fromUntyped(js.string());
             }
         }
     }

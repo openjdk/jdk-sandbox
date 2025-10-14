@@ -58,40 +58,40 @@ public class TestJsonNumber {
         @Test
         void testToNumber() {
             assertTrue(Json.fromUntyped(42) instanceof JsonNumber jn &&
-                    jn.toNumber() instanceof long l &&
+                    jn.number() instanceof long l &&
                     l == 42);
             assertTrue(Json.fromUntyped(4242424242424242L) instanceof JsonNumber jn &&
-                    jn.toNumber() instanceof long l &&
+                    jn.number() instanceof long l &&
                     l == 4242424242424242L);
             assertTrue(Json.fromUntyped(42.42) instanceof JsonNumber jn &&
-                    jn.toNumber() instanceof double d &&
+                    jn.number() instanceof double d &&
                     d == 42.42);
             assertTrue(Json.fromUntyped(42e42) instanceof JsonNumber jn &&
-                    jn.toNumber() instanceof double d &&
+                    jn.number() instanceof double d &&
                     d == 42e42);
             assertTrue(Json.fromUntyped(new BigInteger("1".repeat(400))) instanceof JsonNumber jn &&
-                    jn.toNumber() instanceof BigInteger bi &&
+                    jn.number() instanceof BigInteger bi &&
                     bi.compareTo(new BigInteger("1".repeat(400))) == 0);
             assertTrue(Json.fromUntyped(new BigDecimal("1e400")) instanceof JsonNumber jn &&
-                    jn.toNumber() instanceof BigDecimal bd &&
+                    jn.number() instanceof BigDecimal bd &&
                     bd.compareTo(new BigDecimal("1e400")) == 0);
 
             // factories
-            assertEquals(JsonNumber.of((byte)42).toNumber(), 42L);
-            assertEquals(JsonNumber.of((short)42).toNumber(), 42L);
-            assertEquals(JsonNumber.of(42).toNumber(), 42L);
-            assertEquals(JsonNumber.of(42L).toNumber(), 42L);
-            assertEquals(JsonNumber.of(Long.MAX_VALUE).toNumber(), Long.MAX_VALUE);
-            assertEquals(JsonNumber.of(0.1f).toNumber(), (double)0.1f);
-            assertEquals(JsonNumber.of(0.1d).toNumber(), 0.1d);
-            assertEquals(JsonNumber.of(1e0).toNumber(), 1d);
-            assertEquals(JsonNumber.of(Double.MAX_VALUE).toNumber(), Double.MAX_VALUE);
+            assertEquals(JsonNumber.of((byte)42).number(), 42L);
+            assertEquals(JsonNumber.of((short)42).number(), 42L);
+            assertEquals(JsonNumber.of(42).number(), 42L);
+            assertEquals(JsonNumber.of(42L).number(), 42L);
+            assertEquals(JsonNumber.of(Long.MAX_VALUE).number(), Long.MAX_VALUE);
+            assertEquals(JsonNumber.of(0.1f).number(), (double)0.1f);
+            assertEquals(JsonNumber.of(0.1d).number(), 0.1d);
+            assertEquals(JsonNumber.of(1e0).number(), 1d);
+            assertEquals(JsonNumber.of(Double.MAX_VALUE).number(), Double.MAX_VALUE);
         }
 
         @Test
-        void toNumberThrowsTest() {
+        void numberThrowsTest() {
             var jn = (JsonNumber) Json.parse("9e111111111111");
-            assertThrows(NumberFormatException.class, jn::toNumber);
+            assertThrows(NumberFormatException.class, jn::number);
         }
 
         @Test
@@ -113,9 +113,9 @@ public class TestJsonNumber {
 
         @ParameterizedTest
         @MethodSource("parseCases")
-        void toNumberParseTest(String json, Class<?> type) {
-            // assert that toNumber() returns the expected Number subtype
-            Number num = ((JsonNumber) Json.parse(json)).toNumber();
+        void numberParseTest(String json, Class<?> type) {
+            // assert that number() returns the expected Number subtype
+            Number num = ((JsonNumber) Json.parse(json)).number();
             assertInstanceOf(type, num);
             if (type == Double.class) {assertEquals(Double.parseDouble(json), num);}
             else if (type == Long.class) {assertEquals(new BigDecimal(json).longValueExact(), num);}

@@ -96,10 +96,10 @@ public class TestJsonArray {
                             JsonObject.of(Map.of("name", JsonNumber.of(42))),
                             JsonArray.of(List.of(JsonNumber.of(1)))
                     )
-            ).values();
+            ).elements();
             if (doc instanceof JsonArray ja) {
                 //only compare types
-                compareTypes(expected, ja.values());
+                compareTypes(expected, ja.elements());
             } else {
                 throw new RuntimeException("JsonArray expected");
             }
@@ -111,10 +111,10 @@ public class TestJsonArray {
         void testFromUntyped() {
             var untyped = Json.fromUntyped(Arrays.asList(1, null, false, "test"));
             var typed = JsonArray.of(List.of(JsonNumber.of(1), JsonNull.of(),
-                    JsonBoolean.of(false), JsonString.of("test"))).values();
+                    JsonBoolean.of(false), JsonString.of("test"))).elements();
             if (untyped instanceof JsonArray ja) {
                 // only compare types
-                compareTypes(typed, ja.values());
+                compareTypes(typed, ja.elements());
             } else {
                 throw new RuntimeException("JsonArray expected");
             }
@@ -132,13 +132,13 @@ public class TestJsonArray {
             var list = new ArrayList<JsonValue>();
             list.add(JsonString.of("foo"));
             var ja = JsonArray.of(list);
-            assertEquals(1, ja.values().size());
+            assertEquals(1, ja.elements().size());
             // Modifications to backed list should not change JsonArray
             list.add(JsonString.of("foo"));
-            assertEquals(1, ja.values().size());
-            // Modifications to JsonArray values() should throw
+            assertEquals(1, ja.elements().size());
+            // Modifications to JsonArray elements() should throw
             assertThrows(UnsupportedOperationException.class,
-                    () -> ja.values().add(JsonNull.of()),
+                    () -> ja.elements().add(JsonNull.of()),
                     "Array values able to be modified");
         }
 
@@ -147,13 +147,13 @@ public class TestJsonArray {
             var list = new ArrayList<String>();
             list.add("foo");
             var ja = (JsonArray) Json.fromUntyped(list);
-            assertEquals(1, ja.values().size());
+            assertEquals(1, ja.elements().size());
             // Modifications to backed list should not change JsonArray
             list.add("foo");
-            assertEquals(1, ja.values().size());
-            // Modifications to JsonArray values() should throw
+            assertEquals(1, ja.elements().size());
+            // Modifications to JsonArray elements() should throw
             assertThrows(UnsupportedOperationException.class,
-                    () -> ja.values().add(JsonNull.of()),
+                    () -> ja.elements().add(JsonNull.of()),
                     "Array values able to be modified");
         }
 
@@ -199,9 +199,9 @@ public class TestJsonArray {
         @Test
         public void testArrayEquality() {
             JsonArray jsonArray = (JsonArray) Json.parse(json);
-            for (int i = 0; i < jsonArray.values().size(); i += 2) {
-                assertEquals(jsonArray.values().get(i), jsonArray.values().get(i + 1));
-                assertEquals(jsonArray.values().get(i), Json.fromUntyped(untyped.get(i / 2)));
+            for (int i = 0; i < jsonArray.elements().size(); i += 2) {
+                assertEquals(jsonArray.elements().get(i), jsonArray.elements().get(i + 1));
+                assertEquals(jsonArray.elements().get(i), Json.fromUntyped(untyped.get(i / 2)));
             }
         }
     }

@@ -362,7 +362,7 @@ public class TestJsonObject {
 
         @Test
         void orderingOfTest() {
-            var jsonFromOf = ((JsonArray)Json.parse(JSON_WITH_SPACES)).values();
+            var jsonFromOf = ((JsonArray)Json.parse(JSON_WITH_SPACES)).elements();
             assertEquals(JSON_NO_NEWLINE, JsonArray.of(jsonFromOf).toString());
         }
 

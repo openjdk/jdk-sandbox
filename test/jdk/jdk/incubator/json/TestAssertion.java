@@ -104,9 +104,9 @@ public class TestAssertion {
     @Test
     void basicTraverseNullTest() {
         var json = Json.parse("{ \"foo\" : null, \"bar\" : \"words\" }");
-        assertEquals(Optional.empty(), json.get("foo").orNull());
-        assertNull(json.get("foo").orNull().map(JsonValue::string).orElse(null));
-        assertEquals("words", json.get("bar").orNull().map(JsonValue::string).orElse(null));
+        assertEquals(Optional.empty(), json.get("foo").valueOrNull());
+        assertNull(json.get("foo").valueOrNull().map(JsonValue::string).orElse(null));
+        assertEquals("words", json.get("bar").valueOrNull().map(JsonValue::string).orElse(null));
     }
 
     // Ensure that syntactical chars w/in JsonString do not affect path building
@@ -117,7 +117,7 @@ public class TestAssertion {
                         () -> JSON_ROOT_OBJECT.get("valuesWithCommas").element(3).string()).getMessage());
         assertEquals("JsonNumber is not a JsonBoolean. Path: \"{obj{z\". Location: row 6, col 31.",
                 assertThrows(JsonAssertionException.class,
-                        () -> JSON_ROOT_OBJECT.get("obj").get("z").boolean_()).getMessage());
+                        () -> JSON_ROOT_OBJECT.get("obj").get("z").bool()).getMessage());
     }
 
     @Test
