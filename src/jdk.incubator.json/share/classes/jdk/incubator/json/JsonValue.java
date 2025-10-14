@@ -99,20 +99,15 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
     // Accessors to content of leaf values
 
     /**
-     * {@return the {@code boolean} value represented by a {@code JsonBoolean}}.
+     * {@return the {@code boolean} value represented by a {@code JsonBoolean}}
      *
      * @implSpec
-     * The default implementation checks if this {@code JsonValue} is an instance
-     * of {@code JsonBoolean} and if so returns the result of invoking {@link JsonBoolean#bool()},
-     * otherwise throws {@code JsonAssertionException}.
+     * The default implementation throws {@code JsonAssertionException}.
      *
      * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonBoolean}.
      */
     default boolean bool() {
-        return switch (this) {
-            case JsonBoolean jb -> jb.bool();
-            default -> throw Utils.composeTypeError(this, "JsonBoolean");
-        };
+        throw Utils.composeTypeError(this, "JsonBoolean");
     }
 
     /**
@@ -120,34 +115,24 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      * of a {@code JsonNumber}}
      *
      * @implSpec
-     * The default implementation checks if this {@code JsonValue} is an instance
-     * of {@code JsonNumber} and if so returns the result of invoking {@link JsonNumber#number()},
-     * otherwise throws {@code JsonAssertionException}.
+     * The default implementation throws {@code JsonAssertionException}.
      *
      * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonNumber}.
      */
     default Number number() {
-        return switch (this) {
-            case JsonNumber jn -> jn.number();
-            default -> throw Utils.composeTypeError(this, "JsonNumber");
-        };
+        throw Utils.composeTypeError(this, "JsonNumber");
     }
 
     /**
-     * {@return the {@code String} value represented by a {@code JsonString}}.
+     * {@return the {@code String} value represented by a {@code JsonString}}
      *
      * @implSpec
-     * The default implementation checks if this {@code JsonValue} is an instance
-     * of {@code JsonString} and if so returns the result of invoking {@link JsonString#string()},
-     * otherwise throws {@code JsonAssertionException}.
+     * The default implementation throws {@code JsonAssertionException}.
      *
      * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonString}.
      */
     default String string() {
-        return switch (this) {
-            case JsonString js -> js.string();
-            default -> throw Utils.composeTypeError(this, "JsonString");
-        };
+        throw Utils.composeTypeError(this, "JsonString");
     }
 
     // Accessor to JsonValue, except JsonNull
@@ -174,61 +159,49 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      * {@return the {@link JsonArray#elements() elements} of a {@code JsonArray}}
      *
      * @implSpec
-     * The default implementation returns the result of invoking {@link JsonArray#elements()} on the result
-     * of invoking {@link JsonValue#array()}.
+     * The default implementation throws {@code JsonAssertionException}.
      *
      * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonArray}.
      */
     default List<JsonValue> elements() {
-        return array().elements();
+        throw Utils.composeTypeError(this, "JsonArray");
     }
 
     /**
      * {@return the {@link JsonObject#members() members} of a {@code JsonObject}}
      *
      * @implSpec
-     * The default implementation returns the result of invoking {@link JsonObject#members()} on the result
-     * of invoking {@link JsonValue#object()}.
+     * The default implementation throws {@code JsonAssertionException}.
      *
      * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonObject}.
      */
     default Map<String, JsonValue> members() {
-        return object().members();
+        throw Utils.composeTypeError(this, "JsonObject");
     }
 
     // Accessors to structural values
 
     /**
-     * {@return this {@code JsonValue} as a {@code JsonObject}}.
+     * {@return this {@code JsonValue} as a {@code JsonObject}}
      *
      * @implSpec
-     * The default implementation checks if this {@code JsonValue} is an instance
-     * of {@code JsonObject} and if so returns the result of casting this {@code JsonValue}
-     * to {@code JsonObject}, otherwise throws {@code JsonAssertionException}.
+     * The default implementation throws {@code JsonAssertionException}.
      *
      * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonObject}.
      */
     default JsonObject object() {
-        if (this instanceof JsonObject jo) {
-            return jo;
-        }
         throw Utils.composeTypeError(this, "JsonObject");
     }
 
     /**
-     * {@return this {@code JsonValue} as a {@code JsonArray}}.
+     * {@return this {@code JsonValue} as a {@code JsonArray}}
      *
      * @implSpec
-     * The default implementation checks if this {@code JsonValue} is an instance
-     * of {@code JsonArray} and if so returns the result of casting this {@code JsonValue}
-     * to {@code JsonArray}, otherwise throws {@code JsonAssertionException}.
+     * The default implementation throws {@code JsonAssertionException}.
      *
      * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonArray}.
      */
     default JsonArray array() {
-        if (this instanceof JsonArray ja) {
-            return ja;
-        }
         throw Utils.composeTypeError(this, "JsonArray");
     }
 

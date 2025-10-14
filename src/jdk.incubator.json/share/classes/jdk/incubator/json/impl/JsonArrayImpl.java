@@ -58,6 +58,11 @@ public final class JsonArrayImpl implements JsonArray, JsonValueImpl {
     }
 
     @Override
+    public JsonArray array() {
+        return this;
+    }
+
+    @Override
     public char[] doc() {
         return doc;
     }
