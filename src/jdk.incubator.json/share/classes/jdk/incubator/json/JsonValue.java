@@ -39,11 +39,11 @@ import java.util.Optional;
  * Instances of {@code JsonValue} are immutable and thread safe.
  * <p>
  * A {@code JsonValue} can be produced by {@link Json#parse(String)} or {@link
- * Json#fromUntyped(Object)}. See {@link #toString()}  for converting a {@code
+ * Json#toJson(Object)}. See {@link #toString()}  for converting a {@code
  * JsonValue} to its corresponding JSON String. For example,
  * {@snippet lang=java:
  *     List<Object> values = Arrays.asList("foo", true, 25);
- *     JsonValue json = Json.fromUntyped(values);
+ *     JsonValue json = Json.toJson(values);
  *     json.toString(); // returns "[\"foo\",true,25]"
  * }
  *
