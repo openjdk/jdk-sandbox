@@ -47,7 +47,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class TestJsonString {
 
@@ -173,9 +172,9 @@ public class TestJsonString {
                 var js = JsonString.of(String.valueOf((char)i));
                 Json.parse(js.toString());
                 JsonString.of(js.string());
-                js = (JsonString) Json.fromUntyped(String.valueOf((char)i));
+                js = (JsonString) Json.toJson(String.valueOf((char)i));
                 Json.parse(js.toString());
-                Json.fromUntyped(js.string());
+                Json.toJson(js.string());
             }
         }
     }

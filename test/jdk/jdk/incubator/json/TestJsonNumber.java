@@ -57,22 +57,22 @@ public class TestJsonNumber {
 
         @Test
         void testToNumber() {
-            assertTrue(Json.fromUntyped(42) instanceof JsonNumber jn &&
+            assertTrue(Json.toJson(42) instanceof JsonNumber jn &&
                     jn.number() instanceof long l &&
                     l == 42);
-            assertTrue(Json.fromUntyped(4242424242424242L) instanceof JsonNumber jn &&
+            assertTrue(Json.toJson(4242424242424242L) instanceof JsonNumber jn &&
                     jn.number() instanceof long l &&
                     l == 4242424242424242L);
-            assertTrue(Json.fromUntyped(42.42) instanceof JsonNumber jn &&
+            assertTrue(Json.toJson(42.42) instanceof JsonNumber jn &&
                     jn.number() instanceof double d &&
                     d == 42.42);
-            assertTrue(Json.fromUntyped(42e42) instanceof JsonNumber jn &&
+            assertTrue(Json.toJson(42e42) instanceof JsonNumber jn &&
                     jn.number() instanceof double d &&
                     d == 42e42);
-            assertTrue(Json.fromUntyped(new BigInteger("1".repeat(400))) instanceof JsonNumber jn &&
+            assertTrue(Json.toJson(new BigInteger("1".repeat(400))) instanceof JsonNumber jn &&
                     jn.number() instanceof BigInteger bi &&
                     bi.compareTo(new BigInteger("1".repeat(400))) == 0);
-            assertTrue(Json.fromUntyped(new BigDecimal("1e400")) instanceof JsonNumber jn &&
+            assertTrue(Json.toJson(new BigDecimal("1e400")) instanceof JsonNumber jn &&
                     jn.number() instanceof BigDecimal bd &&
                     bd.compareTo(new BigDecimal("1e400")) == 0);
 
@@ -269,15 +269,15 @@ public class TestJsonNumber {
 
         @Test
         void testInfinity() {
-            assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(Double.POSITIVE_INFINITY));
-            assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(Double.NEGATIVE_INFINITY));
+            assertThrows(IllegalArgumentException.class, () -> Json.toJson(Double.POSITIVE_INFINITY));
+            assertThrows(IllegalArgumentException.class, () -> Json.toJson(Double.NEGATIVE_INFINITY));
             assertThrows(IllegalArgumentException.class, () -> JsonNumber.of(Double.POSITIVE_INFINITY));
             assertThrows(IllegalArgumentException.class, () -> JsonNumber.of(Double.NEGATIVE_INFINITY));
         }
 
         @Test
         void testNan() {
-            assertThrows(IllegalArgumentException.class, () -> Json.fromUntyped(Double.NaN));
+            assertThrows(IllegalArgumentException.class, () -> Json.toJson(Double.NaN));
             assertThrows(IllegalArgumentException.class, () -> JsonNumber.of(Double.NaN));
             // parse test not required for Nan, cannot parse "NaN"
         }

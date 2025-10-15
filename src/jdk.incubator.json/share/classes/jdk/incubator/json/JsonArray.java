@@ -50,7 +50,7 @@ public non-sealed interface JsonArray extends JsonValue {
     List<JsonValue> elements();
 
     /**
-     * {@return this as a {@code JsonArray}}.
+     * {@return this as a {@code JsonArray}}
      */
     @Override
     JsonArray array();

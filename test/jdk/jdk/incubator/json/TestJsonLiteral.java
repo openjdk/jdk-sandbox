@@ -100,8 +100,8 @@ public class TestJsonLiteral {
 
         @Test
         void booleanUntypedTest() {
-            assertEquals(Json.parse("true"), Json.fromUntyped(true));
-            assertEquals(Json.parse("false"), Json.fromUntyped(false));
+            assertEquals(Json.parse("true"), Json.toJson(true));
+            assertEquals(Json.parse("false"), Json.toJson(false));
         }
 
         @Test
@@ -111,7 +111,7 @@ public class TestJsonLiteral {
 
         @Test
         void nullUntypedTest() {
-            assertEquals(Json.parse("null"), Json.fromUntyped(null));
+            assertEquals(Json.parse("null"), Json.toJson(null));
         }
     }
 }

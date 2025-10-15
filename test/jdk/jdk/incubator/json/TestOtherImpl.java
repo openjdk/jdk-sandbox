@@ -33,7 +33,6 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import java.util.Objects;
 import jdk.incubator.json.Json;
 import jdk.incubator.json.JsonObject;
 import jdk.incubator.json.JsonString;
@@ -56,9 +55,9 @@ public class TestOtherImpl {
     }
 
     @Test
-    void toUntypedTest() {
-        assertEquals(Json.toUntyped(STANDARD_JSON_STRING), Json.toUntyped(ALT_JSON_STRING));
-        // There will be no fromUntypedTest(), we do not want to offer a way
+    void fromJsonTest() {
+        assertEquals(Json.fromJson(STANDARD_JSON_STRING), Json.fromJson(ALT_JSON_STRING));
+        // There will be no toJsonTest(), we do not want to offer a way
         // to provide non-standard implementations of product types
     }
 

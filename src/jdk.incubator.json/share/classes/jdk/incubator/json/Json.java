@@ -46,8 +46,8 @@ import jdk.incubator.json.impl.Utils;
  * {@link #toDisplayString(JsonValue, int)} is a formatter that produces a
  * representation of the JSON value suitable for display.
  * <p>
- * {@link #fromUntyped(Object)} and {@link #toUntyped(JsonValue)} provide a conversion
- * between {@code JsonValue} and an untyped object.
+ * {@link #fromJson(JsonValue)} and {@link #toJson(Object)} provide a conversion
+ * between an object and {@code JsonValue}.
  *
  * @spec https://datatracker.ietf.org/doc/html/rfc8259 RFC 8259: The JavaScript
  *      Object Notation (JSON) Data Interchange Format
@@ -106,13 +106,13 @@ public final class Json {
 
     /**
      * {@return a {@code JsonValue} created from the given {@code src} object}
-     * The mapping from an untyped {@code src} object to a {@code JsonValue}
+     * The mapping from the {@code src} object to a {@code JsonValue}
      * follows the table below.
      * <table class="striped">
-     * <caption>Untyped to JsonValue mapping</caption>
+     * <caption>Object to JsonValue mapping</caption>
      * <thead>
      *    <tr>
-     *       <th scope="col" class="TableHeadingColor">Untyped Object</th>
+     *       <th scope="col" class="TableHeadingColor">Object</th>
      *       <th scope="col" class="TableHeadingColor">JsonValue</th>
      *    </tr>
      * </thead>
@@ -153,9 +153,9 @@ public final class Json {
      * @param src the data to produce the {@code JsonValue} from. May be null.
      * @throws IllegalArgumentException if {@code src} cannot be converted
      *      to a {@code JsonValue}.
-     * @see #toUntyped(JsonValue)
+     * @see #fromJson(JsonValue)
      */
-    public static JsonValue fromUntyped(Object src) {
+    public static JsonValue toJson(Object src) {
         return switch (src) {
             // Structural: JSON object
             case Map<?, ?> map -> {
@@ -165,7 +165,7 @@ public final class Json {
                         throw new IllegalArgumentException(
                                 "The key '%s' is not a String".formatted(entry.getKey()));
                     } else {
-                        m.put(key, Json.fromUntyped(entry.getValue()));
+                        m.put(key, Json.toJson(entry.getValue()));
                     }
                 }
                 // Bypasses defensive copy in JsonObject.of(m)
@@ -175,7 +175,7 @@ public final class Json {
             case List<?> list -> {
                 List<JsonValue> l = new ArrayList<>(list.size());
                 for (Object o : list) {
-                    l.add(Json.fromUntyped(o));
+                    l.add(Json.toJson(o));
                 }
                 // Bypasses defensive copy in JsonArray.of(l)
                 yield Utils.arrayOf(l);
@@ -200,14 +200,14 @@ public final class Json {
 
     /**
      * {@return an {@code Object} created from the given {@code src}
-     * {@code JsonValue}} The mapping from a {@code JsonValue} to an
-     * untyped {@code src} object follows the table below.
+     * {@code JsonValue}} The mapping from the {@code src JsonValue} to an
+     * object follows the table below.
      * <table class="striped">
-     * <caption>JsonValue to Untyped mapping</caption>
+     * <caption>JsonValue to object mapping</caption>
      * <thead>
      *    <tr>
      *       <th scope="col" class="TableHeadingColor">JsonValue</th>
-     *       <th scope="col" class="TableHeadingColor">Untyped Object</th>
+     *       <th scope="col" class="TableHeadingColor">Object</th>
      *    </tr>
      * </thead>
      * <tbody>
@@ -242,19 +242,19 @@ public final class Json {
      * A {@code JsonObject} in {@code src} is converted to a {@code Map} whose
      * entries occur in the same order as the {@code JsonObject}'s members.
      *
-     * @param src the {@code JsonValue} to convert to untyped. Non-null.
+     * @param src the {@code JsonValue} to convert to an object. Non-null.
      * @throws NullPointerException if {@code src} is {@code null}
-     * @see #fromUntyped(Object)
+     * @see #toJson(Object)
      */
-    public static Object toUntyped(JsonValue src) {
+    public static Object fromJson(JsonValue src) {
         Objects.requireNonNull(src);
         return switch (src) {
             case JsonObject jo -> jo.members().entrySet().stream()
                     .collect(LinkedHashMap::new, // Avoid Collectors.toMap, to allow `null` value
-                            (m, e) -> m.put(e.getKey(), Json.toUntyped(e.getValue())),
+                            (m, e) -> m.put(e.getKey(), Json.fromJson(e.getValue())),
                             HashMap::putAll);
             case JsonArray ja -> ja.elements().stream()
-                    .map(Json::toUntyped)
+                    .map(Json::fromJson)
                     .toList();
             case JsonBoolean jb -> jb.bool();
             case JsonNull _ -> null;
