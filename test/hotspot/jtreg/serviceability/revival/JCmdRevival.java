@@ -238,10 +238,9 @@ public class JCmdRevival {
                 break;
             }
             case "Compiler.memory": {
+                // Compiler memory stats not usually enabled.
                 if (Platform.isDebugBuild()) {
-                    out.shouldContain("ctyp  total     ra        node      comp      type      states    reglive   regsplit  superword cienv     ha        other     #nodes  result  limit     time    id    thread             method");
-                } else {
-                    // Compiler memory stats not usually enabled.
+                    out.shouldContain("ctyp  total     ra        node      comp      type      states    reglive   regsplit  regmask   superword cienv     ha        other     #nodes  result  limit     time    id    thread             method");
                 }
                 break;
             }

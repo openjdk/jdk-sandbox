@@ -29,6 +29,7 @@
 #include "memory/allocation.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/os.hpp"
+#include "runtime/thread.hpp"
 #include "runtime/vmThread.hpp"
 #include "utilities/ostream.hpp"
 
@@ -202,6 +203,7 @@ public:
   GenDCmdArgument* arguments_list() const { return _arguments_list; };
   void check(TRAPS);
   void parse(CmdLine* line, char delim, TRAPS);
+  void parse(CmdLine* line, char delim, outputStream* out, TRAPS);
   void print_help(outputStream* out, const char* cmd_name) const;
   void reset(TRAPS);
   void cleanup();
@@ -262,8 +264,12 @@ public:
     DCmdArgIter iter(line->args_addr(), line->args_len(), delim);
     bool has_arg = iter.next(CHECK);
     if (has_arg) {
-      THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(),
-                "The argument list of this diagnostic command should be empty.");
+      if (!Thread::is_revived()) {
+        THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(),
+                  "The argument list of this diagnostic command should be empty.");
+      } else {
+        output()->print_cr("The argument list of this diagnostic command should be empty.");
+      }
     }
   }
   virtual void execute(DCmdSource source, TRAPS) { }

@@ -161,7 +161,7 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
             try {
                 int e = p.waitFor();
 
-                if (e == 7 || e >= 127 || e < -1) {
+                if (e == 7) {
                     if (verbose) {
                         String err = drain(p, errReader);
                         System.err.println(err);

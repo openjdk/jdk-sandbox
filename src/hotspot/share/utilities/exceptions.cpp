@@ -161,12 +161,6 @@ void Exceptions::_throw(JavaThread* thread, const char* file, int line, Handle h
   // for AbortVMOnException flag
   Exceptions::debug_check_abort(h_exception, message);
 
-  // Process Revival: no Java caller that will handle the Exception.
-  if (Thread::is_revived()) {
-    tty->print_cr("Exception: _throw %s", message);
-    return;
-  }
-
   // Check for special boot-strapping/compiler-thread handling
   if (special_exception(thread, file, line, h_exception)) {
     return;
@@ -198,11 +192,7 @@ void Exceptions::_throw(JavaThread* thread, const char* file, int line, Handle h
 
 void Exceptions::_throw_msg(JavaThread* thread, const char* file, int line, Symbol* name, const char* message,
                             Handle h_loader) {
-  // Process Revival: no Java caller that will handle the Exception.
-  if (Thread::is_revived()) {
-    tty->print_cr("Exception: _throw_msg %s", message);
-    return;
-  }
+
   // Check for special boot-strapping/compiler-thread handling
   if (special_exception(thread, file, line, Handle(), name, message)) return;
   // Create and throw exception
@@ -213,11 +203,6 @@ void Exceptions::_throw_msg(JavaThread* thread, const char* file, int line, Symb
 
 void Exceptions::_throw_msg_cause(JavaThread* thread, const char* file, int line, Symbol* name, const char* message, Handle h_cause,
                                   Handle h_loader) {
-  // Process Revival: no Java caller that will handle the Exception.
-  if (Thread::is_revived()) {
-    tty->print_cr("Exception: _throw_msg_cause: %s", message);
-    return;
-  }
   // Check for special boot-strapping/compiler-thread handling
   if (special_exception(thread, file, line, Handle(), name, message)) return;
   // Create and throw exception and init cause
@@ -227,11 +212,6 @@ void Exceptions::_throw_msg_cause(JavaThread* thread, const char* file, int line
 
 void Exceptions::_throw_cause(JavaThread* thread, const char* file, int line, Symbol* name, Handle h_cause,
                               Handle h_loader) {
-  // Process Revival: no Java caller that will handle the Exception.
-  if (Thread::is_revived()) {
-    tty->print_cr("Exception _throw_cause");
-    return;
-  }
   // Check for special boot-strapping/compiler-thread handling
   if (special_exception(thread, file, line, Handle(), name)) return;
   // Create and throw exception

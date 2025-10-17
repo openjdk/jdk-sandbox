@@ -660,35 +660,29 @@ void* Thread::process_revival() {
 #endif
   // A Thread object is needed to call the dcmd parser.
   // Use a VMThread so commands invoking a VMOperation will run it themselves.
-  // VMThread constructor is now private, so not: VMThread *jt = new VMThread();
-  VMThread *jt = VMThread::vm_thread(); // access the _vm_thread singleton
-  if (jt == nullptr) {
-    // fprintf(stderr, "Error: process_revival: null VMThread::vm_thread()\n");
+  VMThread *t = VMThread::vm_thread(); // Access the _vm_thread singleton
+  if (t == nullptr) {
     return nullptr;
   }
+
+  t->record_stack_base_and_size();
+  t->set_osthread(new OSThread());
+
   // Reset current thread:
-//  ThreadLocalStorage::revive(jt);
-  jt->revive_thread_current();
+  ThreadLocalStorage::revive(t);
+  t->revive_thread_current();
 
-  jt->record_stack_base_and_size();
-  jt->set_osthread(new OSThread());
-
-  Thread *c = Thread::current_or_null();
+  Thread *c = Thread::current_or_null(); // Verify TLS
   if (c == nullptr) {
     return nullptr;
   }
 
-  // If creating a JavaThread, do:
-  //  jt->set_thread_state(_thread_in_vm);
-  //  jt->set_on_thread_list();
-
-  ostream_revive(); // fix tty
+  ostream_revive(); // Fix tty
 
   // Set flag that we are at a Safepoint:
   SafepointSynchronize::set_is_at_safepoint();
 
   // VM options:
-  // GCParallelVerificationEnabled = false;
   DisplayVMOutput = 1;
   LogVMOutput = 0;
   NativeMemoryTracking = 0;
@@ -705,7 +699,7 @@ void* Thread::process_revival() {
   rdata->runtime_vendor_version = JDK_Version::runtime_vendor_version();
   rdata->jdk_debug_level = VM_Version::printable_jdk_debug_level();
 
-  rdata->vm_thread = jt;
+  rdata->vm_thread = t;
   rdata->tty = tty;
 
   rdata->parse_and_execute = (void*) &DCmd::parse_and_execute;
