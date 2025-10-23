@@ -23,6 +23,7 @@
  * questions.
  */
 
+#include <dirent.h>
 #include <dlfcn.h>
 #include <elf.h>
 #include <errno.h>
@@ -743,11 +744,37 @@ void init_pd() {
     logv("revival: init_pd: vaddr_alignment = 0x%llx\n", (unsigned long long) vaddr_alignment_pd());
 }
 
-bool revival_direxists_pd(const char *dirname) {
+
+bool dir_exists_pd(const char *dirname) {
     int fd = open(dirname, O_DIRECTORY);
     if (fd < 0) {
         if (errno != ENOENT) {
             warn("checking revivaldirectory '%s': %d: %s", dirname, errno, strerror(errno));
+        }
+    } else {
+        close(fd);
+        return true;
+    }
+    return false;
+}
+
+bool dir_isempty_pd(const char *dirname) {
+    DIR* dir = opendir(dirname);
+    if (dir != null) {
+        struct dirent* ent = readdir(dir);
+        if (ent == nullptr) {
+            return true;
+        } 
+        closedir(dir);
+    }
+    return false;
+}
+
+bool file_exists_pd(const char *filename) {
+    int fd = open(dirname, O_READ);
+    if (fd < 0) {
+        if (errno != ENOENT) {
+            warn("checking file'%s': %d: %s", filename, errno, strerror(errno));
         }
     } else {
         close(fd);

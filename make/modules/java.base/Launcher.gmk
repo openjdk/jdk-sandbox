@@ -113,7 +113,7 @@ $(eval $(call SetupJdkExecutable, BUILD_REVIVALHELPER, \
     LINK_TYPE := C++, \
     LDFLAGS := $(LDFLAGS_CXX_JDK), \
     LIBS_linux:= -ldl -lpthread -lrt,\
-    LIBS_windows := ImageHlp.lib DbgHelp.lib, \
+    LIBS_windows := Shlwapi.lib ImageHlp.lib DbgHelp.lib, \
     OUTPUT_DIR := $(SUPPORT_OUTPUTDIR)/modules_libs/$(MODULE), \
 ))
 

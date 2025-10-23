@@ -82,7 +82,7 @@ void init_pd() {
 }
 
 
-bool revival_direxists_pd(const char *dirname) {
+bool dir_exists_pd(const char *dirname) {
     int fd = open(dirname, O_DIRECTORY);
     if (fd < 0) {
         if (errno != ENOENT) {
@@ -93,6 +93,14 @@ bool revival_direxists_pd(const char *dirname) {
         return true;
     }
     return false;
+}
+
+bool dir_isempty_pd(const char *dirname) {
+    error("dir_isempty not implemented");
+}
+
+bool file_exists_pd(const char *dirname) {
+    error("file_exists not implemented");
 }
 
 int flags = MAP_SHARED | MAP_PRIVATE | MAP_FIXED;
