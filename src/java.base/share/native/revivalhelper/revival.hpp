@@ -290,7 +290,9 @@ void *revived_vm_thread();
 /**
  * Return a boolean true if the given revival directory exists.
  */
-bool revival_direxists_pd(const char *dirname);
+bool dir_exists_pd(const char *dirname);
+bool dir_isempty_pd(const char *dirname);
+bool file_exists_pd(const char *dirname);
 
 int revival_mapping_allocate(void *vaddr, size_t length);
 

@@ -1036,18 +1036,19 @@ int revive_image(const char* corename, const char *javahome, const char* libdir,
     // Decide core.revival directory name:
     dirname = revival_dirname(corename, revival_data_path);
 
-    // Does revival data directory exist? If not, create:
-    if (!revival_direxists_pd(dirname)) {
-        // Create core.revival dir:
+    // Does revival data dir exist? If not, create:
+    if (!dir_exists_pd(dirname)) {
         if (!create_directory_pd(dirname)) {
             error("revival: cannot create directory '%s': use -R to specify usable location for cache directory.", dirname);
         }
+    }
+    // If revival data dir is empty, create:
+    if (dir_isempty_pd(dirname)) {
         e = create_revivalbits(corename, javahome, dirname, libdir);
         logv("revive_image: create_revivalbits return code: %d", e);
         waitHitRet();
-        if (e < 0) {
+        if (e != 0) {
             warn("revive_image: create_revivalbits failed.  Return code: %d", e);
-            // Delete core.revival dir if empty?
             return e;
         }
     }

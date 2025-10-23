@@ -33,10 +33,14 @@
 #include <stdlib.h>
 #include <sysinfoapi.h>
 #include <windows.h>
+
 #include <minidumpapiset.h>
 
+#include <sys/types.h>
+
+#include <fileapi.h>
 #include <imagehlp.h>
-// #include <dbghelp.h>
+#include <shlwapi.h>
 #include <winternl.h>
 
 #include "revival.hpp"
@@ -127,10 +131,34 @@ void init_pd() {
 }
 
 
-bool revival_direxists_pd(const char *dirname) {
+void normalize(char *s) {
+    for (char *p = s; *p != '\0'; p++) {
+        if (*p == '/') *p = '\\';
+    }
+}
+
+bool dir_exists_pd(const char *dirname) {
     DWORD attr = GetFileAttributes(dirname);
     return attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_DIRECTORY);
 }
+
+bool dir_isempty_pd(const char *dirname) {
+    return PathIsDirectoryEmptyA(dirname);
+}
+
+bool file_exists_pd(const char *filename) {
+/*    OFSTRUCT ofstruct;
+    HFILE h = OpenFile(filename, &ofstruct, OF_EXIST);
+    if (h != HFILE_ERROR) {
+        // close not needed for OF_EXIST
+        return true;
+    }
+    return false;
+*/
+    DWORD attr = GetFileAttributes(filename);
+    return attr != INVALID_FILE_ATTRIBUTES;
+}
+
 
 int revival_checks_pd(const char *dirname) {
     return 0;
@@ -836,7 +864,7 @@ void MiniDump::populate_jvm_data_segs(const char *filename) {
     jvm_rdata_seg = nullptr;
     jvm_data_seg = nullptr;
     for (unsigned int i = 0; i < image->NumberOfSections; i++) {
-        warn("data_section image: %s vaddr 0x%llx size 0x%llx", image->Sections[i].Name, image->Sections[i].VirtualAddress,
+        logv("data_section image: %s vaddr 0x%llx size 0x%llx", image->Sections[i].Name, image->Sections[i].VirtualAddress,
              image->Sections[i].SizeOfRawData);
 
         if (jvm_rdata_seg == nullptr && strncmp((char*) image->Sections[i].Name, ".rdata", 8) == 0) {
@@ -849,13 +877,10 @@ void MiniDump::populate_jvm_data_segs(const char *filename) {
                 jvm_rdata_seg->set_length(image->Sections[i].VirtualAddress - jvm_rdata_seg->start());
             }
              jvm_data_seg = new Segment((void *) (DWORD_PTR) image->Sections[i].VirtualAddress, (size_t) image->Sections[i].SizeOfRawData, 0, 0); 
-            //jvm_data_seg = new Segment((void *) ((DWORD_PTR) image->Sections[i].VirtualAddress + (DWORD_PTR) 0x706a8), (size_t) image->Sections[i].SizeOfRawData, 0, 0); 
             continue;
         }
         if (jvm_data_seg != nullptr) {
             // Already read and set Seg, use this section as the end of that Seg.
-            jvm_data_seg->set_length(image->Sections[i].VirtualAddress - jvm_data_seg->start());
-
             jvm_data_seg->set_length(image->Sections[i].VirtualAddress - jvm_data_seg->start());
             break;
         }
@@ -872,13 +897,6 @@ void MiniDump::populate_jvm_data_segs(const char *filename) {
     logv("JVM .data SEG:  0x%llx - 0x%llx ", jvm_data_seg->start(), jvm_data_seg->end());
 }
 
-
-
-void normalize(char *s) {
-    for (char *p = s; *p != '\0'; p++) {
-        if (*p == '/') *p = '\\';
-    }
-}
 
 int copy_file_pd(const char *srcfile, const char *destfile) {
     char command[BUFLEN];
@@ -908,14 +926,22 @@ int copy_file_pd(const char *srcfile, const char *destfile) {
     return e;
 }
 
-
-int relocate_sharedlib_pd(const char *filename, const void *addr) {
-    // Call editbin.exe
+char* check_editbin() {
     char *editbin = getenv("EDITBIN");
     if (editbin  == nullptr) {
         error("EDITBIN must be set in environment.");
     }
-    // EDITBIN.EXE /DYNAMICBASE:NO /REBASE:BASE=0xaddress filename
+    if (!file_exists_pd(editbin)) {
+        error("EDITBIN from environment does not exist: '%s'", editbin);
+
+    }
+    return editbin;
+}
+
+int relocate_sharedlib_pd(const char *filename, const void *addr) {
+
+    // Call: EDITBIN.EXE /DYNAMICBASE:NO /REBASE:BASE=0xaddress filename
+    char *editbin = check_editbin();
     char command[BUFLEN];
     memset(command, 0, BUFLEN);
 
@@ -1282,6 +1308,9 @@ bool create_directory_pd(char* dirname) {
 
 int create_revivalbits_native_pd(const char* corename, const char* javahome, const char* revival_dirname, const char* libdir) {
     char jvm_copy[BUFLEN];
+
+    // Check early for editbin.exe:
+    char *editbin = check_editbin();
 
     dump = new MiniDump(corename);
     if (!dump->is_valid()) {
