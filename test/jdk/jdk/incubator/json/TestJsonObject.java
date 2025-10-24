@@ -171,18 +171,18 @@ public class TestJsonObject {
         }
 
         private static final List<Arguments> INVALID_OBJECTS_MESSAGES = List.of(
-                Arguments.of("{ \"foo\" : ", "Expected a JSON Object, Array, String, Number, Boolean, or Null. Location: row 0, col 10."),
-                Arguments.of("{ \"foo\" ", "Expected a colon after the member name. Location: row 0, col 8."),
-                Arguments.of("{ \"foo\" : \"bar\" ", "JSON Object is not closed with a brace. Location: row 0, col 16."),
-                Arguments.of("{ \"foo\" : \"bar\",  ", "JSON Object is not closed with a brace. Location: row 0, col 18."),
-                Arguments.of("{ \"foo\" : 1, \"foo\" : 1  ", "The duplicate member name: \"foo\" was already parsed. Location: row 0, col 18."),
-                Arguments.of("{ foo : \"bar\" ", "Expecting a JSON Object member name. Location: row 0, col 2."),
-                Arguments.of("{ \"foo : ", "JSON Object member name is not closed with a quotation mark. Location: row 0, col 9."),
-                Arguments.of("{ ", "JSON Object is not closed with a brace. Location: row 0, col 2."),
+                Arguments.of("{ \"foo\" : ", "Expected a JSON Object, Array, String, Number, Boolean, or Null. Location: line 0, col 10."),
+                Arguments.of("{ \"foo\" ", "Expected a colon after the member name. Location: line 0, col 8."),
+                Arguments.of("{ \"foo\" : \"bar\" ", "JSON Object is not closed with a brace. Location: line 0, col 16."),
+                Arguments.of("{ \"foo\" : \"bar\",  ", "JSON Object is not closed with a brace. Location: line 0, col 18."),
+                Arguments.of("{ \"foo\" : 1, \"foo\" : 1  ", "The duplicate member name: \"foo\" was already parsed. Location: line 0, col 18."),
+                Arguments.of("{ foo : \"bar\" ", "Expecting a JSON Object member name. Location: line 0, col 2."),
+                Arguments.of("{ \"foo : ", "JSON Object member name is not closed with a quotation mark. Location: line 0, col 9."),
+                Arguments.of("{ ", "JSON Object is not closed with a brace. Location: line 0, col 2."),
                 // Escaped names
-                Arguments.of("{ \"foo\" : null, \"\\u0066oo\" : null ", "The duplicate member name: \"foo\" was already parsed. Location: row 0, col 26."),
-                Arguments.of("{ \"\\u00M\" ", "Invalid Unicode escape sequence. 'M' is not a hex digit. Location: row 0, col 7."),
-                Arguments.of("{ \"foo\\a\" ", "Unrecognized escape sequence: \"\\a\". Location: row 0, col 7."));
+                Arguments.of("{ \"foo\" : null, \"\\u0066oo\" : null ", "The duplicate member name: \"foo\" was already parsed. Location: line 0, col 26."),
+                Arguments.of("{ \"\\u00M\" ", "Invalid Unicode escape sequence. 'M' is not a hex digit. Location: line 0, col 7."),
+                Arguments.of("{ \"foo\\a\" ", "Unrecognized escape sequence: \"\\a\". Location: line 0, col 7."));
 
         @ParameterizedTest
         @FieldSource("INVALID_OBJECTS_MESSAGES")

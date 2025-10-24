@@ -90,11 +90,11 @@ public class TestJsonString {
 
         // All JsonString related parse failure messages
         private static final List<Arguments> FAIL_STRING = List.of(
-                Arguments.of("\"\t", "Unescaped control code. Location: row 0, col 1."),
-                Arguments.of("\"foo\\a \"", "Unrecognized escape sequence: \"\\a\". Location: row 0, col 5."),
-                Arguments.of("\"foo\\u0\"", "Invalid Unicode escape sequence. Expected four hex digits. Location: row 0, col 5."),
-                Arguments.of("\"foo\\uZZZZ\"", "Invalid Unicode escape sequence. 'Z' is not a hex digit. Location: row 0, col 6."),
-                Arguments.of("\"foo ", "JSON String is not closed with a quotation mark. Location: row 0, col 5."));
+                Arguments.of("\"\t", "Unescaped control code. Location: line 0, col 1."),
+                Arguments.of("\"foo\\a \"", "Unrecognized escape sequence: \"\\a\". Location: line 0, col 5."),
+                Arguments.of("\"foo\\u0\"", "Invalid Unicode escape sequence. Expected four hex digits. Location: line 0, col 5."),
+                Arguments.of("\"foo\\uZZZZ\"", "Invalid Unicode escape sequence. 'Z' is not a hex digit. Location: line 0, col 6."),
+                Arguments.of("\"foo ", "JSON String is not closed with a quotation mark. Location: line 0, col 5."));
 
         @ParameterizedTest
         @FieldSource("FAIL_STRING")

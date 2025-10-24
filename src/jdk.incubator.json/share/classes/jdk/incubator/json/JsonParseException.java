@@ -39,10 +39,10 @@ public class JsonParseException extends RuntimeException {
     private static final long serialVersionUID = 7022545379651073390L;
 
     /**
-     * Position of the error row in the document
+     * Position of the error line in the document
      * @serial
      */
-    private final int row;
+    private final int line;
 
     /**
      * Position of the error column in the document
@@ -53,20 +53,20 @@ public class JsonParseException extends RuntimeException {
     /**
      * Constructs a JsonParseException with the specified detail message.
      * @param message the detail message
-     * @param row the row of the error on parsing the document
+     * @param line the line of the error on parsing the document
      * @param col the column of the error on parsing the document
      */
-    public JsonParseException(String message, int row, int col) {
+    public JsonParseException(String message, int line, int col) {
         super(message);
-        this.row = row;
+        this.line = line;
         this.col = col;
     }
 
     /**
-     * {@return the row of the error on parsing the document}
+     * {@return the line of the error on parsing the document}
      */
-    public int getErrorRow() {
-        return row;
+    public int getErrorLine() {
+        return line;
     }
 
     /**

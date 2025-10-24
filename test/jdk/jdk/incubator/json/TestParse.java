@@ -140,11 +140,11 @@ public class TestParse {
 
         // General exceptions not particularly tied to a sub-interface of JsonValue
         private static final List<Arguments> INVALID_JSON = List.of(
-                Arguments.of("", "Expected a JSON Object, Array, String, Number, Boolean, or Null. Location: row 0, col 0."),
-                Arguments.of(" ", "Expected a JSON Object, Array, String, Number, Boolean, or Null. Location: row 0, col 1."),
-                Arguments.of("z", "Unexpected value. Expected a JSON Object, Array, String, Number, Boolean, or Null. Location: row 0, col 0."),
-                Arguments.of("null, true", "Additional value(s) were found after the JSON Value. Location: row 0, col 4."),
-                Arguments.of("null 5", "Additional value(s) were found after the JSON Value. Location: row 0, col 5.")
+                Arguments.of("", "Expected a JSON Object, Array, String, Number, Boolean, or Null. Location: line 0, col 0."),
+                Arguments.of(" ", "Expected a JSON Object, Array, String, Number, Boolean, or Null. Location: line 0, col 1."),
+                Arguments.of("z", "Unexpected value. Expected a JSON Object, Array, String, Number, Boolean, or Null. Location: line 0, col 0."),
+                Arguments.of("null, true", "Additional value(s) were found after the JSON Value. Location: line 0, col 4."),
+                Arguments.of("null 5", "Additional value(s) were found after the JSON Value. Location: line 0, col 5.")
         );
 
         @ParameterizedTest
@@ -155,17 +155,17 @@ public class TestParse {
         }
 
 
-        // Row Col focused exceptions
+        // Line Col focused exceptions
 
         private static final String BASIC = "foobarbaz";
 
         @Test
-        void testBasicRowCol() {
-            var msg = "Location: row 0, col 1.";
+        void testBasicLineCol() {
+            var msg = "Location: line 0, col 1.";
             JsonParseException e = assertThrows(JsonParseException.class, () -> Json.parse(BASIC));
             assertTrue(e.getMessage().contains(msg),
-                    "Expected: " + msg + " but got row "
-                            + e.getErrorRow() + ", col " + e.getErrorColumn());
+                    "Expected: " + msg + " but got line "
+                            + e.getErrorLine() + ", col " + e.getErrorColumn());
         }
 
         private static final String STRUCTURAL =
@@ -176,12 +176,12 @@ public class TestParse {
                 """;
 
         @Test
-        void testStructuralRowCol() {
-            var msg = "Location: row 1, col 11.";
+        void testStructuralLineCol() {
+            var msg = "Location: line 1, col 11.";
             JsonParseException e = assertThrows(JsonParseException.class, () -> Json.parse(STRUCTURAL));
             assertTrue(e.getMessage().contains(msg),
-                    "Expected: " + msg + " but got row "
-                            + e.getErrorRow() + ", col " + e.getErrorColumn());
+                    "Expected: " + msg + " but got line "
+                            + e.getErrorLine() + ", col " + e.getErrorColumn());
         }
 
         private static final String STRUCTURAL_WITH_NESTED =
@@ -196,12 +196,12 @@ public class TestParse {
                 """;
 
         @Test
-        void testStructuralWithNestedRowCol() {
-            var msg = "Location: row 4, col 15.";
+        void testStructuralWithNestedLineCol() {
+            var msg = "Location: line 4, col 15.";
             JsonParseException e = assertThrows(JsonParseException.class, () -> Json.parse(STRUCTURAL_WITH_NESTED));
             assertTrue(e.getMessage().contains(msg),
-                    "Expected: " + msg + " but got row "
-                            + e.getErrorRow() + ", col " + e.getErrorColumn());
+                    "Expected: " + msg + " but got line "
+                            + e.getErrorLine() + ", col " + e.getErrorColumn());
         }
     }
 }

@@ -123,7 +123,7 @@ public class Utils {
         private final int offset;
         private final char[] doc;
         // Tracked and incremented during path creation
-        private int row;
+        private int line;
         private int col;
 
         private JsonPath(JsonValueImpl jvi) {
@@ -140,15 +140,15 @@ public class Utils {
             // Updates the sb
             toPath(offset, sb);
             // If no new line encountered, col is the starting offset value
-            if (row == 0) {
+            if (line == 0) {
                 col = offset;
             }
-            return " Path: \"%s\". Location: row %d, col %d.".formatted(sb.toString(), row, col);
+            return " Path: \"%s\". Location: line %d, col %d.".formatted(sb.toString(), line, col);
         }
 
-        private void addRow(int curr) {
-            row++;
-            if (row == 1) {
+        private void addLine(int curr) {
+            line++;
+            if (line == 1) {
                 col = offset - curr - 1;
             }
         }
@@ -176,7 +176,7 @@ public class Utils {
                 var ws = switch (doc[offset]) {
                     case ' ', '\t','\r' -> true;
                     case '\n' -> {
-                        addRow(offset);
+                        addLine(offset);
                         yield true;
                     }
                     default -> false;
@@ -216,7 +216,7 @@ public class Utils {
                     } else if (c == '"') {
                         inString = true;
                     } else if (c == '\n') {
-                        addRow(offset);
+                        addLine(offset);
                     }
                     if (aDepth > 0) {
                         break;
@@ -272,7 +272,7 @@ public class Utils {
                     } else if (c == '"') {
                         inString = true;
                     } else if (c == '\n') {
-                        addRow(offset);
+                        addLine(offset);
                     }
                     if (depth > 0) {
                         break;
