@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,28 +23,28 @@
  * questions.
  */
 
+package java.util.json;
+
+import java.io.Serial;
+
+import jdk.internal.javac.PreviewFeature;
+
 /**
- * Contains the collections framework, some internationalization support classes,
- * a service loader, properties, random number generation, string parsing
- * and scanning classes, base64 encoding and decoding, a bit array, JSON support,
- * and several miscellaneous utility classes. This package also contains
- * several miscellaneous utility classes. This package also contains
- * legacy collection classes and legacy date and time classes.
+ * Signals that an error has been detected while traversing the {@code JsonValue}.
  *
- * <h2><a id="CollectionsFramework"></a>{@index "Java Collections Framework"}</h2>
- * <p>For an overview, API outline, and design rationale, please see:
- * <ul>
- *   <li><a href="doc-files/coll-index.html">
- *          <b>Collections Framework Documentation</b></a>
- * </ul>
- *
- * <p>For a tutorial and programming guide with examples of use
- * of the collections framework, please see:
- * <ul>
- *   <li><a href="http://docs.oracle.com/javase/tutorial/collections/index.html">
- *          <b>Collections Framework Tutorial</b></a>
- * </ul>
- *
- * @since 1.0
+ * @since 99
  */
-package java.util;
+@PreviewFeature(feature = PreviewFeature.Feature.JSON)
+public class JsonAssertionException extends RuntimeException {
+
+    @Serial
+    private static final long serialVersionUID = 2040280066622450939L;
+
+    /**
+     * Constructs a JsonAssertionException with the specified detail message.
+     * @param message the detail message
+     */
+    public JsonAssertionException(String message) {
+        super(message);
+    }
+}

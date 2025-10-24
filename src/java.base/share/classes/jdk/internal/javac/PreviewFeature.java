@@ -81,6 +81,7 @@ public @interface PreviewFeature {
         @JEP(number=470, title="PEM Encodings of Cryptographic Objects", status="Preview")
         PEM_API,
         LANGUAGE_MODEL,
+        JSON,
         /**
          * A key for testing.
          */
