@@ -44,8 +44,8 @@ import java.util.Optional;
  * JsonValue} to its corresponding JSON String. For example,
  * {@snippet lang=java:
  *     List<Object> values = Arrays.asList("foo", true, 25);
- *     JsonValue json. Json.toJson(values);
- *     json.oString(); // returns "[\"foo\",true,25]"
+ *     JsonValue json = Json.toJson(values);
+ *     json.toString(); // returns "[\"foo\",true,25]"
  * }
  *
  * A class implementing a non-sealed {@code JsonValue} sub-interface must adhere
