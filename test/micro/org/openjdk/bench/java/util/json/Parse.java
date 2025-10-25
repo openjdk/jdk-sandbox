@@ -20,7 +20,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package micro.org.openjdk.bench.jdk.incubator.json;
+package micro.org.openjdk.bench.java.util.json;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -39,14 +39,14 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-import jdk.incubator.json.Json;
-import jdk.incubator.json.JsonValue;
+import java.util.json.Json;
+import java.util.json.JsonValue;
 
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 @Warmup(iterations = 5, time = 1)
 @Measurement(iterations = 5, time = 1)
-@Fork(value = 3, jvmArgs = {"--add-modules=jdk.incubator.json"})
+@Fork(value = 3, jvmArgs = {"--enable-preview"})
 @State(Scope.Benchmark)
 public class Parse {
 
