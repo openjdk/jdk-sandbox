@@ -88,7 +88,7 @@ public non-sealed interface JsonNumber extends JsonValue {
      * {@code Double}, {@code BigInteger}, or {@code BigDecimal} reference
      * types. For example:
      * {@snippet lang=java:
-     * switch(jsonNumber.toNumber()) {
+     * switch(jsonNumber.number()) {
      *     case Long l -> { ... }
      *     case Double d -> { ... }
      *     case BigInteger bi -> { ... }
