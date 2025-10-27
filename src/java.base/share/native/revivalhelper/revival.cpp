@@ -1066,7 +1066,6 @@ int revive_image(const char* corename, const char *javahome, const char* libdir,
 
     // Version check?
     void *ver = symbol_resolve_from_symbol_file(dirname, SYM_VM_RELEASE);
-    uint64_t vm_release_offset = 0;
     if (ver == nullptr && !skipVersionCheck) {
         warn("No vm release symbol found, no version check.");
     }
@@ -1101,8 +1100,8 @@ int revive_image(const char* corename, const char *javahome, const char* libdir,
         char* vm_release_core = readstring_from_core_at_pd(corename, (uint64_t) *(char**) ver);
         logv("Version check: vm release from core: 0x%llx 0x%llx '%s'", (unsigned long long) ver, (unsigned long long) vm_release_core,  vm_release_core);
 
-        vm_release_offset = (uint64_t) ptr - (uint64_t) jvm_address;
-        char* vm_release_binary  = readstring_at_pd(jvm_filename, vm_release_offset);
+        uint64_t vm_release_offset = (uint64_t) ptr - (uint64_t) jvm_address;
+        char* vm_release_binary = readstring_at_pd(jvm_filename, vm_release_offset);
         logv("Version check: vm release from binary:  %s", vm_release_binary);
 
         if (strncmp(vm_release_core, vm_release_binary, BUFLEN) != 0) {

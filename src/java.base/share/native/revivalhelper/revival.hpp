@@ -244,7 +244,7 @@ extern char *jvm_filename;
 extern void *jvm_address;
 extern std::list<Segment> avoidSegments;
 
-char* readstring_at_pd(const char* filename, long offset);
+char* readstring_at_pd(const char* filename, uint64_t offset);
 char* readstring_from_core_at_pd(const char* filename, uint64_t addr);
 
 bool create_directory_pd(char* dirname);
@@ -305,6 +305,8 @@ void *revived_vm_thread();
 bool dir_exists_pd(const char *dirname);
 bool dir_isempty_pd(const char *dirname);
 bool file_exists_pd(const char *dirname);
+
+unsigned long long file_size(const char *filename);
 
 int revival_mapping_allocate(void *vaddr, size_t length);
 
