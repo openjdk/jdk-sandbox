@@ -82,6 +82,16 @@ void init_pd() {
 }
 
 
+char* readstring_at_pd(const char* filename, long offset) {
+    error("not implemented");
+    return nullptr;
+}
+
+char* readstring_from_core_at_pd(const char* filename, uint64_t addr) {
+    error("not implemented");
+    return nullptr;
+}
+
 bool dir_exists_pd(const char *dirname) {
     int fd = open(dirname, O_DIRECTORY);
     if (fd < 0) {
@@ -97,10 +107,12 @@ bool dir_exists_pd(const char *dirname) {
 
 bool dir_isempty_pd(const char *dirname) {
     error("dir_isempty not implemented");
+    return false;
 }
 
 bool file_exists_pd(const char *dirname) {
     error("file_exists not implemented");
+    return false;
 }
 
 int flags = MAP_SHARED | MAP_PRIVATE | MAP_FIXED;

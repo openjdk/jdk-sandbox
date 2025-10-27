@@ -625,6 +625,17 @@ void *do_map_allocate_pd(void *vaddr, size_t length) {
 }
 
 
+char* readstring_at_pd(const char* filename, long offset) {
+    error("not implemented");
+    return nullptr;
+}
+
+char* readstring_from_core_at_pd(const char* filename, long offset) {
+    error("not implemented");
+    return nullptr;
+}
+
+
 /**
  * Read a MINIDUMP_STRING, which is:
  * ULONG32 Length, WCHAR buffer (UTF16-LE)

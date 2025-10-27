@@ -68,8 +68,10 @@ typedef uint64_t address;
 void install_handler();
 
 //
-// Platform specifics (break into seprate headers when makes sense...)
+// Platform specifics
 //
+
+// Linux
 #ifdef LINUX
 
 #include <dlfcn.h>
@@ -81,10 +83,12 @@ void install_handler();
 #define JVM_FILENAME "libjvm.so"
 #define FILE_SEPARATOR  "/"
 
+#define SYM_VM_RELEASE "_ZN19Abstract_VM_Version13_s_vm_releaseE"
 
 #endif /* LINUX */
 
 
+// Windows
 #ifdef WIN32
 
 #include <io.h>
@@ -95,12 +99,14 @@ void tls_fixup_pd(void* tlsPtr);
 #define JVM_FILENAME "jvm.dll"
 #define FILE_SEPARATOR  "\\"
 
-#define _exit _Exit
+#define SYM_VM_RELEASE "?_s_vm_release@Abstract_VM_Version@@1PEBDEB"
 
+#define _exit _Exit
 
 #endif /* WINDOWS */
 
 
+// MacOSX
 #ifdef MACOSX
 
 #include <libgen.h>
@@ -109,6 +115,8 @@ void tls_fixup_pd(void* tlsPtr);
 
 #define JVM_FILENAME "libjvm.dylib"
 #define FILE_SEPARATOR  "/"
+
+#define SYM_VM_RELEASE "todo"
 
 #define _exit _Exit
 
@@ -132,8 +140,8 @@ struct revival_data {
   const char *runtime_vendor_version;
   const char *jdk_debug_level;
 
-  uint64_t initial_time_count; // e.g. clock_gettime MONOTONIC (since system boot)
-  uint64_t initial_time_date;  // e.g. time_t since epoch
+  uint64_t initial_time_count; // Linux: clock_gettime MONOTONIC (since system boot)
+  uint64_t initial_time_date;  // Linux: time_t since epoch
 
   void* vm_thread;
   void* tty;
@@ -170,8 +178,9 @@ int revival_dcmd(const char *command);
 //
 
 // Behaviour:
-extern int verbose;         // set from env: REVIVAL_VERBOSE
-extern int _abortOnClash;   // set from env: REVIVAL_ABORT
+extern int verbose;          // set from env: REVIVAL_VERBOSE
+extern int skipVersionCheck; // set from env: REVIVAL_SKIPVERSIONCHECK
+extern int _abortOnClash;    // set from env: REVIVAL_ABORT
 
 // Optionally map core files with write permission:
 // On Linux, map core files read only, signal handler remaps to handle writes.
@@ -234,6 +243,9 @@ extern std::list<Segment> failedSegments;
 extern char *jvm_filename;
 extern void *jvm_address;
 extern std::list<Segment> avoidSegments;
+
+char* readstring_at_pd(const char* filename, long offset);
+char* readstring_from_core_at_pd(const char* filename, uint64_t addr);
 
 bool create_directory_pd(char* dirname);
 

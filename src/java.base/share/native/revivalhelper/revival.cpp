@@ -32,16 +32,17 @@ using namespace std;
 
 
 // Behaviour settings:
+
 // Diagnostics
 int verbose = false;
+int _wait = false;
+int _abortOnClash = false;
+int skipVersionCheck = false;
 
 // Unmap segments before mapping them.
 int unmapFirst = false; // was used in testing, likely remove
 
 int openCoreWrite = false;
-
-int _wait;           // set from env: REVIVAL_WAIT
-int _abortOnClash = false;
 
 // Set during revive_image:
 char *core_filename;
@@ -415,7 +416,6 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
     if ((unsigned long long) coresize != parsedSize) {
         error("%s: revival data recorded core size %lld, actual file size %lld", core_filename, parsedSize, coresize);
     }
-    // Consider a checksum.
 
     // time:
     // time of crash or core file generation.  millis since epoch.
@@ -462,6 +462,12 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
                 warn("Load library '%s' failed to load at %p", s1, vaddr);
                 return -1;
             }
+            // Record jvm details: (we only load the JVM library right now)
+            // Needed for version check.
+            jvm_filename = (char*) malloc(BUFLEN);
+            snprintf(jvm_filename, BUFLEN - 1, "%s%s%s", dirname, FILE_SEPARATOR, s1);
+            jvm_address = vaddr;
+            logv("Loaded library '%s' at %p", jvm_filename, jvm_address);
             continue;
         }
 
@@ -782,6 +788,7 @@ bool try_init_jvm_filename_if_exists(const char* path, const char* suffix) {
 }
 
 void init_jvm_filename_from_libdir(const char* libdir) {
+    // TODO step through using path separator, not a known/fixed directory structure
     if (try_init_jvm_filename_if_exists(libdir, "")) return;
     if (try_init_jvm_filename_if_exists(libdir, "/libjvm.so")) return;
     if (try_init_jvm_filename_if_exists(libdir, "/server/libjvm.so")) return;
@@ -1007,6 +1014,7 @@ int revive_image(const char* corename, const char *javahome, const char* libdir,
     verbose = env_check((char *) "REVIVAL_VERBOSE");
     _wait = env_check((char *) "REVIVAL_WAIT");
     _abortOnClash = env_check((char *) "REVIVAL_ABORT");
+    skipVersionCheck = env_check((char *) "REVIVAL_SKIPVERSIONCHECK");
 
     init_pd();
 
@@ -1042,8 +1050,9 @@ int revive_image(const char* corename, const char *javahome, const char* libdir,
             error("revival: cannot create directory '%s': use -R to specify usable location for cache directory.", dirname);
         }
     }
-    // If revival data dir is empty, create:
+    // If revival data dir is empty, create revival data:
     if (dir_isempty_pd(dirname)) {
+        logv("revival dir empty, creating data");
         e = create_revivalbits(corename, javahome, dirname, libdir);
         logv("revive_image: create_revivalbits return code: %d", e);
         waitHitRet();
@@ -1051,6 +1060,15 @@ int revive_image(const char* corename, const char *javahome, const char* libdir,
             warn("revive_image: create_revivalbits failed.  Return code: %d", e);
             return e;
         }
+    } else {
+        logv("revival dir not empty, using cached data");
+    }
+
+    // Version check?
+    void *ver = symbol_resolve_from_symbol_file(dirname, SYM_VM_RELEASE);
+    uint64_t vm_release_offset = 0;
+    if (ver == nullptr && !skipVersionCheck) {
+        warn("No vm release symbol found, no version check.");
     }
 
     if (revival_checks_pd(dirname) < 0) {
@@ -1058,16 +1076,42 @@ int revive_image(const char* corename, const char *javahome, const char* libdir,
         return -1;
     }
 
+    // Read mappings file: load library, map memory:
     snprintf(buf, BUFLEN, "%s%s", dirname, "/" MAPPINGS_FILENAME);
+    waitHitRet();
     e = mappings_file_read(corename, dirname, buf);
     if (e < 0) {
         warn("revive_image: mappings_file_read failed: %d", e);
         return -1;
     }
-    revivaldir = dirname;
 
     // Install signal handler:
+    logv("Install handler...");
     install_handler();
+
+    // Mappings in place, jvm_filename and jvm_address set:
+    if (!skipVersionCheck && ver != nullptr && jvm_address != nullptr) {
+        logv("Version check...");
+        // Read version from core, and binary, and compare.
+        // Could read from address space directly:
+        // char *vm_release_core = *(char**) ver;
+        // ...but was that populated from core or binary?  Be specific.
+        char* ptr = *(char**) ver; // read pointer from now-live memory
+        logv("Version check: ptr = 0x%llx",  (unsigned long long) ptr);
+        char* vm_release_core = readstring_from_core_at_pd(corename, (uint64_t) *(char**) ver);
+        logv("Version check: vm release from core: 0x%llx 0x%llx '%s'", (unsigned long long) ver, (unsigned long long) vm_release_core,  vm_release_core);
+
+        vm_release_offset = (uint64_t) ptr - (uint64_t) jvm_address;
+        char* vm_release_binary  = readstring_at_pd(jvm_filename, vm_release_offset);
+        logv("Version check: vm release from binary:  %s", vm_release_binary);
+
+        if (strncmp(vm_release_core, vm_release_binary, BUFLEN) != 0) {
+            error("Failed: JVM version mismatch, core '%s', jvm binary '%s'", vm_release_core, vm_release_binary);
+        }
+    }
+
+    // OK:
+    revivaldir = dirname;
 
     e = revive_image_cooperative();
     if (e < 0) {

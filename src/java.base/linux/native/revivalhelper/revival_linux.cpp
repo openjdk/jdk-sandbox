@@ -43,6 +43,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
+
 #include <list>
 #include <array>
 
@@ -56,18 +57,23 @@
 extern unsigned long long file_size(const char *filename);
 
 /**
- * Operations on ELF files.
- * To mmap the file and update in-memory proves faster than lseek and read/write.
+ * An ELF file.
  *
+ * Provide operations such as file inspection, but also a destructive operation 
+ * to relocate the file to a new base virtual address.
+ *
+ * To mmap the file and update in-memory proves faster than lseek and read/write.
  * But some core files may be unreasonable to mmap fully.
+ *
  * Currently we only mmmap, may need to change that above some file size, or ensure
  * what we need is mapped in.
  */
-class ELFOperations {
+class ELFFile {
   private:
-    Elf64_Ehdr *EHDR; // Main ELF Header
-    Elf64_Phdr *ph;   // First Program Header absolute address
-    Elf64_Shdr *sh;   // First Section Header absolute address or nullptr
+    const char* filename;
+    Elf64_Ehdr* hdr;  // Main ELF Header
+    Elf64_Phdr* ph;   // First Program Header absolute address
+    Elf64_Shdr* sh;   // First Section Header absolute address or nullptr
 
     char* SHDRSTR_BUFFER = nullptr;
     SharedLibMapping* NT_Mappings = 0;
@@ -78,7 +84,8 @@ class ELFOperations {
     void *m = (void *) 0;
 
   public:
-    ELFOperations(const char *filename) {
+    ELFFile(const char *filename) {
+        this->filename = filename;
         fd = open(filename, O_RDWR);
         if (fd < 0) {
             error("cannot open '%s': %s", filename, strerror(errno));
@@ -88,55 +95,55 @@ class ELFOperations {
         if (m == (void *) -1) {
             error("mmap of ELF file failed: %s", strerror(errno));
         }
-        EHDR = (Elf64_Ehdr*) m;
+        hdr = (Elf64_Ehdr*) m;
 
-        // Set a resolved ph and sh pointer for ease.
+        // Set resolved ph and sh pointers for ease.
+        // Careful with ptr arithmetic, do NOT use:
+        // = (Elf64_Phdr*) (char *) m + (hdr->e_phoff);
+        // But use:
+        ph = (Elf64_Phdr*) ((char *) m + (hdr->e_phoff));
 
-        // NOT this:    Elf64_Phdr *phtest1 = (Elf64_Phdr*) (char *) m + (EHDR->e_phoff);
-        // BUT this:    Elf64_Phdr *phtest1 = (Elf64_Phdr*) ((char *) m + (EHDR->e_phoff));
-        ph = (Elf64_Phdr*) ((char *) m + (EHDR->e_phoff));
-
-        // cores don't usually have Sections:
-        if (EHDR->e_shoff > 0) {
-            sh = (Elf64_Shdr*) ((char *) m + (EHDR->e_shoff));
-            Elf64_Shdr* strndx_shdr = section_by_index(EHDR->e_shstrndx);
+        if (hdr->e_shoff > 0) {
+            sh = (Elf64_Shdr*) ((char *) m + (hdr->e_shoff));
+            Elf64_Shdr* strndx_shdr = section_by_index(hdr->e_shstrndx);
             SHDRSTR_BUFFER = (char *) m + strndx_shdr->sh_offset;
         } else {
+            // cores don't usually have Sections
             sh = nullptr;
         }
 
-        // If verbose...
-        logv("ELFOperations: %s EHDR = %p phoff = 0x%lx shoff = 0x%lx   ph = %p sh = %p",
-             filename, EHDR, EHDR->e_phoff, EHDR->e_shoff, ph, sh);
+        logv("ELFFile: %s hdr = %p phoff = 0x%lx shoff = 0x%lx   ph = %p sh = %p",
+             filename, hdr, hdr->e_phoff, hdr->e_shoff, ph, sh);
         verify();
-        // print();
     }
 
+    char* read_string_at_address(uint64_t addr);
+
     void verify() {
-        assert(EHDR->e_ident[0] == 0x7f);
-        assert(EHDR->e_ident[1] == 'E');
-        assert(EHDR->e_ident[2] == 'L');
-        assert(EHDR->e_ident[3] == 'F');
-        assert(EHDR->e_ident[4] == ELFCLASS64);
-        assert(EHDR->e_ident[5] == ELFDATA2LSB);
-        assert(EHDR->e_ident[6] == EV_CURRENT);
-        assert(EHDR->e_ident[7] == ELFOSABI_SYSV);
-        assert(EHDR->e_version == EV_CURRENT);
+        assert(hdr->e_ident[0] == 0x7f);
+        assert(hdr->e_ident[1] == 'E');
+        assert(hdr->e_ident[2] == 'L');
+        assert(hdr->e_ident[3] == 'F');
+        assert(hdr->e_ident[4] == ELFCLASS64);
+        assert(hdr->e_ident[5] == ELFDATA2LSB);
+        assert(hdr->e_ident[6] == EV_CURRENT);
+        assert(hdr->e_ident[7] == ELFOSABI_SYSV);
+        assert(hdr->e_version == EV_CURRENT);
 
         // elf.h in devkit on Linux x86_64 does not define EM_AARCH64
 #if defined(__aarch64__)
-        assert(EHDR->e_machine == EM_AARCH64);
+        assert(hdr->e_machine == EM_AARCH64);
 #else
-        assert(EHDR->e_machine == EM_X86_64);
+        assert(hdr->e_machine == EM_X86_64);
 #endif
-        if (EHDR->e_phnum == PN_XNUM) {
-            error("Too many program headers, handling not implemented (%x)", EHDR->e_phnum);
+        if (hdr->e_phnum == PN_XNUM) {
+            error("Too many program headers, handling not implemented (%x)", hdr->e_phnum);
         }
-        if (EHDR->e_type == ET_DYN && EHDR->e_shnum == 0) {
+        if (hdr->e_type == ET_DYN && hdr->e_shnum == 0) {
             error("Invalid number of section headers in shared library, zero.");
         }
-        assert(EHDR->e_phentsize == sizeof(Elf64_Phdr));
-        assert(EHDR->e_shentsize == 0 || EHDR->e_shentsize == sizeof(Elf64_Shdr));
+        assert(hdr->e_phentsize == sizeof(Elf64_Phdr));
+        assert(hdr->e_shentsize == 0 || hdr->e_shentsize == sizeof(Elf64_Shdr));
 
         // Sanity check the pointer arithmetic:
         bool debug = false;
@@ -147,7 +154,7 @@ class ELFOperations {
         Elf64_Phdr* p1a = next_ph(p0);
         warn("ph %p %p %p diff: %ld", p0, p1, p1a, diff);
         assert(p1 == p1a);
-        assert(diff == EHDR->e_phentsize);
+        assert(diff == hdr->e_phentsize);
 
         Elf64_Shdr* s0 = section_header(0);
         Elf64_Shdr* s1 = section_header(1);
@@ -155,30 +162,27 @@ class ELFOperations {
         Elf64_Shdr* s1a = next_sh(s0);
         warn("sh %p %p %p diff: %ld", s0, s1, s1a, diff);
         assert(s1 == s1a);
-        assert(diff == EHDR->e_shentsize);
+        assert(diff == hdr->e_shentsize);
         }
     }
 
-    ~ELFOperations() {
+    ~ELFFile() {
         // Free NT_mappings
-
         if (fd >= 0) {
             ::close(fd);
         }
         if (m != 0) {
-            logv("ELFOperations: destructor munmap");
             do_munmap_pd(m, length);
         }
-        logv("ELFOperations: destructor done");
     }
 
   public:
     void print() {
-        for (int i = 0; i < EHDR->e_phnum; i++) {
+        for (int i = 0; i < hdr->e_phnum; i++) {
             Elf64_Phdr* p = program_header(i);
             fprintf(stderr, "PH %3d %p  Type: %d offset: 0x%lx vaddr: 0x%lx\n", i, p, p->p_type, p->p_offset, p->p_vaddr);
         }
-        for (int i = 0; i < EHDR->e_shnum; i++) {
+        for (int i = 0; i < hdr->e_shnum; i++) {
             Elf64_Shdr* p = section_header(i);
             fprintf(stderr, "SH %3d %p  Type: %d addr: 0x%lx\n", i, p, p->sh_type, p->sh_addr);
         }
@@ -216,12 +220,12 @@ class ELFOperations {
   private:
     // Section header actual address in mmapped file.
     Elf64_Shdr* section_header(unsigned long i) {
-        return (Elf64_Shdr*) ((char*) sh + (i * EHDR->e_shentsize));
+        return (Elf64_Shdr*) ((char*) sh + (i * hdr->e_shentsize));
     }
 
     // Program header actual address in mmapped file.
     Elf64_Phdr* program_header(unsigned long i) {
-        return (Elf64_Phdr*) ((char*) ph + (i * EHDR->e_phentsize));
+        return (Elf64_Phdr*) ((char*) ph + (i * hdr->e_phentsize));
     }
 
     bool section_name_is(Elf64_Shdr* shdr, const char* name) {
@@ -229,16 +233,16 @@ class ELFOperations {
     }
 
     Elf64_Shdr* next_sh(Elf64_Shdr* s) {
-        return (Elf64_Shdr*) ((char *) s + EHDR->e_shentsize);
+        return (Elf64_Shdr*) ((char *) s + hdr->e_shentsize);
     }
 
     Elf64_Phdr* next_ph(Elf64_Phdr* p) {
-        return (Elf64_Phdr*) ((char *) p + EHDR->e_phentsize);
+        return (Elf64_Phdr*) ((char *) p + hdr->e_phentsize);
     }
 
     Elf64_Shdr* section_by_name(const char* name) {
         Elf64_Shdr* s = sh;
-        for (int i = 0; i < EHDR->e_shnum; i++) {
+        for (int i = 0; i < hdr->e_shnum; i++) {
             if (section_name_is(s, name)) {
                 return s;
             }
@@ -249,13 +253,13 @@ class ELFOperations {
     }
 
     Elf64_Shdr* section_by_index(unsigned long index) {
-        return (Elf64_Shdr*) ((char*) sh + (index * EHDR->e_shentsize));
+        return (Elf64_Shdr*) ((char*) sh + (index * hdr->e_shentsize));
     }
 
     // Returns the first phdr where predicate returns true.
     Elf64_Phdr* program_header_by_predicate(bool (*predptr)(Elf64_Phdr*)) {
         Elf64_Phdr* phdr = ph;
-        for (int i = 0; i < EHDR->e_phnum; i++) {
+        for (int i = 0; i < hdr->e_phnum; i++) {
             if (predptr(phdr)) {
                 return phdr;
             }
@@ -266,7 +270,7 @@ class ELFOperations {
 
     Elf64_Phdr* program_header_by_type(Elf32_Word type) {
         Elf64_Phdr* phdr = ph;
-        for (int i = 0; i < EHDR->e_phnum; i++) {
+        for (int i = 0; i < hdr->e_phnum; i++) {
             if (phdr->p_type == type) {
                 return phdr;
             }
@@ -289,8 +293,8 @@ class ELFOperations {
     }
 
     void relocate_execution_header(long displacement) {
-        if (EHDR->e_entry != 0) {
-            EHDR->e_entry += displacement;
+        if (hdr->e_entry != 0) {
+            hdr->e_entry += displacement;
         }
     }
 
@@ -300,7 +304,7 @@ class ELFOperations {
 
     void relocate_program_headers(long displacement) {
         Elf64_Phdr* p = ph;
-        for (int i = 0; i < EHDR->e_phnum; i++) {
+        for (int i = 0; i < hdr->e_phnum; i++) {
             logv("relocate_program_headers %3d %p", i, p);
             if (should_relocate_program_header(p)) {
                 p->p_vaddr += displacement;
@@ -327,7 +331,7 @@ class ELFOperations {
 
     void relocate_section_headers(long displacement) {
         Elf64_Shdr* s = sh;
-        for (int i = 0; i < EHDR->e_shnum; i++) {
+        for (int i = 0; i < hdr->e_shnum; i++) {
             logv("relocate_section_headers %3d %p", i, s);
             if (should_relocate_section_header(s)) {
                 s->sh_addr += displacement;
@@ -369,7 +373,6 @@ class ELFOperations {
                 return false;
         }
     }
-
 
     uint64_t find_dynamic_value(Elf64_Shdr* s, int tag) {
         for (unsigned long o = s->sh_offset; o < s->sh_offset + s->sh_size; o += s->sh_entsize) {
@@ -459,7 +462,7 @@ class ELFOperations {
   public:
     // Relocate file by some amount.
     void relocate(long displacement) {
-        assert(EHDR->e_type == ET_DYN);
+        assert(hdr->e_type == ET_DYN);
         assert(sh != 0);
         assert(SHDRSTR_BUFFER != 0);
 
@@ -501,22 +504,6 @@ class ELFOperations {
     }
 
   private:
-    char *readstring(int fd) {
-        char *buf = (char *) malloc(BUFLEN);
-        if (buf == nullptr) {
-            return nullptr;
-        }
-        int c = 0;
-        do {
-            int e = read(fd, &buf[c], 1);
-            if (e != 1) {
-                free(buf);
-                return nullptr;
-            }
-        } while (buf[c++] != 0);
-        return buf;
-    }
-
     char* find_note_data(Elf64_Phdr* notes_ph, Elf64_Word type) {
         // Read NOTES.  p_filesz is limit.
         Elf64_Nhdr* nhdr = (Elf64_Nhdr*) ((uint64_t) m + notes_ph->p_offset);
@@ -590,7 +577,7 @@ class ELFOperations {
 
   public:
     /**
-     * Return mapping information.  Data is valid while this ELFOperations is alive,
+     * Return mapping information.  Data is valid while this ELFFile is alive,
      * information should be copied to retain.
      */
     SharedLibMapping* get_library_mapping(const char* filename) {
@@ -635,7 +622,7 @@ class ELFOperations {
   public:
     void write_mappings(int mappings_fd, const char* exec_name) {
         logv("write_mappings");
-        if (EHDR->e_type != ET_CORE) {
+        if (hdr->e_type != ET_CORE) {
             warn("write_mappings: Not writing mappings for non-core file.");
             return;
         }
@@ -643,8 +630,7 @@ class ELFOperations {
         read_NT_mappings();
         int n_skipped = 0;
         Elf64_Phdr* phdr = ph;
-        for (int i = 0; i < EHDR->e_phnum; i++) {
-
+        for (int i = 0; i < hdr->e_phnum; i++) {
             if (is_unwanted_phdr(phdr)) {
                 n_skipped++;
                 phdr = next_ph(phdr);
@@ -676,9 +662,7 @@ class ELFOperations {
             if (!(phdr->p_flags & PF_W)) {
                 skip = false;
                 for (int i = 0; i < NT_Mappings_count; i++) {
-                    if(
-                        is_inside(phdr, NT_Mappings[i].start, NT_Mappings[i].end)
-                    ) {
+                    if (is_inside(phdr, NT_Mappings[i].start, NT_Mappings[i].end)) {
                         skip = true;
                         break;
                     }
@@ -702,6 +686,22 @@ class ELFOperations {
         if (verbose) log("create_mappings_pd done.  Skipped = %i", n_skipped);
     }
 };
+
+char* ELFFile::read_string_at_address(uint64_t addr) {
+    // Locate PT_LOAD for this address.
+    Elf64_Phdr* phdr = ph;
+    for (int i = 0; i < hdr->e_phnum; i++) {
+        if (phdr->p_type == PT_LOAD) {
+            if (phdr->p_vaddr >= addr) {
+                uint64_t offset = phdr->p_offset + (addr - phdr->p_vaddr);
+                return readstring_at_pd(filename, offset);
+            }
+        }
+        phdr = next_ph(phdr);
+    }
+    return nullptr;
+}
+
 
 const char *corePageFilename;
 
@@ -759,19 +759,25 @@ bool dir_exists_pd(const char *dirname) {
 }
 
 bool dir_isempty_pd(const char *dirname) {
+    int count = 0;
     DIR* dir = opendir(dirname);
-    if (dir != null) {
-        struct dirent* ent = readdir(dir);
-        if (ent == nullptr) {
-            return true;
-        } 
+    if (dir != nullptr) {
+        struct dirent* ent;
+        while (true) {
+            ent = readdir(dir);
+            if (ent == nullptr) {
+                break;
+            }
+            count++;
+        }
         closedir(dir);
+        return count <= 2;
     }
     return false;
 }
 
 bool file_exists_pd(const char *filename) {
-    int fd = open(dirname, O_READ);
+    int fd = open(filename, O_RDONLY);
     if (fd < 0) {
         if (errno != ENOENT) {
             warn("checking file'%s': %d: %s", filename, errno, strerror(errno));
@@ -781,6 +787,48 @@ bool file_exists_pd(const char *filename) {
         return true;
     }
     return false;
+}
+
+
+/**
+ * Read a char string from an fd.
+ */
+char* readstring(int fd) {
+    char* buf = (char *) malloc(BUFLEN);
+    if (buf == nullptr) {
+        error("Failed to malloc buffer to read string");
+    }
+    int c = 0;
+    do {
+        int e = read(fd, &buf[c], 1);
+        if (e != 1) {
+            free(buf);
+            return nullptr;
+        }
+    } while (buf[c++] != 0);
+    return buf;
+}
+
+char* readstring_at_pd(const char* filename, long offset) {
+    int fd = open(filename, O_RDONLY);
+    if (fd < 0) {
+        warn("cannot open %s", filename);
+        return (char*) -1;
+    }
+    off_t pos = lseek(fd, offset, SEEK_SET);
+    if (pos < 0) {
+        warn("readstring_at_pd: %s: lseek(%ld) fails %d : %s", filename, offset, errno, strerror(errno));
+        close(fd);
+        return (char*) -1;
+    }
+    char* s = readstring(fd);
+    close(fd);
+    return s;
+}
+
+char* readstring_from_core_at_pd(const char* filename, uint64_t addr) {
+    ELFFile elf(filename);
+    return elf.read_string_at_address(addr);
 }
 
 
@@ -868,17 +916,10 @@ void *do_map_allocate_pd(void *vaddr, size_t length) {
 
 
 int revival_checks_pd(const char *dirname) {
-    // Check dirname is valid:
-    int e = open(dirname, O_DIRECTORY);
-    if (e < 0) {
-        warn("revival_checks: cannot open directory '%s'", dirname);
-        return -1;
-    }
     // Check LD_USE_LOAD_BIAS is set:
     char * env = getenv("LD_USE_LOAD_BIAS");
     if (env == NULL || strncmp(env, "1", 1) != 0) {
-        warn("Error: LD_USE_LOAD_BIAS not set.");
-        return -1;
+        error("Error: LD_USE_LOAD_BIAS not set.");
     }
     return 0;
 }
@@ -1197,6 +1238,7 @@ void *load_sharedobject_verify_pd(const char *name, void *vaddr) {
 
 /**
  * Experimental loading shared object by mmap, then fixing up.  Not fully implemented.
+ * Fixing up the shared object and using dlopen is easier.
  */
 void *load_sharedobject_mmap_pd(const char *filename, void *vaddr) {
     int loaded = 0;
@@ -1239,8 +1281,8 @@ void *load_sharedobject_mmap_pd(const char *filename, void *vaddr) {
     }
     // Not done yet. We need to do the job of the runtime linker.
     // Calls via pltgot need fixing for the new base address.
-    // That includes a table of relocations into ourself, and that require resolving from all other libraries.
-    // A prelink-like edit of the binary might be easier, and lets the runtime linker do this.
+    // That includes a table of relocations into ourself, and that requires resolving from all other libraries.
+    // A prelink-like edit of the binary is easier, and lets the runtime linker do this.
     // That is still quite a bit of work, but relocations are by a fixed amount, no lookups in other librarires required.
     if (loaded > 0) {
         return vaddr;
@@ -1287,9 +1329,9 @@ void copy_file_pd(const char *srcfile, const char *destfile) {
     }
 }
 
-const int N_JVM_SYMS = 1;
+const int N_JVM_SYMS = 2;
 const char *JVM_SYMS[N_JVM_SYMS] = {
-    SYM_REVIVE_VM
+    SYM_REVIVE_VM, SYM_VM_RELEASE
 };
 
 int open_for_read(const char* filename) {
@@ -1320,7 +1362,7 @@ bool create_directory_pd(char* dirname) {
     return mkdir(dirname, S_IRUSR | S_IWUSR | S_IXUSR) == 0;
 }
 
-void init_jvm_filename_and_address(ELFOperations& core) {
+void init_jvm_filename_and_address(ELFFile& core) {
     SharedLibMapping* jvm_mapping = core.get_library_mapping(JVM_FILENAME);
     jvm_filename = strdup(jvm_mapping->path);
     jvm_address = (void*) jvm_mapping->start;
@@ -1342,7 +1384,7 @@ int create_revivalbits_native_pd(const char* corename, const char* javahome, con
 
     // Find libjvm and its load address from core
     {
-        ELFOperations core(corename);
+        ELFFile core(corename);
         init_jvm_filename_and_address(core);
 
         if (libdir != nullptr) {
@@ -1376,7 +1418,7 @@ int create_revivalbits_native_pd(const char* corename, const char* javahome, con
 
     // Relocate copy of libjvm:
     {
-        ELFOperations jvm_copy(jvm_copy_path);
+        ELFFile jvm_copy(jvm_copy_path);
         logv("Relocate copy of libjvm to %p", jvm_address);
         jvm_copy.relocate((unsigned long) jvm_address /* assume library currently has zero base address */);
         logv("Relocate copy of libjvm done");
@@ -1399,9 +1441,11 @@ int create_revivalbits_native_pd(const char* corename, const char* javahome, con
     snprintf(jvm_debuginfo_path, BUFLEN, "%s", jvm_filename);
     char *p = strstr(jvm_debuginfo_path, ".so");
     if (p != nullptr) {
-        snprintf(p, BUFLEN, ".debuginfo");
-        snprintf(jvm_debuginfo_copy_path, BUFLEN - 1, "%s/libjvm.debuginfo", revival_dirname);
-        copy_file_pd(jvm_debuginfo_path, jvm_debuginfo_copy_path);
+        snprintf(p, BUFLEN, ".debuginfo"); // Append to jvm_debuginfo_path
+        if (file_exists_pd(jvm_debuginfo_path)) {
+            snprintf(jvm_debuginfo_copy_path, BUFLEN - 1, "%s/libjvm.debuginfo", revival_dirname);
+            copy_file_pd(jvm_debuginfo_path, jvm_debuginfo_copy_path);
+        }
     }
 
     logv("create_revivalbits_native_pd returning %d", 0);
