@@ -33,6 +33,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import jdk.internal.javac.PreviewFeature;
 import jdk.internal.util.json.JsonParser;
@@ -257,7 +258,7 @@ public final class Json {
                             HashMap::putAll);
             case JsonArray ja -> ja.elements().stream()
                     .map(Json::fromJson)
-                    .toList();
+                    .collect(Collectors.toList());
             case JsonBoolean jb -> jb.bool();
             case JsonNull _ -> null;
             case JsonNumber n -> n.number();
