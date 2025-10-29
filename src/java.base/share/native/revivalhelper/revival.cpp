@@ -1065,6 +1065,7 @@ int revive_image(const char* corename, const char *javahome, const char* libdir,
     }
 
     // Version check?
+    skipVersionCheck = true;
     void *ver = symbol_resolve_from_symbol_file(dirname, SYM_VM_RELEASE);
     if (ver == nullptr && !skipVersionCheck) {
         warn("No vm release symbol found, no version check.");
