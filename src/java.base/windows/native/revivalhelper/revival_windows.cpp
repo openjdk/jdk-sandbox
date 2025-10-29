@@ -45,6 +45,7 @@
 
 #include "revival.hpp"
 
+#include "minidump.hpp"
 
 uint64_t valign;
 uint64_t pagesize;
@@ -90,7 +91,6 @@ static void install_kernelbase_1803_symbol_or_exit(Fn*& fn, const char* name) {
 }
 
 
-
 uint64_t vaddr_alignment_pd() {
     return valign;
 }
@@ -131,7 +131,7 @@ void init_pd() {
 }
 
 
-void normalize(char *s) {
+void normalize_path_pd(char *s) {
     for (char *p = s; *p != '\0'; p++) {
         if (*p == '/') *p = '\\';
     }
@@ -208,18 +208,13 @@ void install_handler() {
 
 
 void tls_fixup_pd(void *old_teb) {
-    // Given we have revived memory, can read old TEB address, to find old TLS pointer.
-    logv("tls_fixup: old TEB addr 0x%llx", old_teb);
+    logv("tls_fixup: given old TEB addr 0x%llx", old_teb);
 
-    if (verbose) {
-//        printTLS();
-    }
-
+    // Given we have revived memory, read old TEB address, to find old TLS pointer.
     uint64_t* old_tls = (uint64_t*) ((char*) old_teb + 0x58);
     logv("tls_fixup: old _tls_array = 0x%llx contains 0x%llx", old_tls, *old_tls);
 
     // TEB pointer on x64 is: __readgsqword(0x30) + 0x58
-    //
     uint64_t* new_teb = (uint64_t*) NtCurrentTeb();
     uint64_t* new_tls = (uint64_t*) ((char*) new_teb + 0x58);
     logv("tls_fixup: new teb = 0x%llx", new_teb);
@@ -227,10 +222,6 @@ void tls_fixup_pd(void *old_teb) {
 
     *new_tls = *old_tls;
     logv("tls_fixup: fixed new tls = 0x%llx contains 0x%llx", new_tls, *new_tls);
-
-    if (verbose) {
-//        printTLS();
-     } 
 }
 
 
@@ -612,7 +603,6 @@ void *do_map_allocate_pd(void *vaddr, size_t length) {
             (void*) vaddr, (void*) vaddr_aligned, length, length_aligned);
     }
 
-    // address r = (address) do_map_allocate_pd_MapViewOfFile(vaddr_aligned, length_aligned);
     address r = (address) do_map_allocate_pd_VirtualAlloc2((void*) vaddr_aligned, length_aligned);
 
     // Accept the aligned down address and return as if the requested vaddr was honoured.
@@ -625,287 +615,14 @@ void *do_map_allocate_pd(void *vaddr, size_t length) {
 }
 
 
-char* readstring_at_pd(const char* filename, long offset) {
+char* readstring_at_pd(const char* filename, uint64_t offset) {
     error("not implemented");
     return nullptr;
 }
 
-char* readstring_from_core_at_pd(const char* filename, long offset) {
+char* readstring_from_core_at_pd(const char* filename, uint64_t offset) {
     error("not implemented");
     return nullptr;
-}
-
-
-/**
- * Read a MINIDUMP_STRING, which is:
- * ULONG32 Length, WCHAR buffer (UTF16-LE)
- */
-char *readstring_minidump(int fd) {
-    wchar_t *wbuf = (wchar_t *) calloc(BUFLEN, 1);
-    char *mbuf = (char *) calloc(BUFLEN, 1);
-    if (wbuf == nullptr || mbuf == nullptr) {
-        warn("Failed to allocate buf for readstring");
-        return nullptr;
-    }
-    ULONG32 length;
-    int e = read(fd, &length, sizeof(ULONG32));
-    if (e != sizeof(ULONG32)) {
-        warn("Failed to read MINIDUMP_STRING length: %d", e);
-        return nullptr;
-    }
-    if (length >= BUFLEN) {
-        warn("MINIDUMP_STRING length too long: %d", length);
-        return nullptr;
-    }
-    e = read(fd, wbuf, length);
-    if (e != length) {
-        warn("Failed to read MINIDUMP_STRING chars: %d", e);
-        return nullptr;
-    }
-
-    e = (int) wcstombs(mbuf, wbuf, length);
-    if (e < (int) (length/2)) {
-        warn("MINIDUMP_STRING length %d, short bad results from wcstombs: %d", length, e);
-        return nullptr;
-    }
-
-    // Ideally put mbuf string into an accurately-sized buffer.
-    free(wbuf);
-    return mbuf;
-}
-
-/**
- * Read a MINDUMP_STRING at a given offset in a file.
- */
-char *string_at_offset_minidump(int fd, ULONG32 offset) {
-    off_t pos = lseek(fd, 0, SEEK_CUR);
-    lseek(fd, offset, SEEK_SET);
-    char *s = readstring_minidump(fd);
-    lseek(fd, pos, SEEK_SET);
-    return s;
-}
-
-
-class MiniDump {
-  public:
-    MiniDump(const char* filename);
-    bool is_valid() { return fd >= 0; }
-    void close();
-    ~MiniDump();
-    MINIDUMP_DIRECTORY* find_stream(int stream);
-    Segment* readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA);
-
-    char* get_jvm_filename() { return jvm_filename; }
-    void* get_jvm_address() { return jvm_address; }
-
-    void prepare_memory_ranges();
-
-    Segment* get_jvm_seg() { return jvm_seg; }
-    Segment* get_jvm_rdata_seg() { return jvm_rdata_seg; }
-    Segment* get_jvm_data_seg() { return jvm_data_seg; }
-
-    int get_fd() { return fd; }
-    RVA64 getBaseRVA() { return BaseRVA; }
-
-  private:
-    void open(const char* filename);
-    int read_modules(); // populate module list, and locate jvm
-    Segment* readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA);
-
-    int fd;
-    _MINIDUMP_HEADER hdr;
-    std::list<Segment> modules;
-
-    char* jvm_filename;
-    void* jvm_address;
-    Segment* jvm_seg;
-    Segment* jvm_rdata_seg;
-    Segment* jvm_data_seg;
-    void populate_jvm_data_segs(const char *filename);
-
-    ULONG64 NumberOfMemoryRanges;
-    RVA64 BaseRVA;
-    int rangesRead;
-};
-
-MiniDump::MiniDump(const char* filename) {
-    open(filename);
-    if (is_valid()) {
-        read_modules();
-        logv("MiniDump: NumberOfStreams = %d StreamDirectoryRva = %d", hdr.NumberOfStreams, hdr.StreamDirectoryRva);
-    }
-}
-
-MiniDump *dump = nullptr;
-
-/**
- * Open a MINIDUMP.
- * Read header, module list.
- */
-void MiniDump::open(const char *filename) {
-    fd = ::open(filename, O_RDONLY);
-    if (fd < 0) {
-        warn("MiniDump::open '%s' failed: %d: %s", core_filename, errno, strerror(errno));
-        return;
-    }
-    // Read MiniDump header
-    int e = read(fd, &hdr, sizeof(_MINIDUMP_HEADER));
-    if (hdr.Signature != MINIDUMP_SIGNATURE) {
-        warn("Minidump header unexpected: %lx", hdr.Signature);
-    }
-}
-
-void MiniDump::close() {
-    ::close(fd);
-    fd = -1;
-}
-
-MiniDump::~MiniDump() {
-    close();
-}
-
-/**
- * Read minidump to locate wanted stream.
- * Seek the dump file descriptor to the stream data.
- */
-MINIDUMP_DIRECTORY* MiniDump::find_stream(int stream) {
-    if (fd < 0) {
-        error("MiniDump not open");
-    }
-    MINIDUMP_DIRECTORY* md = (MINIDUMP_DIRECTORY*) malloc(sizeof(MINIDUMP_DIRECTORY));
-    lseek(fd, hdr.StreamDirectoryRva, SEEK_SET);
-    for (unsigned int i = 0; i < hdr.NumberOfStreams; i++) {
-        int e = read(fd, md, sizeof(*md));
-        if (md->StreamType == stream) {
-            lseek(fd, md->Location.Rva, SEEK_SET);
-            return md;
-        }     
-    }
-    return nullptr;
-}
-
-// Locate the .data section of a PE file.
-// Return a Segment using relative addresses.
-Segment* data_section(const char *filename) {
-
-    PLOADED_IMAGE image = ImageLoad(filename, nullptr);
-    if (image == nullptr) {
-    	error("data_section: ImageLoad error : %d", GetLastError());
-    }
-    // Create a Segment from .data, and use the next Section to set its end address.
-    Segment *seg = nullptr;
-    for (unsigned int i = 0; i < image->NumberOfSections; i++) {
-        logv("data_section image: %s vaddr 0x%llx size 0x%llx", image->Sections[i].Name, image->Sections[i].VirtualAddress,
-             image->Sections[i].SizeOfRawData);
-
-        if (strncmp((char*) image->Sections[i].Name, ".data", 8) == 0) {
-            seg = new Segment((void *) (DWORD_PTR) image->Sections[i].VirtualAddress, (size_t) image->Sections[i].SizeOfRawData, 0, 0); 
-            continue;
-        }
-        if (seg != nullptr) {
-            // Already read and set Seg, use this section as the end of that Seg.
-            seg->set_length(image->Sections[i].VirtualAddress - seg->start());
-            logv("DATA SEG: 0x%llx - 0x%llx ", seg->start(), seg->end());
-            break;
-        }
-    }
-
-    int e = ImageUnload(image);
-    if (e != TRUE) {
-    	warn("data_section: ImageUnload error : %d", GetLastError());
-    }
-    return seg;
-}
-
-
-
-// Read ModuleListStream.
-// Populate the modules list, and specifically record jvm.dll details.
-int MiniDump::read_modules() {
-    if (fd < 0) {
-        error("MiniDump not open");
-    }
-    MINIDUMP_DIRECTORY *md = find_stream(ModuleListStream);
-    if (md == nullptr) {
-        warn("Minidump ModuleListStream not found.");
-        return -1;
-    }
-
-    int count = 0;
-    // Use MINIDUMP_LOCATION_DESCRIPTOR
-    ULONG32 size = md->Location.DataSize;
-    ULONG32 n;
-    int e = read(fd, &n, sizeof(n));
-    for (unsigned int j = 0; j < n; j++) {
-        MINIDUMP_MODULE module;
-        e = read(fd, &module, sizeof(module));
-//        if (e != sizeof(module)) {
-//            error("MiniDump::read_modules: read wants %d got %d", sizeof(module), e);
-//        }
-        char *name = string_at_offset_minidump(fd, module.ModuleNameRva);
-        logv("MODULE name = '%s' 0x%llx", name, module.BaseOfImage);
-        // Populate Segment list of modules
-        Segment *seg = new Segment((void *) module.BaseOfImage, (size_t) module.SizeOfImage, 0, 0);
-        modules.push_back(seg);
-
-        // Is it the JVM?
-        if (strstr(name, "\\" JVM_FILENAME) != nullptr) {
-            logv("FOUND JVM name = '%s' with base address 0x%llx", name, module.BaseOfImage);
-            // Record locally in dump object:
-            jvm_filename = strdup(name);
-            jvm_address = (void *) module.BaseOfImage;
-            // Also lookup .data Section for later copying:
-            jvm_seg = seg; // without file offset details at this point
-            populate_jvm_data_segs(name);
-
-        }
-        free(name);
-        count++;
-    }
-    return count;
-}
-
-void MiniDump::populate_jvm_data_segs(const char *filename) {
-
-    PLOADED_IMAGE image = ImageLoad(filename, nullptr);
-    if (image == nullptr) {
-    	error("ImageLoad error : %d", GetLastError());
-    }
-    // Create a Segment from .data, and use the next Section to set its end address.
-    jvm_rdata_seg = nullptr;
-    jvm_data_seg = nullptr;
-    for (unsigned int i = 0; i < image->NumberOfSections; i++) {
-        logv("data_section image: %s vaddr 0x%llx size 0x%llx", image->Sections[i].Name, image->Sections[i].VirtualAddress,
-             image->Sections[i].SizeOfRawData);
-
-        if (jvm_rdata_seg == nullptr && strncmp((char*) image->Sections[i].Name, ".rdata", 8) == 0) {
-            jvm_rdata_seg = new Segment((void *) (DWORD_PTR) image->Sections[i].VirtualAddress, (size_t) image->Sections[i].SizeOfRawData, 0, 0); 
-            continue;
-        }
-
-        if (strncmp((char*) image->Sections[i].Name, ".data", 8) == 0) {
-            if (jvm_rdata_seg != nullptr) {
-                jvm_rdata_seg->set_length(image->Sections[i].VirtualAddress - jvm_rdata_seg->start());
-            }
-             jvm_data_seg = new Segment((void *) (DWORD_PTR) image->Sections[i].VirtualAddress, (size_t) image->Sections[i].SizeOfRawData, 0, 0); 
-            continue;
-        }
-        if (jvm_data_seg != nullptr) {
-            // Already read and set Seg, use this section as the end of that Seg.
-            jvm_data_seg->set_length(image->Sections[i].VirtualAddress - jvm_data_seg->start());
-            break;
-        }
-    }
-
-    int e = ImageUnload(image);
-    if (e != TRUE) {
-        warn("data_section: ImageUnload error : %d", GetLastError());
-    }
-    jvm_rdata_seg = new Segment((void*) ((uint64_t) jvm_address + (uint64_t) jvm_rdata_seg->start()), jvm_rdata_seg->length, 0, 0);
-    jvm_data_seg = new Segment((void*) ((uint64_t) jvm_address + (uint64_t) jvm_data_seg->start()), jvm_data_seg->length, 0, 0);
-    logv("JVM SEG:        0x%llx - 0x%llx ", jvm_seg->start(), jvm_seg->end());
-    logv("JVM .rdata SEG: 0x%llx - 0x%llx ", jvm_rdata_seg->start(), jvm_rdata_seg->end());
-    logv("JVM .data SEG:  0x%llx - 0x%llx ", jvm_data_seg->start(), jvm_data_seg->end());
 }
 
 
@@ -921,8 +638,8 @@ int copy_file_pd(const char *srcfile, const char *destfile) {
     }
     strcpy(s, srcfile);
     strcpy(d, destfile);
-    normalize(s);
-    normalize(d);
+    normalize_path_pd(s);
+    normalize_path_pd(d);
 
     strncat(command, "COPY ", BUFLEN - 1);
     strncat(command, s, BUFLEN - 1);
@@ -969,113 +686,6 @@ int relocate_sharedlib_pd(const char *filename, const void *addr) {
     return e;
 }
 
-/**
- * Prepare for caller to read memory ranges.
- *
- * Leaves dump fd positioned to read the array of MINIDUMP_MEMORY_DESCRIPTOR64
- * by calling readSegment().
- */
-void MiniDump::prepare_memory_ranges() {
-    MINIDUMP_DIRECTORY *md = dump->find_stream(Memory64ListStream);
-    if (md == nullptr) {
-        error("Minidump Memory64ListStream not found.");
-    }
-    int e = read(dump->get_fd(), &NumberOfMemoryRanges, sizeof(NumberOfMemoryRanges));
-    e = read(dump->get_fd(), &BaseRVA, sizeof(BaseRVA));
-    logv("MiniDump: NumberOfMemoryRanges %d, BaseRVA 0x%llx", NumberOfMemoryRanges, BaseRVA);
-    rangesRead = 0;
-}
-
-
-/**
- * Read the next Minidump Memory Descriptor.
- * Return a Segment* and update the output parameters.  current RVA will be the dump file offset of the next segment.
- * Return nullptr when no further memory descriptors are found.
- */
-Segment* MiniDump::readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA) {
-    if (rangesRead >= NumberOfMemoryRanges) {
-        return nullptr;
-    }
-
-    int size = sizeof(MINIDUMP_MEMORY_DESCRIPTOR64);
-    do {
-        long pos1 = _lseek(fd, 0, SEEK_CUR);
-        int e = read(fd, d, size);
-        if (e < 0) {
-            warn("MiniDump::readSegment0: read failed, returns %d: %s", e, strerror(errno));
-            return nullptr;
-        } else if (e < size) {
-            // Seeing read return e.g. 2, but _lseek shows it has advanced 16 bytes.
-            long pos2 = _lseek(fd, 0, SEEK_CUR);
-            if (pos2 - pos1 == size) {
-                // Well that's fine, why did read return an odd value?...
-                warn("MiniDump::readSegment0: read expects %d, got %d, at pos1 %ld pos2 %ld.  But looks OK.", size, e, pos1, pos2);
-                break;
-            }
-            // Retry a short read.
-            warn("MiniDump::readSegment0: read expects %d, got %d, at pos1 %ld pos2 %ld.  Retry...", size, e, pos1, pos2);
-            _lseek(fd, pos1, SEEK_SET);
-            waitHitRet();
-            continue;
-        } else {
-            break; // Done
-        }
-    } while (true);
-
-    if (max_user_vaddr_pd() > 0 && d->StartOfMemoryRange >= max_user_vaddr_pd()) {
-        logv("MiniDump::readSegment0: terminating as address 0x%llx >= 0x%llx", d->StartOfMemoryRange, max_user_vaddr_pd());
-        return nullptr; // End of user space mappings.
-    }
-
-    Segment *seg = new Segment((void *) d->StartOfMemoryRange, (size_t) d->DataSize, (size_t) *currentRVA, (size_t) d->DataSize);
-    if (verbose) {
-        char *b = seg->toString();
-        warn("readSegment0: minidump range %d new seg = %s", rangesRead, b);
-        free(b);
-    }
-    *currentRVA += d->DataSize;
-    rangesRead++;
-    return seg;
-}
-
-/**
- * Read a Segment from the MiniDump.
- *
- * Handle skipping of clashes with libraries/modules (DLLs), they are the "avoid list".
- *
- * Return a Segment* and update the output parameters.  current RVA will be the dump file offset of the next segment.
- * Return nullptr when no further memory descriptors are found.
- */
-Segment* MiniDump::readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA) {
-    Segment *seg = nullptr;
-    bool clash;
-    static bool pause = false;
-    do {
-        clash = false;
-        seg = readSegment0(d, currentRVA);
-        if (seg == nullptr) {
-            return nullptr;
-        }
-        // Simple check for clashes.  Comparing module list from dump, with memory list from dump,
-        // so complex overlaps not possible.
-        // Module extents (iter) likely to be larger than individual memory descriptors.
-        for (std::list<Segment>::iterator iter = modules.begin(); iter != modules.end(); iter++) {
-            if (seg->start() >= iter->start() && seg->end() <= iter->end()) {
-                // But the JVM .data Section located earlier is needed.
-                if (jvm_data_seg != nullptr && (seg->contains(jvm_data_seg) || jvm_data_seg->contains(seg))) {
-                    logv("readSegment: Using (JVM .data) seg: 0x%llx - 0x%llx ", seg->start(), seg->end());
-                } else {
-                    logv("readSegment: Skipping seg 0x%llx - 0x%llx due to hit in module list", seg->start(), seg->end());
-                    clash = true;
-                }
-                break;
-            }
-        }
-    } while (clash);
-
-    return seg;
-}
-
 
 uint64_t resolve_teb(MiniDump* dump) {
     // Find Minidump ThreadListStream
@@ -1110,6 +720,7 @@ uint64_t resolve_teb(MiniDump* dump) {
     return 0;
 }
 
+MiniDump* dump = nullptr;
 
 int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const char *javahome, void *addr) {
 
