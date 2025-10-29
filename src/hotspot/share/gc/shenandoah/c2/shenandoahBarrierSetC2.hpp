@@ -125,15 +125,17 @@ public:
 class ShenandoahLoadRefBarrierStubC2 : public ShenandoahBarrierStubC2 {
   Register _obj;
   Register _addr;
-  Register _tmp;
+  Register _tmp1;
+  Register _tmp2;
+  Register _tmp3;
   bool _narrow;
-  ShenandoahLoadRefBarrierStubC2(const MachNode* node, Register obj, Register addr, Register tmp, bool narrow) :
-    ShenandoahBarrierStubC2(node), _obj(obj), _addr(addr), _tmp(tmp), _narrow(narrow) {}
+  ShenandoahLoadRefBarrierStubC2(const MachNode* node, Register obj, Register addr, Register tmp1, Register tmp2, Register tmp3, bool narrow) :
+    ShenandoahBarrierStubC2(node), _obj(obj), _addr(addr), _tmp1(tmp1), _tmp2(tmp2), _tmp3(tmp3), _narrow(narrow) {}
 public:
   static bool needs_barrier(const MachNode* node) {
     return (node->barrier_data() & (ShenandoahBarrierStrong | ShenandoahBarrierWeak | ShenandoahBarrierPhantom | ShenandoahBarrierNative)) != 0;
   }
-  static ShenandoahLoadRefBarrierStubC2* create(const MachNode* node, Register obj, Register addr, Register tmp, bool narrow);
+  static ShenandoahLoadRefBarrierStubC2* create(const MachNode* node, Register obj, Register addr, Register tmp1, Register tmp2, Register tmp3, bool narrow);
   void emit_code(MacroAssembler& masm) override;
 };
 

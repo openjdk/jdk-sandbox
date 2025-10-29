@@ -619,7 +619,7 @@ void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, Ma
   if (maybe_null) {
     __ cbz(obj, done);
   }
-  ShenandoahLoadRefBarrierStubC2* const stub = ShenandoahLoadRefBarrierStubC2::create(node, obj, addr, tmp, narrow);
+  ShenandoahLoadRefBarrierStubC2* const stub = ShenandoahLoadRefBarrierStubC2::create(node, obj, addr, tmp, noreg, noreg, narrow);
   // Don't preserve the obj across the runtime call, we override it from the return value anyway.
   stub->dont_preserve(obj);
   // Check if GC marking is in progress, otherwise we don't have to do anything.
@@ -716,8 +716,8 @@ void ShenandoahLoadRefBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ bind(*entry());
   Register obj = _obj;
   if (_narrow) {
-    __ decode_heap_oop(_tmp, _obj);
-    obj = _tmp;
+    __ decode_heap_oop(_tmp1, _obj);
+    obj = _tmp1;
   }
   // Weak/phantom loads always need to go to runtime.
   if ((_node->barrier_data() & ShenandoahBarrierStrong) != 0) {
