@@ -85,6 +85,20 @@
   do_klass(PhantomReference_klass,                      java_lang_ref_PhantomReference                        ) \
   do_klass(Finalizer_klass,                             java_lang_ref_Finalizer                               ) \
                                                                                                                 \
+  /* support for multi-tenant feature */                                                                        \
+  do_klass(TenantGlobals_klass,                         com_alibaba_tenant_TenantGlobals                      ) \
+  do_klass(TenantConfiguration_klass,                   com_alibaba_tenant_TenantConfiguration                ) \
+  do_klass(TenantState_klass,                           com_alibaba_tenant_TenantState                        ) \
+  do_klass(TenantException_klass,                       com_alibaba_tenant_TenantException                    ) \
+  do_klass(TenantDeathException_klass,                  com_alibaba_tenant_TenantDeathException               ) \
+  do_klass(DisableTenantDeath_klass,                    com_alibaba_tenant_DisableTenantDeath                 ) \
+  do_klass(TenantResourceAccounting_klass,              com_alibaba_tenant_TenantResourceAccounting           ) \
+  do_klass(TenantVirtualThreadContainer_klass,          com_alibaba_tenant_TenantVirtualThreadContainer       ) \
+  do_klass(TenantVirtualThreadExecutorService_klass,    com_alibaba_tenant_TenantVirtualThreadExecutorService ) \
+  do_klass(TenantContinuationEntry_klass,               com_alibaba_tenant_TenantContinuationEntry            ) \
+  do_klass(TenantContainer_klass,                       com_alibaba_tenant_TenantContainer                    ) \
+  /* Note: TenantGlobals must be first, and TenantContainer last in group */                                    \
+                                                                                                                \
   do_klass(Thread_klass,                                java_lang_Thread                                      ) \
   do_klass(Thread_FieldHolder_klass,                    java_lang_Thread_FieldHolder                          ) \
   do_klass(Thread_Constants_klass,                      java_lang_Thread_Constants                            ) \

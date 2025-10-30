@@ -90,6 +90,9 @@ public class SharedSecrets {
     private static JavaxCryptoSealedObjectAccess javaxCryptoSealedObjectAccess;
     private static JavaxCryptoSpecAccess javaxCryptoSpecAccess;
     private static JavaTemplateAccess javaTemplateAccess;
+    private static TenantAccess tenantAccess;
+    private static JavaLangTenantAccess javaLangTenantAccess;
+    private static JavaUtilConcurrentAESTenantAccess javaUtilConcurrentAESTenantAccess;
 
     public static void setJavaUtilCollectionAccess(JavaUtilCollectionAccess juca) {
         javaUtilCollectionAccess = juca;
@@ -536,5 +539,28 @@ public class SharedSecrets {
         try {
             MethodHandles.lookup().ensureInitialized(c);
         } catch (IllegalAccessException e) {}
+    }
+    public static void setTenantAccess(TenantAccess ta) {
+        tenantAccess = ta;
+    }
+
+    public static TenantAccess getTenantAccess() {
+        return tenantAccess;
+    }
+
+    public static void setJavaLangTenantAccess(JavaLangTenantAccess access) {
+        javaLangTenantAccess = access;
+    }
+
+    public static JavaLangTenantAccess getJavaLangTenantAccess() {
+        return javaLangTenantAccess;
+    }
+
+    public static void setJavaUtilConcurrentAESTenantAccess(JavaUtilConcurrentAESTenantAccess access) {
+        javaUtilConcurrentAESTenantAccess = access;
+    }
+
+    public static JavaUtilConcurrentAESTenantAccess getJavaUtilConcurrentAESTenantAccess() {
+        return javaUtilConcurrentAESTenantAccess;
     }
 }

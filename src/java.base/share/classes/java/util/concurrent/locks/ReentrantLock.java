@@ -37,6 +37,7 @@ package java.util.concurrent.locks;
 
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
+import com.alibaba.tenant.DisableTenantDeath;
 import jdk.internal.vm.annotation.ReservedStackAccess;
 
 /**
@@ -105,6 +106,7 @@ import jdk.internal.vm.annotation.ReservedStackAccess;
  * @since 1.5
  * @author Doug Lea
  */
+@DisableTenantDeath
 public class ReentrantLock implements Lock, java.io.Serializable {
     private static final long serialVersionUID = 7373984872572414699L;
     /** Synchronizer providing all implementation mechanics */
@@ -217,6 +219,7 @@ public class ReentrantLock implements Lock, java.io.Serializable {
     /**
      * Sync object for non-fair locks
      */
+    @DisableTenantDeath
     static final class NonfairSync extends Sync {
         private static final long serialVersionUID = 7316153563782823691L;
 
@@ -250,6 +253,7 @@ public class ReentrantLock implements Lock, java.io.Serializable {
     /**
      * Sync object for fair locks
      */
+    @DisableTenantDeath
     static final class FairSync extends Sync {
         private static final long serialVersionUID = -3000897897090466540L;
 

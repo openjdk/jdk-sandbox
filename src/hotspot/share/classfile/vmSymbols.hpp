@@ -88,6 +88,18 @@
   template(java_lang_Integer_IntegerCache,            "java/lang/Integer$IntegerCache")           \
   template(java_lang_Long,                            "java/lang/Long")                           \
   template(java_lang_Long_LongCache,                  "java/lang/Long$LongCache")                 \
+  template(com_alibaba_tenant_TenantGlobals,          "com/alibaba/tenant/TenantGlobals")         \
+  template(com_alibaba_tenant_TenantConfiguration,    "com/alibaba/tenant/TenantConfiguration")   \
+  template(com_alibaba_tenant_TenantState,            "com/alibaba/tenant/TenantState")           \
+  template(com_alibaba_tenant_TenantException,        "com/alibaba/tenant/TenantException")       \
+  template(com_alibaba_tenant_TenantDeathException,   "com/alibaba/tenant/TenantDeathException")  \
+  template(com_alibaba_tenant_DisableTenantDeath,     "com/alibaba/tenant/DisableTenantDeath")    \
+  template(com_alibaba_tenant_TenantVirtualThreadContainer,  "com/alibaba/tenant/TenantVirtualThreadContainer")  \
+  template(com_alibaba_tenant_TenantVirtualThreadExecutorService,  "com/alibaba/tenant/TenantVirtualThreadExecutorService")  \
+  template(com_alibaba_tenant_TenantContinuationEntry,  "com/alibaba/tenant/TenantContinuationEntry")  \
+  template(com_alibaba_tenant_TenantContainer,        "com/alibaba/tenant/TenantContainer")       \
+  template(com_alibaba_tenant_JGroup,                 "com/alibaba/tenant/JGroup")                \
+  template(com_alibaba_tenant_TenantResourceAccounting, "com/alibaba/tenant/TenantResourceAccounting") \
                                                                                                   \
   template(jdk_internal_vm_vector_VectorSupport,      "jdk/internal/vm/vector/VectorSupport")               \
   template(jdk_internal_vm_vector_VectorPayload,      "jdk/internal/vm/vector/VectorSupport$VectorPayload") \
@@ -399,6 +411,7 @@
   template(group_name,                                "group")                                    \
   template(daemon_name,                               "daemon")                                   \
   template(run_method_name,                           "run")                                      \
+  template(runThread_method_name,                     "runThread")                                \
   template(runWith_method_name,                       "runWith")                                  \
   template(interrupt_method_name,                     "interrupt")                                \
   template(exit_method_name,                          "exit")                                     \
@@ -531,6 +544,13 @@
   template(module_entry_name,                         "module_entry")                             \
   template(resolved_references_name,                  "<resolved_references>")                    \
   template(init_lock_name,                            "<init_lock>")                              \
+  template(inheritedTenantContainer_name,             "inheritedTenantContainer")                 \
+  template(initializeJGroupClass_name,                "initializeJGroupClass")                    \
+  template(destroyJGroupClass_name,                   "destroyJGroupClass")                       \
+  template(tenantShutdownMarkLevel_name,              "tenantShutdownMarkLevel")                  \
+  template(initializeTenantContainerClass_name,       "initializeTenantContainerClass")           \
+  template(initializeTenantCpuAccounting_name,        "initializeTenantCpuAccounting")           \
+  template(initializeTenantCpuAccounting_signature,   "(Lcom/alibaba/tenant/TenantResourceAccounting;)V")           \
   template(address_size_name,                         "ADDRESS_SIZE0")                            \
   template(page_size_name,                            "PAGE_SIZE")                                \
   template(big_endian_name,                           "BIG_ENDIAN")                               \
@@ -670,7 +690,9 @@
   template(big_integer_shift_worker_signature,        "([I[IIII)V")                                               \
   template(reflect_method_signature,                  "Ljava/lang/reflect/Method;")                               \
   template(getStackTrace_signature,                    "()[Ljava/lang/StackTraceElement;")                        \
-                                                                                                                  \
+  template(tenantcontainer_signature,                 "Lcom/alibaba/tenant/TenantContainer;")                    \
+  template(com_alibaba_tenant_TenantState_signature, "Lcom/alibaba/tenant/TenantState;")                        \
+  template(com_alibaba_tenant_DisableTenantDeath_signature,  "Lcom/alibaba/tenant/DisableTenantDeath;")  \
   /* signature symbols needed by intrinsics */                                                                    \
   VM_INTRINSICS_DO(VM_INTRINSIC_IGNORE, VM_SYMBOL_IGNORE, VM_SYMBOL_IGNORE, template, VM_ALIAS_IGNORE)            \
                                                                                                                   \
@@ -733,6 +755,8 @@
   template(addThreadDumpForSynchronizers_name,         "addThreadDumpForSynchronizers")                           \
   template(addThreadDumpForMonitors_signature,         "(Ljava/lang/management/ThreadInfo;[Ljava/lang/Object;[I)V") \
   template(addThreadDumpForSynchronizers_signature,    "(Ljava/lang/management/ThreadInfo;[Ljava/lang/Object;)V")   \
+  /* multi-tenant management support */                                                                          \
+  template(com_alibaba_management_internal_TenantResourceMXBeanAccouting, "com/alibaba/management/internal/TenantResourceMXBeanAccouting") \
                                                                                                                   \
   /* JVMTI/java.lang.instrument support and VM Attach mechanism */                                                \
   template(jdk_internal_module_Modules,                "jdk/internal/module/Modules")                             \

@@ -24,6 +24,11 @@
  */
 package java.lang;
 
+import com.alibaba.tenant.DisableTenantDeath;
+import com.alibaba.tenant.TenantContainer;
+import com.alibaba.tenant.TenantDeathException;
+import com.alibaba.tenant.TenantGlobals;
+import com.alibaba.tenant.TenantState;
 import java.lang.ref.Reference;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -41,6 +46,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.event.VirtualThreadEndEvent;
 import jdk.internal.event.VirtualThreadPinnedEvent;
 import jdk.internal.event.VirtualThreadStartEvent;
@@ -48,6 +54,7 @@ import jdk.internal.event.VirtualThreadSubmitFailedEvent;
 import jdk.internal.misc.CarrierThread;
 import jdk.internal.misc.InnocuousThread;
 import jdk.internal.misc.Unsafe;
+import jdk.internal.misc.VM;
 import jdk.internal.vm.Continuation;
 import jdk.internal.vm.ContinuationScope;
 import jdk.internal.vm.StackableScope;
@@ -67,6 +74,7 @@ import static java.util.concurrent.TimeUnit.*;
  * A thread that is scheduled by the Java virtual machine rather than the operating
  * system.
  */
+@DisableTenantDeath
 final class VirtualThread extends BaseVirtualThread {
     private static final Unsafe U = Unsafe.getUnsafe();
     private static final ContinuationScope VTHREAD_SCOPE = new ContinuationScope("VirtualThreads");
@@ -164,6 +172,18 @@ final class VirtualThread extends BaseVirtualThread {
             } else {
                 scheduler = DEFAULT_SCHEDULER;
             }
+            if (VM.isBooted() && TenantGlobals.isTenantEnabled()) {
+                if (inheritedTenantContainer != null) {
+                    // In non-root tenant.
+                    scheduler = inheritedTenantContainer.defaultVirtualThreadScheduler();
+                } else {
+                    // In root tenant.
+                    if (TenantContainer.isTenantScheduler(scheduler)) {
+                        // Parent thread is actually from a non-root tenant. We will not inherit this scheduler.
+                        scheduler = DEFAULT_SCHEDULER;
+                    }
+                }
+            }
         }
 
         this.scheduler = scheduler;
@@ -189,7 +209,11 @@ final class VirtualThread extends BaseVirtualThread {
             return new Runnable() {
                 @Hidden
                 public void run() {
-                    vthread.run(task);
+                    if (TenantGlobals.isTenantEnabled() && TenantGlobals.isThreadStopEnabled()) {
+                        vthread.run(SharedSecrets.getTenantAccess().createTenantContinuationEntry(task));
+                    } else {
+                        vthread.run(task);
+                    }
                 }
             };
         }
@@ -309,6 +333,8 @@ final class VirtualThread extends BaseVirtualThread {
         Object bindings = scopedValueBindings();
         try {
             runWith(bindings, task);
+        } catch (TenantDeathException ex) {
+            // native has set only this class can catch TenantDeathException
         } catch (Throwable exc) {
             dispatchUncaughtException(exc);
         } finally {
@@ -434,7 +460,13 @@ final class VirtualThread extends BaseVirtualThread {
     @Hidden
     @ChangesCurrentThread
     private boolean yieldContinuation() {
-        // unmount
+        if(inheritedTenantContainer != null &&
+            TenantGlobals.isTenantEnabled() && TenantGlobals.isThreadStopEnabled()) {
+            // check tenant shutdown when do park
+            if(!inheritedTenantContainer.isRunnable()) {
+                SharedSecrets.getTenantAccess().setTenantDeathToVThread(this);
+            }
+        }
         notifyJvmtiUnmount(/*hide*/true);
         unmount();
         try {
@@ -517,6 +549,9 @@ final class VirtualThread extends BaseVirtualThread {
 
         // notify container
         if (notifyContainer) {
+            if(TenantGlobals.isTenantEnabled() && inheritedTenantContainer != null) {
+                inheritedTenantContainer.onVThreadExit(this);
+            }
             threadContainer().onExit(this);
         }
 
@@ -536,6 +571,11 @@ final class VirtualThread extends BaseVirtualThread {
         if (!compareAndSetState(NEW, STARTED)) {
             throw new IllegalThreadStateException("Already started");
         }
+        // reject vthread start when tenant is not running
+        if(TenantGlobals.isTenantEnabled() && inheritedTenantContainer != null
+            && !inheritedTenantContainer.isRunnable()) {
+            throw new RejectedExecutionException("tenant container is dead");
+        }
 
         // bind thread to container
         assert threadContainer() == null;
@@ -547,6 +587,9 @@ final class VirtualThread extends BaseVirtualThread {
         try {
             container.onStart(this);  // may throw
             addedToContainer = true;
+            if(TenantGlobals.isTenantEnabled() && inheritedTenantContainer != null) {
+                inheritedTenantContainer.onVThreadStart(this);
+            }
 
             // scoped values may be inherited
             inheritScopedValueBindings(container);
@@ -564,7 +607,11 @@ final class VirtualThread extends BaseVirtualThread {
 
     @Override
     public void start() {
-        start(ThreadContainers.root());
+        if(TenantGlobals.isTenantEnabled() && inheritedTenantContainer != null) {
+            inheritedTenantContainer.startVirtualThread(this);
+        } else {
+            start(ThreadContainers.root());
+        }
     }
 
     @Override
@@ -1138,8 +1185,12 @@ final class VirtualThread extends BaseVirtualThread {
             }
             Thread.UncaughtExceptionHandler handler = (t, e) -> { };
             boolean asyncMode = true; // FIFO
-            return new ForkJoinPool(parallelism, factory, handler, asyncMode,
+            ForkJoinPool forkJoinPool = new ForkJoinPool(parallelism, factory, handler, asyncMode,
                          0, maxPoolSize, minRunnable, pool -> true, 30, SECONDS);
+            if (TenantGlobals.isTenantEnabled()) {
+				TenantContainer.setThreadPoolAsRootContainer(forkJoinPool);
+			}
+			return forkJoinPool;
         };
         return AccessController.doPrivileged(pa);
     }
@@ -1157,9 +1208,19 @@ final class VirtualThread extends BaseVirtualThread {
         }
         ScheduledThreadPoolExecutor stpe = (ScheduledThreadPoolExecutor)
             Executors.newScheduledThreadPool(poolSize, task -> {
-                return InnocuousThread.newThread("VirtualThread-unparker", task);
+                if(TenantGlobals.isTenantEnabled()) {
+                    // unparker thread should always run in root tenant
+                    return TenantContainer.primitiveRunInRoot(()-> {
+                        return InnocuousThread.newThread("VirtualThread-unparker", task);
+                    });
+                } else {
+                    return InnocuousThread.newThread("VirtualThread-unparker", task);
+                }
             });
         stpe.setRemoveOnCancelPolicy(true);
+        if (TenantGlobals.isTenantEnabled()) {
+			TenantContainer.setThreadPoolAsRootContainer(stpe);
+		}
         return stpe;
     }
 

@@ -54,6 +54,7 @@ class HandshakeClosure : public ThreadClosure, public CHeapObj<mtThread> {
   virtual bool is_async()                          { return false; }
   virtual bool is_suspend()                        { return false; }
   virtual bool is_async_exception()                { return false; }
+  virtual bool is_TenantThreadDeath()              { return false; }
   virtual void do_thread(Thread* thread) = 0;
 };
 
@@ -79,6 +80,8 @@ class Handshake : public AllStatic {
   // This version of execute() relies on a ThreadListHandle somewhere in
   // the caller's context to protect target (and we sanity check for that).
   static void execute(AsyncHandshakeClosure*  hs_cl, JavaThread* target);
+  // This version of execute() has on a ThreadListHandle check.
+  static void execute_nocheck(AsyncHandshakeClosure*  hs_cl, JavaThread* target);
 };
 
 class JvmtiRawMonitor;
@@ -132,6 +135,7 @@ class HandshakeState {
   bool has_operation() { return !_queue.is_empty(); }
   bool has_operation(bool allow_suspend, bool check_async_exception);
   bool has_async_exception_operation();
+  bool has_async_tenant_death_exception_operation();
   void clean_async_exception_operation();
 
   bool operation_pending(HandshakeOperation* op);

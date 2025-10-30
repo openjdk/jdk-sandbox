@@ -111,6 +111,9 @@ class Universe: AllStatic {
   // preallocated error objects (no backtrace)
   static OopHandle    _out_of_memory_errors;
 
+  // A special object used to kill threads for MultiTenant mode
+  static OopHandle    _tenant_pthread_death_exception;
+  static OopHandle    _tenant_vthread_death_exception;
   // preallocated cause message for delayed StackOverflowError
   static OopHandle    _delayed_stack_overflow_error_message;
 
@@ -317,6 +320,10 @@ class Universe: AllStatic {
   static bool is_out_of_memory_error_metaspace(oop ex_obj);
   static bool is_out_of_memory_error_class_metaspace(oop ex_obj);
 
+  // special exception used for killing thread
+  static oop tenant_pthread_death_exception();
+  static oop tenant_vthread_death_exception();
+  static bool is_tenant_death_exception(oop ex_obj);
   // The particular choice of collected heap.
   static CollectedHeap* heap() { return _collectedHeap; }
 

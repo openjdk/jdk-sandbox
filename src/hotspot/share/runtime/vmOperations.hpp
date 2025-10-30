@@ -276,4 +276,24 @@ class VM_PrintClassHierarchy: public VM_Operation {
 };
 #endif // INCLUDE_SERVICES
 
+/*
+ * Used to issue a thread killing operation for particular tenant
+ *
+ */
+class VM_StopTenantThreads :public VM_Operation {
+ private:
+  oop _tenant_obj;
+  bool _vthread_only;
+  bool _os_wake_up;
+
+ public:
+  VM_StopTenantThreads(oop obj, bool vthread_only, bool wake_up)
+    : _tenant_obj(obj), _vthread_only(vthread_only), _os_wake_up(wake_up) {
+    assert(MultiTenant && TenantThreadStop, "pre-condition");
+  }
+  VMOp_Type type() const                  { return VMOp_StopTenantThreads; }
+  bool allow_nested_vm_operations() const { return true; }
+  void doit();
+  void oops_do(OopClosure* f); // GC support
+};
 #endif // SHARE_RUNTIME_VMOPERATIONS_HPP

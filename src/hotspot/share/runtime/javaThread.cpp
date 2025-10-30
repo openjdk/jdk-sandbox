@@ -495,6 +495,7 @@ JavaThread::JavaThread() :
 
   _lock_stack(this) {
   set_jni_functions(jni_functions());
+  set_tenant_functions(tenant_functions());
 
 #if INCLUDE_JVMCI
   assert(_jvmci._implicit_exception_pc == nullptr, "must be");
@@ -776,6 +777,7 @@ void JavaThread::exit(bool destroy_vm, ExitType exit_type) {
 
   if (!destroy_vm) {
     if (uncaught_exception.not_null()) {
+      TenantShutdownMark tsm(this); // ensure not interrupted by tenant death
       EXCEPTION_MARK;
       // Call method Thread.dispatchUncaughtException().
       Klass* thread_klass = vmClasses::Thread_klass();
@@ -798,6 +800,7 @@ void JavaThread::exit(bool destroy_vm, ExitType exit_type) {
     }
 
     if (!is_Compiler_thread()) {
+      TenantShutdownMark tsm(this); // ensure clean up not interrupted by tenant death
       // We have finished executing user-defined Java code and now have to do the
       // implementation specific clean-up by calling Thread.exit(). We prevent any
       // asynchronous exceptions from being delivered while in Thread.exit()
@@ -1037,12 +1040,92 @@ void JavaThread::handle_special_runtime_exit_condition() {
   JFR_ONLY(SUSPEND_THREAD_CONDITIONAL(this);)
 }
 
+// check if can throw tenant death exception in current thread stack frames
+// should satisfiy some condition:
+// 1. java thread obj and vthread obj is not mask shutdown disable
+// 2. if kill vthread only, should currently run in real vthread code in stack frames
+bool JavaThread::check_tenant_death_installation(bool vthread_only) {
+  assert(MultiTenant && TenantThreadStop, "pre-condition");
 
+  bool is_vthread_mounted = this->is_vthread_mounted();
+  // if not marked thread shutdown, skip install async death exception
+  // both vthread and pthread should not masked disable shutdown, otherwise skip
+  if (!(vthread_only ? this->is_marked_for_tenant_vthread_shutdown() : this->is_marked_for_tenant_pthread_shutdown())
+    || (is_vthread_mounted && this->is_tenant_shutdown_masked(this->vthread()))
+    || this->is_tenant_shutdown_masked(this->threadObj())) {
+    return false;
+  }
+
+  if(!has_last_Java_frame()) {
+    return false;
+  }
+
+  ContinuationEntry* cont_entry = this->last_continuation();
+
+  Thread* current_thread = Thread::current();
+  ResourceMark rm(current_thread);
+  HandleMark hm(current_thread);
+  RegisterMap reg_map(this,
+                      RegisterMap::UpdateMap::include,
+                      RegisterMap::ProcessFrames::include,
+                      is_vthread_mounted? RegisterMap::WalkContinuation::include : RegisterMap::WalkContinuation::skip);
+
+  vframe* start_vf = is_vthread_mounted? this->last_java_vframe(&reg_map) : platform_thread_last_java_vframe(&reg_map);
+  bool in_vthread_schedule = false;
+  bool in_cont_run = false;
+  for (vframe* f = start_vf; f != nullptr; f = f->sender()) {
+    if(is_vthread_mounted) {
+      // Watch for end of vthread stack
+      if (cont_entry != NULL && Continuation::is_continuation_enterSpecial(f->fr())) {
+        if (cont_entry->is_virtual_thread()) {
+          break;
+        }
+        cont_entry = cont_entry->parent();
+      }
+    }
+
+    if (!f->is_java_frame()) {
+      continue;
+    }
+    javaVFrame* jvf = javaVFrame::cast(f);
+    if(vthread_only) {
+      const char* k_name = jvf->method()->method_holder()->name()->as_C_string();
+      // if all frame in ContinuationEntry doest not disable tenant death, vthread can be killed
+      // will not iterate frame run in carrier thread
+      if(strstr(k_name, "com/alibaba/tenant/TenantContinuationEntry") != 0) {
+        return true;
+      }
+    }
+    // if current stack method's class which disable tenant death, skip installing TenantDeatchException
+    InstanceKlass* ik = jvf->method()->method_holder();
+    if(ik != nullptr && ik->disable_tenant_death()) {
+      return false;
+    }
+  }
+  // when only kill virtual thread, pthread will never install TenantDeatchException
+  return vthread_only ? false : true;
+}
 // Asynchronous exceptions support
 //
 void JavaThread::handle_async_exception(oop java_throwable) {
   assert(java_throwable != nullptr, "should have an _async_exception to throw");
   assert(!is_at_poll_safepoint(), "should have never called this method");
+  if(Universe::is_tenant_death_exception(java_throwable)) {
+    // check if can throw tenant death exception in current thread stack frames
+    if(!check_tenant_death_installation(com_alibaba_tenant_TenantDeathException::is_vthread_only(java_throwable))) {
+      return;
+    }
+
+    if(TraceTenantThreadStop) {
+      Thread* current_thread = Thread::current();
+      ResourceMark rm(current_thread);
+      JavaThread* jthread = (JavaThread*)current_thread;
+      tty->print_cr("handle async tenant death exception on pthread " PTR_FORMAT "(%s) %s(%s)",
+        p2i(jthread),  JavaThread::name_for(jthread->threadObj()),
+        jthread->is_vthread_mounted()? "vthread" : "pthread",
+        JavaThread::name_for(jthread->is_vthread_mounted()? jthread->vthread() : jthread->threadObj()));
+    }
+  }
 
   if (has_last_Java_frame()) {
     frame f = last_frame();
@@ -1123,6 +1206,7 @@ public:
   }
 };
 
+// synchronous install aysnc exception , can only be called from java thread
 void JavaThread::send_async_exception(JavaThread* target, oop java_throwable) {
   OopHandle e(Universe::vm_global(), java_throwable);
   InstallAsyncExceptionHandshake iaeh(new AsyncExceptionHandshake(e));
@@ -2227,4 +2311,298 @@ void JavaThread::add_oop_handles_for_release() {
   new_head->add(_scopedValueCache);
   _oop_handle_list = new_head;
   Service_lock->notify_all();
+}
+bool JavaThread::is_marked_for_tenant_pthread_shutdown() {
+  assert(MultiTenant && TenantThreadStop, "pre-condition");
+  return _marked_for_tenant_pthread_shutdown;
+}
+
+bool JavaThread::is_marked_for_tenant_vthread_shutdown() {
+  assert(MultiTenant && TenantThreadStop, "pre-condition");
+  return _marked_for_tenant_vthread_shutdown;
+}
+
+void JavaThread::mark_for_tenant_pthread_shutdown() {
+  assert(MultiTenant && TenantThreadStop, "pre-condition");
+  _marked_for_tenant_pthread_shutdown = true;
+}
+
+void JavaThread::mark_for_tenant_vthread_shutdown() {
+  assert(MultiTenant && TenantThreadStop, "pre-condition");
+  _marked_for_tenant_vthread_shutdown = true;
+}
+
+// disable tenant shutdown for pthread/vthread
+// will block infinitely to wait for killer thread to
+// finish shutdown operations on current thread
+void JavaThread::mask_tenant_shutdown(oop jthread) {
+  assert(jthread != nullptr, "java thread object should not be null");
+  assert(MultiTenant && TenantThreadStop && is_Java_thread(), "pre-condition");
+  assert(this == Thread::current(), "Only allow to mask self");
+
+  int old_level = java_lang_Thread::tenant_shutdown_mark_level(jthread);
+  assert(old_level > TSM_uninitialized, "pre-condition");
+
+  int new_level, level;
+  new_level = level = TSM_uninitialized;
+  do {
+    level = TSM_uninitialized;
+    old_level = java_lang_Thread::tenant_shutdown_mark_level(jthread);
+    if (old_level == TSM_being_killed) {
+      // spinning if TenantContainer.destroy() is ongoing
+      continue;
+    } else {
+      new_level = old_level + 1;
+      level = java_lang_Thread::cmpxchg_tenant_shutdown_mark_level(jthread, old_level, new_level);
+    }
+  } while (level != old_level);
+
+#ifndef PRODUCT
+  // reduce debug log for root tenant thread
+  if (TraceTenantThreadStop  && java_lang_Thread::inherited_tenant_container(jthread) != nullptr) {
+    ResourceMark rm;
+    if(jthread->klass()->is_subtype_of(vmClasses::VirtualThread_klass())) {
+      tty->print_cr("Disabled tenant shutdown on pthread " PTR_FORMAT "(%s) vthread(%s), to_level = %d", p2i(this),
+        JavaThread::name_for(this->threadObj()), JavaThread::name_for(jthread), new_level);
+    } else {
+      tty->print_cr("Disabled tenant shutdown on pthread " PTR_FORMAT "(%s), to_level = %d", p2i(this),
+        JavaThread::name_for(this->threadObj()), new_level);
+    }
+  }
+#endif
+
+  assert(java_lang_Thread::tenant_shutdown_mark_level(jthread) > TSM_idle, "post-condition");
+
+  // clear TenantDeathException if already set, clear it
+  if (has_tenant_death_exception()) {
+    assert(is_marked_for_tenant_pthread_shutdown() || is_marked_for_tenant_vthread_shutdown(), "pre-condition");
+    clear_tenant_death_exception();
+    if (TraceTenantThreadStop) {
+      ResourceMark rm;
+      if(jthread->klass()->is_subtype_of(vmClasses::VirtualThread_klass())) {
+        tty->print_cr("mask_tenant_shutdown: clear TenantDeathException on pthread " PTR_FORMAT "(%s) vthread(%s)", p2i(this),
+          JavaThread::name_for(this->threadObj()), JavaThread::name_for(jthread));
+      } else {
+        tty->print_cr("mask_tenant_shutdown: clear TenantDeathException on pthread " PTR_FORMAT "(%s)", p2i(this),
+          JavaThread::name_for(this->threadObj()));
+      }
+    }
+  }
+}
+
+
+// enable tenant shutdown for pthread/vthread
+// if pthread masked as shutdown, will reset tenant death exception
+void JavaThread::unmask_tenant_shutdown(oop jthread) {
+  assert(jthread != nullptr, "java thread object should not be null");
+  assert(MultiTenant && TenantThreadStop && is_Java_thread(), "pre-condition");
+  assert(this == Thread::current(), "Only allow to unmask self");
+  int old_level = java_lang_Thread::tenant_shutdown_mark_level(jthread) ;
+  guarantee(old_level > TSM_idle, "pre-condition");
+
+  int new_level, level;
+  new_level = level = TSM_uninitialized;
+  do {
+    old_level = java_lang_Thread::tenant_shutdown_mark_level(jthread);
+    new_level = old_level - 1;
+    level = java_lang_Thread::cmpxchg_tenant_shutdown_mark_level(jthread, old_level, new_level);
+  } while (level != old_level);
+
+  #ifndef PRODUCT
+  // reduce debug log for root tenant thread
+  if (TraceTenantThreadStop  && java_lang_Thread::inherited_tenant_container(jthread) != nullptr) {
+    ResourceMark rm;
+    if(jthread->klass()->is_subtype_of(vmClasses::VirtualThread_klass())) {
+      tty->print_cr("Enabled tenant shutdown on pthread " PTR_FORMAT "(%s) vthread(%s), to_level = %d", p2i(this),
+        JavaThread::name_for(this->threadObj()), JavaThread::name_for(jthread), new_level);
+    } else {
+      tty->print_cr("Enabled tenant shutdown on pthread " PTR_FORMAT "(%s), to_level = %d", p2i(this),
+        JavaThread::name_for(this->threadObj()), new_level);
+    }
+  }
+#endif
+
+  // if shutdown disable counter is zero, check thread death and apply to current platform thread
+  if(new_level == TSM_idle) {
+    if(is_marked_for_tenant_pthread_shutdown()) {
+      assert(!has_tenant_death_exception(), "pre-condition");
+      // both vthread and pthread should not be shutdown disabled
+      if(check_tenant_death_installation(false)) {
+        if (TraceTenantThreadStop) {
+          ResourceMark rm;
+          tty->print_cr("unmask_tenant_shutdown: restore TenantDeathException on pthread " PTR_FORMAT "(%s)", p2i(this),
+            JavaThread::name_for(this->threadObj()));
+        }
+        set_pending_exception(Universe::tenant_pthread_death_exception(), __FILE__, __LINE__);
+      }
+    } else if(is_marked_for_tenant_vthread_shutdown() && jthread->klass()->is_subtype_of(vmClasses::VirtualThread_klass())) {
+      // both vthread and pthread should not be shutdown disabled
+      if(check_tenant_death_installation(true)) {
+        if (TraceTenantThreadStop) {
+          ResourceMark rm;
+          tty->print_cr("unmask_tenant_shutdown: restore TenantDeathException on pthread " PTR_FORMAT "(%s) vthread(%s)", p2i(this),
+            JavaThread::name_for(this->threadObj()), JavaThread::name_for(jthread));
+        }
+        set_pending_exception(Universe::tenant_vthread_death_exception(), __FILE__, __LINE__);
+      }
+    }
+  }
+}
+
+bool JavaThread::is_tenant_shutdown_masked(oop jthread) {
+  assert(jthread != nullptr, "java thread object should not be null");
+  assert(MultiTenant && TenantThreadStop, "pre-condition");
+  return java_lang_Thread::tenant_shutdown_mark_level(jthread) > TSM_idle;
+}
+
+// Tenant shutdown related operations
+
+void JavaThread::clear_tenant_death_exception() {
+  assert(MultiTenant && TenantThreadStop, "pre-condition");
+  // if hs async thread death exception
+  if (has_async_tenant_death_exception_condition()) {
+    handshake_state()->clean_async_exception_operation();
+  }
+  if (has_pending_exception()
+      && Universe::is_tenant_death_exception(pending_exception())) {
+    clear_pending_exception();
+  }
+}
+
+bool JavaThread::has_tenant_death_exception() {
+  assert(MultiTenant && TenantThreadStop, "pre-condition");
+  return (has_async_tenant_death_exception_condition()
+          || Universe::is_tenant_death_exception(pending_exception()));
+}
+
+void JavaThread::set_async_tenant_death_exception(oop jthread, bool vthread_only) {
+  assert(jthread != nullptr, "java thread object should not be null");
+  assert(MultiTenant && TenantThreadStop
+         && java_lang_Thread::tenant_shutdown_mark_level(jthread) <= TSM_idle, "pre-condition");
+
+  OopHandle e(Universe::vm_global(), vthread_only ? Universe::tenant_vthread_death_exception(): Universe::tenant_pthread_death_exception());
+  AsyncExceptionHandshake* op = new AsyncExceptionHandshake(e);
+  // here cannot invoke send_async_exception which should be called from java thread
+  // but current call is from vm thread
+  // and op will be deleted after op is executed
+  Handshake::execute_nocheck(op, this);
+
+#ifndef PRODUCT
+  if (TraceTenantThreadStop) {
+    ResourceMark rm;
+    if(jthread->klass()->is_subtype_of(vmClasses::VirtualThread_klass())) {
+      tty->print_cr("Special async exception set for pthread " PTR_FORMAT "(%s) vthread(%s)", p2i(this),
+        JavaThread::name_for(this->threadObj()), JavaThread::name_for(jthread));
+    } else {
+      tty->print_cr("Special async exception set for pthread " PTR_FORMAT "(%s)", p2i(this),
+        JavaThread::name_for(this->threadObj()));
+    }
+  }
+#endif
+}
+
+void JavaThread::set_tenant_death_to_vthread(oop jthread) {
+  assert(jthread != nullptr, "java thread object should not be null");
+  assert(MultiTenant && TenantThreadStop, "pre-condition");
+  assert(this == Thread::current(), "Only allow to be called by current thread");
+  assert(jthread->klass()->is_subtype_of(vmClasses::VirtualThread_klass()), "set_tenant_death_to_vthread only support virtual thread");
+  if (check_tenant_death_installation(true)) {
+
+        if (TraceTenantThreadStop) {
+          ResourceMark rm;
+          tty->print_cr("set tenant death to pthread " PTR_FORMAT "(%s) vthread(%s)", p2i(this),
+            JavaThread::name_for(this->threadObj()), JavaThread::name_for(jthread));
+        }
+        set_pending_exception( Universe::tenant_vthread_death_exception(), __FILE__, __LINE__);
+  }
+}
+
+bool JavaThread::try_start_tenant_shutdown(oop jthread) {
+  assert(jthread != nullptr, "java thread object should not be null");
+  assert(MultiTenant && TenantThreadStop
+         && java_lang_Thread::tenant_shutdown_mark_level(jthread) >= TSM_idle, "pre-condition");
+
+  int level = TSM_uninitialized;
+  int spins = 64;
+  do {
+    level = java_lang_Thread::cmpxchg_tenant_shutdown_mark_level(jthread, (int)TSM_idle, (int)TSM_being_killed);
+    assert(level != TSM_uninitialized, "post-condition");
+    if (level == TSM_idle) {
+      assert(java_lang_Thread::tenant_shutdown_mark_level(jthread) == TSM_being_killed, "post-condition");
+#ifndef PRODUCT
+      if (TraceTenantThreadStop) {
+        ResourceMark rm;
+        if(jthread->klass()->is_subtype_of(vmClasses::VirtualThread_klass())) {
+          tty->print_cr("Begin tenant shutdown on pthread " PTR_FORMAT "(%s) vthread(%s)", p2i(this),
+            JavaThread::name_for(this->threadObj()), JavaThread::name_for(jthread));
+        } else {
+          tty->print_cr("Begin tenant shutdown on pthread " PTR_FORMAT "(%s)", p2i(this),
+            JavaThread::name_for(this->threadObj()));
+        }
+      }
+#endif
+      return true;
+    }
+    --spins;
+  } while (level > TSM_idle && spins >= 0);
+
+#ifndef PRODUCT
+  if (TraceTenantThreadStop) {
+    ResourceMark rm;
+    if(jthread->klass()->is_subtype_of(vmClasses::VirtualThread_klass())) {
+      tty->print_cr("Skip tenant shutdown on pthread " PTR_FORMAT "(%s) vthread(%s)", p2i(this),
+        JavaThread::name_for(this->threadObj()), JavaThread::name_for(jthread));
+    } else {
+      tty->print_cr("Skip tenant shutdown on pthread " PTR_FORMAT "(%s)", p2i(this),
+        JavaThread::name_for(this->threadObj()));
+    }
+  }
+#endif
+
+  return false;
+}
+
+void JavaThread::end_tenant_shutdown(oop jthread) {
+  assert(jthread != nullptr, "java thread object should not be null");
+  assert(MultiTenant && TenantThreadStop
+         && java_lang_Thread::tenant_shutdown_mark_level(jthread) == TSM_being_killed, "pre-condition");
+
+  java_lang_Thread::cmpxchg_tenant_shutdown_mark_level(jthread, (int)TSM_being_killed, (int)TSM_idle);
+
+#ifndef PRODUCT
+  if (TraceTenantThreadStop) {
+    ResourceMark rm;
+    if(jthread->klass()->is_subtype_of(vmClasses::VirtualThread_klass())) {
+      tty->print_cr("End tenant shutdown on pthread " PTR_FORMAT "(%s) vthread(%s)", p2i(this),
+        JavaThread::name_for(this->threadObj()), JavaThread::name_for(jthread));
+    } else {
+      tty->print_cr("End tenant shutdown on pthread " PTR_FORMAT "(%s)", p2i(this),
+        JavaThread::name_for(this->threadObj()));
+    }
+  }
+#endif
+
+}
+
+TenantShutdownMark::TenantShutdownMark(Thread* thrd)
+  : _thread(NULL) {
+  assert(NULL != thrd, "pre-condition");
+  if (MultiTenant && TenantThreadStop
+      && thrd->is_Java_thread()
+      && !thrd->is_Compiler_thread()) {
+    _thread = (JavaThread*)thrd;
+    if(_thread->threadObj() != nullptr) {
+      _thread->mask_tenant_shutdown(_thread->threadObj());
+    }
+  }
+}
+
+TenantShutdownMark::~TenantShutdownMark() {
+  if (MultiTenant && TenantThreadStop
+      && is_init_completed()
+      && NULL != _thread) {
+    if(_thread->threadObj() != nullptr) {
+      _thread->unmask_tenant_shutdown(_thread->threadObj());
+    }
+  }
 }

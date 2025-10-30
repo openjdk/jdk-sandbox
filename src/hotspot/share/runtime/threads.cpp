@@ -329,6 +329,13 @@ static void call_initPhase3(TRAPS) {
   JavaValue result(T_VOID);
   JavaCalls::call_static(&result, klass, vmSymbols::initPhase3_name(),
                                          vmSymbols::void_method_signature(), CHECK);
+  // VM.isBooted() is set in System.initPhase3(), and TenantContainer depends on that state
+  if (MultiTenant) {
+    // initialize com.alibaba.tenant.TenantContainer
+    klass =  SystemDictionary::resolve_or_fail(vmSymbols::com_alibaba_tenant_TenantContainer(), true, CHECK);
+    JavaCalls::call_static(&result, klass, vmSymbols::initializeTenantContainerClass_name(),
+                                           vmSymbols::void_method_signature(), CHECK);
+  }
 }
 
 void Threads::initialize_java_lang_classes(JavaThread* main_thread, TRAPS) {
@@ -812,6 +819,27 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
     ShouldNotReachHere();
   }
 
+  if (MultiTenant) {
+    EXCEPTION_MARK;
+    if (TenantCpuAccounting) {
+      JavaValue result(T_VOID);
+      Klass* klass =  SystemDictionary::resolve_or_fail(vmSymbols::com_alibaba_tenant_TenantContainer(), true, CHECK_JNI_ERR);
+      Klass* accounting_klass =  SystemDictionary::resolve_or_fail(vmSymbols::com_alibaba_management_internal_TenantResourceMXBeanAccouting(), true, CHECK_JNI_ERR);
+      InstanceKlass* accounting_ik = InstanceKlass::cast(accounting_klass);
+      if (accounting_ik->should_be_initialized()) {
+        accounting_ik->initialize(CHECK_JNI_ERR);
+      }
+      Handle accounting_instance = JavaCalls::construct_new_instance(accounting_ik, vmSymbols::void_method_signature(), CHECK_JNI_ERR);
+      JavaCalls::call_static(&result, klass, vmSymbols::initializeTenantCpuAccounting_name(),
+                                            vmSymbols::initializeTenantCpuAccounting_signature(), accounting_instance, CHECK_JNI_ERR);
+    }
+    if (TenantCpuThrottling) {
+      Klass* klass =  SystemDictionary::resolve_or_fail(vmSymbols::com_alibaba_tenant_JGroup(), true, CHECK_JNI_ERR);
+      JavaValue result(T_VOID);
+      JavaCalls::call_static(&result, klass, vmSymbols::initializeJGroupClass_name(),
+                                           vmSymbols::void_method_signature(), CHECK_JNI_ERR);
+    }
+  }
   return JNI_OK;
 }
 
@@ -881,6 +909,20 @@ void Threads::destroy_vm() {
 
   // run Java level shutdown hooks
   thread->invoke_shutdown_hooks();
+
+    // invoke JGroup.destroyJGroupClass!
+  if (MultiTenant && TenantCpuThrottling) {
+    EXCEPTION_MARK;
+    Klass* klass =  SystemDictionary::resolve_or_null(vmSymbols::com_alibaba_tenant_JGroup(), THREAD);
+    if (klass != NULL) {
+      JavaValue result(T_VOID);
+      JavaCalls::call_static(&result,
+                             klass,
+                             vmSymbols::destroyJGroupClass_name(),
+                             vmSymbols::void_method_signature(),
+                             THREAD);
+    }
+  }
 
   before_exit(thread);
 
@@ -1424,4 +1466,86 @@ void Threads::verify() {
   }
   VMThread* thread = VMThread::vm_thread();
   if (thread != nullptr) thread->verify();
+}
+void Threads::kill_threads_of_tenant(oop tenant_obj, jboolean vthread_only, jboolean os_wake_up) {
+  assert(MultiTenant && TenantThreadStop && tenant_obj != NULL, "pre-condition");
+  VM_StopTenantThreads vm_op(tenant_obj, JNI_TRUE == vthread_only, JNI_TRUE == os_wake_up);
+  // wait until vm op finished
+  VMThread::execute(&vm_op);
+}
+
+// call by vm thread in VM_StopTenantThreads operation
+void Threads::mark_threads_for_tenant_shutdown(oop tenant_obj, bool vthread_only, bool os_wake_up) {
+  assert(MultiTenant && TenantThreadStop, "pre-condition");
+  assert(tenant_obj != NULL, "Cannot kill threads of ROOT tenant");
+
+  assert(Thread::current()->is_VM_thread(), "should be in the vm thread");
+  assert(Threads_lock->is_locked(), "Threads_lock should be locked by safepoint code");
+  assert(SafepointSynchronize::is_at_safepoint(), "must be!");
+
+  // for all threads attached to target tenant container object
+  ALL_JAVA_THREADS(thread) {
+
+    assert(thread->is_Java_thread(), "Just checking");
+
+    if (java_lang_Thread::inherited_tenant_container(thread->threadObj()) == tenant_obj
+          && !thread->is_Compiler_thread()  /* CompilerThread is subclass of JavaThread, skip it */
+          && !thread->is_terminated() /* skip dying thread */ ) {
+
+      assert(thread->threadObj() != NULL, "Just checking");
+
+      if(vthread_only) {
+        thread->mark_for_tenant_vthread_shutdown();
+        // if virtual thread is not mounted, skip tenant death mark
+        if(!thread->is_vthread_mounted() || thread->vthread() == thread->threadObj()) {
+          continue;
+        }
+      } else {
+        thread->mark_for_tenant_pthread_shutdown();
+      }
+
+      oop target_thread_obj = vthread_only ? thread->vthread() : thread->threadObj();
+      if (!thread->has_tenant_death_exception() // skip those already marked
+          // check both virtual thread and carrier thread has disable shutdown
+          && !thread->is_tenant_shutdown_masked(target_thread_obj)
+          && !thread->is_tenant_shutdown_masked(thread->threadObj())
+          && thread->try_start_tenant_shutdown(target_thread_obj)) {
+
+
+#ifndef PRODUCT
+        if (TraceTenantThreadStop) {
+          ResourceMark rm;
+          if(target_thread_obj->klass()->is_subtype_of(vmClasses::VirtualThread_klass())) {
+            tty->print_cr("Marking thread " PTR_FORMAT "(%s) vthread(%s) for tenant destroying" PTR_FORMAT, p2i(thread),
+              JavaThread::name_for(thread->threadObj()), JavaThread::name_for(target_thread_obj), p2i(tenant_obj));
+          } else {
+            tty->print_cr("Marking thread " PTR_FORMAT "(%s) for tenant destroying" PTR_FORMAT, p2i(thread),
+              JavaThread::name_for(thread->threadObj()), p2i(tenant_obj));
+          }
+        }
+#endif
+
+        // Set the special exception
+        thread->set_async_tenant_death_exception(target_thread_obj, vthread_only? true: false);
+
+        thread->end_tenant_shutdown(target_thread_obj);
+      }
+
+      // Try to wake up thread
+      if (thread->has_tenant_death_exception()
+          && !thread->is_tenant_shutdown_masked(target_thread_obj)
+          && !thread->is_tenant_shutdown_masked(thread->threadObj())
+          && thread->try_start_tenant_shutdown(thread->threadObj())) {
+        // when killing virtual thread, do not interrupt carrier threads
+        if (!vthread_only) {
+          thread->interrupt();
+        }
+        // Use os::wake_up those blocked in native code
+        if (os_wake_up && thread->thread_state() == _thread_in_native) {
+          os::wake_up(thread);
+        }
+        thread->end_tenant_shutdown(thread->threadObj());
+      }
+    }
+  }
 }

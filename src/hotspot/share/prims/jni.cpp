@@ -576,6 +576,10 @@ JNI_ENTRY_NO_PRESERVE(void, jni_ExceptionDescribe(JNIEnv *env))
   if (thread->has_pending_exception()) {
     Handle ex(thread, thread->pending_exception());
     thread->clear_pending_exception();
+    if (MultiTenant && TenantThreadStop
+                && ex->is_a(vmClasses::TenantDeathException_klass())) {
+      // Don't print anything if we are being killed.
+    } else {
     jio_fprintf(defaultStream::error_stream(), "Exception ");
     if (thread != nullptr && thread->threadObj() != nullptr) {
       ResourceMark rm(THREAD);
@@ -601,6 +605,7 @@ JNI_ENTRY_NO_PRESERVE(void, jni_ExceptionDescribe(JNIEnv *env))
       jio_fprintf(defaultStream::error_stream(),
                   ". Uncaught exception of type %s.",
                   ex->klass()->external_name());
+      }
     }
   }
 
@@ -3964,6 +3969,10 @@ jint JNICALL jni_GetEnv(JavaVM *vm, void **penv, jint version) {
       ret = JNI_OK;
       return ret;
 
+    } else if (TENANT_ENV_VERSION_1_0 == version) { //get the tenant environment for java thread.
+      *(TenantEnv**)penv = ((JavaThread*) thread)->tenant_environment();
+      ret = JNI_OK;
+      return ret;
     } else if (version == JVMPI_VERSION_1 ||
                version == JVMPI_VERSION_1_1 ||
                version == JVMPI_VERSION_1_2) {

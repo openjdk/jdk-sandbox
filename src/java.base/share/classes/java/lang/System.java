@@ -24,6 +24,9 @@
  */
 package java.lang;
 
+import com.alibaba.tenant.TenantGlobals;
+import com.alibaba.tenant.TenantContainer;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.Console;
@@ -76,6 +79,7 @@ import jdk.internal.module.ServicesCatalog;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.access.JavaLangAccess;
+import jdk.internal.access.JavaLangTenantAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.javac.PreviewFeature;
 import jdk.internal.logger.LoggerFinderLoader;
@@ -2669,5 +2673,33 @@ public final class System {
                 return loader.nameAndId();
             }
         });
+
+        if (TenantGlobals.isTenantEnabled()) {
+            SharedSecrets.setJavaLangTenantAccess(new JavaLangTenantAccess() {
+                public void setChildShouldInheritTenant(Thread thread, boolean shouldInherit) {
+                    thread.tenantInheritance = shouldInherit;
+                }
+
+                public void setInheritedTenantContainer(Thread thread, TenantContainer container) {
+                    thread.inheritedTenantContainer = container;
+                }
+
+                public TenantContainer getInheritedTenantContainer(Thread thread) {
+                    return thread.inheritedTenantContainer;
+                }
+
+                public void setAttachedTenantContainer(Thread thread, TenantContainer container) {
+                    thread.attachedTenantContainer = container;
+                }
+
+                public TenantContainer getAttachedTenantContainer(Thread thread) {
+                    return thread.attachedTenantContainer;
+                }
+
+                public boolean getTenantInheritance(Thread thread) {
+                    return thread.tenantInheritance;
+                }
+            });
+        }
     }
 }

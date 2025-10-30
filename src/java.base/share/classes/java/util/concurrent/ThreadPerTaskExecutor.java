@@ -24,6 +24,9 @@
  */
 package java.util.concurrent;
 
+import com.alibaba.tenant.TenantContainer;
+import com.alibaba.tenant.TenantException;
+import com.alibaba.tenant.TenantGlobals;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.security.Permission;
@@ -61,6 +64,10 @@ class ThreadPerTaskExecutor extends ThreadContainer implements ExecutorService {
     private final ThreadFactory factory;
     private final Set<Thread> threads = ConcurrentHashMap.newKeySet();
     private final CountDownLatch terminationSignal = new CountDownLatch(1);
+    /**
+     * all the threads created by this executor service should be in inherited tenant container
+     */
+    protected TenantContainer inheritedTenantContainer;
 
     // states: RUNNING -> SHUTDOWN -> TERMINATED
     private static final int RUNNING    = 0;
@@ -74,6 +81,11 @@ class ThreadPerTaskExecutor extends ThreadContainer implements ExecutorService {
     private ThreadPerTaskExecutor(ThreadFactory factory) {
         super(/*shared*/ true);
         this.factory = Objects.requireNonNull(factory);
+        if (TenantGlobals.isTenantEnabled()) {
+			inheritedTenantContainer = TenantContainer.currentPoolInheritedTenantContainer(null);
+        } else {
+			inheritedTenantContainer = null;
+		}
     }
 
     /**
@@ -216,7 +228,33 @@ class ThreadPerTaskExecutor extends ThreadContainer implements ExecutorService {
      * Creates a thread to run the given task.
      */
     private Thread newThread(Runnable task) {
-        Thread thread = factory.newThread(task);
+        Thread thread;
+        if (TenantGlobals.isTenantEnabled()) {
+            Thread[] threads = new Thread[1];
+            if (inheritedTenantContainer == null) {
+                // force virtual thread inherit root tenant
+                TenantContainer.primitiveRunInRoot(() -> {
+                    threads[0] = factory.newThread(task);
+                    TenantContainer.setInheritedTenantContainer(threads[0], null);
+                });
+                thread = threads[0];
+            } else {
+                TenantContainer.primitiveRunInRoot(() -> {
+                    try {
+                        inheritedTenantContainer.run(() -> {
+                            threads[0] = factory.newThread(task);
+                            TenantContainer.setInheritedTenantContainer(threads[0], inheritedTenantContainer);
+                        });
+                    } catch(TenantException ex) {
+                        throw new RejectedExecutionException(ex);
+                    }
+
+                });
+                thread = threads[0];
+            }
+        } else {
+            thread = factory.newThread(task);
+        }
         if (thread == null)
             throw new RejectedExecutionException();
         return thread;

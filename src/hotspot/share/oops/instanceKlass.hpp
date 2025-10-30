@@ -644,6 +644,8 @@ public:
   bool is_contended() const                { return _misc_flags.is_contended(); }
   void set_is_contended(bool value)        { _misc_flags.set_is_contended(value); }
 
+  bool disable_tenant_death() const        { return _misc_flags.disable_tenant_death(); }
+  void set_disable_tenant_death()          { _misc_flags.set_disable_tenant_death(true); }
   // source file name
   Symbol* source_file_name() const               { return _constants->source_file_name(); }
   u2 source_file_name_index() const              { return _constants->source_file_name_index(); }

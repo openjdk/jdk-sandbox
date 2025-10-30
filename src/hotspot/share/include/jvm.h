@@ -1141,6 +1141,30 @@ JNIEXPORT jobjectArray JNICALL
 JVM_GetEnclosingMethodInfo(JNIEnv* env, jclass ofClass);
 
 /*
+ * com.alibaba.tenant.TenantContainer
+ */
+
+JNIEXPORT void JNICALL
+JVM_TenantPrepareForDestroy(JNIEnv* env, jobject tenant, jboolean virtualThreadOnly, jboolean osWakeUp);
+
+JNIEXPORT jboolean JNICALL
+JVM_IsKilledByTenant(JNIEnv*env, jclass ignored, jobject jthread);
+
+JNIEXPORT void JNICALL
+JVM_WakeUpTenantThread(JNIEnv *env, jclass clazz, jobject jthread);
+
+JNIEXPORT void JNICALL
+JVM_MaskTenantShutdown(JNIEnv *env, jclass ignored, jobject jthread);
+
+JNIEXPORT void JNICALL
+JVM_UnmaskTenantShutdown(JNIEnv *env, jclass ignored, jobject jthread);
+
+JNIEXPORT void JNICALL
+JVM_DumpTenantThreadStacks(JNIEnv *env, jclass tenant, jobjectArray threads);
+
+JNIEXPORT void JNICALL
+JVM_SetTenantDeathToVThread(JNIEnv*env, jclass ignored, jobject jthread);
+/*
  * Virtual thread support.
  */
 JNIEXPORT void JNICALL

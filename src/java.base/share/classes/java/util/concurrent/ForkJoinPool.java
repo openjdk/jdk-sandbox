@@ -35,6 +35,8 @@
 
 package java.util.concurrent;
 
+import com.alibaba.tenant.TenantContainer;
+import com.alibaba.tenant.TenantGlobals;
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.lang.reflect.Field;
 import java.security.AccessController;
@@ -52,6 +54,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.Condition;
+import jdk.internal.access.JavaLangAccess;
 import jdk.internal.access.JavaUtilConcurrentFJPAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.misc.Unsafe;
@@ -1572,6 +1575,9 @@ public class ForkJoinPool extends AbstractExecutorService {
         try {
             if (runState >= 0 &&  // avoid construction if terminating
                 fac != null && (wt = fac.newThread(this)) != null) {
+				if (TenantGlobals.isTenantEnabled()) {
+					TenantContainer.setPoolThreadInheritedTenantContainer(wt, this, inheritedTenantContainer);
+				}
                 container.start(wt);
                 return true;
             }
@@ -3817,6 +3823,9 @@ public class ForkJoinPool extends AbstractExecutorService {
             AccessController.doPrivileged(new PrivilegedAction<>() {
                     public ForkJoinPool run() {
                         return new ForkJoinPool((byte)0); }});
+		if (TenantGlobals.isTenantEnabled()) {
+			TenantContainer.setThreadPoolAsRootContainer(common);
+		}
         // allow access to non-public methods
         SharedSecrets.setJavaUtilConcurrentFJPAccess(
             new JavaUtilConcurrentFJPAccess() {

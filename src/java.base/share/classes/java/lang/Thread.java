@@ -25,6 +25,9 @@
 
 package java.lang;
 
+import com.alibaba.tenant.TenantContainer;
+import com.alibaba.tenant.TenantGlobals;
+import com.alibaba.tenant.TenantDeathException;
 import java.lang.ref.Reference;
 import java.lang.reflect.Field;
 import java.security.AccessController;
@@ -39,6 +42,7 @@ import java.util.Objects;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.StructureViolationException;
 import java.util.concurrent.locks.LockSupport;
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.event.ThreadSleepEvent;
 import jdk.internal.misc.TerminatingThreadLocal;
 import jdk.internal.misc.Unsafe;
@@ -286,6 +290,22 @@ public class Thread implements Runnable {
      */
     ThreadLocal.ThreadLocalMap inheritableThreadLocals;
 
+    /**
+     * The tenant container which creates this thread object
+     */
+    TenantContainer inheritedTenantContainer;
+    TenantContainer attachedTenantContainer;
+
+    /*
+     * indicates whether child thread created by this thread should
+     * inherit TenantContainer of this thread.
+     */
+    boolean tenantInheritance = true;
+
+    /*
+     * used by native to control tenant shutdown
+     */
+    volatile int tenantShutdownMarkLevel = 1;
     /*
      * Scoped value bindings are maintained by the ScopedValue class.
      */
@@ -760,6 +780,11 @@ public class Thread implements Runnable {
         // special value to indicate this is a newly-created Thread
         // Note that his must match the declaration in ScopedValue.
         this.scopedValueBindings = NEW_THREAD_BINDINGS;
+        /* Set the tenant container */
+        if (VM.isBooted() && TenantGlobals.isTenantEnabled()) {
+            tenantInheritance = SharedSecrets.getTenantAccess().threadInheritance();
+            inheritedTenantContainer = TenantContainer.currentInheritedTenantContainer(this);
+        }
     }
 
     /**
@@ -797,6 +822,12 @@ public class Thread implements Runnable {
             this.holder = new FieldHolder(g, null, -1, pri, true);
         } else {
             this.holder = null;
+        }
+
+        /* Set the tenant container */
+        if (VM.isBooted() && TenantGlobals.isTenantEnabled()) {
+            tenantInheritance = SharedSecrets.getTenantAccess().threadInheritance();
+            inheritedTenantContainer = TenantContainer.currentInheritedTenantContainer(this);
         }
     }
 
@@ -1608,6 +1639,11 @@ public class Thread implements Runnable {
             uncaughtExceptionHandler = null;
         if (nioBlocker != null)
             nioBlocker = null;
+        inheritedTenantContainer = null;
+        attachedTenantContainer = null;
+        if (TenantGlobals.isTenantEnabled()) {
+            contextClassLoader = null;
+        }
     }
 
     /**
@@ -2898,7 +2934,11 @@ public class Thread implements Runnable {
      * called when a thread terminates with an exception.
      */
     void dispatchUncaughtException(Throwable e) {
-        getUncaughtExceptionHandler().uncaughtException(this, e);
+        if (!(e instanceof TenantDeathException)
+                || (TenantGlobals.isThreadStopEnabled() && "true".equalsIgnoreCase(
+                        System.getProperty("com.alibaba.tenant.AllowDispatchingTenantDeathException")))) {
+            getUncaughtExceptionHandler().uncaughtException(this, e);
+        }
     }
 
     /**
