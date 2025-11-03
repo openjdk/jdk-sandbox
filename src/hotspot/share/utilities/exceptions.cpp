@@ -88,6 +88,11 @@ bool Exceptions::special_exception(JavaThread* thread, const char* file, int lin
   assert(h_exception.is_null() != (h_name == nullptr), "either exception (" PTR_FORMAT ") or "
          "symbol (" PTR_FORMAT ") must be non-null but not both", p2i(h_exception()), p2i(h_name));
 
+  if (Thread::is_revived()) {
+    fprintf(stderr, "%s\n", message);
+    os::exit(1);
+  }
+
   // bootstrapping check
   if (!Universe::is_fully_initialized()) {
     if (h_exception.not_null()) {

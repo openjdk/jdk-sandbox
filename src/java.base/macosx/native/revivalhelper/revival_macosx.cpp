@@ -82,7 +82,7 @@ void init_pd() {
 }
 
 
-char* readstring_at_pd(const char* filename, long offset) {
+char* readstring_at_pd(const char* filename, uint64_t offset) {
     error("not implemented");
     return nullptr;
 }

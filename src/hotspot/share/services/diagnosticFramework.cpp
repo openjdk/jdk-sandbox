@@ -214,12 +214,12 @@ void DCmdParser::parse(CmdLine* line, char delim, outputStream* out, TRAPS) {
         argbuf[len] = '\0';
         jio_snprintf(buf, buflen - 1, "Unknown argument '%s' in diagnostic command.", argbuf);
 
-        if (!Thread::is_revived()) {
+//        if (!Thread::is_revived()) {
           THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(), buf);
-        } else {
-          out->print_cr("%s", buf);
-          return;
-        }
+//        } else {
+//          out->print_cr("%s", buf);
+//          return;
+//        }
       }
     }
     cont = iter.next(CHECK);
@@ -418,10 +418,10 @@ void DCmd::Executor::parse_and_execute(const char* cmdline, char delim, TRAPS) {
 
       DCmd* command = DCmdFactory::create_local_DCmd(_source, line, _out, CHECK);
 
-      if (Thread::is_revived() && command == nullptr) {
+//      if (Thread::is_revived() && command == nullptr) {
         // Unrecognised command, error was already printed.
-        return;
-      }
+//        return;
+//      }
 
       assert(command != nullptr, "command error must be handled before this line");
       DCmdMark mark(command);
@@ -579,23 +579,22 @@ DCmd* DCmdFactory::create_local_DCmd(DCmdSource source, CmdLine &line,
   DCmdFactory* f = factory(source, line.cmd_addr(), line.cmd_len());
   if (f != nullptr) {
     if (!f->is_enabled()) {
-      if (!Thread::is_revived()) {
+//      if (!Thread::is_revived()) {
         THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(),
                        f->disabled_message());
-      } else {
-        out->print_cr("Disabled");
-        return nullptr;
-      }
+//      } else {
+//        out->print_cr("Disabled");
+//        return nullptr;
+//      }
     }
     return f->create_resource_instance(out);
   }
-  if (!Thread::is_revived()) {
+//  if (!Thread::is_revived()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(),
                "Unknown diagnostic command");
-  } else {
-    out->print_cr("Unknown diagnostic command");
-    return nullptr;
-  }
+//  } else {
+//    out->print_cr("Unknown diagnostic command");
+//    return nullptr;
 }
 
 GrowableArray<const char*>* DCmdFactory::DCmd_list(DCmdSource source) {
