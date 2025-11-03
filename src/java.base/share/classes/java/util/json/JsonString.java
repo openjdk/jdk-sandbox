@@ -41,7 +41,8 @@ import jdk.internal.util.json.JsonStringImpl;
  * <p> Alternatively, {@link #of(String)} can be used to obtain a {@code JsonString}
  * directly from a {@code String}. The following expressions are all equivalent,
  * {@snippet lang = "java":
- *     import Json;Json.parse("\"foo\\t\"");
+ *     import Json;
+ *     Json.parse("\"foo\\t\"");
  *     Json.parse("\"foo\\u0009\"");
  *     JsonString.of("foo\t");
  *}
