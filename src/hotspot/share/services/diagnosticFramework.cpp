@@ -212,7 +212,7 @@ void DCmdParser::parse(CmdLine* line, char delim, outputStream* out, TRAPS) {
 
         strncpy(argbuf, iter.key_addr(), len);
         argbuf[len] = '\0';
-        jio_snprintf(buf, buflen - 1, "Unknown argument '%s' in diagnostic command.", argbuf);
+        jio_snprintf(buf, buflen, "Unknown argument '%s' in diagnostic command.", argbuf);
 
 //        if (!Thread::is_revived()) {
           THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(), buf);
@@ -245,7 +245,7 @@ void DCmdParser::check(TRAPS) {
   GenDCmdArgument* arg = _arguments_list;
   while (arg != nullptr) {
     if (arg->is_mandatory() && !arg->has_value()) {
-      jio_snprintf(buf, buflen - 1, "The argument '%s' is mandatory.", arg->name());
+      jio_snprintf(buf, buflen, "The argument '%s' is mandatory.", arg->name());
       THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(), buf);
     }
     arg = arg->next();
@@ -253,7 +253,7 @@ void DCmdParser::check(TRAPS) {
   arg = _options;
   while (arg != nullptr) {
     if (arg->is_mandatory() && !arg->has_value()) {
-      jio_snprintf(buf, buflen - 1, "The option '%s' is mandatory.", arg->name());
+      jio_snprintf(buf, buflen, "The option '%s' is mandatory.", arg->name());
       THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(), buf);
     }
     arg = arg->next();
