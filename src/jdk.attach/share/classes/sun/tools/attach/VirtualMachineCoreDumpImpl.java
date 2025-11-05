@@ -140,7 +140,10 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
             newEnv.put("LD_USE_LOAD_BIAS", "1");
             newEnv.put("LD_PRELOAD", jdkLibDir + File.separator + "librevival_support.so");
         }
-
+        String editbin = System.getProperty("jdk.attach.core.editbin");
+        if (editbin != null) {
+            newEnv.put("EDITBIN", editbin);
+        }
         // Run the helper.
         // Be prepared for it to fail, if Address Space Layout Randomization is unkind and causes a clash.
         // Recognise the process return value and retry with some limit.

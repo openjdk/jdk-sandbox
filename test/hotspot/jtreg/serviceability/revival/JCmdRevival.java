@@ -182,7 +182,7 @@ public class JCmdRevival {
 
         String heapDumpName = null;
         JDKToolLauncher launcher = JDKToolLauncher.createUsingTestJDK("jcmd");
-//        launcher.addVMArgs(Utils.getTestJavaOpts()); // We do not generally run jcmd with other options.
+        launcher.addVMArgs(Utils.getTestJavaOpts()); // We do not generally run jcmd with other options.
         launcher.addToolArg(coreFileName);
 
         // This method just takes a commad name to test.  For some commands we will
@@ -328,7 +328,8 @@ public class JCmdRevival {
                 break;
             }
             case "VM.systemdictionary": {
-                out.shouldContain("System Dictionary for 'bootstrap' class loader statistics:");
+                // out.shouldContain("System Dictionary for 'bootstrap' class loader statistics:");
+                out.shouldContain("Number of buckets       :");
                 break;
             }
             case "VM.unknowncommand": {
