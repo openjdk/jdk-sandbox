@@ -768,7 +768,7 @@ int create_revivalbits_native_pd(const char* corename, const char* javahome, con
     memset(jvm_copy_path, 0, BUFLEN);
     strncpy(jvm_copy_path, revival_dirname, BUFLEN - 1);
     strncat(jvm_copy_path, "/" JVM_FILENAME, BUFLEN - 1);
-    warn("Copying libjvm.so from %s", jvm_filename);
+    logv("Copying libjvm.so from %s", jvm_filename);
     copy_file_pd(jvm_filename, jvm_copy_path);
 
     // Relocate copy of libjvm:

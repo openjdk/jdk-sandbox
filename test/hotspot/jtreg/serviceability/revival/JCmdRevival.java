@@ -37,7 +37,7 @@
  * @requires os.family == "linux" | os.family == "windows"
  * @library /test/lib
  *
- * @run main/othervm -Djdk.attach.core.verbose=true JCmdRevival oom VM.version help Thread.print GC.class_histogram GC.heap_dump Compiler.CodeHeap_Analytics Compiler.codecache Compiler.codelist Compiler.memory GC.heap_info System.dump_map System.map VM.class_hierarchy VM.classes VM.classloader_stats VM.classloaders VM.command_line VM.dynlibs VM.events VM.flags VM.metaspace VM.native_memory VM.stringtable VM.symboltable VM.systemdictionary VM.version_UNKNOWN VM.unknowncommand VM.flags_UNKNOWNARG
+ * @run main/othervm -Djdk.attach.core.verbose=true JCmdRevival oom VM.version help Thread.print GC.class_histogram GC.heap_dump Compiler.CodeHeap_Analytics Compiler.codecache Compiler.codelist Compiler.memory GC.heap_info VM.class_hierarchy VM.classes VM.classloader_stats VM.classloaders VM.command_line VM.dynlibs VM.events VM.flags VM.metaspace VM.stringtable VM.symboltable VM.systemdictionary VM.version_UNKNOWN VM.unknowncommand VM.flags_UNKNOWNARG
  */
 
 /*
@@ -47,7 +47,7 @@
  * @library /test/lib
  * @requires vm.debug == true
  *
- * @run main/othervm JCmdRevival cicrash VM.version help Thread.print GC.class_histogram GC.heap_dump Compiler.CodeHeap_Analytics Compiler.codecache Compiler.codelist Compiler.memory GC.heap_info System.dump_map System.map VM.class_hierarchy VM.classes VM.classloader_stats VM.classloaders VM.command_line VM.dynlibs VM.events VM.flags VM.metaspace VM.native_memory VM.stringtable VM.symboltable VM.systemdictionary VM.version_UNKNOWN VM.unknowncommand VM.flags_UNKNOWNARG
+ * @run main/othervm JCmdRevival cicrash VM.version help Thread.print GC.class_histogram GC.heap_dump Compiler.CodeHeap_Analytics Compiler.codecache Compiler.codelist Compiler.memory GC.heap_info VM.class_hierarchy VM.classes VM.classloader_stats VM.classloaders VM.command_line VM.dynlibs VM.events VM.flags VM.metaspace VM.stringtable VM.symboltable VM.systemdictionary VM.version_UNKNOWN VM.unknowncommand VM.flags_UNKNOWNARG
  *
  */
 
@@ -57,7 +57,7 @@
  * @requires os.family == "linux" | os.family == "windows"
  * @library /test/lib
  *
- * @run main/othervm JCmdRevival abortvmonexception VM.version help Thread.print GC.class_histogram GC.heap_dump Compiler.CodeHeap_Analytics Compiler.codecache Compiler.codelist Compiler.memory GC.heap_info System.dump_map System.map VM.class_hierarchy VM.classes VM.classloader_stats VM.classloaders VM.command_line VM.dynlibs VM.events VM.flags VM.metaspace VM.native_memory VM.stringtable VM.symboltable VM.systemdictionary VM.version_UNKNOWN VM.unknowncommand VM.flags_UNKNOWNARG
+ * @run main/othervm JCmdRevival abortvmonexception VM.version help Thread.print GC.class_histogram GC.heap_dump Compiler.CodeHeap_Analytics Compiler.codecache Compiler.codelist Compiler.memory GC.heap_info VM.class_hierarchy VM.classes VM.classloader_stats VM.classloaders VM.command_line VM.dynlibs VM.events VM.flags VM.metaspace VM.stringtable VM.symboltable VM.systemdictionary VM.version_UNKNOWN VM.unknowncommand VM.flags_UNKNOWNARG
  *
  */
 
@@ -264,14 +264,6 @@ public class JCmdRevival {
                 // out.shouldMatch("Metaspace\\s+used "); // not any more...
                 break;
             }
-            case "System.dump_map": {
-                out.shouldContain("Memory map dumped to ");
-                break;
-            }
-            case "System.map": {
-                out.shouldContain("");
-                break;
-            }
             case "Thread.print": {
                 out.shouldContain("Full thread dump");
                 out.shouldContain("_java_thread_list=0x");
@@ -325,14 +317,6 @@ public class JCmdRevival {
             }
             case "VM.metaspace": {
                 out.shouldContain("Narrow klass pointer bits ");
-                break;
-            }
-            case "VM.native_memory": {
-                if (Platform.isDebugBuild()) {
-                    out.shouldContain("-           Object Monitors (reserved=");
-                } else {
-                    // Not usually enabled.
-                }
                 break;
             }
             case "VM.stringtable": {
