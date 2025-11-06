@@ -41,8 +41,7 @@ import java.util.json.JsonValue;
  * Parses a JSON Document char[] into a tree of JsonValues. JsonObject and JsonArray
  * nodes create their data structures which maintain the connection to children.
  * JsonNumber and JsonString contain only a start and end offset, which
- * are used to lazily procure their underlying value/string on demand. Singletons
- * are used for JsonBoolean and JsonNull.
+ * are used to lazily procure their underlying value/string on demand.
  */
 public final class JsonParser {
 
@@ -259,10 +258,6 @@ public final class JsonParser {
         throw failure(UNCLOSED_STRING.formatted("JSON String"));
     }
 
-    /*
-     * Parsing true, false, and null return singletons. These JsonValues
-     * do not require offsets to lazily compute their values.
-     */
     private JsonBooleanImpl parseTrue() {
         var start = offset++;
         if (charEquals('r') && charEquals('u') && charEquals('e')) {
