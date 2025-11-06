@@ -104,6 +104,7 @@ public:
 
 #ifdef ASSERT
   virtual void verify_gc_barriers(Compile* compile, CompilePhase phase) const;
+  static void report_verify_failure(bool failed, const char* msg, Node* n);
 #endif
 
   int estimate_stub_size() const /* override */;

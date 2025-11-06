@@ -26,3 +26,6 @@ NashornProfile.txt
 *.rej
 *.orig
 test/benchmarks/**/target
+clear.sh
+run.sh
+debug/

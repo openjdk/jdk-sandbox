@@ -35,6 +35,7 @@
 #include "opto/graphKit.hpp"
 #include "opto/idealKit.hpp"
 #include "opto/macro.hpp"
+#include "opto/movenode.hpp"
 #include "opto/narrowptrnode.hpp"
 #include "opto/output.hpp"
 #include "opto/rootnode.hpp"
@@ -206,9 +207,14 @@ static uint8_t get_store_barrier(C2Access& access) {
   int barriers = 0;
   if (!can_remove_pre_barrier) {
     barriers |= ShenandoahBarrierSATB;
+  } else {
+    barriers |= ShenandoahBarrierElided;
   }
+
   if (!can_remove_post_barrier) {
     barriers |= ShenandoahBarrierCardMark;
+  } else {
+    barriers |= ShenandoahBarrierElided;
   }
 
   return barriers;
@@ -219,15 +225,16 @@ Node* ShenandoahBarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue&
   bool anonymous = (decorators & ON_UNKNOWN_OOP_REF) != 0;
   bool in_heap = (decorators & IN_HEAP) != 0;
   bool tightly_coupled_alloc = (decorators & C2_TIGHTLY_COUPLED_ALLOC) != 0;
-  bool need_store_barrier = !(tightly_coupled_alloc && ReduceInitialCardMarks) && (in_heap || anonymous);
+  bool needs_pre_barrier = access.is_oop() && (in_heap || anonymous);
+  // Pre-barriers are unnecessary for tightly-coupled initialization stores.
+  bool can_be_elided = needs_pre_barrier && tightly_coupled_alloc && ReduceInitialCardMarks;
   bool no_keepalive = (decorators & AS_NO_KEEPALIVE) != 0;
-  if (access.is_oop() && need_store_barrier) {
-    access.set_barrier_data(get_store_barrier(access));
-    if (tightly_coupled_alloc) {
-      assert(!ReduceInitialCardMarks,
-             "post-barriers are only needed for tightly-coupled initialization stores when ReduceInitialCardMarks is disabled");
-      // Pre-barriers are unnecessary for tightly-coupled initialization stores.
+  if (needs_pre_barrier) {
+    if (can_be_elided) {
       access.set_barrier_data(access.barrier_data() & ~ShenandoahBarrierSATB);
+      access.set_barrier_data(access.barrier_data() | ShenandoahBarrierElided);
+    } else {
+      access.set_barrier_data(get_store_barrier(access));
     }
   }
   if (no_keepalive) {
@@ -526,8 +533,58 @@ ShenandoahBarrierSetC2State* ShenandoahBarrierSetC2::state() const {
 }
 
 #ifdef ASSERT
+void ShenandoahBarrierSetC2::report_verify_failure(bool failed, const char* msg, Node* n) {
+  if (failed) {
+    tty->print_cr("----------------------------------- IDX  %d -----------------------------------", n->_idx);
+    n->dump(3);
+    tty->print_cr("---------------------------------------------------------------------------------");
+    fatal("%s", msg);
+  }
+}
+
 void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase phase) const {
-  // TODO: Re-implement C2 barrier verification.
+  if (!ShenandoahVerifyOptoBarriers) {
+    return;
+  }
+
+  Unique_Node_List wq;
+  Node_Stack phis(0);
+  VectorSet visited;
+
+  wq.push(compile->root());
+  for (uint next = 0; next < wq.size(); next++) {
+    Node *n = wq.at(next);
+    int opc = n->Opcode();
+
+    if (opc == Op_LoadP || opc == Op_LoadN) {
+      const TypePtr* adr_type = n->as_Load()->adr_type();
+
+      if (!adr_type->isa_oopptr()) {
+        continue;
+      } else if (adr_type->isa_instptr() &&
+                  adr_type->is_instptr()->instance_klass()->is_subtype_of(Compile::current()->env()->Reference_klass()) &&
+                  adr_type->is_instptr()->offset() == java_lang_ref_Reference::referent_offset()) {
+        continue;
+      } else {
+        report_verify_failure(n->as_Load()->barrier_data() == 0, "Load should have barriers.", n);
+      }
+    } else if (opc == Op_StoreP || opc == Op_StoreN) {
+      const TypePtr* adr_type = n->as_Store()->adr_type();
+      if (adr_type->isa_oopptr() && n->in(MemNode::ValueIn)->bottom_type()->make_oopptr()) {
+        const TypePtr* adr_type = n->as_Store()->in(MemNode::Memory)->adr_type();
+        if (adr_type->isa_oopptr()) {
+          report_verify_failure(n->as_Store()->barrier_data() == 0, "Store should have barrier data.", n);
+        }
+      }
+    } else if (n->is_LoadStore()) {
+      report_verify_failure(n->bottom_type()->make_oopptr() && n->as_LoadStore()->barrier_data() == 0, "LoadStore should have barrier data.", n);
+    }
+
+    for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
+      Node* m = n->fast_out(i);
+      wq.push(m);
+    }
+  }
 }
 #endif
 
