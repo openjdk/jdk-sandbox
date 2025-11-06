@@ -124,7 +124,7 @@ public class Utils {
         private final char[] doc;
         // Tracked and incremented during path creation
         private int line;
-        private int col;
+        private int pos;
 
         private JsonPath(JsonValueImpl jvi) {
             this.offset = jvi.offset();
@@ -139,17 +139,17 @@ public class Utils {
             var sb = new StringBuilder();
             // Updates the sb
             toPath(offset, sb);
-            // If no new line encountered, col is the starting offset value
+            // If no new line encountered, pos is the starting offset value
             if (line == 0) {
-                col = offset;
+                pos = offset;
             }
-            return " Path: \"%s\". Location: line %d, col %d.".formatted(sb.toString(), line, col);
+            return " Path: \"%s\". Location: line %d, position %d.".formatted(sb.toString(), line, pos);
         }
 
         private void addLine(int curr) {
             line++;
             if (line == 1) {
-                col = offset - curr - 1;
+                pos = offset - curr - 1;
             }
         }
 

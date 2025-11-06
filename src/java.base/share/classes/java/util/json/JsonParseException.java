@@ -48,21 +48,21 @@ public class JsonParseException extends RuntimeException {
     private final int line;
 
     /**
-     * Position of the error column in the document
+     * Position of the error position in the document
      * @serial
      */
-    private final int col;
+    private final int pos;
 
     /**
      * Constructs a JsonParseException with the specified detail message.
      * @param message the detail message
      * @param line the line of the error on parsing the document
-     * @param col the column of the error on parsing the document
+     * @param pos the position of the error on parsing the document
      */
-    public JsonParseException(String message, int line, int col) {
+    public JsonParseException(String message, int line, int pos) {
         super(message);
         this.line = line;
-        this.col = col;
+        this.pos = pos;
     }
 
     /**
@@ -73,9 +73,9 @@ public class JsonParseException extends RuntimeException {
     }
 
     /**
-     * {@return the column of the error on parsing the document}
+     * {@return the position of the error on parsing the document}
      */
-    public int getErrorColumn() {
-        return col;
+    public int getErrorPosition() {
+        return pos;
     }
 }

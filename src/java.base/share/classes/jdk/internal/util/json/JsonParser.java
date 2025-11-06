@@ -410,7 +410,7 @@ public final class JsonParser {
         return switch (doc[offset]) {
             case ' ', '\t','\r' -> false;
             case '\n' -> {
-                // Increments the line and col
+                // Increments the line and lineStart
                 line++;
                 lineStart = offset + 1;
                 yield false;
@@ -435,9 +435,9 @@ public final class JsonParser {
 
     private JsonParseException failure(int off, String message) {
         // Non-revealing message does not produce input source String
-        var col = off - lineStart;
-        return new JsonParseException("%s. Location: line %d, col %d."
-                .formatted(message, line, col), line, col);
+        var pos = off - lineStart;
+        return new JsonParseException("%s. Location: line %d, position %d."
+                .formatted(message, line, pos), line, pos);
     }
 
     // Parsing error messages ----------------------
