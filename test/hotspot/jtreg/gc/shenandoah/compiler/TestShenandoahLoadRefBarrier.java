@@ -27,6 +27,7 @@
  * @requires vm.gc.Shenandoah
  *
  * @run main/othervm -XX:-IgnoreUnrecognizedVMOptions
+ *                  -XX:+UnlockDiagnosticVMOptions
  *                  -XX:-BackgroundCompilation
  *                  -XX:-UseOnStackReplacement
  *                  -XX:-TieredCompilation
