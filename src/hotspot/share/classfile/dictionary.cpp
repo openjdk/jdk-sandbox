@@ -239,7 +239,7 @@ void Dictionary::verify() {
 }
 
 void Dictionary::print_table_statistics(outputStream* st, const char* table_name) {
-  static TableStatistics ts;
+  NOT_WINDOWS(static) TableStatistics ts; // Avoid atexit for static destructor on Windows
   auto sz = [&] (InstanceKlass** val) {
     return sizeof(**val);
   };
