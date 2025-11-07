@@ -944,13 +944,22 @@ int revive_image_cooperative() {
     logv("revive_image: VM Thread object = %p", rdata->vm_thread);
     logv("revive_image: initial_time_count ns = %lld", (unsigned long long) rdata->initial_time_count);
     logv("revive_image: initial_time_date  s  = %lld", (unsigned long long) rdata->initial_time_date);
+    logv("revive_image: error time         s  = %f", rdata->error_time);
 
 #ifdef LINUX
-    uint64_t lifetime_s = core_timestamp - rdata->initial_time_date;
-    // Set clock_getting in revival support library (preloaded)
+    // Set value to be returned by interposed clock_gettime in revival support library (preloaded)
+#define NANOS_PER_SECOND 1000000000
     void (*func)(unsigned long long) = (void(*)(unsigned long long)) dlsym(RTLD_NEXT, "set_revival_time_s");
     if (func != nullptr) {
-        func(lifetime_s + (rdata->initial_time_count / 1000000000));
+        double lifetime_s;
+        if (rdata->error_time > 0) {
+            logv("revive_image: using first error time"); // which is better than relying on core file timestamp
+            lifetime_s = rdata->error_time;
+        } else {
+            logv("revive_image: using core timestamp");
+            lifetime_s = core_timestamp - rdata->initial_time_date;
+        }
+        func(lifetime_s + (rdata->initial_time_count / NANOS_PER_SECOND));
     } else {
         // Lookup failed, or e.g. revivalhelper invoked directly without preload.
         logv("set_revival_time: symbol lookup failed.");

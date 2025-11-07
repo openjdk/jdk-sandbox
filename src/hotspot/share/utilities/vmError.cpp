@@ -92,6 +92,7 @@ volatile jlong    VMError::_step_start_time = -1;
 volatile bool     VMError::_step_did_timeout = false;
 volatile bool     VMError::_step_did_succeed = false;
 volatile intptr_t VMError::_first_error_tid = -1;
+double            VMError::_first_error_time = 0;
 int               VMError::_id;
 const char*       VMError::_message;
 char              VMError::_detail_msg[1024];
@@ -1707,6 +1708,9 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
   intptr_t mytid = os::current_thread_id();
   if (_first_error_tid == -1 &&
       AtomicAccess::cmpxchg(&_first_error_tid, (intptr_t)-1, mytid) == -1) {
+
+    // Record time of fault.
+    _first_error_time = os::elapsedTime();
 
     if (SuppressFatalErrorMessage) {
       os::abort(CreateCoredumpOnCrash);

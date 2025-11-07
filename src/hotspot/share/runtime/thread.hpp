@@ -642,7 +642,6 @@ protected:
 
  private:
   VMErrorCallback* _vm_error_callbacks;
-
 };
 
 class ThreadInAsgct {

@@ -51,6 +51,7 @@
 #include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
 #include "utilities/spinYield.hpp"
+#include "utilities/vmError.hpp"
 #if INCLUDE_JFR
 #include "jfr/jfr.hpp"
 #endif
@@ -636,6 +637,7 @@ struct revival_data {
 
   uint64_t initial_time_count; // e.g. clock_gettime MONOTONIC (since system boot), ns
   uint64_t initial_time_date;  // e.g. time_t since epoch, seconds
+  double error_time; // os::elapsedTime() at first VM error
 
   void* vm_thread;
   void* tty;
@@ -706,6 +708,7 @@ void* Thread::process_revival() {
 
   rdata->initial_time_count = os::initial_time_count();
   rdata->initial_time_date = os::initial_time_date();
+  rdata->error_time = VMError::error_time();
 
   return (void*) rdata;
 }

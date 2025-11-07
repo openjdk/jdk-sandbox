@@ -72,19 +72,20 @@ void set_revival_time_ns(unsigned long long t) {
 JNIEXPORT
 int clock_gettime(clockid_t clockid, struct timespec *tp) {
 
-    static int (*func)(clockid_t, struct timespec *); /* the real function */
-    int e = 0;
+    static int (*func)(clockid_t, struct timespec *); // real function
 
     if (!clock_enabled) {
         if (!func) {
             // First call, get the real function.
             func = (int(*)()) dlsym(RTLD_NEXT, "clock_gettime");
         }
-        e = func(clockid, &local_ts);
+        return func(clockid, &local_ts);
+    } else {
+        // Enabled: return our set value.
+        tp->tv_sec = local_ts.tv_sec;
+        tp->tv_nsec = local_ts.tv_nsec;
+        return 0;
     }
-    tp->tv_sec = local_ts.tv_sec;
-    tp->tv_nsec = local_ts.tv_nsec;
-    return e;
 }
 #endif // WINDOWS
 

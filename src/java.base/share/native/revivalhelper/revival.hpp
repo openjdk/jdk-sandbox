@@ -143,6 +143,7 @@ struct revival_data {
 
   uint64_t initial_time_count; // Linux: clock_gettime MONOTONIC (since system boot)
   uint64_t initial_time_date;  // Linux: time_t since epoch
+  double error_time;
 
   void* vm_thread;
   void* tty;
