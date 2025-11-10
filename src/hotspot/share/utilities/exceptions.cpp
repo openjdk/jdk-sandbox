@@ -115,7 +115,7 @@ bool Exceptions::special_exception(JavaThread* thread, const char* file, int lin
          "symbol (" PTR_FORMAT ") must be non-null but not both", p2i(h_exception()), p2i(h_name));
 
   if (Thread::is_revived()) {
-    fprintf(stderr, "%s\n", message);
+    fprintf(stderr, "%s\n", message == nullptr ? "Exception" : message);
     os::exit(1);
   }
 
