@@ -36,6 +36,7 @@
 package java.util.concurrent.locks;
 
 import java.util.concurrent.TimeUnit;
+import com.alibaba.tenant.DisableTenantDeath;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.vm.annotation.ReservedStackAccess;
 
@@ -239,6 +240,7 @@ import jdk.internal.vm.annotation.ReservedStackAccess;
  * @since 1.8
  * @author Doug Lea
  */
+@DisableTenantDeath
 public class StampedLock implements java.io.Serializable {
     /*
      * Algorithmic notes:
@@ -380,9 +382,11 @@ public class StampedLock implements java.io.Serializable {
             = U.objectFieldOffset(Node.class, "prev");
     }
 
+    @DisableTenantDeath
     static final class WriterNode extends Node { // node for writers
     }
 
+    @DisableTenantDeath
     static final class ReaderNode extends Node { // node for readers
         volatile ReaderNode cowaiters;           // list of linked readers
         final boolean casCowaiters(ReaderNode c, ReaderNode v) {
@@ -1035,6 +1039,7 @@ public class StampedLock implements java.io.Serializable {
 
     // view classes
 
+    @DisableTenantDeath
     final class ReadLockView implements Lock {
         public void lock() { readLock(); }
         public void lockInterruptibly() throws InterruptedException {
@@ -1051,6 +1056,7 @@ public class StampedLock implements java.io.Serializable {
         }
     }
 
+    @DisableTenantDeath
     final class WriteLockView implements Lock {
         public void lock() { writeLock(); }
         public void lockInterruptibly() throws InterruptedException {
@@ -1067,6 +1073,7 @@ public class StampedLock implements java.io.Serializable {
         }
     }
 
+    @DisableTenantDeath
     final class ReadWriteLockView implements ReadWriteLock {
         public Lock readLock() { return asReadLock(); }
         public Lock writeLock() { return asWriteLock(); }

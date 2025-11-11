@@ -147,6 +147,11 @@ public:
   // Number of non-daemon threads on the active threads list
   static int number_of_non_daemon_threads()      { return _number_of_non_daemon_threads; }
 
+  // Create a VM operation to kill all threads of a particular tenant
+  static void kill_threads_of_tenant(oop tenant_obj, jboolean vthread_only, jboolean os_wake_up);
+
+  // Mark threads for tenant termination
+  static void mark_threads_for_tenant_shutdown(oop tenant_obj, bool vthread_only, bool os_wake_up);
   struct Test;                  // For private gtest access.
 };
 

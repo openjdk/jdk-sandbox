@@ -1053,6 +1053,8 @@ class os: AllStatic {
                                 char pathSep);
   static bool set_boot_path(char fileSep, char pathSep);
 
+ public:
+  static void wake_up(Thread *thread);         // Wake up a blocked thread using OS facilities
 };
 
 // Note that "PAUSE" is almost always used with synchronization

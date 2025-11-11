@@ -79,9 +79,12 @@ inline void JavaThread::clear_carrier_thread_suspended() {
 
 class AsyncExceptionHandshake : public AsyncHandshakeClosure {
   OopHandle _exception;
+  bool _is_TenantThreadDeath;
  public:
   AsyncExceptionHandshake(OopHandle& o, const char* name = "AsyncExceptionHandshake")
-  : AsyncHandshakeClosure(name), _exception(o) { }
+  : AsyncHandshakeClosure(name), _exception(o) {
+    _is_TenantThreadDeath = MultiTenant && TenantThreadStop && exception()->is_a(vmClasses::TenantDeathException_klass());
+  }
 
   ~AsyncExceptionHandshake() {
     Thread* current = Thread::current();
@@ -105,6 +108,7 @@ class AsyncExceptionHandshake : public AsyncHandshakeClosure {
     return _exception.resolve();
   }
   bool is_async_exception()   { return true; }
+  bool is_TenantThreadDeath() { return _is_TenantThreadDeath; }
 };
 
 class UnsafeAccessErrorHandshake : public AsyncHandshakeClosure {
@@ -127,6 +131,10 @@ inline void JavaThread::set_pending_unsafe_access_error() {
 
 inline bool JavaThread::has_async_exception_condition() {
   return handshake_state()->has_async_exception_operation();
+}
+
+inline bool JavaThread::has_async_tenant_death_exception_condition() {
+  return handshake_state()->has_async_tenant_death_exception_operation();
 }
 
 inline JavaThread::NoAsyncExceptionDeliveryMark::NoAsyncExceptionDeliveryMark(JavaThread *t) : _target(t) {

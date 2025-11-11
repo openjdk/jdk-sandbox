@@ -2916,12 +2916,36 @@ static void thread_entry(JavaThread* thread, TRAPS) {
   HandleMark hm(THREAD);
   Handle obj(THREAD, thread->threadObj());
   JavaValue result(T_VOID);
-  JavaCalls::call_virtual(&result,
-                          obj,
-                          vmClasses::Thread_klass(),
-                          vmSymbols::run_method_name(),
-                          vmSymbols::void_method_signature(),
-                          THREAD);
+  if(MultiTenant) {
+    oop tenantContainer =
+             java_lang_Thread::inherited_tenant_container(thread->threadObj());
+    if(tenantContainer == NULL) {
+      JavaCalls::call_virtual(&result,
+                              obj,
+                              vmClasses::Thread_klass(),
+                              vmSymbols::run_method_name(),
+                              vmSymbols::void_method_signature(),
+                              THREAD);
+    } else {
+      /*Call into TenantContainer.runThread instead  of Thread.run. */
+      Handle tenant_obj(THREAD, tenantContainer);
+      JavaCalls::call_virtual(&result,
+                              tenant_obj,
+                              vmClasses::TenantContainer_klass(),
+                              vmSymbols::runThread_method_name(),
+                              vmSymbols::thread_void_signature(),
+                              obj,
+                              THREAD);
+
+    }
+  } else {
+    JavaCalls::call_virtual(&result,
+                            obj,
+                            vmClasses::Thread_klass(),
+                            vmSymbols::run_method_name(),
+                            vmSymbols::void_method_signature(),
+                            THREAD);
+  }
 }
 
 
@@ -4030,4 +4054,134 @@ JVM_END
  */
 JVM_LEAF(jboolean, JVM_PrintWarningAtDynamicAgentLoad(void))
   return (EnableDynamicAgentLoading && !FLAG_IS_CMDLINE(EnableDynamicAgentLoading)) ? JNI_TRUE : JNI_FALSE;
+JVM_END
+/***************** Tenant support ************************************/
+
+JVM_ENTRY(void, JVM_TenantPrepareForDestroy(JNIEnv* env, jobject tenant, jboolean virtualThreadOnly, jboolean osWakeUp))
+  assert(MultiTenant, "pre-condition");
+  oop tenant_obj = JNIHandles::resolve_non_null(tenant);
+  assert(tenant_obj != NULL, "Cannot destroy a NULL tenant container");
+  Threads::kill_threads_of_tenant(tenant_obj, virtualThreadOnly, osWakeUp);
+JVM_END
+
+JVM_ENTRY_NO_ENV(jboolean, JVM_IsKilledByTenant(JNIEnv*env, jclass ignored, jobject jthread))
+  assert(MultiTenant && TenantThreadStop, "pre-condition");
+
+  JavaThread* thr = NULL;
+  if (NULL != jthread) {
+    oop thread_obj = JNIHandles::resolve_non_null(jthread);
+
+    // current thread is not jthread thread, so thread_obj may be moved by gc, use handle
+    // Ensure that the C++ Thread and OSThread structures aren't freed before we operate
+    Handle java_thread(THREAD, thread_obj);
+    JavaThread *thr = NULL;
+    ThreadsListHandle tlh;
+    jvmtiError err = JvmtiExport::cv_oop_to_JavaThread(tlh.list(), java_thread(), &thr);
+
+    if (thr != NULL
+        && err == JVMTI_ERROR_NONE
+        && thr->thread_state() == _thread_in_native) {
+        // return true only when we TenantDeathException has been set successfully,
+        // to ensure TenantContainer.destroy() will try to set TenantDeathException if not found
+        return thr->has_tenant_death_exception() ? JNI_TRUE : JNI_FALSE;
+    }
+  }
+  return JNI_FALSE;
+JVM_END
+
+JVM_ENTRY(void, JVM_MaskTenantShutdown(JNIEnv *env, jclass ignored, jobject jthread))
+  assert(MultiTenant && TenantThreadStop, "pre-condition");
+  oop thread_obj = JNIHandles::resolve_non_null(jthread);
+  thread->mask_tenant_shutdown(thread_obj);
+JVM_END
+
+JVM_ENTRY(void, JVM_UnmaskTenantShutdown(JNIEnv *env, jclass ignored, jobject jthread))
+  assert(MultiTenant && TenantThreadStop, "pre-condition");
+  oop thread_obj = JNIHandles::resolve_non_null(jthread);
+  thread->unmask_tenant_shutdown(thread_obj);
+JVM_END
+
+JVM_ENTRY(void, JVM_WakeUpTenantThread(JNIEnv *env, jclass ignored, jobject jthread))
+  assert(MultiTenant && TenantThreadStop, "pre-condition");
+  assert(THREAD->is_Java_thread(), "invariant");
+  if(jthread != NULL) {
+    oop thread_obj = JNIHandles::resolve_non_null(jthread);
+
+    // current thread is not jthread thread, so thread_obj may be moved by gc, use handle
+    // Ensure that the C++ Thread and OSThread structures aren't freed before we operate
+    Handle java_thread(THREAD, thread_obj);
+    JavaThread *thr = NULL;
+    ThreadsListHandle tlh;
+    jvmtiError err = JvmtiExport::cv_oop_to_JavaThread(tlh.list(), java_thread(), &thr);
+    if (thr != NULL
+        && err == JVMTI_ERROR_NONE
+        && thr->thread_state() == _thread_in_native
+        && thr->try_start_tenant_shutdown(java_thread())) {
+      {
+        MutexLocker ml(Threads_lock);
+        os::wake_up(thr);
+      }
+      thr->end_tenant_shutdown(java_thread());
+    }
+  }
+JVM_END
+
+JVM_ENTRY(void, JVM_SetTenantDeathToVThread(JNIEnv *env, jclass ignored, jobject jthread))
+  assert(MultiTenant && TenantThreadStop, "pre-condition");
+  assert(THREAD->is_Java_thread(), "invariant");
+  oop thread_obj = JNIHandles::resolve_non_null(jthread);
+  assert(thread_obj->klass()->is_subtype_of(vmClasses::VirtualThread_klass()), "JVM_SetTenantDeathToVThread only support virtual threads");
+  THREAD->set_tenant_death_to_vthread(thread_obj);
+JVM_END
+
+class DumpTenantThreadStacksOperation : public VM_Operation {
+private:
+  GrowableArray<Handle>* _threads;
+
+public:
+  DumpTenantThreadStacksOperation(GrowableArray<Handle>* threads)
+    : _threads(threads)
+  {
+    assert(MultiTenant, "sanity");
+  }
+
+  VMOp_Type type() const { return VMOp_ThreadDump; }
+
+  void doit() {
+    ResourceMark rm;
+    outputStream* st = tty;
+
+    for (GrowableArrayIterator<Handle> itr = _threads->begin();
+         itr != _threads->end(); ++itr) {
+      Handle java_thread = *itr;
+      JavaThread *thr = NULL;
+      ThreadsListHandle tlh;
+      jvmtiError err = JvmtiExport::cv_oop_to_JavaThread(tlh.list(), java_thread(), &thr);
+      if (thr != NULL
+          && err == JVMTI_ERROR_NONE) {
+        thr->print_on(st);
+        thr->print_stack_on(st);
+      }
+    }
+    st->cr();
+  }
+};
+
+JVM_ENTRY(void, JVM_DumpTenantThreadStacks(JNIEnv *env, jclass ignored, jobjectArray thread_array))
+  objArrayOop arr = (objArrayOop)JNIHandles::resolve_non_null(thread_array);
+  int arr_len = arr->length();
+  if (arr_len > 0) {
+    ResourceMark rm;
+    GrowableArray<Handle> threads(arr_len);
+    for (int i = 0; i < arr_len; ++i) {
+      oop thread_obj = arr->obj_at(i);
+      if (thread_obj != NULL) {
+        Handle java_thread(THREAD, thread_obj);
+        threads.append(java_thread);
+      }
+    }
+
+    DumpTenantThreadStacksOperation op(&threads);
+    VMThread::execute(&op);
+  }
 JVM_END

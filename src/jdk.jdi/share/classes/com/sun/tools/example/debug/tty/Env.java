@@ -112,7 +112,7 @@ class Env {
 
     private static List<String> excludes() {
         if (excludes == null) {
-            setExcludes("java.*, javax.*, sun.*, com.sun.*, jdk.*");
+            setExcludes("java.*, javax.*, sun.*, com.sun.*, jdk.*, com.alibaba.tenant.*");
         }
         return excludes;
     }

@@ -229,4 +229,12 @@ JVM_EnsureMaterializedForStackWalk_func
 JVM_FindScopedValueBindings
 JVM_ScopedValueCache
 JVM_SetScopedValueCache
+# Multi Tenant API's
+JVM_TenantPrepareForDestroy
+JVM_IsKilledByTenant
+JVM_WakeUpTenantThread
+JVM_MaskTenantShutdown
+JVM_UnmaskTenantShutdown
+JVM_DumpTenantThreadStacks
+JVM_SetTenantDeathToVThread
 #

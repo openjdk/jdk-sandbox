@@ -24,6 +24,8 @@
  */
 package com.sun.management.internal;
 
+import com.alibaba.management.TenantContainerMXBean;
+import com.alibaba.management.internal.TenantContainerMXBeanImpl;
 import com.sun.management.DiagnosticCommandMBean;
 import com.sun.management.HotSpotDiagnosticMXBean;
 import com.sun.management.ThreadMXBean;
@@ -52,6 +54,7 @@ public final class PlatformMBeanProviderImpl extends PlatformMBeanProvider {
     private final List<PlatformComponent<?>> mxbeanList;
     private static HotSpotDiagnostic hsDiagMBean = null;
     private static OperatingSystemMXBean osMBean = null;
+    private static TenantContainerMXBean tenantMBean = null;
 
     static {
        AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
@@ -264,6 +267,36 @@ public final class PlatformMBeanProviderImpl extends PlatformMBeanProvider {
             });
         }
 
+        /**
+         * Multi-tenant support.
+         */
+        initMBeanList.add(new PlatformComponent<com.alibaba.management.TenantContainerMXBean>() {
+            private final Set<String> tenantContainerMXBeanInterfaceNames =
+                    Collections.unmodifiableSet(Collections.<String>singleton(
+                            "com.alibaba.management.TenantContainerMXBean"));
+
+            @Override
+            public Set<Class<? extends com.alibaba.management.TenantContainerMXBean>> mbeanInterfaces() {
+                return Collections.singleton(com.alibaba.management.TenantContainerMXBean.class);
+            }
+
+            @Override
+            public Set<String> mbeanInterfaceNames() {
+                return tenantContainerMXBeanInterfaceNames;
+            }
+
+            @Override
+            public String getObjectNamePattern() {
+                return "com.alibaba.management:type=TenantContainer";
+            }
+
+            @Override
+            public Map<String, com.alibaba.management.TenantContainerMXBean> nameToMBeanMap() {
+                return Collections.<String, com.alibaba.management.TenantContainerMXBean>singletonMap(
+                        "com.alibaba.management:type=TenantContainer",
+                        getTenantContainerMXBean());
+            }
+        });
         initMBeanList.trimToSize();
         return initMBeanList;
     }
@@ -280,5 +313,11 @@ public final class PlatformMBeanProviderImpl extends PlatformMBeanProvider {
             osMBean = new OperatingSystemImpl(ManagementFactoryHelper.getVMManagement());
         }
         return osMBean;
+    }
+    private static synchronized TenantContainerMXBean getTenantContainerMXBean() {
+        if (tenantMBean == null) {
+            tenantMBean = new TenantContainerMXBeanImpl();
+        }
+        return tenantMBean;
     }
 }

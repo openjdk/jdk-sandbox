@@ -64,6 +64,7 @@
 #include "runtime/continuationEntry.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/javaThread.inline.hpp"
 #include "runtime/init.hpp"
 #include "runtime/orderAccess.hpp"
 #include "runtime/relocator.hpp"
@@ -233,6 +234,14 @@ int Method::fast_exception_handler_bci_for(const methodHandle& mh, Klass* ex_kla
   // exception table holds quadruple entries of the form (beg_bci, end_bci, handler_bci, klass_index)
   // access exception table
   ExceptionTable table(mh());
+  bool is_tenant_death_exception = false;
+  if (MultiTenant && TenantThreadStop) {
+    Klass* tenant_death_class = vmClasses::TenantDeathException_klass();
+    assert(NULL != tenant_death_class, "pre-condition");
+    if (ex_klass == tenant_death_class || ex_klass->is_subtype_of(tenant_death_class)) {
+      is_tenant_death_exception = true;
+    }
+  }
   int length = table.length();
   // iterate through all entries sequentially
   constantPoolHandle pool(THREAD, mh->constants());
@@ -286,6 +295,33 @@ int Method::fast_exception_handler_bci_for(const methodHandle& mh, Klass* ex_kla
         }
         assert(k != nullptr, "klass not loaded");
         if (ex_klass->is_subtype_of(k)) {
+          if (MultiTenant && TenantThreadStop
+              && is_tenant_death_exception && THREAD->is_Java_thread()) {
+            bool catched = false;
+            if(ex_klass == k) {
+              ResourceMark rm(THREAD);
+              const char* m_name = mh->name()->as_C_string();
+              const char* k_name = mh->method_holder()->name()->as_C_string();
+              if(strcmp(k_name, "java/lang/VirtualThread") == 0 && strcmp(m_name, "run") == 0) {
+                catched = true;
+              }
+            }
+            if (TraceTenantThreadStop) {
+              ResourceMark rm(THREAD);
+              JavaThread* jthread = (JavaThread*)THREAD;
+              tty->print_cr("to match exception of type \"%s\" in pthread " PTR_FORMAT "(%s) %s(%s) in \"%s.%s\" with catch \"%s\" result \"%s\"",
+                                 ex_klass == nullptr ? "null" : ex_klass->external_name(),
+                                 p2i(jthread), JavaThread::name_for(jthread->threadObj()),
+                                 jthread->is_vthread_mounted()? "vthread" : "pthread",
+                                 JavaThread::name_for(jthread->is_vthread_mounted()? jthread->vthread() :  jthread->threadObj()),
+                                 mh->method_holder()->name()->as_C_string(),
+                                 mh->name()->as_C_string(), k->external_name(),
+                                 catched ? "catched" : "ignored");
+            }
+            if(!catched) {
+              continue;
+            }
+          }
           if (log_is_enabled(Info, exceptions)) {
             ResourceMark rm(THREAD);
             log_info(exceptions)("Found matching handler for exception of type \"%s\" in method \"%s\" at BCI: %d",

@@ -1976,6 +1976,18 @@ const int ObjectAlignmentInBytes = 8;
           "1: monitors & legacy stack-locking (LM_LEGACY, default), "       \
           "2: monitors & new lightweight locking (LM_LIGHTWEIGHT)")         \
           range(0, 2)                                                       \
+  product(bool, MultiTenant, false,                                         \
+          "Enable the multi-tenant feature.")                               \
+                                                                            \
+  product(bool, TenantThreadStop, false,                                    \
+          "Stop all spawned threads when calling TenantContainer.destroy()")\
+                                                                            \
+  develop(bool, TraceTenantThreadStop, false,                               \
+          "Trace threads killing details from TenantContainer.destroy()")   \
+  product(bool, TenantCpuAccounting, false,                                 \
+          "Enable cpu accounting per tenant")                               \
+  product(bool, TenantCpuThrottling, false,                                 \
+          "Enable cpu throttling per tenant")                               \
 
 // end of RUNTIME_FLAGS
 

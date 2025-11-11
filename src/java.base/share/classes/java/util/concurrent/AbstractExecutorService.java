@@ -37,10 +37,14 @@ package java.util.concurrent;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
+import com.alibaba.tenant.TenantContainer;
+import com.alibaba.tenant.TenantGlobals;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import jdk.internal.access.JavaUtilConcurrentAESTenantAccess;
+import jdk.internal.access.SharedSecrets;
 
 /**
  * Provides default implementations of {@link ExecutorService}
@@ -77,9 +81,31 @@ import java.util.List;
 public abstract class AbstractExecutorService implements ExecutorService {
 
     /**
+     * all the threads created by this executor service should be in inherited tenant container
+     */
+    protected TenantContainer inheritedTenantContainer;
+
+    static {
+        if (TenantGlobals.isTenantEnabled()) {
+            SharedSecrets.setJavaUtilConcurrentAESTenantAccess(
+                new JavaUtilConcurrentAESTenantAccess() {
+                    public void setInheritedTenantContainer(AbstractExecutorService executorService, TenantContainer container) {
+                        executorService.inheritedTenantContainer = container;
+                    }
+                }
+            );
+        }
+    }
+    /**
      * Constructor for subclasses to call.
      */
-    public AbstractExecutorService() {}
+    public AbstractExecutorService() {
+        if (TenantGlobals.isTenantEnabled()) {
+			inheritedTenantContainer = TenantContainer.currentPoolInheritedTenantContainer(this);
+        } else {
+			inheritedTenantContainer = null;
+		}
+    }
 
     /**
      * Returns a {@code RunnableFuture} for the given runnable and default

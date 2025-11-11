@@ -46,6 +46,7 @@
 #include "prims/jvmtiAgentList.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/arguments.hpp"
+#include "runtime/arguments_ext.hpp"
 #include "runtime/flags/jvmFlag.hpp"
 #include "runtime/flags/jvmFlagAccess.hpp"
 #include "runtime/flags/jvmFlagLimit.hpp"
@@ -3964,6 +3965,8 @@ jint Arguments::parse(const JavaVMInitArgs* initial_cmd_args) {
   }
 
   apply_debugger_ergo();
+
+  ArgumentsExt::report_unsupported_options();
 
   if (log_is_enabled(Info, arguments)) {
     LogStream st(Log(arguments)::info());

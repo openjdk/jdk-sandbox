@@ -307,6 +307,7 @@ public:
   // Return stable class name suitable for replay file.
   const char *replay_name() const;
 
+  bool disable_tenant_death() const { return get_instanceKlass()->disable_tenant_death(); }
 #ifdef ASSERT
   bool debug_final_field_at(int offset);
   bool debug_stable_field_at(int offset);

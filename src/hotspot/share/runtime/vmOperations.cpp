@@ -509,3 +509,16 @@ void VM_PrintClassHierarchy::doit() {
   KlassHierarchy::print_class_hierarchy(_out, _print_interfaces, _print_subclasses, _classname);
 }
 #endif
+void VM_StopTenantThreads::doit() {
+  assert(MultiTenant, "pre-condition");
+  assert(SafepointSynchronize::is_at_safepoint(), "must be at a safepoint");
+  Threads::mark_threads_for_tenant_shutdown(_tenant_obj, _vthread_only, _os_wake_up);
+}
+
+// GC support
+void VM_StopTenantThreads::oops_do(OopClosure* f) {
+  assert(MultiTenant, "pre-condition");
+  if (NULL != f && _tenant_obj != NULL) {
+    f->do_oop(&_tenant_obj);
+  }
+}

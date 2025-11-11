@@ -83,6 +83,7 @@ class HandshakeOperation : public CHeapObj<mtThread> {
   bool is_async()                  { return _handshake_cl->is_async(); }
   bool is_suspend()                { return _handshake_cl->is_suspend(); }
   bool is_async_exception()        { return _handshake_cl->is_async_exception(); }
+  bool is_TenantThreadDeath()      { return _handshake_cl->is_TenantThreadDeath(); }
 };
 
 class AsyncHandshakeOperation : public HandshakeOperation {
@@ -436,6 +437,13 @@ void Handshake::execute(AsyncHandshakeClosure* hs_cl, JavaThread* target) {
   target->handshake_state()->add_operation(op);
 }
 
+void Handshake::execute_nocheck(AsyncHandshakeClosure* hs_cl, JavaThread* target) {
+  jlong start_time_ns = os::javaTimeNanos();
+  AsyncHandshakeOperation* op = new AsyncHandshakeOperation(hs_cl, target, start_time_ns);
+
+  guarantee(target != nullptr, "must be");
+  target->handshake_state()->add_operation(op);
+}
 // Filters
 static bool non_self_executable_filter(HandshakeOperation* op) {
   return !op->is_async();
@@ -445,6 +453,9 @@ static bool no_async_exception_filter(HandshakeOperation* op) {
 }
 static bool async_exception_filter(HandshakeOperation* op) {
   return op->is_async_exception();
+}
+static bool is_TenantThreadDeath_filter(HandshakeOperation* op) {
+  return op->is_TenantThreadDeath();
 }
 static bool no_suspend_no_async_exception_filter(HandshakeOperation* op) {
   return !op->is_suspend() && !op->is_async_exception();
@@ -505,6 +516,12 @@ bool HandshakeState::has_async_exception_operation() {
   if (!has_operation()) return false;
   MutexLocker ml(_lock.owned_by_self() ? nullptr :  &_lock, Mutex::_no_safepoint_check_flag);
   return _queue.peek(async_exception_filter) != nullptr;
+}
+
+bool HandshakeState::has_async_tenant_death_exception_operation() {
+  if (!has_operation()) return false;
+  MutexLocker ml(_lock.owned_by_self() ? nullptr :  &_lock, Mutex::_no_safepoint_check_flag);
+  return _queue.peek(is_TenantThreadDeath_filter) != NULL;
 }
 
 void HandshakeState::clean_async_exception_operation() {

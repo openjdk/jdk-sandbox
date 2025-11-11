@@ -1243,6 +1243,39 @@ int os::get_signal_number(const char* signal_name) {
   return -1;
 }
 
+// Signal to unblock thread
+#ifdef SIGRTMIN
+  static int SIG_WAKE_UP = (SIGRTMAX - 2);
+#elif defined(__APPLE__)
+  static int SIG_WAKE_UP = (NSIG - 2);
+#endif
+
+
+static void on_sig_wake_up(int sig) { /* no action */ }
+
+// Set up signal handler for awakened thread
+static int sig_wake_up_init() {
+    sigset_t sigset;
+    struct sigaction sa;
+
+    sa.sa_handler = on_sig_wake_up;
+    sa.sa_flags   = 0;
+    sigemptyset(&sa.sa_mask);
+    if (-1 == sigaction(SIG_WAKE_UP, &sa, NULL)) {
+      return -1;
+    }
+
+    sigemptyset(&sigset);
+    sigaddset(&sigset, SIG_WAKE_UP);
+    sigprocmask(SIG_UNBLOCK, &sigset, NULL);
+
+    return 0;
+}
+
+void os::wake_up(Thread *thread) {
+  pthread_t tid = thread->osthread()->pthread_id();
+  pthread_kill(tid, SIG_WAKE_UP);
+}
 void set_signal_handler(int sig) {
   // Check for overwrite.
   struct sigaction oldAct;
@@ -1317,6 +1350,10 @@ void install_signal_handlers() {
   set_signal_handler(SIGFPE);
   PPC64_ONLY(set_signal_handler(SIGTRAP);)
   set_signal_handler(SIGXFSZ);
+  // wake up signal init for multi tenant
+  if(MultiTenant && TenantThreadStop) {
+    sig_wake_up_init();
+  }
   if (!ReduceSignalUsage) {
     // Install BREAK_SIGNAL's handler in early initialization phase, in
     // order to reduce the risk that an attach client accidentally forces

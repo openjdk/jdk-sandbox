@@ -128,6 +128,8 @@ OopHandle Universe::_arithmetic_exception_instance;
 OopHandle Universe::_virtual_machine_error_instance;
 
 OopHandle Universe::_reference_pending_list;
+OopHandle Universe::_tenant_pthread_death_exception;
+OopHandle Universe::_tenant_vthread_death_exception;
 
 Array<Klass*>* Universe::_the_array_interfaces_array = nullptr;
 LatestMethodCache* Universe::_finalizer_register_cache = nullptr;
@@ -612,6 +614,12 @@ oop Universe::out_of_memory_error_realloc_objects() {
 oop Universe::out_of_memory_error_retry()              { return out_of_memory_errors()->obj_at(_oom_retry);  }
 oop Universe::delayed_stack_overflow_error_message()   { return _delayed_stack_overflow_error_message.resolve(); }
 
+// special exception used for killing thread
+oop Universe::tenant_pthread_death_exception()               { return _tenant_pthread_death_exception.resolve(); }
+oop Universe::tenant_vthread_death_exception()               { return _tenant_vthread_death_exception.resolve(); }
+bool Universe::is_tenant_death_exception(oop ex_obj) {
+  return ex_obj == _tenant_pthread_death_exception.resolve() || ex_obj == _tenant_vthread_death_exception.resolve();
+}
 
 bool Universe::should_fill_in_stack_trace(Handle throwable) {
   // never attempt to fill in the stack trace of preallocated errors that do not have
@@ -1025,6 +1033,16 @@ bool universe_post_init() {
   instance = InstanceKlass::cast(k)->allocate_instance(CHECK_false);
   Universe::_virtual_machine_error_instance = OopHandle(Universe::vm_global(), instance);
 
+  if (MultiTenant && TenantThreadStop) {
+    // Create the special exception used to kill thread
+    k  = SystemDictionary::resolve_or_fail(vmSymbols::com_alibaba_tenant_TenantDeathException(), true, CHECK_false);
+    instance = InstanceKlass::cast(k)->allocate_instance(CHECK_false);
+    Universe::_tenant_pthread_death_exception = OopHandle(Universe::vm_global(), instance);
+
+    instance = InstanceKlass::cast(k)->allocate_instance(CHECK_false);
+    com_alibaba_tenant_TenantDeathException::set_vthread_only(instance, true);
+    Universe::_tenant_vthread_death_exception = OopHandle(Universe::vm_global(), instance);
+  }
   Handle msg = java_lang_String::create_from_str("/ by zero", CHECK_false);
   java_lang_Throwable::set_message(Universe::arithmetic_exception_instance(), msg());
 

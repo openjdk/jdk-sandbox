@@ -1545,6 +1545,8 @@ int java_lang_Thread::_tid_offset;
 int java_lang_Thread::_continuation_offset;
 int java_lang_Thread::_park_blocker_offset;
 int java_lang_Thread::_scopedValueBindings_offset;
+int java_lang_Thread::_inheritedTenantContainer_offset = 0 ;
+int java_lang_Thread::_tenantShutdownMarkLevel_offset = 0 ;
 JFR_ONLY(int java_lang_Thread::_jfr_epoch_offset;)
 
 #define THREAD_FIELDS_DO(macro) \
@@ -1557,7 +1559,9 @@ JFR_ONLY(int java_lang_Thread::_jfr_epoch_offset;)
   macro(_tid_offset,           k, "tid", long_signature, false); \
   macro(_park_blocker_offset,  k, "parkBlocker", object_signature, false); \
   macro(_continuation_offset,  k, "cont", continuation_signature, false); \
-  macro(_scopedValueBindings_offset, k, "scopedValueBindings", object_signature, false);
+  macro(_scopedValueBindings_offset, k, "scopedValueBindings", object_signature, false); \
+  macro(_inheritedTenantContainer_offset, k, vmSymbols::inheritedTenantContainer_name(), tenantcontainer_signature, false); \
+  macro(_tenantShutdownMarkLevel_offset, k, vmSymbols::tenantShutdownMarkLevel_name(), int_signature, false);
 
 void java_lang_Thread::compute_offsets() {
   assert(_holder_offset == 0, "offsets should be initialized only once");
@@ -1728,6 +1732,18 @@ oop java_lang_Thread::inherited_access_control_context(oop java_thread) {
   return java_thread->obj_field(_inheritedAccessControlContext_offset);
 }
 
+oop java_lang_Thread::inherited_tenant_container(oop java_thread) {
+  return java_thread->obj_field(_inheritedTenantContainer_offset);
+}
+int java_lang_Thread::tenant_shutdown_mark_level(oop java_thread) {
+  return java_thread->int_field(_tenantShutdownMarkLevel_offset);
+}
+void java_lang_Thread::set_tenant_shutdown_mark_level(oop java_thread, int new_value) {
+  java_thread->int_field_put(_tenantShutdownMarkLevel_offset, new_value);
+}
+int java_lang_Thread::cmpxchg_tenant_shutdown_mark_level(oop java_thread, int old_value, int new_value) {
+  return Atomic::cmpxchg(java_thread->field_addr<jint>(_tenantShutdownMarkLevel_offset), old_value, new_value);
+}
 
 jlong java_lang_Thread::stackSize(oop java_thread) {
   GET_FIELDHOLDER_FIELD(java_thread, stackSize, 0);
@@ -5189,6 +5205,30 @@ void java_lang_InternalError::serialize_offsets(SerializeClosure* f) {
 }
 #endif
 
+// com_alibaba_tenant_TenantDeathException
+int com_alibaba_tenant_TenantDeathException::_vthread_only_offset;
+
+#define TENANT_DEATH_EXCEPTION_FIELDS_DO(macro) \
+  macro(_vthread_only_offset, k, "virtualThreadOnly", bool_signature, false)
+
+void com_alibaba_tenant_TenantDeathException::compute_offsets() {
+  InstanceKlass* k = vmClasses::TenantDeathException_klass();
+  TENANT_DEATH_EXCEPTION_FIELDS_DO(FIELD_COMPUTE_OFFSET);
+}
+
+#if INCLUDE_CDS
+void com_alibaba_tenant_TenantDeathException::serialize_offsets(SerializeClosure* f) {
+  TENANT_DEATH_EXCEPTION_FIELDS_DO(FIELD_SERIALIZE_OFFSET);
+}
+#endif
+
+void com_alibaba_tenant_TenantDeathException::set_vthread_only(oop o, bool val) {
+  o->bool_field_put(_vthread_only_offset, val);
+}
+
+bool com_alibaba_tenant_TenantDeathException::is_vthread_only(oop o) {
+  return o->bool_field(_vthread_only_offset) != 0;
+}
 #define BASIC_JAVA_CLASSES_DO_PART1(f) \
   f(java_lang_Class) \
   f(java_lang_String) \
@@ -5240,6 +5280,7 @@ void java_lang_InternalError::serialize_offsets(SerializeClosure* f) {
   f(jdk_internal_misc_UnsafeConstants) \
   f(java_lang_boxing_object) \
   f(vector_VectorPayload) \
+  f(com_alibaba_tenant_TenantDeathException) \
   //end
 
 #define BASIC_JAVA_CLASSES_DO(f) \

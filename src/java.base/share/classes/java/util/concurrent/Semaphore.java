@@ -38,6 +38,7 @@ package java.util.concurrent;
 import java.util.Collection;
 import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 
+import com.alibaba.tenant.DisableTenantDeath;
 /**
  * A counting semaphore.  Conceptually, a semaphore maintains a set of
  * permits.  Each {@link #acquire} blocks if necessary until a permit is
@@ -224,6 +225,7 @@ public class Semaphore implements java.io.Serializable {
     /**
      * NonFair version
      */
+    @DisableTenantDeath
     static final class NonfairSync extends Sync {
         private static final long serialVersionUID = -2694183684443567898L;
 
@@ -239,6 +241,7 @@ public class Semaphore implements java.io.Serializable {
     /**
      * Fair version
      */
+    @DisableTenantDeath
     static final class FairSync extends Sync {
         private static final long serialVersionUID = 2014338818796000944L;
 

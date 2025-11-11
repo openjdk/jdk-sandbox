@@ -30,6 +30,7 @@
 #include "memory/allocation.hpp"
 #include "oops/oop.hpp"
 #include "oops/oopHandle.hpp"
+#include "tenantenv.h"
 #include "runtime/frame.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/handshake.hpp"
@@ -116,6 +117,8 @@ class JavaThread: public Thread {
   ThreadFunction _entry_point;
 
   JNIEnv        _jni_environment;
+
+  TenantEnv     _tenant_environment;             //  tenant environment
 
   // Deopt support
   DeoptResourceMark*  _deopt_mark;               // Holds special ResourceMark for deoptimization
@@ -227,8 +230,56 @@ class JavaThread: public Thread {
 
   void install_async_exception(AsyncExceptionHandshake* aec = nullptr);
   void handle_async_exception(oop java_throwable);
+private:
+  // TSM (Tenant-Shutdown-Mark) type
+  enum TSMType {
+    TSM_uninitialized = -1,  // uninitialized state
+    TSM_being_killed  = 0,   // external killing operation is in progress,
+                             // cannot disable tenant shutdown from current thread, have to spin
+    TSM_idle,                // no tenant shutdown related operations in progress,
+                             // thread is ready to either do external shutdown or disable shutdown by itself.
+    TSM_marked_begin,        // all values >= TSM_marked_begin means tenant shutdown
+                             // has been disabled for this thread; recursive disabling & restoring are allowed
+  };
+  volatile bool _marked_for_tenant_pthread_shutdown = false; // indicates if this platform thread has been marked by TenantContainer.destroy()
+  volatile bool _marked_for_tenant_vthread_shutdown = false; // indicates if this vthread thread has been marked by TenantContainer.destroy()
+  // disable/enable tenant shutdown from external threads, must be used in pairs
+  void disable_tenant_shutdown(oop jthread);
+  void enable_tenant_shutdown(oop jthread);
+
  public:
+  bool is_marked_for_tenant_pthread_shutdown();
+  bool is_marked_for_tenant_vthread_shutdown();
+  void mark_for_tenant_pthread_shutdown();
+  void mark_for_tenant_vthread_shutdown();
+  // to operate on TenantDeathException
+  bool has_tenant_death_exception();
+  void set_async_tenant_death_exception(oop jthread, bool virtualThreadOnly);
+  void clear_tenant_death_exception();
+  void set_tenant_death_to_vthread(oop jthread);
+  bool check_tenant_death_installation(bool vthread_only);
+  // mask a thread to prevent tenant shutdown operation
+  void mask_tenant_shutdown(oop jthread);
+  void unmask_tenant_shutdown(oop jthread);
+  bool is_tenant_shutdown_masked(oop jthread);
+  //
+  // mask_tenant_shutdown/unmask_tenant_shutdown are only allowed to be called
+  // by current thread, which is used to guarantee that the 'critical code block',
+  // likes <clinit> MUST NOT be interleaved with tenant shutdown operation,
+  // otherwise it might cause undefined behavior.
+  //
+  // Generally, killer thread uses following pattern to guard the mutual exclusion
+  // between tenant shutdown operation and 'critical code block'.
+  //
+  // if (java_thread->try_start_tenant_shutdown()) {
+  //   ... ... // short shutdown operation
+  //   end_tenant_shutdown();
+  // }
+  //
+  bool try_start_tenant_shutdown(oop jthread);  // returns true if OK to do tenant shutdown operation, otherwise false
+  void end_tenant_shutdown(oop jthread);
   bool has_async_exception_condition();
+  bool has_async_tenant_death_exception_condition();
   inline void set_pending_unsafe_access_error();
   static void send_async_exception(JavaThread* jt, oop java_throwable);
 
@@ -491,6 +542,10 @@ private:
   }
   struct JNINativeInterface_* get_jni_functions() {
     return (struct JNINativeInterface_ *)_jni_environment.functions;
+  }
+
+  void set_tenant_functions(struct TenantNativeInterface_* functionTable) {
+    _tenant_environment.functions = functionTable;
   }
 
   // This function is called at thread creation to allow
@@ -819,6 +874,8 @@ private:
 
   // Returns the jni environment for this thread
   JNIEnv* jni_environment()                      { return &_jni_environment; }
+  // Returns the tenant environment for this thread
+  TenantEnv* tenant_environment()                { return &_tenant_environment; }
 
   // Returns the current thread as indicated by the given JNIEnv.
   // We don't assert it is Thread::current here as that is done at the
@@ -1222,4 +1279,14 @@ class JNIHandleMark : public StackObj {
   ~JNIHandleMark() { _thread->pop_jni_handle_block(); }
 };
 
+// Mark the thread to prevent it from being killed by TenantContainer.destroy()
+// Can be used recursively
+class TenantShutdownMark  {
+private:
+  JavaThread*   _thread;              // for now, only JavaThread
+
+public:
+  TenantShutdownMark(Thread* thread);
+  ~TenantShutdownMark();
+};
 #endif // SHARE_RUNTIME_JAVATHREAD_HPP

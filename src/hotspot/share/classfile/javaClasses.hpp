@@ -357,6 +357,8 @@ class java_lang_Thread : AllStatic {
   static int _continuation_offset;
   static int _park_blocker_offset;
   static int _scopedValueBindings_offset;
+  static int _inheritedTenantContainer_offset;
+  static int _tenantShutdownMarkLevel_offset;
   JFR_ONLY(static int _jfr_epoch_offset;)
 
   static void compute_offsets();
@@ -393,6 +395,11 @@ class java_lang_Thread : AllStatic {
   static oop context_class_loader(oop java_thread);
   // Control context
   static oop inherited_access_control_context(oop java_thread);
+  static oop inherited_tenant_container(oop java_thread);
+  static int tenant_shutdown_mark_level(oop java_thread);
+  static void set_tenant_shutdown_mark_level(oop java_thread, int new_value);
+  static void dec_tenant_shutdown_mark_level(oop java_thread);
+  static int cmpxchg_tenant_shutdown_mark_level(oop java_thread, int old_value, int new_value);
   // Stack size hint
   static jlong stackSize(oop java_thread);
   // Thread ID
@@ -1835,6 +1842,15 @@ class java_lang_Byte_ByteCache : AllStatic {
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
 };
 
+class com_alibaba_tenant_TenantDeathException : AllStatic {
+ private:
+  static int _vthread_only_offset;
+ public:
+  static void compute_offsets();
+  static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
+  static void set_vthread_only(oop obj, bool val);
+  static bool is_vthread_only(oop obj);
+};
 
 // Interface to java.lang.InternalError objects
 

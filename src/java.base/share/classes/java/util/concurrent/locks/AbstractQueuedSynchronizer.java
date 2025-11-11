@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
+import com.alibaba.tenant.DisableTenantDeath;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RejectedExecutionException;
 import jdk.internal.misc.Unsafe;
@@ -499,9 +500,12 @@ public abstract class AbstractQueuedSynchronizer
     }
 
     // Concrete classes tagged by type
+    @DisableTenantDeath
     static final class ExclusiveNode extends Node { }
+    @DisableTenantDeath
     static final class SharedNode extends Node { }
 
+    @DisableTenantDeath
     static final class ConditionNode extends Node
         implements ForkJoinPool.ManagedBlocker {
         ConditionNode nextWaiter;            // link to next waiting node
@@ -1480,6 +1484,7 @@ public abstract class AbstractQueuedSynchronizer
      * <p>This class is Serializable, but all fields are transient,
      * so deserialized conditions have no waiters.
      */
+    @DisableTenantDeath
     public class ConditionObject implements Condition, java.io.Serializable {
         private static final long serialVersionUID = 1173984872572414699L;
         /** First node of condition queue. */

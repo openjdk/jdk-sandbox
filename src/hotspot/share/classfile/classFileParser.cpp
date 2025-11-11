@@ -947,6 +947,7 @@ public:
     _field_Stable,
     _jdk_internal_vm_annotation_ReservedStackAccess,
     _jdk_internal_ValueBased,
+    _com_alibaba_tenant_DisableTenantDeath,
     _annotation_LIMIT
   };
   const Location _location;
@@ -1955,6 +1956,15 @@ AnnotationCollector::annotation_index(const ClassLoaderData* loader_data,
       if (!privileged)              break;  // only allow in privileged code
       return _jdk_internal_ValueBased;
     }
+    case VM_SYMBOL_ENUM_NAME(com_alibaba_tenant_DisableTenantDeath_signature): {
+      if (_location != _in_method && _location != _in_class) {
+        break;  // only allow for method and classes
+      }
+      if (!privileged) {
+        break;  // only allow in privileged code
+      }
+      return _com_alibaba_tenant_DisableTenantDeath;
+    }
     default: {
       break;
     }
@@ -2010,6 +2020,17 @@ void ClassFileParser::ClassAnnotationCollector::apply_to(InstanceKlass* ik) {
     ik->set_has_value_based_class_annotation();
     if (DiagnoseSyncOnValueBasedClasses) {
       ik->set_is_value_based();
+    }
+  }
+  // if class define DisableTenantDeath annotation, all method is DisableTenantDeath.
+  // here do not use MultiTenant && TenantThreadStop switch.
+  // because cds in make image stage does not contain MultiTenant vm args.
+  if (has_annotation(_com_alibaba_tenant_DisableTenantDeath)) {
+    ik->set_disable_tenant_death();
+    if(TraceTenantThreadStop) {
+      Thread* current_thread = Thread::current();
+      ResourceMark rm(current_thread);
+      tty->print_cr("DisableTenantDeath:%s", ik->name()->as_C_string());
     }
   }
 }

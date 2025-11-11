@@ -35,6 +35,8 @@
 
 package java.util.concurrent;
 
+import com.alibaba.tenant.TenantContainer;
+import com.alibaba.tenant.TenantGlobals;
 import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
 import java.util.HashSet;
@@ -635,6 +637,9 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
             setState(-1); // inhibit interrupts until runWorker
             this.firstTask = firstTask;
             this.thread = getThreadFactory().newThread(this);
+			if (TenantGlobals.isTenantEnabled()) {
+				TenantContainer.setPoolThreadInheritedTenantContainer(this.thread, ThreadPoolExecutor.this, inheritedTenantContainer);
+			}
         }
 
         /** Delegates main run loop to outer runWorker. */

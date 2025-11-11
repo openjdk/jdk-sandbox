@@ -37,6 +37,7 @@ package java.util.concurrent.locks;
 
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
+import com.alibaba.tenant.DisableTenantDeath;
 import jdk.internal.vm.annotation.ReservedStackAccess;
 
 /**
@@ -213,6 +214,7 @@ import jdk.internal.vm.annotation.ReservedStackAccess;
  * @since 1.5
  * @author Doug Lea
  */
+@DisableTenantDeath
 public class ReentrantReadWriteLock
         implements ReadWriteLock, java.io.Serializable {
     private static final long serialVersionUID = -6992448646407690164L;
@@ -677,6 +679,7 @@ public class ReentrantReadWriteLock
     /**
      * Nonfair version of Sync
      */
+    @DisableTenantDeath
     static final class NonfairSync extends Sync {
         private static final long serialVersionUID = -8159625535654395037L;
         final boolean writerShouldBlock() {
@@ -697,6 +700,7 @@ public class ReentrantReadWriteLock
     /**
      * Fair version of Sync
      */
+    @DisableTenantDeath
     static final class FairSync extends Sync {
         private static final long serialVersionUID = -2274990926593161451L;
         final boolean writerShouldBlock() {
@@ -710,6 +714,7 @@ public class ReentrantReadWriteLock
     /**
      * The lock returned by method {@link ReentrantReadWriteLock#readLock}.
      */
+    @DisableTenantDeath
     public static class ReadLock implements Lock, java.io.Serializable {
         private static final long serialVersionUID = -5992448646407690164L;
         private final Sync sync;
@@ -924,6 +929,7 @@ public class ReentrantReadWriteLock
     /**
      * The lock returned by method {@link ReentrantReadWriteLock#writeLock}.
      */
+    @DisableTenantDeath
     public static class WriteLock implements Lock, java.io.Serializable {
         private static final long serialVersionUID = -4992448646407690164L;
         private final Sync sync;
