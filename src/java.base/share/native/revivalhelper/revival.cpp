@@ -752,7 +752,7 @@ int symbol_set(const char *sym, int value) {
 
 
 #ifdef WINDOWS
-char *basename(char *s) {
+char* basename(char *s) {
     for (char *p = s + strlen(s); p != s; p--) {
 		if (*p == '\\') {
 			p++;
@@ -765,35 +765,37 @@ char *basename(char *s) {
 #endif
 
 
-bool try_init_jvm_filename_if_exists(const char* path, const char* suffix) {
-    char search_path[BUFLEN];
-    memset(search_path, 0, BUFLEN);
-    strncpy(search_path, path, BUFLEN - 1);
-    strncat(search_path, suffix, BUFLEN - 1);
-    int fd = open(search_path, O_RDONLY);
-    if (fd >= 0) {
-        struct stat buffer;
-        fstat(fd, &buffer);
-#ifdef WINDOWS
-        if (!(buffer.st_mode & S_IFDIR)) {
-#else
-        if (!S_ISDIR(buffer.st_mode)) {
-#endif
-            free(jvm_filename);
-            jvm_filename = strdup(search_path);
-            return true;
+/**
+ * Attempt to find the path filename in the directory libdir.
+ * Return the path that is found to exist, or null.
+ *
+ * Return a new C heap allocation (strdup) that the caller must free.
+ *
+ * Given a path such as /some/dir/jdk/lib/server/libjvm.so
+ * attempt to find it within the given directory, libdir.
+ * Remove leading directory elements from the filename path, until
+ * a file exists or the end of filename is reached.
+ */
+char* find_filename_in_libdir(const char* libdir, const char* filename) {
+    char path[BUFLEN];
+    char *p = (char*) filename; // Pointer to traverse the given filename/path
+
+    while (true) {
+        snprintf(path, BUFLEN - 1, "%s%s%s", libdir, FILE_SEPARATOR, p);
+        if (file_exists_pd(path)) {
+           return strdup(path);
+        }
+        // Move to next dir entry:
+        p = strstr(p, FILE_SEPARATOR);
+        if (p != nullptr) {
+            // Found, skip the separator itself
+            p++;
+        } else {
+            break;
         }
     }
-    return false;
-}
-
-void init_jvm_filename_from_libdir(const char* libdir) {
-    // TODO step through using path separator, not a known/fixed directory structure
-    if (try_init_jvm_filename_if_exists(libdir, "")) return;
-    if (try_init_jvm_filename_if_exists(libdir, "/libjvm.so")) return;
-    if (try_init_jvm_filename_if_exists(libdir, "/server/libjvm.so")) return;
-    if (try_init_jvm_filename_if_exists(libdir, "/lib/server/libjvm.so")) return;
-    warn("Could not find libjvm.so in %s", libdir);
+    warn("Could not find %s in %s", filename, libdir);
+    return nullptr;
 }
 
 

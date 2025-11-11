@@ -147,18 +147,15 @@ bool dir_isempty_pd(const char *dirname) {
 }
 
 bool file_exists_pd(const char *filename) {
-/*    OFSTRUCT ofstruct;
-    HFILE h = OpenFile(filename, &ofstruct, OF_EXIST);
-    if (h != HFILE_ERROR) {
-        // close not needed for OF_EXIST
-        return true;
-    }
-    return false;
-*/
     DWORD attr = GetFileAttributes(filename);
     return attr != INVALID_FILE_ATTRIBUTES;
 }
 
+bool file_exists_indir_pd(const char* dirname, const char* filename) {
+    char path[BUFLEN];
+    snprintf(path, BUFLEN - 1, "%s%s%s", dirname, FILE_SEPARATOR, filename);
+    return file_exists_pd(path);
+}
 
 int revival_checks_pd(const char *dirname) {
     return 0;
@@ -873,9 +870,11 @@ const char *JVM_SYMS[N_JVM_SYMS] = {
 
 void write_symbols(int fd, const char* symbols[], int count, const char *revival_dirname) {
 
-    PLOADED_IMAGE image = ImageLoad("jvm.dll", revival_dirname);
+    const char *filename = "jvm.dll";
+
+    PLOADED_IMAGE image = ImageLoad(filename, revival_dirname);
     if (image == nullptr) {
-    	error("ImageLoad error : %d", GetLastError());
+        error("write_symbols: ImageLoad error '%s': %d", GetLastError());
     }
 
     HANDLE hCurrentProcess = GetCurrentProcess();
@@ -883,7 +882,7 @@ void write_symbols(int fd, const char* symbols[], int count, const char *revival
 
     bool e = SymInitialize(h2, nullptr, false);
     if (e != TRUE) {
-    	error("SymInitialize error : 0x%lx", GetLastError());
+        error("write_symbols: SymInitialize error : 0x%lx", GetLastError());
     }
 
     char moduleFilename[BUFLEN];
@@ -934,22 +933,17 @@ int create_revivalbits_native_pd(const char* corename, const char* javahome, con
     // Check early for editbin.exe:
     char *editbin = check_editbin();
 
-    dump = new MiniDump(corename);
+    // Using libdir to resolve JVM from alternative path is in MiniDump:
+    dump = new MiniDump(corename, libdir);
     if (!dump->is_valid()) {
         warn ("Cannot open MiniDump: '%s'", corename);
         delete dump;
         return -1;
     }
 
-    // Use libdir if specified
-    if (libdir != nullptr) {
-        init_jvm_filename_from_libdir(libdir); // Possibly set jvm_filename from libdir
-    }
+    jvm_filename = strdup(dump->get_jvm_filename()); // Use MiniDump jvm filename
     if (jvm_filename == nullptr) {
-        jvm_filename = strdup(dump->get_jvm_filename()); // Use MiniDump jvm filename
-    }
-    if (jvm_filename == nullptr) {
-        error("revival: cannot locate JVM in minidump.") ;
+        error("revival: cannot locate JVM from minidump.") ;
     }
     logv("JVM = '%s'", jvm_filename);
     jvm_address = dump->get_jvm_address(); // JVM address is from dump, even if file path is not
@@ -1005,8 +999,10 @@ int create_revivalbits_native_pd(const char* corename, const char* javahome, con
     char *p = strstr(jvm_debuginfo_path, ".dll");
     if (p != nullptr) {
         snprintf(p, BUFLEN, ".dll.pdb");
-        snprintf(jvm_debuginfo_copy_path, BUFLEN - 1, "%s/jvm.dll.pdb", revival_dirname);
-        copy_file_pd(jvm_debuginfo_path, jvm_debuginfo_copy_path);
+        if (file_exists_pd(jvm_debuginfo_path)) {
+            snprintf(jvm_debuginfo_copy_path, BUFLEN - 1, "%s/jvm.dll.pdb", revival_dirname);
+            copy_file_pd(jvm_debuginfo_path, jvm_debuginfo_copy_path);
+        }
     }
 
     logv("create_revivalbits_native_pd returning %d", 0);

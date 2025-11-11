@@ -132,8 +132,9 @@ Segment* data_section(const char *filename) {
 }
 
 
-MiniDump::MiniDump(const char* filename) {
+MiniDump::MiniDump(const char* filename, const char* libdir) {
     open(filename);
+    this->libdir = libdir;
     if (is_valid()) {
         read_modules();
         logv("MiniDump: NumberOfStreams = %d StreamDirectoryRva = %d", hdr.NumberOfStreams, hdr.StreamDirectoryRva);
@@ -191,12 +192,11 @@ MINIDUMP_DIRECTORY* MiniDump::find_stream(int stream) {
 // Populate the modules list, and specifically record jvm.dll details.
 int MiniDump::read_modules() {
     if (fd < 0) {
-        error("MiniDump not open");
+        error("MiniDump::read_modules: MiniDump not open");
     }
     MINIDUMP_DIRECTORY *md = find_stream(ModuleListStream);
     if (md == nullptr) {
-        warn("Minidump ModuleListStream not found.");
-        return -1;
+        error("Minidump::read_modules: ModuleListStream not found.");
     }
 
     int count = 0;
@@ -219,12 +219,30 @@ int MiniDump::read_modules() {
         // Is it the JVM?
         if (strstr(name, "\\" JVM_FILENAME) != nullptr) {
             logv("FOUND JVM name = '%s' with base address 0x%llx", name, module.BaseOfImage);
+
             // Record locally in dump object:
-            jvm_filename = strdup(name);
+            if (libdir != nullptr) {
+                // Use libdir if set:
+                jvm_filename = find_filename_in_libdir(libdir, name);
+                if (jvm_filename == nullptr) {
+                   error("No JVM found in libdir");
+                }
+                logv("Using from libdir: '%s'", jvm_filename);
+            } else {
+                // Otherwise use file from dump.  Check JVM exists:
+                if (!file_exists_pd(name)) {
+                    warn("JVM library required in core not found at: %s", jvm_filename);
+                    error("For minidumps from other systems, or if JDK at path in core has changed, use -L to specify JVM location.");
+                }
+                jvm_filename = strdup(name);
+            }
+            if (jvm_filename == nullptr) {
+               error("No JVM found in libdir");
+            }
             jvm_address = (void *) module.BaseOfImage;
             // Also lookup .data Section for later copying:
             jvm_seg = seg; // without file offset details at this point
-            populate_jvm_data_segs(name);
+            populate_jvm_data_segs(jvm_filename); // Possibly using file from libdir
 
         }
         free(name);
@@ -237,7 +255,7 @@ void MiniDump::populate_jvm_data_segs(const char *filename) {
 
     PLOADED_IMAGE image = ImageLoad(filename, nullptr);
     if (image == nullptr) {
-    	error("ImageLoad error : %d", GetLastError());
+        error("MinDump::populate_jvm_data_segs: ImageLoad error : %d", GetLastError());
     }
     // Create a Segment from .data, and use the next Section to set its end address.
     jvm_rdata_seg = nullptr;

@@ -49,7 +49,7 @@
 
 class MiniDump {
   public:
-    MiniDump(const char* filename);
+    MiniDump(const char* filename, const char* libdir);
     bool is_valid() { return fd >= 0; }
     void close();
     ~MiniDump();
@@ -73,6 +73,7 @@ class MiniDump {
     int read_modules(); // populate module list, and locate jvm
     Segment* readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA);
 
+    const char* libdir;
     int fd;
     _MINIDUMP_HEADER hdr;
     std::list<Segment> modules;

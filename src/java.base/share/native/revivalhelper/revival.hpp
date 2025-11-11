@@ -301,14 +301,19 @@ void *do_map_allocate_pd(void *addr, size_t length);
  */
 void *revived_vm_thread();
 
-/**
- * Return a boolean true if the given revival directory exists.
- */
-bool dir_exists_pd(const char *dirname);
-bool dir_isempty_pd(const char *dirname);
-bool file_exists_pd(const char *dirname);
 
-unsigned long long file_size(const char *filename);
+/**
+ * Utilities to return a boolean for file or directory existence.
+ */
+bool dir_exists_pd(const char* dirname);
+bool dir_isempty_pd(const char* dirname);
+bool file_exists_pd(const char* filename);
+bool file_exists_indir_pd(const char* dirname, const char* filename);
+
+char* find_filename_in_libdir(const char* libdir, const char* filename);
+
+unsigned long long file_size(const char* filename);
+
 
 int revival_mapping_allocate(void *vaddr, size_t length);
 
