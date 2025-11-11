@@ -69,24 +69,10 @@ extern unsigned long long file_size(const char *filename);
  * what we need is mapped in.
  */
 class ELFFile {
-  private:
-    const char* filename;
-    Elf64_Ehdr* hdr;  // Main ELF Header
-    Elf64_Phdr* ph;   // First Program Header absolute address
-    Elf64_Shdr* sh;   // First Section Header absolute address or nullptr
-    char *shdr_strings;
-
-    SharedLibMapping* NT_Mappings = 0;
-    int NT_Mappings_count = 0;
-
-    int fd = -1;
-    long long length = -1;
-    void *m = (void *) 0; // Address of mapped file
-
   public:
-    ELFFile(const char *filename);
-    void verify();
+    ELFFile(const char* filename, const char* libdir);
     ~ELFFile();
+
     char* read_string_at_address(uint64_t addr); // Read at effective virtual address
     void print(); // Show PHs and Sections
 
@@ -103,8 +89,26 @@ class ELFFile {
     // Write the list of memory mappings in the core, to be used in the revived process.
     void write_mappings(int mappings_fd, const char* exec_name);
 
-
   private:
+    const char* filename;
+    const char* libdir;
+    Elf64_Ehdr* hdr;  // Main ELF Header
+    Elf64_Phdr* ph;   // First Program Header absolute address
+    Elf64_Shdr* sh;   // First Section Header absolute address or nullptr
+    char *shdr_strings;
+
+    int fd;
+    long long length;
+    void *m; // Address of mapped ELF file
+
+    SharedLibMapping* mappings;
+    int mappings_count;
+
+    void verify();
+
+    char* find_note_data(Elf64_Phdr* notes_ph, Elf64_Word type);
+    void read_file_mappings();
+
 /*    template <typename T>
     T read_type() {
         T ret;
@@ -372,77 +376,6 @@ class ELFFile {
     void read_bytes(ssize_t bytes, char* buffer) {
         if (read(fd, buffer, bytes) != bytes) {
             error("read_bytes: %s", strerror(errno));
-        }
-    }
-
-    char* find_note_data(Elf64_Phdr* notes_ph, Elf64_Word type) {
-        // Read NOTES.  p_filesz is limit.
-        Elf64_Nhdr* nhdr = (Elf64_Nhdr*) ((uint64_t) m + notes_ph->p_offset);
-        Elf64_Nhdr* end  = nhdr + notes_ph->p_filesz;
-
-        while (nhdr < end) {
-            logv("NOTE at %p type 0x%x namesz %x descsz %x", nhdr, nhdr->n_type, nhdr->n_namesz, nhdr->n_descsz);
-            char *pos = (char*) nhdr;
-            pos += sizeof(Elf64_Nhdr);
-            if (nhdr->n_namesz > 0) {
-                char *name = (char *) pos;
-                logv("NOTE name='%s'", name);
-                pos += nhdr->n_namesz; // n_namesz includes terminator
-            }
-            // Align. 4 byte alignment, including when 64-bit.
-            while (((unsigned long long) pos & 0x3) != 0) {
-                pos++;
-            }
-            // After aligning, pos points at actual NOTE data.
-            if (nhdr->n_type == type) {
-                return pos;
-            }
-            pos += nhdr->n_descsz;
-            nhdr = (Elf64_Nhdr*) pos;
-        }
-        return nullptr;
-    }
-
-    // Read core NOTES, find NT_FILE, find libjvm.so
-    // core files only
-    void read_NT_mappings() {
-        if (NT_Mappings != 0) return;
-
-        // Look for Program Header PT_NOTE:
-        Elf64_Phdr* notes_ph = program_header_by_type(PT_NOTE);
-        if (notes_ph == nullptr) {
-            error("Cannot locate NOTES");
-        }
-        // Look for NT_FILE note:
-        char* note_nt_file = find_note_data(notes_ph, 0x46494c45 /* NT_FILE */);
-        if (note_nt_file == nullptr) {
-            error("Cannot locate NOTE NT_FILE");
-        }
-        logv("NT_FILE note data at %p", note_nt_file);
-        // Read NT_FILE:
-        NT_Mappings_count = *(long*)note_nt_file;
-        note_nt_file += 8;
-        long pagesize = *(long*) note_nt_file;
-        note_nt_file += 8;
-        logv("NT_FILE count %d pagesize 0x%lx", NT_Mappings_count, pagesize);
-
-        NT_Mappings = new SharedLibMapping[NT_Mappings_count];
-        for (int i = 0; i < NT_Mappings_count; i++) {
-            NT_Mappings[i].start = *(long*) note_nt_file;
-            note_nt_file += 8;
-            NT_Mappings[i].end = *(long*) note_nt_file;
-            note_nt_file += 8;
-            note_nt_file += 8; // skip offset
-        }
-        for (int i = 0; i < NT_Mappings_count; i++) {
-            NT_Mappings[i].path = note_nt_file; // readstring(file);
-            note_nt_file += strlen(NT_Mappings[i].path);
-            note_nt_file++; // terminator
-        }
-        if (verbose) {
-            for (int i = 0; i < NT_Mappings_count; i++) {
-                fprintf(stderr, "NT_FILE: %lu %lu %s\n", NT_Mappings[i].start, NT_Mappings[i].end, NT_Mappings[i].path);
-            }
         }
     }
 

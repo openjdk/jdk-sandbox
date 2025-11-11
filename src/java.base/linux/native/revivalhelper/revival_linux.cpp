@@ -144,6 +144,12 @@ bool file_exists_pd(const char *filename) {
     return false;
 }
 
+bool file_exists_indir_pd(const char* dirname, const char* filename) {
+    char path[BUFLEN];
+    snprintf(path, BUFLEN - 1, "%s%s%s", dirname, FILE_SEPARATOR, filename);
+    return file_exists_pd(path);
+}
+
 
 /**
  * Read a char string from an fd.
@@ -182,7 +188,7 @@ char* readstring_at_pd(const char* filename, uint64_t offset) {
 }
 
 char* readstring_from_core_at_pd(const char* filename, uint64_t addr) {
-    ELFFile elf(filename);
+    ELFFile elf(filename, nullptr);
     return elf.read_string_at_address(addr);
 }
 
@@ -717,14 +723,6 @@ bool create_directory_pd(char* dirname) {
     return mkdir(dirname, S_IRUSR | S_IWUSR | S_IXUSR) == 0;
 }
 
-void init_jvm_filename_and_address(ELFFile& core) {
-    SharedLibMapping* jvm_mapping = core.get_library_mapping(JVM_FILENAME);
-    jvm_filename = strdup(jvm_mapping->path);
-    jvm_address = (void*) jvm_mapping->start;
-    logv("JVM = '%s'", jvm_filename);
-    logv("JVM addr = %p", jvm_address);
-}
-
 
 /**
  * Create a "core.revival" directory containing what's needed to revive a corefile:
@@ -737,21 +735,18 @@ void init_jvm_filename_and_address(ELFFile& core) {
  */
 int create_revivalbits_native_pd(const char* corename, const char* javahome, const char* revival_dirname, const char* libdir) {
 
-    // Find libjvm and its load address from core
     {
-        ELFFile core(corename);
-        init_jvm_filename_and_address(core);
+        ELFFile core(corename, libdir);
 
-        if (libdir != nullptr) {
-            init_jvm_filename_from_libdir(libdir);
-        } else {
-            // Verify libjvm.so from core exists
-            if (!try_init_jvm_filename_if_exists(jvm_filename, "")) {
-                warn("JVM library required in core not found at: %s", jvm_filename);
-                warn("For cores from other systems, or if JDK at path in core has changed, use -L to specify JVM location.");
-                return -1;
-            }
+        // Find JVM and its load address from core
+        SharedLibMapping* jvm_mapping = core.get_library_mapping(JVM_FILENAME);
+        if (jvm_mapping == nullptr) {
+            error("revival: cannot locate JVM from core.") ;
         }
+        jvm_filename = strdup(jvm_mapping->path);
+        jvm_address = (void*) jvm_mapping->start;
+        logv("JVM = '%s'", jvm_filename);
+        logv("JVM addr = %p", jvm_address);
 
         // Create mappings file
         int mappings_fd = mappings_file_create(revival_dirname, corename);
@@ -773,7 +768,7 @@ int create_revivalbits_native_pd(const char* corename, const char* javahome, con
 
     // Relocate copy of libjvm:
     {
-        ELFFile jvm_copy(jvm_copy_path);
+        ELFFile jvm_copy(jvm_copy_path, nullptr);
         logv("Relocate copy of libjvm to %p", jvm_address);
         jvm_copy.relocate((unsigned long) jvm_address /* assume library currently has zero base address */);
         logv("Relocate copy of libjvm done");

@@ -56,8 +56,15 @@
 #include "elffile.hpp"
 
 
-ELFFile::ELFFile(const char *filename) {
+ELFFile::ELFFile(const char* filename, const char* libdir) {
     this->filename = filename;
+    this->libdir = libdir;
+    fd = -1;
+    length = 0;
+    m = nullptr;
+    mappings = nullptr;
+    mappings_count = 0;
+
     fd = open(filename, O_RDWR);
     if (fd < 0) {
         error("cannot open '%s': %s", filename, strerror(errno));
@@ -69,7 +76,7 @@ ELFFile::ELFFile(const char *filename) {
     }
     hdr = (Elf64_Ehdr*) m;
 
-    // Set resolved ph and sh pointers for ease.
+    // Set absolute ph and sh pointers for ease.
     // Careful with ptr arithmetic, do NOT use:
     // = (Elf64_Phdr*) (char *) m + (hdr->e_phoff);
     // But use:
@@ -85,7 +92,7 @@ ELFFile::ELFFile(const char *filename) {
     }
 
     logv("ELFFile: %s hdr = %p phoff = 0x%lx shoff = 0x%lx   ph = %p sh = %p",
-    filename, hdr, hdr->e_phoff, hdr->e_shoff, ph, sh);
+         filename, hdr, hdr->e_phoff, hdr->e_shoff, ph, sh);
    verify();
 }
 
@@ -137,14 +144,86 @@ void ELFFile::verify() {
 }
 
 ELFFile::~ELFFile() {
-    // Free NT_mappings
     if (fd >= 0) {
         ::close(fd);
     }
     if (m != 0) {
         do_munmap_pd(m, length);
     }
+
+    // Free mappings
 }
+
+char* ELFFile::find_note_data(Elf64_Phdr* notes_ph, Elf64_Word type) {
+        // Read NOTES.  p_filesz is limit.
+        Elf64_Nhdr* nhdr = (Elf64_Nhdr*) ((uint64_t) m + notes_ph->p_offset);
+        Elf64_Nhdr* end  = nhdr + notes_ph->p_filesz;
+
+        while (nhdr < end) {
+            logv("NOTE at %p type 0x%x namesz %x descsz %x", nhdr, nhdr->n_type, nhdr->n_namesz, nhdr->n_descsz);
+            char *pos = (char*) nhdr;
+            pos += sizeof(Elf64_Nhdr);
+            if (nhdr->n_namesz > 0) {
+                char *name = (char *) pos;
+                logv("NOTE name='%s'", name);
+                pos += nhdr->n_namesz; // n_namesz includes terminator
+            }
+            // Align. 4 byte alignment, including when 64-bit.
+            while (((unsigned long long) pos & 0x3) != 0) {
+                pos++;
+            }
+            // After aligning, pos points at actual NOTE data.
+            if (nhdr->n_type == type) {
+                return pos;
+            }
+            pos += nhdr->n_descsz;
+            nhdr = (Elf64_Nhdr*) pos;
+        }
+        return nullptr;
+    }
+
+void ELFFile::read_file_mappings() {
+        // core files only
+        if (mappings != 0) return;
+
+        // Look for Program Header PT_NOTE:
+        Elf64_Phdr* notes_ph = program_header_by_type(PT_NOTE);
+        if (notes_ph == nullptr) {
+            error("Cannot locate NOTES");
+        }
+        // Look for NT_FILE note:
+        char* note_nt_file = find_note_data(notes_ph, 0x46494c45 /* NT_FILE */);
+        if (note_nt_file == nullptr) {
+            error("Cannot locate NOTE NT_FILE");
+        }
+        logv("NT_FILE note data at %p", note_nt_file);
+        // Read NT_FILE:
+        mappings_count = *(long*)note_nt_file;
+        note_nt_file += 8;
+        long pagesize = *(long*) note_nt_file;
+        note_nt_file += 8;
+        logv("NT_FILE count %d pagesize 0x%lx", mappings_count, pagesize);
+
+        mappings = new SharedLibMapping[mappings_count];
+        for (int i = 0; i < mappings_count; i++) {
+            mappings[i].start = *(long*) note_nt_file;
+            note_nt_file += 8;
+            mappings[i].end = *(long*) note_nt_file;
+            note_nt_file += 8;
+            note_nt_file += 8; // skip offset
+        }
+        for (int i = 0; i < mappings_count; i++) {
+            mappings[i].path = note_nt_file; // readstring(file);
+            note_nt_file += strlen(mappings[i].path);
+            note_nt_file++; // terminator
+        }
+        if (verbose) {
+            for (int i = 0; i < mappings_count; i++) {
+                fprintf(stderr, "NT_FILE: %lu %lu %s\n", mappings[i].start, mappings[i].end, mappings[i].path);
+            }
+        }
+    }
+
 
 void ELFFile::print() {
     for (int i = 0; i < hdr->e_phnum; i++) {
@@ -213,13 +292,41 @@ void ELFFile::write_symbols(int fd, const char* symbols[], int count) {
 
 
 SharedLibMapping* ELFFile::get_library_mapping(const char* filename) {
-    read_NT_mappings();
-    for (int i = 0; i < NT_Mappings_count; i++) {
-        if (strstr(NT_Mappings[i].path, filename)) {
-            return &NT_Mappings[i];
+    // Use libdir (if set) for finding the JVM library.
+    read_file_mappings();
+    SharedLibMapping* result = nullptr;
+
+    for (int i = 0; i < mappings_count; i++) {
+        char* lib = mappings[i].path;
+        if (strstr(lib, filename)) {
+            // Found.  JVM?
+            if (strcmp(filename, JVM_FILENAME) == 0) {
+                if (libdir != nullptr) {
+                    // Use JVM from libdir: (must find)
+                    char* found = find_filename_in_libdir(libdir, lib);
+                    if (found == nullptr) {
+                       error("No JVM found in libdir");
+                    }
+                    logv("Using from libdir: '%s'", found);
+                    mappings[i].path = found;
+                    result = &mappings[i];
+                    break;
+                } else {
+                    if (!file_exists_pd(lib)) {
+                        warn("JVM library required in core not found at: %s", lib);
+                        error("For minidumps from other systems, or if JDK at path in core has changed, use -L to specify JVM location.");
+                    }
+                    result = &mappings[i];
+                    break;
+                }
+            } else {
+                // Non-JVM:
+                result = &mappings[i];
+                break;
+            }
         }
     }
-    return nullptr;
+    return result;
 }
 
 
@@ -237,7 +344,7 @@ void ELFFile::write_mappings(int mappings_fd, const char* exec_name) {
             return;
         }
 
-        read_NT_mappings();
+        read_file_mappings();
         int n_skipped = 0;
         Elf64_Phdr* phdr = ph;
         for (int i = 0; i < hdr->e_phnum; i++) {
@@ -254,9 +361,9 @@ void ELFFile::write_mappings(int mappings_fd, const char* exec_name) {
             // Let's start with /bin/java #1
             // If the virtaddr is between start and end, it touches, exclude it
             bool skip = false;
-            for (int i = 0; i < NT_Mappings_count; i++) {
-                if (is_inside(phdr, NT_Mappings[i].start, NT_Mappings[i].end)
-                    && strstr(NT_Mappings[i].path, exec_name) /*|| false //!(phdr.p_flags & PF_W)) */
+            for (int i = 0; i < mappings_count; i++) {
+                if (is_inside(phdr, mappings[i].start, mappings[i].end)
+                    && strstr(mappings[i].path, exec_name) /*|| false //!(phdr.p_flags & PF_W)) */
                    ) {
                     skip = true;
                     break;
@@ -271,8 +378,8 @@ void ELFFile::write_mappings(int mappings_fd, const char* exec_name) {
 
             if (!(phdr->p_flags & PF_W)) {
                 skip = false;
-                for (int i = 0; i < NT_Mappings_count; i++) {
-                    if (is_inside(phdr, NT_Mappings[i].start, NT_Mappings[i].end)) {
+                for (int i = 0; i < mappings_count; i++) {
+                    if (is_inside(phdr, mappings[i].start, mappings[i].end)) {
                         skip = true;
                         break;
                     }
