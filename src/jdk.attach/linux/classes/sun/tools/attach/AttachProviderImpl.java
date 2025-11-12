@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,12 +24,10 @@
  */
 package sun.tools.attach;
 
-import java.io.File;
 import com.sun.tools.attach.VirtualMachine;
 import com.sun.tools.attach.VirtualMachineDescriptor;
 import com.sun.tools.attach.AttachNotSupportedException;
 import java.io.IOException;
-import java.util.List;
 
 /*
  * An AttachProvider implementation for Linux that uses a UNIX domain
@@ -45,13 +43,17 @@ public class AttachProviderImpl extends HotSpotAttachProvider {
     }
 
     public String type() {
-        return "socket"; // becomes untrue for core dumps
+        return "socket";
     }
 
     public VirtualMachine attachVirtualMachine(String vmid)
         throws AttachNotSupportedException, IOException
     {
-        return attachVirtualMachine(vmid, null, null);
+        // AttachNotSupportedException will be thrown if the target VM can be determined
+        // to be not attachable.
+        testAttachable(vmid);
+
+        return new VirtualMachineImpl(this, vmid);
     }
 
     public VirtualMachine attachVirtualMachine(VirtualMachineDescriptor vmd)
@@ -59,9 +61,6 @@ public class AttachProviderImpl extends HotSpotAttachProvider {
     {
         if (vmd.provider() != this) {
             throw new AttachNotSupportedException("provider mismatch");
-        }
-        if (new File(vmd.id()).exists()) {
-            return new VirtualMachineCoreDumpImpl(this, vmd.id(), null, null);
         }
         // To avoid re-checking if the VM if attachable, we check if the descriptor
         // is for a hotspot VM - these descriptors are created by the listVirtualMachines

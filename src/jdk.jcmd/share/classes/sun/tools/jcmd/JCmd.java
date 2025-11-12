@@ -67,14 +67,13 @@ public class JCmd {
         }
 
         ProcessArgumentMatcher ap = null;
-        // if (!arg.isForceCore()) { ...
+
         try {
             ap = new ProcessArgumentMatcher(arg.getProcessString());
         } catch (IllegalArgumentException iae) {
             System.err.println("Invalid pid '" + arg.getProcessString()  + "' specified");
             System.exit(1);
         }
-
         if (arg.isListProcesses()) {
             for (VirtualMachineDescriptor vmd : ap.getVirtualMachineDescriptors(/* include jcmd in listing */)) {
                 System.out.println(vmd.id() + " " + vmd.displayName());
@@ -82,11 +81,13 @@ public class JCmd {
             System.exit(0);
         }
 
-        Collection<String> pids = ap.getVirtualMachinePids(JCmd.class);
+        Collection<String> pids = null;
+        if (!arg.isForceCore()) {
+            pids = ap.getVirtualMachinePids(JCmd.class);
+        }
 
-        if (arg.isForceCore() ||
-            (pids.isEmpty() && new File(arg.getProcessString()).exists())) {
-            // core or minidump
+        if (pids == null || pids.isEmpty() || arg.isForceCore()) {
+//             && new File(arg.getProcessString()).exists()) {
             System.out.println("Opening dump file '" + arg.getProcessString() + "'...");
 
             try {
