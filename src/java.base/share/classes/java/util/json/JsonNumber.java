@@ -78,7 +78,6 @@ public non-sealed interface JsonNumber extends JsonValue {
      * returned.
      * <p>
      * The computation may not preserve all information in the string representation.
-     * In all of the above cases one or more leading zero digits are not preserved.
      * In the third case, returning {@code Double}, decimal to binary conversion may lose
      * decimal precision, and will not preserve one or more trailing zero digits in the fraction
      * part.
@@ -112,8 +111,7 @@ public non-sealed interface JsonNumber extends JsonValue {
      * and that {@code BigDecimal} is returned.
      * <p>
      * The translation may not preserve all information in the string representation.
-     * The sign is not preserved for the decimal string representation {@code -0.0}. One or more
-     * leading zero digits are not preserved.
+     * The sign is not preserved for the decimal string representation {@code -0.0}.
      *
      * @throws NumberFormatException if the {@code BigDecimal} cannot be translated from the string representation
      */
