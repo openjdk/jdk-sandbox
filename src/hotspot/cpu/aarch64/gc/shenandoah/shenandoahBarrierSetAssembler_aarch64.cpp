@@ -625,8 +625,9 @@ void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, Ma
   // Check if GC marking is in progress, otherwise we don't have to do anything.
   Address gc_state(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
   __ ldrb(rscratch1, gc_state);
-  __ tstw(rscratch1, ShenandoahHeap::HAS_FORWARDED);
-  __ br(Assembler::NE, *stub->entry());
+  __ mov(rscratch2, ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::WEAK_ROOTS);
+  __ andw(rscratch1, rscratch1, rscratch2);
+  __ cbnz(rscratch1, *stub->entry());
   __ bind(*stub->continuation());
   __ bind(done);
 }
