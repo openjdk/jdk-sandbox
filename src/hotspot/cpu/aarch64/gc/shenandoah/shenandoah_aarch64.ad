@@ -678,7 +678,7 @@ instruct loadN_shenandoah(iRegNNoSp dst, indirect mem, iRegPNoSp tmp, rFlagsReg 
 %}
 
 instruct loadN_volatile_shenandoah(iRegNNoSp dst, indirect mem, iRegPNoSp tmp, rFlagsReg cr) %{
-  predicate(UseShenandoahGC && /*needs_acquiring_load(n) && */ n->as_Load()->barrier_data() != 0);
+  predicate(UseShenandoahGC && needs_acquiring_load(n) && n->as_Load()->barrier_data() != 0);
   match(Set dst (LoadN mem));
   effect(TEMP_DEF dst, TEMP tmp, KILL cr);
   ins_cost(INSN_COST * 3);
