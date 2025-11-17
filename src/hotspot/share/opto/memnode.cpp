@@ -911,6 +911,9 @@ void LoadNode::dump_spec(outputStream *st) const {
     }
     st->print(")");
   }
+  if (is_acquire()) {
+    st->print("is_acquire");
+  }
 }
 #endif
 
