@@ -23,6 +23,7 @@
  *
  */
 
+#include "classfile/javaClasses.inline.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shenandoah/c2/shenandoahBarrierSetC2.hpp"
 #include "gc/shenandoah/heuristics/shenandoahHeuristics.hpp"
