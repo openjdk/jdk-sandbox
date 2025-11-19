@@ -112,15 +112,38 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
     }
 
     /**
-     * {@return the {@code Number} parsed or translated from the string representation
-     * of a {@code JsonNumber}}
+     * {@return this {@code JsonValue} as a {@code JsonNumber}}
      *
      * @implSpec
      * The default implementation throws {@code JsonAssertionException}.
      *
      * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonNumber}.
      */
-    default Number number() {
+    default JsonNumber number() {
+        throw Utils.composeTypeError(this, "JsonNumber");
+    }
+
+    /**
+     * {@return this {@code JsonValue} as a {@code long}}
+     *
+     * @implSpec
+     * The default implementation throws {@code JsonAssertionException}.
+     *
+     * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonNumber}.
+     */
+    default long asLong() {
+        throw Utils.composeTypeError(this, "JsonNumber");
+    }
+
+    /**
+     * {@return this {@code JsonValue} as a {@code double}}
+     *
+     * @implSpec
+     * The default implementation throws {@code JsonAssertionException}.
+     *
+     * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonNumber}.
+     */
+    default double asDouble() {
         throw Utils.composeTypeError(this, "JsonNumber");
     }
 

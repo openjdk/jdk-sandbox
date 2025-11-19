@@ -29,7 +29,9 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Locale;
 
+import java.util.json.JsonAssertionException;
 import java.util.json.JsonNumber;
+
 import jdk.internal.ValueBased;
 
 /**
@@ -44,6 +46,7 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     private final boolean isFp;
     private final StableValue<Number> theNumber = StableValue.of();
     private final StableValue<String> numString = StableValue.of();
+    private final StableValue<BigInteger> cachedBI = StableValue.of();
     private final StableValue<BigDecimal> cachedBD = StableValue.of();
 
     public JsonNumberImpl(Number num) {
@@ -69,28 +72,47 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     }
 
     @Override
-    public Number number() {
-        return theNumber.orElseSet(() -> {
-            var str = toString();
-            if (isFp) {
-                var db = Double.parseDouble(str);
-                if (Double.isInfinite(db)) {
-                    return toBigDecimal();
-                } else {
-                    return db;
-                }
+    public JsonNumber number() {
+        return this;
+    }
+
+    @Override
+    public long asLong() {
+        var str = toString();
+        try {
+            return Long.parseLong(str);
+        } catch (NumberFormatException _) {}
+        throw new JsonAssertionException("cannot parse long");
+    }
+
+    @Override
+    public double asDouble() {
+        var str = toString();
+        try {
+            var db = Double.parseDouble(str);
+            if (Double.isInfinite(db)) {
+                throw new JsonAssertionException("infinity");
             } else {
-                try {
-                    return Long.parseLong(str);
-                } catch (NumberFormatException _) {
-                    return new BigInteger(str);
-                }
+                return db;
+            }
+        } catch (NumberFormatException _) {}
+        throw new JsonAssertionException("cannot parse double");
+    }
+
+    @Override
+    public BigInteger asBigInteger() {
+        return cachedBI.orElseSet(() -> {
+            // If we already computed theNumber, check if it's BD
+            if (theNumber.orElse(null) instanceof BigInteger bi) {
+                return bi;
+            } else {
+                return new BigInteger(toString());
             }
         });
     }
 
     @Override
-    public BigDecimal toBigDecimal() {
+    public BigDecimal asBigDecimal() {
         return cachedBD.orElseSet(() -> {
             // If we already computed theNumber, check if it's BD
             if (theNumber.orElse(null) instanceof BigDecimal bd) {

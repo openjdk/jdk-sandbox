@@ -44,8 +44,8 @@ import jdk.internal.util.json.JsonNumberImpl;
  * syntax</a>. The value of the {@code JsonNumber}
  * can be retrieved from {@link #toString()} as the string representation
  * from which the JSON number is originally parsed, with
- * {@link #number()} as a {@code Number} instance, or with
- * {@link #toBigDecimal()}.
+ * {@link #asLong()} as a {@code long}, {@link #asDouble()} as a {@code double},
+ * {@link #asBigInteger()}, or with {@link #asBigDecimal()}.
  *
  * @spec https://datatracker.ietf.org/doc/html/rfc8259#section-6 RFC 8259:
  *      The JavaScript Object Notation (JSON) Data Interchange Format - Numbers
@@ -55,52 +55,38 @@ import jdk.internal.util.json.JsonNumberImpl;
 public non-sealed interface JsonNumber extends JsonValue {
 
     /**
-     * {@return the {@code Number} parsed or translated from the
-     * {@link #toString string representation} of this {@code JsonNumber}}
-     * <p>
-     * This method operates on the string representation and depending on that
-     * representation computes and returns an instance of {@code Long}, {@code BigInteger},
-     * {@code Double}, or {@code BigDecimal}.
-     * <p>
-     * If the string representation is the decimal string representation of
-     * a {@code long} value, parsable by {@link Long#parseLong(String)},
-     * then that {@code long} value is returned in its boxed form as {@code Long}.
-     * Otherwise, if the string representation is the decimal string representation of a
-     * {@code BigInteger}, translatable by {@link BigInteger#BigInteger(String)},
-     * then that {@code BigInteger} is returned.
-     * Otherwise, if the string representation is the decimal string representation of
-     * a {@code double} value, parsable by {@link Double#parseDouble(String)},
-     * and the {@code double} value is not {@link Double#isInfinite() infinite}, then that
-     * {@code double} value is returned in its boxed form as {@code Double}.
-     * Otherwise, and in all other cases, the string representation is the decimal string
-     * representation of a {@code BigDecimal}, translatable by
-     * {@link BigDecimal#BigDecimal(String)}, and that {@code BigDecimal} is
-     * returned.
-     * <p>
-     * The computation may not preserve all information in the string representation.
-     * In the third case, returning {@code Double}, decimal to binary conversion may lose
-     * decimal precision, and will not preserve one or more trailing zero digits in the fraction
-     * part.
-     *
-     * @apiNote
-     * Pattern matching can be used to match against {@code Long},
-     * {@code Double}, {@code BigInteger}, or {@code BigDecimal} reference
-     * types. For example:
-     * {@snippet lang=java:
-     * switch(jsonNumber.number()) {
-     *     case Long l -> { ... }
-     *     case Double d -> { ... }
-     *     case BigInteger bi -> { ... }
-     *     case BigDecimal bd -> { ... }
-     *     default -> { } // should not happen
-     * }
-     *}
-     * @throws NumberFormatException if the {@code Number} cannot be parsed or translated from the string representation
-     * @see #toBigDecimal()
-     * @see #toString()
+     * {@return this as a {@code JsonNumber}}
      */
     @Override
-    Number number();
+    JsonNumber number();
+
+    /**
+     * {@return this as a {@code long}}
+     */
+    @Override
+    long asLong();
+
+    /**
+     * {@return this as a {@code double}}
+     */
+    @Override
+    double asDouble();
+
+    /**
+     * {@return the {@code BigInteger} translated from the
+     * {@link #toString string representation} of this {@code JsonNumber}}
+     * <p>
+     * The string representation is the decimal string representation of a
+     * {@code BigInteger}, translatable by {@link BigInteger#BigInteger(String)},
+     * and that {@code BigInteger} is returned.
+     * <p>
+     * The translation may not preserve all information in the string representation.
+     * The sign is not preserved for the decimal string representation {@code -0.0}. One or more
+     * leading zero digits are not preserved.
+     *
+     * @throws NumberFormatException if the {@code BigInteger} cannot be translated from the string representation
+     */
+    BigInteger asBigInteger();
 
     /**
      * {@return the {@code BigDecimal} translated from the
@@ -115,7 +101,7 @@ public non-sealed interface JsonNumber extends JsonValue {
      *
      * @throws NumberFormatException if the {@code BigDecimal} cannot be translated from the string representation
      */
-    BigDecimal toBigDecimal();
+    BigDecimal asBigDecimal();
 
     /**
      * Creates a JSON number whose string representation is the
