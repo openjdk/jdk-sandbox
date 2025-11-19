@@ -619,12 +619,14 @@ instruct loadP_shenandoah(iRegPNoSp dst, indirect mem, rFlagsReg cr)
     ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
                  noreg /* obj */,
                  $dst$$Register /* pre_val */);
+
+    bool maybe_null = (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull);
     ShenandoahBarrierSet::assembler()->load_ref_barrier_c2(this, masm,
                                                            $dst$$Register /* obj */,
                                                            $mem$$Register /* addr */,
                                                            noreg /* noreg - not needed */,
                                                            false /* narrow */,
-                                                           true /* maybe_null */);
+                                                           maybe_null);
   %}
   ins_pipe(iload_reg_mem);
 %}
@@ -643,12 +645,14 @@ instruct loadP_volatile_shenandoah(iRegPNoSp dst, indirect mem, rFlagsReg cr)
     ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
                  noreg /* obj */,
                  $dst$$Register /* pre_val */);
+
+    bool maybe_null = (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull);
     ShenandoahBarrierSet::assembler()->load_ref_barrier_c2(this, masm,
                                                            $dst$$Register /* obj */,
                                                            $mem$$Register /* addr */,
                                                            noreg /* noreg - not needed */,
                                                            false /* narrow */,
-                                                           true /* maybe_null */);
+                                                           maybe_null);
   %}
   ins_pipe(iload_reg_mem);
 %}
@@ -737,12 +741,14 @@ instruct loadN_volatile_shenandoah(iRegNNoSp dst, indirect mem, iRegPNoSp tmp, r
                                                          noreg /* obj */,
                                                          $tmp$$Register /* pre_val */);
     }
+
+    bool maybe_null = (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull);
     ShenandoahBarrierSet::assembler()->load_ref_barrier_c2(this, masm,
                                                            $dst$$Register /* obj */,
                                                            $mem$$Register /* addr */,
                                                            $tmp$$Register /* tmp */,
                                                            true /* narrow */,
-                                                           true /* maybe_null */);
+                                                           maybe_null);
   %}
   ins_pipe(ialu_reg);
 %}
