@@ -61,16 +61,31 @@ public non-sealed interface JsonNumber extends JsonValue {
     JsonNumber number();
 
     /**
+     * {@return true if this JsonNumber can be converted to a {@code long}}
+     */
+    boolean isLong();
+
+    /**
      * {@return this as a {@code long}}
      */
     @Override
     long asLong();
 
     /**
+     * {@return true if this JsonNumber can be converted to a {@code double}}
+     */
+    boolean isDouble();
+
+    /**
      * {@return this as a {@code double}}
      */
     @Override
     double asDouble();
+
+    /**
+     * {@return true if this JsonNumber can be converted to a {@code BigInteger}}
+     */
+    boolean isBigInteger();
 
     /**
      * {@return the {@code BigInteger} translated from the
@@ -87,6 +102,11 @@ public non-sealed interface JsonNumber extends JsonValue {
      * @throws NumberFormatException if the {@code BigInteger} cannot be translated from the string representation
      */
     BigInteger asBigInteger();
+
+    /**
+     * {@return true if this JsonNumber can be converted to a {@code BigDecimal}}
+     */
+    boolean isBigDecimal();
 
     /**
      * {@return the {@code BigDecimal} translated from the

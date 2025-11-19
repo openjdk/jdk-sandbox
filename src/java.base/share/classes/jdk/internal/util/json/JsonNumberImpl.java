@@ -44,19 +44,32 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     private final int startOffset;
     private final int endOffset;
     private final boolean isFp;
-    private final StableValue<Number> theNumber = StableValue.of();
-    private final StableValue<String> numString = StableValue.of();
-    private final StableValue<BigInteger> cachedBI = StableValue.of();
-    private final StableValue<BigDecimal> cachedBD = StableValue.of();
+    private /* final StableValue<*/String numString;
+    private boolean longInit;
+    private /* final StableValue<*/Long cachedLong;
+    private boolean doubleInit;
+    private /* final StableValue<*/Double cachedDouble;
+    private boolean biInit;
+    private /*final StableValue<*/BigInteger cachedBI;
+    private boolean bdInit;
+    private /*final StableValue<*/BigDecimal cachedBD;
 
     public JsonNumberImpl(Number num) {
         // Called by factories. Input is Double, Long, BI, or BD.
-        if (num == null ||
-            num instanceof Double d && (d.isNaN() || d.isInfinite())) {
-            throw new IllegalArgumentException("Not a valid JSON number");
+        switch (num) {
+            case Long l -> cachedLong = l;
+            case Double d -> {
+                if (d.isNaN() || d.isInfinite()) {
+                    throw new IllegalArgumentException("Not a valid JSON number");
+                }
+                cachedDouble =  d;
+            }
+            case BigInteger bi -> cachedBI = bi;
+            case BigDecimal bd -> cachedBD = bd;
+            case null -> throw new IllegalArgumentException("Not a valid JSON number");
+            default -> throw new InternalError("should not happen");
         }
-        theNumber.setOrThrow(num);
-        numString.setOrThrow(num.toString());
+        numString = num.toString();
         // unused
         startOffset = -1;
         endOffset = -1;
@@ -66,6 +79,7 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
     public JsonNumberImpl(char[] doc, int start, int end, boolean fp) {
         this.doc = doc;
+        numString = new String(doc, start, end - start);
         startOffset = start;
         endOffset = end;
         isFp = fp;
@@ -77,50 +91,98 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     }
 
     @Override
+    public boolean isLong() {
+        // refactor with LazyConstant
+        if (!longInit) {
+            longInit = true;
+            try {
+                cachedLong = Long.parseLong(toString());
+            } catch (NumberFormatException _) {
+                return false;
+            }
+        }
+        return cachedLong != null;
+    }
+
+    @Override
     public long asLong() {
-        var str = toString();
-        try {
-            return Long.parseLong(str);
-        } catch (NumberFormatException _) {}
-        throw new JsonAssertionException("cannot parse long");
+        if (isLong()) {
+            return cachedLong;
+        } else {
+            throw new JsonAssertionException("not a long");
+        }
+    }
+
+    @Override
+    public boolean isDouble() {
+        // refactor with LazyConstant
+        if (!doubleInit) {
+            doubleInit = true;
+            try {
+                var db = Double.parseDouble(toString());
+                if (!Double.isInfinite(db)) {
+                    cachedDouble = db;
+                }
+            } catch (NumberFormatException _) {
+                return false;
+            }
+        }
+        return cachedDouble != null;
     }
 
     @Override
     public double asDouble() {
-        var str = toString();
-        try {
-            var db = Double.parseDouble(str);
-            if (Double.isInfinite(db)) {
-                throw new JsonAssertionException("infinity");
-            } else {
-                return db;
+        if (isDouble()) {
+            return cachedDouble;
+        } else {
+            throw new JsonAssertionException("not a double");
+        }
+    }
+
+    @Override
+    public boolean isBigInteger() {
+        // refactor with LazyConstant
+        if (!biInit) {
+            biInit = true;
+            try {
+                cachedBI = new BigInteger(toString());
+            } catch (NumberFormatException _) {
+                return false;
             }
-        } catch (NumberFormatException _) {}
-        throw new JsonAssertionException("cannot parse double");
+        }
+        return cachedBI != null;
     }
 
     @Override
     public BigInteger asBigInteger() {
-        return cachedBI.orElseSet(() -> {
-            // If we already computed theNumber, check if it's BD
-            if (theNumber.orElse(null) instanceof BigInteger bi) {
-                return bi;
-            } else {
-                return new BigInteger(toString());
+        if (isBigInteger()) {
+            return cachedBI;
+        } else {
+            throw new JsonAssertionException("not a BigInteger");
+        }
+    }
+
+    @Override
+    public boolean isBigDecimal() {
+        // refactor with LazyConstant
+        if (!bdInit) {
+            bdInit = true;
+            try {
+                cachedBD = new BigDecimal(toString());
+            } catch (NumberFormatException _) {
+                return false;
             }
-        });
+        }
+        return cachedBD != null;
     }
 
     @Override
     public BigDecimal asBigDecimal() {
-        return cachedBD.orElseSet(() -> {
-            // If we already computed theNumber, check if it's BD
-            if (theNumber.orElse(null) instanceof BigDecimal bd) {
-                return bd;
-            } else {
-                return new BigDecimal(toString());
-            }
-        });
+        if (isBigDecimal()) {
+            return cachedBD;
+        } else {
+            throw new JsonAssertionException("not a BigDecimal");
+        }
     }
 
     @Override
@@ -135,8 +197,7 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
     @Override
     public String toString() {
-        return numString.orElseSet(
-                () -> new String(doc, startOffset, endOffset - startOffset));
+        return numString;
     }
 
     @Override

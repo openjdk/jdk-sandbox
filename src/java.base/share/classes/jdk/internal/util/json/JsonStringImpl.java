@@ -43,17 +43,20 @@ public final class JsonStringImpl implements JsonString, JsonValueImpl {
     // It always conforms to JSON syntax. If created by parsing a JSON document,
     // it matches the original text exactly. If created via the factory method,
     // non-conformant characters are properly escaped.
-    private final StableValue<String> jsonStr = StableValue.of();
+//    private final StableValue<String> jsonStr = StableValue.of();
+    private final String jsonStr;
 
     // The String instance returned by `value()`.
     // If created by parsing a JSON document, escaped characters are unescaped.
     // If created via the factory method, the input String is used as-is.
-    private final StableValue<String> value = StableValue.of();
+//    private final StableValue<String> value = StableValue.of();
+    private final String value;
 
     // Called by JsonString.of() factory. The passed String represents the
     // unescaped value.
     public JsonStringImpl(String str) {
-        jsonStr.setOrThrow('"' + Utils.escape(value.orElseSet(() -> str)) + '"');
+        value = str;
+        jsonStr = '"' + Utils.escape(value) + '"';
         // unused
         doc = null;
         startOffset = -1;
@@ -66,11 +69,14 @@ public final class JsonStringImpl implements JsonString, JsonValueImpl {
         startOffset = start;
         endOffset = end;
         hasEscape = escape;
+
+        jsonStr = new String(doc, startOffset, endOffset - startOffset);
+        value = unescape();
     }
 
     @Override
     public String string() {
-        return value.orElseSet(this::unescape);
+        return value;
     }
 
     @Override
@@ -85,8 +91,9 @@ public final class JsonStringImpl implements JsonString, JsonValueImpl {
 
     @Override
     public String toString() {
-        return jsonStr.orElseSet(
-                () -> new String(doc, startOffset, endOffset - startOffset));
+//        return jsonStr.orElseSet(
+//                () -> new String(doc, startOffset, endOffset - startOffset));
+        return jsonStr;
     }
 
     /*
