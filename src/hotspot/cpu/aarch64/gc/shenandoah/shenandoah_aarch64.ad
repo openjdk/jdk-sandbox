@@ -670,7 +670,7 @@ instruct load_for_decode_shenandoah(iRegPNoSp dst, indirect mem, iRegPNoSp tmp, 
   format %{ "ldrw  $dst, $mem\t# compressed ptr" %}
   ins_encode %{
     __ ldrw($dst$$Register, $mem$$Register);
-    __ decode_heap_oop($dst$$Register, $dst$$Register);
+    __ decode_heap_oop($dst$$Register, $dst$$Register); // TODO: try to fuse this with previous load
 
     if (ShenandoahSATBBarrierStubC2::needs_barrier(this)) {
       ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,

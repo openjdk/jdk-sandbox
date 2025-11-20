@@ -615,10 +615,6 @@ void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, Ma
     return;
   }
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
-  Label done;
-  if (maybe_null) {
-    __ cbz(obj, done);
-  }
   ShenandoahLoadRefBarrierStubC2* const stub = ShenandoahLoadRefBarrierStubC2::create(node, obj, addr, tmp, noreg, noreg, narrow);
   // Don't preserve the obj across the runtime call, we override it from the return value anyway.
   stub->dont_preserve(obj);
@@ -634,7 +630,6 @@ void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, Ma
   __ andw(rscratch1, rscratch1, rscratch2);
   __ cbnz(rscratch1, *stub->entry());
   __ bind(*stub->continuation());
-  __ bind(done);
 }
 
 void ShenandoahBarrierSetAssembler::satb_barrier_c2(const MachNode* node, MacroAssembler* masm, Register addr, Register pre_val) {
@@ -778,7 +773,7 @@ void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
     __ load_heap_oop(_preval, Address(_addr, 0), noreg, noreg, AS_RAW);
   }
   // Is the previous value null?
-  __ cbz(_preval, *continuation());
+  // __ cbz(_preval, *continuation());
 
   Address index(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));

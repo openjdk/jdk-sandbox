@@ -44,7 +44,9 @@ JRT_LEAF(void, ShenandoahRuntime::write_barrier_pre_c2(oopDesc* orig))
 JRT_END
 
 JRT_LEAF(void, ShenandoahRuntime::write_barrier_pre(oopDesc* orig))
-  assert(orig != nullptr, "should be optimized out");
+  if (orig == nullptr) {
+    return ;
+  }
   shenandoah_assert_correct(nullptr, orig);
   // Capture the original value that was in the field reference.
   JavaThread* thread = JavaThread::current();
