@@ -38,25 +38,33 @@ public final class JsonStringImpl implements JsonString, JsonValueImpl {
     private final int startOffset;
     private final int endOffset;
     private final boolean hasEscape;
+    private final String str; // only used with the factory method
 
     // The String instance representing this JSON string for `toString()`.
     // It always conforms to JSON syntax. If created by parsing a JSON document,
     // it matches the original text exactly. If created via the factory method,
     // non-conformant characters are properly escaped.
-//    private final StableValue<String> jsonStr = StableValue.of();
-    private final String jsonStr;
+    private final LazyConstant<String> jsonStr = LazyConstant.of(this::initJsonStr);
 
     // The String instance returned by `value()`.
     // If created by parsing a JSON document, escaped characters are unescaped.
     // If created via the factory method, the input String is used as-is.
-//    private final StableValue<String> value = StableValue.of();
-    private final String value;
+    private final LazyConstant<String> value = LazyConstant.of(this::initValue);
+
+    // LazyConstants initializers
+    private String initJsonStr() {
+        return str != null ?
+            '"' + Utils.escape(value.get()) + '"' :
+            new String(doc, startOffset, endOffset - startOffset);
+    }
+    private String initValue() {
+        return str != null ? str : unescape();
+    }
 
     // Called by JsonString.of() factory. The passed String represents the
     // unescaped value.
     public JsonStringImpl(String str) {
-        value = str;
-        jsonStr = '"' + Utils.escape(value) + '"';
+        this.str = str;
         // unused
         doc = null;
         startOffset = -1;
@@ -69,14 +77,13 @@ public final class JsonStringImpl implements JsonString, JsonValueImpl {
         startOffset = start;
         endOffset = end;
         hasEscape = escape;
-
-        jsonStr = new String(doc, startOffset, endOffset - startOffset);
-        value = unescape();
+        // unused
+        str = null;
     }
 
     @Override
     public String string() {
-        return value;
+        return value.get();
     }
 
     @Override
@@ -91,9 +98,7 @@ public final class JsonStringImpl implements JsonString, JsonValueImpl {
 
     @Override
     public String toString() {
-//        return jsonStr.orElseSet(
-//                () -> new String(doc, startOffset, endOffset - startOffset));
-        return jsonStr;
+        return jsonStr.get();
     }
 
     /*

@@ -48,8 +48,7 @@ public final class JsonParser {
     // Access to the underlying JSON contents
     private final char[] doc;
     // Lazily initialized for member names with escape sequences
-    private final /*Supplier<*/StringBuilder sb = /*StableValue.supplier(this::initSb);*/
-        new StringBuilder();
+    private final LazyConstant<StringBuilder> sb = LazyConstant.of(this::initSb);
     // Current offset during parsing
     private int offset;
     // For exception message on failure
@@ -173,7 +172,7 @@ public final class JsonParser {
                 }
                 if (!useBldr) {
                     // Append everything up to the first escape sequence
-                    sb.append(doc, start, offset - escapeLength - 1 - start);
+                    sb.get().append(doc, start, offset - escapeLength - 1 - start);
                     useBldr = true;
                 }
                 escape = false;
@@ -184,7 +183,7 @@ public final class JsonParser {
                 offset++;
                 if (useBldr) {
                     var name = sb.toString();
-                    sb.setLength(0);
+                    sb.get().setLength(0);
                     return name;
                 } else {
                     return new String(doc, start, offset - start - 1);
@@ -193,7 +192,7 @@ public final class JsonParser {
                 throw failure(UNESCAPED_CONTROL_CODE);
             }
             if (useBldr) {
-                sb.append(c);
+                sb.get().append(c);
             }
         }
         throw failure(UNCLOSED_STRING.formatted("JSON Object member name"));

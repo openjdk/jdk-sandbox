@@ -29,6 +29,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Locale;
 
+import java.util.Optional;
 import java.util.json.JsonAssertionException;
 import java.util.json.JsonNumber;
 
@@ -44,31 +45,20 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     private final int startOffset;
     private final int endOffset;
     private final boolean isFp;
-    private /* final StableValue<*/String numString;
-    private boolean longInit;
-    private /* final StableValue<*/Long cachedLong;
-    private boolean doubleInit;
-    private /* final StableValue<*/Double cachedDouble;
-    private boolean biInit;
-    private /*final StableValue<*/BigInteger cachedBI;
-    private boolean bdInit;
-    private /*final StableValue<*/BigDecimal cachedBD;
+    private final Number num; // only initialized by the factory methods
+    private final String numString;
+    private final LazyConstant<Optional<Long>> cachedLong = LazyConstant.of(this::cachedLongInit);
+    private final LazyConstant<Optional<Double>> cachedDouble = LazyConstant.of(this::cachedDoubleInit);
+    private final LazyConstant<Optional<BigInteger>> cachedBI = LazyConstant.of(this::cachedBIInit);
+    private final LazyConstant<Optional<BigDecimal>> cachedBD = LazyConstant.of(this::cachedBDInit);
 
     public JsonNumberImpl(Number num) {
         // Called by factories. Input is Double, Long, BI, or BD.
-        switch (num) {
-            case Long l -> cachedLong = l;
-            case Double d -> {
-                if (d.isNaN() || d.isInfinite()) {
-                    throw new IllegalArgumentException("Not a valid JSON number");
-                }
-                cachedDouble =  d;
-            }
-            case BigInteger bi -> cachedBI = bi;
-            case BigDecimal bd -> cachedBD = bd;
-            case null -> throw new IllegalArgumentException("Not a valid JSON number");
-            default -> throw new InternalError("should not happen");
+        if (num == null ||
+            num instanceof Double d && (d.isNaN() || d.isInfinite())) {
+            throw new IllegalArgumentException("Not a valid JSON number");
         }
+        this.num = num;
         numString = num.toString();
         // unused
         startOffset = -1;
@@ -83,6 +73,8 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
         startOffset = start;
         endOffset = end;
         isFp = fp;
+        // unused
+        num = null;
     }
 
     @Override
@@ -92,22 +84,13 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
     @Override
     public boolean isLong() {
-        // refactor with LazyConstant
-        if (!longInit) {
-            longInit = true;
-            try {
-                cachedLong = Long.parseLong(toString());
-            } catch (NumberFormatException _) {
-                return false;
-            }
-        }
-        return cachedLong != null;
+        return cachedLong.get().isPresent();
     }
 
     @Override
     public long asLong() {
         if (isLong()) {
-            return cachedLong;
+            return cachedLong.get().get();
         } else {
             throw new JsonAssertionException("not a long");
         }
@@ -115,25 +98,13 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
     @Override
     public boolean isDouble() {
-        // refactor with LazyConstant
-        if (!doubleInit) {
-            doubleInit = true;
-            try {
-                var db = Double.parseDouble(toString());
-                if (!Double.isInfinite(db)) {
-                    cachedDouble = db;
-                }
-            } catch (NumberFormatException _) {
-                return false;
-            }
-        }
-        return cachedDouble != null;
+        return cachedDouble.get().isPresent();
     }
 
     @Override
     public double asDouble() {
         if (isDouble()) {
-            return cachedDouble;
+            return cachedDouble.get().get();
         } else {
             throw new JsonAssertionException("not a double");
         }
@@ -141,22 +112,13 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
     @Override
     public boolean isBigInteger() {
-        // refactor with LazyConstant
-        if (!biInit) {
-            biInit = true;
-            try {
-                cachedBI = new BigInteger(toString());
-            } catch (NumberFormatException _) {
-                return false;
-            }
-        }
-        return cachedBI != null;
+        return cachedBI.get().isPresent();
     }
 
     @Override
     public BigInteger asBigInteger() {
         if (isBigInteger()) {
-            return cachedBI;
+            return cachedBI.get().get();
         } else {
             throw new JsonAssertionException("not a BigInteger");
         }
@@ -164,22 +126,13 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
     @Override
     public boolean isBigDecimal() {
-        // refactor with LazyConstant
-        if (!bdInit) {
-            bdInit = true;
-            try {
-                cachedBD = new BigDecimal(toString());
-            } catch (NumberFormatException _) {
-                return false;
-            }
-        }
-        return cachedBD != null;
+        return cachedBD.get().isPresent();
     }
 
     @Override
     public BigDecimal asBigDecimal() {
         if (isBigDecimal()) {
-            return cachedBD;
+            return cachedBD.get().get();
         } else {
             throw new JsonAssertionException("not a BigDecimal");
         }
@@ -209,5 +162,55 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     @Override
     public int hashCode() {
         return toString().toLowerCase(Locale.ROOT).hashCode();
+    }
+
+    // LazyConstants initializers
+    private Optional<Long> cachedLongInit() {
+        if (num != null && num instanceof Long l) {
+            return Optional.of(l);
+        } else {
+            try {
+                return Optional.of(Long.parseLong(numString));
+            } catch (NumberFormatException _) {}
+            return Optional.empty();
+        }
+    }
+
+    private Optional<Double> cachedDoubleInit() {
+        if (num != null && num instanceof Double d) {
+            return Optional.of(d);
+        } else {
+            try {
+                var d = Double.parseDouble(numString);
+                if (!Double.isInfinite(d)) {
+                    return Optional.of(d);
+                }
+            } catch (NumberFormatException _) {
+            }
+            return Optional.empty();
+        }
+    }
+
+    private Optional<BigInteger> cachedBIInit() {
+        if (num != null && num instanceof BigInteger bi) {
+            return Optional.of(bi);
+        } else {
+            try {
+                return Optional.of(new BigInteger(numString));
+            } catch (NumberFormatException _) {}
+            return Optional.empty();
+        }
+    }
+
+    private Optional<BigDecimal> cachedBDInit() {
+        if (num != null && num instanceof BigDecimal bd) {
+            return Optional.of(bd);
+        } else {
+            try {
+                return Optional.of(new BigDecimal(numString));
+            } catch (NumberFormatException _) {
+                return Optional.empty();
+            }
+        }
     }
 }
