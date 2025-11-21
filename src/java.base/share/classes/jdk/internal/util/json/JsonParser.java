@@ -182,7 +182,7 @@ public final class JsonParser {
             } else if (c == '\"') {
                 offset++;
                 if (useBldr) {
-                    var name = sb.toString();
+                    var name = sb.get().toString();
                     sb.get().setLength(0);
                     return name;
                 } else {
