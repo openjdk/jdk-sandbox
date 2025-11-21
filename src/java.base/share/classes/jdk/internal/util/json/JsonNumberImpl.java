@@ -49,11 +49,9 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     private final LazyConstant<String> numString = LazyConstant.of(this::initNumString);
     private final LazyConstant<Optional<Long>> cachedLong = LazyConstant.of(this::cachedLongInit);
     private final LazyConstant<Optional<Double>> cachedDouble = LazyConstant.of(this::cachedDoubleInit);
-    private final LazyConstant<Optional<BigInteger>> cachedBI = LazyConstant.of(this::cachedBIInit);
-    private final LazyConstant<Optional<BigDecimal>> cachedBD = LazyConstant.of(this::cachedBDInit);
 
     public JsonNumberImpl(Number num) {
-        // Called by factories. Input is Double, Long, BI, or BD.
+        // Called by factories. Input is Double or Long.
         if (num == null ||
             num instanceof Double d && (d.isNaN() || d.isInfinite())) {
             throw new IllegalArgumentException("Not a valid JSON number");
@@ -81,59 +79,13 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     }
 
     @Override
-    public boolean isLong() {
-        return cachedLong.get().isPresent();
+    public long toLong() {
+        return cachedLong.get().orElseThrow(() -> new JsonAssertionException("not a long"));
     }
 
     @Override
-    public long asLong() {
-        if (isLong()) {
-            return cachedLong.get().get();
-        } else {
-            throw new JsonAssertionException("not a long");
-        }
-    }
-
-    @Override
-    public boolean isDouble() {
-        return cachedDouble.get().isPresent();
-    }
-
-    @Override
-    public double asDouble() {
-        if (isDouble()) {
-            return cachedDouble.get().get();
-        } else {
-            throw new JsonAssertionException("not a double");
-        }
-    }
-
-    @Override
-    public boolean isBigInteger() {
-        return cachedBI.get().isPresent();
-    }
-
-    @Override
-    public BigInteger asBigInteger() {
-        if (isBigInteger()) {
-            return cachedBI.get().get();
-        } else {
-            throw new JsonAssertionException("not a BigInteger");
-        }
-    }
-
-    @Override
-    public boolean isBigDecimal() {
-        return cachedBD.get().isPresent();
-    }
-
-    @Override
-    public BigDecimal asBigDecimal() {
-        if (isBigDecimal()) {
-            return cachedBD.get().get();
-        } else {
-            throw new JsonAssertionException("not a BigDecimal");
-        }
+    public double toDouble() {
+        return cachedDouble.get().orElseThrow(() -> new JsonAssertionException("not a double"));
     }
 
     @Override
@@ -191,29 +143,6 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
                 }
             } catch (NumberFormatException _) {}
             return Optional.empty();
-        }
-    }
-
-    private Optional<BigInteger> cachedBIInit() {
-        if (num instanceof BigInteger bi) {
-            return Optional.of(bi);
-        } else {
-            try {
-                return Optional.of(new BigInteger(numString.get()));
-            } catch (NumberFormatException _) {}
-            return Optional.empty();
-        }
-    }
-
-    private Optional<BigDecimal> cachedBDInit() {
-        if (num instanceof BigDecimal bd) {
-            return Optional.of(bd);
-        } else {
-            try {
-                return Optional.of(new BigDecimal(numString.get()));
-            } catch (NumberFormatException _) {
-                return Optional.empty();
-            }
         }
     }
 }

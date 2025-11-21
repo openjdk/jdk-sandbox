@@ -24,8 +24,6 @@
  */
 package java.util.json;
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -148,8 +146,8 @@ public final class Json {
      * </table>
      *
      * <i><sup>*</sup>The supported {@code Number} subclasses are: {@code Byte},
-     * {@code Short}, {@code Integer}, {@code Long}, {@code Float},
-     * {@code Double}, {@code BigInteger}, and {@code BigDecimal}.</i>
+     * {@code Short}, {@code Integer}, {@code Long}, {@code Float}, and
+     * {@code Double}.</i>
      *
      * <p>If {@code src} is an instance of {@code JsonValue}, it is returned as is.
      *
@@ -192,8 +190,6 @@ public final class Json {
             case Short s -> JsonNumber.of(s);
             case Float f -> JsonNumber.of(f);
             case Double d -> JsonNumber.of(d);
-            case BigInteger bi -> JsonNumber.of(bi);
-            case BigDecimal bd -> JsonNumber.of(bd);
             case null -> JsonNull.of();
             // JsonValue
             case JsonValue jv -> jv;

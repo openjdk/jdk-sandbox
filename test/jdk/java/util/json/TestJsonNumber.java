@@ -29,8 +29,8 @@
  * @run junit TestJsonNumber
  */
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
+//import java.math.BigDecimal;
+//import java.math.BigInteger;
 import java.util.List;
 import java.util.json.Json;
 import java.util.json.JsonAssertionException;
@@ -58,47 +58,47 @@ public class TestJsonNumber {
         @Test
         void testToNumber() {
             assertTrue(Json.toJson(42) instanceof JsonNumber jn &&
-                    jn.asLong() instanceof long l &&
+                    jn.toLong() instanceof long l &&
                     l == 42);
             assertTrue(Json.toJson(4242424242424242L) instanceof JsonNumber jn &&
-                    jn.asLong() instanceof long l &&
+                    jn.toLong() instanceof long l &&
                     l == 4242424242424242L);
             assertTrue(Json.toJson(42.42) instanceof JsonNumber jn &&
-                    jn.asDouble() instanceof double d &&
+                    jn.toDouble() instanceof double d &&
                     d == 42.42);
             assertTrue(Json.toJson(42e42) instanceof JsonNumber jn &&
-                    jn.asDouble() instanceof double d &&
+                    jn.toDouble() instanceof double d &&
                     d == 42e42);
-            assertTrue(Json.toJson(new BigInteger("1".repeat(400))) instanceof JsonNumber jn &&
-                    jn.asBigInteger() instanceof BigInteger bi &&
-                    bi.compareTo(new BigInteger("1".repeat(400))) == 0);
-            assertTrue(Json.toJson(new BigDecimal("1e400")) instanceof JsonNumber jn &&
-                    jn.asBigDecimal() instanceof BigDecimal bd &&
-                    bd.compareTo(new BigDecimal("1e400")) == 0);
+//            assertTrue(Json.toJson(new BigInteger("1".repeat(400))) instanceof JsonNumber jn &&
+//                    jn.asBigInteger() instanceof BigInteger bi &&
+//                    bi.compareTo(new BigInteger("1".repeat(400))) == 0);
+//            assertTrue(Json.toJson(new BigDecimal("1e400")) instanceof JsonNumber jn &&
+//                    jn.asBigDecimal() instanceof BigDecimal bd &&
+//                    bd.compareTo(new BigDecimal("1e400")) == 0);
 
             // factories
-            assertEquals(JsonNumber.of((byte)42).asLong(), 42L);
-            assertEquals(JsonNumber.of((short)42).asLong(), 42L);
-            assertEquals(JsonNumber.of(42).asLong(), 42L);
-            assertEquals(JsonNumber.of(42L).asLong(), 42L);
-            assertEquals(JsonNumber.of(Long.MAX_VALUE).asLong(), Long.MAX_VALUE);
-            assertEquals(JsonNumber.of(0.1f).asDouble(), (double)0.1f);
-            assertEquals(JsonNumber.of(0.1d).asDouble(), 0.1d);
-            assertEquals(JsonNumber.of(1e0).asDouble(), 1d);
-            assertEquals(JsonNumber.of(Double.MAX_VALUE).asDouble(), Double.MAX_VALUE);
+            assertEquals(JsonNumber.of((byte)42).toLong(), 42L);
+            assertEquals(JsonNumber.of((short)42).toLong(), 42L);
+            assertEquals(JsonNumber.of(42).toLong(), 42L);
+            assertEquals(JsonNumber.of(42L).toLong(), 42L);
+            assertEquals(JsonNumber.of(Long.MAX_VALUE).toLong(), Long.MAX_VALUE);
+            assertEquals(JsonNumber.of(0.1f).toDouble(), (double)0.1f);
+            assertEquals(JsonNumber.of(0.1d).toDouble(), 0.1d);
+            assertEquals(JsonNumber.of(1e0).toDouble(), 1d);
+            assertEquals(JsonNumber.of(Double.MAX_VALUE).toDouble(), Double.MAX_VALUE);
         }
 
         @Test
         void numberThrowsTest() {
             var jn = (JsonNumber) Json.parse("9e111111111111");
-            assertThrows(JsonAssertionException.class, jn::asDouble);
+            assertThrows(JsonAssertionException.class, jn::toDouble);
         }
 
-        @Test
-        void toBigDecimalThrowsTest() {
-            var jn = (JsonNumber) Json.parse("9e111111111111");
-            assertThrows(JsonAssertionException.class, jn::asBigDecimal);
-        }
+//        @Test
+//        void toBigDecimalThrowsTest() {
+//            var jn = (JsonNumber) Json.parse("9e111111111111");
+//            assertThrows(JsonAssertionException.class, jn::asBigDecimal);
+//        }
     }
 
     @Nested
@@ -124,12 +124,12 @@ public class TestJsonNumber {
 //            else if (type == BigInteger.class) {assertEquals(new BigDecimal(json).toBigIntegerExact(), num);}
 //        }
 
-        @ParameterizedTest
-        @MethodSource("parseCases")
-        void toBigDecimalParseTest(String json) {
-            assertTrue(new BigDecimal(json).stripTrailingZeros()
-                    .compareTo(((JsonNumber) Json.parse(json)).asBigDecimal()) == 0);
-        }
+//        @ParameterizedTest
+//        @MethodSource("parseCases")
+//        void toBigDecimalParseTest(String json) {
+//            assertTrue(new BigDecimal(json).stripTrailingZeros()
+//                    .compareTo(((JsonNumber) Json.parse(json)).asBigDecimal()) == 0);
+//        }
 
         private static Stream<Arguments> parseCases() {
             return Stream.of(
@@ -138,12 +138,12 @@ public class TestJsonNumber {
                     Arguments.of("0", Long.class),
                     Arguments.of("9223372036854775807", Long.class),
                     Arguments.of("-9223372036854775808", Long.class),
-                    // BigInteger cases
-                    Arguments.of("9".repeat(309), BigInteger.class),
-                    // Less than Long.MIN
-                    Arguments.of("-9223372036854775809", BigInteger.class),
-                    // Greater than Long.MAX
-                    Arguments.of("9223372036854775808", BigInteger.class),
+//                    // BigInteger cases
+//                    Arguments.of("9".repeat(309), BigInteger.class),
+//                    // Less than Long.MIN
+//                    Arguments.of("-9223372036854775809", BigInteger.class),
+//                    // Greater than Long.MAX
+//                    Arguments.of("9223372036854775808", BigInteger.class),
 
                     // Double cases
                     Arguments.of("1.0", Double.class),
@@ -187,16 +187,16 @@ public class TestJsonNumber {
                     Arguments.of("9223372036854775807.5e0", Double.class),
                     Arguments.of("9223372036854775808e0", Double.class),
                     // Double.MAX
-                    Arguments.of("1.7976931348623157E308", Double.class),
-                    // BigDecimal cases
-                    // Arbitrary large value surpassing Double.MAX
-                    Arguments.of("9e999", BigDecimal.class),
-                    // Greater than Double.MAX
-                    Arguments.of("1.7976931348623157E309", BigDecimal.class),
-                    // Less than -Double.MAX
-                    Arguments.of("-1.7976931348623157E309", BigDecimal.class),
-                    Arguments.of("18446744073709551615e999", BigDecimal.class),
-                    Arguments.of("9".repeat(309)+".9", BigDecimal.class)
+                    Arguments.of("1.7976931348623157E308", Double.class)
+//                    // BigDecimal cases
+//                    // Arbitrary large value surpassing Double.MAX
+//                    Arguments.of("9e999", BigDecimal.class),
+//                    // Greater than Double.MAX
+//                    Arguments.of("1.7976931348623157E309", BigDecimal.class),
+//                    // Less than -Double.MAX
+//                    Arguments.of("-1.7976931348623157E309", BigDecimal.class),
+//                    Arguments.of("18446744073709551615e999", BigDecimal.class),
+//                    Arguments.of("9".repeat(309)+".9", BigDecimal.class)
             );
         }
 
@@ -305,8 +305,8 @@ public class TestJsonNumber {
                 case long l -> JsonNumber.of(l).toString();
                 case float f -> JsonNumber.of(f).toString();
                 case double d -> JsonNumber.of(d).toString();
-                case BigInteger bi -> JsonNumber.of(bi).toString();
-                case BigDecimal bd -> JsonNumber.of(bd).toString();
+//                case BigInteger bi -> JsonNumber.of(bi).toString();
+//                case BigDecimal bd -> JsonNumber.of(bd).toString();
                 default -> throw new IllegalArgumentException("incorrect test argument");
             };
             var expected = switch (n) {
@@ -316,8 +316,8 @@ public class TestJsonNumber {
                 case long l -> Long.toString(l);
                 case float f -> Double.toString(f);
                 case double d -> Double.toString(d);
-                case BigInteger bi -> bi.toString();
-                case BigDecimal bd -> bd.toString();
+//                case BigInteger bi -> bi.toString();
+//                case BigDecimal bd -> bd.toString();
                 default -> throw new IllegalArgumentException("incorrect test argument");
             };
             assertEquals(str, expected);
@@ -330,10 +330,10 @@ public class TestJsonNumber {
                     Arguments.of((int)1),
                     Arguments.of(1L),
                     Arguments.of(1.0000000596046448f), // 1.0000001f -> 1.0000001192092896d
-                    Arguments.of(1.0000000596046448d),
-                    Arguments.of(new BigInteger("10000000000000000000000000000000000000000000000000000000000000")),
-                    Arguments.of(new BigDecimal("1.0000000596046448")),
-                    Arguments.of(new BigDecimal(1.0000000596046448d))
+                    Arguments.of(1.0000000596046448d)
+//                    Arguments.of(new BigInteger("10000000000000000000000000000000000000000000000000000000000000")),
+//                    Arguments.of(new BigDecimal("1.0000000596046448")),
+//                    Arguments.of(new BigDecimal(1.0000000596046448d))
             );
         }
     }

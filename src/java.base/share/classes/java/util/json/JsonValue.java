@@ -131,7 +131,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      *
      * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonNumber}.
      */
-    default long asLong() {
+    default long toLong() {
         throw Utils.composeTypeError(this, "JsonNumber");
     }
 
@@ -143,7 +143,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      *
      * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonNumber}.
      */
-    default double asDouble() {
+    default double toDouble() {
         throw Utils.composeTypeError(this, "JsonNumber");
     }
 

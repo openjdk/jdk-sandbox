@@ -25,9 +25,6 @@
 
 package java.util.json;
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
-
 import jdk.internal.javac.PreviewFeature;
 import jdk.internal.util.json.JsonNumberImpl;
 
@@ -44,8 +41,7 @@ import jdk.internal.util.json.JsonNumberImpl;
  * syntax</a>. The value of the {@code JsonNumber}
  * can be retrieved from {@link #toString()} as the string representation
  * from which the JSON number is originally parsed, with
- * {@link #asLong()} as a {@code long}, {@link #asDouble()} as a {@code double},
- * {@link #asBigInteger()}, or with {@link #asBigDecimal()}.
+ * {@link #toLong()} as a {@code long} or {@link #toDouble()} as a {@code double}.
  *
  * @spec https://datatracker.ietf.org/doc/html/rfc8259#section-6 RFC 8259:
  *      The JavaScript Object Notation (JSON) Data Interchange Format - Numbers
@@ -61,67 +57,16 @@ public non-sealed interface JsonNumber extends JsonValue {
     JsonNumber number();
 
     /**
-     * {@return true if this JsonNumber can be converted to a {@code long}}
-     */
-    boolean isLong();
-
-    /**
      * {@return this as a {@code long}}
      */
     @Override
-    long asLong();
-
-    /**
-     * {@return true if this JsonNumber can be converted to a {@code double}}
-     */
-    boolean isDouble();
+    long toLong();
 
     /**
      * {@return this as a {@code double}}
      */
     @Override
-    double asDouble();
-
-    /**
-     * {@return true if this JsonNumber can be converted to a {@code BigInteger}}
-     */
-    boolean isBigInteger();
-
-    /**
-     * {@return the {@code BigInteger} translated from the
-     * {@link #toString string representation} of this {@code JsonNumber}}
-     * <p>
-     * The string representation is the decimal string representation of a
-     * {@code BigInteger}, translatable by {@link BigInteger#BigInteger(String)},
-     * and that {@code BigInteger} is returned.
-     * <p>
-     * The translation may not preserve all information in the string representation.
-     * The sign is not preserved for the decimal string representation {@code -0.0}. One or more
-     * leading zero digits are not preserved.
-     *
-     * @throws NumberFormatException if the {@code BigInteger} cannot be translated from the string representation
-     */
-    BigInteger asBigInteger();
-
-    /**
-     * {@return true if this JsonNumber can be converted to a {@code BigDecimal}}
-     */
-    boolean isBigDecimal();
-
-    /**
-     * {@return the {@code BigDecimal} translated from the
-     * {@link #toString string representation} of this {@code JsonNumber}}
-     * <p>
-     * The string representation is the decimal string representation of a
-     * {@code BigDecimal}, translatable by {@link BigDecimal#BigDecimal(String)},
-     * and that {@code BigDecimal} is returned.
-     * <p>
-     * The translation may not preserve all information in the string representation.
-     * The sign is not preserved for the decimal string representation {@code -0.0}.
-     *
-     * @throws NumberFormatException if the {@code BigDecimal} cannot be translated from the string representation
-     */
-    BigDecimal asBigDecimal();
+    double toDouble();
 
     /**
      * Creates a JSON number whose string representation is the
@@ -148,28 +93,6 @@ public non-sealed interface JsonNumber extends JsonValue {
      */
     static JsonNumber of(long num) {
         // integral types
-        return new JsonNumberImpl(num);
-    }
-
-    /**
-     * Creates a JSON number whose string representation is the
-     * string representation of the given {@code BigInteger} value.
-     *
-     * @param num the given {@code BigInteger} value.
-     * @return a JSON number created from a {@code BigInteger} value
-     */
-    static JsonNumber of(BigInteger num) {
-        return new JsonNumberImpl(num);
-    }
-
-    /**
-     * Creates a JSON number whose string representation is the
-     * string representation of the given {@code BigDecimal} value.
-     *
-     * @param num the given {@code BigDecimal} value.
-     * @return a JSON number created from a {@code BigDecimal} value
-     */
-    static JsonNumber of(BigDecimal num) {
         return new JsonNumberImpl(num);
     }
 
