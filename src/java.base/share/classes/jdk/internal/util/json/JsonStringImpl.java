@@ -38,7 +38,6 @@ public final class JsonStringImpl implements JsonString, JsonValueImpl {
     private final int startOffset;
     private final int endOffset;
     private final boolean hasEscape;
-    private final String str; // only used with the factory method
 
     // The String instance representing this JSON string for `toString()`.
     // It always conforms to JSON syntax. If created by parsing a JSON document,
@@ -46,30 +45,12 @@ public final class JsonStringImpl implements JsonString, JsonValueImpl {
     // non-conformant characters are properly escaped.
     private final LazyConstant<String> jsonStr = LazyConstant.of(this::initJsonStr);
 
-    // The String instance returned by `value()`.
-    // If created by parsing a JSON document, escaped characters are unescaped.
-    // If created via the factory method, the input String is used as-is.
-    private final LazyConstant<String> value = LazyConstant.of(this::initValue);
+    // The String instance returned by `string()`. Escaped characters are unescaped.
+    private final LazyConstant<String> value = LazyConstant.of(this::unescape);
 
     // LazyConstants initializers
     private String initJsonStr() {
-        return str != null ?
-            '"' + Utils.escape(value.get()) + '"' :
-            new String(doc, startOffset, endOffset - startOffset);
-    }
-    private String initValue() {
-        return str != null ? str : unescape();
-    }
-
-    // Called by JsonString.of() factory. The passed String represents the
-    // unescaped value.
-    public JsonStringImpl(String str) {
-        this.str = str;
-        // unused
-        doc = null;
-        startOffset = -1;
-        endOffset = -1;
-        hasEscape = false;
+        return new String(doc, startOffset, endOffset - startOffset);
     }
 
     public JsonStringImpl(char[] doc, int start, int end, boolean escape) {
@@ -77,8 +58,6 @@ public final class JsonStringImpl implements JsonString, JsonValueImpl {
         startOffset = start;
         endOffset = end;
         hasEscape = escape;
-        // unused
-        str = null;
     }
 
     @Override

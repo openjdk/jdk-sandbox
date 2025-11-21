@@ -29,6 +29,7 @@ import java.util.Objects;
 
 import jdk.internal.javac.PreviewFeature;
 import jdk.internal.util.json.JsonStringImpl;
+import jdk.internal.util.json.Utils;
 
 /**
  * The interface that represents a JSON string.
@@ -63,8 +64,9 @@ public non-sealed interface JsonString extends JsonValue {
      * @throws NullPointerException if {@code value} is {@code null}
      */
     static JsonString of(String value) {
-        Objects.requireNonNull(value);
-        return new JsonStringImpl(value);
+        var escaped = '"' + Utils.escape(Objects.requireNonNull(value)) + '"';
+        return new JsonStringImpl(escaped.toCharArray(), 0, escaped.length(),
+                escaped.length() != value.length() + 2);
     }
 
     /**
