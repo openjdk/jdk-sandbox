@@ -46,7 +46,7 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     private final int endOffset;
     private final boolean isFp;
     private final Number num; // only initialized by the factory methods
-    private final String numString;
+    private final LazyConstant<String> numString = LazyConstant.of(this::initNumString);
     private final LazyConstant<Optional<Long>> cachedLong = LazyConstant.of(this::cachedLongInit);
     private final LazyConstant<Optional<Double>> cachedDouble = LazyConstant.of(this::cachedDoubleInit);
     private final LazyConstant<Optional<BigInteger>> cachedBI = LazyConstant.of(this::cachedBIInit);
@@ -59,7 +59,6 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
             throw new IllegalArgumentException("Not a valid JSON number");
         }
         this.num = num;
-        numString = num.toString();
         // unused
         startOffset = -1;
         endOffset = -1;
@@ -69,7 +68,6 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
     public JsonNumberImpl(char[] doc, int start, int end, boolean fp) {
         this.doc = doc;
-        numString = new String(doc, start, end - start);
         startOffset = start;
         endOffset = end;
         isFp = fp;
@@ -150,7 +148,7 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
     @Override
     public String toString() {
-        return numString;
+        return numString.get();
     }
 
     @Override
@@ -165,49 +163,54 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     }
 
     // LazyConstants initializers
+    private String initNumString() {
+        return num != null ?
+            num.toString() :
+            new String(doc, startOffset, endOffset - startOffset);
+    }
+
     private Optional<Long> cachedLongInit() {
-        if (num != null && num instanceof Long l) {
+        if (num instanceof Long l) {
             return Optional.of(l);
         } else {
             try {
-                return Optional.of(Long.parseLong(numString));
+                return Optional.of(Long.parseLong(numString.get()));
             } catch (NumberFormatException _) {}
             return Optional.empty();
         }
     }
 
     private Optional<Double> cachedDoubleInit() {
-        if (num != null && num instanceof Double d) {
+        if (num instanceof Double d) {
             return Optional.of(d);
         } else {
             try {
-                var d = Double.parseDouble(numString);
+                var d = Double.parseDouble(numString.get());
                 if (!Double.isInfinite(d)) {
                     return Optional.of(d);
                 }
-            } catch (NumberFormatException _) {
-            }
+            } catch (NumberFormatException _) {}
             return Optional.empty();
         }
     }
 
     private Optional<BigInteger> cachedBIInit() {
-        if (num != null && num instanceof BigInteger bi) {
+        if (num instanceof BigInteger bi) {
             return Optional.of(bi);
         } else {
             try {
-                return Optional.of(new BigInteger(numString));
+                return Optional.of(new BigInteger(numString.get()));
             } catch (NumberFormatException _) {}
             return Optional.empty();
         }
     }
 
     private Optional<BigDecimal> cachedBDInit() {
-        if (num != null && num instanceof BigDecimal bd) {
+        if (num instanceof BigDecimal bd) {
             return Optional.of(bd);
         } else {
             try {
-                return Optional.of(new BigDecimal(numString));
+                return Optional.of(new BigDecimal(numString.get()));
             } catch (NumberFormatException _) {
                 return Optional.empty();
             }
