@@ -44,7 +44,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.FieldSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -54,6 +56,30 @@ public class TestJsonNumber {
 
     @Nested
     class TestValue {
+
+        @ParameterizedTest
+        @ValueSource(strings = {"5", "5.0", "5.00", "5e0", "50e-1"})
+        void testUniformRepresentations(String str) {
+            var json = Json.parse(str);
+            assertEquals(5.0, json.toDouble());
+            assertEquals(5L, json.toLong());
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"0.01", "0.55", "55.55", "5e100", "1.7976931348623157E308"})
+        void testDoubleRepresentation(String str) {
+            var json = Json.parse(str);
+            assertDoesNotThrow(json::toDouble);
+            assertThrows(JsonAssertionException.class, json::toLong);
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"9007199254740993", "9223372036854775807"})
+        void testLongRepresentation(String str) {
+            var json = Json.parse(str);
+            assertDoesNotThrow(json::toLong);
+            assertThrows(JsonAssertionException.class, json::toDouble);
+        }
 
         @Test
         void testToNumber() {

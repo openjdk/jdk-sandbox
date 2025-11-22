@@ -79,8 +79,11 @@ public non-sealed interface JsonNumber extends JsonValue {
      * is {@link Double#isNaN() NaN} or is {@link Double#isInfinite() infinite}.
      */
     static JsonNumber of(double num) {
-        // non-integral types
-        return new JsonNumberImpl(num);
+        if (!Double.isFinite(num)) {
+            throw new IllegalArgumentException("Not a valid JSON number");
+        }
+        var str = Double.toString(num);
+        return new JsonNumberImpl(str.toCharArray(), 0, str.length(), true);
     }
 
     /**
@@ -93,7 +96,8 @@ public non-sealed interface JsonNumber extends JsonValue {
      */
     static JsonNumber of(long num) {
         // integral types
-        return new JsonNumberImpl(num);
+        var str = Long.toString(num);
+        return new JsonNumberImpl(str.toCharArray(), 0, str.length(), false);
     }
 
     /**

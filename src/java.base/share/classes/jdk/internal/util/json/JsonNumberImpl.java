@@ -25,8 +25,6 @@
 
 package jdk.internal.util.json;
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.util.Locale;
 
 import java.util.Optional;
@@ -45,32 +43,15 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     private final int startOffset;
     private final int endOffset;
     private final boolean isFp;
-    private final Number num; // only initialized by the factory methods
     private final LazyConstant<String> numString = LazyConstant.of(this::initNumString);
     private final LazyConstant<Optional<Long>> cachedLong = LazyConstant.of(this::cachedLongInit);
     private final LazyConstant<Optional<Double>> cachedDouble = LazyConstant.of(this::cachedDoubleInit);
-
-    public JsonNumberImpl(Number num) {
-        // Called by factories. Input is Double or Long.
-        if (num == null ||
-            num instanceof Double d && (d.isNaN() || d.isInfinite())) {
-            throw new IllegalArgumentException("Not a valid JSON number");
-        }
-        this.num = num;
-        // unused
-        startOffset = -1;
-        endOffset = -1;
-        isFp = false;
-        doc = null;
-    }
 
     public JsonNumberImpl(char[] doc, int start, int end, boolean fp) {
         this.doc = doc;
         startOffset = start;
         endOffset = end;
         isFp = fp;
-        // unused
-        num = null;
     }
 
     @Override
@@ -80,12 +61,14 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
     @Override
     public long toLong() {
-        return cachedLong.get().orElseThrow(() -> new JsonAssertionException("not a long"));
+        return cachedLong.get().orElseThrow(() ->
+                new JsonAssertionException(this + " cannot be represented as a long"));
     }
 
     @Override
     public double toDouble() {
-        return cachedDouble.get().orElseThrow(() -> new JsonAssertionException("not a double"));
+        return cachedDouble.get().orElseThrow(() ->
+                new JsonAssertionException(this + " cannot be represented as a double"));
     }
 
     @Override
@@ -116,33 +99,35 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
     // LazyConstants initializers
     private String initNumString() {
-        return num != null ?
-            num.toString() :
-            new String(doc, startOffset, endOffset - startOffset);
+        return new String(doc, startOffset, endOffset - startOffset);
     }
 
     private Optional<Long> cachedLongInit() {
-        if (num instanceof Long l) {
-            return Optional.of(l);
-        } else {
+        if (!isFp) {
             try {
                 return Optional.of(Long.parseLong(numString.get()));
             } catch (NumberFormatException _) {}
-            return Optional.empty();
+        } else {
+            if (Double.parseDouble(numString.get()) instanceof long l) {
+                return Optional.of(l);
+            }
         }
+        return Optional.empty();
     }
 
     private Optional<Double> cachedDoubleInit() {
-        if (num instanceof Double d) {
-            return Optional.of(d);
+        if (isFp) {
+            var db = Double.parseDouble(numString.get());
+            if (Double.isFinite(db)) {
+                return Optional.of(db);
+            }
         } else {
             try {
-                var d = Double.parseDouble(numString.get());
-                if (!Double.isInfinite(d)) {
+                if (Long.parseLong(numString.get()) instanceof double d) {
                     return Optional.of(d);
                 }
             } catch (NumberFormatException _) {}
-            return Optional.empty();
         }
+        return Optional.empty();
     }
 }
