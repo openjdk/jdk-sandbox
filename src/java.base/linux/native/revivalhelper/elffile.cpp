@@ -23,34 +23,12 @@
  * questions.
  */
 
-#include <dirent.h>
-#include <dlfcn.h>
+#include <cassert>
 #include <elf.h>
 #include <errno.h>
-#include <fcntl.h>
-#include <libgen.h>
-#include <signal.h>
-#include <cassert>
-#include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <unistd.h>
-
 #include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/time.h>
 #include <sys/types.h>
-
-
-#include <list>
-#include <array>
-
-// For dlinfo:
-#define _GNU_SOURCE 1
-#include <link.h>
-#include <dlfcn.h>
 
 #include "revival.hpp"
 #include "elffile.hpp"
@@ -97,21 +75,26 @@ ELFFile::ELFFile(const char* filename, const char* libdir) {
 }
 
 void ELFFile::verify() {
-        assert(hdr->e_ident[0] == 0x7f);
-        assert(hdr->e_ident[1] == 'E');
-        assert(hdr->e_ident[2] == 'L');
-        assert(hdr->e_ident[3] == 'F');
-        assert(hdr->e_ident[4] == ELFCLASS64);
-        assert(hdr->e_ident[5] == ELFDATA2LSB);
-        assert(hdr->e_ident[6] == EV_CURRENT);
-        assert(hdr->e_ident[7] == ELFOSABI_SYSV);
-        assert(hdr->e_version == EV_CURRENT);
+        if (hdr->e_ident[0] != 0x7f || hdr->e_ident[1] != 'E'
+            || hdr->e_ident[2] != 'L' || hdr->e_ident[3] != 'F') {
+            error("%s: no ELF file signature.", filename);
+        }
+
+//        assert(hdr->e_ident[4] == ELFCLASS64);
+//        assert(hdr->e_ident[5] == ELFDATA2LSB);
+//        assert(hdr->e_ident[6] == EV_CURRENT);
+//        assert(hdr->e_ident[7] == ELFOSABI_SYSV); // or UNIX - GNU
+//        assert(hdr->e_version == EV_CURRENT);
 
         // elf.h in devkit on Linux x86_64 does not define EM_AARCH64
 #if defined(__aarch64__)
-        assert(hdr->e_machine == EM_AARCH64);
+        if (hdr->e_machine != EM_AARCH64) {
+            error("%s: not an AARCH64 ELF file.", filename);
+        }
 #else
-        assert(hdr->e_machine == EM_X86_64);
+        if (hdr->e_machine != EM_X86_64) {
+            error("%s: not an X86_64 ELF file.", filename);
+        }
 #endif
         if (hdr->e_phnum == PN_XNUM) {
             error("Too many program headers, handling not implemented (%x)", hdr->e_phnum);
@@ -123,13 +106,10 @@ void ELFFile::verify() {
         assert(hdr->e_shentsize == 0 || hdr->e_shentsize == sizeof(Elf64_Shdr));
 
         // Sanity check the pointer arithmetic:
-        bool debug = false;
-        if (debug) {
         Elf64_Phdr* p0 = program_header(0);
         Elf64_Phdr* p1 = program_header(1);
         long diff = (long) ((uint64_t) p1 - (uint64_t) p0);
         Elf64_Phdr* p1a = next_ph(p0);
-        warn("ph %p %p %p diff: %ld", p0, p1, p1a, diff);
         assert(p1 == p1a);
         assert(diff == hdr->e_phentsize);
 
@@ -137,10 +117,8 @@ void ELFFile::verify() {
         Elf64_Shdr* s1 = section_header(1);
         diff = (long) ((uint64_t) s1 - (uint64_t) s0);
         Elf64_Shdr* s1a = next_sh(s0);
-        warn("sh %p %p %p diff: %ld", s0, s1, s1a, diff);
         assert(s1 == s1a);
         assert(diff == hdr->e_shentsize);
-        }
 }
 
 ELFFile::~ELFFile() {
@@ -252,9 +230,15 @@ char* ELFFile::read_string_at_address(uint64_t addr) {
 }
 
 void ELFFile::relocate(long displacement) {
-    assert(hdr->e_type == ET_DYN);
-    assert(sh != 0);
-    assert(shdr_strings != 0);
+    if (hdr->e_type != ET_DYN) {
+        error("%s: ELFFile::relocate needs to be on a ET_DYN file", filename);
+    }
+    if (sh == nullptr) {
+        error("%s: ELFFile::relocate expects Sections...", filename);
+    }
+    if (shdr_strings == 0) {
+        error("%s: ELFFile::relocate expects shdr_strings", filename);
+    }
 
     relocate_execution_header(displacement);
     relocate_program_headers(displacement);
@@ -277,8 +261,8 @@ void ELFFile::write_symbols(int fd, const char* symbols[], int count) {
         for (int j = 0; j < count; j++) {
             int ret = strcmp(symbols[j], SYMTAB_BUFFER + sym->st_name);
             if (ret == 0) {
-                char buf[2048];
-                int len = snprintf(buf, 2048, "%s %llx\n",
+                char buf[BUFLEN];
+                int len = snprintf(buf, BUFLEN, "%s %llx\n",
                         SYMTAB_BUFFER + sym->st_name,
                         (unsigned long long) sym->st_value);
                 int e = write(fd, buf, len);
@@ -400,6 +384,6 @@ void ELFFile::write_mappings(int mappings_fd, const char* exec_name) {
             phdr = next_ph(phdr);
         }
 
-        if (verbose) log("create_mappings_pd done.  Skipped = %i", n_skipped);
+        logv("create_mappings_pd done.  Skipped = %i", n_skipped);
     }
 

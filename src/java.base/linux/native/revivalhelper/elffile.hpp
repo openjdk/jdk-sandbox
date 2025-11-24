@@ -23,38 +23,11 @@
  * questions.
  */
 
-#include <dirent.h>
-#include <dlfcn.h>
 #include <elf.h>
 #include <errno.h>
-#include <fcntl.h>
-#include <libgen.h>
-#include <signal.h>
-#include <cassert>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <unistd.h>
-
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <sys/types.h>
-
-
-#include <list>
-#include <array>
-
-// For dlinfo:
-#define _GNU_SOURCE 1
-#include <link.h>
-#include <dlfcn.h>
 
 #include "revival.hpp"
 
-extern unsigned long long file_size(const char *filename);
 
 /**
  * An ELF file.
