@@ -51,19 +51,25 @@ import jdk.internal.util.json.JsonNumberImpl;
 public non-sealed interface JsonNumber extends JsonValue {
 
     /**
-     * {@return this as a {@code JsonNumber}}
+     * {@return this}
      */
     @Override
     JsonNumber number();
 
     /**
      * {@return this as a {@code long}}
+     *
+     * @throws JsonAssertionException if this {@code JsonValue} cannot
+     *      be represented as a {@code long}.
      */
     @Override
     long toLong();
 
     /**
      * {@return this as a {@code double}}
+     *
+     * @throws JsonAssertionException if this {@code JsonValue} cannot
+     *      be represented as a {@code double}.
      */
     @Override
     double toDouble();

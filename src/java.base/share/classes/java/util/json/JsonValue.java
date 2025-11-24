@@ -129,7 +129,8 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      * @implSpec
      * The default implementation throws {@code JsonAssertionException}.
      *
-     * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonNumber}.
+     * @throws JsonAssertionException if this {@code JsonValue} is not an instance
+     *      of {@code JsonNumber} nor can be represented as a {@code long}.
      */
     default long toLong() {
         throw Utils.composeTypeError(this, "JsonNumber");
@@ -141,7 +142,8 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      * @implSpec
      * The default implementation throws {@code JsonAssertionException}.
      *
-     * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonNumber}.
+     * @throws JsonAssertionException if this {@code JsonValue} is not an instance
+     *      of {@code JsonNumber} nor can be represented as a {@code double}.
      */
     default double toDouble() {
         throw Utils.composeTypeError(this, "JsonNumber");
@@ -250,10 +252,8 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
         Objects.requireNonNull(name);
         return switch (members().get(name)) {
             case JsonValue jv -> jv;
-            case null -> throw new JsonAssertionException(
-                    "JsonObject member \"%s\" does not exist.".formatted(name) +
-                            (this instanceof JsonValueImpl jvi && jvi.doc() != null ?
-                                    Utils.getPath(jvi) : ""));
+            case null -> throw Utils.composeError(this,
+                    "JsonObject member \"%s\" does not exist.".formatted(name));
         };
     }
 
@@ -293,11 +293,9 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
         try {
             return elements.get(index);
         } catch (IndexOutOfBoundsException _) {
-            throw new JsonAssertionException(
+            throw Utils.composeError(this,
                     "JsonArray index %d out of bounds for length %d."
-                            .formatted(index, elements.size()) +
-                            (this instanceof JsonValueImpl jvi && jvi.doc() != null  ?
-                                    Utils.getPath(jvi) : ""));
+                            .formatted(index, elements.size()));
         }
     }
 }

@@ -100,6 +100,11 @@ public class Utils {
         return sb == null ? str : sb.toString();
     }
 
+    public static JsonAssertionException composeError(JsonValue jv, String message) {
+        return new JsonAssertionException(message +
+                (jv instanceof JsonValueImpl jvi && jvi.doc() != null ? JsonPath.getPath(jvi) : ""));
+    }
+
     // Use to compose an exception when casting to an incorrect type
     public static JsonAssertionException composeTypeError(JsonValue jv, String expected) {
         var actual = switch (jv) {
@@ -110,12 +115,7 @@ public class Utils {
             case JsonNumber _ -> "JsonNumber";
             case JsonString _ -> "JsonString";
         };
-        return new JsonAssertionException("%s is not a %s.".formatted(actual, expected)
-                + ((jv instanceof JsonValueImpl jvi && jvi.doc() != null) ? JsonPath.getPath(jvi) : ""));
-    }
-
-    public static String getPath(JsonValueImpl jvi) {
-        return JsonPath.getPath(jvi);
+        return composeError(jv, "%s is not a %s.".formatted(actual, expected));
     }
 
     private static final class JsonPath {
