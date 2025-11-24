@@ -219,8 +219,9 @@ public class JCmdRevival {
         System.err.println(out.getStderr());
 
         // Generic checks:
-        Asserts.assertEquals(0, e, "Unexpected jcmd return code");
         out.shouldContain("Opening dump file ");
+
+        int expectedExit = 0;
 
         // Verify specific jcmd output:
         switch (command) {
@@ -333,7 +334,8 @@ public class JCmdRevival {
                 break;
             }
             case "VM.unknowncommand": {
-                out.shouldContain("Unknown diagnostic command");
+                out.stdoutShouldContain("Unknown diagnostic command");
+                expectedExit = 1;
                 break;
             }
             case "VM.version": {
@@ -345,11 +347,13 @@ public class JCmdRevival {
                 break;
             }
             case "VM.version_UNKNOWN": {
-                out.shouldContain("The argument list of this diagnostic command should be empty.");
+                out.stdoutShouldContain("The argument list of this diagnostic command should be empty.");
+                expectedExit = 1;
                 break;
             }
             case "VM.flags_UNKNOWNARG": {
-                out.shouldContain("Unknown argument 'badarg1' in diagnostic command.");
+                out.stdoutShouldContain("Unknown argument 'badarg1' in diagnostic command.");
+                expectedExit = 1;
                 break;
             }
             case "help": {
@@ -364,5 +368,6 @@ public class JCmdRevival {
                 throw new RuntimeException("Unknown command being tested: '" + command + "'");
             }
         }
+        Asserts.assertEquals(expectedExit, e, "Unexpected jcmd return code");
     }
 }

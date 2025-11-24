@@ -95,7 +95,7 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
             throw new IOException("command '" + cmd + "' not implemented");
         }
         // Invoke "JDK/lib/revivalhelper corefilename jcmd command..."
-        // (Putting revivalhelper in JDK/lib works if jlink is updated also,
+        // (Putting revivalhelper in JDK/lib works as jlink is updated also,
         // see DefaultImageBuilder.java and its jspawnhelper/jexec special case).
         String jdkLibDir = System.getProperty("java.home") + File.separator + "lib";
         String helper = jdkLibDir + File.separator + "revivalhelper"
@@ -106,8 +106,7 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
         List<String> pargs = new ArrayList<String>();
         pargs.add(helper);
 
-        // Pass library directories as -L/path
-        // Do we need > 1 ?
+        // Pass library directory as -L/path
         if (libDirs != null) {
             for (String s : libDirs) {
                 pargs.add("-L" + s);
@@ -163,21 +162,28 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
             out = drain(p, outReader);
             try {
                 int e = p.waitFor();
-
-                if (e == 7) {
+                if (e == 1) {
+                    // Actual error from JCmd, e.g. Exception thrown by command implementation.
+                    System.out.println(out);
+                    String err = drain(p, errReader);
+                    System.err.println(err);
+                    throw new IOException("jcmd returned an error");  // To force JCmd to System.exit(1);
+                } else if (e == 7) {
+                    // Hint to retry due to address space clash.
                     if (verbose) {
                         String err = drain(p, errReader);
                         System.err.println(err);
                     }
                     System.out.println("RETRY (" + e + ") ");
                     continue; // ...and retry.
+                } else if (e != 0) {
+                    // Other errors
+                    System.out.println(out);
+                    System.out.println("ERROR (" + e + ")");
+                    String err = drain(p, errReader);
+                    System.err.println(err);
                 } else {
-                    if (e != 0) {
-                        System.out.println("ERROR (" + e + ")");
-                        String err = drain(p, errReader);
-                        System.err.println(err);
-                    }
-                    // System.out.println("DONE (" + e + ") " + out);
+                    // Success
                 }
             } catch (InterruptedException ie) {
                 System.err.println("VirtualMachineCoreDumpImpl.execute: " + ie);
