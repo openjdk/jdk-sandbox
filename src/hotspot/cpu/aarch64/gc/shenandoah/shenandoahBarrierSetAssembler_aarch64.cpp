@@ -616,19 +616,61 @@ void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, Ma
   }
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
   ShenandoahLoadRefBarrierStubC2* const stub = ShenandoahLoadRefBarrierStubC2::create(node, obj, addr, tmp, noreg, noreg, narrow);
+
   // Don't preserve the obj across the runtime call, we override it from the return value anyway.
   stub->dont_preserve(obj);
-  // Check if GC marking is in progress, otherwise we don't have to do anything.
+
   Address gc_state(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-  int flags = ShenandoahHeap::HAS_FORWARDED;
-  bool is_strong = (node->barrier_data() & ShenandoahBarrierStrong) != 0;
-  if (!is_strong) {
-    flags |= ShenandoahHeap::WEAK_ROOTS;
-  }
   __ ldrb(rscratch1, gc_state);
-  __ mov(rscratch2, flags);
-  __ andw(rscratch1, rscratch1, rscratch2);
-  __ cbnz(rscratch1, *stub->entry());
+
+  // Check if GC marking is in progress or we are handling a weak reference, otherwise we don't have to do anything.
+  bool is_strong = (node->barrier_data() & ShenandoahBarrierStrong) != 0;
+  if (is_strong) {
+    __ tbnz(rscratch1, ShenandoahHeap::HAS_FORWARDED_BITPOS, *stub->entry());
+  } else {
+    static_assert(ShenandoahHeap::HAS_FORWARDED_BITPOS == 0, "Relied on in LRB check below.");
+    __ orr(tmp, rscratch1, rscratch1, Assembler::LSR, ShenandoahHeap::WEAK_ROOTS_BITPOS);
+    __ tbnz(tmp, ShenandoahHeap::HAS_FORWARDED_BITPOS, *stub->entry());
+  }
+
+  __ bind(*stub->continuation());
+}
+
+void ShenandoahBarrierSetAssembler::load_ref_barrier_c3(const MachNode* node, MacroAssembler* masm, Register obj, Register addr, Register tmp, bool narrow, bool maybe_null, Register gc_state) {
+  if (!ShenandoahLoadRefBarrierStubC2::needs_barrier(node)) {
+    return;
+  }
+  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+  ShenandoahLoadRefBarrierStubC2* const stub = ShenandoahLoadRefBarrierStubC2::create(node, obj, addr, tmp, noreg, noreg, narrow);
+
+  // Don't preserve the obj across the runtime call, we override it from the return value anyway.
+  stub->dont_preserve(obj);
+
+  // Check if GC marking is in progress or we are handling a weak reference, otherwise we don't have to do anything.
+  bool is_strong = (node->barrier_data() & ShenandoahBarrierStrong) != 0;
+  if (is_strong) {
+    __ tbnz(gc_state, ShenandoahHeap::HAS_FORWARDED_BITPOS, *stub->entry());
+  } else {
+    static_assert(ShenandoahHeap::HAS_FORWARDED_BITPOS == 0, "Relied on in LRB check below.");
+    __ orr(tmp, gc_state, gc_state, Assembler::LSR, ShenandoahHeap::WEAK_ROOTS_BITPOS);
+    __ tbnz(tmp, ShenandoahHeap::HAS_FORWARDED_BITPOS, *stub->entry());
+  }
+
+  __ bind(*stub->continuation());
+}
+
+void ShenandoahBarrierSetAssembler::satb_barrier_c3(const MachNode* node, MacroAssembler* masm, Register addr, Register pre_val, Register gc_state) {
+  assert_different_registers(addr, pre_val);
+  if (!ShenandoahSATBBarrierStubC2::needs_barrier(node)) {
+    return;
+  }
+
+  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+  ShenandoahSATBBarrierStubC2* const stub = ShenandoahSATBBarrierStubC2::create(node, addr, pre_val);
+
+  // Check if GC marking is in progress, otherwise we don't have to do anything.
+  __ tstw(gc_state, ShenandoahHeap::MARKING);
+  __ br(Assembler::NE, *stub->entry());
   __ bind(*stub->continuation());
 }
 
