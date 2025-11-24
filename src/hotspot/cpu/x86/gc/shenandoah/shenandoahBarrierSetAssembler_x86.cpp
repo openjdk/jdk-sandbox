@@ -791,14 +791,6 @@ void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, Ma
   ShenandoahLoadRefBarrierStubC2* const stub = ShenandoahLoadRefBarrierStubC2::create(node, obj, addr, tmp1, tmp2, tmp3, narrow);
   stub->dont_preserve(obj);
 
-  // Test for null.
-  if (narrow) {
-    __ testl(obj, obj);
-  } else {
-    __ testptr(obj, obj);
-  }
-  __ jccb(Assembler::zero, *stub->continuation());
-
   Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
   int flags = ShenandoahHeap::HAS_FORWARDED;
   bool is_strong = (node->barrier_data() & ShenandoahBarrierStrong) != 0;
