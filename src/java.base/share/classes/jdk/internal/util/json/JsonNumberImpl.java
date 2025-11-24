@@ -104,10 +104,11 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
     private Optional<Long> cachedLongInit() {
         if (!isFp) {
-            try {
+            try { // For values exceeding Long.MAX/MIN_VALUE
                 return Optional.of(Long.parseLong(numString.get()));
             } catch (NumberFormatException _) {}
         } else {
+            // Finite check not needed, since primitive match will not evaluate regardless
             if (Double.parseDouble(numString.get()) instanceof long l) {
                 return Optional.of(l);
             }
@@ -122,7 +123,7 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
                 return Optional.of(db);
             }
         } else {
-            try {
+            try { // For values exceeding Long.MAX/MIN_VALUE
                 if (Long.parseLong(numString.get()) instanceof double d) {
                     return Optional.of(d);
                 }
