@@ -1021,7 +1021,11 @@ void ShenandoahCASBarrierMidStubC2::emit_code(MacroAssembler& masm) {
     // Failing those tests means legitimate failures.
     // Otherwise, result will be set correctly after returning from
     // the slow-path.
-    __ movl(_result, 0); // Result = false.
+    if (UseCompressedOops) {
+      __ movl(_result, 0);
+    } else {
+      __ movptr(_result, 0);
+    }
   }
   // Check if CAS result is null. If it is, then we must have a legitimate failure.
   // This makes loading the fwdptr in the slow-path simpler.
