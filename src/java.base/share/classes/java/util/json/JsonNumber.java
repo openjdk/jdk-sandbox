@@ -33,8 +33,8 @@ import jdk.internal.util.json.JsonNumberImpl;
  * number represented in base 10 using decimal digits.
  * <p>
  * A {@code JsonNumber} can be produced by {@link Json#parse(String)}.
- * Alternatively, {@link #of(double)} and its overloads can be used to obtain
- * a {@code JsonNumber} from a {@code Number}.
+ * Alternatively, {@link #of(double)} and {@link #of(long)} can be used to obtain
+ * a {@code JsonNumber}.
  * When a JSON number is parsed, a {@code JsonNumber} object is created
  * as long as the parsed value adheres to the JSON number
  * <a href="https://datatracker.ietf.org/doc/html/rfc8259#section-6">

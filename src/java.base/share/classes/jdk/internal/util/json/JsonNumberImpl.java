@@ -28,7 +28,6 @@ package jdk.internal.util.json;
 import java.util.Locale;
 
 import java.util.Optional;
-import java.util.json.JsonAssertionException;
 import java.util.json.JsonNumber;
 
 import jdk.internal.ValueBased;
