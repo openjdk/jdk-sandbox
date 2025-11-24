@@ -663,7 +663,7 @@ public:
 
 #ifndef PRODUCT
   virtual void dump_spec(outputStream *st) const {
-    StoreNode::dump_spec(st);
+    MemNode::dump_spec(st);
     if (is_release())  st->print("is_release");
   }
 #endif
