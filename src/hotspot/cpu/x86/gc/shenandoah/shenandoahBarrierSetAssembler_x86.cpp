@@ -789,7 +789,16 @@ void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, Ma
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
   ShenandoahLoadRefBarrierStubC2* const stub = ShenandoahLoadRefBarrierStubC2::create(node, obj, addr, tmp1, tmp2, tmp3, narrow);
-  stub->dont_preserve(obj);
+  stub->dont_preserve(obj);    // set at the end, no need to save
+  if (tmp1 != noreg) {
+    stub->dont_preserve(tmp1); // temp, no need to save
+  }
+  if (tmp2 != noreg) {
+    stub->dont_preserve(tmp2); // temp, no need to save
+  }
+  if (tmp3 != noreg) {
+    stub->dont_preserve(tmp3); // temp, no need to save
+  }
 
   Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
   int flags = ShenandoahHeap::HAS_FORWARDED;
@@ -929,7 +938,9 @@ void ShenandoahLoadRefBarrierStubC2::emit_code(MacroAssembler& masm) {
       }
       __ movptr(c_rarg0, obj);
     }
-    __ movptr(c_rarg1, _addr);
+    if (c_rarg1 != _addr) {
+      __ movptr(c_rarg1, _addr);
+    }
 
     address entry;
     if (_narrow) {
