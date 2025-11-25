@@ -157,17 +157,17 @@ public:
 };
 
 class ShenandoahCASBarrierSlowStubC2 : public ShenandoahBarrierStubC2 {
-  Register _addr_reg;
-  Address  _addr;
-  Register _expected;
-  Register _new_val;
-  Register _result;
-  Register _tmp1;
-  Register _tmp2;
-  bool     _cae;
-  bool     _acquire;
-  bool     _release;
-  bool     _weak;
+  Register const _addr_reg;
+  Address  const _addr;
+  Register const _expected;
+  Register const _new_val;
+  Register const _result;
+  Register const _tmp1;
+  Register const _tmp2;
+  bool     const _cae;
+  bool     const _acquire;
+  bool     const _release;
+  bool     const _weak;
 
   explicit ShenandoahCASBarrierSlowStubC2(const MachNode* node, Register addr_reg, Address addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool cae, bool acquire, bool release, bool weak) :
     ShenandoahBarrierStubC2(node),
@@ -176,19 +176,6 @@ class ShenandoahCASBarrierSlowStubC2 : public ShenandoahBarrierStubC2 {
 public:
   static ShenandoahCASBarrierSlowStubC2* create(const MachNode* node, Register addr, Register expected, Register new_val, Register result, Register tmp, bool cae, bool acquire, bool release, bool weak);
   static ShenandoahCASBarrierSlowStubC2* create(const MachNode* node, Address addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool cae);
-  void emit_code(MacroAssembler& masm) override;
-};
-
-class ShenandoahCASBarrierMidStubC2 : public ShenandoahBarrierStubC2 {
-  ShenandoahCASBarrierSlowStubC2* _slow_stub;
-  Register _expected;
-  Register _result;
-  Register _tmp;
-  bool _cae;
-  ShenandoahCASBarrierMidStubC2(const MachNode* node, ShenandoahCASBarrierSlowStubC2* slow_stub, Register expected, Register result, Register tmp, bool cae) :
-    ShenandoahBarrierStubC2(node), _slow_stub(slow_stub), _expected(expected), _result(result), _tmp(tmp), _cae(cae) {}
-public:
-  static ShenandoahCASBarrierMidStubC2* create(const MachNode* node, ShenandoahCASBarrierSlowStubC2* slow_stub, Register expected, Register result, Register tmp, bool cae);
   void emit_code(MacroAssembler& masm) override;
 };
 

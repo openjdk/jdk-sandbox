@@ -115,10 +115,14 @@ instruct compareAndSwapP_shenandoah(rRegI res,
   format %{ "shenandoah_cas_oop $mem,$newval" %}
 
   ins_encode %{
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                       noreg /* addr */,
-                                                       $oldval$$Register /* pre_val */,
-                                                       $tmp2$$Register /* tmp */);
+    guarantee(!UseCompressedOops, "must not be compressed oops");
+    if (ShenandoahSATBBarrierStubC2::needs_barrier(this)) {
+      __ movptr($tmp1$$Register, $oldval$$Register);
+      ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
+                                                         noreg /* addr */,
+                                                         $tmp1$$Register /* pre_val */,
+                                                         $tmp2$$Register /* tmp */);
+    }
     ShenandoahBarrierSet::assembler()->cmpxchg_oop_c2(this, masm,
                                                       $res$$Register, $mem$$Address, $oldval$$Register, $newval$$Register, $tmp1$$Register, $tmp2$$Register,
                                                       /*exchange*/ false);
@@ -147,10 +151,10 @@ instruct compareAndSwapN_shenandoah(rRegI res,
     if (ShenandoahSATBBarrierStubC2::needs_barrier(this)) {
       __ movl($tmp1$$Register, $oldval$$Register);
       __ decode_heap_oop($tmp1$$Register);
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                       noreg /* addr */,
-                                                       $tmp1$$Register /* pre_val */,
-                                                       $tmp2$$Register /* tmp */);
+      ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
+                                                         noreg /* addr */,
+                                                         $tmp1$$Register /* pre_val */,
+                                                         $tmp2$$Register /* tmp */);
     }
     ShenandoahBarrierSet::assembler()->cmpxchg_oop_c2(this, masm,
                                                       $res$$Register, $mem$$Address, $oldval$$Register, $newval$$Register, $tmp1$$Register, $tmp2$$Register,
