@@ -175,6 +175,8 @@ public class MultiLookAndFeel extends LookAndFeel {
                   "ToolTipUI", packageName + "ToolTipUI",
                      "TreeUI", packageName + "TreeUI",
                  "ViewportUI", packageName + "ViewportUI",
+            "CalendarPanelUI", packageName + "CalendarPanelUI",
+               "DatePickerUI", packageName + "DatePickerUI",
         };
 
         UIDefaults table = new MultiUIDefaults(uiDefaults.length / 2, 0.75f);

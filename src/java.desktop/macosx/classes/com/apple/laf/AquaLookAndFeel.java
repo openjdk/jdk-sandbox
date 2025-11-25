@@ -58,6 +58,7 @@ import sun.swing.AltProcessor;
 import sun.swing.MnemonicHandler;
 import sun.swing.SwingAccessor;
 import sun.swing.SwingUtilities2;
+import sun.swing.calendarpanel.icons.CalendarIcon;
 
 import static javax.swing.UIDefaults.LazyValue;
 
@@ -1022,7 +1023,50 @@ public final class AquaLookAndFeel extends BasicLookAndFeel {
 
             "Tree.focusInputMap", aquaKeyBindings.getTreeInputMap(),
             "Tree.focusInputMap.RightToLeft", aquaKeyBindings.getTreeRightToLeftInputMap(),
-            "Tree.ancestorInputMap", new UIDefaults.LazyInputMap(new Object[]{"ESCAPE", "cancel"}),};
+            "Tree.ancestorInputMap", new UIDefaults.LazyInputMap(new Object[]{"ESCAPE", "cancel"}),
+            // *** DatePicker
+            "DatePicker.tableCellFont", viewFont,
+            "DatePicker.tableForeground", black,  // cell text color
+            "DatePicker.tableBackground", white,  // cell background color
+            "DatePicker.tableHeaderCellFont", alertHeaderFont,
+            "DatePicker.tableHeaderForeground", black,   // header text color
+            "DatePicker.tableHeaderBackground", white,  // header background
+            "DatePicker.tableSelectionForeground", textHighlightText,
+            "DatePicker.tableSelectionBackground", textHighlight,
+            "DatePicker.tableCurrentDateForeground", white,
+            "DatePicker.tableCurrentDateBackground", textHighlight,
+            "DatePicker.weekNumberForeground", Color.blue,
+            "DatePicker.tableGridColor", white,  // grid line color
+            "DatePicker.tableShowGrid", false,  // show grid
+            "DatePicker.calendarIcon", (LazyValue) t ->
+            new CalendarIcon(Color.GRAY),
+            "DatePicker.ancestorInputMap",
+            new UIDefaults.LazyInputMap(new Object[]{
+                    "ENTER", "acceptSelection",
+                    "ESCAPE", "cancelSelection",
+            }),
+            "DatePicker.ancestorInputMap.calendarPanel",
+            new UIDefaults.LazyInputMap(new Object[]{
+                    "ENTER", "acceptSelection",
+                    "ESCAPE", "cancelSelection",
+                    "LEFT", "navigateLeft",
+                    "KP_LEFT", "navigateLeft",
+                    "RIGHT", "navigateRight",
+                    "KP_RIGHT", "navigateRight",
+                    "UP", "navigateUp",
+                    "KP_UP", "navigateUp",
+                    "DOWN", "navigateDown",
+                    "KP_DOWN", "navigateDown",
+                    "shift LEFT", "navigateShiftLeft",
+                    "shift KP_LEFT", "navigateShiftLeft",
+                    "shift RIGHT", "navigateShiftRight",
+                    "shift KP_RIGHT", "navigateShiftRight",
+                    "shift UP", "navigateShiftUp",
+                    "shift KP_UP", "navigateShiftUp",
+                    "shift DOWN", "navigateShiftDown",
+                    "shift KP_DOWN", "navigateShiftDown",
+                }),
+            };
 
         table.putDefaults(defaults);
         SwingUtilities2.putAATextInfo(true, table);
@@ -1129,6 +1173,8 @@ public final class AquaLookAndFeel extends BasicLookAndFeel {
 
             // text UIs
             "ViewportUI", basicPackageName + "BasicViewportUI",
+            "CalendarPanelUI", basicPackageName + "BasicCalendarPanelUI",
+            "DatePickerUI", basicPackageName + "BasicDatePickerUI",
         };
         table.putDefaults(uiDefaults);
     }

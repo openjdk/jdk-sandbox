@@ -64,20 +64,23 @@ import sun.swing.plaf.WindowsKeybindings;
 @SuppressWarnings("serial") // Superclass is not serializable across versions
 public class NimbusLookAndFeel extends SynthLookAndFeel {
 
-    /** Set of standard region names for UIDefaults Keys */
-    private static final String[] COMPONENT_KEYS = new String[]{"ArrowButton", "Button",
-                    "CheckBox", "CheckBoxMenuItem", "ColorChooser", "ComboBox",
-                    "DesktopPane", "DesktopIcon", "EditorPane", "FileChooser",
-                    "FormattedTextField", "InternalFrame",
-                    "InternalFrameTitlePane", "Label", "List", "Menu",
-                    "MenuBar", "MenuItem", "OptionPane", "Panel",
-                    "PasswordField", "PopupMenu", "PopupMenuSeparator",
-                    "ProgressBar", "RadioButton", "RadioButtonMenuItem",
-                    "RootPane", "ScrollBar", "ScrollBarTrack", "ScrollBarThumb",
-                    "ScrollPane", "Separator", "Slider", "SliderTrack",
-                    "SliderThumb", "Spinner", "SplitPane", "TabbedPane",
-                    "Table", "TableHeader", "TextArea", "TextField", "TextPane",
-                    "ToggleButton", "ToolBar", "ToolTip", "Tree", "Viewport"};
+    /**
+     * Set of standard region names for UIDefaults Keys
+     */
+    private static final String[] COMPONENT_KEYS = new String[]{"ArrowButton",
+            "DatePicker", "Button", "CalendarPanel", "CheckBox",
+            "CheckBoxMenuItem", "ColorChooser", "ComboBox",
+            "DesktopPane", "DesktopIcon", "EditorPane", "FileChooser",
+            "FormattedTextField", "InternalFrame",
+            "InternalFrameTitlePane", "Label", "List", "Menu",
+            "MenuBar", "MenuItem", "OptionPane", "Panel",
+            "PasswordField", "PopupMenu", "PopupMenuSeparator",
+            "ProgressBar", "RadioButton", "RadioButtonMenuItem",
+            "RootPane", "ScrollBar", "ScrollBarTrack", "ScrollBarThumb",
+            "ScrollPane", "Separator", "Slider", "SliderTrack",
+            "SliderThumb", "Spinner", "SplitPane", "TabbedPane",
+            "Table", "TableHeader", "TextArea", "TextField", "TextPane",
+            "ToggleButton", "ToolBar", "ToolTip", "Tree", "Viewport"};
 
     /**
      * A reference to the auto-generated file NimbusDefaults. This file contains

@@ -621,6 +621,17 @@ public class AccessibleRole extends AccessibleBundle {
     public static final AccessibleRole PROGRESS_MONITOR =
         new AccessibleRole("progressMonitor");
 
+    /**
+     * An object that lets the user choose a date.
+     */
+    public static final AccessibleRole DATE_PICKER =
+            new AccessibleRole("datePicker");
+
+    /**
+     * A specialized pane that lets the user choose a date.
+     */
+    public static final AccessibleRole CALENDAR_PANEL =
+            new AccessibleRole("calendarPanel");
 
 // The following are all under consideration for potential future use.
 

@@ -95,6 +95,7 @@ import sun.swing.MnemonicHandler;
 import sun.swing.StringUIClientPropertyKey;
 import sun.swing.SwingAccessor;
 import sun.swing.SwingUtilities2;
+import sun.swing.calendarpanel.icons.CalendarIcon;
 import sun.swing.icon.SortArrowIcon;
 import sun.swing.plaf.windows.ClassicSortArrowIcon;
 
@@ -1585,7 +1586,48 @@ public class WindowsLookAndFeel extends BasicLookAndFeel
             "Viewport.font", ControlFont,
             "Viewport.background", ControlBackgroundColor,
             "Viewport.foreground", WindowTextColor,
-
+                // *** DatePicker
+                "DatePicker.tableCellFont", ControlFont,
+                "DatePicker.tableForeground", ControlTextColor,  // cell text color
+                "DatePicker.tableBackground", WindowBackgroundColor,  // cell background color
+                "DatePicker.tableHeaderCellFont", ControlFont,
+                "DatePicker.tableHeaderForeground", ControlTextColor,   // header text color
+                "DatePicker.tableHeaderBackground", ControlBackgroundColor,  // header background
+                "DatePicker.tableSelectionForeground", SelectionTextColor,
+                "DatePicker.tableSelectionBackground", SelectionBackgroundColor,
+                "DatePicker.tableCurrentDateForeground", ControlTextColor,
+                "DatePicker.tableCurrentDateBackground", WindowBackgroundColor,
+                "DatePicker.weekNumberForeground", Color.blue,
+                "DatePicker.tableGridColor", gray,  // grid line color
+                "DatePicker.tableShowGrid", false,  // show grid
+                "DatePicker.calendarIcon", (LazyValue) t ->
+                new CalendarIcon(Color.GRAY),
+                "DatePicker.ancestorInputMap",
+                new UIDefaults.LazyInputMap(new Object[] {
+                        "ENTER", "acceptSelection",
+                        "ESCAPE", "cancelSelection",
+                }),
+                "DatePicker.ancestorInputMap.calendarPanel",
+                new UIDefaults.LazyInputMap(new Object[] {
+                        "ENTER", "acceptSelection",
+                        "ESCAPE", "cancelSelection",
+                        "LEFT", "navigateLeft",
+                        "KP_LEFT", "navigateLeft",
+                        "RIGHT", "navigateRight",
+                        "KP_RIGHT", "navigateRight",
+                        "UP", "navigateUp",
+                        "KP_UP", "navigateUp",
+                        "DOWN", "navigateDown",
+                        "KP_DOWN", "navigateDown",
+                        "shift LEFT","navigateShiftLeft",
+                        "shift KP_LEFT","navigateShiftLeft",
+                        "shift RIGHT","navigateShiftRight",
+                        "shift KP_RIGHT","navigateShiftRight",
+                        "shift UP","navigateShiftUp",
+                        "shift KP_UP","navigateShiftUp",
+                        "shift DOWN","navigateShiftDown",
+                        "shift KP_DOWN","navigateShiftDown",
+                }),
 
         };
 

@@ -92,6 +92,10 @@ public @interface PreviewFeature {
         PEM_API,
         LANGUAGE_MODEL,
         /**
+         * A key for JDatePicker Component
+         */
+        JDATEPICKER,
+        /**
          * A key for testing.
          */
         @JEP(number=2_147_483_647, title="Test Feature")

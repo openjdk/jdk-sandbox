@@ -30,6 +30,7 @@ import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Frame;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Insets;
 import java.awt.KeyboardFocusManager;
@@ -46,6 +47,7 @@ import java.io.Serializable;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.text.ParseException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -56,8 +58,11 @@ import javax.swing.LookAndFeel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIDefaults;
 import javax.swing.UIManager;
+import javax.swing.plaf.CalendarPanelUI;
 import javax.swing.plaf.ComponentUI;
 import javax.swing.plaf.InsetsUIResource;
+import javax.swing.plaf.basic.BasicCalendarPanelUI;
+import javax.swing.plaf.basic.BasicDatePickerUI;
 import javax.swing.plaf.basic.BasicLookAndFeel;
 
 import sun.awt.AppContext;
@@ -65,6 +70,7 @@ import sun.awt.SunToolkit;
 import sun.swing.DefaultLookup;
 import sun.swing.SwingAccessor;
 import sun.swing.SwingUtilities2;
+import sun.swing.calendarpanel.icons.CalendarIcon;
 import sun.swing.plaf.synth.SynthFileChooserUI;
 
 /**
@@ -432,6 +438,9 @@ public class SynthLookAndFeel extends BasicLookAndFeel {
         if (key == "ButtonUI") {
             return SynthButtonUI.createUI(c);
         }
+        else if (key == "CalendarPanelUI") {
+            return BasicCalendarPanelUI.createUI(c);
+        }
         else if (key == "CheckBoxUI") {
             return SynthCheckBoxUI.createUI(c);
         }
@@ -443,6 +452,9 @@ public class SynthLookAndFeel extends BasicLookAndFeel {
         }
         else if (key == "ComboBoxUI") {
             return SynthComboBoxUI.createUI(c);
+        }
+        else if (key == "DatePickerUI") {
+            return BasicDatePickerUI.createUI(c);
         }
         else if (key == "DesktopPaneUI") {
             return SynthDesktopPaneUI.createUI(c);
@@ -697,6 +709,50 @@ public class SynthLookAndFeel extends BasicLookAndFeel {
                   });
 
         table.put("PasswordField.echoChar", '*');
+        // *** DatePicker
+        table.put("DatePicker.calendarIcon", (UIDefaults.LazyValue) t ->
+                new CalendarIcon(Color.GRAY));
+        // *** DatePicker
+        table.put("DatePicker.tableCellFont", new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+        table.put("DatePicker.tableForeground", Color.black);  // cell text color
+        table.put("DatePicker.tableBackground", Color.white);  // cell background color
+        table.put("DatePicker.tableHeaderCellFont", new Font(Font.SANS_SERIF, Font.BOLD, 12));
+        table.put("DatePicker.tableHeaderForeground", Color.black);   // header text color
+        table.put("DatePicker.tableHeaderBackground", Color.white);  // header background
+        table.put("DatePicker.tableSelectionForeground", Color.black);
+        table.put("DatePicker.tableSelectionBackground", Color.lightGray);
+        table.put("DatePicker.tableCurrentDateForeground", Color.white);
+        table.put("DatePicker.tableCurrentDateBackground", Color.gray);
+        table.put("DatePicker.weekNumberForeground", Color.blue);
+        table.put("DatePicker.tableGridColor", Color.white);  // grid line color
+        table.put("DatePicker.tableShowGrid", false);  // show grid
+
+        table.put("DatePicker.ancestorInputMap",
+                new UIDefaults.LazyInputMap(new Object[]{
+                        "ENTER", "acceptSelection",
+                        "ESCAPE", "cancelSelection",
+                }));
+        table.put("DatePicker.ancestorInputMap.calendarPanel",
+                new UIDefaults.LazyInputMap(new Object[]{
+                        "ENTER", "acceptSelection",
+                        "ESCAPE", "cancelSelection",
+                        "LEFT", "navigateLeft",
+                        "KP_LEFT", "navigateLeft",
+                        "RIGHT", "navigateRight",
+                        "KP_RIGHT", "navigateRight",
+                        "UP", "navigateUp",
+                        "KP_UP", "navigateUp",
+                        "DOWN", "navigateDown",
+                        "KP_DOWN", "navigateDown",
+                        "shift LEFT", "navigateShiftLeft",
+                        "shift KP_LEFT", "navigateShiftLeft",
+                        "shift RIGHT", "navigateShiftRight",
+                        "shift KP_RIGHT", "navigateShiftRight",
+                        "shift UP", "navigateShiftUp",
+                        "shift KP_UP", "navigateShiftUp",
+                        "shift DOWN", "navigateShiftDown",
+                        "shift KP_DOWN", "navigateShiftDown",
+                }));
 
         // enabled antialiasing depending on desktop settings
         flushUnreferenced();

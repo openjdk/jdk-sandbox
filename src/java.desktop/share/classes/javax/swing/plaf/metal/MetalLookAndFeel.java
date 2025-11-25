@@ -67,6 +67,7 @@ import sun.awt.SunToolkit;
 import sun.swing.DefaultLayoutStyle;
 import sun.swing.SwingAccessor;
 import sun.swing.SwingUtilities2;
+import sun.swing.calendarpanel.icons.CalendarIcon;
 
 import static javax.swing.UIDefaults.LazyValue;
 
@@ -1532,6 +1533,48 @@ public class MetalLookAndFeel extends BasicLookAndFeel
                         "ctrl ENTER", "press",
                "ctrl released ENTER", "release"
               },
+                // *** DatePicker
+                "DatePicker.tableCellFont", userTextValue,
+                "DatePicker.tableForeground", getBlack(),  // cell text color
+                "DatePicker.tableBackground", getWindowBackground(),  // cell background color
+                "DatePicker.tableHeaderCellFont", windowTitleValue,
+                "DatePicker.tableHeaderForeground", getBlack(),   // header text color
+                "DatePicker.tableHeaderBackground", getWindowBackground(),  // header background
+                "DatePicker.tableSelectionForeground", getMenuSelectedForeground(),
+                "DatePicker.tableSelectionBackground", getMenuSelectedBackground(),
+                "DatePicker.tableCurrentDateForeground", getWhite(),
+                "DatePicker.tableCurrentDateBackground", getMenuSelectedBackground(),
+                "DatePicker.weekNumberForeground", Color.blue,
+                "DatePicker.tableGridColor", Color.GRAY,  // grid line color
+                "DatePicker.tableShowGrid", false,  // show grid
+                "DatePicker.calendarIcon", (LazyValue) t ->
+                new CalendarIcon(Color.GRAY),
+                "DatePicker.ancestorInputMap",
+                new UIDefaults.LazyInputMap(new Object[] {
+                        "ENTER", "acceptSelection",
+                        "ESCAPE", "cancelSelection",
+                }),
+                "DatePicker.ancestorInputMap.calendarPanel",
+                new UIDefaults.LazyInputMap(new Object[] {
+                        "ENTER", "acceptSelection",
+                        "ESCAPE", "cancelSelection",
+                        "LEFT", "navigateLeft",
+                        "KP_LEFT", "navigateLeft",
+                        "RIGHT", "navigateRight",
+                        "KP_RIGHT", "navigateRight",
+                        "UP", "navigateUp",
+                        "KP_UP", "navigateUp",
+                        "DOWN", "navigateDown",
+                        "KP_DOWN", "navigateDown",
+                        "shift LEFT","navigateShiftLeft",
+                        "shift KP_LEFT","navigateShiftLeft",
+                        "shift RIGHT","navigateShiftRight",
+                        "shift KP_RIGHT","navigateShiftRight",
+                        "shift UP","navigateShiftUp",
+                        "shift KP_UP","navigateShiftUp",
+                        "shift DOWN","navigateShiftDown",
+                        "shift KP_DOWN","navigateShiftDown",
+                }),
         };
 
         table.putDefaults(defaults);

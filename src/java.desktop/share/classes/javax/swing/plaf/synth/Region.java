@@ -89,6 +89,11 @@ public class Region {
      * <code>Button</code>.
      */
     public static final Region BUTTON = new Region("Button", false);
+    /**
+     * CalendarPanel region. To bind a style to this <code>Region</code> use the name
+     * <code>CalendarPanel</code>.
+     */
+    public static final Region CALENDAR_PANEL = new Region("CalendarPanel", false);
 
     /**
      * CheckBox region. To bind a style to this <code>Region</code> use the name
@@ -113,6 +118,12 @@ public class Region {
      * the name <code>ComboBox</code>.
      */
     public static final Region COMBO_BOX = new Region("ComboBox", false);
+
+    /**
+     * DatePicker region. To bind a style to this <code>Region</code> use
+     * the name <code>DatePicker</code>.
+     */
+    public static final Region DATE_PICKER = new Region("DatePicker", false);
 
     /**
      * DesktopPane region. To bind a style to this <code>Region</code> use
@@ -433,10 +444,12 @@ public class Region {
             map = new HashMap<String, Region>();
             map.put("ArrowButtonUI", ARROW_BUTTON);
             map.put("ButtonUI", BUTTON);
+            map.put("CalendarPanelUI", CALENDAR_PANEL);
             map.put("CheckBoxUI", CHECK_BOX);
             map.put("CheckBoxMenuItemUI", CHECK_BOX_MENU_ITEM);
             map.put("ColorChooserUI", COLOR_CHOOSER);
             map.put("ComboBoxUI", COMBO_BOX);
+            map.put("DatePickerUI", DATE_PICKER);
             map.put("DesktopPaneUI", DESKTOP_PANE);
             map.put("DesktopIconUI", DESKTOP_ICON);
             map.put("EditorPaneUI", EDITOR_PANE);

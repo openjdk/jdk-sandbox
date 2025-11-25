@@ -69,6 +69,7 @@ import sun.swing.DefaultLayoutStyle;
 import sun.swing.MnemonicHandler;
 import sun.swing.SwingAccessor;
 import sun.swing.SwingUtilities2;
+import sun.swing.calendarpanel.icons.CalendarIcon;
 
 /**
  * @author Scott Violet
@@ -323,6 +324,8 @@ public class GTKLookAndFeel extends SynthLookAndFeel {
         GTKStyle tableStyle = (GTKStyle)factory.getStyle(null, Region.TREE);
         Color tableBg = tableStyle.getGTKColor(SynthConstants.ENABLED,
                 GTKColorType.TEXT_BACKGROUND);
+        Color tableFg = tableStyle.getGTKColor(SynthConstants.ENABLED,
+                GTKColorType.TEXT_FOREGROUND);
         Color tableFocusCellBg = tableStyle.getGTKColor(SynthConstants.ENABLED,
                 GTKColorType.BACKGROUND);
         Color tableFocusCellFg = tableStyle.getGTKColor(SynthConstants.ENABLED,
@@ -1300,7 +1303,49 @@ public class GTKLookAndFeel extends SynthLookAndFeel {
                       }),
             "Tree.font", new FontLazyValue(Region.TREE),
 
-            "Viewport.font", new FontLazyValue(Region.VIEWPORT)
+            "Viewport.font", new FontLazyValue(Region.VIEWPORT),
+                // *** DatePicker
+                "DatePicker.tableCellFont", new FontLazyValue(Region.TABLE),
+                "DatePicker.tableForeground", tableFg,  // cell text color
+                "DatePicker.tableBackground", tableBg,  // cell background color
+                "DatePicker.tableHeaderCellFont", new FontLazyValue(Region.TABLE_HEADER),
+                "DatePicker.tableHeaderForeground", tableFg,   // header text color
+                "DatePicker.tableHeaderBackground", tableBg,  // header background
+                "DatePicker.tableSelectionForeground", tableFocusCellFg,
+                "DatePicker.tableSelectionBackground", Color.GRAY,
+                "DatePicker.tableCurrentDateForeground", tableFocusCellFg,
+                "DatePicker.tableCurrentDateBackground", tableFocusCellBg,
+                "DatePicker.weekNumberForeground", Color.blue,
+                "DatePicker.tableGridColor", Color.white,  // grid line color
+                "DatePicker.tableShowGrid", false,  // show grid
+                "DatePicker.calendarIcon", (UIDefaults.LazyValue) t ->
+                new CalendarIcon(Color.GRAY),
+                "DatePicker.ancestorInputMap",
+                new UIDefaults.LazyInputMap(new Object[]{
+                        "ENTER", "acceptSelection",
+                        "ESCAPE", "cancelSelection",
+                }),
+                "DatePicker.ancestorInputMap.calendarPanel",
+                new UIDefaults.LazyInputMap(new Object[]{
+                        "ENTER", "acceptSelection",
+                        "ESCAPE", "cancelSelection",
+                        "LEFT", "navigateLeft",
+                        "KP_LEFT", "navigateLeft",
+                        "RIGHT", "navigateRight",
+                        "KP_RIGHT", "navigateRight",
+                        "UP", "navigateUp",
+                        "KP_UP", "navigateUp",
+                        "DOWN", "navigateDown",
+                        "KP_DOWN", "navigateDown",
+                        "shift LEFT", "navigateShiftLeft",
+                        "shift KP_LEFT", "navigateShiftLeft",
+                        "shift RIGHT", "navigateShiftRight",
+                        "shift KP_RIGHT", "navigateShiftRight",
+                        "shift UP", "navigateShiftUp",
+                        "shift KP_UP", "navigateShiftUp",
+                        "shift DOWN", "navigateShiftDown",
+                        "shift KP_DOWN", "navigateShiftDown",
+                }),
         };
         table.putDefaults(defaults);
 

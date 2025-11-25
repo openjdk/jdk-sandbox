@@ -83,6 +83,7 @@ import sun.awt.SunToolkit;
 import sun.swing.SwingAccessor;
 import sun.swing.SwingUtilities2;
 import sun.swing.icon.SortArrowIcon;
+import sun.swing.calendarpanel.icons.CalendarIcon;
 
 import static javax.swing.UIDefaults.LazyValue;
 
@@ -286,6 +287,8 @@ public abstract class BasicLookAndFeel extends LookAndFeel implements Serializab
                     "PanelUI", basicPackageName + "BasicPanelUI",
                  "ViewportUI", basicPackageName + "BasicViewportUI",
                  "RootPaneUI", basicPackageName + "BasicRootPaneUI",
+            "CalendarPanelUI", basicPackageName + "BasicCalendarPanelUI",
+               "DatePickerUI", basicPackageName + "BasicDatePickerUI",
         };
 
         table.putDefaults(uiDefaults);
@@ -1856,6 +1859,48 @@ public abstract class BasicLookAndFeel extends LookAndFeel implements Serializab
                         "ctrl ENTER", "press",
                "ctrl released ENTER", "release"
               },
+                // *** DatePicker
+                "DatePicker.tableCellFont", dialogPlain12,
+                "DatePicker.tableForeground", controlText,  // cell text color
+                "DatePicker.tableBackground", window,  // cell background color
+                "DatePicker.tableHeaderCellFont", dialogPlain12,
+                "DatePicker.tableHeaderForeground", controlText,   // header text color
+                "DatePicker.tableHeaderBackground", control,  // header background
+                "DatePicker.tableSelectionForeground", textHighlightText,
+                "DatePicker.tableSelectionBackground", textHighlight,
+                "DatePicker.tableCurrentDateForeground", white,
+                "DatePicker.tableCurrentDateBackground", textHighlight,
+                "DatePicker.weekNumberForeground", Color.blue,
+                "DatePicker.tableGridColor", gray,  // grid line color
+                "DatePicker.tableShowGrid", false,  // show grid
+                "DatePicker.calendarIcon", (LazyValue) t ->
+                new CalendarIcon(Color.GRAY),
+                "DatePicker.ancestorInputMap",
+                new UIDefaults.LazyInputMap(new Object[] {
+                        "ENTER", "acceptSelection",
+                        "ESCAPE", "cancelSelection",
+                }),
+                "DatePicker.ancestorInputMap.calendarPanel",
+                new UIDefaults.LazyInputMap(new Object[] {
+                        "ENTER", "acceptSelection",
+                        "ESCAPE", "cancelSelection",
+                        "LEFT", "navigateLeft",
+                        "KP_LEFT", "navigateLeft",
+                        "RIGHT", "navigateRight",
+                        "KP_RIGHT", "navigateRight",
+                        "UP", "navigateUp",
+                        "KP_UP", "navigateUp",
+                        "DOWN", "navigateDown",
+                        "KP_DOWN", "navigateDown",
+                        "shift LEFT","navigateShiftLeft",
+                        "shift KP_LEFT","navigateShiftLeft",
+                        "shift RIGHT","navigateShiftRight",
+                        "shift KP_RIGHT","navigateShiftRight",
+                        "shift UP","navigateShiftUp",
+                        "shift KP_UP","navigateShiftUp",
+                        "shift DOWN","navigateShiftDown",
+                        "shift KP_DOWN","navigateShiftDown",
+                }),
         };
 
         table.putDefaults(defaults);
