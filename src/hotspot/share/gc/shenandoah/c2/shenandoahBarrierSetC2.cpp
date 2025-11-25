@@ -657,6 +657,12 @@ ShenandoahCASBarrierSlowStubC2* ShenandoahCASBarrierSlowStubC2::create(const Mac
   return stub;
 }
 
+ShenandoahCASBarrierMidStubC2* ShenandoahCASBarrierMidStubC2::create(const MachNode* node, ShenandoahCASBarrierSlowStubC2* slow_stub, Register expected, Register result, Register tmp, bool cae) {
+  auto* stub = new (Compile::current()->comp_arena()) ShenandoahCASBarrierMidStubC2(node, slow_stub, expected, result, tmp, cae);
+  stub->register_stub();
+  return stub;
+}
+
 bool ShenandoahBarrierSetC2State::needs_liveness_data(const MachNode* mach) const {
   //assert(mach->barrier_data() != 0, "what else?");
   // return mach->barrier_data() != 0;
