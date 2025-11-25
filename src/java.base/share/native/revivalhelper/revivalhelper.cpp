@@ -25,9 +25,7 @@
 
 /*
  * Small native helper app to revive a process from a core or miniudump,
- * and run a named jcmd command in the revived JVM.
- *
- * Invoked by sun/tools/jcmd/JCmd.java to provide "jcmd on core".
+ * and run a jcmd command in the revived JVM.
  *
  * LD_USE_LOAD_BIAS=1 is required on Linux.
  */
@@ -53,7 +51,7 @@ int main(int argc, char **argv) {
     int n = 1;
 
     // Deduce JDK home from our executable name.
-    // This program is built into the JDK lib directory.
+    // This program is in the JDK lib directory.
 #ifdef WINDOWS
 #define MY_NAME "\\lib\\revivalhelper"
 #else
@@ -62,14 +60,13 @@ int main(int argc, char **argv) {
     char *s = strstr(argv[0], MY_NAME);
     if (s != nullptr) {
         strncpy(javahome, argv[0], (s - argv[0]));
-        if (verbose) {
-            log("revivalhelper: Using JDK home: '%s'\n", javahome);
-        }
+        logv("revivalhelper: Using JDK home: '%s'\n", javahome);
     } else {
-        error("revivalhelper: cannot find JDK home in '%s'.\n", argv[0]);
+        // e.g. Run from a relative path not including jdk/lib. Not normal usage.
+        error("revivalhelper: cannot find JDK home from '%s'.\n", argv[0]);
     }
 
-    if (argc < 4 ) {
+    if (argc < 4) {
         usageExit(argv[0]);
     }
     // Arguments:
@@ -77,18 +74,18 @@ int main(int argc, char **argv) {
         if (strncmp(argv[n], "-L", 2) == 0) {
             // -L/path/to/libdir
             if (strlen(argv[n]) > 2) {
-                libdir = argv[n]+2;
+                libdir = argv[n] + 2;
                 n++;
             } else {
-                error("Use -L/PATH to specify library directory.\n");
+                error("Use -L/PATH to specify library directory, e.g. -L/my/libs");
             }
         } else if (strncmp(argv[n], "-R", 2) == 0) {
             // -R/path/for/revival_data
             if (strlen(argv[n]) > 2) {
-                revival_data = argv[n]+2;
+                revival_data = argv[n] + 2;
                 n++;
             } else {
-                error("Use -R/PATH to specify revival data path.\n");
+                error("Use -R/PATH to specify revival data path, e.g. -R/my/dir");
             }
         } else {
             break;
@@ -102,7 +99,7 @@ int main(int argc, char **argv) {
 
     // jcmd expected argument:
     if (strcmp(argv[n++], "jcmd") != 0) {
-        error("jcmd keyword expected.\n");
+        error("jcmd keyword expected.");
     }
     // Build jcmd from all additional arguments:
     for (int i = n; i < argc; i++) {
