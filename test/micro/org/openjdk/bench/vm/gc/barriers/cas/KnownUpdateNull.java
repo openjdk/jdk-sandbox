@@ -1,4 +1,4 @@
-package org.openjdk.bench.vm.gc.barriers.arraycopy;
+package org.openjdk.bench.vm.gc.barriers.cas;
 
 import org.openjdk.jmh.annotations.*;
 
