@@ -290,8 +290,8 @@ public final class JsonParser {
      * See https://datatracker.ietf.org/doc/html/rfc8259#section-6
      */
     private JsonNumberImpl parseNumber() {
-        boolean sawDecimal = false;
-        boolean sawExponent = false;
+        int decOff = -1;
+        int expOff = -1;
         boolean sawZero = false;
         boolean havePart = false;
         boolean sawSign = false;
@@ -302,19 +302,19 @@ public final class JsonParser {
             var c = doc[offset];
             switch (c) {
                 case '-' -> {
-                    if (offset != start && !sawExponent || sawSign) {
+                    if (offset != start && expOff == -1 || sawSign) {
                         throw failure(INVALID_POSITION_IN_NUMBER.formatted(c));
                     }
                     sawSign = true;
                 }
                 case '+' -> {
-                    if (!sawExponent || havePart || sawSign) {
+                    if (expOff == -1 || havePart || sawSign) {
                         throw failure(INVALID_POSITION_IN_NUMBER.formatted(c));
                     }
                     sawSign = true;
                 }
                 case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> {
-                    if (!sawDecimal && !sawExponent && sawZero) {
+                    if (decOff == -1 && expOff == -1 && sawZero) {
                         throw failure(INVALID_POSITION_IN_NUMBER.formatted('0'));
                     }
                     if (doc[offset] == '0' && !havePart) {
@@ -323,24 +323,24 @@ public final class JsonParser {
                     havePart = true;
                 }
                 case '.' -> {
-                    if (sawDecimal) {
+                    if (decOff != -1) {
                         throw failure(INVALID_POSITION_IN_NUMBER.formatted(c));
                     } else {
                         if (!havePart) {
                             throw failure(INVALID_POSITION_IN_NUMBER.formatted(c));
                         }
-                        sawDecimal = true;
+                        decOff = offset;
                         havePart = false;
                     }
                 }
                 case 'e', 'E' -> {
-                    if (sawExponent) {
+                    if (expOff != -1) {
                         throw failure(INVALID_POSITION_IN_NUMBER.formatted(c));
                     } else {
                         if (!havePart) {
                             throw failure(INVALID_POSITION_IN_NUMBER.formatted(c));
                         }
-                        sawExponent = true;
+                        expOff = offset;
                         havePart = false;
                         sawSign = false;
                     }
@@ -354,7 +354,7 @@ public final class JsonParser {
         if (!havePart) {
             throw failure("Input expected after '[.|e|E]'");
         }
-        return new JsonNumberImpl(doc, start, offset, sawDecimal || sawExponent);
+        return new JsonNumberImpl(doc, start, offset, decOff, expOff);
     }
 
     // Utility functions

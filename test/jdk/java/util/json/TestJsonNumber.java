@@ -29,8 +29,6 @@
  * @run junit TestJsonNumber
  */
 
-//import java.math.BigDecimal;
-//import java.math.BigInteger;
 import java.util.List;
 import java.util.json.Json;
 import java.util.json.JsonAssertionException;
@@ -44,7 +42,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.FieldSource;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -57,27 +54,82 @@ public class TestJsonNumber {
     class TestValue {
 
         @ParameterizedTest
-        @ValueSource(strings = {"5", "5.0", "5.00", "5e0", "50e-1"})
-        void testUniformRepresentations(String str) {
+        @MethodSource
+        void testUniformRepresentations(String str, double db, long l) {
             var json = Json.parse(str);
-            assertEquals(5.0, json.toDouble());
-            assertEquals(5L, json.toLong());
+            assertEquals(db, json.toDouble());
+            assertEquals(l, json.toLong());
+            json = Json.parse("-" + str);
+            assertEquals(-db, json.toDouble());
+            assertEquals(-l, json.toLong());
+        }
+
+        private static Stream<Arguments> testUniformRepresentations() {
+            return Stream.of(
+                    Arguments.of("5", 5d, 5L),
+                    Arguments.of("5.0", 5d, 5L),
+                    Arguments.of("5.00", 5d, 5L),
+                    Arguments.of("5e0", 5d, 5L),
+                    Arguments.of("5e+0", 5d, 5L),
+                    Arguments.of("5e-0", 5d, 5L),
+                    Arguments.of("5e3", 5e3, 5000L),
+                    Arguments.of("50e-1", 50e-1, 5L),
+                    Arguments.of("555.5e5", 555.5e5, 55550000L),
+                    Arguments.of("555.5e1", 555.5e1, 5555L)
+            );
         }
 
         @ParameterizedTest
-        @ValueSource(strings = {"0.01", "0.55", "55.55", "5e100", "1.7976931348623157E308"})
-        void testDoubleRepresentation(String str) {
+        @MethodSource
+        void testDoubleRepresentation(String str, double d) {
             var json = Json.parse(str);
-            assertDoesNotThrow(json::toDouble);
+            assertEquals(d, json.toDouble());
+            assertThrows(JsonAssertionException.class, json::toLong);
+            json = Json.parse("-" + str);
+            assertEquals(-d, json.toDouble());
             assertThrows(JsonAssertionException.class, json::toLong);
         }
 
+        private static Stream<Arguments> testDoubleRepresentation() {
+            return Stream.of(
+                    Arguments.of("0.01", 0.01),
+                    Arguments.of("0.3232e-3", 0.3232e-3),
+                    Arguments.of("0.55", 0.55),
+                    Arguments.of("55.55", 55.55),
+                    Arguments.of("5e-5", 5e-5),
+                    Arguments.of("5.55e-5", 5.55e-5),
+                    Arguments.of("5.00e-5", 5.00e-5),
+                    Arguments.of("5e100", 5e100),
+                    Arguments.of("55.55e1", 55.55e1),
+                    Arguments.of("55.55e+1", 55.55e1),
+                    Arguments.of("1.7976931348623157E308", 1.7976931348623157E308),
+                    Arguments.of("9223372036854775999", 9223372036854775999d),
+                    Arguments.of("9223372036854775999e0", 9223372036854775999d),
+                    Arguments.of("5e-100", 5e-100),
+                    Arguments.of("5.000e-100", 5e-100)
+            );
+        }
+
         @ParameterizedTest
-        @ValueSource(strings = {"9007199254740993", "9223372036854775807"})
-        void testLongRepresentation(String str) {
+        @MethodSource
+        void testLongRepresentation(String str, long l) {
             var json = Json.parse(str);
-            assertDoesNotThrow(json::toLong);
-            assertThrows(JsonAssertionException.class, json::toDouble);
+            assertEquals(l, json.toLong());
+            assertDoesNotThrow(json::toDouble);
+            json = Json.parse("-" + str);
+            assertEquals(-l, json.toLong());
+            assertDoesNotThrow(json::toDouble);
+        }
+
+        private static Stream<Arguments> testLongRepresentation() {
+            return Stream.of(
+                    Arguments.of("9007199254740993", 9007199254740993L),
+                    Arguments.of("9007199254740993.0", 9007199254740993L),
+                    Arguments.of("9007199254740993.0e0", 9007199254740993L),
+                    Arguments.of("9223372036854775807", 9223372036854775807L),
+                    Arguments.of("9223372036854775807.0", 9223372036854775807L),
+                    Arguments.of("9223372036854775807.0e0", 9223372036854775807L)
+            );
         }
 
         @Test

@@ -41,16 +41,19 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     private final char[] doc;
     private final int startOffset;
     private final int endOffset;
-    private final boolean isFp;
+    private final int decimalOffset;
+    private final int exponentOffset;
+
     private final LazyConstant<String> numString = LazyConstant.of(this::initNumString);
     private final LazyConstant<Optional<Long>> cachedLong = LazyConstant.of(this::cachedLongInit);
     private final LazyConstant<Optional<Double>> cachedDouble = LazyConstant.of(this::cachedDoubleInit);
 
-    public JsonNumberImpl(char[] doc, int start, int end, boolean fp) {
+    public JsonNumberImpl(char[] doc, int start, int end, int dec, int exp) {
         this.doc = doc;
         startOffset = start;
         endOffset = end;
-        isFp = fp;
+        decimalOffset = dec;
+        exponentOffset = exp;
     }
 
     @Override
@@ -101,32 +104,64 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
         return new String(doc, startOffset, endOffset - startOffset);
     }
 
+    // 4 cases: Fully integral, has decimal, has exponent, has decimal and exponent
     private Optional<Long> cachedLongInit() {
-        if (!isFp) {
-            try { // For values exceeding Long.MAX/MIN_VALUE
+        try {
+            if (decimalOffset == -1 && exponentOffset == -1) {
+                // Parseable Long format
                 return Optional.of(Long.parseLong(numString.get()));
-            } catch (NumberFormatException _) {}
-        } else {
-            // Finite check not needed, since primitive match will not evaluate regardless
-            if (Double.parseDouble(numString.get()) instanceof long l) {
-                return Optional.of(l);
+            } else {
+                // Decimal or exponent exists, can't parse w/ Long::parseLong
+                if (exponentOffset != -1) {
+                    // Exponent exists
+                    // Calculate exponent value
+                    int exp = Math.abs(Integer.parseInt(new String(doc,
+                            exponentOffset + 1, endOffset - exponentOffset - 1), 10));
+                    long sig;
+                    long scale;
+                    if (decimalOffset == -1) {
+                        // Exponent with no decimal
+                        sig = Long.parseLong(new String(doc, startOffset, exponentOffset - startOffset));
+                    } else {
+                        // Exponent with decimal
+                        for (int i = decimalOffset + exp + 1; i < exponentOffset; i++) {
+                            if (doc[i] != '0') {
+                                return Optional.empty();
+                            }
+                        }
+                        var shiftedFractionPart = new String(doc, decimalOffset + 1, Math.min(exp, exponentOffset - decimalOffset - 1));
+                        exp = exp - shiftedFractionPart.length();
+                        sig = Long.parseLong(new String(doc, startOffset, decimalOffset - startOffset) + shiftedFractionPart);
+                    }
+                    scale = Math.powExact(10L, exp);
+                    if (doc[exponentOffset + 1] != '-') {
+                        return Optional.of(Math.multiplyExact(sig, scale));
+                    } else {
+                        if (sig % scale == 0) {
+                            return Optional.of(Math.divideExact(sig, scale));
+                        } else {
+                            return Optional.empty();
+                        }
+                    }
+                } else {
+                    // Decimal with no exponent
+                    for (int i = decimalOffset + 1; i < endOffset; i++) {
+                        if (doc[i] != '0') {
+                            return Optional.empty();
+                        }
+                    }
+                    return Optional.of(Long.parseLong(new String(doc,
+                            startOffset, decimalOffset - startOffset), 10));
+                }
             }
-        }
+        } catch (NumberFormatException | ArithmeticException _) {}
         return Optional.empty();
     }
 
     private Optional<Double> cachedDoubleInit() {
-        if (isFp) {
-            var db = Double.parseDouble(numString.get());
-            if (Double.isFinite(db)) {
-                return Optional.of(db);
-            }
-        } else {
-            try { // For values exceeding Long.MAX/MIN_VALUE
-                if (Long.parseLong(numString.get()) instanceof double d) {
-                    return Optional.of(d);
-                }
-            } catch (NumberFormatException _) {}
+        var db = Double.parseDouble(numString.get());
+        if (Double.isFinite(db)) {
+            return Optional.of(db);
         }
         return Optional.empty();
     }

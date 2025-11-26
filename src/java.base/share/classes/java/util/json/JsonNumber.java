@@ -89,7 +89,7 @@ public non-sealed interface JsonNumber extends JsonValue {
             throw new IllegalArgumentException("Not a valid JSON number");
         }
         var str = Double.toString(num);
-        return new JsonNumberImpl(str.toCharArray(), 0, str.length(), true);
+        return new JsonNumberImpl(str.toCharArray(), 0, str.length(), 0, 0);
     }
 
     /**
@@ -103,7 +103,7 @@ public non-sealed interface JsonNumber extends JsonValue {
     static JsonNumber of(long num) {
         // integral types
         var str = Long.toString(num);
-        return new JsonNumberImpl(str.toCharArray(), 0, str.length(), false);
+        return new JsonNumberImpl(str.toCharArray(), 0, str.length(), -1, -1);
     }
 
     /**
