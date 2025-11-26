@@ -116,7 +116,7 @@ bool Exceptions::special_exception(JavaThread* thread, const char* file, int lin
 
   if (Thread::is_revived()) {
     fprintf(stderr, "%s\n", message == nullptr ? "Exception" : message);
-    os::exit(1);
+    os::_exit(1); // _exit for Windows avoids some shutdown complexity
   }
 
   // bootstrapping check

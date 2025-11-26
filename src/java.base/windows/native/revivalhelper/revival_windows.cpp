@@ -44,11 +44,10 @@
 #include <winternl.h>
 
 #include "revival.hpp"
-
 #include "minidump.hpp"
 
-uint64_t valign;
-uint64_t pagesize;
+
+uint64_t vaddr_align; // set by init_pd
 
 typedef PVOID (*VirtualAlloc2Fn)(HANDLE, PVOID, SIZE_T, ULONG, ULONG, MEM_EXTENDED_PARAMETER*, ULONG);
 typedef PVOID (*MapViewOfFile3Fn)(HANDLE, HANDLE, PVOID, ULONG64, SIZE_T, ULONG, ULONG, MEM_EXTENDED_PARAMETER*, ULONG);
@@ -92,15 +91,15 @@ static void install_kernelbase_1803_symbol_or_exit(Fn*& fn, const char* name) {
 
 
 uint64_t vaddr_alignment_pd() {
-    return valign;
+    return vaddr_align;
 }
 
 uint64_t offset_alignment_pd() {
-    return valign;
+    return vaddr_align;
 }
 
 uint64_t length_alignment_pd() {
-    return valign;
+    return vaddr_align;
 }
 
 unsigned long long max_user_vaddr_pd() {
@@ -108,26 +107,28 @@ unsigned long long max_user_vaddr_pd() {
 }
 
 void init_pd() {
+    int x;
+
     openCoreWrite = true;
 
     _SYSTEM_INFO systemInfo;
     GetSystemInfo(&systemInfo);
-    valign = systemInfo.dwAllocationGranularity - 1;
-    pagesize = systemInfo.dwPageSize;
+    vaddr_align = systemInfo.dwAllocationGranularity - 1;
 
-    if (verbose) {
-        int x;
-        logv("revival: init_pd: dwPageSize = %d  dwAllocationGranularity = %d  vaddr_alignment_pd() = 0x%lx  approx sp = 0x%llx",
-              pagesize, systemInfo.dwAllocationGranularity, vaddr_alignment_pd(), &x);
-    }
-    if (valign != 0xffff) {
+    // Report pagesize in verbose log for reference, but not used.
+    uint64_t pagesize = systemInfo.dwPageSize;
+
+    logv("revival: init_pd: dwAllocationGranularity = %d  vaddr_alignment_pd() = 0x%lx  approx sp = 0x%llx dwPageSize = %d",
+          systemInfo.dwAllocationGranularity, vaddr_alignment_pd(), &x, pagesize);
+
+    if (vaddr_align != 0xffff) {
         // expected: dwAllocationGranularity = 65536
-        warn("Note: dwAllocationGranularity not 64k, valign = %lld", valign);
+        warn("Note: dwAllocationGranularity not 64k, vaddr_align = %lld", vaddr_align);
     }
 
     // Function lookups
-    install_kernelbase_1803_symbol_or_exit(pVirtualAlloc2,      "VirtualAlloc2");
-    install_kernelbase_1803_symbol_or_exit(pMapViewOfFile3,     "MapViewOfFile3");
+    install_kernelbase_1803_symbol_or_exit(pVirtualAlloc2, "VirtualAlloc2");
+    install_kernelbase_1803_symbol_or_exit(pMapViewOfFile3, "MapViewOfFile3");
 }
 
 
@@ -168,21 +169,17 @@ LPTOP_LEVEL_EXCEPTION_FILTER previousUnhandledExceptionFilter = nullptr;
 
 LONG WINAPI topLevelUnhandledExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo) {
 
-#if defined(_M_ARM64)
-    address pc = (address) exceptionInfo->ContextRecord->Pc;
-#elif defined(_M_AMD64)
+//#if defined(_M_ARM64)
+//    address pc = (address) exceptionInfo->ContextRecord->Pc;
+//#elif defined(_M_AMD64)
+#if defined(_M_AMD64)
     address pc = (address) exceptionInfo->ContextRecord->Rip;
 #else
     error("revival: handler: unsupported platform");
 #endif
 
     address addr = (address) exceptionInfo->ExceptionRecord->ExceptionInformation[1];
-
     warn("revival: handler: pc 0x%llx address 0x%llx", pc, addr);
-    if (addr == (address) nullptr) {
-        warn("handler: null address");
-        abort();
-    }
 
     // Catch access to areas we failed to map:
     std::list<Segment>::iterator iter;
@@ -193,10 +190,9 @@ LONG WINAPI topLevelUnhandledExceptionFilter(struct _EXCEPTION_POINTERS* excepti
             exitForRetry();
         }
     }
-
     waitHitRet();
     exitForRetry();
-    abort();
+    abort(); // not reached
 }
 
 void install_handler() {
@@ -658,7 +654,6 @@ char* check_editbin() {
     }
     if (!file_exists_pd(editbin)) {
         error("EDITBIN from environment does not exist: '%s'", editbin);
-
     }
     return editbin;
 }
@@ -870,9 +865,7 @@ const char *JVM_SYMS[N_JVM_SYMS] = {
 
 void write_symbols(int fd, const char* symbols[], int count, const char *revival_dirname) {
 
-    const char *filename = "jvm.dll";
-
-    PLOADED_IMAGE image = ImageLoad(filename, revival_dirname);
+    PLOADED_IMAGE image = ImageLoad(JVM_FILENAME, revival_dirname);
     if (image == nullptr) {
         error("write_symbols: ImageLoad error '%s': %d", GetLastError());
     }
@@ -886,7 +879,7 @@ void write_symbols(int fd, const char* symbols[], int count, const char *revival
     }
 
     char moduleFilename[BUFLEN];
-    snprintf(moduleFilename, BUFLEN, "%s\\jvm.dll", revival_dirname);
+    snprintf(moduleFilename, BUFLEN, "%s\\" JVM_FILENAME, revival_dirname);
     SymLoadModuleEx(h2, NULL, moduleFilename, NULL, 0, 0, NULL, 0);
 
     TCHAR szSymbolName[MAX_SYM_NAME];
@@ -1000,7 +993,7 @@ int create_revivalbits_native_pd(const char* corename, const char* javahome, con
     if (p != nullptr) {
         snprintf(p, BUFLEN, ".dll.pdb");
         if (file_exists_pd(jvm_debuginfo_path)) {
-            snprintf(jvm_debuginfo_copy_path, BUFLEN - 1, "%s/jvm.dll.pdb", revival_dirname);
+            snprintf(jvm_debuginfo_copy_path, BUFLEN - 1, "%s/" JVM_FILENAME ".pdb", revival_dirname);
             copy_file_pd(jvm_debuginfo_path, jvm_debuginfo_copy_path);
         }
     }
