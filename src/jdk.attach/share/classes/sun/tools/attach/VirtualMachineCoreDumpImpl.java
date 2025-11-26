@@ -24,7 +24,6 @@
  */
 package sun.tools.attach;
 
-import com.sun.tools.attach.AgentLoadException;
 import com.sun.tools.attach.AttachNotSupportedException;
 import com.sun.tools.attach.spi.AttachProvider;
 
@@ -44,7 +43,6 @@ import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -224,9 +222,4 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
 
         return result;
     }
-
-//    static native void write(int fd, byte buf[], int off, int bufLen) throws IOException;
-/*    static {
-        System.loadLibrary("attach");
-    } */
 }

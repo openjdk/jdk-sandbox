@@ -52,10 +52,10 @@ public abstract class HotSpotAttachProvider extends AttachProvider {
     public VirtualMachine attachVirtualMachine(String vmid, List<String> libDirs, String revivalDataPath)
         throws AttachNotSupportedException, IOException {
 
-         // The 'vmid' existing as a file implies it is a core or minidump:
-         if (new File(vmid).exists()) {
-             return new VirtualMachineCoreDumpImpl(this, vmid, libDirs, revivalDataPath);
-         }
+        // The 'vmid' existing as a file implies it is a core or minidump:
+        if (new File(vmid).exists()) {
+            return new VirtualMachineCoreDumpImpl(this, vmid, libDirs, revivalDataPath);
+        }
         // AttachNotSupportedException will be thrown if the target VM can be determined
         // to be not attachable.
         testAttachable(vmid);
