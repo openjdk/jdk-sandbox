@@ -98,39 +98,6 @@ char *string_at_offset_minidump(int fd, ULONG32 offset) {
     return s;
 }
 
-// Locate the .data section of a PE file.
-// Return a Segment using relative addresses.
-Segment* data_section(const char *filename) {
-
-    PLOADED_IMAGE image = ImageLoad(filename, nullptr);
-    if (image == nullptr) {
-    	error("data_section: ImageLoad error : %d", GetLastError());
-    }
-    // Create a Segment from .data, and use the next Section to set its end address.
-    Segment *seg = nullptr;
-    for (unsigned int i = 0; i < image->NumberOfSections; i++) {
-        logv("data_section image: %s vaddr 0x%llx size 0x%llx", image->Sections[i].Name, image->Sections[i].VirtualAddress,
-             image->Sections[i].SizeOfRawData);
-
-        if (strncmp((char*) image->Sections[i].Name, ".data", 8) == 0) {
-            seg = new Segment((void *) (DWORD_PTR) image->Sections[i].VirtualAddress, (size_t) image->Sections[i].SizeOfRawData, 0, 0); 
-            continue;
-        }
-        if (seg != nullptr) {
-            // Already read and set Seg, use this section as the end of that Seg.
-            seg->set_length(image->Sections[i].VirtualAddress - seg->start());
-            logv("DATA SEG: 0x%llx - 0x%llx ", seg->start(), seg->end());
-            break;
-        }
-    }
-
-    int e = ImageUnload(image);
-    if (e != TRUE) {
-    	warn("data_section: ImageUnload error : %d", GetLastError());
-    }
-    return seg;
-}
-
 
 MiniDump::MiniDump(const char* filename, const char* libdir) {
     open(filename);
@@ -159,7 +126,9 @@ void MiniDump::open(const char *filename) {
 }
 
 void MiniDump::close() {
-    ::close(fd);
+    if (fd >= 0) {
+        ::close(fd);
+    }
     fd = -1;
 }
 
@@ -255,7 +224,7 @@ void MiniDump::populate_jvm_data_segs(const char *filename) {
 
     PLOADED_IMAGE image = ImageLoad(filename, nullptr);
     if (image == nullptr) {
-        error("MinDump::populate_jvm_data_segs: ImageLoad error : %d", GetLastError());
+        error("MinDump::populate_jvm_data_segs: ImageLoad error: %d", GetLastError());
     }
     // Create a Segment from .data, and use the next Section to set its end address.
     jvm_rdata_seg = nullptr;
@@ -285,7 +254,7 @@ void MiniDump::populate_jvm_data_segs(const char *filename) {
 
     int e = ImageUnload(image);
     if (e != TRUE) {
-        warn("data_section: ImageUnload error : %d", GetLastError());
+        warn("data_section: ImageUnload error: %d", GetLastError());
     }
     jvm_rdata_seg = new Segment((void*) ((uint64_t) jvm_address + (uint64_t) jvm_rdata_seg->start()), jvm_rdata_seg->length, 0, 0);
     jvm_data_seg = new Segment((void*) ((uint64_t) jvm_address + (uint64_t) jvm_data_seg->start()), jvm_data_seg->length, 0, 0);

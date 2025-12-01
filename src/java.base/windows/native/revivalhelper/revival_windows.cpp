@@ -45,6 +45,7 @@
 
 #include "revival.hpp"
 #include "minidump.hpp"
+#include "pefile.hpp"
 
 
 uint64_t vaddr_align; // set by init_pd
@@ -647,35 +648,52 @@ int copy_file_pd(const char *srcfile, const char *destfile) {
     return e;
 }
 
+
+char *editbin = nullptr;
+
 char* check_editbin() {
-    char *editbin = getenv("EDITBIN");
-    if (editbin  == nullptr) {
-        error("EDITBIN must be set in environment.");
+    char *editbin_env = getenv("EDITBIN");
+    if (editbin_env != nullptr) {
+        if (!file_exists_pd(editbin_env)) {
+            error("EDITBIN from environment does not exist: '%s'", editbin_env);
+        }
+        logv("Using EDITBIN: '%s'", editbin_env);
+        return editbin_env;
+    } else {
+        logv("NOT using EDITBIN");
+        return nullptr;
     }
-    if (!file_exists_pd(editbin)) {
-        error("EDITBIN from environment does not exist: '%s'", editbin);
-    }
-    return editbin;
 }
+
 
 int relocate_sharedlib_pd(const char *filename, const void *addr) {
 
-    // Call: EDITBIN.EXE /DYNAMICBASE:NO /REBASE:BASE=0xaddress filename
-    char *editbin = check_editbin();
-    char command[BUFLEN];
-    memset(command, 0, BUFLEN);
+    if (editbin != nullptr) {
+        // Call: EDITBIN.EXE /DYNAMICBASE:NO /REBASE:BASE=0xaddress filename
+        char command[BUFLEN];
+        memset(command, 0, BUFLEN);
 
-    strncat(command, editbin, BUFLEN - 1);
-    strncat(command, " /DYNAMICBASE:NO /REBASE:BASE=0x", BUFLEN - 1);
-    char address[32];
-    sprintf(address, "%llx", (unsigned long long) addr);
-    strncat(command, address, BUFLEN - 1);
-    strncat(command, " ", BUFLEN - 1);
-    strncat(command, filename, BUFLEN - 1);
+        strncat(command, editbin, BUFLEN - 1);
+        strncat(command, " /DYNAMICBASE:NO /REBASE:BASE=0x", BUFLEN - 1);
+        char address[32];
+        sprintf(address, "%llx", (unsigned long long) addr);
+        strncat(command, address, BUFLEN - 1);
+        strncat(command, " ", BUFLEN - 1);
+        strncat(command, filename, BUFLEN - 1);
 
-    int e = system(command);
-    logv("relocate_sharedlib_pd: '%s' returns %d", command, e);
-    return e;
+        int e = system(command);
+        logv("relocate_sharedlib_pd: '%s' returns %d", command, e);
+        return e;
+
+    } else {
+        if (!PEFile::relocate(filename, (long long) addr)) {
+            return -1;
+        }
+        if (!PEFile::remove_dynamicbase(filename)) {
+            return -1;
+        }
+        return 0;
+    }
 }
 
 
@@ -924,7 +942,7 @@ int create_revivalbits_native_pd(const char* corename, const char* javahome, con
     char jvm_copy[BUFLEN];
 
     // Check early for editbin.exe:
-    char *editbin = check_editbin();
+    editbin = check_editbin();
 
     // Using libdir to resolve JVM from alternative path is in MiniDump:
     dump = new MiniDump(corename, libdir);
@@ -955,6 +973,20 @@ int create_revivalbits_native_pd(const char* corename, const char* javahome, con
         return -1;
     }
 
+    // Copy jvm.dll.pdb if present
+    // (move this before relocate)
+    char jvm_debuginfo_path[BUFLEN];
+    char jvm_debuginfo_copy_path[BUFLEN];
+    snprintf(jvm_debuginfo_path, BUFLEN, "%s", jvm_filename);
+    char *p = strstr(jvm_debuginfo_path, ".dll");
+    if (p != nullptr) {
+        snprintf(p, BUFLEN, ".dll.pdb");
+        if (file_exists_pd(jvm_debuginfo_path)) {
+            snprintf(jvm_debuginfo_copy_path, BUFLEN - 1, "%s/" JVM_FILENAME ".pdb", revival_dirname);
+            copy_file_pd(jvm_debuginfo_path, jvm_debuginfo_copy_path);
+        }
+    }
+
     // Relocate copy of libjvm:
     e = relocate_sharedlib_pd(jvm_copy, jvm_address);
     if (e != 0) {
@@ -983,19 +1015,6 @@ int create_revivalbits_native_pd(const char* corename, const char* javahome, con
     close(fd);
     if (e != 0) {
         error("Failed to create memory mappings: %d", e);
-    }
-
-    // Copy jvm.dll.pdb if present
-    char jvm_debuginfo_path[BUFLEN];
-    char jvm_debuginfo_copy_path[BUFLEN];
-    snprintf(jvm_debuginfo_path, BUFLEN, "%s", jvm_filename);
-    char *p = strstr(jvm_debuginfo_path, ".dll");
-    if (p != nullptr) {
-        snprintf(p, BUFLEN, ".dll.pdb");
-        if (file_exists_pd(jvm_debuginfo_path)) {
-            snprintf(jvm_debuginfo_copy_path, BUFLEN - 1, "%s/" JVM_FILENAME ".pdb", revival_dirname);
-            copy_file_pd(jvm_debuginfo_path, jvm_debuginfo_copy_path);
-        }
     }
 
     logv("create_revivalbits_native_pd returning %d", 0);
