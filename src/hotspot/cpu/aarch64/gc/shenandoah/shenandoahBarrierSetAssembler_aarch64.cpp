@@ -619,6 +619,9 @@ void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, Ma
 
   // Don't preserve the obj across the runtime call, we override it from the return value anyway.
   stub->dont_preserve(obj);
+  if (tmp != noreg) {
+    stub->dont_preserve(tmp); // temp, no need to save
+  }
 
   Address gc_state(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
   __ ldrb(rscratch1, gc_state);
@@ -646,14 +649,20 @@ void ShenandoahBarrierSetAssembler::load_ref_barrier_c3(const MachNode* node, Ma
   // Don't preserve the obj across the runtime call, we override it from the return value anyway.
   stub->dont_preserve(obj);
 
-  // Check if GC marking is in progress or we are handling a weak reference, otherwise we don't have to do anything.
+  // Check if GC marking is in progress or we are handling a weak reference,
+  // otherwise we don't have to do anything. The code below was optimized to
+  // use less registers and instructions as possible at the expense of always
+  // having a branch instruction. The reason why we use this particular branch
+  // scheme is because the stub entry may be too far for the tbnz to jump to.
   bool is_strong = (node->barrier_data() & ShenandoahBarrierStrong) != 0;
   if (is_strong) {
-    __ tbnz(gc_state, ShenandoahHeap::HAS_FORWARDED_BITPOS, *stub->entry());
+    __ tbz(gc_state, ShenandoahHeap::HAS_FORWARDED_BITPOS, *stub->continuation());
+    __ b(*stub->entry());
   } else {
     static_assert(ShenandoahHeap::HAS_FORWARDED_BITPOS == 0, "Relied on in LRB check below.");
     __ orr(tmp, gc_state, gc_state, Assembler::LSR, ShenandoahHeap::WEAK_ROOTS_BITPOS);
-    __ tbnz(tmp, ShenandoahHeap::HAS_FORWARDED_BITPOS, *stub->entry());
+    __ tbz(tmp, ShenandoahHeap::HAS_FORWARDED_BITPOS, *stub->continuation());
+    __ b(*stub->entry());
   }
 
   __ bind(*stub->continuation());
@@ -717,38 +726,51 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroA
 
 void ShenandoahBarrierSetAssembler::cmpxchg_oop_c2(const MachNode* node,
                                                    MacroAssembler* masm,
-                                                   Register addr,
-                                                   Register expected,
-                                                   Register new_val,
-                                                   Register result,
-                                                   bool acquire, bool release, bool weak,
-                                                   bool is_cae) {
-  Register tmp = rscratch2;
-  Assembler::operand_size size = UseCompressedOops ? Assembler::word : Assembler::xword;
+                                                   Register addr, Register oldval,
+                                                   Register newval, Register res,
+                                                   Register tmp1, Register tmp2,
+                                                   bool acquire, bool release, bool weak, bool exchange) {
+  assert(res != noreg, "need result register");
+  assert_different_registers(oldval, tmp1, tmp2);
+  assert_different_registers(newval, tmp1, tmp2);
 
-  assert_different_registers(addr, expected, result, tmp);
-  assert_different_registers(addr, new_val,  result, tmp);
-
-  ShenandoahCASBarrierSlowStubC2* const slow_stub = ShenandoahCASBarrierSlowStubC2::create(node, addr, expected, new_val, result, tmp, is_cae, acquire, release, weak);
-  ShenandoahCASBarrierMidStubC2* const mid_stub = ShenandoahCASBarrierMidStubC2::create(node, slow_stub, expected, result, tmp, is_cae);
-
-  // Step 1. Fast-path.
-  //
-  // Try to CAS with given arguments.  If successful, then we are done.
-  __ cmpxchg(addr, expected, new_val, size, acquire, release, weak, result);
-  // EQ flag set iff success. result holds value fetched.
-
-  __ br(Assembler::NE, *mid_stub->entry());
-
-  // Slow-stub re-enters with condition flags according to CAS, we may need to
-  // set result accordingly.
-  __ bind(*slow_stub->continuation());
-  if (!is_cae) {
-    __ cset(result, Assembler::EQ);
+  // Remember oldval for retry logic in slow path. We need to do it here,
+  // because it will be overwritten by the fast-path CAS.
+  if (ShenandoahCASBarrier) {
+    __ mov(tmp2, oldval);
   }
 
-  // Mid-stub re-enters with result set correctly.
-  __ bind(*mid_stub->continuation());
+  // Fast-path: Try to CAS optimistically. If successful, then we are done.
+  // EQ flag set iff success. result holds value fetched.
+  Assembler::operand_size size = UseCompressedOops ? Assembler::word : Assembler::xword;
+  __ cmpxchg(addr, oldval, newval, size, acquire, release, weak, exchange ? res : noreg);
+
+  // If we need a boolean result out of CAS, set the flag appropriately and promote the result.
+  // This would be the final result if we do not go slow.
+  if (!exchange) {
+    __ cset(res, Assembler::EQ);
+  }
+
+  if (ShenandoahCASBarrier) {
+    ShenandoahCASBarrierSlowStubC2* const slow_stub =
+      ShenandoahCASBarrierSlowStubC2::create(node, addr, oldval, newval, res, tmp1, tmp2, exchange, acquire, release, weak);
+
+    slow_stub->dont_preserve(res);    // set at the end, no need to save
+    slow_stub->dont_preserve(oldval); // saved explicitly
+    slow_stub->dont_preserve(tmp1);   // temp, no need to save
+    slow_stub->dont_preserve(tmp2);   // temp, no need to save
+
+    // On success, we do not need any additional handling.
+    __ br(Assembler::EQ, *slow_stub->continuation());
+
+    // If GC is in progress, it is likely we need additional handling for false negatives.
+    Address gc_state(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+    __ ldrb(tmp1, gc_state);
+    __ tbnz(tmp1, ShenandoahHeap::HAS_FORWARDED_BITPOS, *slow_stub->entry());
+
+    // Slow stub re-enters with result set correctly.
+    __ bind(*slow_stub->continuation());
+  }
 }
 
 #undef __
@@ -868,82 +890,75 @@ void ShenandoahCASBarrierMidStubC2::emit_code(MacroAssembler& masm) {
 }
 
 void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
-  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
   __ bind(*entry());
+
+  // CAS has failed because the value held at addr does not match expected.
+  // This may be a false negative because the version in memory might be
+  // the from-space version of the same object we currently hold to-space
+  // reference for.
+  //
+  // To resolve this, we need to pass the location through the LRB fixup,
+  // this will make sure that the location has only to-space pointers.
+  // To avoid calling into runtime often, we cset-check the object first.
+  // We can inline most of the work here, but there is little point,
+  // as CAS failures over cset locations must be rare. This fast-slow split
+  // matches what we do for normal LRB.
+
+  // Non-strong references should always go to runtime. We do not expect
+  // CASes over non-strong locations.
+  assert((_node->barrier_data() & ShenandoahBarrierStrong) != 0, "Only strong references for CASes");
+
+  Label L_final;
+
+  // Fast-path stashed original oldval to tmp2 for us. We need to save it
+  // for the final retry. This frees up tmp2 for cset check below.
+  RegSet to_save = RegSet::of(_tmp2);
+  __ push(to_save, sp);
+
+  // (Compressed) failure witness is in _expected.
+  // Unpack it and check if it is in collection set.
+  __ mov(_tmp1, _expected);
+  if (UseCompressedOops) {
+    __ decode_heap_oop(_tmp1);
+  }
+
+  __ mov(_tmp2, ShenandoahHeap::in_cset_fast_test_addr());
+  __ lsr(_tmp1, _tmp1, ShenandoahHeapRegion::region_size_bytes_shift_jint());
+  __ ldrb(_tmp2, Address(_tmp2, _tmp1));
+  __ cbz(_tmp2, L_final);
+
+  {
+    SaveLiveRegisters save_registers(&masm, this);
+    // Load up failure witness again.
+    if (c_rarg0 != _expected) {
+      __ mov(c_rarg0, _expected);
+    }
+    if (UseCompressedOops) {
+      __ decode_heap_oop(c_rarg0);
+    }
+    __ mov(c_rarg1, _addr_reg);
+
+    if (UseCompressedOops) {
+      __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow), 2);
+    } else {
+      __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong), 2);
+    }
+    // We have called LRB to fix up the heap location. We do not care about its result,
+    // as we will just try to CAS the location again.
+  }
+
+  __ bind(L_final);
+
+  // Try to CAS again with the original expected value.
+  // At this point, there can no longer be false negatives.
+  __ pop(to_save, sp);
+
   Assembler::operand_size size = UseCompressedOops ? Assembler::word : Assembler::xword;
+  __ cmpxchg(_addr_reg, _tmp2, _new_val, size, _acquire, _release, _weak, _cae ? _result : noreg);
 
-  // Step 2. CAS has failed because the value held at addr does not
-  // match expected.  This may be a false negative because the value fetched
-  // from addr (now held in result) may be a from-space pointer to the
-  // original copy of same object referenced by to-space pointer expected.
-  //
-  // To resolve this, it suffices to find the forward pointer associated
-  // with fetched value.  If this matches expected, retry CAS with new
-  // parameters.  If this mismatches, then we have a legitimate
-  // failure, and we're done.
-
-  // overwrite tmp with from-space pointer fetched from memory
-  __ mov(_tmp1, _result);
-
-  if (UseCompressedOops) {
-    // Decode tmp in order to resolve its forward pointer
-    __ decode_heap_oop_not_null(_tmp1, _tmp1);
+  if (!_cae) {
+    __ cset(_result, Assembler::EQ);
   }
-
-  // Load/decode forwarding pointer.
-  __ ldr(_tmp1, Address(_tmp1, oopDesc::mark_offset_in_bytes()));
-  // Negate the mark-word. This allows us to test lowest 2 bits easily while preserving the upper bits.
-  __ eon(_tmp1, _tmp1, zr);
-  __ ands(zr, _tmp1, markWord::lock_mask_in_place);
-  // Not forwarded, must have a legit CAS failure.
-  __ br(Assembler::NE, *continuation());
-  // Set the lowest two bits. This is equivalent to clearing the two bits after
-  // the subsequent inversion.
-  __ orr(_tmp1, _tmp1, markWord::marked_value);
-  // And invert back to get the forwardee.
-  __ eon(_tmp1, _tmp1, zr);
-
-  if (UseCompressedOops) {
-    // Encode tmp to compare against expected.
-    __ encode_heap_oop_not_null(_tmp1, _tmp1);
-  }
-
-  // Does forwarded value of fetched from-space pointer match original
-  // value of expected?  If result holds null, this comparison will fail
-  // because we know from step1 that expected is not null.  There is
-  // no need for a separate test for result (the value originally held
-  // in memory) equal to null.
-  __ cmp(_tmp1, _expected);
-
-  // If not, then the failure was legitimate and we're done.
-  // Branching to continuation with NE condition denotes failure.
-  __ br(Assembler::NE, *continuation());
-
-  // Fall through to step 3.
-
-  // Step 3.  We've confirmed that the value originally held in memory
-  // (now held in result) pointed to from-space version of original
-  // expected value.  Try the CAS again with the from-space expected
-  // value.  If it now succeeds, we're good.
-  //
-  // Note: result holds encoded from-space pointer that matches to-space
-  // object residing at expected. result is the new "expected".
-
-  // Note that macro implementation of __cmpxchg cannot use same register
-  // tmp2 for result and expected since it overwrites result before it
-  // compares result with expected.
-  __ mov(_tmp1, _result);
-  __ cmpxchg(_addr_reg, _tmp1, _new_val, size, _acquire, _release, _weak, _result);
-  // EQ flag set iff success. result holds value fetched, rscratch1 clobbered.
-
-  // If fetched value did not equal the new expected, this could
-  // still be a false negative because some other thread may have
-  // newly overwritten the memory value with its to-space equivalent.
-  __ br(Assembler::EQ, *continuation());
-
-  // Step 4. Retry CAS with original to-space expected.
-  __ cmpxchg(_addr_reg, _expected, _new_val, size, _acquire, _release, _weak, _result);
-
   __ b(*continuation());
 }
 #undef __

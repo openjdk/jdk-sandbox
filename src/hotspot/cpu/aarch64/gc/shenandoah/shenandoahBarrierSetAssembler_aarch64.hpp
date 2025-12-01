@@ -99,8 +99,7 @@ public:
   void satb_barrier_c2(const MachNode* node, MacroAssembler* masm, Register obj, Register pre_val);
   void satb_barrier_c3(const MachNode* node, MacroAssembler* masm, Register obj, Register pre_val, Register gc_state);
   void card_barrier_c2(const MachNode* node, MacroAssembler* masm, Register addr, Register tmp);
-  void cmpxchg_oop_c2(const MachNode* node, MacroAssembler* masm, Register addr, Register expected, Register new_val, Register result,
-                      bool acquire, bool release, bool weak, bool is_cae);
+  void cmpxchg_oop_c2(const MachNode* node, MacroAssembler* masm, Register addr, Register oldval, Register newval, Register res, Register tmp1, Register tmp2, bool acquire, bool release, bool weak, bool exchange);
 #endif
 };
 
