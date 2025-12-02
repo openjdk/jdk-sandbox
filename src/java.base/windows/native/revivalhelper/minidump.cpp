@@ -176,10 +176,14 @@ int MiniDump::read_modules() {
     for (unsigned int j = 0; j < n; j++) {
         MINIDUMP_MODULE module;
         e = read(fd, &module, sizeof(module));
-//        if (e != sizeof(module)) {
-//            error("MiniDump::read_modules: read wants %d got %d", sizeof(module), e);
-//        }
+        if (e != sizeof(module)) {
+            warn("MiniDump::read_modules: read wants %d got %d", sizeof(module), e);
+        }
         char *name = string_at_offset_minidump(fd, module.ModuleNameRva);
+        if (name == nullptr) {
+            warn("MiniDump::read_modules: %d: base 0x%llx: null string at offset 0x%llx", j, module.BaseOfImage, module.ModuleNameRva);
+            continue;
+        }
         logv("MODULE name = '%s' 0x%llx", name, module.BaseOfImage);
         // Populate Segment list of modules
         Segment *seg = new Segment((void *) module.BaseOfImage, (size_t) module.SizeOfImage, 0, 0);

@@ -36,7 +36,7 @@ using namespace std;
 // Diagnostics
 int verbose = false;
 int _wait = false;
-int skipVersionCheck = false;
+int versionCheckEnabled = true;
 
 // Unmap segments before mapping them.
 int unmapFirst = false; // was used in testing, likely remove
@@ -1028,14 +1028,44 @@ char *mappings_filename_set(const char* revival_data_path) {
     return buf;
 }
 
+void doVersionCheck(const char* corename, const char* revival_dir) {
+    void *ver = symbol_resolve_from_symbol_file(revival_dir, SYM_VM_RELEASE);
+    if (ver == nullptr || ver == (void*) -1) {
+        warn("No vm release symbol " SYM_VM_RELEASE " found, no version check.");
+        return;
+    }
+
+    // Mappings in place, jvm_filename and jvm_address are set:
+    if (ver != nullptr && jvm_address != nullptr) {
+        logv("Version check... " SYM_VM_RELEASE "=0x%llx", ver);
+        // Read version from core, and binary, and compare.
+        // Could read from address space directly:
+        // char *vm_release_core = *(char**) ver;
+        // ...but was that populated from core or binary?  Be specific.
+        char* ptr = *(char**) ver; // read pointer from now-live memory
+        logv("Version check: ptr = 0x%llx",  (unsigned long long) ptr);
+        char* vm_release_core = readstring_from_core_at_pd(corename, (uint64_t) *(char**) ver);
+        logv("Version check: vm release from core: 0x%llx 0x%llx '%s'", (unsigned long long) ver, (unsigned long long) vm_release_core,  vm_release_core);
+
+        uint64_t vm_release_offset = (uint64_t) ptr - (uint64_t) jvm_address;
+        char* vm_release_binary = readstring_at_pd(jvm_filename, vm_release_offset);
+        logv("Version check: vm release from binary:  %s", vm_release_binary);
+
+        if (strncmp(vm_release_core, vm_release_binary, BUFLEN) != 0) {
+            error("Failed: JVM version mismatch, core '%s', jvm binary '%s'", vm_release_core, vm_release_binary);
+        }
+    }
+}
+
 
 int revive_image(const char* corename, const char *javahome, const char* libdir, const char* revival_data_path) {
     int e;
     char *dirname;
 
+    // Environment settings: set to anything means "on".
     verbose = env_check((char *) "REVIVAL_VERBOSE");
     _wait = env_check((char *) "REVIVAL_WAIT");
-    skipVersionCheck = env_check((char *) "REVIVAL_SKIPVERSIONCHECK");
+    versionCheckEnabled = !env_check((char *) "REVIVAL_SKIPVERSIONCHECK");
 
     init_pd();
 
@@ -1086,13 +1116,6 @@ int revive_image(const char* corename, const char *javahome, const char* libdir,
         logv("Using cached revival data.");
     }
 
-    // Version check?
-    skipVersionCheck = true;
-    void *ver = symbol_resolve_from_symbol_file(dirname, SYM_VM_RELEASE);
-    if (ver == nullptr && !skipVersionCheck) {
-        warn("No vm release symbol found, no version check.");
-    }
-
     if (revival_checks_pd(dirname) < 0) {
         warn("revive_image: revival_checks failed: %s", dirname);
         return -1;
@@ -1109,25 +1132,11 @@ int revive_image(const char* corename, const char *javahome, const char* libdir,
     logv("Install handler...");
     install_handler();
 
-    // Mappings in place, jvm_filename and jvm_address set:
-    if (!skipVersionCheck && ver != nullptr && jvm_address != nullptr) {
-        logv("Version check...");
-        // Read version from core, and binary, and compare.
-        // Could read from address space directly:
-        // char *vm_release_core = *(char**) ver;
-        // ...but was that populated from core or binary?  Be specific.
-        char* ptr = *(char**) ver; // read pointer from now-live memory
-        logv("Version check: ptr = 0x%llx",  (unsigned long long) ptr);
-        char* vm_release_core = readstring_from_core_at_pd(corename, (uint64_t) *(char**) ver);
-        logv("Version check: vm release from core: 0x%llx 0x%llx '%s'", (unsigned long long) ver, (unsigned long long) vm_release_core,  vm_release_core);
-
-        uint64_t vm_release_offset = (uint64_t) ptr - (uint64_t) jvm_address;
-        char* vm_release_binary = readstring_at_pd(jvm_filename, vm_release_offset);
-        logv("Version check: vm release from binary:  %s", vm_release_binary);
-
-        if (strncmp(vm_release_core, vm_release_binary, BUFLEN) != 0) {
-            error("Failed: JVM version mismatch, core '%s', jvm binary '%s'", vm_release_core, vm_release_binary);
-        }
+    // Version check?
+    if (!versionCheckEnabled) {
+        warn("JVM version check skipped.");
+    } else {
+        doVersionCheck(corename, dirname);
     }
 
     // OK:
