@@ -33,8 +33,8 @@ import jdk.internal.util.json.JsonNumberImpl;
  * number represented in base 10 using decimal digits.
  * <p>
  * A {@code JsonNumber} can be produced by {@link Json#parse(String)}.
- * Alternatively, {@link #of(double)} and {@link #of(long)} can be used to obtain
- * a {@code JsonNumber}.
+ * Alternatively, {@link #of(double)}, {@link #of(long)}, and {@link #of(String)}
+ * can be used to obtain a {@code JsonNumber}.
  * When a JSON number is parsed, a {@code JsonNumber} object is created
  * as long as the parsed value adheres to the JSON number
  * <a href="https://datatracker.ietf.org/doc/html/rfc8259#section-6">
@@ -42,6 +42,14 @@ import jdk.internal.util.json.JsonNumberImpl;
  * can be retrieved from {@link #toString()} as the string representation
  * from which the JSON number is originally parsed, with
  * {@link #toLong()} as a {@code long} or {@link #toDouble()} as a {@code double}.
+ * Larger exact numbers can be obtained from their string representations, for example,
+ * {@snippet lang="java" :
+ * new BigDecimal(JsonNumber.toString())
+ * // or if an integral number is preferred
+ * new BigInteger(JsonNumber.toString())
+ * // for cases with the zero decimal part or exponent
+ * new BigDecimal(JsonNumber.toString()).toBigIntegerExact()
+ * }
  *
  * @spec https://datatracker.ietf.org/doc/html/rfc8259#section-6 RFC 8259:
  *      The JavaScript Object Notation (JSON) Data Interchange Format - Numbers
