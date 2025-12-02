@@ -123,7 +123,7 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
         }
 
         ProcessBuilder pb = new ProcessBuilder(pargs);
-        pb.redirectErrorStream(true);
+        pb.redirectErrorStream(true); // merge error with output
 
         Map<String, String> newEnv = pb.environment();
 
@@ -150,8 +150,8 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
         // For core files, for now, we can read the whole output, and only return it if it is a successful run.
         int TRIES = 10;
         int tries = Integer.getInteger("jdk.attach.core.tries", TRIES);
-        String out = null;
         boolean verbose = Boolean.getBoolean("jdk.attach.core.verbose");
+        String out = null;
 
         for (int i = 0; i < tries; i++) {
             Process p = pb.start();
@@ -165,10 +165,11 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
                     System.out.println(out);
                     String err = drain(p, errReader);
                     System.err.println(err);
-                    throw new IOException("jcmd returned an error");  // To force JCmd to System.exit(1);
+                    throw new IOException("jcmd returned an error");  // JCmd caller will call System.exit(1);
                 } else if (e == 7) {
                     // Hint to retry due to address space clash.
                     if (verbose) {
+                        System.err.println(out);
                         String err = drain(p, errReader);
                         System.err.println(err);
                     }

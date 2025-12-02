@@ -219,7 +219,7 @@ public class JCmdRevival {
         System.err.println(out.getStderr());
 
         // Generic checks:
-        out.shouldContain("Opening dump file ");
+        // out.shouldContain("Opening dump file "); // changed to "FILENAME:" to be same format as PIDs.
 
         int expectedExit = 0;
 

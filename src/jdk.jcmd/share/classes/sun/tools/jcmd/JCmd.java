@@ -88,8 +88,7 @@ public class JCmd {
 
         if (pids == null || pids.isEmpty() || arg.isForceCore()) {
 //             && new File(arg.getProcessString()).exists()) {
-            System.out.println("Opening dump file '" + arg.getProcessString() + "'...");
-
+            System.out.println(arg.getProcessString() + ":");
             try {
                 executeCommandForCrashDump(arg.getProcessString(), arg.getLibDirs(), arg.getRevivalDataPath(), arg.getCommand());
                 System.exit(0);

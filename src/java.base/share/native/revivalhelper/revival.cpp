@@ -31,12 +31,11 @@ using namespace std;
 #include "revival.hpp"
 
 
-// Behaviour settings:
+// Behavior settings:
 
 // Diagnostics
 int verbose = false;
 int _wait = false;
-int _abortOnClash = false;
 int skipVersionCheck = false;
 
 // Unmap segments before mapping them.
@@ -49,6 +48,7 @@ char *core_filename;
 unsigned long long core_timestamp;
 int core_fd;
 const char *revivaldir;
+const char *mappings_filename;
 
 
 // Set during actual revival:
@@ -158,7 +158,9 @@ void error(const char *format, ...) {
     exit(1);
 }
 
-
+/**
+ * Diagnostic pause (e.g. for debugger attach) when revivalhelper is run with REVIVAL_WAIT=1 in environment.
+ */
 void waitHitRet() {
     if (_wait) {
         warn("hit return");
@@ -498,12 +500,8 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
                 warn("skipping (%s): %p - %p len=%zx", danger, vaddr, (void*) ((unsigned long long) vaddr + length), length);
                 Segment* thisSeg = new Segment(vaddr, length, offset, length_file);
                 failedSegments.push_back(*thisSeg);
-                if (_abortOnClash) {
-                    abort();
-                } else {
-                    warn("mappings_file_read: danger 0x%llx", (unsigned long long) vaddr);
-                    exitForRetry();
-                }
+                warn("mappings_file_read: danger 0x%llx", (unsigned long long) vaddr);
+                exitForRetry();
                 continue;
             } 
             if (strstr(s7, "W") != nullptr) {
@@ -1001,7 +999,7 @@ int create_revivalbits(const char* corename, const char* javahome, const char* d
 char *revival_dirname(const char *corename, const char* revival_data_path) {
     char* buf = (char *) calloc(1, BUFLEN);
     if (!buf) {
-        error("Failed to allocate buffer for revival eirectory name.");
+        error("Failed to allocate buffer for revival directory name.");
     }
 
     int len;
@@ -1016,15 +1014,27 @@ char *revival_dirname(const char *corename, const char* revival_data_path) {
     return buf;
 }
 
+char *mappings_filename_set(const char* revival_data_path) {
+    char* buf = (char *) calloc(1, BUFLEN);
+    if (!buf) {
+        error("Failed to allocate buffer for mappings file name.");
+    }
+    // snprintf(buf, BUFLEN, "%s%s", dirname, "/" MAPPINGS_FILENAME);
+
+    int len = snprintf(buf, BUFLEN, "%s%s%s", revival_data_path, FILE_SEPARATOR, "core.mappings");
+    if (len >= BUFLEN) {
+        error("core.mappings filename too long.");
+    }
+    return buf;
+}
+
 
 int revive_image(const char* corename, const char *javahome, const char* libdir, const char* revival_data_path) {
     int e;
-    char buf[BUFLEN];
     char *dirname;
 
     verbose = env_check((char *) "REVIVAL_VERBOSE");
     _wait = env_check((char *) "REVIVAL_WAIT");
-    _abortOnClash = env_check((char *) "REVIVAL_ABORT");
     skipVersionCheck = env_check((char *) "REVIVAL_SKIPVERSIONCHECK");
 
     init_pd();
@@ -1054,16 +1064,17 @@ int revive_image(const char* corename, const char *javahome, const char* libdir,
 
     // Decide core.revival directory name:
     dirname = revival_dirname(corename, revival_data_path);
+    mappings_filename = mappings_filename_set(dirname);
 
-    // Does revival data dir exist? If not, create:
-    if (!dir_exists_pd(dirname)) {
-        if (!create_directory_pd(dirname)) {
-            error("revival: cannot create directory '%s': use -R to specify usable location for cache directory.", dirname);
+    // Does revival data exist?  Check presence of 'core.mappings' in revival directory.
+    if (!file_exists_pd(mappings_filename)) {
+        // Create revival data:
+        if (!dir_exists_pd(dirname)) {
+            if (!create_directory_pd(dirname)) {
+                error("revival: cannot create directory '%s': use -R to specify usable location for cache directory.", dirname);
+            }
         }
-    }
-    // If revival data dir is empty, create revival data:
-    if (dir_isempty_pd(dirname)) {
-        logv("revival dir empty, creating data");
+        logv("Creating revival data.");
         e = create_revivalbits(corename, javahome, dirname, libdir);
         logv("revive_image: create_revivalbits return code: %d", e);
         waitHitRet();
@@ -1072,7 +1083,7 @@ int revive_image(const char* corename, const char *javahome, const char* libdir,
             return e;
         }
     } else {
-        logv("revival dir not empty, using cached data");
+        logv("Using cached revival data.");
     }
 
     // Version check?
@@ -1088,9 +1099,7 @@ int revive_image(const char* corename, const char *javahome, const char* libdir,
     }
 
     // Read mappings file: load library, map memory:
-    snprintf(buf, BUFLEN, "%s%s", dirname, "/" MAPPINGS_FILENAME);
-    waitHitRet();
-    e = mappings_file_read(corename, dirname, buf);
+    e = mappings_file_read(corename, dirname, mappings_filename);
     if (e < 0) {
         warn("revive_image: mappings_file_read failed: %d", e);
         return -1;

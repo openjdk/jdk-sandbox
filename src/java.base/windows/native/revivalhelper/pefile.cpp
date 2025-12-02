@@ -107,7 +107,10 @@ bool PEFile::relocate(const char* filename, uint64_t address) {
         error("ReBaseImage64 2 failed: %d", GetLastError());
     }
     if (NewImageBase != address) {
-        error("relocate failed, new base 0x%llx != 0x%llx", NewImageBase, address);
+        logv("relocate failed, new base 0x%llx != 0x%llx", NewImageBase, address);
+        waitHitRet();
+        //error("relocate failed, new base 0x%llx != 0x%llx", NewImageBase, address);
+        exitForRetry();
     }
     return e;
 }
@@ -129,15 +132,12 @@ bool PEFile::remove_dynamicbase(const char* filename) {
     if (magic != 0x5a4d) {
         error("%s: DOS magic not recognized: 0x%x", filename, magic);
     }
-    warn("base         0x%llx", (uint64_t) base);
+
+    logv("remove_dynamicbase: %s mapped at 0x%llx", filename, (uint64_t) base);
     uint64_t peOffsetAddr = (uint64_t) base + 0x3c;
-    warn("peOffsetAddr 0x%llx", peOffsetAddr);
-
     ULONG32 peOffset = *(ULONG32*) peOffsetAddr;
-    warn("peOffset 0x%lx", peOffset);
-
     uint64_t peAddr = (uint64_t) base + peOffset;
-    warn("peAddr    0x%llx", peAddr);
+    logv("peAddr    0x%llx", peAddr);
 
     // At peOffset, is IMAGE_NT_HEADERS32 containing:
     //   DWORD                   Signature;
