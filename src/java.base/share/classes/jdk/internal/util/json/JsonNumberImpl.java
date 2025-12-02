@@ -45,8 +45,8 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     private final int exponentOffset;
 
     private final LazyConstant<String> numString = LazyConstant.of(this::initNumString);
-    private final LazyConstant<Optional<Long>> cachedLong = LazyConstant.of(this::cachedLongInit);
-    private final LazyConstant<Optional<Double>> cachedDouble = LazyConstant.of(this::cachedDoubleInit);
+    private final LazyConstant<Optional<Long>> numLong = LazyConstant.of(this::initNumLong);
+    private final LazyConstant<Optional<Double>> numDouble = LazyConstant.of(this::initNumDouble);
 
     public JsonNumberImpl(char[] doc, int start, int end, int dec, int exp) {
         this.doc = doc;
@@ -63,13 +63,13 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
 
     @Override
     public long toLong() {
-        return cachedLong.get().orElseThrow(() ->
+        return numLong.get().orElseThrow(() ->
                 Utils.composeError(this, this + " cannot be represented as a long."));
     }
 
     @Override
     public double toDouble() {
-        return cachedDouble.get().orElseThrow(() ->
+        return numDouble.get().orElseThrow(() ->
                 Utils.composeError(this, this + " cannot be represented as a double."));
     }
 
@@ -105,7 +105,7 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     }
 
     // 4 cases: Fully integral, has decimal, has exponent, has decimal and exponent
-    private Optional<Long> cachedLongInit() {
+    private Optional<Long> initNumLong() {
         try {
             if (decimalOffset == -1 && exponentOffset == -1) {
                 // Parseable Long format
@@ -158,7 +158,7 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
         return Optional.empty();
     }
 
-    private Optional<Double> cachedDoubleInit() {
+    private Optional<Double> initNumDouble() {
         var db = Double.parseDouble(numString.get());
         if (Double.isFinite(db)) {
             return Optional.of(db);
