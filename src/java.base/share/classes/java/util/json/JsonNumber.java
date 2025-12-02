@@ -33,7 +33,7 @@ import jdk.internal.util.json.JsonNumberImpl;
  * number represented in base 10 using decimal digits.
  * <p>
  * A {@code JsonNumber} can be produced by {@link Json#parse(String)}.
- * Alternatively, {@link #of(double)}, {@link #of(long)}, and {@link #of(String)}
+ * Alternatively, {@link #of(double)}, {@link #of(long)}, or {@link #of(String)}
  * can be used to obtain a {@code JsonNumber}.
  * When a JSON number is parsed, a {@code JsonNumber} object is created
  * as long as the parsed value adheres to the JSON number
@@ -66,6 +66,13 @@ public non-sealed interface JsonNumber extends JsonValue {
 
     /**
      * {@return this as a {@code long}}
+     * <p>
+     * This method returns the numerical value of this JsonNumber, even
+     * if the string representation contains a fractional part with zero
+     * digits, or an exponent part. For example, both the JSON number
+     * "123.0" and "1.23e2" produce a {@code long} value of "123". If the numeric
+     * value cannot be represented as a {@code long},
+     * {@code JsonAssertionException} is thrown.
      *
      * @throws JsonAssertionException if this {@code JsonValue} cannot
      *      be represented as a {@code long}.
@@ -115,7 +122,11 @@ public non-sealed interface JsonNumber extends JsonValue {
     }
 
     /**
-     * Creates a JSON number from the given {@code String} value.
+     * Creates a JSON number from the given {@code String} value. It is
+     * equivalent to calling:
+     * {@snippet lang="java" :
+     * Json.parse(num)
+     * }
      *
      * @param num the given {@code String} value.
      * @throws JsonParseException if {@code num} is not a string
