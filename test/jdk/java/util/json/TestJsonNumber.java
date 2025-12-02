@@ -163,6 +163,11 @@ public class TestJsonNumber {
             assertEquals(JsonNumber.of(0.1d).toDouble(), 0.1d);
             assertEquals(JsonNumber.of(1e0).toDouble(), 1d);
             assertEquals(JsonNumber.of(Double.MAX_VALUE).toDouble(), Double.MAX_VALUE);
+            assertEquals(JsonNumber.of("42").toLong(), 42L);
+            assertEquals(JsonNumber.of("9223372036854775807").toLong(), Long.MAX_VALUE);
+            assertEquals(JsonNumber.of("0.1").toDouble(), 0.1d);
+            assertEquals(JsonNumber.of("1e0").toDouble(), 1d);
+            assertEquals(JsonNumber.of("1.7976931348623157E308").toDouble(), Double.MAX_VALUE);
         }
 
         @Test

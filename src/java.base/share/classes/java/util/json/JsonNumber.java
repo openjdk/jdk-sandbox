@@ -107,6 +107,24 @@ public non-sealed interface JsonNumber extends JsonValue {
     }
 
     /**
+     * Creates a JSON number from the given {@code String} value.
+     *
+     * @param num the given {@code String} value.
+     * @throws JsonParseException if {@code num} is not a string
+     *      representation of a JSON number.
+     * @return a JSON number created from a {@code String} value
+     */
+    static JsonNumber of(String num) {
+        try {
+            var parsed = Json.parse(num);
+            if (parsed instanceof JsonNumber jn) {
+                return jn;
+            }
+        } catch (JsonParseException _) {}
+        throw new JsonParseException("Not a JSON number", 0, 0);
+    }
+
+    /**
      * {@return the decimal string representation of this {@code JsonNumber}}
      *
      * If this {@code JsonNumber} is created by parsing a JSON number in a JSON document,
