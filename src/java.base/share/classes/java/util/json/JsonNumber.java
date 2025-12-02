@@ -38,16 +38,19 @@ import jdk.internal.util.json.JsonNumberImpl;
  * When a JSON number is parsed, a {@code JsonNumber} object is created
  * as long as the parsed value adheres to the JSON number
  * <a href="https://datatracker.ietf.org/doc/html/rfc8259#section-6">
- * syntax</a>. The value of the {@code JsonNumber}
- * can be retrieved from {@link #toString()} as the string representation
- * from which the JSON number is originally parsed, with
- * {@link #toLong()} as a {@code long} or {@link #toDouble()} as a {@code double}.
- * Larger exact numbers can be obtained from their string representations, for example,
+ * syntax</a>. The value of the {@code JsonNumber} can be retrieved as a {@code long}
+ * with {@link #toLong()} or as a {@code double} with {@link #toDouble()}.
+ * {@link #toString()} can be used to return the string representation of
+ * the JSON number.
+ *
+ * @apiNote
+ * Representing JSON numbers that do not fit within a {@code long} or {@code double},
+ * can be done from their string representations, for example,
  * {@snippet lang="java" :
  * new BigDecimal(JsonNumber.toString())
  * // or if an integral number is preferred
  * new BigInteger(JsonNumber.toString())
- * // for cases with the zero decimal part or exponent
+ * // for cases with an exponent or zero fractional part
  * new BigDecimal(JsonNumber.toString()).toBigIntegerExact()
  * }
  *
@@ -65,14 +68,15 @@ public non-sealed interface JsonNumber extends JsonValue {
     JsonNumber number();
 
     /**
-     * {@return this as a {@code long}}
+     * {@return {@code this} as a {@code long}}
      * <p>
-     * This method returns the numerical value of this JsonNumber, even
-     * if the string representation contains a fractional part with zero
-     * digits, or an exponent part. For example, both the JSON number
-     * "123.0" and "1.23e2" produce a {@code long} value of "123". If the numeric
-     * value cannot be represented as a {@code long},
-     * {@code JsonAssertionException} is thrown.
+     * This method returns a {@code long} as long as it can be translated
+     * from the numerical value of this JsonNumber without loss. This occurs, even
+     * if the string representation contains an exponent or a fractional part
+     * consisting of only zero digits. For example, both the JSON number
+     * "123.0" and "1.23e2" produce a {@code long} value of "123". A {@code
+     * JsonAssertionException} is thrown when the numeric value cannot be represented
+     * as a {@code long}; for example, the value "5.5".
      *
      * @throws JsonAssertionException if this {@code JsonValue} cannot
      *      be represented as a {@code long}.
@@ -81,10 +85,10 @@ public non-sealed interface JsonNumber extends JsonValue {
     long toLong();
 
     /**
-     * {@return this as a {@code double}}
+     * {@return {@code this} as a {@code double}}
      *
      * @throws JsonAssertionException if this {@code JsonValue} cannot
-     *      be represented as a {@code double}.
+     *      be represented as a finite {@code double}.
      */
     @Override
     double toDouble();
@@ -122,16 +126,17 @@ public non-sealed interface JsonNumber extends JsonValue {
     }
 
     /**
-     * Creates a JSON number from the given {@code String} value. It is
-     * equivalent to calling:
-     * {@snippet lang="java" :
-     * Json.parse(num)
+     * Creates a JSON number from the given {@code String} value.
+     *
+     * @implNote This is equivalent to calling:
+     * {@snippet lang = "java":
+     * ((JsonNumber) Json.parse(num))
      * }
      *
      * @param num the given {@code String} value.
-     * @throws JsonParseException if {@code num} is not a string
+     * @throws JsonParseException if {@code num} is not a valid string
      *      representation of a JSON number.
-     * @return a JSON number created from a {@code String} value
+     * @return a JSON number created from the {@code String} value
      */
     static JsonNumber of(String num) {
         try {
