@@ -1037,7 +1037,7 @@ void doVersionCheck(const char* corename, const char* revival_dir) {
 
     // Mappings in place, jvm_filename and jvm_address are set:
     if (ver != nullptr && jvm_address != nullptr) {
-        logv("Version check... " SYM_VM_RELEASE "=0x%llx", ver);
+        logv("Version check... " SYM_VM_RELEASE "=0x%llx", (unsigned long long) ver);
         // Read version from core, and binary, and compare.
         // Could read from address space directly:
         // char *vm_release_core = *(char**) ver;

@@ -182,10 +182,10 @@ public class JCmdRevival {
 
         String heapDumpName = null;
         JDKToolLauncher launcher = JDKToolLauncher.createUsingTestJDK("jcmd");
-        launcher.addVMArgs(Utils.getTestJavaOpts()); // We do not generally run jcmd with other options.
+        launcher.addVMArgs(Utils.getTestJavaOpts()); // People do not generally run jcmd itself with other options.
         launcher.addToolArg(coreFileName);
 
-        // This method just takes a commad name to test.  For some commands we will
+        // This method just takes a command name to test.  For some commands we will
         // add a further argument:
         if (command.equals("GC.heap_dump")) {
             launcher.addToolArg(command);
