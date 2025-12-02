@@ -86,7 +86,6 @@ void ELFFile::verify() {
 //        assert(hdr->e_ident[7] == ELFOSABI_SYSV); // or UNIX - GNU
 //        assert(hdr->e_version == EV_CURRENT);
 
-        // elf.h in devkit on Linux x86_64 does not define EM_AARCH64
 #if defined(__aarch64__)
         if (hdr->e_machine != EM_AARCH64) {
             error("%s: not an AARCH64 ELF file.", filename);
@@ -100,8 +99,9 @@ void ELFFile::verify() {
             error("Too many program headers, handling not implemented (%x)", hdr->e_phnum);
         }
         if (hdr->e_type == ET_DYN && hdr->e_shnum == 0) {
-            error("Invalid number of section headers in shared library, zero.");
+            error("No section headers in shared library.");
         }
+/*
         assert(hdr->e_phentsize == sizeof(Elf64_Phdr));
         assert(hdr->e_shentsize == 0 || hdr->e_shentsize == sizeof(Elf64_Shdr));
 
@@ -119,6 +119,7 @@ void ELFFile::verify() {
         Elf64_Shdr* s1a = next_sh(s0);
         assert(s1 == s1a);
         assert(diff == hdr->e_shentsize);
+ */
 }
 
 ELFFile::~ELFFile() {

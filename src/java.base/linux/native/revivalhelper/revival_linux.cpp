@@ -55,12 +55,8 @@
 #include "revival.hpp"
 #include "elffile.hpp"
 
-extern unsigned long long file_size(const char *filename);
 
-
-const char *corePageFilename;
-
-long vaddr_align;
+long vaddr_align; // set by init_pd
 
 uint64_t vaddr_alignment_pd() {
     return vaddr_align;
@@ -366,6 +362,9 @@ const char *createTempFilename() {
     }
     return tempName;
 }
+
+
+const char *corePageFilename;
 
 /*
  * Return the name of the temp file to use for writing.
