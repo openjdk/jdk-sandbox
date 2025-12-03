@@ -48,35 +48,9 @@ import java.util.Optional;
  *     json.toString(); // returns "[\"foo\",true,25]"
  * }
  *
- * A class implementing a non-sealed {@code JsonValue} sub-interface must adhere
- * to the following:
- * <ul>
- * <li>The class's implementations of {@code equals}, {@code hashCode},
- * and {@code toString} compute their results solely from the values
- * of the class's instance fields (and the members of the objects they
- * reference), not from the instance's identity.</li>
- * <li>The class's methods treat instances as <em>freely substitutable</em>
- * when equal, meaning that interchanging any two instances {@code x} and
- * {@code y} that are equal according to {@code equals()} produces no
- * visible change in the behavior of the class's methods.</li>
- * <li>The class performs no synchronization using an instance's monitor.</li>
- * <li>The class does not provide any instance creation mechanism that promises
- * a unique identity on each method call&mdash;in particular, any factory
- * method's contract must allow for the possibility that if two independently-produced
- * instances are equal according to {@code equals()}, they may also be
- * equal according to {@code ==}.</li>
- * </ul>
- * <p>
- * Users of {@code JsonValue} instances should ensure the following:
- * <ul>
- * <li> When two instances of {@code JsonValue} are equal (according to {@code equals()}), users
- * should not attempt to distinguish between their identities, whether directly via reference
- * equality or indirectly via an appeal to synchronization, identity hashing,
- * serialization, or any other identity-sensitive mechanism.</li>
- * <li> Synchronization on instances of {@code JsonValue} is strongly discouraged,
- * because the programmer cannot guarantee exclusive ownership of the
- * associated monitor.</li>
- * </ul>
+ * @implSpec A class implementing a non-sealed {@code JsonValue} sub-interface must adhere
+ * to the <a href="../../../java/lang/doc-files/ValueBased.html">value-based</a>
+ * class requirements.
  *
  * @since 99
  */
