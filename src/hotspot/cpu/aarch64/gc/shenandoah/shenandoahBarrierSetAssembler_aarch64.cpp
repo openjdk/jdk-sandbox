@@ -47,6 +47,12 @@
 
 #define __ masm->
 
+#ifdef PRODUCT
+#define BLOCK_COMMENT(str) /* nothing */
+#else
+#define BLOCK_COMMENT(str) __ block_comment(str)
+#endif
+
 void ShenandoahBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, bool is_oop,
                                                        Register src, Register dst, Register count, RegSet saved_regs) {
   if (is_oop) {
@@ -730,23 +736,26 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop_c2(const MachNode* node,
                                                    Register newval, Register res,
                                                    Register tmp1, Register tmp2,
                                                    bool acquire, bool release, bool weak, bool exchange) {
+
+  BLOCK_COMMENT("cmpxchg_oop_c2 {");
   assert(res != noreg, "need result register");
   assert_different_registers(oldval, tmp1, tmp2);
   assert_different_registers(newval, tmp1, tmp2);
 
   // Remember oldval for retry logic in slow path. We need to do it here,
   // because it will be overwritten by the fast-path CAS.
-  if (ShenandoahCASBarrier) {
-    __ mov(tmp2, oldval);
-  }
+  //if (ShenandoahCASBarrier) {
+  //  __ mov(tmp2, oldval);
+  //}
 
   // Fast-path: Try to CAS optimistically. If successful, then we are done.
   // EQ flag set iff success. result holds value fetched.
   Assembler::operand_size size = UseCompressedOops ? Assembler::word : Assembler::xword;
-  __ cmpxchg(addr, oldval, newval, size, acquire, release, weak, exchange ? res : noreg);
+  __ cmpxchg(addr, oldval, newval, size, acquire, release, weak, res);
 
   // If we need a boolean result out of CAS, set the flag appropriately and promote the result.
   // This would be the final result if we do not go slow.
+  __ mov(tmp2, res);
   if (!exchange) {
     __ cset(res, Assembler::EQ);
   }
@@ -763,6 +772,7 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop_c2(const MachNode* node,
     // On success, we do not need any additional handling.
     __ br(Assembler::EQ, *slow_stub->continuation());
 
+
     // If GC is in progress, it is likely we need additional handling for false negatives.
     Address gc_state(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ ldrb(tmp1, gc_state);
@@ -771,6 +781,8 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop_c2(const MachNode* node,
     // Slow stub re-enters with result set correctly.
     __ bind(*slow_stub->continuation());
   }
+
+  BLOCK_COMMENT("} cmpxchg_oop_c2");
 }
 
 #undef __
@@ -890,6 +902,7 @@ void ShenandoahCASBarrierMidStubC2::emit_code(MacroAssembler& masm) {
 }
 
 void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
+  BLOCK_COMMENT("ShenandoahCASBarrierSlowStubC2 {");
   __ bind(*entry());
 
   // CAS has failed because the value held at addr does not match expected.
@@ -952,14 +965,17 @@ void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
   // Try to CAS again with the original expected value.
   // At this point, there can no longer be false negatives.
   __ pop(to_save, sp);
+  __ mov(_expected, _tmp2);
 
   Assembler::operand_size size = UseCompressedOops ? Assembler::word : Assembler::xword;
-  __ cmpxchg(_addr_reg, _tmp2, _new_val, size, _acquire, _release, _weak, _cae ? _result : noreg);
+  __ cmpxchg(_addr_reg, _expected, _new_val, size, _acquire, _release, _weak, _cae ? _result : noreg);
 
   if (!_cae) {
     __ cset(_result, Assembler::EQ);
   }
   __ b(*continuation());
+
+  BLOCK_COMMENT("} ShenandoahCASBarrierSlowStubC2");
 }
 #undef __
 #define __ masm->
