@@ -734,21 +734,17 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop_c2(const MachNode* node,
   assert_different_registers(oldval, tmp1, tmp2);
   assert_different_registers(newval, tmp1, tmp2);
 
-  // Remember oldval for retry logic in slow path. We need to do it here,
-  // because it will be overwritten by the fast-path CAS.
-  if (ShenandoahCASBarrier) {
-    __ mov(tmp2, oldval);
-  }
-
   // Fast-path: Try to CAS optimistically. If successful, then we are done.
-  // EQ flag set iff success. result holds value fetched.
+  // EQ flag set iff success. 'tmp2' holds value fetched.
   Assembler::operand_size size = UseCompressedOops ? Assembler::word : Assembler::xword;
-  __ cmpxchg(addr, oldval, newval, size, acquire, release, weak, exchange ? res : noreg);
+  __ cmpxchg(addr, oldval, newval, size, acquire, release, weak, tmp2);
 
-  // If we need a boolean result out of CAS, set the flag appropriately and promote the result.
-  // This would be the final result if we do not go slow.
+  // If we need a boolean result out of CAS, set the flag appropriately.  This
+  // would be the final result if we do not go slow.
   if (!exchange) {
     __ cset(res, Assembler::EQ);
+  } else {
+    __ mov(res, tmp2);
   }
 
   if (ShenandoahCASBarrier) {
@@ -910,29 +906,23 @@ void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
 
   Label L_final;
 
-  // Fast-path stashed original oldval to tmp2 for us. We need to save it
-  // for the final retry. This frees up tmp2 for cset check below.
-  RegSet to_save = RegSet::of(_tmp2);
-  __ push(to_save, sp);
-
-  // (Compressed) failure witness is in _expected.
+  // (Compressed) failure witness is in _tmp2.
   // Unpack it and check if it is in collection set.
-  __ mov(_tmp1, _expected);
+  // We need to backup the compressed version to use in the LRB.
+  __ mov(_result, _tmp2);
   if (UseCompressedOops) {
-    __ decode_heap_oop(_tmp1);
+    __ decode_heap_oop(_tmp2);
   }
 
-  __ mov(_tmp2, ShenandoahHeap::in_cset_fast_test_addr());
-  __ lsr(_tmp1, _tmp1, ShenandoahHeapRegion::region_size_bytes_shift_jint());
-  __ ldrb(_tmp2, Address(_tmp2, _tmp1));
-  __ cbz(_tmp2, L_final);
+  __ mov(_tmp1, ShenandoahHeap::in_cset_fast_test_addr());
+  __ lsr(_tmp2, _tmp2, ShenandoahHeapRegion::region_size_bytes_shift_jint());
+  __ ldrb(_tmp1, Address(_tmp1, _tmp2));
+  __ cbz(_tmp1, L_final);
 
   {
     SaveLiveRegisters save_registers(&masm, this);
     // Load up failure witness again.
-    if (c_rarg0 != _expected) {
-      __ mov(c_rarg0, _expected);
-    }
+    __ mov(c_rarg0, _result);
     if (UseCompressedOops) {
       __ decode_heap_oop(c_rarg0);
     }
@@ -943,18 +933,14 @@ void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
     } else {
       __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong), 2);
     }
-    // We have called LRB to fix up the heap location. We do not care about its result,
-    // as we will just try to CAS the location again.
+    // We have called LRB to fix up the heap location. We do not care about its
+    // result, as we will just try to CAS the location again.
   }
 
   __ bind(L_final);
 
-  // Try to CAS again with the original expected value.
-  // At this point, there can no longer be false negatives.
-  __ pop(to_save, sp);
-
   Assembler::operand_size size = UseCompressedOops ? Assembler::word : Assembler::xword;
-  __ cmpxchg(_addr_reg, _tmp2, _new_val, size, _acquire, _release, _weak, _cae ? _result : noreg);
+  __ cmpxchg(_addr_reg, _expected, _new_val, size, _acquire, _release, _weak, _result);
 
   if (!_cae) {
     __ cset(_result, Assembler::EQ);
