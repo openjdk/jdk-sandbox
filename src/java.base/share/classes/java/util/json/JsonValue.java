@@ -168,9 +168,9 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      * is not an instance of {@code JsonNull}, otherwise an empty {@code Optional}}
      *
      * @implSpec
-     * The default implementation checks if this {@code JsonValue} is an instance
-     * of {@code JsonNull} and if so returns the result of invoking {@link Optional#empty},
-     * returns the result of invoking {@link Optional#of} with this {@code JsonValue} as the argument.
+     * The default implementation returns {@link Optional#empty()} if this
+     * {@code JsonValue} is an instance of {@code JsonNull}; otherwise
+     * {@link Optional#of(Object)} given this {@code JsonValue}.
      */
     default Optional<JsonValue> valueOrNull() {
         return switch (this) {
@@ -238,10 +238,9 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      * {@return the {@code JsonValue} associated with the given member name of a {@code JsonObject}}
      *
      * @implSpec
-     * The default implementation obtains a {@code JsonValue} that is the result of the
-     * invoking {@link Map#get} within the given member name on the result of invoking
-     * {@link JsonValue#members()}, and returns that {@code JsonValue} if not {@code null},
-     * otherwise throws {@code JsonAssertionException}.
+     * The default implementation obtains a {@code JsonValue} which is the result
+     * of invoking {@link #members()}{@code .get(name)}. If {@code name} is absent,
+     * {@code JsonAssertionException} is thrown.
      *
      * @param name the member name
      * @throws NullPointerException if the member name is {@code null}
@@ -262,10 +261,8 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      * name of a {@code JsonObject}, otherwise if there is no association an empty {@code Optional}}
      *
      * @implSpec
-     * The default implementation obtains a {@code JsonValue} that is the result of the
-     * invoking {@link Map#get} within the given member name on the result of invoking
-     * {@link JsonValue#members()}, and returns result of invoking {@link Optional#ofNullable}
-     * with that {@code JsonValue}.
+     * The default implementation obtains an {@code Optional<JsonValue>} by invoking {@link
+     * #members()}{@code .get(name)}, which is then passed to {@link Optional#ofNullable}.
      *
      * @param name the member name
      * @throws NullPointerException if the member name is {@code null}
@@ -280,9 +277,9 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      * {@return the {@code JsonValue} associated with the given index of a {@code JsonArray}}
      *
      * @implSpec
-     * The default implementation returns the result of invoking {@link List#get} with the given index
-     * on the result of invoking {@link JsonValue#elements()}, otherwise if the index is out of bounds
-     * throws {@code JsonAssertionException}.
+     * The default implementation obtains a {@code JsonValue} which is the result
+     * of invoking {@link #elements()}{@code .get(index)}. If {@code index} is
+     * out of bounds, {@code JsonAssertionException} is thrown.
      *
      * @param index the index of the array
      * @throws JsonAssertionException if this {@code JsonValue} is not an instance of a {@code JsonArray}
