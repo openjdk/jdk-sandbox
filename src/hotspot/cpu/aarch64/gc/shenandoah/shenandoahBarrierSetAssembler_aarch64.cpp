@@ -629,11 +629,13 @@ void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, Ma
   // Check if GC marking is in progress or we are handling a weak reference, otherwise we don't have to do anything.
   bool is_strong = (node->barrier_data() & ShenandoahBarrierStrong) != 0;
   if (is_strong) {
-    __ tbnz(rscratch1, ShenandoahHeap::HAS_FORWARDED_BITPOS, *stub->entry());
+    __ tbz(rscratch1, ShenandoahHeap::HAS_FORWARDED_BITPOS, *stub->continuation());
+    __ b(*stub->entry());
   } else {
     static_assert(ShenandoahHeap::HAS_FORWARDED_BITPOS == 0, "Relied on in LRB check below.");
     __ orr(tmp, rscratch1, rscratch1, Assembler::LSR, ShenandoahHeap::WEAK_ROOTS_BITPOS);
-    __ tbnz(tmp, ShenandoahHeap::HAS_FORWARDED_BITPOS, *stub->entry());
+    __ tbz(tmp, ShenandoahHeap::HAS_FORWARDED_BITPOS, *stub->continuation());
+    __ b(*stub->entry());
   }
 
   __ bind(*stub->continuation());
@@ -832,8 +834,6 @@ void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
   if (_addr != noreg) {
     __ load_heap_oop(_preval, Address(_addr, 0), noreg, noreg, AS_RAW);
   }
-  // Is the previous value null?
-  // __ cbz(_preval, *continuation());
 
   Address index(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
