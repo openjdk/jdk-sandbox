@@ -168,6 +168,13 @@ public class TestJsonNumber {
             assertEquals(JsonNumber.of("0.1").toDouble(), 0.1d);
             assertEquals(JsonNumber.of("1e0").toDouble(), 1d);
             assertEquals(JsonNumber.of("1.7976931348623157E308").toDouble(), Double.MAX_VALUE);
+
+            assertThrows(JsonParseException.class, () -> JsonNumber.of("foo"));
+            assertThrows(JsonParseException.class, () -> JsonNumber.of("true"));
+            assertThrows(JsonParseException.class, () -> JsonNumber.of("\"foo\""));
+            assertThrows(JsonParseException.class, () -> JsonNumber.of("null"));
+            assertThrows(JsonParseException.class, () -> JsonNumber.of("[1, 2]"));
+            assertThrows(JsonParseException.class, () -> JsonNumber.of("{\"foo\": 42}"));
         }
 
         @Test

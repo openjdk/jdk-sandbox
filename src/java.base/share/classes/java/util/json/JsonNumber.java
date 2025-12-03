@@ -130,7 +130,10 @@ public non-sealed interface JsonNumber extends JsonValue {
      *
      * @implNote This is equivalent to calling:
      * {@snippet lang = "java":
-     * ((JsonNumber) Json.parse(num))
+     * if (Json.parse(num) instanceof JsonNumber jn) {
+     *     return jn;
+     * }
+     * // throws JsonParseException
      * }
      *
      * @param num the given {@code String} value.
@@ -140,8 +143,7 @@ public non-sealed interface JsonNumber extends JsonValue {
      */
     static JsonNumber of(String num) {
         try {
-            var parsed = Json.parse(num);
-            if (parsed instanceof JsonNumber jn) {
+            if (Json.parse(num) instanceof JsonNumber jn) {
                 return jn;
             }
         } catch (JsonParseException _) {}
