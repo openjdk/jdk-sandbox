@@ -740,13 +740,13 @@ instruct getAndSetNAcq_shenandoah(indirect mem, iRegN newval, iRegNNoSp preval, 
   ins_pipe(pipe_serial);
 %}
 
-instruct loadP_shenandoah(iRegPNoSp dst, indirect mem, rFlagsReg cr)
+instruct loadP_shenandoah(iRegPNoSp dst, indirect mem, iRegPNoSp tmp, rFlagsReg cr)
 %{
   // This instruction does not need an acquiring counterpart because it is only
   // used for reference loading (Reference::get()).
   match(Set dst (LoadP mem));
   predicate(UseShenandoahGC && !needs_acquiring_load(n) && n->as_Load()->barrier_data() != 0);
-  effect(TEMP_DEF dst, KILL cr);
+  effect(TEMP_DEF dst, TEMP tmp, KILL cr);
   ins_cost(4 * INSN_COST);
   format %{ "ldr  $dst, $mem\t# ptr" %}
   ins_encode %{
@@ -756,10 +756,11 @@ instruct loadP_shenandoah(iRegPNoSp dst, indirect mem, rFlagsReg cr)
                  $dst$$Register /* pre_val */);
 
     bool maybe_null = (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull);
+
     ShenandoahBarrierSet::assembler()->load_ref_barrier_c2(this, masm,
                                                            $dst$$Register /* obj */,
                                                            $mem$$Register /* addr */,
-                                                           noreg /* noreg - not needed */,
+                                                           $tmp$$Register /* tmp */,
                                                            false /* narrow */,
                                                            maybe_null);
   %}
