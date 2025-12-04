@@ -764,7 +764,8 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop_c2(const MachNode* node,
     // If GC is in progress, it is likely we need additional handling for false negatives.
     Address gc_state(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ ldrb(tmp1, gc_state);
-    __ tbnz(tmp1, ShenandoahHeap::HAS_FORWARDED_BITPOS, *slow_stub->entry());
+    __ tbz(tmp1, ShenandoahHeap::HAS_FORWARDED_BITPOS, *slow_stub->continuation());
+    __ b(*slow_stub->entry());
 
     // Slow stub re-enters with result set correctly.
     __ bind(*slow_stub->continuation());
