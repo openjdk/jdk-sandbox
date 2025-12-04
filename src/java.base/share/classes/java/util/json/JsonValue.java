@@ -142,9 +142,9 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      * is not an instance of {@code JsonNull}, otherwise an empty {@code Optional}}
      *
      * @implSpec
-     * The default implementation returns {@link Optional#empty()} if this
+     * The default implementation returns {@link Optional#empty} if this
      * {@code JsonValue} is an instance of {@code JsonNull}; otherwise
-     * {@link Optional#of(Object)} given this {@code JsonValue}.
+     * {@link Optional#of} given this {@code JsonValue}.
      */
     default Optional<JsonValue> valueOrNull() {
         return switch (this) {
