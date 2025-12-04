@@ -224,6 +224,7 @@ public class JCmdRevival {
         int expectedExit = 0;
 
         // Verify specific jcmd output:
+        try {
         switch (command) {
             case "Compiler.CodeHeap_Analytics": {
                 // out.shouldContain("buffer blob         flush_icache_stub");
@@ -366,6 +367,12 @@ public class JCmdRevival {
             }
             default: {
                 throw new RuntimeException("Unknown command being tested: '" + command + "'");
+            }
+            }
+        } finally {
+            // Show an unusual jcmd exit code in finally, in case a check above throws (and skips exit value assert below).
+            if (e != expectedExit) {
+                System.err.println("Test '" + command + "' exits with: " + e);
             }
         }
         Asserts.assertEquals(expectedExit, e, "Unexpected jcmd return code");

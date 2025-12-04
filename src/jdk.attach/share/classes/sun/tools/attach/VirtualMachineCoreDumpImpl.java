@@ -172,8 +172,8 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
                         System.err.println(out);
                         String err = drain(p, errReader);
                         System.err.println(err);
+                        System.out.println("(Retrying process revival)");
                     }
-                    System.out.println("RETRY (" + e + ") ");
                     continue; // ...and retry.
                 } else if (e != 0) {
                     // Other errors
