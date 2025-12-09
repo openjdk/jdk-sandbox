@@ -69,10 +69,10 @@ public non-sealed interface JsonNumber extends JsonValue {
 
     /**
      * {@return {@code this} as a {@code long}}
-     * <p>
-     * This method returns a {@code long} as long as it can be translated
-     * from the numerical value of this JsonNumber without loss. This occurs, even
-     * if the string representation contains an exponent or a fractional part
+     *
+     * This method returns a {@code long} if it can be translated
+     * from the string representation of this {@code JsonNumber} without loss.
+     * This occurs, even if the string contains an exponent or a fractional part
      * consisting of only zero digits. For example, both the JSON number
      * "123.0" and "1.23e2" produce a {@code long} value of "123". A {@code
      * JsonAssertionException} is thrown when the numeric value cannot be represented
@@ -86,6 +86,10 @@ public non-sealed interface JsonNumber extends JsonValue {
 
     /**
      * {@return {@code this} as a {@code double}}
+     *
+     * This method returns a finite {@code double} if it can be translated from the
+     * string representation of this {@code JsonNumber} by way of {@link
+     * Double#parseDouble(String)}.
      *
      * @throws JsonAssertionException if this {@code JsonValue} cannot
      *      be represented as a finite {@code double}.
