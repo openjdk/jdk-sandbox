@@ -47,6 +47,12 @@
 
 #define __ masm->
 
+#ifdef PRODUCT
+#define BLOCK_COMMENT(str) /* nothing */
+#else
+#define BLOCK_COMMENT(str) __ block_comment(str)
+#endif
+
 void ShenandoahBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, bool is_oop,
                                                        Register src, Register dst, Register count, RegSet saved_regs) {
   if (is_oop) {
@@ -611,6 +617,8 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop(MacroAssembler* masm,
 
 #ifdef COMPILER2
 void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, MacroAssembler* masm, Register obj, Register addr, Register tmp, bool narrow, bool maybe_null) {
+  assert_different_registers(obj, addr, tmp);
+  BLOCK_COMMENT("load_ref_barrier_c2 {");
   if (!ShenandoahLoadRefBarrierStubC2::needs_barrier(node)) {
     return;
   }
@@ -639,9 +647,11 @@ void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, Ma
   }
 
   __ bind(*stub->continuation());
+  BLOCK_COMMENT("} load_ref_barrier_c2");
 }
 
 void ShenandoahBarrierSetAssembler::load_ref_barrier_c3(const MachNode* node, MacroAssembler* masm, Register obj, Register addr, Register tmp, bool narrow, bool maybe_null, Register gc_state) {
+  BLOCK_COMMENT("load_ref_barrier_c3 {");
   if (!ShenandoahLoadRefBarrierStubC2::needs_barrier(node)) {
     return;
   }
@@ -668,6 +678,7 @@ void ShenandoahBarrierSetAssembler::load_ref_barrier_c3(const MachNode* node, Ma
   }
 
   __ bind(*stub->continuation());
+  BLOCK_COMMENT("} load_ref_barrier_c3");
 }
 
 void ShenandoahBarrierSetAssembler::satb_barrier_c3(const MachNode* node, MacroAssembler* masm, Register addr, Register pre_val, Register gc_state) {
@@ -732,9 +743,9 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop_c2(const MachNode* node,
                                                    Register newval, Register res,
                                                    Register tmp1, Register tmp2,
                                                    bool acquire, bool release, bool weak, bool exchange) {
+  BLOCK_COMMENT("cmpxchg_oop_c2 {");
   assert(res != noreg, "need result register");
-  assert_different_registers(oldval, tmp1, tmp2);
-  assert_different_registers(newval, tmp1, tmp2);
+  assert_different_registers(oldval, newval, addr, res, tmp1, tmp2);
 
   // Fast-path: Try to CAS optimistically. If successful, then we are done.
   // EQ flag set iff success. 'tmp2' holds value fetched.
@@ -770,12 +781,15 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop_c2(const MachNode* node,
     // Slow stub re-enters with result set correctly.
     __ bind(*slow_stub->continuation());
   }
+
+  BLOCK_COMMENT("} cmpxchg_oop_c2");
 }
 
 #undef __
 #define __ masm.
 
 void ShenandoahLoadRefBarrierStubC2::emit_code(MacroAssembler& masm) {
+  BLOCK_COMMENT("ShenandoahLoadRefBarrierStubC2::emit_code {");
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
   __ bind(*entry());
   Register obj = _obj;
@@ -826,6 +840,7 @@ void ShenandoahLoadRefBarrierStubC2::emit_code(MacroAssembler& masm) {
     __ encode_heap_oop(_obj);
   }
   __ b(*continuation());
+  BLOCK_COMMENT("} ShenandoahLoadRefBarrierStubC2::emit_code");
 }
 
 void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {

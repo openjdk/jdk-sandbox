@@ -321,7 +321,7 @@ instruct compareAndSwapNAcq_shenandoah(iRegINoSp res, indirect mem, iRegN oldval
 
 instruct compareAndExchangeN_shenandoah(iRegNNoSp res, indirect mem, iRegN oldval, iRegN newval, iRegPNoSp tmp1, iRegPNoSp tmp2, rFlagsReg cr) %{
   match(Set res (CompareAndExchangeN mem (Binary oldval newval)));
-  predicate(UseShenandoahGC && n->as_LoadStore()->barrier_data() != 0);
+  predicate(UseShenandoahGC && n->as_LoadStore()->barrier_data() != 0 && !needs_acquiring_load_exclusive(n));
   ins_cost(2 * VOLATILE_REF_COST);
   effect(TEMP_DEF res, TEMP tmp1, TEMP tmp2, KILL cr);
   format %{
@@ -330,11 +330,10 @@ instruct compareAndExchangeN_shenandoah(iRegNNoSp res, indirect mem, iRegN oldva
   ins_encode %{
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
     guarantee(UseCompressedOops, "must be compressed oops");
+    __ block_comment("compareAndExchangeN_shenandoah");
     if (ShenandoahSATBBarrierStubC2::needs_barrier(this)) {
       __ decode_heap_oop($tmp1$$Register, $oldval$$Register);
-      ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                   noreg /* obj */,
-                   $tmp1$$Register /* pre_val */);
+      ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm, noreg /* obj */, $tmp1$$Register /* pre_val */);
     }
     ShenandoahBarrierSet::assembler()->cmpxchg_oop_c2(this, masm,
                                                         $mem$$base$$Register,
@@ -358,6 +357,7 @@ instruct compareAndExchangeN_shenandoah(iRegNNoSp res, indirect mem, iRegN oldva
     ShenandoahBarrierSet::assembler()->card_barrier_c2(this, masm,
                                                        $mem$$Register /* addr */,
                                                        $tmp1$$Register /* tmp */);
+    __ block_comment("} compareAndExchangeN_shenandoah");
   %}
   ins_pipe(pipe_slow);
 %}
