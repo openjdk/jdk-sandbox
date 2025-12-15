@@ -745,7 +745,8 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop_c2(const MachNode* node,
                                                    bool acquire, bool release, bool weak, bool exchange) {
   BLOCK_COMMENT("cmpxchg_oop_c2 {");
   assert(res != noreg, "need result register");
-  assert_different_registers(oldval, newval, addr, res, tmp1, tmp2);
+  assert_different_registers(oldval, addr, res, tmp1, tmp2);
+  assert_different_registers(newval, addr, res, tmp1, tmp2);
 
   // Fast-path: Try to CAS optimistically. If successful, then we are done.
   // EQ flag set iff success. 'tmp2' holds value fetched.
