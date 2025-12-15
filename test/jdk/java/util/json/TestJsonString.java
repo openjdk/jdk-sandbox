@@ -172,9 +172,6 @@ public class TestJsonString {
                 var js = JsonString.of(String.valueOf((char)i));
                 Json.parse(js.toString());
                 JsonString.of(js.string());
-                js = (JsonString) Json.toJson(String.valueOf((char)i));
-                Json.parse(js.toString());
-                Json.toJson(js.string());
             }
         }
     }

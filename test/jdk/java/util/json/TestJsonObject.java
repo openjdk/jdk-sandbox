@@ -44,6 +44,7 @@ import java.util.json.Json;
 import java.util.json.JsonArray;
 import java.util.json.JsonBoolean;
 import java.util.json.JsonNull;
+import java.util.json.JsonNumber;
 import java.util.json.JsonObject;
 import java.util.json.JsonParseException;
 import java.util.json.JsonString;
@@ -86,9 +87,6 @@ public class TestJsonObject {
             assertEquals(JsonBoolean.of(false), jo.members().get("foo\t"));
             // jo factory
             jo = JsonObject.of(Map.of("foo\t", JsonBoolean.of(false)));
-            assertEquals(JsonBoolean.of(false), jo.members().get("foo\t"));
-            // untyped factory
-            jo = (JsonObject) Json.toJson(Map.of("foo\t", JsonBoolean.of(false)));
             assertEquals(JsonBoolean.of(false), jo.members().get("foo\t"));
         }
 
@@ -267,18 +265,11 @@ public class TestJsonObject {
                 """;
 
         @Test
-        void unexpectedTypeTest() {
-            var df = new DecimalFormat();
-            var exception = assertThrows(IllegalArgumentException.class, () -> Json.toJson(df));
-            assertEquals("DecimalFormat is not a recognized type", exception.getMessage());
-        }
-
-        @Test
         void emptyBuildTest() {
             var expectedJson = Json.parse(JSON_OBJ);
             var builtJson = new HashMap<String, JsonValue>();
-            builtJson.put("name", Json.toJson("Brian"));
-            builtJson.put("shoeSize", Json.toJson(10));
+            builtJson.put("name", JsonString.of("Brian"));
+            builtJson.put("shoeSize", JsonNumber.of(10));
             compareValueTypes(((JsonObject)expectedJson).members(), JsonObject.of(builtJson).members());
         }
 
@@ -309,9 +300,9 @@ public class TestJsonObject {
         @Test
         void ofFactoryTest() {
             HashMap<String, JsonValue> map = new HashMap<>();
-            map.put("foo", Json.toJson(5));
-            map.put("bar", Json.toJson("value"));
-            map.put("baz", Json.toJson(null));
+            map.put("foo", JsonNumber.of(5));
+            map.put("bar", JsonString.of("value"));
+            map.put("baz", JsonNull.of());
             compareValueTypes(JsonObject.of(map).members(),
                     ((JsonObject)Json.parse("{ \"foo\" : 5, \"bar\" : \"value\", \"baz\" : null}")).members());
         }
@@ -339,27 +330,6 @@ public class TestJsonObject {
         }
 
         @Test
-        void immutabilityUntypedTest() {
-            var map = new HashMap<String, String>();
-            map.put("foo", "foo");
-            var jo = (JsonObject) Json.toJson(map);
-            assertEquals(1, jo.members().size());
-            // Modifications to backed map should not change JsonObject
-            map.put("bar", "foo");
-            assertEquals(1, jo.members().size());
-            // Modifications to JsonObject members() should not be possible
-            assertThrows(UnsupportedOperationException.class,
-                    () -> jo.members().put("bar", JsonNull.of()),
-                    "Object members able to be modified");
-        }
-
-        @Test
-        void orderingUntypedTest() {
-            var jsonFromUntyped = Json.fromJson(Json.parse(JSON_WITH_SPACES));
-            assertEquals(JSON_NO_NEWLINE, Json.toJson(jsonFromUntyped).toString());
-        }
-
-        @Test
         void orderingOfTest() {
             var jsonFromOf = ((JsonArray)Json.parse(JSON_WITH_SPACES)).elements();
             assertEquals(JSON_NO_NEWLINE, JsonArray.of(jsonFromOf).toString());
@@ -373,35 +343,10 @@ public class TestJsonObject {
             // Check null key
             map.put(null, JsonNull.of());
             assertThrows(NullPointerException.class, () -> JsonObject.of(map));
-            assertThrows(IllegalArgumentException.class, () -> Json.toJson(map));
             map.clear();
             // Check null value
             map.put("foo", null);
             assertThrows(NullPointerException.class, () -> JsonObject.of(map));
-            assertDoesNotThrow(() -> Json.toJson(map));
-        }
-
-        @Test
-        void testUntyped() {
-            var doc = Json.parse(JSON_NO_NEWLINE);
-            var raw = Json.fromJson(doc);
-            System.out.println(raw);
-            System.out.println(Json.toJson(raw));
-
-            var m = HashMap.newHashMap(10);
-            m.put("3", 3);
-            m.put("4", Boolean.TRUE);
-            m.put("5", null);
-            var a = new ArrayList();
-            a.add(m);
-            a.add(null);
-            a.add("arrayElement");
-            a.add(Boolean.FALSE);
-            System.out.println(Json.toJson(a));
-            try {
-                Json.toJson(Map.of(1, 1));
-                throw new RuntimeException("non string key was sneaked in");
-            } catch (Exception _) {}
         }
 
         // Ensure decoded escape sequences are translated to valid JSON
@@ -413,8 +358,6 @@ public class TestJsonObject {
                 var sequence = Map.of("\\u" + String.format("%04x", i), JsonNull.of());
                 var jo = JsonObject.of(sequence).members();
                 JsonObject.of(jo);
-                jo = ((JsonObject)Json.toJson(sequence)).members();
-                Json.toJson(jo);
             }
         }
     }

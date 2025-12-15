@@ -49,7 +49,6 @@ import java.util.json.JsonParseException;
 import java.util.json.JsonString;
 import java.util.json.JsonValue;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -105,21 +104,6 @@ public class TestJsonArray {
             }
         }
 
-        // Test that the Json::toJson and JsonArray::of factories
-        // take the expected element types
-        @Test
-        void testToJson() {
-            var untyped = Json.toJson(Arrays.asList(1, null, false, "test"));
-            var typed = JsonArray.of(List.of(JsonNumber.of(1), JsonNull.of(),
-                    JsonBoolean.of(false), JsonString.of("test"))).elements();
-            if (untyped instanceof JsonArray ja) {
-                // only compare types
-                compareTypes(typed, ja.elements());
-            } else {
-                throw new RuntimeException("JsonArray expected");
-            }
-        }
-
         private static void compareTypes(List<JsonValue> expected, List<JsonValue> actual) {
             assertEquals(expected.size(), actual.size());
             for (int index = 0; index < expected.size(); index++) {
@@ -143,21 +127,6 @@ public class TestJsonArray {
         }
 
         @Test
-        void immutabilityUntypedTest() {
-            var list = new ArrayList<String>();
-            list.add("foo");
-            var ja = (JsonArray) Json.toJson(list);
-            assertEquals(1, ja.elements().size());
-            // Modifications to backed list should not change JsonArray
-            list.add("foo");
-            assertEquals(1, ja.elements().size());
-            // Modifications to JsonArray elements() should throw
-            assertThrows(UnsupportedOperationException.class,
-                    () -> ja.elements().add(JsonNull.of()),
-                    "Array values able to be modified");
-        }
-
-        @Test
         void nullTest() {
             // null list to of factory
             assertThrows(NullPointerException.class, () -> JsonArray.of(null));
@@ -165,8 +134,6 @@ public class TestJsonArray {
             list.add(null);
             // JsonArray.of() should throw as typed to JsonValue
             assertThrows(NullPointerException.class, () -> JsonArray.of(list));
-            // Json.toJson() should map null value to JsonNull
-            assertDoesNotThrow(() -> Json.toJson(list));
         }
 
         private static final String json =
@@ -185,23 +152,11 @@ public class TestJsonArray {
                 ]
                 """;
 
-        private static final List<Object> untyped = Arrays.asList(
-                Map.ofEntries(Map.entry("name1", "val1"),
-                        Map.entry("name2", 10),
-                        Map.entry("name3", Boolean.TRUE),
-                        Map.entry("name4", List.of(1, 2, 3))),
-                "test",
-                30,
-                Boolean.FALSE,
-                null
-        );
-
         @Test
         public void testArrayEquality() {
             JsonArray jsonArray = (JsonArray) Json.parse(json);
             for (int i = 0; i < jsonArray.elements().size(); i += 2) {
                 assertEquals(jsonArray.elements().get(i), jsonArray.elements().get(i + 1));
-                assertEquals(jsonArray.elements().get(i), Json.toJson(untyped.get(i / 2)));
             }
         }
     }

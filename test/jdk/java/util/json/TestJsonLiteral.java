@@ -99,19 +99,8 @@ public class TestJsonLiteral {
         }
 
         @Test
-        void booleanUntypedTest() {
-            assertEquals(Json.parse("true"), Json.toJson(true));
-            assertEquals(Json.parse("false"), Json.toJson(false));
-        }
-
-        @Test
         void nullOfTest() {
             assertEquals(Json.parse("null"), JsonNull.of());
-        }
-
-        @Test
-        void nullUntypedTest() {
-            assertEquals(Json.parse("null"), Json.toJson(null));
         }
     }
 }

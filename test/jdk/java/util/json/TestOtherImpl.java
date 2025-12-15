@@ -55,13 +55,6 @@ public class TestOtherImpl {
     }
 
     @Test
-    void fromJsonTest() {
-        assertEquals(Json.fromJson(STANDARD_JSON_STRING), Json.fromJson(ALT_JSON_STRING));
-        // There will be no toJsonTest(), we do not want to offer a way
-        // to provide non-standard implementations of product types
-    }
-
-    @Test
     void displayStringTest() {
         assertEquals(Json.toDisplayString(STANDARD_JSON_STRING, 2), Json.toDisplayString(ALT_JSON_STRING, 2));
         // Wrap it in a JsonObject, and check display string equality again
