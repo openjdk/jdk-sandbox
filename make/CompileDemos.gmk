@@ -87,6 +87,7 @@ COPY_TO_IMAGE := *.html *.txt *.png *.xml README*
 # EXTRA_MANIFEST_ATTR   Extra manifest attribute
 # SKIP_COMPILATION   Skip Java compilation iff true
 # DISABLED_WARNINGS Additional disabled warnings
+# JAVAC_FLAGS javac flags to append to the default ones.
 SetupBuildDemo = $(NamedParamsMacroTemplate)
 define SetupBuildDemoBody
   ifeq ($$($1_SRC_DIR), )
@@ -128,6 +129,7 @@ define SetupBuildDemoBody
         EXTRA_MANIFEST_ATTR := $$($1_EXTRA_MANIFEST_ATTR), \
         EXCLUDE_FILES := $$($1_EXCLUDE_FILES), \
         DISABLED_WARNINGS := $$($1_DISABLED_WARNINGS), \
+        JAVAC_FLAGS := $$($1_JAVAC_FLAGS), \
     ))
 
     $1 += $$(BUILD_DEMO_$1)
@@ -180,7 +182,8 @@ $(eval $(call SetupBuildDemo, SwingSet2, \
     DEMO_SUBDIR := jfc, \
     EXTRA_COPY_TO_JAR := .java, \
     EXTRA_MANIFEST_ATTR := SplashScreen-Image: resources/images/splash.png, \
-    DISABLED_WARNINGS := rawtypes deprecation unchecked static serial cast this-escape, \
+    DISABLED_WARNINGS := rawtypes deprecation unchecked static serial cast this-escape preview, \
+    JAVAC_FLAGS := --enable-preview, \
 ))
 
 $(eval $(call SetupBuildDemo, Font2DTest, \

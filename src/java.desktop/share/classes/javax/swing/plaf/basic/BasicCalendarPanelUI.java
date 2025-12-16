@@ -149,6 +149,7 @@ public class BasicCalendarPanelUI extends CalendarPanelUI {
         abstractCalendarPanel = null;
         calendarPanel = null;
         handler = null;
+        c.removeAll();
     }
 
     /**

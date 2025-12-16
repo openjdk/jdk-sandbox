@@ -170,6 +170,7 @@ public class BasicDatePickerUI extends DatePickerUI {
         uninstallKeyboardActions();
         datePicker = null;
         handler = null;
+        c.removeAll();
     }
 
     private JFormattedTextField createDateFormatter() {

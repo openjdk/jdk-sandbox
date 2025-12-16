@@ -55,6 +55,7 @@ public class SwingSet2 extends JPanel {
       "ButtonDemo",
       "ColorChooserDemo",
       "ComboBoxDemo",
+      "DatePickerDemo",
       "FileChooserDemo",
       "HtmlDemo",
       "ListDemo",
