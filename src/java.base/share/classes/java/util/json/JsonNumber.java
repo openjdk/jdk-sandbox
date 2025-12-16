@@ -71,7 +71,9 @@ public non-sealed interface JsonNumber extends JsonValue {
      * {@return {@code this} as a {@code long}}
      *
      * This method returns a {@code long} if it can be translated
-     * from the string representation of this {@code JsonNumber} without loss.
+     * from the string representation of this {@code JsonNumber}. That is,
+     * it can be expressed as a whole number and is within the range of {@link
+     * Long#MIN_VALUE} and {@link Long#MAX_VALUE}.
      * This occurs, even if the string contains an exponent or a fractional part
      * consisting of only zero digits. For example, both the JSON number
      * "123.0" and "1.23e2" produce a {@code long} value of "123". A {@code
@@ -88,8 +90,11 @@ public non-sealed interface JsonNumber extends JsonValue {
      * {@return {@code this} as a {@code double}}
      *
      * This method returns a finite {@code double} if it can be translated from the
-     * string representation of this {@code JsonNumber} by way of {@link
-     * Double#parseDouble(String)}.
+     * string representation of this {@code JsonNumber}.
+     *
+     * @implNote The JDK reference implementation uses {@link
+     * Double#parseDouble(String)} to perform the conversion from string to
+     * double.
      *
      * @throws JsonAssertionException if this {@code JsonValue} cannot
      *      be represented as a finite {@code double}.
