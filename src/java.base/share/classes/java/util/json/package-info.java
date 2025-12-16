@@ -24,34 +24,10 @@
  */
 
 /**
- * Provides APIs for parsing JSON text, creating {@code JsonValue}s, and
- * offering a mapping between a {@code JsonValue} and its corresponding Java Object.
+ * Provides APIs for parsing JSON text, retrieving JSON values in the text, and
+ * generating JSON text.
  *
- * <h2><a>Design</a></h2>
- * This API is designed so that JSON values are composed as Algebraic
- * Data Types (ADTs) defined by interfaces. Each JSON value is represented as a
- * sealed {@code JsonValue} <i>sum</i> type, which can be
- * pattern-matched into one of the following <i>product</i> types: {@code JsonObject},
- * {@code JsonArray}, {@code JsonString}, {@code JsonNumber}, {@code JsonBoolean},
- * {@code JsonNull}. These product types are defined as non-sealed interfaces that
- * allow flexibility in the implementation of the type. For example, {@code JsonArray}
- * is defined as follows:
- * <pre>{@code public non-sealed interface JsonArray extends JsonValue}</pre>
- *
- * <p> This API relies on pattern matching to allow for the extraction of a
- * JSON Value in a <i>single and class safe expression</i> as follows:
- * {@snippet lang = java:
- * JsonValue doc = Json.parse(text);
- * if (doc instanceof JsonObject o && o.members() instanceof Map<String, JsonValue> members
- *     && members.get("name") instanceof JsonString js && js.string() instanceof String name
- *     && members.get("age") instanceof JsonNumber jn && jn.number() instanceof long age) {
- *         // can use both "name" and "age" from a single expression
- * }
- *}
- *
- * Both {@code JsonValue} instances and their underlying values are immutable.
- *
- * <h2><a>Parsing</a></h2>
+ * <h2><a>Parsing JSON documents</a></h2>
  *
  * Parsing produces a {@code JsonValue} from JSON text and is done using either
  * {@link Json#parse(java.lang.String)} or {@link Json#parse(char[])}. A successful
@@ -63,9 +39,23 @@
  * <p>For the reference JDK implementation, {@code JsonValue}s created via parsing
  * procure their underlying values <i>lazily</i>.
  *
- * <h2><a>Formatting</a></h2>
+ * <h2><a>Retrieving JSON values</a></h2>
  *
- * Formatting of a {@code JsonValue} is performed with either {@link
+ * Retrieving values from a JSON document involves two steps: first navigating
+ * the document structure using a chain of "access" methods, and then converting
+ * the result to the desired type using a "conversion" method. Typical usage is:
+ * {@snippet lang=java:
+ * var name = doc.get("foo").get("bar").element(0).string();
+ * }
+ * This example demonstrates an access-method chain that retrieves the "foo"
+ * member from the root object, then its "bar" member, followed by the element
+ * at index 0, ultimately reaching a leaf string value. The final call to the
+ * string() conversion method returns the corresponding String object. For more
+ * details on these methods, see {@link JsonValue JsonValue}.
+ *
+ * <h2><a>Generating JSON documents</a></h2>
+ *
+ * Generating a {@code JsonValue} is performed with either {@link
  * JsonValue#toString()} or {@link Json#toDisplayString(JsonValue, int)}.
  * These methods produce formatted String representations of a {@code JsonValue}.
  * The returned text adheres to the JSON grammar defined in RFC 8259.
