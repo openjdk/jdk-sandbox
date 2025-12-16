@@ -110,7 +110,9 @@ public non-sealed interface JsonNumber extends JsonValue {
      * @param num the given {@code double} value.
      * @return a JSON number created from a {@code double} value
      * @throws IllegalArgumentException if the given {@code double} value
-     * is {@link Double#isNaN() NaN} or is {@link Double#isInfinite() infinite}.
+     * is not a finite floating-point value ({@link Double#NaN NaN},
+     * {@link Double#POSITIVE_INFINITY positive infinity}, or
+     * {@link Double#NEGATIVE_INFINITY negative infinity}).
      */
     static JsonNumber of(double num) {
         if (!Double.isFinite(num)) {
