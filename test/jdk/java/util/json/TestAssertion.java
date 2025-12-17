@@ -130,7 +130,7 @@ public class TestAssertion {
     void rootArrayTest() {
         assertEquals("JsonObject member \"asge\" does not exist. Path: \"[1\". Location: line 4, position 2.",
                 assertThrows(JsonAssertionException.class,
-                        () -> JSON_ROOT_ARRAY.element(1).get("asge").number()).getMessage());
+                        () -> JSON_ROOT_ARRAY.element(1).get("asge").toLong()).getMessage());
     }
 
     // Ensure member name with escapes works
