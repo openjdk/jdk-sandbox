@@ -57,11 +57,6 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     }
 
     @Override
-    public JsonNumber number() {
-        return this;
-    }
-
-    @Override
     public long toLong() {
         return numLong.get().orElseThrow(() ->
                 Utils.composeError(this, this + " cannot be represented as a long."));

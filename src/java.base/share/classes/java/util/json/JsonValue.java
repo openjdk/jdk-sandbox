@@ -80,18 +80,6 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
     }
 
     /**
-     * {@return this {@code JsonValue} as a {@code JsonNumber}}
-     *
-     * @implSpec
-     * The default implementation throws {@code JsonAssertionException}.
-     *
-     * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonNumber}.
-     */
-    default JsonNumber number() {
-        throw Utils.composeTypeError(this, "JsonNumber");
-    }
-
-    /**
      * {@return this {@code JsonValue} as a {@code long}}
      *
      * @implSpec
