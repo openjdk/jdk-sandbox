@@ -38,13 +38,14 @@ import jdk.internal.util.json.JsonParser;
 import jdk.internal.util.json.Utils;
 
 /**
- * This class provides static methods for producing and manipulating a {@link JsonValue}.
+ * This class provides static methods for parsing and generating JSON documents
+ *
  * <p>
  * {@link #parse(String)} and {@link #parse(char[])} produce a {@code JsonValue}
  * by parsing data adhering to the JSON syntax defined in RFC 8259.
  * <p>
- * {@link #toDisplayString(JsonValue, int)} is a formatter that produces a
- * representation of the JSON value suitable for display.
+ * {@link #toDisplayString(JsonValue, int)} is a generator that produces a
+ * JSON text representation of the given {@code JsonValue} suitable for display.
  *
  * @spec https://datatracker.ietf.org/doc/html/rfc8259 RFC 8259: The JavaScript
  *      Object Notation (JSON) Data Interchange Format

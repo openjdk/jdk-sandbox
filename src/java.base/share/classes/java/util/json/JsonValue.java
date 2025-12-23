@@ -34,7 +34,63 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * The interface that represents a JSON value.
+ * The interface that represents a JSON value. The methods in this
+ * interface provide the means to navigate the JSON structure and
+ * retrieve the values represented in the JSON element, or to generate
+ * JSON syntax conforming text.
+ * <h2>Navigating JSON documents</h2>
+ * Navigating the JSON document structure usually consists of two phases.
+ * First phase is to reach the desired leaf JSON element, using "access"
+ * methods; {@link #get(String)} for JSON object and {@link #element(int)}
+ * for JSON array. Suppose we have the JSON document:
+ * {@snippet lang=java:
+ * var json = Json.parse("""
+ *     { "foo": ["bar", true, 42], "baz": null }
+ *     """);
+ * }
+ * then
+ * {@snippet lang=java:
+ * JsonValue foo0 = json.get("foo").element(0);
+ * }
+ * The {@code foo0} holds the leaf JSON value, which is a JSON string of "bar".
+ * Once the navigation with "access" methods reaches to the leaf JSON value, use
+ * one of "conversion" methods, which correspond to each JSON value type, to
+ * retrieve the Java value.
+ * <p>
+ * The next phase is to retrieve a Java value from the leaf JSON value.
+ * {@snippet lang=java:
+ * String bar = foo0.string();
+ * }
+ * This example retrieves the Java String of {@code bar} from the leaf JSON value {@code foo0}.
+ * If an incorrect "conversion" method is used, for example {@code foo0.bool()}, a
+ * {@code JsonAssertionException} is thrown.
+ * <h2>Subtypes of JsonValue</h2>
+ * There are subtypes of JsonValue that represent JSON types. For example {@code JsonString} for
+ * JSON string type. If the leaf JSON value type is unknown, it can be retrieved such as:
+ * {@snippet lang=java:
+ * switch (json.get("foo")) {
+ *     case JsonString js -> js.string(); // handle the value as JSON string
+ *     case JsonArray ja -> ja.element(0).string(); // handle the value as JSON array
+ *     default -> throw new JsonAssertionException("unexpected type");
+ * }
+ * }
+ * <h2>Missing Object Members</h2>
+ * There are cases where the member in a JSON object is optional. For those cases, there
+ * is an access method that returns an Optional of JsonValue, for example:
+ * {@snippet lang=java:
+ * json.getOrAbsent("foo")
+ *     .ifPresent(IO::println)
+ * }
+ * This example only prints the value if the member named "foo" exists.
+ * <h2>Handling of null</h2>
+ * In some JSON documents, sometimes the {@code null} value represents absent. For those cases,
+ * there is an access method that returns an Optional of JsonValue, for example:
+ * {@snippet lang=java:
+ * json.get("baz")
+ *     .valueOrNull()
+ *     .ifPresent(IO::println)
+ * }
+ * This example only prints the value if the member named "baz" is not a JSON null.
  * <p>
  * Instances of {@code JsonValue} are immutable and thread safe.
  * <p>
@@ -63,9 +119,6 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      * @see Json#toDisplayString(JsonValue, int)
      */
     String toString();
-
-
-    // Accessors to content of leaf values
 
     /**
      * {@return the {@code boolean} value represented by a {@code JsonBoolean}}
@@ -117,8 +170,6 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
         throw Utils.composeTypeError(this, "JsonString");
     }
 
-    // Accessor to JsonValue, except JsonNull
-
     /**
      * {@return an {@code Optional} containing this {@code JsonValue} if it
      * is not an instance of {@code JsonNull}, otherwise an empty {@code Optional}}
@@ -134,8 +185,6 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
             case JsonValue _ -> Optional.of(this);
         };
     }
-
-    // Accessors to content of structural values
 
     /**
      * {@return the {@link JsonArray#elements() elements} of a {@code JsonArray}}
@@ -161,8 +210,6 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
         throw Utils.composeTypeError(this, "JsonObject");
     }
 
-    // Accessors to structural values
-
     /**
      * {@return this {@code JsonValue} as a {@code JsonObject}}
      *
@@ -186,9 +233,6 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
     default JsonArray array() {
         throw Utils.composeTypeError(this, "JsonArray");
     }
-
-
-    // Accessors to values of structural values
 
     /**
      * {@return the {@code JsonValue} associated with the given member name of a {@code JsonObject}}
