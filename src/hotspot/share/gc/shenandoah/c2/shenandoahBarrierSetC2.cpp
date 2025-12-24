@@ -1247,7 +1247,7 @@ ShenandoahCASBarrierSlowStubC2* ShenandoahCASBarrierSlowStubC2::create(const Mac
 }
 
 bool ShenandoahBarrierSetC2State::needs_liveness_data(const MachNode* mach) const {
-  assert(mach->barrier_data() == ShenandoahC2CASBarrier, "what else?");
+  assert(mach->barrier_data() == 0 || mach->barrier_data() == ShenandoahC2CASBarrier, "what else? 0x%x", mach->barrier_data());
   return mach->barrier_data() == ShenandoahC2CASBarrier;
 ;
 }
