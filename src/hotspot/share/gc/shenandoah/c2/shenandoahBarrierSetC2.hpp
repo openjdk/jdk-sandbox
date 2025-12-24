@@ -169,6 +169,10 @@ public:
 
   int estimate_stub_size() const /* override */;
   void emit_stubs(CodeBuffer& cb) const /* override */;
+  void late_barrier_analysis() const /* override*/ {
+    compute_liveness_at_stubs();
+  }
+
 };
 
 class ShenandoahBarrierStub : public BarrierStubC2 {
