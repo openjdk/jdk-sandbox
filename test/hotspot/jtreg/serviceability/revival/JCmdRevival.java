@@ -182,6 +182,11 @@ public class JCmdRevival {
 
         String heapDumpName = null;
         JDKToolLauncher launcher = JDKToolLauncher.createUsingTestJDK("jcmd");
+        // Run jcmd with -J-Dprop=value to pass any Sytem property we care about: the verbose setting.
+        String verbose = System.getProperty("jdk.attach.core.verbose");
+        if (verbose != null) {
+            launcher.addVMArg("-Djdk.attach.core.verbose=" + verbose);
+        }
         launcher.addVMArgs(Utils.getTestJavaOpts()); // People do not generally run jcmd itself with other options.
         launcher.addToolArg(coreFileName);
 
