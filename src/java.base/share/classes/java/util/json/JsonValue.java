@@ -39,10 +39,11 @@ import java.util.Optional;
  * retrieve the values represented in the JSON element, or to generate
  * JSON syntax conforming text.
  * <h2>Navigating JSON documents</h2>
- * Navigating the JSON document structure usually consists of two phases.
- * First phase is to reach the desired leaf JSON element, using "access"
- * methods; {@link #get(String)} for JSON object and {@link #element(int)}
- * for JSON array. Suppose we have the JSON document:
+ * A {@code JsonValue} can be produced by parsing the JSON document with
+ * {@link Json#parse(String)}. Getting the desired values from it usually
+ * consists of two phases. First phase is to reach the desired leaf JSON
+ * element, using "access" methods; {@link #get(String)} for JSON object
+ * and {@link #element(int)} for JSON array. Suppose we have the JSON document:
  * {@snippet lang=java:
  * var json = Json.parse("""
  *     { "foo": ["bar", true, 42], "baz": null }
@@ -56,17 +57,39 @@ import java.util.Optional;
  * Once the navigation with "access" methods reaches to the leaf JSON value, use
  * one of "conversion" methods, which correspond to each JSON value type, to
  * retrieve the Java value.
- * <p>
- * The next phase is to retrieve a Java value from the leaf JSON value.
+ * <h2>Converting JSON values to Java values</h2>
+ * The next phase is to convert the leaf JSON value to a Java value. There are
+ * "conversion" methods that correspond to each JSON type:
+ * <ul>
+ *     <li>{@code string()} returns a String that represents the JSON string
+ *     with all RFC 8259 JSON escapes translated to their corresponding
+ *     characters.</li>
+ *     <li>{@code toLong()} returns a long provided the JSON number is a whole
+ *     number within range of {@code Long.MIN_VALUE} and {@code Long.MAX_VALUE}.
+ *     </li>
+ *     <li>{@code toDouble()} returns a double provided the JSON number is
+ *     within range of {@code -Double.MAX_VALUE} and {@code Double.MAX_VALUE}.
+ *     </li>
+ *     <li>{@code bool()} returns (Java) {@code true} or {@code false}.</li>
+ *     <li>{@code members()} returns an unmodifiable map of {@code String} to
+ *     {@code JsonValue}, guaranteed to contain neither null keys nor null
+ *     values. If the JSON object contains no members, an empty map is returned.
+ *     </li>
+ *     <li>{@code elements()} returns an unmodifiable list of {@code JsonValue},
+ *     guaranteed to contain non-null values. If the JSON array contains no
+ *     elements, an empty list is returned.</li>
+ * </ul>
+ * For example,
  * {@snippet lang=java:
  * String bar = foo0.string();
  * }
- * This example retrieves the Java String of {@code bar} from the leaf JSON value {@code foo0}.
- * If an incorrect "conversion" method is used, for example {@code foo0.bool()}, a
- * {@code JsonAssertionException} is thrown.
+ * The code above retrieves the Java String of {@code bar} from the leaf JSON
+ * value {@code foo0}. If an incorrect "conversion" method is used, for example
+ * {@code foo0.bool()}, a {@code JsonAssertionException} is thrown.
  * <h2>Subtypes of JsonValue</h2>
- * There are subtypes of JsonValue that represent JSON types. For example {@code JsonString} for
- * JSON string type. If the leaf JSON value type is unknown, it can be retrieved such as:
+ * There are subtypes of JsonValue that represent JSON types. For example
+ * {@code JsonString} for JSON string type. If the leaf JSON value type is
+ * unknown, it can be retrieved such as:
  * {@snippet lang=java:
  * switch (json.get("foo")) {
  *     case JsonString js -> js.string(); // handle the value as JSON string
@@ -75,31 +98,36 @@ import java.util.Optional;
  * }
  * }
  * <h2>Missing Object Members</h2>
- * There are cases where the member in a JSON object is optional. For those cases, there
- * is an access method that returns an Optional of JsonValue, for example:
+ * There are cases where the member in a JSON object is optional. For those
+ * cases, there is an access method that returns an Optional of JsonValue,
+ * {@code getOrAbsent()}. for example:
  * {@snippet lang=java:
  * json.getOrAbsent("foo")
  *     .ifPresent(IO::println)
  * }
  * This example only prints the value if the member named "foo" exists.
  * <h2>Handling of null</h2>
- * In some JSON documents, sometimes the {@code null} value represents absent. For those cases,
- * there is an access method that returns an Optional of JsonValue, for example:
+ * In some JSON documents, sometimes the {@code null} value represents absent.
+ * For those cases, there is an access method that returns an Optional of
+ * JsonValue, {@code valueOrNull()}, for example:
  * {@snippet lang=java:
  * json.get("baz")
  *     .valueOrNull()
  *     .ifPresent(IO::println)
  * }
- * This example only prints the value if the member named "baz" is not a JSON null.
+ * This example only prints the value if the member named "baz" is not a JSON
+ * null.
+ * <h2>Generating JSON documents</h2>
+ * {@code JsonValue} overrides {@link Object#toString()} to generate a compact
+ * text representation of the JSON value, by eliminating white spaces, which
+ * conforms to RFC 8259. For generating JSON document suitable for display, use
+ * {@link Json#toDisplayString(JsonValue, int)} instead.
  * <p>
  * Instances of {@code JsonValue} are immutable and thread safe.
- * <p>
- * A {@code JsonValue} can be produced by {@link Json#parse(String)}. See
- * {@link #toString()} for converting a {@code JsonValue} to its corresponding
- * JSON String.
  *
- * @implSpec A class implementing a non-sealed {@code JsonValue} sub-interface must adhere
- * to the <a href="../../../java/lang/doc-files/ValueBased.html">value-based</a>
+ * @implSpec A class implementing a non-sealed {@code JsonValue} sub-interface
+ * must adhere to the
+ * <a href="../../../java/lang/doc-files/ValueBased.html">value-based</a>
  * class requirements.
  *
  * @since 99
