@@ -45,7 +45,7 @@
 #include "revival.hpp"
 
 /**
- * Introduce to hold PE file logic, but only created two static methods, so this
+ * Introduced to hold PE file logic, but only created then static methods, so this
  * class may not be required.
  */
 class PEFile {
@@ -56,8 +56,15 @@ class PEFile {
     ~PEFile();
 
     // Relocate a file to a new absolute load address.
+    // Change the actual named file.
     static bool relocate(const char* filename, uint64_t address);
+
+    // Unset DLLCharacteristic IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
+    // Change the actual named file.
     static bool remove_dynamicbase(const char* filename);
+
+    // Locate data segments in named file.  Populate output parameters.
+    static bool find_data_segs(const char *filename, void* address, Segment** _data, Segment** _rdata, Segment** _iat);
 
   private:
     const char* filename;

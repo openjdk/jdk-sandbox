@@ -107,9 +107,7 @@ bool PEFile::relocate(const char* filename, uint64_t address) {
         error("ReBaseImage64 2 failed: %d", GetLastError());
     }
     if (NewImageBase != address) {
-        logv("relocate failed, new base 0x%llx != 0x%llx", NewImageBase, address);
-        waitHitRet();
-        //error("relocate failed, new base 0x%llx != 0x%llx", NewImageBase, address);
+        warn("relocate failed, new base 0x%llx != 0x%llx", NewImageBase, address);
         exitForRetry();
     }
     return e;
@@ -120,17 +118,17 @@ bool PEFile::remove_dynamicbase(const char* filename) {
 
     // Set DYNAMICBASE:NO
     HANDLE h = CreateFile(filename, GENERIC_READ | GENERIC_WRITE, 0 /* not shared */, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-    if (h == INVALID_HANDLE_VALUE) { error("CreateFile failure: %d", GetLastError()); }
+    if (h == INVALID_HANDLE_VALUE) { error("remove_dynamicbase: CreateFile failure: %d", GetLastError()); }
 
     HANDLE h2 = CreateFileMapping(h, NULL, PAGE_READWRITE, 0,0, NULL);
-    if (h == INVALID_HANDLE_VALUE) { error("CreateFileMapping failure: %d", GetLastError()); }
+    if (h == INVALID_HANDLE_VALUE) { error("remove_dynamicbase: CreateFileMapping failure: %d", GetLastError()); }
 
     LPVOID base = MapViewOfFile(h2, FILE_MAP_READ | FILE_MAP_WRITE, 0,0,0);
-    if (base == nullptr) { error("MapViewOfFile failure: %d", GetLastError()); }
+    if (base == nullptr) { error("remove_dynamicbase: MapViewOfFile failure: %d", GetLastError()); }
 
     short magic = *(short*) base; // MZ
     if (magic != 0x5a4d) {
-        error("%s: DOS magic not recognized: 0x%x", filename, magic);
+        error("remove_dynamicbase: %s: DOS magic not recognized: 0x%x", filename, magic);
     }
 
     logv("remove_dynamicbase: %s mapped at 0x%llx", filename, (uint64_t) base);
@@ -145,7 +143,7 @@ bool PEFile::remove_dynamicbase(const char* filename) {
     //   IMAGE_OPTIONAL_HEADER32 OptionalHeader;
     ULONG32 peMagic = *(ULONG32*) peAddr;
     if (peMagic != 0x4550) { // PE
-        error("%s: PE magic not recognized: 0x%x", filename, peMagic);
+        error("remove_dynamicbase: %s: PE magic not recognized: 0x%x", filename, peMagic);
     }
 
     PIMAGE_OPTIONAL_HEADER32 optional = (PIMAGE_OPTIONAL_HEADER32) ((uint64_t) peAddr + sizeof(DWORD) + sizeof(IMAGE_FILE_HEADER));
@@ -154,7 +152,7 @@ bool PEFile::remove_dynamicbase(const char* filename) {
     logv("Checksum           = 0x%llx", optional->CheckSum);
 
     WORD dllCharacteristics = optional->DllCharacteristics;
-    dllCharacteristics = dllCharacteristics & ~IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE; // 64
+    dllCharacteristics = dllCharacteristics & ~IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE; // Remove bit value of flag (64)
     logv("DllCharacteristics = 0x%llx", dllCharacteristics);
 
     logv("&o.DllChar =  0x%llx", &(optional->DllCharacteristics));
@@ -164,12 +162,68 @@ bool PEFile::remove_dynamicbase(const char* filename) {
     // *(WORD*)(&(optional->CheckSum)) = 0;
 
     if (!UnmapViewOfFile(base)) {
-        error("UnmapViewOfFile: %d", GetLastError());
+        error("remove_dynamicbase: UnmapViewOfFile: %d", GetLastError());
     }
     CloseHandle(h2);
     CloseHandle(h);
     return TRUE;
 }
+
+
+bool PEFile::find_data_segs(const char *filename, void* address, Segment** _data, Segment** _rdata, Segment** _iat) {
+
+    logv("PEFile::find_data_segs");
+    waitHitRet();
+
+    PLOADED_IMAGE image = ImageLoad(filename, nullptr);
+    if (image == nullptr) {
+        error("PEFile::find_data_segs: ImageLoad error: %d", GetLastError());
+    }
+    Segment* data = nullptr;
+    Segment* rdata = nullptr;
+    Segment* iat = nullptr;
+    // Create a Segment from .data, and use the next Section to set its end address.
+    for (unsigned int i = 0; i < image->NumberOfSections; i++) {
+        logv("find_data_segs: image: %s vaddr 0x%llx size 0x%llx", image->Sections[i].Name, image->Sections[i].VirtualAddress,
+             image->Sections[i].SizeOfRawData);
+
+        if (rdata == nullptr && strncmp((char*) image->Sections[i].Name, ".rdata", 8) == 0) {
+            rdata = new Segment((void *) (DWORD_PTR) image->Sections[i].VirtualAddress, (size_t) image->Sections[i].SizeOfRawData, 0, 0);
+            continue;
+        }
+
+        if (data == nullptr && strncmp((char*) image->Sections[i].Name, ".data", 8) == 0) {
+            // Set .rdata end:
+            if (rdata != nullptr) {
+                rdata->set_length(image->Sections[i].VirtualAddress - rdata->start());
+            }
+            data = new Segment((void *) (DWORD_PTR) image->Sections[i].VirtualAddress, (size_t) image->Sections[i].SizeOfRawData, 0, 0);
+            continue;
+        }
+        if (data != nullptr) {
+            // Already read and set Seg, use this section as the end of that Seg.
+            data->set_length(image->Sections[i].VirtualAddress - data->start());
+            break;
+        }
+    }
+
+    // Rebase segs to library address:
+    rdata = new Segment((void*) ((uint64_t) address + (uint64_t) rdata->start()), rdata->length, 0, 0);
+    data = new Segment((void*) ((uint64_t) address + (uint64_t) data->start()), data->length, 0, 0);
+
+    logv(".rdata SEG: 0x%llx - 0x%llx ", rdata->start(), rdata->end());
+    logv(".data SEG:  0x%llx - 0x%llx ", data->start(),  data->end());
+
+    *_rdata = rdata;
+    *_data = data;
+
+    int e = ImageUnload(image);
+    if (e != TRUE) {
+        warn("data_section: ImageUnload error: %d", GetLastError());
+    }
+    return true;
+}
+
 
 
 // Locate the .data section of a PE file.

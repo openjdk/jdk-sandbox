@@ -64,6 +64,7 @@ class MiniDump {
     Segment* get_jvm_seg() { return jvm_seg; }
     Segment* get_jvm_rdata_seg() { return jvm_rdata_seg; }
     Segment* get_jvm_data_seg() { return jvm_data_seg; }
+    Segment* get_jvm_iat_seg() { return jvm_iat_seg; }
 
     int get_fd() { return fd; }
     RVA64 getBaseRVA() { return BaseRVA; }
@@ -83,7 +84,7 @@ class MiniDump {
     Segment* jvm_seg;
     Segment* jvm_rdata_seg;
     Segment* jvm_data_seg;
-    void populate_jvm_data_segs(const char *filename);
+    Segment* jvm_iat_seg;
 
     ULONG64 NumberOfMemoryRanges;
     RVA64 BaseRVA;

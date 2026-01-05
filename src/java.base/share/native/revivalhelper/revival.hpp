@@ -225,6 +225,7 @@ class Segment {
         uint64_t end() { return (uint64_t) vaddr + length; }
         void set_end(uint64_t addr) { length = addr - (uint64_t) vaddr; }
         void set_length(uint64_t len) { length = len; file_length = len; }
+        void move_start(long dist);
 
         bool contains(Segment *seg);
         bool contains(uint64_t addr);

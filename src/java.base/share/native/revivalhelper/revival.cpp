@@ -470,6 +470,7 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
             snprintf(jvm_filename, BUFLEN - 1, "%s%s%s", dirname, FILE_SEPARATOR, s1);
             jvm_address = vaddr;
             logv("Loaded library '%s' at %p", jvm_filename, jvm_address);
+            waitHitRet();
             continue;
         }
 
@@ -764,15 +765,16 @@ char* basename(char *s) {
 
 
 /**
- * Attempt to find the path filename in the directory libdir.
- * Return the path that is found to exist, or null.
- *
- * Return a new C heap allocation (strdup) that the caller must free.
+ * Attempt to find in the the given directory (libdir), the given filename/path.
  *
  * Given a path such as /some/dir/jdk/lib/server/libjvm.so
  * attempt to find it within the given directory, libdir.
  * Remove leading directory elements from the filename path, until
  * a file exists or the end of filename is reached.
+ *
+ * If found, return the path that exists, as a new C heap allocation
+ * (strdup) that the caller must free.
+ * Return nullptr if not found.
  */
 char* find_filename_in_libdir(const char* libdir, const char* filename) {
     char path[BUFLEN];
@@ -780,10 +782,11 @@ char* find_filename_in_libdir(const char* libdir, const char* filename) {
 
     while (true) {
         snprintf(path, BUFLEN - 1, "%s%s%s", libdir, FILE_SEPARATOR, p);
+        logv("find_filename_in_libdir: checking %s", path);
         if (file_exists_pd(path)) {
            return strdup(path);
         }
-        // Move to next dir entry:
+        // Move to next dir entry in filename:
         p = strstr(p, FILE_SEPARATOR);
         if (p != nullptr) {
             // Found, skip the separator itself
@@ -849,6 +852,13 @@ int symbols_file_create(const char *dirname) {
 /**
  * Segment
  */
+void Segment::move_start(long dist) {
+    vaddr = (void*) ((long long) vaddr + dist);
+    length -= dist;
+    file_offset += dist;
+    file_length -= dist;
+}
+
 
 bool Segment::contains(Segment* seg) {
   return seg->start() >= this->start() && seg->end() <= this->end();
@@ -1084,13 +1094,10 @@ int revive_image(const char* corename, const char *javahome, const char* libdir,
         return -1;
     }
 
-    // Check core file exists:
-    e = open(core_filename, O_RDONLY);
-    if (e < 0) {
-        warn("revive_image: open '%s' failed: %d: %s", core_filename, errno, strerror(errno));
-        return e;
+    if (!file_exists_pd(core_filename)) {
+        warn("revive_image: '%s' not found", core_filename);
+        return -1;
     }
-    close(e);
 
     // Decide core.revival directory name:
     dirname = revival_dirname(corename, revival_data_path);

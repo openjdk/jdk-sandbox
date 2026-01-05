@@ -745,20 +745,18 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
     // Maintain a list of segments to copy bytes later.
     std::list<Segment> segsToCopy;
 
-    dump->prepare_memory_ranges();
-
-    // Read MINIDUMP_MEMORY64_LIST 
+    dump->prepare_memory_ranges(); // Get ready to read Segments: locate Memory64ListStream to read all MINIDUMP_MEMORY64_LIST
     RVA64 currentRVA = dump->getBaseRVA(); // current offset in file
     MINIDUMP_MEMORY_DESCRIPTOR64 d;
     ULONG64 prevAddr = 0;
 
-    // Iterate, reading segments from dump, considering a current and next segment, so we can check for "too close" addresses.
+    // Iterate, reading segments from dump.  Consider a current and next segment, so we can check for "too close" addresses.
     Segment* seg = nullptr;
     Segment* segNext = nullptr;
 
     while (true) {
         if (seg == nullptr || segNext == nullptr) {
-            // First iteration or no segNext waiting:
+            // First iteration, or no segNext waiting:
             seg = dump->readSegment(&d, &currentRVA);
         } else {
             // Use a segNext we already read (but did not use):
@@ -956,12 +954,12 @@ int create_revivalbits_native_pd(const char* corename, const char* javahome, con
     if (jvm_filename == nullptr) {
         error("revival: cannot locate JVM from minidump.") ;
     }
-    logv("JVM = '%s'", jvm_filename);
+    logv("JVM filename: '%s'", jvm_filename);
     jvm_address = dump->get_jvm_address(); // JVM address is from dump, even if file path is not
     if (jvm_address == nullptr) {
         error("revival: cannot find address for JVM in minidump.") ;
     }
-    logv("JVM addr = %p", jvm_address);
+    logv("JVM address:  %p", jvm_address);
 
     // Copy jvm.dll into core.revival dir
     memset(jvm_copy, 0, BUFLEN);
@@ -973,8 +971,8 @@ int create_revivalbits_native_pd(const char* corename, const char* javahome, con
         return -1;
     }
 
-    // Copy jvm.dll.pdb if present
-    // (move this before relocate)
+    // Copy jvm.dll.pdb and .map files if present.
+    // (move this before relocate, RebaseImage64 may update the .pdb).
     char jvm_debuginfo_path[BUFLEN];
     char jvm_debuginfo_copy_path[BUFLEN];
     snprintf(jvm_debuginfo_path, BUFLEN, "%s", jvm_filename);
@@ -983,6 +981,11 @@ int create_revivalbits_native_pd(const char* corename, const char* javahome, con
         snprintf(p, BUFLEN, ".dll.pdb");
         if (file_exists_pd(jvm_debuginfo_path)) {
             snprintf(jvm_debuginfo_copy_path, BUFLEN - 1, "%s/" JVM_FILENAME ".pdb", revival_dirname);
+            copy_file_pd(jvm_debuginfo_path, jvm_debuginfo_copy_path);
+        }
+        snprintf(p, BUFLEN, ".dll.map");
+        if (file_exists_pd(jvm_debuginfo_path)) {
+            snprintf(jvm_debuginfo_copy_path, BUFLEN - 1, "%s/" JVM_FILENAME ".map", revival_dirname);
             copy_file_pd(jvm_debuginfo_path, jvm_debuginfo_copy_path);
         }
     }
@@ -1003,13 +1006,13 @@ int create_revivalbits_native_pd(const char* corename, const char* javahome, con
     logv("Write jvm symbols done");
     close(symbols_fd);
 
-    // Create core.mappings file:
+    // Create (open) the core.mappings file:
     // Normalize corename, so basename works. XXX
     int fd = mappings_file_create(revival_dirname, corename);
     if (fd < 0) {
-        error("Failed to create mappings file");
+        error("Failed to create mappings file.");
     }
-
+    // Write memory mappings into the file:
     e = create_mappings_pd(fd, corename, jvm_copy, javahome, jvm_address);
 
     close(fd);

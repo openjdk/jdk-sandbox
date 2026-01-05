@@ -46,6 +46,7 @@
 #include "revival.hpp"
 
 #include "minidump.hpp"
+#include "pefile.hpp"
 
 
 
@@ -113,7 +114,7 @@ MiniDump::MiniDump(const char* filename, const char* libdir) {
  * Read header, module list.
  */
 void MiniDump::open(const char *filename) {
-    fd = ::open(filename, O_RDONLY);
+    fd = ::open(filename, O_RDONLY | O_BINARY);
     if (fd < 0) {
         warn("MiniDump::open '%s' failed: %d: %s", core_filename, errno, strerror(errno));
         return;
@@ -190,7 +191,7 @@ int MiniDump::read_modules() {
         modules.push_back(seg);
 
         // Is it the JVM?
-        if (strstr(name, "\\" JVM_FILENAME) != nullptr) {
+        if (strstr(name, FILE_SEPARATOR JVM_FILENAME) != nullptr) {
             logv("FOUND JVM name = '%s' with base address 0x%llx", name, module.BaseOfImage);
 
             // Record locally in dump object:
@@ -215,56 +216,20 @@ int MiniDump::read_modules() {
             jvm_address = (void *) module.BaseOfImage;
             // Also lookup .data Section for later copying:
             jvm_seg = seg; // without file offset details at this point
-            populate_jvm_data_segs(jvm_filename); // Possibly using file from libdir
+            logv("JVM SEG:        0x%llx - 0x%llx ", jvm_seg->start(), jvm_seg->end());
 
+            // Find .data
+            // (using jvm_filename which may be in libdir);
+            if (!PEFile::find_data_segs(jvm_filename, jvm_address, &jvm_data_seg, &jvm_rdata_seg, &jvm_iat_seg)) {
+                error("Failed to find jvm data segments.");
+            }
+            logv("minidump: rdata SEG: 0x%llx - 0x%llx",  jvm_rdata_seg->start(), jvm_rdata_seg->end());
+            logv("minidump: .data SEG:  0x%llx - 0x%llx", jvm_data_seg->start(),  jvm_data_seg->end());
         }
         free(name);
         count++;
     }
     return count;
-}
-
-void MiniDump::populate_jvm_data_segs(const char *filename) {
-
-    PLOADED_IMAGE image = ImageLoad(filename, nullptr);
-    if (image == nullptr) {
-        error("MinDump::populate_jvm_data_segs: ImageLoad error: %d", GetLastError());
-    }
-    // Create a Segment from .data, and use the next Section to set its end address.
-    jvm_rdata_seg = nullptr;
-    jvm_data_seg = nullptr;
-    for (unsigned int i = 0; i < image->NumberOfSections; i++) {
-        logv("data_section image: %s vaddr 0x%llx size 0x%llx", image->Sections[i].Name, image->Sections[i].VirtualAddress,
-             image->Sections[i].SizeOfRawData);
-
-        if (jvm_rdata_seg == nullptr && strncmp((char*) image->Sections[i].Name, ".rdata", 8) == 0) {
-            jvm_rdata_seg = new Segment((void *) (DWORD_PTR) image->Sections[i].VirtualAddress, (size_t) image->Sections[i].SizeOfRawData, 0, 0); 
-            continue;
-        }
-
-        if (strncmp((char*) image->Sections[i].Name, ".data", 8) == 0) {
-            if (jvm_rdata_seg != nullptr) {
-                jvm_rdata_seg->set_length(image->Sections[i].VirtualAddress - jvm_rdata_seg->start());
-            }
-             jvm_data_seg = new Segment((void *) (DWORD_PTR) image->Sections[i].VirtualAddress, (size_t) image->Sections[i].SizeOfRawData, 0, 0); 
-            continue;
-        }
-        if (jvm_data_seg != nullptr) {
-            // Already read and set Seg, use this section as the end of that Seg.
-            jvm_data_seg->set_length(image->Sections[i].VirtualAddress - jvm_data_seg->start());
-            break;
-        }
-    }
-
-    int e = ImageUnload(image);
-    if (e != TRUE) {
-        warn("data_section: ImageUnload error: %d", GetLastError());
-    }
-    jvm_rdata_seg = new Segment((void*) ((uint64_t) jvm_address + (uint64_t) jvm_rdata_seg->start()), jvm_rdata_seg->length, 0, 0);
-    jvm_data_seg = new Segment((void*) ((uint64_t) jvm_address + (uint64_t) jvm_data_seg->start()), jvm_data_seg->length, 0, 0);
-    logv("JVM SEG:        0x%llx - 0x%llx ", jvm_seg->start(), jvm_seg->end());
-    logv("JVM .rdata SEG: 0x%llx - 0x%llx ", jvm_rdata_seg->start(), jvm_rdata_seg->end());
-    logv("JVM .data SEG:  0x%llx - 0x%llx ", jvm_data_seg->start(), jvm_data_seg->end());
 }
 
 
@@ -304,10 +269,8 @@ Segment* MiniDump::readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentR
             warn("MiniDump::readSegment0: read failed, returns %d: %s", e, strerror(errno));
             return nullptr;
         } else if (e < size) {
-            // Seeing read return e.g. 2, but _lseek shows it has advanced 16 bytes.
             long pos2 = _lseek(fd, 0, SEEK_CUR);
             if (pos2 - pos1 == size) {
-                // Well that's fine, why did read return an odd value?...
                 warn("MiniDump::readSegment0: read expects %d, got %d, at pos1 %ld pos2 %ld.  But looks OK.", size, e, pos1, pos2);
                 break;
             }
@@ -338,7 +301,7 @@ Segment* MiniDump::readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentR
 }
 
 /**
- * Read a Segment from the MiniDump.
+ * Read a Segment from the MiniDump, for the purpose of building a list of regions for process revival.
  *
  * Handle skipping of clashes with libraries/modules (DLLs), they are the "avoid list".
  *
@@ -348,7 +311,6 @@ Segment* MiniDump::readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentR
 Segment* MiniDump::readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA) {
     Segment *seg = nullptr;
     bool clash;
-    static bool pause = false;
     do {
         clash = false;
         seg = readSegment0(d, currentRVA);
@@ -360,12 +322,23 @@ Segment* MiniDump::readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRV
         // Module extents (iter) likely to be larger than individual memory descriptors.
         for (std::list<Segment>::iterator iter = modules.begin(); iter != modules.end(); iter++) {
             if (seg->start() >= iter->start() && seg->end() <= iter->end()) {
+                // Seg clashes with some module.
+                //
                 // But the JVM .data Section located earlier is needed.
                 if (jvm_data_seg != nullptr && (seg->contains(jvm_data_seg) || jvm_data_seg->contains(seg))) {
                     logv("readSegment: Using (JVM .data) seg: 0x%llx - 0x%llx ", seg->start(), seg->end());
+                    //waitHitRet();
+                } else if (jvm_rdata_seg != nullptr && (seg->contains(jvm_rdata_seg) || jvm_rdata_seg->contains(seg))) {
+                    // .rdata start with IAT so don't change that.
+                    // Need to copy only, not map, as mapping will get aligned and overwrite.
+                    logv("readSegment: Using (JVM .rdata) seg: 0x%llx - 0x%llx ", seg->start(), seg->end());
+                    seg->move_start(0xa30);
+                   // seg->set_copyonly();
+                    log("should also NOT map: 0x%llx", seg->start());
+                    waitHitRet();
                 } else {
                     logv("readSegment: Skipping seg 0x%llx - 0x%llx due to hit in module list", seg->start(), seg->end());
-                    clash = true;
+                    clash = true; // Loop and call readSegment0 again
                 }
                 break;
             }
