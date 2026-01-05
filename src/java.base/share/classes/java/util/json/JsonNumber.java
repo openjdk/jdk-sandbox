@@ -44,10 +44,10 @@ import jdk.internal.util.json.JsonNumberImpl;
  * the JSON number.
  *
  * @apiNote
- * Representing JSON numbers that do not fit within a {@code long} or
- * {@code double}, or expects loss of precision due to the rounding to the
- * nearest binary representation, use {@link #toString()} and then create
- * the desired Java value, for example,
+ * To avoid precision loss when converting JSON numbers to Java types, or when
+ * converting JSON numbers outside the range of {@code long} or {@code double},
+ * use {@link #toString()} to create arbitrary-precision Java objects, for
+ * example,
  * {@snippet lang="java" :
  * new BigDecimal(JsonNumber.toString())
  * // or if an integral number is preferred
