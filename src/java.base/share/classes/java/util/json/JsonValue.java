@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,11 +41,11 @@ import java.util.Optional;
  * <h2>Navigating JSON documents</h2>
  * A {@code JsonValue} can be produced by parsing the JSON document with
  * {@link Json#parse(String)}. Getting the desired values from it usually
- * consists of two phases. First phase is to reach the desired leaf JSON
+ * consists of two steps. First step is to reach the desired leaf JSON
  * element, using "access" methods; {@link #get(String)} for JSON object
  * and {@link #element(int)} for JSON array. Suppose we have the JSON document:
  * {@snippet lang=java:
- * var json = Json.parse("""
+ * JsonValue json = Json.parse("""
  *     { "foo": ["bar", true, 42], "baz": null }
  *     """);
  * }
@@ -58,7 +58,7 @@ import java.util.Optional;
  * one of "conversion" methods, which correspond to each JSON value type, to
  * retrieve the Java value.
  * <h2>Converting JSON values to Java values</h2>
- * The next phase is to convert the leaf JSON value to a Java value. There are
+ * The next step is to convert the leaf JSON value to a Java value. There are
  * "conversion" methods that correspond to each JSON type:
  * <ul>
  *     <li>{@code string()} returns a String that represents the JSON string

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,8 +44,10 @@ import jdk.internal.util.json.JsonNumberImpl;
  * the JSON number.
  *
  * @apiNote
- * Representing JSON numbers that do not fit within a {@code long} or {@code double},
- * can be done from their string representations, for example,
+ * Representing JSON numbers that do not fit within a {@code long} or
+ * {@code double}, or expects loss of precision due to the rounding to the
+ * nearest binary representation, use {@link #toString()} and then create
+ * the desired Java value, for example,
  * {@snippet lang="java" :
  * new BigDecimal(JsonNumber.toString())
  * // or if an integral number is preferred

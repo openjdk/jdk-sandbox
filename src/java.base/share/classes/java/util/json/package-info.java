@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,9 +35,6 @@
  * <a href="https://datatracker.ietf.org/doc/html/rfc8259">JSON grammar</a>.
  * The parsing APIs provided do not accept JSON text that contain JSON Objects
  * with duplicate names.
- *
- * <p>For the reference JDK implementation, {@code JsonValue}s created via parsing
- * procure their underlying values <i>lazily</i>.
  *
  * <h2><a>Retrieving JSON values</a></h2>
  *
