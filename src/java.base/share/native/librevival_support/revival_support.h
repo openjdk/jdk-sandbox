@@ -23,13 +23,22 @@
  * questions.
  */
 
+#include <pthread.h>
 #include <stdlib.h>
 #include <time.h>
 #include <sys/types.h>
 
-
 void set_revival_time_s(unsigned long long t);
 void set_revival_time_ns(unsigned long long t);
 
+/**
+ * clock_gettime that can return an alternate fixed time value.
+ */
 int clock_gettime(clockid_t clockid, struct timespec *tp);
+
+/**
+ * pthread_getcpuclockid may crash when given an unknown thread during revival.
+ * This needs to fail gracefully.
+ */
+int pthread_getcpuclockid(pthread_t thread, clockid_t *clockid);
 

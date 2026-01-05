@@ -23,11 +23,13 @@
  * questions.
  */
 
+#include <errno.h>
 #include <time.h>
 #include <stdio.h>
 
 #ifndef WINDOWS
 #include <dlfcn.h>
+#include <pthread.h>
 #ifndef RTLD_NEXT
 # define RTLD_NEXT      ((void *) -1l)
 #endif
@@ -87,5 +89,11 @@ int clock_gettime(clockid_t clockid, struct timespec *tp) {
         return 0;
     }
 }
+
+JNIEXPORT
+int pthread_getcpuclockid(pthread_t thread, clockid_t *clockid) {
+    return ENOENT;
+}
+
 #endif // WINDOWS
 
