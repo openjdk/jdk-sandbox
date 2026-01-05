@@ -52,6 +52,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 @SuppressWarnings("restricted")
 public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
 
+    protected boolean attached;
     protected String filename;
     protected List<String> libDirs;
     protected String revivalDataPath;
@@ -62,7 +63,7 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
     VirtualMachineCoreDumpImpl(AttachProvider provider, String vmid, List<String> libDirs, String revivalDataPath)
             throws AttachNotSupportedException, IOException {
 
-        // super HotSpotVirtualMachine modified to accept String that is not a PID.
+        // Superclass HotSpotVirtualMachine modified to accept String that is not a PID.
         super(provider, vmid);
         filename = vmid;
         this.libDirs = libDirs;
@@ -73,12 +74,20 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
     protected void attach() throws IOException {
         // Process revival from a core or minidump to enable executing diagnostic commands.
         // This happens in a new process.
+        attached = true;
     }
 
     /**
      * Detach from the target VM
      */
     public void detach() throws IOException {
+        attached = false;
+    }
+
+    private void checkAttached() throws IOException {
+        if (!attached) {
+            throw new IOException("Not attached");
+        }
     }
 
     /**
@@ -92,6 +101,10 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
         if (!cmd.equals("jcmd")) {
             throw new IOException("command '" + cmd + "' not implemented");
         }
+        // An IOException thrown above for any command other than jcmd would be correct
+        // behavior when not attached.  The "not implemented" message is more informative.
+        checkAttached();
+
         // Invoke "JDK/lib/revivalhelper corefilename jcmd command..."
         // (Putting revivalhelper in JDK/lib works as jlink is updated also,
         // see DefaultImageBuilder.java and its jspawnhelper/jexec special case).

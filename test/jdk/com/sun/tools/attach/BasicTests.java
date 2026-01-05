@@ -38,6 +38,7 @@ import com.sun.tools.attach.AgentInitializationException;
 import com.sun.tools.attach.AgentLoadException;
 import com.sun.tools.attach.VirtualMachine;
 import com.sun.tools.attach.VirtualMachineDescriptor;
+import sun.tools.attach.HotSpotVirtualMachine;
 
 /*
  * @test
@@ -49,10 +50,11 @@ import com.sun.tools.attach.VirtualMachineDescriptor;
  * @library /test/lib
  * @modules java.instrument
  *          jdk.attach
+ *          jdk.attach/sun.tools.attach
  *          jdk.jartool/sun.tools.jar
  *
  * @run build Agent BadAgent RedefineAgent Application RedefineDummy RunnerUtil
- * @run main BasicTests
+ * @run main/othervm --add-modules jdk.attach --add-exports jdk.attach/sun.tools.attach=ALL-UNNAMED BasicTests
  */
 public class BasicTests {
 
@@ -69,7 +71,8 @@ public class BasicTests {
         ProcessThread processThread = null;
         try {
             buildJars();
-            processThread = RunnerUtil.startApplication();
+            processThread = RunnerUtil.startApplication("--add-modules", "jdk.attach",
+                                                        "--add-exports", "jdk.attach/sun.tools.attach=ALL-UNNAMED");
             runTests(processThread.getPid());
         } catch (Throwable t) {
             System.out.println("TestBasic got unexpected exception: " + t);
@@ -94,7 +97,7 @@ public class BasicTests {
             System.getProperty("test.class.path", "");
         String testClassDir = System.getProperty("test.classes", "") + sep;
 
-        // Argumenta : -classpath cp BasicTests$TestMain pid agent badagent redefineagent
+        // Arguments : -classpath cp BasicTests$TestMain pid agent badagent redefineagent
         String[] args = {
             "-classpath",
             classpath,
@@ -200,7 +203,17 @@ public class BasicTests {
             vm.detach();
             try {
                 vm.loadAgent(agent);
-                throw new RuntimeException("loadAgent did not throw an exception!!");
+                throw new RuntimeException("loadAgent did not throw an exception after detach");
+            } catch (IOException ioe) {
+                System.out.println(" - IOException as expected");
+            }
+
+//            HotSpotVirtualMachine hvm = (HotSpotVirtualMachine) vm;
+            try {
+                vm.getSystemProperties();
+                vm.startLocalManagementAgent();
+//                hvm.executeJCmd("help");
+                throw new RuntimeException("executeJCmd did not throw an exception after detach");
             } catch (IOException ioe) {
                 System.out.println(" - IOException as expected");
             }
