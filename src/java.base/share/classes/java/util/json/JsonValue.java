@@ -79,10 +79,6 @@ import java.util.Optional;
  *     guaranteed to contain non-null values. If the JSON array contains no
  *     elements, an empty list is returned.</li>
  * </ul>
- * These conversion methods always return a value when the {@code JsonValue} is
- * of the correct JSON type. The exceptions are {@code toLong()} and
- * {@code toDouble()}, which may throw an exception even when the value is a
- * JSON number.
  * For example,
  * {@snippet lang=java:
  * String bar = foo0.string();
@@ -90,6 +86,12 @@ import java.util.Optional;
  * The code above retrieves the Java String of {@code bar} from the leaf JSON
  * value {@code foo0}. If an incorrect "conversion" method is used, for example
  * {@code foo0.bool()}, a {@code JsonAssertionException} is thrown.
+ * <p>
+ * These conversion methods always return a value when the {@code JsonValue} is
+ * of the correct JSON type. The exceptions are {@code toLong()} and
+ * {@code toDouble()}; the {@code to} prefix implies that they may throw a
+ * {@code JsonAssertionException} even when the {@code JsonValue} is a JSON
+ * number, for example if it is outside their supported ranges.
  * <h2>Subtypes of JsonValue</h2>
  * There are subtypes of JsonValue that represent JSON types. For example
  * {@code JsonString} for JSON string type. If the leaf JSON value type is
