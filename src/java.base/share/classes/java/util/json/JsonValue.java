@@ -79,6 +79,10 @@ import java.util.Optional;
  *     guaranteed to contain non-null values. If the JSON array contains no
  *     elements, an empty list is returned.</li>
  * </ul>
+ * These conversion methods always return a value when the {@code JsonValue} is
+ * of the correct JSON type. The exceptions are {@code toLong()} and
+ * {@code toDouble()}, which may throw an exception even when the value is a
+ * JSON number.
  * For example,
  * {@snippet lang=java:
  * String bar = foo0.string();
