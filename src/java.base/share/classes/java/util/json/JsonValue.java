@@ -34,32 +34,29 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * The interface that represents a JSON value. The methods in this
- * interface provide the means to navigate the JSON structure and
- * retrieve the values represented in the JSON element, or to generate
- * JSON syntax conforming text.
- * <h2>Navigating JSON documents</h2>
- * A {@code JsonValue} can be produced by parsing the JSON document with
- * {@link Json#parse(String)}. Getting the desired values from it usually
- * consists of two steps. First step is to reach the desired leaf JSON
- * element, using "access" methods; {@link #get(String)} for JSON object
- * and {@link #element(int)} for JSON array. Suppose we have the JSON document:
+ * The interface that represents a JSON value. A {@code JsonValue} can be
+ * produced by parsing a JSON document with {@link Json#parse(String)}. Extracting
+ * a value is done in a 2-step process using {@link ##access access} and {@link
+ * ##conversion conversion} methods. You may also generate JSON compliant text using a {@link
+ * ##generation generation} method.
+ * <h2 id="access">Navigating JSON documents</h2>
+ * Use the access methods to navigate to your desired JSON element. {@link
+ * #get(String)} is provided for JSON object and {@link #element(int)} for JSON array.
+ * Given the JSON document:
  * {@snippet lang=java:
  * JsonValue json = Json.parse("""
  *     { "foo": ["bar", true, 42], "baz": null }
  *     """);
  * }
- * then
+ * the JSON String "bar" can be accessed as follows:
  * {@snippet lang=java:
  * JsonValue foo0 = json.get("foo").element(0);
  * }
- * The {@code foo0} holds the leaf JSON value, which is a JSON string of "bar".
- * Once the navigation with "access" methods reaches to the leaf JSON value, use
- * one of "conversion" methods, which correspond to each JSON value type, to
- * retrieve the Java value.
- * <h2>Converting JSON values to Java values</h2>
- * The next step is to convert the leaf JSON value to a Java value. There are
- * "conversion" methods that correspond to each JSON type:
+ * Once the desired JSON element is reached, call the corresponding conversion
+ * method to retrieve an appropriate Java value from the {@code JsonValue}.
+ * <h2 id=conversion>Converting JSON values to Java values</h2>
+ * Use the conversion methods to produce a Java value from the {@code
+ * JsonValue}. Each conversion methods corresponds to a JSON type:
  * <ul>
  *     <li>{@code string()} returns a String that represents the JSON string
  *     with all RFC 8259 JSON escapes translated to their corresponding
@@ -70,7 +67,7 @@ import java.util.Optional;
  *     <li>{@code toDouble()} returns a double provided the JSON number is
  *     within range of {@code -Double.MAX_VALUE} and {@code Double.MAX_VALUE}.
  *     </li>
- *     <li>{@code bool()} returns (Java) {@code true} or {@code false}.</li>
+ *     <li>{@code bool()} returns {@code true} or {@code false}.</li>
  *     <li>{@code members()} returns an unmodifiable map of {@code String} to
  *     {@code JsonValue}, guaranteed to contain neither null keys nor null
  *     values. If the JSON object contains no members, an empty map is returned.
@@ -83,9 +80,9 @@ import java.util.Optional;
  * {@snippet lang=java:
  * String bar = foo0.string();
  * }
- * The code above retrieves the Java String of {@code bar} from the leaf JSON
- * value {@code foo0}. If an incorrect "conversion" method is used, for example
- * {@code foo0.bool()}, a {@code JsonAssertionException} is thrown.
+ * The code above retrieves the Java String "bar" from the JSON element {@code foo0}.
+ * If an incorrect conversion method is used, which does not correspond to the matching
+ * JSON type, for example {@code foo0.bool()}, a {@code JsonAssertionException} is thrown.
  * <p>
  * These conversion methods always return a value when the {@code JsonValue} is
  * of the correct JSON type. The exceptions are {@code toLong()} and
@@ -93,9 +90,9 @@ import java.util.Optional;
  * {@code JsonAssertionException} even when the {@code JsonValue} is a JSON
  * number, for example if it is outside their supported ranges.
  * <h2>Subtypes of JsonValue</h2>
- * There are subtypes of JsonValue that represent JSON types. For example
- * {@code JsonString} for JSON string type. If the leaf JSON value type is
- * unknown, it can be retrieved such as:
+ * The {@code JsonValue} subtypes correspond to the JSON types. For example,
+ * {@code JsonString} to JSON string. If the type of JSON value is unknown, it can
+ * be retrieved as follows:
  * {@snippet lang=java:
  * switch (json.get("foo")) {
  *     case JsonString js -> js.string(); // handle the value as JSON string
@@ -104,18 +101,18 @@ import java.util.Optional;
  * }
  * }
  * <h2>Missing Object Members</h2>
- * There are cases where the member in a JSON object is optional. For those
- * cases, there is an access method that returns an Optional of JsonValue,
- * {@code getOrAbsent()}. for example:
+ * There are times when the member in a JSON object is optional. For those
+ * cases, use the access method {@link #getOrAbsent(String)} which returns an
+ * Optional of JsonValue. For example:
  * {@snippet lang=java:
  * json.getOrAbsent("foo")
  *     .ifPresent(IO::println)
  * }
  * This example only prints the value if the member named "foo" exists.
  * <h2>Handling of null</h2>
- * In some JSON documents, sometimes the {@code null} value represents absent.
- * For those cases, there is an access method that returns an Optional of
- * JsonValue, {@code valueOrNull()}, for example:
+ * In some JSON documents, JSON null is used to signify absence.
+ * For those cases, use the access method {@link #valueOrNull()} which returns an
+ * Optional of JsonValue. For example:
  * {@snippet lang=java:
  * json.get("baz")
  *     .valueOrNull()
@@ -123,11 +120,11 @@ import java.util.Optional;
  * }
  * This example only prints the value if the member named "baz" is not a JSON
  * null.
- * <h2>Generating JSON documents</h2>
- * {@code JsonValue} overrides {@link Object#toString()} to generate a compact
- * text representation of the JSON value, by eliminating white spaces, which
- * conforms to RFC 8259. For generating JSON document suitable for display, use
- * {@link Json#toDisplayString(JsonValue, int)} instead.
+ * <h2 id="generation">Generating JSON documents</h2>
+ * {@code JsonValue} overrides {@link Object#toString()} to generate RFC 8259 compliant
+ * JSON text in a compact representation with white spaces eliminated.
+ * For generating JSON documents suitable for display, use
+ * the generation method {@link Json#toDisplayString(JsonValue, int)} instead.
  * <p>
  * Instances of {@code JsonValue} are immutable and thread safe.
  *
