@@ -37,10 +37,10 @@ import java.util.Optional;
  * The interface that represents a JSON value. A {@code JsonValue} can be
  * produced by parsing a JSON document with {@link Json#parse(String)}. Extracting
  * a value is done in a 2-step process using {@link ##access access} and {@link
- * ##conversion conversion} methods. You may also generate JSON compliant text using a {@link
- * ##generation generation} method.
+ * ##conversion conversion} methods. The {@link ##generation generation} method
+ * produces the JSON compliant text from the {@code JsonValue}.
  * <h2 id="access">Navigating JSON documents</h2>
- * Use the access methods to navigate to your desired JSON element. {@link
+ * Use the access methods to navigate to the desired JSON element. {@link
  * #get(String)} is provided for JSON object and {@link #element(int)} for JSON array.
  * Given the JSON document:
  * {@snippet lang=java:
