@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,8 +30,23 @@ import java.io.Serial;
 import jdk.internal.javac.PreviewFeature;
 
 /**
- * Signals that an error has been detected while traversing the {@code JsonValue}.
- *
+ * Indicates that an error has been detected while traversing the {@code JsonValue}.
+ * This exception is thrown under the following conditions:
+ * <ul>
+ *   <li>
+ *     An "access" or "conversion" method is invoked on a {@code JsonValue}
+ *     of an incompatible type. For example, calling {@code bool()} on a
+ *     {@code JsonValue} representing a JSON string.
+ *   </li>
+ *   <li>
+ *     An "access" method is invoked for a non-existent value, such as a
+ *     missing member in a JSON object or an out-of-bounds index in a JSON array.
+ *   </li>
+ *   <li>
+ *     {@code toLong()} or {@code toDouble()} is invoked on a JSON number that
+ *     cannot be represented without loss of information by the target type.
+ *   </li>
+ * </ul>
  * @since 99
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)
