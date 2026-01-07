@@ -568,8 +568,7 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
 }
 
 /*
- * Lookup a symbol in jvm.symbols.
- * Read and process a jvm.symbols file in a given direcory.
+ * Lookup a symbol in the symbols file in a given direcory.
  */
 void *symbol_resolve_from_symbol_file(const char *dirname, const char *sym) {
     char buf[BUFLEN];
@@ -581,30 +580,27 @@ void *symbol_resolve_from_symbol_file(const char *dirname, const char *sym) {
         return (void *) -1;
     }
 
+    char line_buffer[BUFLEN];
     char s1[BUFLEN];
     char s2[BUFLEN];
     char s3[BUFLEN];
-    while (1) {
+
+    while (fgets(line_buffer, BUFLEN, f) != nullptr) {
         memset(s1, 0, BUFLEN);
         memset(s2, 0, BUFLEN);
         memset(s3, 0, BUFLEN);
-        e = fscanf(f, "%s %s %s\n", s1, s2, s3);  // symbol address [contents]
-        if (e < 2) {
-            break;
-        }
-        if (strncmp(s1, sym, BUFLEN) == 0) {
-            char *endptr;
-            addr = (void*) strtoll(s2, &endptr, 16);
-            break;
-        } 
-    }
-    if (verbose) {
-        if (e == 2) {
-            printf("symbol: %s = %p\n", sym, addr);
-        } else {
-            printf("symbol: %s = %p (contained %s)\n", sym, addr, s3);
+        e = sscanf(line_buffer, "%s %s %s\n", s1, s2, s3);  // symbol address [contents]
+        if (e >= 2) {
+            // Optional contents field was used for testing, now ignored.
+            if (strncmp(s1, sym, BUFLEN) == 0) {
+                char *endptr;
+                addr = (void*) strtoll(s2, &endptr, 16);
+                break;
+            }
         }
     }
+
+    logv("symbol: %s = %p\n", sym, addr);
     fclose(f);
 
     if (addr == 0) {
