@@ -67,14 +67,16 @@ import java.util.Optional;
  *     <li>{@code toDouble()} returns a double provided the JSON number is
  *     within range of {@code -Double.MAX_VALUE} and {@code Double.MAX_VALUE}.
  *     </li>
- *     <li>{@code bool()} returns {@code true} or {@code false}.</li>
+ *     <li>{@code bool()} returns {@code true} or {@code false} for JSON
+ *     {@code true} or JSON {@code false}.</li>
  *     <li>{@code members()} returns an unmodifiable map of {@code String} to
- *     {@code JsonValue}, guaranteed to contain neither null keys nor null
- *     values. If the JSON object contains no members, an empty map is returned.
+ *     {@code JsonValue} for JSON object, guaranteed to contain neither null
+ *     keys nor null values. If the JSON object contains no members, an empty
+ *     map is returned.
  *     </li>
- *     <li>{@code elements()} returns an unmodifiable list of {@code JsonValue},
- *     guaranteed to contain non-null values. If the JSON array contains no
- *     elements, an empty list is returned.</li>
+ *     <li>{@code elements()} returns an unmodifiable list of {@code JsonValue}
+ *     for JSON array, guaranteed to contain non-null values. If the JSON array
+ *     contains no elements, an empty list is returned.</li>
  * </ul>
  * For example,
  * {@snippet lang=java:
