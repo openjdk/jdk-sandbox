@@ -39,8 +39,9 @@ import jdk.internal.javac.PreviewFeature;
  *     {@code JsonValue} representing a JSON string.
  *   </li>
  *   <li>
- *     An "access" method is invoked for a non-existent value, such as a
- *     missing member in a JSON object or an out-of-bounds index in a JSON array.
+ *     An "access" method is invoked for a non-existent value, such as
+ *     {@code get()} for a missing member in a JSON object or {@code element()}
+ *     for an out-of-bounds index in a JSON array.
  *   </li>
  *   <li>
  *     {@code toLong()} or {@code toDouble()} is invoked on a JSON number that
