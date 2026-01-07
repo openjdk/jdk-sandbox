@@ -34,13 +34,14 @@ import jdk.internal.javac.PreviewFeature;
  * This exception is thrown under the following conditions:
  * <ul>
  *   <li>
- *     An "access" or "conversion" method is invoked on a {@code JsonValue}
- *     of an incompatible type. For example, calling {@code bool()} on a
- *     {@code JsonValue} representing a JSON string.
+ *     An {@link JsonValue##access access} or a
+ *     {@link JsonValue##conversion conversion} method is invoked on a
+ *     {@code JsonValue} of an incompatible type. For example, calling
+ *     {@code bool()} on a {@code JsonValue} representing a JSON string.
  *   </li>
  *   <li>
- *     An "access" method is invoked for a non-existent value, such as
- *     {@code get()} for a missing member in a JSON object or {@code element()}
+ *     An access method is invoked for a non-existent value, such as
+ *     {@code get()} for a missing member in a JSON object, or {@code element()}
  *     for an out-of-bounds index in a JSON array.
  *   </li>
  *   <li>
