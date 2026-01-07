@@ -147,26 +147,7 @@ bool file_exists_indir_pd(const char* dirname, const char* filename) {
 }
 
 
-/**
- * Read a char string from an fd.
- */
-char* readstring(int fd) {
-    char* buf = (char *) malloc(BUFLEN);
-    if (buf == nullptr) {
-        error("Failed to malloc buffer to read string");
-    }
-    int c = 0;
-    do {
-        int e = read(fd, &buf[c], 1);
-        if (e != 1) {
-            free(buf);
-            return nullptr;
-        }
-    } while (buf[c++] != 0);
-    return buf;
-}
-
-char* readstring_at_pd(const char* filename, uint64_t offset) {
+char* readstring_at_offset_pd(const char* filename, uint64_t offset) {
     int fd = open(filename, O_RDONLY);
     if (fd < 0) {
         warn("cannot open %s", filename);
@@ -183,7 +164,7 @@ char* readstring_at_pd(const char* filename, uint64_t offset) {
     return s;
 }
 
-char* readstring_from_core_at_pd(const char* filename, uint64_t addr) {
+char* readstring_from_core_at_vaddr_pd(const char* filename, uint64_t addr) {
     ELFFile elf(filename, nullptr);
     return elf.read_string_at_address(addr);
 }
@@ -778,9 +759,9 @@ int create_revivalbits_native_pd(const char* corename, const char* javahome, con
             warn("Failed to create symbols file\n");
             return -1;
         }
-        logv("Write libjvm symbols");
+        logv("Write symbols");
         jvm_copy.write_symbols(symbols_fd, JVM_SYMS, N_JVM_SYMS);
-        logv("Write libjvm symbols done");
+        logv("Write symbols done");
         close_file_descriptor(symbols_fd, "symbols file");
     }
 

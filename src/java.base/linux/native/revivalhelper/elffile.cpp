@@ -222,7 +222,7 @@ char* ELFFile::read_string_at_address(uint64_t addr) {
         if (phdr->p_type == PT_LOAD) {
             if (phdr->p_vaddr >= addr) {
                 uint64_t offset = phdr->p_offset + (addr - phdr->p_vaddr);
-                return readstring_at_pd(filename, offset);
+                return readstring_at_offset_pd(filename, offset);
             }
         }
         phdr = next_ph(phdr);

@@ -247,8 +247,9 @@ extern char *jvm_filename;
 extern void *jvm_address;
 extern std::list<Segment> avoidSegments;
 
-char* readstring_at_pd(const char* filename, uint64_t offset);
-char* readstring_from_core_at_pd(const char* filename, uint64_t addr);
+char* readstring(int fd);
+char* readstring_at_offset_pd(const char* filename, uint64_t offset);
+char* readstring_from_core_at_vaddr_pd(const char* filename, uint64_t addr);
 
 bool create_directory_pd(char* dirname);
 

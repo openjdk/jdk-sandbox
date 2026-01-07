@@ -98,6 +98,27 @@ void writef(int fd, const char *format, ...) {
     write0(fd, buffer);
 }
 
+
+/**
+ * Read a char string from an fd.
+ */
+char* readstring(int fd) {
+    char* buf = (char *) malloc(BUFLEN);
+    if (buf == nullptr) {
+        error("readstring: Failed to malloc buffer to read string");
+    }
+    int c = 0;
+    do {
+        int e = read(fd, &buf[c], 1);
+        if (e != 1) {
+            free(buf);
+            return nullptr;
+        }
+    } while (buf[c++] != 0 && c < BUFLEN);
+    return buf;
+}
+
+
 void log0(const char *msg) {
     // Add timestamp and newline to message, write on stderr.
     char buffer[BUFLEN];
@@ -1050,11 +1071,11 @@ void doVersionCheck(const char* corename, const char* revival_dir) {
         // ...but was that populated from core or binary?  Be specific.
         char* ptr = *(char**) ver; // read pointer from now-live memory
         logv("Version check: ptr = 0x%llx",  (unsigned long long) ptr);
-        char* vm_release_core = readstring_from_core_at_pd(corename, (uint64_t) *(char**) ver);
+        char* vm_release_core = readstring_from_core_at_vaddr_pd(corename, (uint64_t) *(char**) ver);
         logv("Version check: vm release from core: 0x%llx 0x%llx '%s'", (unsigned long long) ver, (unsigned long long) vm_release_core,  vm_release_core);
 
         uint64_t vm_release_offset = (uint64_t) ptr - (uint64_t) jvm_address;
-        char* vm_release_binary = readstring_at_pd(jvm_filename, vm_release_offset);
+        char* vm_release_binary = readstring_at_offset_pd(jvm_filename, vm_release_offset);
         logv("Version check: vm release from binary:  %s", vm_release_binary);
 
         if (strncmp(vm_release_core, vm_release_binary, BUFLEN) != 0) {
