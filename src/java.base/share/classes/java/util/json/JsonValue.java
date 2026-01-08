@@ -68,7 +68,7 @@ import java.util.Optional;
  *     within range of {@code -Double.MAX_VALUE} and {@code Double.MAX_VALUE}.
  *     </li>
  *     <li>{@code bool()} returns {@code true} or {@code false} for JSON
- *     {@code true} or JSON {@code false}.</li>
+ *     boolean literals.</li>
  *     <li>{@code members()} returns an unmodifiable map of {@code String} to
  *     {@code JsonValue} for JSON object, guaranteed to contain neither null
  *     keys nor null values. If the JSON object contains no members, an empty
