@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,12 +53,6 @@ public non-sealed interface JsonObject extends JsonValue {
      */
     @Override
     Map<String, JsonValue> members();
-
-    /**
-     * {@return this as a {@code JsonObject}}
-     */
-    @Override
-    JsonObject object();
 
     /**
      * {@return the {@code JsonObject} created from the given

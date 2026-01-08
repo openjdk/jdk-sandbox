@@ -244,49 +244,6 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
     }
 
     /**
-     * {@return this {@code JsonValue} as a {@code JsonObject}}
-     *
-     * @implSpec
-     * The default implementation throws {@code JsonAssertionException}.
-     *
-     * @apiNote
-     * Neither an access nor a conversion method, {@code object()} is best used
-     * as a singular identifiable failure point for a node of importance.
-     * For example,
-     * {@snippet lang=java :
-     * var user = Json.parse(doc).get("user").object();
-     * var id = user.get("id"); // use "id"
-     * var name = user.get("name"); // use "name"
-     * }
-     * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonObject}.
-     */
-    default JsonObject object() {
-        throw Utils.composeTypeError(this, "JsonObject");
-    }
-
-    /**
-     * {@return this {@code JsonValue} as a {@code JsonArray}}
-     *
-     * @implSpec
-     * The default implementation throws {@code JsonAssertionException}.
-     *
-     * @apiNote
-     * Neither an access nor a conversion method, {@code array()} is best used
-     * as a singular identifiable failure point for a node of importance.
-     * For example,
-     * {@snippet lang=java :
-     * var users = Json.parse(doc).get("users").array();
-     * var first = users.element(0); // use "first"
-     * var second = users.element(1); // use "second"
-     * }
-     *
-     * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonArray}.
-     */
-    default JsonArray array() {
-        throw Utils.composeTypeError(this, "JsonArray");
-    }
-
-    /**
      * {@return the {@code JsonValue} associated with the given member name of a {@code JsonObject}}
      *
      * @implSpec
