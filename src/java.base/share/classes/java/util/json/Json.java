@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,9 +42,10 @@ import jdk.internal.util.json.Utils;
  *
  * <p>
  * {@link #parse(String)} and {@link #parse(char[])} produce a {@code JsonValue}
- * by parsing data adhering to the JSON syntax defined in RFC 8259.
+ * by parsing data adhering to the JSON syntax defined in RFC 8259. Unsuccessful
+ * parsing throws a {@link JsonParseException}.
  * <p>
- * {@link #toDisplayString(JsonValue, int)} is a generator that produces a
+ * {@link #toDisplayString(JsonValue, int)} produces a
  * JSON text representation of the given {@code JsonValue} suitable for display.
  *
  * @spec https://datatracker.ietf.org/doc/html/rfc8259 RFC 8259: The JavaScript
@@ -57,14 +58,14 @@ public final class Json {
     /**
      * Parses and creates a {@code JsonValue} from the given JSON document.
      * If parsing succeeds, it guarantees that the input document conforms to
-     * the JSON syntax. If the document contains any JSON Object that has
+     * the JSON syntax. If the document contains any JSON object that has
      * duplicate names, a {@code JsonParseException} is thrown.
-     * <p>
-     * {@code JsonValue}s created by this method produce their String and underlying
-     * value representation lazily.
      * <p>
      * {@code JsonObject}s preserve the order of their members declared in and parsed from
      * the JSON document.
+     *
+     * @implNote {@code JsonValue}s created by this method may produce their
+     * underlying value representation lazily.
      *
      * @param in the input JSON document as {@code String}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform
@@ -81,14 +82,14 @@ public final class Json {
     /**
      * Parses and creates a {@code JsonValue} from the given JSON document.
      * If parsing succeeds, it guarantees that the input document conforms to
-     * the JSON syntax. If the document contains any JSON Object that has
+     * the JSON syntax. If the document contains any JSON object that has
      * duplicate names, a {@code JsonParseException} is thrown.
-     * <p>
-     * {@code JsonValue}s created by this method produce their String and underlying
-     * value representation lazily.
      * <p>
      * {@code JsonObject}s preserve the order of their members declared in and parsed from
      * the JSON document.
+     *
+     * @implNote {@code JsonValue}s created by this method may produce their
+     * underlying value representation lazily.
      *
      * @param in the input JSON document as {@code char[]}. Non-null.
      * @throws JsonParseException if the input JSON document does not conform
