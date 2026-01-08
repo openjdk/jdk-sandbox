@@ -52,6 +52,10 @@ import java.util.Optional;
  * {@snippet lang=java:
  * JsonValue foo0 = json.get("foo").element(0);
  * }
+ * If an access method is invoked on an incompatible JSON type (for example,
+ * calling {@code get(String)} on a JSON array), a {@code JsonAssertionException}
+ * is thrown.
+ * <p>
  * Once the desired JSON element is reached, call the corresponding conversion
  * method to retrieve an appropriate Java value from the {@code JsonValue}.
  * <h2 id=conversion>Converting JSON values to Java values</h2>
