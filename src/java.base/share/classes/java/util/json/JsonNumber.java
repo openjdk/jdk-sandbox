@@ -99,12 +99,12 @@ public non-sealed interface JsonNumber extends JsonValue {
     double toDouble();
 
     /**
-     * Creates a JSON number whose string representation is the
-     * decimal string representation of the given {@code double} value,
-     * produced by applying the value to {@link Double#toString(double)}.
+     * Creates a JSON number from the given {@code double} value.
+     * The string representation of the JSON number created is produced by applying
+     * {@link Double#toString(double)} on {@code num}.
      *
      * @param num the given {@code double} value.
-     * @return a JSON number created from a {@code double} value
+     * @return a JSON number created from the {@code double} value
      * @throws IllegalArgumentException if the given {@code double} value
      * is not a finite floating-point value ({@link Double#NaN NaN},
      * {@link Double#POSITIVE_INFINITY positive infinity}, or
@@ -119,15 +119,14 @@ public non-sealed interface JsonNumber extends JsonValue {
     }
 
     /**
-     * Creates a JSON number whose string representation is the
-     * decimal string representation of the given {@code long} value,
-     * produced by applying the value to {@link Long#toString(long)}.
+     * Creates a JSON number from the given {@code long} value.
+     * The string representation of the JSON number created is produced by applying
+     * {@link Long#toString(long)} on {@code num}.
      *
      * @param num the given {@code long} value.
-     * @return a JSON number created from a {@code long} value
+     * @return a JSON number created from the {@code long} value
      */
     static JsonNumber of(long num) {
-        // integral types
         var str = Long.toString(num);
         return new JsonNumberImpl(str.toCharArray(), 0, str.length(), -1, -1);
     }
