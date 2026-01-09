@@ -134,16 +134,15 @@ public non-sealed interface JsonNumber extends JsonValue {
     /**
      * Creates a JSON number from the given {@code String} value.
      *
-     * @implNote This is equivalent to calling:
+     * @implNote The value returned is equivalent to calling:
      * {@snippet lang = "java":
      * if (Json.parse(num) instanceof JsonNumber jn) {
      *     return jn;
      * }
-     * // throws JsonParseException
      * }
      *
      * @param num the given {@code String} value.
-     * @throws JsonParseException if {@code num} is not a valid string
+     * @throws IllegalArgumentException if {@code num} is not a valid string
      *      representation of a JSON number.
      * @return a JSON number created from the {@code String} value
      */
@@ -153,7 +152,7 @@ public non-sealed interface JsonNumber extends JsonValue {
                 return jn;
             }
         } catch (JsonParseException _) {}
-        throw new JsonParseException("Not a JSON number", 0, 0);
+        throw new IllegalArgumentException("Not a JSON number");
     }
 
     /**

@@ -148,13 +148,6 @@ public class TestJsonNumber {
             assertEquals(JsonNumber.of("0.1").toDouble(), 0.1d);
             assertEquals(JsonNumber.of("1e0").toDouble(), 1d);
             assertEquals(JsonNumber.of("1.7976931348623157E308").toDouble(), Double.MAX_VALUE);
-
-            assertThrows(JsonParseException.class, () -> JsonNumber.of("foo"));
-            assertThrows(JsonParseException.class, () -> JsonNumber.of("true"));
-            assertThrows(JsonParseException.class, () -> JsonNumber.of("\"foo\""));
-            assertThrows(JsonParseException.class, () -> JsonNumber.of("null"));
-            assertThrows(JsonParseException.class, () -> JsonNumber.of("[1, 2]"));
-            assertThrows(JsonParseException.class, () -> JsonNumber.of("{\"foo\": 42}"));
         }
 
         @Test
@@ -318,6 +311,12 @@ public class TestJsonNumber {
             assertEquals(JsonNumber.of(0.1f).toString(), Double.valueOf(0.1f).toString());
             assertEquals(JsonNumber.of(0.1d).toString(), "0.1");
             assertEquals(JsonNumber.of(Double.MAX_VALUE).toString(), Double.valueOf(Double.MAX_VALUE).toString());
+            assertThrows(IllegalArgumentException.class, () -> JsonNumber.of("foo"));
+            assertThrows(IllegalArgumentException.class, () -> JsonNumber.of("true"));
+            assertThrows(IllegalArgumentException.class, () -> JsonNumber.of("\"foo\""));
+            assertThrows(IllegalArgumentException.class, () -> JsonNumber.of("null"));
+            assertThrows(IllegalArgumentException.class, () -> JsonNumber.of("[1, 2]"));
+            assertThrows(IllegalArgumentException.class, () -> JsonNumber.of("{\"foo\": 42}"));
         }
 
         @ParameterizedTest
