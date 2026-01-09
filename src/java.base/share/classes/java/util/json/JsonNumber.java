@@ -33,12 +33,13 @@ import jdk.internal.util.json.JsonNumberImpl;
  * number represented in base 10 using decimal digits.
  * <p>
  * A {@code JsonNumber} can be produced by {@link Json#parse(String)}.
- * Alternatively, {@link #of(double)}, {@link #of(long)}, or {@link #of(String)}
- * can be used to obtain a {@code JsonNumber}.
  * When a JSON number is parsed, a {@code JsonNumber} object is created
  * as long as the parsed value adheres to the JSON number
  * <a href="https://datatracker.ietf.org/doc/html/rfc8259#section-6">
- * syntax</a>. The value of the {@code JsonNumber} can be retrieved as a {@code long}
+ * syntax</a>.
+ * Alternatively, {@link #of(double)}, {@link #of(long)}, or {@link #of(String)}
+ * can be used to obtain a {@code JsonNumber}.
+ * The value of the {@code JsonNumber} can be retrieved as a {@code long}
  * with {@link #toLong()} or as a {@code double} with {@link #toDouble()}.
  * {@link #toString()} can be used to return the string representation of
  * the JSON number.
