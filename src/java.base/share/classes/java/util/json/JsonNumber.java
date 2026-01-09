@@ -89,6 +89,9 @@ public non-sealed interface JsonNumber extends JsonValue {
      * This method returns a finite {@code double} if it can be translated from the
      * string representation of this {@code JsonNumber}.
      *
+     * @apiNote Callers of this method should be aware of the potential loss in
+     * precision when the string representation of the JSON number is translated
+     * to a {@code double}.
      * @implNote The JDK reference implementation uses {@link
      * Double#parseDouble(String)} to perform the conversion from string to
      * double.
