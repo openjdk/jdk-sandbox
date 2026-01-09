@@ -156,7 +156,7 @@ public non-sealed interface JsonNumber extends JsonValue {
     }
 
     /**
-     * {@return the decimal string representation of this {@code JsonNumber}}
+     * {@return the string representation of this {@code JsonNumber}}
      *
      * If this {@code JsonNumber} is created by parsing a JSON number in a JSON document,
      * it preserves the string representation in the document, regardless of its
