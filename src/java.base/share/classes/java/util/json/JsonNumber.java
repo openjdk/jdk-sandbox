@@ -133,6 +133,8 @@ public non-sealed interface JsonNumber extends JsonValue {
 
     /**
      * Creates a JSON number from the given {@code String} value.
+     * The string representation of the JSON number created is equivalent to
+     * {@code num}.
      *
      * @implNote The value returned is equivalent to calling:
      * {@snippet lang = "java":
