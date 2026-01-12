@@ -215,19 +215,28 @@ void ELFFile::print() {
     }
 }
 
-char* ELFFile::read_string_at_address(uint64_t addr) {
+
+uint64_t ELFFile::file_offset_for_vaddr(uint64_t addr) {
     // Locate PT_LOAD for this address.
     Elf64_Phdr* phdr = ph;
     for (int i = 0; i < hdr->e_phnum; i++) {
         if (phdr->p_type == PT_LOAD) {
             if (phdr->p_vaddr >= addr) {
-                uint64_t offset = phdr->p_offset + (addr - phdr->p_vaddr);
-                return readstring_at_offset_pd(filename, offset);
+                return phdr->p_offset + (addr - phdr->p_vaddr);
             }
         }
         phdr = next_ph(phdr);
     }
-    return nullptr;
+    return 0;
+}
+
+char* ELFFile::readstring_at_address(uint64_t addr) {
+    uint64_t offset = this->file_offset_for_vaddr(addr);
+    if (offset == 0) {
+        return nullptr;
+    } else {
+        return readstring_at_offset_pd(filename, offset);
+    }
 }
 
 void ELFFile::relocate(long displacement) {

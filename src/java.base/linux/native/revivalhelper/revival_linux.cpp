@@ -166,7 +166,7 @@ char* readstring_at_offset_pd(const char* filename, uint64_t offset) {
 
 char* readstring_from_core_at_vaddr_pd(const char* filename, uint64_t addr) {
     ELFFile elf(filename, nullptr);
-    return elf.read_string_at_address(addr);
+    return elf.readstring_at_address(addr);
 }
 
 

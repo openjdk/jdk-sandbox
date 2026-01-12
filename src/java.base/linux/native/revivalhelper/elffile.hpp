@@ -46,7 +46,9 @@ class ELFFile {
     ELFFile(const char* filename, const char* libdir);
     ~ELFFile();
 
-    char* read_string_at_address(uint64_t addr); // Read at effective virtual address
+    uint64_t file_offset_for_vaddr(uint64_t addr);
+    char* readstring_at_address(uint64_t addr);
+
     void print(); // Show PHs and Sections
 
     // Relocate actual file by some amount.
