@@ -132,9 +132,19 @@ public class TestJsonNumber {
         }
 
         @Test
-        void numberThrowsTest() {
-            var jn = (JsonNumber) Json.parse("9e111111111111");
-            assertThrows(JsonAssertionException.class, jn::toDouble);
+        void assertRangeTest() {
+            var jv = Json.parse("1.7976931348623159E308");
+            assertThrows(JsonAssertionException.class, jv::toDouble);
+            assertThrows(JsonAssertionException.class, jv::toLong);
+            jv = Json.parse("-1.7976931348623159E308");
+            assertThrows(JsonAssertionException.class, jv::toDouble);
+            assertThrows(JsonAssertionException.class, jv::toLong);
+            jv = Json.parse("9223372036854775808");
+            assertDoesNotThrow(jv::toDouble);
+            assertThrows(JsonAssertionException.class, jv::toLong);
+            jv = Json.parse("-9223372036854775809");
+            assertDoesNotThrow(jv::toDouble);
+            assertThrows(JsonAssertionException.class, jv::toLong);
         }
     }
 
