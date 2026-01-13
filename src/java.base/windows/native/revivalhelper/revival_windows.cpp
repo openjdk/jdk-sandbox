@@ -584,7 +584,6 @@ void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length) {
 
 
 void *do_map_allocate_pd(void *vaddr, size_t length) {
-
     // mappings file is created with minidump addresses, not necessarily 64k aligned.
 
     address vaddr_aligned = align_down((uint64_t) vaddr, vaddr_alignment_pd());
@@ -596,7 +595,6 @@ void *do_map_allocate_pd(void *vaddr, size_t length) {
         logv("    do_map_allocate_pd: vaddr 0x%p aligns -> 0x%p  len 0x%p adjusts -> 0x%p",
             (void*) vaddr, (void*) vaddr_aligned, length, length_aligned);
     }
-
     address r = (address) do_map_allocate_pd_VirtualAlloc2((void*) vaddr_aligned, length_aligned);
 
     // Accept the aligned down address and return as if the requested vaddr was honoured.
@@ -609,14 +607,26 @@ void *do_map_allocate_pd(void *vaddr, size_t length) {
 }
 
 
-char* readstring_at_pd(const char* filename, uint64_t offset) {
-    error("not implemented");
-    return nullptr;
+char* readstring_at_offset_pd(const char* filename, uint64_t offset) {
+   int fd = open(filename, O_RDONLY | O_BINARY);
+    if (fd < 0) {
+        warn("cannot open %s", filename);
+        return (char*) -1;
+    }
+    off_t pos = lseek(fd, (long) offset, SEEK_SET);
+    if (pos < 0) {
+        warn("readstring_at_pd: %s: lseek(%ld) fails %d : %s", filename, offset, errno, strerror(errno));
+        close(fd);
+        return (char*) -1;
+    }
+    char* s = readstring(fd);
+    close(fd);
+    return s;
 }
 
-char* readstring_from_core_at_pd(const char* filename, uint64_t offset) {
-    error("not implemented");
-    return nullptr;
+char* readstring_from_core_at_vaddr_pd(const char* filename, uint64_t addr) {
+    MiniDump dump(filename, nullptr);
+    return dump.readstring_at_address(addr);
 }
 
 
@@ -757,7 +767,7 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
     while (true) {
         if (seg == nullptr || segNext == nullptr) {
             // First iteration, or no segNext waiting:
-            seg = dump->readSegment(&d, &currentRVA);
+            seg = dump->readSegment(&d, &currentRVA, true);
         } else {
             // Use a segNext we already read (but did not use):
             seg = segNext;
@@ -777,7 +787,7 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
         }
 
         // Consider the next region also:
-        segNext = dump->readSegment(&d, &currentRVA);
+        segNext = dump->readSegment(&d, &currentRVA, true);
 
         // (1) Can we coalesce (join) touching regions, if the file offsets work,
         //     to reduce number of mappings (there are likely >600).
@@ -799,7 +809,7 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
             }
 
             seg = joinedSeg;
-            segNext = dump->readSegment(&d, &currentRVA);
+            segNext = dump->readSegment(&d, &currentRVA, true);
         }
         if (joinedSeg != nullptr) {
             seg = joinedSeg;  // Which may yet be relevant in (2) below.
@@ -835,7 +845,7 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
             }
             // Next...
             seg = segNext;
-            segNext = dump->readSegment(&d, &currentRVA);
+            segNext = dump->readSegment(&d, &currentRVA, true);
         }
 
         // Write line to mappings file.
@@ -874,13 +884,15 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
 }
 
 
-const int N_JVM_SYMS = 1;
+const int N_JVM_SYMS = 2;
 const char *JVM_SYMS[N_JVM_SYMS] = {
-    SYM_REVIVE_VM
+    SYM_REVIVE_VM,
+    SYM_VM_RELEASE
 };
 
 void write_symbols(int fd, const char* symbols[], int count, const char *revival_dirname) {
 
+    // Using SymFromName() on jvm.dll after relocation will give final absoulute addresses.
     PLOADED_IMAGE image = ImageLoad(JVM_FILENAME, revival_dirname);
     if (image == nullptr) {
         error("write_symbols: ImageLoad error '%s': %d", GetLastError());
@@ -905,21 +917,16 @@ void write_symbols(int fd, const char* symbols[], int count, const char *revival
    	pSymbol->MaxNameLen = MAX_SYM_NAME;
     char buf[MAX_SYM_NAME];
 
-    // Using SymFromName() on jvm.dll after relocation, gets us final absoulute addresses.
     for (int i = 0; i < count; i++) {
-        logv("SYM: %d %s", i, symbols[i]);
     	strncpy(szSymbolName, symbols[i], MAX_SYM_NAME);
-        unsigned long long address = 0;
 
-      	if (SymFromName(h2, szSymbolName, pSymbol)) {
-        	//	warn("SYM: %s = %s %p", (char *) pSymbol->Name, pSymbol->Address);
-        	address = pSymbol->Address;
-    	} else {
-    		warn("SymFromName returned error : %d", GetLastError());
-    	}
-        snprintf(buf, MAX_SYM_NAME, "%s %llx\n", szSymbolName, address);
-        logv("SYM: %s", buf);
-        write0(fd, buf);
+         if (!SymFromName(h2, szSymbolName, pSymbol)) {
+            warn("write_symbols: %d: SymFromName '%s' failed, error: %d", i, szSymbolName, GetLastError());
+        } else {
+            snprintf(buf, BUFLEN, "%s %llx\n", szSymbolName, pSymbol->Address);
+            logv("write_symbols: %d: %s", i, buf); // buf includes return char so causes extra newline
+            write0(fd, buf);
+        }
     }
     e = SymCleanup(h2);
     if (e != TRUE) {
@@ -1001,9 +1008,9 @@ int create_revivalbits_native_pd(const char* corename, const char* javahome, con
     if (symbols_fd < 0) {
         error("Failed to create mappings file");
     }
-    logv("Write jvm symbols");
+    logv("Write symbols");
     write_symbols(symbols_fd, JVM_SYMS, N_JVM_SYMS, revival_dirname);
-    logv("Write jvm symbols done");
+    logv("Write symbols done");
     close(symbols_fd);
 
     // Create (open) the core.mappings file:

@@ -51,7 +51,7 @@ class Abstract_VM_Version: AllStatic {
   friend class JVMCIVMStructs;
 
  protected:
-  static JNIEXPORT const char*  _s_vm_release;
+  static const char*  _s_vm_release;
   static const char*  _s_internal_vm_info_string;
 
   // CPU feature flags, can be affected by VM settings.

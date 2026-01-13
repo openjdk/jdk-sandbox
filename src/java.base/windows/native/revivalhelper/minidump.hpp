@@ -54,7 +54,7 @@ class MiniDump {
     void close();
     ~MiniDump();
     MINIDUMP_DIRECTORY* find_stream(int stream);
-    Segment* readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA);
+    Segment* readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA, boolean skipLibraries);
 
     char* get_jvm_filename() { return jvm_filename; }
     void* get_jvm_address() { return jvm_address; }
@@ -69,7 +69,11 @@ class MiniDump {
     int get_fd() { return fd; }
     RVA64 getBaseRVA() { return BaseRVA; }
 
+    uint64_t file_offset_for_vaddr(uint64_t addr);
+    char* readstring_at_address(uint64_t addr);
+
   private:
+    const char* filename;
     void open(const char* filename);
     int read_modules(); // populate module list, and locate jvm
     Segment* readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA);

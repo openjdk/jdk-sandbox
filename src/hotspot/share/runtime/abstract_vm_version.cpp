@@ -33,6 +33,12 @@
 const char* Abstract_VM_Version::_s_vm_release = Abstract_VM_Version::vm_release();
 const char* Abstract_VM_Version::_s_internal_vm_info_string = Abstract_VM_Version::internal_vm_info_string();
 
+// Externally visible version information.
+// Duplicate the _s_vm_release member to give symbol visibility on Windows.
+extern "C" {
+JNIEXPORT const char* _s_vm_release_global = Abstract_VM_Version::vm_release();
+}
+
 uint64_t Abstract_VM_Version::_features = 0;
 const char* Abstract_VM_Version::_features_string = "";
 const char* Abstract_VM_Version::_cpu_info_string = "";
@@ -48,6 +54,7 @@ bool Abstract_VM_Version::_supports_atomic_getadd8 = false;
 unsigned int Abstract_VM_Version::_logical_processors_per_package = 1U;
 unsigned int Abstract_VM_Version::_L1_data_cache_line_size = 0;
 unsigned int Abstract_VM_Version::_data_cache_line_flush_size = 0;
+
 
 VirtualizationType Abstract_VM_Version::_detected_virtualization = NoDetectedVirtualization;
 

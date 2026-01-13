@@ -1062,19 +1062,30 @@ void doVersionCheck(const char* corename, const char* revival_dir) {
         return;
     }
 
-    // Mappings in place, jvm_filename and jvm_address are set:
-    if (ver != nullptr && jvm_address != nullptr) {
-        logv("Version check... " SYM_VM_RELEASE "=0x%llx", (unsigned long long) ver);
+    // Mappings are in place, jvm_filename and jvm_address are set.
+
+    if (jvm_address == nullptr) {
+        warn("doVersionCheck: No jvm_address?");
+    } else {
+        logv("Version check... " SYM_VM_RELEASE " = 0x%llx", (unsigned long long) ver);
         // Read version from core, and binary, and compare.
+        char* ptr = *(char**) ver; // read pointer from now-live memory
+
         // Could read from address space directly:
         // char *vm_release_core = *(char**) ver;
         // ...but was that populated from core or binary?  Be specific.
-        char* ptr = *(char**) ver; // read pointer from now-live memory
+
         logv("Version check: ptr = 0x%llx",  (unsigned long long) ptr);
         char* vm_release_core = readstring_from_core_at_vaddr_pd(corename, (uint64_t) *(char**) ver);
-        logv("Version check: vm release from core: 0x%llx 0x%llx '%s'", (unsigned long long) ver, (unsigned long long) vm_release_core,  vm_release_core);
+        logv("Version check: vm release from core: 0x%llx 0x%llx '%s'",
+             (unsigned long long) ver, (unsigned long long) vm_release_core,  vm_release_core);
 
         uint64_t vm_release_offset = (uint64_t) ptr - (uint64_t) jvm_address;
+#ifdef WINDOWS
+        // Windows RVA adjustment:
+        vm_release_offset -= 0x1000;
+#endif
+        logv("Version check: vm binary offset:  0x%llx", vm_release_offset);
         char* vm_release_binary = readstring_at_offset_pd(jvm_filename, vm_release_offset);
         logv("Version check: vm release from binary:  %s", vm_release_binary);
 

@@ -101,6 +101,7 @@ char *string_at_offset_minidump(int fd, ULONG32 offset) {
 
 
 MiniDump::MiniDump(const char* filename, const char* libdir) {
+    this->filename = filename;
     open(filename);
     this->libdir = libdir;
     if (is_valid()) {
@@ -246,7 +247,7 @@ void MiniDump::prepare_memory_ranges() {
     }
     int e = read(get_fd(), &NumberOfMemoryRanges, sizeof(NumberOfMemoryRanges));
     e = read(get_fd(), &BaseRVA, sizeof(BaseRVA));
-    logv("MiniDump: NumberOfMemoryRanges %d, BaseRVA 0x%llx", NumberOfMemoryRanges, BaseRVA);
+    logv("MiniDump::prepare_memory_ranges: NumberOfMemoryRanges %d, BaseRVA 0x%llx", NumberOfMemoryRanges, BaseRVA);
     rangesRead = 0;
 }
 
@@ -308,7 +309,7 @@ Segment* MiniDump::readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentR
  * Return a Segment* and update the output parameters.  current RVA will be the dump file offset of the next segment.
  * Return nullptr when no further memory descriptors are found.
  */
-Segment* MiniDump::readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA) {
+Segment* MiniDump::readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA, boolean skipLibraries) {
     Segment *seg = nullptr;
     bool clash;
     do {
@@ -321,7 +322,9 @@ Segment* MiniDump::readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRV
         // so complex overlaps not possible.
         // Module extents (iter) likely to be larger than individual memory descriptors.
         for (std::list<Segment>::iterator iter = modules.begin(); iter != modules.end(); iter++) {
-            if (seg->start() >= iter->start() && seg->end() <= iter->end()) {
+            if (skipLibraries &&
+                (seg->start() >= iter->start() && seg->end() <= iter->end())
+              ) {
                 // Seg clashes with some module.
                 //
                 // But the JVM .data Section located earlier is needed.
@@ -346,5 +349,35 @@ Segment* MiniDump::readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRV
     } while (clash);
 
     return seg;
+}
+
+
+uint64_t MiniDump::file_offset_for_vaddr(uint64_t addr) {
+    // Find data segment for address.
+    this->prepare_memory_ranges();
+    RVA64 currentRVA = this->getBaseRVA();
+    MINIDUMP_MEMORY_DESCRIPTOR64 d;
+
+    Segment* seg = this->readSegment(&d, &currentRVA, false);
+    while (seg != nullptr) {
+        if (seg->contains(addr)) {
+            // Find offset into segment:
+            uint64_t relAddr = addr - seg->start();
+            uint64_t offset = seg->file_offset + relAddr;
+            return offset;
+        }
+        seg = this->readSegment(&d, &currentRVA, false);
+    }
+    return 0;
+}
+
+
+char* MiniDump::readstring_at_address(uint64_t addr) {
+    uint64_t offset = file_offset_for_vaddr(addr);
+    if (offset == 0) {
+       return nullptr;
+    } else {
+        return readstring_at_offset_pd(this->filename, offset);
+    }
 }
 

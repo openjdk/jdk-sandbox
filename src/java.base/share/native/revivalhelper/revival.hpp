@@ -100,7 +100,8 @@ void normalize_path_pd(char *s);
 #define JVM_FILENAME "jvm.dll"
 #define FILE_SEPARATOR  "\\"
 
-#define SYM_VM_RELEASE "?_s_vm_release@Abstract_VM_Version@@1PEBDEB"
+// #define SYM_VM_RELEASE "?_s_vm_release@Abstract_VM_Version@@1PEBDEB"
+#define SYM_VM_RELEASE "_s_vm_release_global"
 
 #define _exit _Exit
 
