@@ -48,8 +48,8 @@ public class TestOtherImpl {
 
     @Test
     void equalsHashcodeTest() {
-        assertTrue(ALT_JSON_STRING.equals(STANDARD_JSON_STRING));
-        assertTrue(STANDARD_JSON_STRING.equals(ALT_JSON_STRING));
+        assertEquals(ALT_JSON_STRING, STANDARD_JSON_STRING);
+        assertEquals(STANDARD_JSON_STRING, ALT_JSON_STRING);
         assertEquals(STANDARD_JSON_STRING.hashCode(), ALT_JSON_STRING.hashCode());
         assertEquals(STANDARD_JSON_STRING.toString(), ALT_JSON_STRING.toString());
     }
