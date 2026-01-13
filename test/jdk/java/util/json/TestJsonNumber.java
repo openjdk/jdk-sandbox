@@ -132,25 +132,6 @@ public class TestJsonNumber {
         }
 
         @Test
-        void testToNumber() {
-            // factories
-            assertEquals(JsonNumber.of((byte)42).toLong(), 42L);
-            assertEquals(JsonNumber.of((short)42).toLong(), 42L);
-            assertEquals(JsonNumber.of(42).toLong(), 42L);
-            assertEquals(JsonNumber.of(42L).toLong(), 42L);
-            assertEquals(JsonNumber.of(Long.MAX_VALUE).toLong(), Long.MAX_VALUE);
-            assertEquals(JsonNumber.of(0.1f).toDouble(), (double)0.1f);
-            assertEquals(JsonNumber.of(0.1d).toDouble(), 0.1d);
-            assertEquals(JsonNumber.of(1e0).toDouble(), 1d);
-            assertEquals(JsonNumber.of(Double.MAX_VALUE).toDouble(), Double.MAX_VALUE);
-            assertEquals(JsonNumber.of("42").toLong(), 42L);
-            assertEquals(JsonNumber.of("9223372036854775807").toLong(), Long.MAX_VALUE);
-            assertEquals(JsonNumber.of("0.1").toDouble(), 0.1d);
-            assertEquals(JsonNumber.of("1e0").toDouble(), 1d);
-            assertEquals(JsonNumber.of("1.7976931348623157E308").toDouble(), Double.MAX_VALUE);
-        }
-
-        @Test
         void numberThrowsTest() {
             var jn = (JsonNumber) Json.parse("9e111111111111");
             assertThrows(JsonAssertionException.class, jn::toDouble);
@@ -169,55 +150,43 @@ public class TestJsonNumber {
 
         private static Stream<Arguments> parseCases() {
             return Stream.of(
-                    // Long cases
-                    Arguments.of("1", Long.class),
-                    Arguments.of("0", Long.class),
-                    Arguments.of("9223372036854775807", Long.class),
-                    Arguments.of("-9223372036854775808", Long.class),
-
-                    // Double cases
-                    Arguments.of("1.0", Double.class),
-                    Arguments.of("9223372036854775807.0", Double.class),
-                    Arguments.of("-9223372036854775808.0", Double.class),
-                    Arguments.of("9223372036854775807e0", Double.class),
-                    Arguments.of("-9223372036854775807e0", Double.class),
-                    Arguments.of("1e0", Double.class),
-                    Arguments.of("1e-0", Double.class),
-                    Arguments.of("0.0", Double.class),
-                    Arguments.of("-0.0", Double.class),
-                    Arguments.of("0e0", Double.class),
-                    Arguments.of("0e1", Double.class),
-                    Arguments.of("0e-0", Double.class),
-                    Arguments.of("0e-1", Double.class),
-                    Arguments.of("5.5e1", Double.class),
-                    Arguments.of("1.0e1", Double.class),
-                    Arguments.of("1.0", Double.class),
-                    Arguments.of("1.000", Double.class),
-                    Arguments.of("0.001e3", Double.class),
-                    // Basic Fraction
-                    Arguments.of("5.5", Double.class),
-                    // Rounds to 4.99999989...
-                    Arguments.of("4.9999999", Double.class),
-                    // Rounds to integral double value 5.0
-                    Arguments.of("4.999999999999999999999999999999999999", Double.class),
-                    // Round to integrals
-                    Arguments.of("9007199254740989.5", Double.class),
-                    Arguments.of("9007199254740990.999999999999", Double.class),
-                    Arguments.of("0.0000123E-0000000045", Double.class),
-                    // Fraction w/ more sig digs that Db supports
-                    Arguments.of("5."+"5".repeat(17), Double.class),
-                    Arguments.of("55.55e1", Double.class),
-                    Arguments.of("1e-1", Double.class),
-                    // Less than Long.MAX, but contains fraction
-                    Arguments.of("9223372036854775806.5", Double.class),
-                    // Greater than Long.MIN, but contains fraction
-                    Arguments.of("-9223372036854775807.5", Double.class),
-                    // Double.MIN
-                    Arguments.of("4.9E-324", Double.class),
-                    Arguments.of("9223372036854775807.5e0", Double.class),
-                    Arguments.of("9223372036854775808e0", Double.class),
-                    // Double.MAX
-                    Arguments.of("1.7976931348623157E308", Double.class)
+                    Arguments.of("1"),
+                    Arguments.of("0"),
+                    Arguments.of("9223372036854775807"),
+                    Arguments.of("-9223372036854775808"),
+                    Arguments.of("1.0"),
+                    Arguments.of("9223372036854775807.0"),
+                    Arguments.of("-9223372036854775808.0"),
+                    Arguments.of("9223372036854775807e0"),
+                    Arguments.of("-9223372036854775807e0"),
+                    Arguments.of("1e0"),
+                    Arguments.of("1e-0"),
+                    Arguments.of("0.0"),
+                    Arguments.of("-0.0"),
+                    Arguments.of("0e0"),
+                    Arguments.of("0e1"),
+                    Arguments.of("0e-0"),
+                    Arguments.of("0e-1"),
+                    Arguments.of("5.5e1"),
+                    Arguments.of("1.0e1"),
+                    Arguments.of("1.0"),
+                    Arguments.of("1.000"),
+                    Arguments.of("0.001e3"),
+                    Arguments.of("5.5"),
+                    Arguments.of("4.9999999"),
+                    Arguments.of("4.999999999999999999999999999999999999"),
+                    Arguments.of("9007199254740989.5"),
+                    Arguments.of("9007199254740990.999999999999"),
+                    Arguments.of("0.0000123E-0000000045"),
+                    Arguments.of("5."+"5".repeat(17)),
+                    Arguments.of("55.55e1"),
+                    Arguments.of("1e-1"),
+                    Arguments.of("9223372036854775806.5"),
+                    Arguments.of("-9223372036854775807.5"),
+                    Arguments.of("4.9E-324"),
+                    Arguments.of("9223372036854775807.5e0"),
+                    Arguments.of("9223372036854775808e0"),
+                    Arguments.of("1.7976931348623157E308")
             );
         }
 
@@ -317,6 +286,25 @@ public class TestJsonNumber {
             assertThrows(IllegalArgumentException.class, () -> JsonNumber.of("null"));
             assertThrows(IllegalArgumentException.class, () -> JsonNumber.of("[1, 2]"));
             assertThrows(IllegalArgumentException.class, () -> JsonNumber.of("{\"foo\": 42}"));
+        }
+
+        @Test
+        void testRoundTrip() {
+            // factories
+            assertEquals(JsonNumber.of((byte)42).toLong(), 42L);
+            assertEquals(JsonNumber.of((short)42).toLong(), 42L);
+            assertEquals(JsonNumber.of(42).toLong(), 42L);
+            assertEquals(JsonNumber.of(42L).toLong(), 42L);
+            assertEquals(JsonNumber.of(Long.MAX_VALUE).toLong(), Long.MAX_VALUE);
+            assertEquals(JsonNumber.of(0.1f).toDouble(), (double)0.1f);
+            assertEquals(JsonNumber.of(0.1d).toDouble(), 0.1d);
+            assertEquals(JsonNumber.of(1e0).toDouble(), 1d);
+            assertEquals(JsonNumber.of(Double.MAX_VALUE).toDouble(), Double.MAX_VALUE);
+            assertEquals(JsonNumber.of("42").toLong(), 42L);
+            assertEquals(JsonNumber.of("9223372036854775807").toLong(), Long.MAX_VALUE);
+            assertEquals(JsonNumber.of("0.1").toDouble(), 0.1d);
+            assertEquals(JsonNumber.of("1e0").toDouble(), 1d);
+            assertEquals(JsonNumber.of("1.7976931348623157E308").toDouble(), Double.MAX_VALUE);
         }
 
         @ParameterizedTest
