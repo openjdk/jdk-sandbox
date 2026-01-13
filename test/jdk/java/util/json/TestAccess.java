@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,9 @@
 
 /*
  * @test
- * @summary Checks traversal methods at JsonValue level as well as correct
- *          assertion errors.
+ * @summary Unit tests for access methods.
  * @enablePreview
- * @run junit TestAssertion
+ * @run junit TestAccess
  */
 
 import java.util.json.Json;
@@ -44,7 +43,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class TestAssertion {
+public class TestAccess {
 
     private static final JsonValue JSON_ROOT_ARRAY = Json.parse(
             """
@@ -76,7 +75,7 @@ public class TestAssertion {
             JSON_ROOT_OBJECT.members().get("values");
 
     @Test
-    void basicTraverseTest() {
+    void basicAccessTest() {
         JSON_ROOT_OBJECT.get("id");
         assertEquals(JsonString.of("value"), JSON_ROOT_OBJECT.get("values").element(0));
         assertEquals(JsonNull.of(), JSON_ROOT_OBJECT.get("values").element(1));
@@ -92,7 +91,7 @@ public class TestAssertion {
     }
 
     @Test
-    void basicTraverseAbsenceTest() {
+    void basicAccessAbsenceTest() {
         var json = Json.parse("{ \"foo\" : null, \"bar\" : \"words\" }");
         assertEquals(Optional.empty(), json.getOrAbsent("baz"));
         assertNull(json.getOrAbsent("baz").map(JsonValue::string).orElse(null));
@@ -101,7 +100,7 @@ public class TestAssertion {
     }
 
     @Test
-    void basicTraverseNullTest() {
+    void basicAccessNullTest() {
         var json = Json.parse("{ \"foo\" : null, \"bar\" : \"words\" }");
         assertEquals(Optional.empty(), json.get("foo").valueOrNull());
         assertNull(json.get("foo").valueOrNull().map(JsonValue::string).orElse(null));
@@ -158,7 +157,7 @@ public class TestAssertion {
 
     // Operations on JsonObject
     @Test
-    void failObjectTraverseTest() {
+    void failObjectAccessTest() {
         // Points to the start of the root object -> { ...
         assertEquals("JsonObject is not a JsonArray. Path: \"\". Location: line 0, position 3.",
                 assertThrows(JsonAssertionException.class, () -> JSON_ROOT_OBJECT.element(0)).getMessage());
@@ -168,7 +167,7 @@ public class TestAssertion {
 
     // Operations on JsonArray
     @Test
-    void failArrayTraverseTest() {
+    void failArrayAccessTest() {
         // Points to the JsonArray value of "values"; starts at -> [ "value", null ] ...
         assertEquals("JsonArray is not a JsonObject. Path: \"{values\". Location: line 2, position 15.",
                 assertThrows(JsonAssertionException.class, () -> JSON_NESTED_ARRAY.get("foo")).getMessage());
