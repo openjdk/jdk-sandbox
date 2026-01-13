@@ -63,10 +63,10 @@ public class TestParse {
     void testBasicParseAndMatch() {
         var doc = Json.parse(JSON);
         if (doc instanceof JsonObject o && o.members() instanceof Map<String, JsonValue> members
-                && members.get("name") instanceof JsonString js && js.string() instanceof String name
-                && members.get("shoeSize") instanceof JsonNumber jn && jn.toLong() instanceof long size) {
-            assertEquals("Brian", name);
-            assertEquals(10, size);
+                && members.get("name") instanceof JsonString js
+                && members.get("shoeSize") instanceof JsonNumber jn) {
+            assertEquals("Brian", js.string());
+            assertEquals(10, jn.toLong());
         } else {
             throw new RuntimeException("Test data incorrect");
         }
@@ -82,10 +82,10 @@ public class TestParse {
         Arrays.fill(in, 'A');
 
         if (doc instanceof JsonObject o
-                && o.members().get("name") instanceof JsonString js && js.string() instanceof String name
-                && o.members().get("shoeSize") instanceof JsonNumber jn && jn.toLong() instanceof long size) {
-            assertEquals("Brian", name);
-            assertEquals(10, size);
+                && o.members().get("name") instanceof JsonString js
+                && o.members().get("shoeSize") instanceof JsonNumber jn) {
+            assertEquals("Brian", js.string());
+            assertEquals(10, jn.toLong());
         } else {
             throw new RuntimeException("JsonValue corrupted by input array");
         }
