@@ -131,20 +131,36 @@ public class TestJsonNumber {
             );
         }
 
-        @Test
-        void assertRangeTest() {
-            var jv = Json.parse("1.7976931348623159E308");
-            assertThrows(JsonAssertionException.class, jv::toDouble);
-            assertThrows(JsonAssertionException.class, jv::toLong);
-            jv = Json.parse("-1.7976931348623159E308");
-            assertThrows(JsonAssertionException.class, jv::toDouble);
-            assertThrows(JsonAssertionException.class, jv::toLong);
-            jv = Json.parse("9223372036854775808");
-            assertDoesNotThrow(jv::toDouble);
-            assertThrows(JsonAssertionException.class, jv::toLong);
-            jv = Json.parse("-9223372036854775809");
-            assertDoesNotThrow(jv::toDouble);
-            assertThrows(JsonAssertionException.class, jv::toLong);
+        @ParameterizedTest
+        @MethodSource
+        void testDoubleOutOfRange(String str) {
+            var json = Json.parse(str);
+            assertThrows(JsonAssertionException. class, json::toDouble);
+        }
+
+        private static Stream<Arguments> testDoubleOutOfRange() {
+            return Stream.of(
+                Arguments.of("9e111111111111"),
+                Arguments.of("-9e111111111111"),
+                Arguments.of("1.7976931348623159E308"),
+                Arguments.of("-1.7976931348623159E308")
+            );
+        }
+
+        @ParameterizedTest
+        @MethodSource
+        void testLongOutOfRange(String str) {
+            var json = Json.parse(str);
+            assertThrows(JsonAssertionException. class, json::toLong);
+        }
+
+        private static Stream<Arguments> testLongOutOfRange() {
+            return Stream.of(
+                Arguments.of("9e111111111111"),
+                Arguments.of("-9e111111111111"),
+                Arguments.of("9223372036854775808"),
+                Arguments.of("-9223372036854775809")
+            );
         }
     }
 
