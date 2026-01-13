@@ -135,7 +135,7 @@ public class TestJsonNumber {
         @MethodSource
         void testDoubleOutOfRange(String str) {
             var json = Json.parse(str);
-            assertThrows(JsonAssertionException. class, json::toDouble);
+            assertThrows(JsonAssertionException.class, json::toDouble);
         }
 
         private static Stream<Arguments> testDoubleOutOfRange() {
@@ -151,7 +151,7 @@ public class TestJsonNumber {
         @MethodSource
         void testLongOutOfRange(String str) {
             var json = Json.parse(str);
-            assertThrows(JsonAssertionException. class, json::toLong);
+            assertThrows(JsonAssertionException.class, json::toLong);
         }
 
         private static Stream<Arguments> testLongOutOfRange() {
