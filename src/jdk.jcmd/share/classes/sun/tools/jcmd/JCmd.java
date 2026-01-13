@@ -87,11 +87,16 @@ public class JCmd {
         }
 
         if (pids == null || pids.isEmpty() || arg.isForceCore()) {
-//             && new File(arg.getProcessString()).exists()) {
             System.out.println(arg.getProcessString() + ":");
             try {
                 executeCommandForCrashDump(arg.getProcessString(), arg.getLibDirs(), arg.getRevivalDataPath(), arg.getCommand());
                 System.exit(0);
+            } catch (IOException ioe) {
+                // IOException is used to signal that something went wrong, and error detail is already printed.
+                if (Boolean.getBoolean("jdk.attach.core.verbose")) {
+                    ioe.printStackTrace();
+                }
+                System.exit(1);
             } catch (Throwable thr) {
                 thr.printStackTrace();
                 System.exit(1);
