@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,15 +25,14 @@
 
 /*
  * @test
- * @summary Checks formatting of JsonValue
+ * @summary Tests methods that generate JSON documents
  * @enablePreview
- * @run junit TestFormat
+ * @run junit TestGenerate
  */
 
 import java.util.List;
 import java.util.json.Json;
 import java.util.json.JsonString;
-import java.util.json.JsonValue;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -42,27 +41,28 @@ import org.junit.jupiter.params.provider.FieldSource;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class TestFormat {
+public class TestGenerate {
 
-    private static final JsonValue SRC =
-        Json.parse(
-            """
-            [
-                { "name": "John", "age": 30, "city": "New-York" },
-                { "name": "Jane", "age": 20, "city": "Boston" },
-                true,
-                false,
-                null,
-                [ "array", "inside", {"inner-obj": true, "top-level": false}],
-                "foo",
-                42
-            ]
-            """);
+    private static final String SRC =
+        """
+        [
+            { "name": "John", "age": 30, "city": "New-York" },
+            { "name": "Jane", "age": 20, "city": "Boston" },
+            true,
+            false,
+            null,
+            [ "array", "inside", {"inner-obj": true, "top-level": false}],
+            "foo",
+            42
+        ]
+        """;
 
     @Test
     void testToString() {
-        var s = SRC.toString();
-        assertFalse(s.matches(".*[ \\n].*"), "toString() contains white spaces or new lines");
+        var jv = Json.parse(SRC);
+        var result = jv.toString();
+        var expected = SRC.replaceAll("[\n ]", "");
+        assertEquals(expected, result);
     }
 
     @Test
@@ -158,7 +158,7 @@ public class TestFormat {
     @ParameterizedTest
     @FieldSource("DISPLAYSTRING")
     void testDisplayString(int indent, String expected) {
-        assertEquals(expected, Json.toDisplayString(SRC, indent));
+        assertEquals(expected, Json.toDisplayString(Json.parse(SRC), indent));
     }
 
 }
