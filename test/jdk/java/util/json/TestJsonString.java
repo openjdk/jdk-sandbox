@@ -68,7 +68,7 @@ public class TestJsonString {
         @ParameterizedTest
         @MethodSource
         void escapeTest(String src, String expected) {
-            assertEquals(((JsonString)Json.parse(src)).string(), expected);
+            assertEquals(expected, ((JsonString)Json.parse(src)).string());
         }
         private static Stream<Arguments> escapeTest() {
             return Stream.of(

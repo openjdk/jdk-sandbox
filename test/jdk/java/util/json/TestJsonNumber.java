@@ -282,13 +282,13 @@ public class TestJsonNumber {
 
         @Test
         void testToString_factory() {
-            assertEquals(JsonNumber.of((byte)42).toString(), "42");
-            assertEquals(JsonNumber.of((short)42).toString(), "42");
-            assertEquals(JsonNumber.of(42).toString(), "42");
-            assertEquals(JsonNumber.of(42L).toString(), "42");
+            assertEquals("42", JsonNumber.of((byte)42).toString());
+            assertEquals("42", JsonNumber.of((short)42).toString());
+            assertEquals("42", JsonNumber.of(42).toString());
+            assertEquals("42", JsonNumber.of(42L).toString());
             assertEquals(JsonNumber.of(Long.MAX_VALUE).toString(), Long.valueOf(Long.MAX_VALUE).toString());
             assertEquals(JsonNumber.of(0.1f).toString(), Double.valueOf(0.1f).toString());
-            assertEquals(JsonNumber.of(0.1d).toString(), "0.1");
+            assertEquals("0.1", JsonNumber.of(0.1d).toString());
             assertEquals(JsonNumber.of(Double.MAX_VALUE).toString(), Double.valueOf(Double.MAX_VALUE).toString());
             assertThrows(IllegalArgumentException.class, () -> JsonNumber.of("foo"));
             assertThrows(IllegalArgumentException.class, () -> JsonNumber.of("true"));
@@ -301,20 +301,20 @@ public class TestJsonNumber {
         @Test
         void testRoundTrip() {
             // factories
-            assertEquals(JsonNumber.of((byte)42).toLong(), 42L);
-            assertEquals(JsonNumber.of((short)42).toLong(), 42L);
-            assertEquals(JsonNumber.of(42).toLong(), 42L);
-            assertEquals(JsonNumber.of(42L).toLong(), 42L);
-            assertEquals(JsonNumber.of(Long.MAX_VALUE).toLong(), Long.MAX_VALUE);
-            assertEquals(JsonNumber.of(0.1f).toDouble(), (double)0.1f);
-            assertEquals(JsonNumber.of(0.1d).toDouble(), 0.1d);
-            assertEquals(JsonNumber.of(1e0).toDouble(), 1d);
-            assertEquals(JsonNumber.of(Double.MAX_VALUE).toDouble(), Double.MAX_VALUE);
-            assertEquals(JsonNumber.of("42").toLong(), 42L);
-            assertEquals(JsonNumber.of("9223372036854775807").toLong(), Long.MAX_VALUE);
-            assertEquals(JsonNumber.of("0.1").toDouble(), 0.1d);
-            assertEquals(JsonNumber.of("1e0").toDouble(), 1d);
-            assertEquals(JsonNumber.of("1.7976931348623157E308").toDouble(), Double.MAX_VALUE);
+            assertEquals(42L, JsonNumber.of((byte)42).toLong());
+            assertEquals(42L, JsonNumber.of((short)42).toLong());
+            assertEquals(42L, JsonNumber.of(42).toLong());
+            assertEquals(42L, JsonNumber.of(42L).toLong());
+            assertEquals(Long.MAX_VALUE, JsonNumber.of(Long.MAX_VALUE).toLong());
+            assertEquals((double)0.1f, JsonNumber.of(0.1f).toDouble());
+            assertEquals(0.1d, JsonNumber.of(0.1d).toDouble());
+            assertEquals(1d, JsonNumber.of(1e0).toDouble());
+            assertEquals(Double.MAX_VALUE, JsonNumber.of(Double.MAX_VALUE).toDouble());
+            assertEquals(42L, JsonNumber.of("42").toLong());
+            assertEquals(Long.MAX_VALUE, JsonNumber.of("9223372036854775807").toLong());
+            assertEquals(0.1d, JsonNumber.of("0.1").toDouble());
+            assertEquals(1d, JsonNumber.of("1e0").toDouble());
+            assertEquals(Double.MAX_VALUE, JsonNumber.of("1.7976931348623157E308").toDouble());
         }
 
         @ParameterizedTest
