@@ -65,17 +65,14 @@ import jdk.internal.util.json.JsonNumberImpl;
 public non-sealed interface JsonNumber extends JsonValue {
 
     /**
-     * {@return {@code this} as a {@code long}}
-     *
-     * This method returns a {@code long} if it can be translated
-     * from the string representation of this {@code JsonNumber}. That is,
-     * it can be expressed as a whole number and is within the range of {@link
-     * Long#MIN_VALUE} and {@link Long#MAX_VALUE}.
-     * This occurs, even if the string contains an exponent or a fractional part
-     * consisting of only zero digits. For example, both the JSON number
-     * "123.0" and "1.23e2" produce a {@code long} value of "123". A {@code
-     * JsonAssertionException} is thrown when the numeric value cannot be represented
-     * as a {@code long}; for example, the value "5.5".
+     * {@return a {@code long} if it can be translated from the string
+     * representation of this {@code JsonNumber}} That is, it can be expressed
+     * as a whole number and is within the range of {@link Long#MIN_VALUE} and
+     * {@link Long#MAX_VALUE}. This occurs, even if the string contains an
+     * exponent or a fractional part consisting of only zero digits. For example,
+     * both the JSON number "123.0" and "1.23e2" produce a {@code long} value of
+     * "123". A {@code JsonAssertionException} is thrown when the numeric value
+     * cannot be represented as a {@code long}; for example, the value "5.5".
      *
      * @throws JsonAssertionException if this {@code JsonNumber} cannot
      *      be represented as a {@code long}.
@@ -84,20 +81,17 @@ public non-sealed interface JsonNumber extends JsonValue {
     long toLong();
 
     /**
-     * {@return {@code this} as a {@code double}}
-     *
-     * This method returns a finite {@code double} if it can be translated
-     * from the string representation of this {@code JsonNumber}. If the
-     * string representation is outside the range of {@code -}
-     * {@link Double#MAX_VALUE} and {@link Double#MAX_VALUE}, a
-     * {@code JsonAssertionException} is thrown.
+     * {@return a finite {@code double} if it can be translated from the string
+     * representation of this {@code JsonNumber}} If the string representation
+     * is outside the range of {@link Double#MAX_VALUE -Double.MAX_VALUE} and
+     * {@link Double#MAX_VALUE}, a {@code JsonAssertionException} is thrown.
      *
      * @apiNote Callers of this method should be aware of the potential loss in
      * precision when the string representation of the JSON number is translated
      * to a {@code double}.
      * @implNote The JDK reference implementation uses {@link
      * Double#parseDouble(String)} to perform the conversion from string to
-     * double.
+     * finite double.
      *
      * @throws JsonAssertionException if this {@code JsonNumber} cannot
      *      be represented as a finite {@code double}.
