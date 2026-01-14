@@ -94,7 +94,7 @@ public non-sealed interface JsonString extends JsonValue {
     /**
      * {@return true if the given {@code obj} is equal to this {@code JsonString}}
      * Two {@code JsonString}s {@code js1} and {@code js2} represent the same value
-     * if {@code js1.value().equals(js2.value())}.
+     * if {@code js1.string().equals(js2.string())}.
      *
      * @see #string()
      */

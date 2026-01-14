@@ -63,7 +63,7 @@ public non-sealed interface JsonBoolean extends JsonValue {
      * {@return {@code true} if the given object is also a {@code JsonBoolean}
      * and the two {@code JsonBoolean}s represent the same boolean value} Two
      * {@code JsonBoolean}s {@code jb1} and {@code jb2} represent the same
-     * boolean values if {@code jb1.value().equals(jb2.value())}.
+     * boolean values if {@code jb1.bool().equals(jb2.bool())}.
      *
      * @see #bool()
      */
