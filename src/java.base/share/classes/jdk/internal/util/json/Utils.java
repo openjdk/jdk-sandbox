@@ -25,9 +25,6 @@
 
 package jdk.internal.util.json;
 
-import java.util.List;
-import java.util.Map;
-
 import java.util.json.JsonArray;
 import java.util.json.JsonAssertionException;
 import java.util.json.JsonBoolean;
@@ -44,16 +41,6 @@ public class Utils {
 
     // Non instantiable
     private Utils() {}
-
-    // Equivalent to JsonObject/Array.of() factories without the need for defensive copy
-    // and other input validation
-    public static JsonArray arrayOf(List<JsonValue> list) {
-        return new JsonArrayImpl(list);
-    }
-
-    public static JsonObject objectOf(Map<String, JsonValue> map) {
-        return new JsonObjectImpl(map);
-    }
 
     /*
      * Escapes a String to ensure it is a valid JSON String.
