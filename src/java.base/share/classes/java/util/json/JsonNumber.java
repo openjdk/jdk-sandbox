@@ -77,7 +77,7 @@ public non-sealed interface JsonNumber extends JsonValue {
      * JsonAssertionException} is thrown when the numeric value cannot be represented
      * as a {@code long}; for example, the value "5.5".
      *
-     * @throws JsonAssertionException if this {@code JsonValue} cannot
+     * @throws JsonAssertionException if this {@code JsonNumber} cannot
      *      be represented as a {@code long}.
      */
     @Override
@@ -86,8 +86,11 @@ public non-sealed interface JsonNumber extends JsonValue {
     /**
      * {@return {@code this} as a {@code double}}
      *
-     * This method returns a finite {@code double} if it can be translated from the
-     * string representation of this {@code JsonNumber}.
+     * This method returns a finite {@code double} if it can be translated
+     * from the string representation of this {@code JsonNumber}. If the
+     * string representation is outside the range of {@code -}
+     * {@link Double#MAX_VALUE} and {@link Double#MAX_VALUE}, a
+     * {@code JsonAssertionException} is thrown.
      *
      * @apiNote Callers of this method should be aware of the potential loss in
      * precision when the string representation of the JSON number is translated
@@ -96,7 +99,7 @@ public non-sealed interface JsonNumber extends JsonValue {
      * Double#parseDouble(String)} to perform the conversion from string to
      * double.
      *
-     * @throws JsonAssertionException if this {@code JsonValue} cannot
+     * @throws JsonAssertionException if this {@code JsonNumber} cannot
      *      be represented as a finite {@code double}.
      */
     @Override
