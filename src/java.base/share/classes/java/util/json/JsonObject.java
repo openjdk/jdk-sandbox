@@ -42,6 +42,8 @@ import jdk.internal.util.json.JsonObjectImpl;
  * contain duplicate member names. If duplicate names appear during
  * a {@link Json#parse(String)}, a {@code JsonParseException} is thrown.
  *
+ * @spec https://datatracker.ietf.org/doc/html/rfc8259#section-6 RFC 8259:
+ *      The JavaScript Object Notation (JSON) Data Interchange Format - Objects
  * @since 99
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)

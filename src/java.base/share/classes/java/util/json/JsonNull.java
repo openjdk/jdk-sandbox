@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,8 @@ import jdk.internal.util.json.JsonNullImpl;
  * A {@code JsonNull} can be produced by {@link Json#parse(String)}.
  * <p> Alternatively, {@link #of()} can be used to obtain a {@code JsonNull}.
  *
+ * @spec https://datatracker.ietf.org/doc/html/rfc8259#section-3 RFC 8259:
+ *      The JavaScript Object Notation (JSON) Data Interchange Format - Values
  * @since 99
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)

@@ -35,6 +35,8 @@ import jdk.internal.util.json.JsonBooleanImpl;
  * <p> Alternatively, {@link #of(boolean)} can be used to
  * obtain a {@code JsonBoolean}.
  *
+ * @spec https://datatracker.ietf.org/doc/html/rfc8259#section-3 RFC 8259:
+ *      The JavaScript Object Notation (JSON) Data Interchange Format - Values
  * @since 99
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)

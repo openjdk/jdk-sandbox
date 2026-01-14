@@ -40,9 +40,9 @@ import jdk.internal.util.json.Utils;
  * Quotation mark (U+0022), reverse solidus (U+005C), and the control characters
  * (U+0000 through U+001F) must be escaped.
  * <p> Alternatively, {@link #of(String)} can be used to obtain a {@code JsonString}
- * directly from a {@code String}. The following expressions are all equivalent,
+ * directly from a {@code String}. The {@code JsonString} instances produced by
+ * the following expressions are all equivalent,
  * {@snippet lang = "java":
- *     import Json;
  *     Json.parse("\"foo\\t\"");
  *     Json.parse("\"foo\\u0009\"");
  *     JsonString.of("foo\t");

@@ -39,6 +39,8 @@ import jdk.internal.javac.PreviewFeature;
  * A {@code JsonArray} can be produced by {@link Json#parse(String)}.
  * <p> Alternatively, {@link #of(List)} can be used to obtain a {@code JsonArray}.
  *
+ * @spec https://datatracker.ietf.org/doc/html/rfc8259#section-5 RFC 8259:
+ *      The JavaScript Object Notation (JSON) Data Interchange Format - Arrays
  * @since 99
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)
@@ -73,7 +75,7 @@ public non-sealed interface JsonArray extends JsonValue {
      * {@return {@code true} if the given object is also a {@code JsonArray}
      * and the two {@code JsonArray}s represent the same elements} Two
      * {@code JsonArray}s {@code ja1} and {@code ja2} represent the same
-     * elements if {@code ja1.values().equals(ja2.values())}.
+     * elements if {@code ja1.elements().equals(ja2.elements())}.
      *
      * @see #elements()
      */
