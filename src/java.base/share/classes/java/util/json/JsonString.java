@@ -35,7 +35,7 @@ import jdk.internal.util.json.Utils;
  * The interface that represents a JSON string.
  * <p>
  * A {@code JsonString} can be produced by a {@link Json#parse(String)}.
- * Within a valid JSON String, any character may be escaped using either a
+ * Within a valid JSON string, any character may be escaped using either a
  * two-character escape sequence (if applicable) or a Unicode escape sequence.
  * Quotation mark (U+0022), reverse solidus (U+005C), and the control characters
  * (U+0000 through U+001F) must be escaped.
@@ -59,21 +59,22 @@ public non-sealed interface JsonString extends JsonValue {
      * {@return the {@code JsonString} created from the given
      * {@code String}}
      *
-     * @param value the given {@code String} used as the {@code value} of this
-     *             {@code JsonString}. Non-null.
-     * @throws NullPointerException if {@code value} is {@code null}
+     * @param src the given source {@code String}. Non-null.
+     * @throws NullPointerException if {@code src} is {@code null}
      */
-    static JsonString of(String value) {
-        var escaped = '"' + Utils.escape(Objects.requireNonNull(value)) + '"';
+    static JsonString of(String src) {
+        var escaped = '"' + Utils.escape(Objects.requireNonNull(src)) + '"';
         return new JsonStringImpl(escaped.toCharArray(), 0, escaped.length(),
-                escaped.length() != value.length() + 2);
+                escaped.length() != src.length() + 2);
     }
 
     /**
-     * {@return the JSON {@code String} represented by this {@code JsonString}}
+     * {@return the JSON string represented by this {@code JsonString}}
      * If this {@code JsonString} was created by parsing a JSON document, it
-     * preserves the text representation of the corresponding JSON String. Otherwise,
-     * the {@code value} is escaped to produce the JSON {@code String}.
+     * preserves the original text representation of the corresponding JSON
+     * string. Otherwise, the source {@code String} passed to the factory method
+     * {@link #of(String)} is used to generate the JSON string, with special
+     * characters properly escaped.
      *
      * @see #string()
      */
