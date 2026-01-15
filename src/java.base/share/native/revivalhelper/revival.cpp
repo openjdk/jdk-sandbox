@@ -1008,7 +1008,7 @@ int revive_image_cooperative() {
  */
 int create_revivalbits(const char* corename, const char* javahome, const char* dirname, const char* libdir) {
 
-    // Currenly per-platform implementations.  Could hoist some common work here.
+    // Call the platform-dependent implementations.
 
     // find libjvm and its load address from core
     // copy libjvm into .revival dir
@@ -1046,8 +1046,6 @@ char *mappings_filename_set(const char* revival_data_path) {
     if (!buf) {
         error("Failed to allocate buffer for mappings file name.");
     }
-    // snprintf(buf, BUFLEN, "%s%s", dirname, "/" MAPPINGS_FILENAME);
-
     int len = snprintf(buf, BUFLEN, "%s%s%s", revival_data_path, FILE_SEPARATOR, "core.mappings");
     if (len >= BUFLEN) {
         error("core.mappings filename too long.");
@@ -1055,6 +1053,10 @@ char *mappings_filename_set(const char* revival_data_path) {
     return buf;
 }
 
+/**
+ * Read version from core, and binary, and compare.
+ * Memory mappings are in place, jvm_filename and jvm_address are set.
+ */
 void doVersionCheck(const char* corename, const char* revival_dir) {
     void *ver = symbol_resolve_from_symbol_file(revival_dir, SYM_VM_RELEASE);
     if (ver == nullptr || ver == (void*) -1) {
@@ -1062,18 +1064,14 @@ void doVersionCheck(const char* corename, const char* revival_dir) {
         return;
     }
 
-    // Mappings are in place, jvm_filename and jvm_address are set.
-
     if (jvm_address == nullptr) {
         warn("doVersionCheck: No jvm_address?");
     } else {
         logv("Version check... " SYM_VM_RELEASE " = 0x%llx", (unsigned long long) ver);
-        // Read version from core, and binary, and compare.
         char* ptr = *(char**) ver; // read pointer from now-live memory
 
-        // Could read from address space directly:
-        // char *vm_release_core = *(char**) ver;
-        // ...but was that populated from core or binary?  Be specific.
+        // Could read string from address space directly, but be specific about reading
+        // from core or binary.
 
         logv("Version check: ptr = 0x%llx",  (unsigned long long) ptr);
         char* vm_release_core = readstring_from_core_at_vaddr_pd(corename, (uint64_t) *(char**) ver);
@@ -1085,7 +1083,7 @@ void doVersionCheck(const char* corename, const char* revival_dir) {
         // Windows RVA adjustment:
         vm_release_offset -= 0x1000;
 #endif
-        logv("Version check: vm binary offset:  0x%llx", vm_release_offset);
+        logv("Version check: vm binary offset:  0x%lx", vm_release_offset);
         char* vm_release_binary = readstring_at_offset_pd(jvm_filename, vm_release_offset);
         logv("Version check: vm release from binary:  %s", vm_release_binary);
 
