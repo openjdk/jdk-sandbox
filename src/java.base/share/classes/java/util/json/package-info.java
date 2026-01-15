@@ -40,14 +40,14 @@
  *
  * Retrieving values from a JSON document involves two steps: first navigating
  * the document structure using a chain of "access" methods, and then converting
- * the result to the desired type using a "conversion" method. Typical usage is:
+ * the result to the desired type using a "conversion" method. For example,
  * {@snippet lang=java:
  * var name = doc.get("foo").get("bar").element(0).string();
  * }
- * This example demonstrates an access-method chain that retrieves the "foo"
- * member from the root object, then its "bar" member, followed by the element
- * at index 0, ultimately reaching a leaf string value. The final call to the
- * string() conversion method returns the corresponding String object. For more
+ * By chaining access methods, the "foo" member is retrieved from the root object,
+ * then the "bar" member from "foo", followed by the element at index 0 from "bar".
+ * The navigation process leads to a leaf JSON string element. The final call to the
+ * {@code string()} conversion method returns the corresponding String object. For more
  * details on these methods, see {@link JsonValue JsonValue}.
  *
  * <h2><a>Generating JSON documents</a></h2>
