@@ -33,7 +33,7 @@
  * {@link Json#parse(java.lang.String)} or {@link Json#parse(char[])}. A successful
  * parse indicates that the JSON text adheres to the
  * <a href="https://datatracker.ietf.org/doc/html/rfc8259">JSON grammar</a>.
- * The parsing APIs provided do not accept JSON text that contain JSON Objects
+ * The parsing APIs provided do not accept JSON text that contain JSON objects
  * with duplicate names.
  *
  * <h2><a>Retrieving JSON values</a></h2>
