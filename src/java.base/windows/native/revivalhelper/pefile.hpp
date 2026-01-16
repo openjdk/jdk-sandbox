@@ -23,6 +23,9 @@
  * questions.
  */
 
+#ifndef PEFILE_H
+#define PEFILE_H
+
 #include <direct.h>
 #include <intrin.h>
 #include <io.h>
@@ -42,7 +45,8 @@
 #include <shlwapi.h>
 #include <winternl.h>
 
-#include "revival.hpp"
+#include "segment.hpp"
+
 
 /**
  * Introduced to hold PE file logic, but only created then static methods, so this
@@ -54,6 +58,8 @@ class PEFile {
     bool is_valid() { return fd >= 0; }
     void close();
     ~PEFile();
+
+    uint64_t file_offset_for_reladdr(uint64_t reladdr);
 
     // Relocate a file to a new absolute load address.
     // Change the actual named file.
@@ -71,4 +77,6 @@ class PEFile {
     PLOADED_IMAGE image;
     int fd;
 };
+
+#endif
 

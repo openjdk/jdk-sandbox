@@ -43,13 +43,13 @@
 #include <shlwapi.h>
 #include <winternl.h>
 
-#include "revival.hpp"
-
+//#include "revival.hpp" // for Segment
 
 
 class MiniDump {
   public:
     MiniDump(const char* filename, const char* libdir);
+    int read_modules(); // populate module list, and locate jvm
     bool is_valid() { return fd >= 0; }
     void close();
     ~MiniDump();
@@ -75,7 +75,6 @@ class MiniDump {
   private:
     const char* filename;
     void open(const char* filename);
-    int read_modules(); // populate module list, and locate jvm
     Segment* readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA);
 
     const char* libdir;

@@ -43,8 +43,12 @@
 #include <new>
 #include <set>
 
+
 // More types
 typedef uint64_t address;
+
+#include "segment.hpp"
+
 
 #define PTR_FORMAT               "0x%016"     PRIxPTR
 #define UINTX_FORMAT_X_0         "0x%016"     PRIxPTR
@@ -93,6 +97,8 @@ void install_handler();
 
 #include <io.h>
 #include <windows.h>
+
+#include "pefile.hpp"
 
 void tls_fixup_pd(void* tlsPtr);
 void normalize_path_pd(char *s);
@@ -208,35 +214,6 @@ struct SharedLibMapping {
     char *path;
 };
 
-
-class Segment {
-    public:
-        Segment(void *v, size_t len, size_t offset, size_t file_len) :
-            vaddr(v), length(len), file_offset(offset), file_length(file_len) {}
-
-        Segment(Segment* s) :
-            vaddr(s->vaddr), length(s->length), file_offset(s->file_offset), file_length(s->file_length) {}
-
-        void   *vaddr;
-        size_t length;
-        size_t file_offset;
-        size_t file_length;
-
-        uint64_t start() { return (uint64_t) vaddr; }
-        uint64_t end() { return (uint64_t) vaddr + length; }
-        void set_end(uint64_t addr) { length = addr - (uint64_t) vaddr; }
-        void set_length(uint64_t len) { length = len; file_length = len; }
-        void move_start(long dist);
-
-        bool contains(Segment *seg);
-        bool contains(uint64_t addr);
-
-        bool is_relevant();
-        int write_mapping(int fd);
-        int write_mapping(int fd, const char* type);
-
-        char *toString();
-};
 
 extern std::list<Segment> writableSegments;
 extern std::list<Segment> failedSegments;

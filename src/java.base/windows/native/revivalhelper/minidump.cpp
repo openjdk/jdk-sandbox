@@ -104,10 +104,8 @@ MiniDump::MiniDump(const char* filename, const char* libdir) {
     this->filename = filename;
     open(filename);
     this->libdir = libdir;
-    if (is_valid()) {
-        read_modules();
-        logv("MiniDump: NumberOfStreams = %d StreamDirectoryRva = %d", hdr.NumberOfStreams, hdr.StreamDirectoryRva);
-    }
+
+    // read_modules() must be called if needed.
 }
 
 /**
@@ -123,7 +121,7 @@ void MiniDump::open(const char *filename) {
     // Read MiniDump header
     int e = read(fd, &hdr, sizeof(_MINIDUMP_HEADER));
     if (hdr.Signature != MINIDUMP_SIGNATURE) {
-        warn("Minidump header unexpected: %lx", hdr.Signature);
+        warn("MiniDump header unexpected: %lx", hdr.Signature);
     }
 }
 
@@ -165,9 +163,12 @@ int MiniDump::read_modules() {
     if (fd < 0) {
         error("MiniDump::read_modules: MiniDump not open");
     }
+    if (!is_valid()) {
+        error("MiniDump::read_modules: MiniDump not valid");
+    }
     MINIDUMP_DIRECTORY *md = find_stream(ModuleListStream);
     if (md == nullptr) {
-        error("Minidump::read_modules: ModuleListStream not found.");
+        error("MiniDump::read_modules: ModuleListStream not found.");
     }
 
     int count = 0;
@@ -230,6 +231,7 @@ int MiniDump::read_modules() {
         free(name);
         count++;
     }
+    logv("MiniDump::read_modules: NumberOfStreams = %d StreamDirectoryRva = %d", hdr.NumberOfStreams, hdr.StreamDirectoryRva);
     return count;
 }
 
@@ -243,7 +245,7 @@ int MiniDump::read_modules() {
 void MiniDump::prepare_memory_ranges() {
     MINIDUMP_DIRECTORY *md = find_stream(Memory64ListStream);
     if (md == nullptr) {
-        error("Minidump Memory64ListStream not found.");
+        error("MiniDump Memory64ListStream not found.");
     }
     int e = read(get_fd(), &NumberOfMemoryRanges, sizeof(NumberOfMemoryRanges));
     e = read(get_fd(), &BaseRVA, sizeof(BaseRVA));
@@ -253,7 +255,7 @@ void MiniDump::prepare_memory_ranges() {
 
 
 /**
- * Read the next Minidump Memory Descriptor.
+ * Read the next MiniDump Memory Descriptor.
  * Return a Segment* and update the output parameters.  current RVA will be the dump file offset of the next segment.
  * Return nullptr when no further memory descriptors are found.
  */
@@ -291,11 +293,11 @@ Segment* MiniDump::readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentR
     }
 
     Segment *seg = new Segment((void *) d->StartOfMemoryRange, (size_t) d->DataSize, (size_t) *currentRVA, (size_t) d->DataSize);
-    if (verbose) {
+    /* if (verbose) {
         char *b = seg->toString();
         warn("readSegment0: minidump range %d new seg = %s", rangesRead, b);
         free(b);
-    }
+    } */
     *currentRVA += d->DataSize;
     rangesRead++;
     return seg;

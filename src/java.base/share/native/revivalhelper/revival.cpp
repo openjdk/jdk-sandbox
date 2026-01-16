@@ -24,7 +24,7 @@
  */
 
 #ifndef MACOSX
-using namespace std;
+//using namespace std;
 #endif
 
 
@@ -867,68 +867,6 @@ int symbols_file_create(const char *dirname) {
 
 
 /**
- * Segment
- */
-void Segment::move_start(long dist) {
-    vaddr = (void*) ((long long) vaddr + dist);
-    length -= dist;
-    file_offset += dist;
-    file_length -= dist;
-}
-
-
-bool Segment::contains(Segment* seg) {
-  return seg->start() >= this->start() && seg->end() <= this->end();
-}
-bool Segment::contains(uint64_t addr) {
-  return addr >= this->start() && addr <= this->end();
-}
-
-/**
- * Is this Segment not trivially ignorable, e.g. zero-length.
- */
-bool Segment::is_relevant() {
-  return length > 0 && file_length > 0;
-}
-
-/**
- * Write this Segment, formatted as a core.mappings line, to the given fd.
- */
-int Segment::write_mapping(int fd) {
-    return write_mapping(fd, "M");
-}
-
-int Segment::write_mapping(int fd, const char *type) {
-    // type vaddr endaddress fileoffset filesize memsize perms
-    // e.g.
-    // M 2d05a12e000 2d05a12f000 19615fd4 1000 1000 RW-
-    char buf[BUFLEN];
-    snprintf(buf, BUFLEN, "%s %llx %llx %llx %llx %llx %s\n",
-             type,
-             (unsigned long long) vaddr,
-             (unsigned long long) end(), // vaddr + length,
-             (unsigned long long) file_offset,
-             (unsigned long long) file_length,
-             (unsigned long long) length,
-             "RWX" // temp
-            );
-    write0(fd, buf); // includes warning on error
-    return 0;
-}
-
-char *Segment::toString() {
-    char* buf = (char *) malloc(BUFLEN);
-    snprintf(buf, BUFLEN, "Segment: %llx - %llx off: %llx len:%llx",
-             (unsigned long long) vaddr,
-             (unsigned long long) end(), // vaddr + length,
-             (unsigned long long) file_offset,
-             (unsigned long long) file_length
-            );
-    return buf;
-}
-
-
-/**
  * Return true if the given character pointer is a valid, set
  * environment variable (one which exists and is not null).
  */
@@ -1078,11 +1016,13 @@ void doVersionCheck(const char* corename, const char* revival_dir) {
         logv("Version check: vm release from core: 0x%llx 0x%llx '%s'",
              (unsigned long long) ver, (unsigned long long) vm_release_core,  vm_release_core);
 
+        // Convert address to offset in binary.
         uint64_t vm_release_offset = (uint64_t) ptr - (uint64_t) jvm_address;
 #ifdef WINDOWS
-        // Windows RVA adjustment:
-        vm_release_offset -= 0x1000;
+        PEFile pefile(jvm_filename);
+        vm_release_offset = pefile.file_offset_for_reladdr(vm_release_offset);
 #endif
+
         logv("Version check: vm binary offset:  0x%lx", vm_release_offset);
         char* vm_release_binary = readstring_at_offset_pd(jvm_filename, vm_release_offset);
         logv("Version check: vm release from binary:  %s", vm_release_binary);

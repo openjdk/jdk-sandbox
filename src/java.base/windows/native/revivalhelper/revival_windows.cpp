@@ -670,7 +670,6 @@ char* check_editbin() {
         logv("Using EDITBIN: '%s'", editbin_env);
         return editbin_env;
     } else {
-        logv("NOT using EDITBIN");
         return nullptr;
     }
 }
@@ -708,12 +707,12 @@ int relocate_sharedlib_pd(const char *filename, const void *addr) {
 
 
 uint64_t resolve_teb(MiniDump* dump) {
-    // Find Minidump ThreadListStream
+    // Find MiniDump ThreadListStream
     // Read _MINIDUMP_THREAD
     // Read TEB
     MINIDUMP_DIRECTORY *md = dump->find_stream(ThreadListStream);
     if (md == nullptr) {
-        warn("resolve_teb: Minidump ThreadListStream not found\n");
+        warn("resolve_teb: MiniDump ThreadListStream not found\n");
         return 0;
     }
     // Read MINIDUMP_THREAD_LIST
@@ -956,6 +955,8 @@ int create_revivalbits_native_pd(const char* corename, const char* javahome, con
         delete dump;
         return -1;
     }
+
+    dump->read_modules();
 
     jvm_filename = strdup(dump->get_jvm_filename()); // Use MiniDump jvm filename
     if (jvm_filename == nullptr) {

@@ -34,7 +34,6 @@
 #include <sysinfoapi.h>
 #include <windows.h>
 
-
 #include <sys/types.h>
 
 #include <fileapi.h>
@@ -43,24 +42,13 @@
 #include <winternl.h>
 
 #include "revival.hpp"
-
 #include "pefile.hpp"
+
 
 PEFile::PEFile(const char* filename) {
     this->filename = filename;
     image = nullptr;
     fd = -1;
-
-/*    image = ImageLoad(filename, nullptr);
-    if (image == nullptr) {
-        error("PEFile: %s: ImageLoad error: %d", filename, GetLastError());
-    } */
-
-/*  fd = ::open(filename, O_RDONLY);
-    if (fd < 0) {
-        error("MiniDump::open '%s' failed: %d: %s", core_filename, errno, strerror(errno));
-        return;
-     } */
 }
 
 
@@ -77,6 +65,12 @@ PEFile::~PEFile() {
         	warn("PEFile: ImageUnload error: %d", GetLastError());
         }
     }
+}
+
+/**
+ */
+uint64_t PEFile::file_offset_for_reladdr(uint64_t reladdr) {
+     return reladdr - 0x1000; // product builds
 }
 
 
