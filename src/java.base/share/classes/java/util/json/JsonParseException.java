@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,9 @@ import java.io.Serial;
 
 /**
  * Signals that an error has been detected while parsing the
- * JSON document.
+ * JSON document. This exception is thrown if the value supplied
+ * to the {@link Json#parse(String) Json::parse} methods is not valid JSON
+ * syntax, or contains a JSON object with duplicate names.
  *
  * @since 99
  */
