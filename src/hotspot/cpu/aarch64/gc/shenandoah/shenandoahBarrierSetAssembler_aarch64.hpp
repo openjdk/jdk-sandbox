@@ -94,12 +94,10 @@ public:
                    bool acquire, bool release, bool is_cae, Register result);
 #ifdef COMPILER2
 
-  void load_ref_barrier_c2(const MachNode* node, MacroAssembler* masm, Register obj, Register addr, Register tmp, bool narrow, bool maybe_null);
-  void load_ref_barrier_c3(const MachNode* node, MacroAssembler* masm, Register obj, Register addr, Register tmp, bool narrow, bool maybe_null, Register gc_state);
-  void satb_barrier_c2(const MachNode* node, MacroAssembler* masm, Register obj, Register pre_val);
-  void satb_barrier_c3(const MachNode* node, MacroAssembler* masm, Register obj, Register pre_val, Register gc_state);
+  void load_ref_barrier_c2(const MachNode* node, MacroAssembler* masm, Register obj, Register addr, bool narrow, bool maybe_null, Register gc_state);
+  void satb_barrier_c2(const MachNode* node, MacroAssembler* masm, Register obj, Register pre_val, Register gc_state, bool encoded_preval);
   void card_barrier_c2(const MachNode* node, MacroAssembler* masm, Register addr, Register tmp);
-  void cmpxchg_oop_c2(const MachNode* node, MacroAssembler* masm, Register addr, Register oldval, Register newval, Register res, Register tmp1, Register tmp2, bool acquire, bool release, bool weak, bool exchange);
+  void cmpxchg_oop_c2(const MachNode* node, MacroAssembler* masm, Register addr, Register oldval, Register newval, Register res, Register gc_state, Register tmp, bool acquire, bool release, bool weak, bool exchange);
 #endif
 };
 

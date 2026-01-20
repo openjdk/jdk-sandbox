@@ -144,14 +144,15 @@ class ShenandoahSATBBarrierStubC2 : public ShenandoahBarrierStubC2 {
   Register _addr;
   Register _preval;
   Register _tmp;
-  ShenandoahSATBBarrierStubC2(const MachNode* node, Register addr, Register preval, Register tmp) :
-    ShenandoahBarrierStubC2(node), _addr(addr), _preval(preval), _tmp(tmp) {}
+  bool _encoded_preval;
+  ShenandoahSATBBarrierStubC2(const MachNode* node, Register addr, Register preval, Register tmp, bool encoded_preval) :
+    ShenandoahBarrierStubC2(node), _addr(addr), _preval(preval), _tmp(tmp), _encoded_preval(encoded_preval) {}
 
 public:
   static bool needs_barrier(const MachNode* node) {
     return (node->barrier_data() & ShenandoahBarrierSATB) != 0;
   }
-  static ShenandoahSATBBarrierStubC2* create(const MachNode* node, Register addr, Register preval, Register tmp = noreg);
+  static ShenandoahSATBBarrierStubC2* create(const MachNode* node, Register addr, Register preval, Register tmp, bool encoded_preval);
 
   void emit_code(MacroAssembler& masm) override;
 };
