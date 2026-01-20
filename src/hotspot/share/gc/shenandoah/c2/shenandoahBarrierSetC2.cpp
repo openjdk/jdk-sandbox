@@ -707,10 +707,11 @@ Node* ShenandoahBarrierSetC2::atomic_cmpxchg_bool_at_resolved(C2AtomicParseAcces
     access.set_barrier_data(ShenandoahC2CASBarrier);
   }
   Node* load_store = BarrierSetC2::atomic_cmpxchg_bool_at_resolved(access, expected_val, new_val, value_type);
-
-  if (ShenandoahCardBarrier) {
-    post_barrier(kit, kit->control(), access.raw_access(), access.base(),
-                 access.addr().node(), access.alias_idx(), new_val, T_OBJECT, true);
+  if (access.is_oop()) {
+    if (ShenandoahCardBarrier) {
+      post_barrier(kit, kit->control(), access.raw_access(), access.base(),
+                   access.addr().node(), access.alias_idx(), new_val, T_OBJECT, true);
+    }
   }
   return load_store;
 }
