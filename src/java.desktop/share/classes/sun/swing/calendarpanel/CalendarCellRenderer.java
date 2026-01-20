@@ -28,12 +28,14 @@ package sun.swing.calendarpanel;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Font;
+import java.beans.PropertyChangeEvent;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.time.temporal.WeekFields;
 import java.util.Calendar;
 import java.util.Locale;
+import java.util.Objects;
 import javax.swing.JCalendarPanel;
 import javax.swing.JLabel;
 import javax.swing.JTable;
@@ -50,14 +52,6 @@ import javax.swing.table.DefaultTableCellRenderer;
 class CalendarCellRenderer extends DefaultTableCellRenderer {
     private final JCalendarPanel calendarPanel;
     private Calendar calendar;
-    private Font cellTextFont;
-    private Color tableCellTextBGColor;
-    private Color tableCellTextFGColor;
-    private Color tableCellSelectionBGColor;
-    private Color tableCellSelectionFGColor;
-    private Color tableCellCurrentDateBGColor;
-    private Color tableCellCurrentDateFGColor;
-    private Color weekNumberForegroundColor;
     private String weekNo;
 
     /**
@@ -67,18 +61,6 @@ class CalendarCellRenderer extends DefaultTableCellRenderer {
      */
     public CalendarCellRenderer(JCalendarPanel calendarPanel) {
         this.calendarPanel = calendarPanel;
-        installDefaults();
-    }
-
-    private void installDefaults() {
-        cellTextFont = UIManager.getFont("DatePicker.tableCellFont");
-        tableCellTextFGColor = UIManager.getColor("DatePicker.tableForeground");
-        tableCellTextBGColor = UIManager.getColor("DatePicker.tableBackground");
-        tableCellSelectionFGColor = UIManager.getColor("DatePicker.tableSelectionForeground");
-        tableCellSelectionBGColor = UIManager.getColor("DatePicker.tableSelectionBackground");
-        tableCellCurrentDateFGColor = UIManager.getColor("DatePicker.tableCurrentDateForeground");
-        tableCellCurrentDateBGColor = UIManager.getColor("DatePicker.tableCurrentDateBackground");
-        weekNumberForegroundColor = UIManager.getColor("DatePicker.weekNumberForeground");
         installStrings();
     }
 
@@ -122,7 +104,7 @@ class CalendarCellRenderer extends DefaultTableCellRenderer {
         } else {
             localDate = prepareLabelForCurrentMonth(label, currentCalendar, day, isSelected, isWeekNumber);
         }
-        label.setFont(cellTextFont);
+        label.setFont(calendarPanel.getTableFont());
         label.setLocale(calendarPanel.getDateSelectionModel().getLocale());
         DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).
                 withLocale(calendarPanel.getLocale());
@@ -148,19 +130,19 @@ class CalendarCellRenderer extends DefaultTableCellRenderer {
         LocalDate localDate = LocalDate.of(calendar.get(Calendar.YEAR),
                 calendar.get(Calendar.MONTH) + 1, selectedDay);
         if (isWeekNumber) {
-            label.setBackground(tableCellTextBGColor);
-            label.setForeground(weekNumberForegroundColor);
+            label.setBackground(calendarPanel.getTableBackground());
+            label.setForeground(calendarPanel.getWeekNumberForeground());
         } else if (calendarPanel.getDateSelectionModel().getSelectedDates().contains(localDate)) {
-            label.setBackground(tableCellSelectionBGColor);
-            label.setForeground(tableCellSelectionFGColor.brighter());
+            label.setBackground(calendarPanel.getTableSelectionBackground());
+            label.setForeground(calendarPanel.getTableSelectionForeground().brighter());
         } else if (!isWeekNumber && currentCalendar.get(Calendar.DATE) == selectedDay
                 && currentCalendar.get(Calendar.MONTH) == calendar.get(Calendar.MONTH)
                 && currentCalendar.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)) {
-            label.setForeground(tableCellCurrentDateFGColor);
-            label.setBackground(tableCellCurrentDateBGColor.darker());
+            label.setForeground(calendarPanel.getTableCurrentDateForeground());
+            label.setBackground(calendarPanel.getTableCurrentDateBackground().darker());
         } else {
-            label.setBackground(tableCellTextBGColor);
-            label.setForeground(tableCellTextFGColor);
+            label.setBackground(calendarPanel.getTableBackground());
+            label.setForeground(calendarPanel.getTableForeground());
         }
         return localDate;
     }
@@ -191,14 +173,14 @@ class CalendarCellRenderer extends DefaultTableCellRenderer {
         }
 
         if (isWeekNumber) {
-            label.setBackground(tableCellTextBGColor);
-            label.setForeground(weekNumberForegroundColor);
+            label.setBackground(calendarPanel.getTableBackground());
+            label.setForeground(calendarPanel.getWeekNumberForeground());
         } else if (calendarPanel.getDateSelectionModel().getSelectedDates().contains(localDate)) {
-            label.setBackground(tableCellSelectionBGColor);
-            label.setForeground(getLighterColor(tableCellSelectionFGColor, 0.5));
+            label.setBackground(calendarPanel.getTableSelectionBackground());
+            label.setForeground(getLighterColor(calendarPanel.getTableSelectionForeground(), 0.5));
         } else {
-            label.setBackground(tableCellTextBGColor);
-            label.setForeground(getLighterColor(tableCellTextFGColor, 0.5));
+            label.setBackground(calendarPanel.getTableBackground());
+            label.setForeground(getLighterColor(calendarPanel.getTableForeground(), 0.5));
         }
         return localDate;
     }

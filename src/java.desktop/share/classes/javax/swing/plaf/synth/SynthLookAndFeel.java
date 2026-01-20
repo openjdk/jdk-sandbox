@@ -713,7 +713,7 @@ public class SynthLookAndFeel extends BasicLookAndFeel {
         table.put("DatePicker.calendarIcon", (UIDefaults.LazyValue) t ->
                 new CalendarIcon(Color.GRAY));
         // *** DatePicker
-        table.put("DatePicker.tableCellFont", new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+        table.put("DatePicker.tableFont", new Font(Font.SANS_SERIF, Font.PLAIN, 12));
         table.put("DatePicker.tableForeground", Color.black);  // cell text color
         table.put("DatePicker.tableBackground", Color.white);  // cell background color
         table.put("DatePicker.tableHeaderCellFont", new Font(Font.SANS_SERIF, Font.BOLD, 12));

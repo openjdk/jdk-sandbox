@@ -35,11 +35,13 @@ import java.awt.event.ActionEvent;
 import java.awt.event.FocusEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.beans.PropertyChangeEvent;
 import java.io.Serializable;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.util.Calendar;
 import java.util.Locale;
+import java.util.Objects;
 import javax.swing.AbstractAction;
 import javax.swing.AbstractCalendarPanel;
 import javax.swing.ActionMap;
@@ -74,14 +76,10 @@ import javax.swing.table.DefaultTableCellRenderer;
 public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
         implements CalendarTableHeader {
     private static final int HEADER_PANEL_HEIGHT = 40;
-    private boolean showGrid;
     private Calendar calendar;
-    private Color labelForeGroundColor;
-    private Color gridColor;
     private DefaultTableCellRenderer defaultTableCellRenderer;
     private DefaultTableCellRenderer defaultTableHeaderRenderer;
     private DateTableViewModel tableModel;
-    private Font labelTextFont;
     private JLabel monthLabel;
     private JLabel yearLabel;
     private JTable calendarTable;
@@ -130,15 +128,16 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
         setLayout(new BorderLayout());
         tableModel = new DateTableViewModel(calendarPanel);
         calendarTable = new JTable(tableModel);
-        setupCalendarTable();
         add(getHeaderPanel(), BorderLayout.NORTH);
+        setupCalendarTable();
         calendarTable.setFillsViewportHeight(true);
         JScrollPane scrollPane = new JScrollPane(calendarTable);
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
         add(scrollPane, BorderLayout.CENTER);
-        scrollPane.setPreferredSize(new Dimension((int) getCellDimension().getWidth() * tableModel.getColumnCount(), ((int) getCellDimension().getHeight() * (tableModel.getRowCount() + 1))));
+        scrollPane.setPreferredSize(new Dimension((int) getCellDimension().getWidth()
+                * tableModel.getColumnCount(), ((int) getCellDimension().getHeight()
+                * (tableModel.getRowCount() + 1))));
         requestFocusInWindow();
-        installDefaults();
         installListeners();
         updateCalendar();
     }
@@ -147,13 +146,6 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
         installMouseListeners();
         installKeyboardActions();
         setFocusListeners();
-    }
-
-    private void installDefaults() {
-        gridColor = UIManager.getColor("DatePicker.tableGridColor");
-        showGrid = UIManager.getBoolean("DatePicker.tableShowGrid");
-        labelTextFont = UIManager.getFont("DatePicker.tableCellFont");
-        labelForeGroundColor = UIManager.getColor("DatePicker.tableForeground");
     }
 
     private void installMouseListeners() {
@@ -283,6 +275,10 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
         nextMonth = new JButton(">");
         prevYear = new JButton("<");
         nextYear = new JButton(">");
+        prevMonth.setName(previousMonthText);
+        nextMonth.setName(nextMonthText);
+        prevYear.setName(previousYearText);
+        nextYear.setName(nextYearText);
         prevMonth.setPreferredSize(buttonSize);
         nextMonth.setPreferredSize(buttonSize);
         prevYear.setPreferredSize(buttonSize);
@@ -298,11 +294,9 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
         nextYear.getAccessibleContext().setAccessibleName(nextYearText);
 
         monthLabel = new JLabel("", SwingConstants.CENTER);
-        monthLabel.setForeground(labelForeGroundColor);
-        monthLabel.setFont(labelTextFont);
         yearLabel = new JLabel("", SwingConstants.CENTER);
-        yearLabel.setForeground(labelForeGroundColor);
-        yearLabel.setFont(labelTextFont);
+        monthLabel.setName(selectMonthText);
+        yearLabel.setName(selectYearText);
         monthLabel.getAccessibleContext().setAccessibleName(selectMonthText);
         yearLabel.getAccessibleContext().setAccessibleName(selectYearText);
 
@@ -328,11 +322,14 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
 
     private void setupCalendarTable() {
         DefaultTableCellRenderer tableCellHeaderRenderer = getDefaultTableHeaderRenderer();
-
+        monthLabel.setForeground(calendarPanel.getTableForeground());
+        yearLabel.setForeground(calendarPanel.getTableForeground());
+        monthLabel.setFont(calendarPanel.getTableFont());
+        yearLabel.setFont(calendarPanel.getTableFont());
         calendarTable.setRowHeight((int) getCellDimension().getHeight());
-        if (showGrid) {
+        if (calendarPanel.getTableShowGridStatus()) {
             calendarTable.setShowGrid(true);
-            calendarTable.setGridColor(gridColor);
+            calendarTable.setGridColor(calendarPanel.getTableGridColor());
         } else {
             calendarTable.setShowGrid(false);
         }

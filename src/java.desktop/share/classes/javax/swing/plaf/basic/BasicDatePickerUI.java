@@ -42,6 +42,8 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.format.FormatStyle;
 import java.util.Calendar;
+import java.util.Objects;
+
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.ActionMap;
@@ -189,8 +191,7 @@ public class BasicDatePickerUI extends DatePickerUI {
         b.setName("popupButton");
         b.setRolloverEnabled(false);
         b.setPreferredSize(new Dimension(35, 35));
-        Icon downArrow = UIManager.getIcon("DatePicker.calendarIcon");
-        b.setIcon(downArrow);
+        b.setIcon(datePicker.getCalendarIcon());
         b.setFocusable(true);
         b.requestFocusInWindow();
         b.setMargin(new Insets(0, 0, 0, 0));
@@ -245,6 +246,7 @@ public class BasicDatePickerUI extends DatePickerUI {
                 "DatePicker.foreground",
                 "DatePicker.font");
         LookAndFeel.installProperty(datePicker, "opaque", Boolean.TRUE);
+        datePicker.setCalendarIcon(UIManager.getIcon("DatePicker.calendarIcon"));
     }
 
     /**
@@ -358,6 +360,18 @@ public class BasicDatePickerUI extends DatePickerUI {
         }
 
         public void propertyChange(PropertyChangeEvent evt) {
+            String prop = evt.getPropertyName();
+            if(Objects.equals(prop, JDatePicker.DATETIME_FORMATTER_ATTRIBUTES_PROPERTY)) {
+                if (!datePicker.getCalendarPanel().getDateSelectionModel().
+                        getSelectedDates().isEmpty()) {
+                    validateAndSetDateToTextField();
+                    datePicker.revalidate();
+                }
+            } else if (Objects.equals(prop, JDatePicker.POPUP_ICON_ATTRIBUTES_PROPERTY)) {
+                popupButton.setIcon(datePicker.getCalendarIcon());
+            } else if (Objects.equals(prop, JDatePicker.DATETIME_FORMATTER_ATTRIBUTES_PROPERTY)) {
+                validateAndSetDateToTextField();
+            }
         }
     }
 
@@ -368,18 +382,7 @@ public class BasicDatePickerUI extends DatePickerUI {
                         == DateSelectionModel.EventType.DATE_SELECTION) {
                     if (!datePicker.getCalendarPanel().getDateSelectionModel().
                             getSelectedDates().isEmpty()) {
-                        if (datePicker.getDateSelectionMode().equals(
-                                DateSelectionModel.SelectionMode.SINGLE_SELECTION)) {
-                            setDateToTextField(datePicker.getCalendarPanel().
-                                    getDateSelectionModel().getSelectedDates().getFirst());
-                        } else {
-                            setDatesToTextField(datePicker.getCalendarPanel().
-                                            getDateSelectionModel().getSelectedDates().
-                                            getFirst(),
-                                    datePicker.getCalendarPanel().
-                                            getDateSelectionModel().getSelectedDates().
-                                            getLast());
-                        }
+                        validateAndSetDateToTextField();
                         datePicker.revalidate();
                     } else {
                         resetDateToTextField();
@@ -423,23 +426,41 @@ public class BasicDatePickerUI extends DatePickerUI {
         };
     }
 
-    private void setDateToTextField(LocalDate localDate) {
-        formattedTextField.setText(localDate.format(
-                datePicker.getTextFieldFormatter().withLocale(
-                        datePicker.getLocale())));
-    }
-
-    private void setDatesToTextField(LocalDate startDate, LocalDate endDate) {
-        if (startDate.isEqual(endDate)) {
-            setDateToTextField(startDate);
-            return;
+    private void validateAndSetDateToTextField() {
+        if (datePicker.getDateSelectionMode().equals(
+                DateSelectionModel.SelectionMode.SINGLE_SELECTION)) {
+            LocalDate localDate = datePicker.getCalendarPanel().
+                    getDateSelectionModel().getSelectedDates().getFirst();
+            if (localDate == null) {
+                return;
+            }
+            formattedTextField.setText(localDate.format(
+                    datePicker.getTextFieldFormatter().withLocale(
+                            datePicker.getLocale())));
+        } else if (datePicker.getDateSelectionMode().equals(
+                DateSelectionModel.SelectionMode.RANGE_SELECTION)) {
+            LocalDate startDate = datePicker.getCalendarPanel().
+                    getDateSelectionModel().getSelectedDates().
+                    getFirst();
+            LocalDate endDate = datePicker.getCalendarPanel().
+                            getDateSelectionModel().getSelectedDates().
+                            getLast();
+            if (startDate == null || endDate == null) {
+                return;
+            }
+            if (startDate.isEqual(endDate)) {
+                formattedTextField.setText(startDate.format(
+                        datePicker.getTextFieldFormatter().withLocale(
+                                datePicker.getLocale())));
+                return;
+            }
+            formattedTextField.setText(startDate.format(
+                    datePicker.getTextFieldFormatter().withLocale(
+                            datePicker.getLocale()))
+                    + " -- " +
+                    endDate.format(datePicker.getTextFieldFormatter().withLocale(
+                            datePicker.getLocale())));
         }
-        formattedTextField.setText(startDate.format(
-                datePicker.getTextFieldFormatter().withLocale(
-                        datePicker.getLocale()))
-                + " -- " +
-                endDate.format(datePicker.getTextFieldFormatter().withLocale(
-                        datePicker.getLocale())));
     }
 
     private void resetDateToTextField() {

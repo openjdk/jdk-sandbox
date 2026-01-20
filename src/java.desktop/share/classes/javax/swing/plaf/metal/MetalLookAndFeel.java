@@ -1534,7 +1534,7 @@ public class MetalLookAndFeel extends BasicLookAndFeel
                "ctrl released ENTER", "release"
               },
                 // *** DatePicker
-                "DatePicker.tableCellFont", userTextValue,
+                "DatePicker.tableFont", userTextValue,
                 "DatePicker.tableForeground", getBlack(),  // cell text color
                 "DatePicker.tableBackground", getWindowBackground(),  // cell background color
                 "DatePicker.tableHeaderCellFont", windowTitleValue,

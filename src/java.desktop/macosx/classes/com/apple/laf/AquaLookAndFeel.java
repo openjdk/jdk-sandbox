@@ -1025,7 +1025,7 @@ public final class AquaLookAndFeel extends BasicLookAndFeel {
             "Tree.focusInputMap.RightToLeft", aquaKeyBindings.getTreeRightToLeftInputMap(),
             "Tree.ancestorInputMap", new UIDefaults.LazyInputMap(new Object[]{"ESCAPE", "cancel"}),
             // *** DatePicker
-            "DatePicker.tableCellFont", viewFont,
+            "DatePicker.tableFont", viewFont,
             "DatePicker.tableForeground", black,  // cell text color
             "DatePicker.tableBackground", white,  // cell background color
             "DatePicker.tableHeaderCellFont", alertHeaderFont,

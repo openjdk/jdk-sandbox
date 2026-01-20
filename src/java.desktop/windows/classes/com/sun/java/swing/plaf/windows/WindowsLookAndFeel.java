@@ -1587,7 +1587,7 @@ public class WindowsLookAndFeel extends BasicLookAndFeel
             "Viewport.background", ControlBackgroundColor,
             "Viewport.foreground", WindowTextColor,
                 // *** DatePicker
-                "DatePicker.tableCellFont", ControlFont,
+                "DatePicker.tableFont", ControlFont,
                 "DatePicker.tableForeground", ControlTextColor,  // cell text color
                 "DatePicker.tableBackground", WindowBackgroundColor,  // cell background color
                 "DatePicker.tableHeaderCellFont", ControlFont,

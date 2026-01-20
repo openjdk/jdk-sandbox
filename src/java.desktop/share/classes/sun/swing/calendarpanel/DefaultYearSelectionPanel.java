@@ -37,9 +37,11 @@ import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.beans.PropertyChangeEvent;
 import java.io.Serializable;
 import java.util.Calendar;
 import java.util.Locale;
+import java.util.Objects;
 import javax.swing.AbstractAction;
 import javax.swing.AbstractCalendarPanel;
 import javax.swing.ActionMap;
@@ -71,18 +73,10 @@ import javax.swing.table.DefaultTableCellRenderer;
 public final class DefaultYearSelectionPanel extends AbstractCalendarPanel {
     private static final int HEADER_PANEL_HEIGHT = 40;
     private int startYear;
-    private boolean showGrid;
     private Calendar calendar;
-    private Color gridColor;
-    private Color tableCellTextBGColor;
-    private Color tableCellTextFGColor;
-    private Color tableCellSelectionBGColor;
-    private Color tableCellSelectionFGColor;
-    private Color tableCellCurrentDateBGColor;
-    private Color tableCellCurrentDateFGColor;
     private DefaultTableCellRenderer defaultTableCellRenderer;
-    private Font cellTextFont;
     private JButton backButton;
+    private JLabel selectYearLabel;
     private JTable calendarTable;
     private String selectYearText = null;
     private String backButtonText = null;
@@ -121,17 +115,15 @@ public final class DefaultYearSelectionPanel extends AbstractCalendarPanel {
         headerPanel.setFocusTraversalKeysEnabled(true);
 
         backButton = new JButton(backButtonText);
+        backButton.setName(backButtonText);
         backButton.setBorder(null);
         backButton.setPreferredSize(buttonSize);
         backButton.addActionListener(new BackButtonAction());
 
-        JLabel selectYear = new JLabel(selectYearText, SwingConstants.CENTER);
-        selectYear.setForeground(tableCellTextFGColor);
-        selectYear.setFont(cellTextFont);
-        selectYear.setLocale(calendarPanel.getDateSelectionModel().getLocale());
+        selectYearLabel = new JLabel(selectYearText, SwingConstants.CENTER);
 
         headerPanel.add(backButton, BorderLayout.WEST);
-        headerPanel.add(selectYear, BorderLayout.CENTER);
+        headerPanel.add(selectYearLabel, BorderLayout.CENTER);
         startYear = calendar.get(Calendar.YEAR);
         int selectionLimitValue = calendarPanel.getYearSelectionLimit();
         tableModel = new YearTableViewModel(Calendar.getInstance().get(Calendar.YEAR), selectionLimitValue);
@@ -147,7 +139,6 @@ public final class DefaultYearSelectionPanel extends AbstractCalendarPanel {
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
         add(scrollPane, BorderLayout.CENTER);
         scrollPane.setPreferredSize(new Dimension((int) getCellDimension().getWidth() * tableModel.getColumnCount(), (int) getCellDimension().getHeight() * 7));
-        installDefaults();
         installKeyboardActions();
         installFocusListeners();
         updateCalendar();
@@ -168,10 +159,13 @@ public final class DefaultYearSelectionPanel extends AbstractCalendarPanel {
     }
 
     private void setupYearSelection() {
+        int selectionLimitValue = calendarPanel.getYearSelectionLimit();
+        calendarTable.setModel(new YearTableViewModel(Calendar.getInstance().get(Calendar.YEAR), selectionLimitValue));
         calendarTable.setRowHeight((int) getCellDimension().getHeight());
-        if (showGrid) {
+        setLabelAttributes();
+        if (calendarPanel.getTableShowGridStatus()) {
             calendarTable.setShowGrid(true);
-            calendarTable.setGridColor(gridColor);
+            calendarTable.setGridColor(calendarPanel.getTableGridColor());
         } else {
             calendarTable.setShowGrid(false);
         }
@@ -181,6 +175,12 @@ public final class DefaultYearSelectionPanel extends AbstractCalendarPanel {
         for (int i = 0; i < calendarTable.getColumnCount(); i++) {
             calendarTable.getColumnModel().getColumn(i).setCellRenderer(tableCellRenderer);
         }
+    }
+
+    private void  setLabelAttributes() {
+        selectYearLabel.setForeground(calendarPanel.getTableForeground());
+        selectYearLabel.setFont(calendarPanel.getTableFont());
+        selectYearLabel.setLocale(calendarPanel.getDateSelectionModel().getLocale());
     }
 
     private class YearSelectionMouseListener extends MouseAdapter implements Serializable {
@@ -231,22 +231,6 @@ public final class DefaultYearSelectionPanel extends AbstractCalendarPanel {
                 new TableKeyBoardAction(JCalendarPanel.ACTION_RIGHT_ARROW_KEY));
 
         backbuttonActionMap.put("acceptSelection", new BackButtonAction());
-    }
-
-    private void installDefaults() {
-        gridColor = UIManager.getColor("DatePicker.tableGridColor");
-        showGrid = UIManager.getBoolean("DatePicker.tableShowGrid");
-        cellTextFont = UIManager.getFont("DatePicker.tableCellFont");
-        tableCellTextFGColor = UIManager.getColor("DatePicker.tableForeground");
-        tableCellTextBGColor = UIManager.getColor("DatePicker.tableBackground");
-        tableCellSelectionFGColor =
-                UIManager.getColor("DatePicker.tableSelectionForeground");
-        tableCellSelectionBGColor =
-                UIManager.getColor("DatePicker.tableSelectionBackground");
-        tableCellCurrentDateFGColor =
-                UIManager.getColor("DatePicker.tableCurrentDateForeground");
-        tableCellCurrentDateBGColor =
-                UIManager.getColor("DatePicker.tableCurrentDateBackground");
     }
 
     /**
@@ -303,20 +287,20 @@ public final class DefaultYearSelectionPanel extends AbstractCalendarPanel {
             JLabel label = (JLabel) super.getTableCellRendererComponent(table,
                     value, isSelected, hasFocus, row, column);
             label.setHorizontalAlignment(JLabel.CENTER);
-            label.setFont(cellTextFont);
+            label.setFont(calendarPanel.getTableFont());
 
             if (label.getText().equals(String.valueOf(getCurrentYear())) && isSelected) {
-                label.setForeground(tableCellSelectionFGColor);
-                label.setBackground(tableCellSelectionBGColor);
+                label.setForeground(calendarPanel.getTableSelectionForeground());
+                label.setBackground(calendarPanel.getTableSelectionBackground());
             } else if (label.getText().equals(String.valueOf(getCurrentYear()))) {
-                label.setForeground(tableCellCurrentDateFGColor);
-                label.setBackground(tableCellCurrentDateBGColor.darker());
+                label.setForeground(calendarPanel.getTableCurrentDateForeground());
+                label.setBackground(calendarPanel.getTableCurrentDateBackground().darker());
             } else if (isSelected) {
-                label.setBackground(tableCellSelectionBGColor);
-                label.setForeground(tableCellSelectionFGColor);
+                label.setBackground(calendarPanel.getTableSelectionBackground());
+                label.setForeground(calendarPanel.getTableSelectionForeground());
             } else {
-                label.setBackground(tableCellTextBGColor);
-                label.setForeground(tableCellTextFGColor);
+                label.setBackground(calendarPanel.getTableBackground());
+                label.setForeground(calendarPanel.getTableForeground());
             }
             return label;
         }

@@ -27,11 +27,11 @@ package javax.swing;
 
 import jdk.internal.javac.PreviewFeature;
 
-
 import java.beans.BeanProperty;
 import java.beans.JavaBean;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.UnsupportedTemporalTypeException;
 import java.util.Locale;
 import java.util.SortedSet;
 import javax.accessibility.Accessible;
@@ -55,18 +55,6 @@ import javax.swing.plaf.DatePickerUI;
 public class JDatePicker extends JComponent implements Accessible {
     private static final String uiClassID = "DatePickerUI";
     /**
-     * The date selection model property name.
-     */
-    public static final String DATE_SELECTION_MODEL_PROPERTY = "dateSelectionModel";
-    /**
-     * enter key action
-     */
-    public static final String ACTION_ENTER_KEY = "enter";
-    /**
-     * escape button action
-     */
-    public static final String ACTION_ESCAPE_KEY = "escape";
-    /**
      * Approve entered date action
      */
     public static final String ACTION_APPROVE_DATE = "approveDate";
@@ -74,6 +62,19 @@ public class JDatePicker extends JComponent implements Accessible {
      * Approve Popup button action
      */
     public static final String ACTION_POPUP_BUTTON = "popupButton";
+    /**
+     * * Set DateTime formatter property name.
+     *
+     */
+    public static final String DATETIME_FORMATTER_ATTRIBUTES_PROPERTY = "DateTimeFormatterAttributes";
+    /**
+     * * Set popup icon property name.
+     *
+     */
+    public static final String POPUP_ICON_ATTRIBUTES_PROPERTY = "popupButtonIconAttributes";
+
+    /** The calendar icon. */
+    protected Icon calendarIcon;
     private volatile JCalendarPanel calendarPanel;
     private boolean dragEnabled;
     private DateTimeFormatter textFieldFormatter;
@@ -93,7 +94,11 @@ public class JDatePicker extends JComponent implements Accessible {
      */
     public JDatePicker(LocalDate date, Locale locale) {
         setDate = date;
-        setLocale(locale);
+        if (locale == null) {
+            setLocale(Locale.getDefault());
+        } else {
+            setLocale(locale);
+        }
         calendarPanel = getCalendarPanel();
         updateUI();
         dragEnabled = false;
@@ -261,9 +266,50 @@ public class JDatePicker extends JComponent implements Accessible {
      * @param textFieldFormatter the DateTimeFormatter instance to use
      */
     public void setTextFieldFormatter(DateTimeFormatter textFieldFormatter) {
+        if (!isDateOnlyFormatter(textFieldFormatter)) {
+           throw new IllegalArgumentException("Formatter must be date-only (No time fields)");
+        }
+        DateTimeFormatter old =  this.textFieldFormatter;
         this.textFieldFormatter = textFieldFormatter;
+        firePropertyChange(DATETIME_FORMATTER_ATTRIBUTES_PROPERTY, old, textFieldFormatter);
     }
 
+    private boolean isDateOnlyFormatter(DateTimeFormatter dateTimeFormatter) {
+        try {
+            dateTimeFormatter.format(LocalDate.now());
+            return true;
+        } catch (UnsupportedTemporalTypeException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Sets the calendar icon for popup button.
+     * <p>
+     * The default value of this property is defined by the look
+     * and feel implementation.
+     * <p>
+     * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
+     *
+     * @param icon calendar <code>Icon</code> of popup button
+     * @see #getCalendarIcon
+     */
+    @BeanProperty(description
+            = "A default calendar icon for popup button.")
+    public void setCalendarIcon(Icon icon) {
+        Icon old = this.calendarIcon;
+        this.calendarIcon = icon;
+        firePropertyChange(POPUP_ICON_ATTRIBUTES_PROPERTY, old, icon);
+    }
+
+    /**
+     * Returns the Calendar Icon of popup button.
+     *
+     * @return calendar icon of popup button
+     */
+    public Icon getCalendarIcon() {
+        return calendarIcon;
+    }
 
 /******************Accessibility support******************/
 

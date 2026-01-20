@@ -38,6 +38,7 @@ import java.util.Calendar;
 import java.util.Map;
 import java.util.Objects;
 import java.util.SortedSet;
+
 import javax.swing.AbstractCalendarPanel;
 import javax.swing.DateSelectionModel;
 import javax.swing.InputMap;
@@ -45,6 +46,7 @@ import javax.swing.JCalendarPanel;
 import javax.swing.JComponent;
 import javax.swing.LookAndFeel;
 import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.plaf.CalendarPanelUI;
@@ -183,10 +185,23 @@ public class BasicCalendarPanelUI extends CalendarPanelUI {
      */
     protected void installDefaults() {
         LookAndFeel.installColorsAndFont(calendarPanel,
-                "CalendarPanel.background",
-                "CalendarPanel.foreground",
-                "CalendarPanel.font");
+                "DatePicker.tableBackground",
+                "DatePicker.tableForeground",
+                "DatePicker.tableFont");
         LookAndFeel.installProperty(calendarPanel, "opaque", Boolean.TRUE);
+        calendarPanel.setTableGridColor(UIManager.getColor("DatePicker.tableGridColor"));
+        calendarPanel.setTableShowGridStatus(UIManager.getBoolean("DatePicker.tableShowGrid"));
+        calendarPanel.setTableFont(UIManager.getFont("DatePicker.tableFont"));
+        calendarPanel.setTableForeground(UIManager.getColor("DatePicker.tableForeground"));
+        calendarPanel.setTableBackground(UIManager.getColor("DatePicker.tableBackground"));
+        calendarPanel.setTableSelectionForeground(UIManager.getColor("DatePicker.tableSelectionForeground"));
+        calendarPanel.setTableSelectionBackground(UIManager.getColor("DatePicker.tableSelectionBackground"));
+        calendarPanel.setTableCurrentDateForeground(UIManager.getColor("DatePicker.tableCurrentDateForeground"));
+        calendarPanel.setTableCurrentDateBackground(UIManager.getColor("DatePicker.tableCurrentDateBackground"));
+        calendarPanel.setTableHeaderCellFont(UIManager.getFont("DatePicker.tableHeaderCellFont"));
+        calendarPanel.setTableHeaderForeground(UIManager.getColor("DatePicker.tableHeaderForeground"));
+        calendarPanel.setTableHeaderBackground(UIManager.getColor("DatePicker.tableHeaderBackground"));
+        calendarPanel.setTableWeekNumberForeground(UIManager.getColor("DatePicker.weekNumberForeground"));
     }
 
     /**
@@ -328,6 +343,8 @@ public class BasicCalendarPanelUI extends CalendarPanelUI {
                 calendarPanel.getDateSelectionModel().setCalendar(cal);
                 calendarPanel.setCalendarPanel(calendarPanel.getSelectionPanel(
                         DateSelectionModel.CalendarPanelType.DAY_SELECTION));
+            } else {
+                abstractCalendarPanel.updateCalendar();
             }
         }
     }

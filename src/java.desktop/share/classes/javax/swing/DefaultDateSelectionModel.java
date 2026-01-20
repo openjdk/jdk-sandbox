@@ -218,7 +218,6 @@ public class DefaultDateSelectionModel implements DateSelectionModel {
     @Override
     public void setEventType(final EventType eventType) {
         this.eventType = eventType;
-        fireStateChanged();
     }
 
     @Override

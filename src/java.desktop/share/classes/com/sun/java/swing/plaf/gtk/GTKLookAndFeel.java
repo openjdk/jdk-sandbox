@@ -1305,7 +1305,7 @@ public class GTKLookAndFeel extends SynthLookAndFeel {
 
             "Viewport.font", new FontLazyValue(Region.VIEWPORT),
                 // *** DatePicker
-                "DatePicker.tableCellFont", new FontLazyValue(Region.TABLE),
+                "DatePicker.tableFont", new FontLazyValue(Region.TABLE),
                 "DatePicker.tableForeground", tableFg,  // cell text color
                 "DatePicker.tableBackground", tableBg,  // cell background color
                 "DatePicker.tableHeaderCellFont", new FontLazyValue(Region.TABLE_HEADER),

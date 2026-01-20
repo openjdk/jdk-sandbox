@@ -25,6 +25,8 @@
 
 package javax.swing;
 
+import java.awt.Color;
+import java.awt.Font;
 import java.beans.BeanProperty;
 import java.beans.JavaBean;
 import java.time.LocalDate;
@@ -79,11 +81,14 @@ public class JCalendarPanel extends JComponent implements Accessible {
      */
     public static final String SET_DATE_PROPERTY = "SetDate";
     /**
-     * * Set Date property name.
+     * * Set Panel attributes property name.
      *
      */
     public static final String PANEL_ATTRIBUTES_PROPERTY = "PanelAttributes";
-
+    /**
+     * * Set Table font attribute property name.
+     *
+     */
     private static final int DEFAULT_LIMIT_VALUE = 100;
     /**
      * enter key action
@@ -126,6 +131,33 @@ public class JCalendarPanel extends JComponent implements Accessible {
      * right key action
      */
     public static final String ACTION_SHIFT_DOWN_ARROW_KEY = "shiftDown";
+    /** The table font. */
+    protected Font tableFont;
+    /** The table foreground color */
+    protected Color tableForeground;
+    /** The table background color */
+    protected Color tableBackground;
+    /** The table header cell font. */
+    protected Font tableHeaderCellFont;
+    /** The table header foreground color */
+    protected Color tableHeaderForeground;
+    /** The table header background color */
+    protected Color tableHeaderBackground;
+    /** The table selection foreground color */
+    protected Color tableSelectionForeground;
+    /** The table selection background color */
+    protected Color tableSelectionBackground;
+    /** The table current date foreground color */
+    protected Color tableCurrentDateForeground;
+    /** The table current date background color */
+    protected Color tableCurrentDateBackground;
+    /** The table week number foreground color */
+    protected Color tableWeekNumberForeground;
+    /** The table grid color */
+    protected Color tableGridColor;
+    /** The table grid visible state */
+    protected boolean tableShowGrid;
+
     private final HashMap<DateSelectionModel.CalendarPanelType,
             AbstractCalendarPanel> calendarPanelHashMap = new HashMap<>();
     private int yearSelectionLimit;
@@ -519,6 +551,397 @@ public class JCalendarPanel extends JComponent implements Accessible {
      */
     public boolean isWeekNumberEnabled() {
         return enableWeekNumber;
+    }
+
+    /**
+     * Sets the table text font. Cell renderers and labels
+     * can use this font to render text and graphics.
+     * <p>
+     * The default value of this property is defined by the look
+     * and feel implementation.
+     * <p>
+     * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
+     *
+     * @param font the <code>Font</code> to use for table text
+     */
+    @BeanProperty(description
+            = "A default font type for table cells.")
+    public void setTableFont(Font font) {
+        Font old = this.tableFont;
+        this.tableFont = font;
+        firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, font);
+    }
+
+    /**
+     * Returns the font for calendar table.
+     *
+     * @return the <code>Font</code> used for the table cell text
+     */
+    public Font getTableFont() {
+        return tableFont;
+    }
+
+    /**
+     * Sets the table foreground color for all the cells. Cell renderers
+     * can use this color to render text and graphics for all the
+     * cells.
+     * <p>
+     * The default value of this property is defined by the look
+     * and feel implementation.
+     * <p>
+     * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
+     *
+     * @param foreground  the <code>Color</code> to use in the foreground
+     *                             for all the cells
+     * @see #getTableForeground
+     */
+    @BeanProperty(description
+            = "A default foreground color for all the cells.")
+    public void setTableForeground(Color foreground) {
+        Color old = this.tableForeground;
+        this.tableForeground = foreground;
+        firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, foreground);
+    }
+
+    /**
+     * Returns the foreground color for all the cells.
+     *
+     * @return the <code>Color</code> used for the foreground of all the cells
+     */
+    public Color getTableForeground() {
+        return tableForeground;
+    }
+
+    /**
+     * Sets the table background color for all the cells. Cell renderers
+     * can use this color to render text and graphics for all the
+     * cells.
+     * <p>
+     * The default value of this property is defined by the look
+     * and feel implementation.
+     * <p>
+     * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
+     *
+     * @param background  the <code>Color</code> to use in the background
+     *                             for all the cells
+     * @see #getTableBackground
+     */
+    @BeanProperty(description
+            = "A default background color for all the cells.")
+    public void setTableBackground(Color background) {
+        Color old = this.tableBackground;
+        this.tableBackground = background;
+        firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, background);
+    }
+
+    /**
+     * Returns the background color for all the cells.
+     *
+     * @return the <code>Color</code> used for the background of all the cells
+     */
+    public Color getTableBackground() {
+        return tableBackground;
+    }
+
+    /**
+     * Sets the table header text cell font. Cell header renderers
+     * can use this font to render text and graphics for
+     * table header cells.
+     * <p>
+     * The default value of this property is defined by the look
+     * and feel implementation.
+     * <p>
+     * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
+     *
+     * @param headerCellFont the <code>Font</code> to use for table header cell text
+     */
+    @BeanProperty(description
+            = "A default font type for table header cell.")
+    public void setTableHeaderCellFont(Font headerCellFont) {
+        Font old = this.tableHeaderCellFont;
+        this.tableHeaderCellFont = headerCellFont;
+        firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, headerCellFont);
+    }
+
+    /**
+     * Returns the font for table header cells.
+     *
+     * @return the <code>Font</code> used for the table header cell text
+     */
+    public Font getTableHeaderCellFont() {
+        return tableHeaderCellFont;
+    }
+
+    /**
+     * Sets the table header foreground color for all the cells. Cell header
+     * renderers can use this color to render text and graphics for header
+     * cells.
+     * <p>
+     * The default value of this property is defined by the look
+     * and feel implementation.
+     * <p>
+     * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
+     *
+     * @param headerForeground  the <code>Color</code> to use in the foreground
+     *                             for header cell.
+     * @see #getTableHeaderForeground
+     */
+    @BeanProperty(description
+            = "A default foreground color for header cell.")
+    public void setTableHeaderForeground(Color headerForeground) {
+        Color old = this.tableHeaderForeground;
+        this.tableHeaderForeground = headerForeground;
+        firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, headerForeground);
+    }
+
+    /**
+     * Returns the foreground color for header cell.
+     *
+     * @return the <code>Color</code> used for the foreground of header cell
+     */
+    public Color getTableHeaderForeground() {
+        return tableHeaderForeground;
+    }
+
+    /**
+     * Sets the table header background color for all the cells. Cell header
+     * renderers can use this color to render text and graphics for header
+     * cells.
+     * <p>
+     * The default value of this property is defined by the look
+     * and feel implementation.
+     * <p>
+     * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
+     *
+     * @param headerBackground  the <code>Color</code> to use in the background
+     *                             for header cell
+     * @see #getTableHeaderBackground
+     */
+    @BeanProperty(description
+            = "A default background color for header cells.")
+    public void setTableHeaderBackground(Color headerBackground) {
+        Color old = this.tableHeaderBackground;
+        this.tableHeaderBackground = headerBackground;
+        firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, headerBackground);
+    }
+
+    /**
+     * Returns the background color for header cells.
+     *
+     * @return the <code>Color</code> used for the background of header cells
+     */
+    public Color getTableHeaderBackground() {
+        return tableHeaderBackground;
+    }
+
+    /**
+     * Sets the table foreground color for selected cells. Cell renderers
+     * can use this color to render text and graphics for selected
+     * cells.
+     * <p>
+     * The default value of this property is defined by the look
+     * and feel implementation.
+     * <p>
+     * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
+     *
+     * @param selectionForeground  the <code>Color</code> to use in the foreground
+     *                             for selected cells
+     * @see #getTableForeground
+     */
+    @BeanProperty(description
+            = "A default foreground color for selected cells.")
+    public void setTableSelectionForeground(Color selectionForeground) {
+        Color old = this.tableSelectionForeground;
+        this.tableSelectionForeground = selectionForeground;
+        firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, selectionForeground);
+    }
+
+    /**
+     * Returns the foreground color for selected cells.
+     *
+     * @return the <code>Color</code> used for the foreground of selected cells
+     */
+    public Color getTableSelectionForeground() {
+        return tableSelectionForeground;
+    }
+
+    /**
+     * Sets the table background color for selected cells. Cell renderers
+     * can use this color to render text and graphics for selected
+     * cells.
+     * <p>
+     * The default value of this property is defined by the look
+     * and feel implementation.
+     * <p>
+     * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
+     *
+     * @param selectionBackground  the <code>Color</code> to use in the background
+     *                             for selected cells
+     * @see #getTableSelectionBackground
+     */
+    @BeanProperty(description
+            = "A default background color for selected cells.")
+    public void setTableSelectionBackground(Color selectionBackground) {
+        Color old = this.tableSelectionBackground;
+        this.tableSelectionBackground = selectionBackground;
+        firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, selectionBackground);
+    }
+
+    /**
+     * Returns the background color for selected cells.
+     *
+     * @return the <code>Color</code> used for the background of selected cells
+     */
+    public Color getTableSelectionBackground() {
+        return tableSelectionBackground;
+    }
+
+    /**
+     * Sets the table foreground color for current date cell. Cell renderers
+     * can use this color to render text and graphics for current date
+     * cell.
+     * <p>
+     * The default value of this property is defined by the look
+     * and feel implementation.
+     * <p>
+     * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
+     *
+     * @param currentDateForeground  the <code>Color</code> to use in the foreground
+     *                             for current date cell
+     * @see #getTableCurrentDateForeground
+     */
+    @BeanProperty(description
+            = "A default foreground color for current date cell.")
+    public void setTableCurrentDateForeground(Color currentDateForeground) {
+        Color old = this.tableCurrentDateForeground;
+        this.tableCurrentDateForeground = currentDateForeground;
+        firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, currentDateForeground);
+    }
+
+    /**
+     * Returns the foreground color for current date cell.
+     *
+     * @return the <code>Color</code> used for the foreground of current date cell
+     */
+    public Color getTableCurrentDateForeground() {
+        return tableCurrentDateForeground;
+    }
+
+    /**
+     * Sets the table background color for current date cell. Cell renderers
+     * can use this color to render text and graphics for current date
+     * cell.
+     * <p>
+     * The default value of this property is defined by the look
+     * and feel implementation.
+     * <p>
+     * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
+     *
+     * @param currentDateBackground  the <code>Color</code> to use in the background
+     *                             for current date cell
+     * @see #getTableCurrentDateBackground
+     */
+    @BeanProperty(description
+            = "A default background color for current date cell.")
+    public void setTableCurrentDateBackground(Color currentDateBackground) {
+        Color old = this.tableCurrentDateBackground;
+        this.tableCurrentDateBackground = currentDateBackground;
+        firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, currentDateBackground);
+    }
+
+    /**
+     * Returns the background color for current date cell.
+     *
+     * @return the <code>Color</code> used for the background of current cell
+     */
+    public Color getTableCurrentDateBackground() {
+        return tableCurrentDateBackground;
+    }
+
+    /**
+     * Sets the table foreground color for week number column. Cell renderers
+     * can use this color to render text and graphics for week number column
+     * <p>
+     * The default value of this property is defined by the look
+     * and feel implementation.
+     * <p>
+     * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
+     *
+     * @param weekNumberForeground  the <code>Color</code> to use in the foreground
+     *                             for week number column
+     * @see #getWeekNumberForeground
+     */
+    @BeanProperty(description
+            = "A default foreground color for week number column.")
+    public void setTableWeekNumberForeground(Color weekNumberForeground) {
+        Color old = this.tableWeekNumberForeground;
+        this.tableWeekNumberForeground = weekNumberForeground;
+        firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, weekNumberForeground);
+    }
+
+    /**
+     * Returns the foreground color for week number column.
+     *
+     * @return the <code>Color</code> used for the foreground of week number column
+     */
+    public Color getWeekNumberForeground() {
+        return tableWeekNumberForeground;
+    }
+
+    /**
+     * Sets the table grid color.
+     * <p>
+     * The default value of this property is defined by the look
+     * and feel implementation.
+     * <p>
+     * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
+     *
+     * @param gridColor  the <code>Color</code> to use in the table grid
+     * @see #getTableGridColor
+     */
+    @BeanProperty(description
+            = "A default table grid color.")
+    public void setTableGridColor(Color gridColor) {
+        Color old = this.tableGridColor;
+        this.tableGridColor = gridColor;
+        firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, gridColor);
+    }
+
+    /**
+     * Returns the table grid color.
+     *
+     * @return the <code>Color</code> used for the table grid.
+     */
+    public Color getTableGridColor() {
+        return tableGridColor;
+    }
+
+    /**
+     * Sets the visible state of table grid.
+     * <p>
+     * The default value of this property is defined by the look
+     * and feel implementation.
+     * <p>
+     * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
+     *
+     * @param showGrid  if true, shows the table grid; otherwise, hides it
+     * @see #getTableShowGridStatus
+     */
+    @BeanProperty(description
+            = "A default state to show/hide table grid.")
+    public void setTableShowGridStatus(boolean showGrid) {
+        boolean old = this.tableShowGrid;
+        this.tableShowGrid = showGrid;
+        firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, showGrid);
+    }
+
+    /**
+     * Returns the visible state of table grid.
+     *
+     * @return true if table grid is visible; otherwise, false
+     */
+    public boolean getTableShowGridStatus() {
+        return tableShowGrid;
     }
 
     /******************Accessibility support******************/

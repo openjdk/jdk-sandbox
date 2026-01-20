@@ -44,6 +44,8 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 import javax.swing.border.Border;
 import javax.swing.event.ChangeListener;
 
@@ -51,6 +53,7 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
@@ -58,6 +61,7 @@ import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ItemEvent;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.Calendar;
 import java.util.Locale;
 import java.util.SortedSet;
@@ -89,9 +93,9 @@ public class DatePickerDemo extends DemoModule {
         JPanel innerPanel = new JPanel();
         innerPanel.setLayout(new BoxLayout(innerPanel, BoxLayout.X_AXIS));
 
-        demoPanel.add(Box.createRigidArea(VGAP20));
+        demoPanel.add(Box.createRigidArea(VGAP5));
         demoPanel.add(innerPanel);
-        demoPanel.add(Box.createRigidArea(VGAP20));
+        demoPanel.add(Box.createRigidArea(VGAP5));
 
         innerPanel.add(Box.createRigidArea(HGAP20));
 
@@ -100,6 +104,8 @@ public class DatePickerDemo extends DemoModule {
         tabbedPane.add(getCalendarPanel(), "JCalendarPanel");
         tabbedPane.add(doubleDatePicker(), "DoubleDatePicker");
         tabbedPane.add(getLocalisationSample(), "Localisation");
+        tabbedPane.add(getDateFormatterSample(), "Date Formatter Samples");
+
         getDemoPanel().add(tabbedPane, BorderLayout.CENTER);
     }
 
@@ -116,6 +122,16 @@ public class DatePickerDemo extends DemoModule {
         calendarPanel.setFirstDayOfWeek(Calendar.THURSDAY);
         Border blackBorder = BorderFactory.createLineBorder(Color.BLACK);
         label.setText(getString("DatePickerDemo.showEmbeddedCalendarPanel"));
+        Font baseFont = label.getFont();
+        Font boldLFont = baseFont.deriveFont(Font.BOLD, 18f);
+        UIManager.addPropertyChangeListener(e -> {
+            if ("lookAndFeel".equals(e.getPropertyName())) {
+                SwingUtilities.invokeLater(() -> {
+                    label.setFont(boldLFont);
+                });
+            }
+        });
+
         panel.setLayout(new GridBagLayout());
         panel.setBorder(BorderFactory.createLineBorder(Color.BLACK, 2));
         constraints.anchor = GridBagConstraints.CENTER;
@@ -145,7 +161,7 @@ public class DatePickerDemo extends DemoModule {
         constraints.insets = new Insets(0, 0, 10, 0);
         constraints.gridy++;
         calendarPanel.setBorder(blackBorder);
-        calendarPanel.setPreferredSize(new Dimension(300,250));
+        calendarPanel.setPreferredSize(new Dimension(340,250));
         panel.add(calendarPanel, constraints);
 
         JPanel textPanel = new JPanel();
@@ -172,6 +188,15 @@ public class DatePickerDemo extends DemoModule {
 
         Border blackBorder = BorderFactory.createLineBorder(Color.BLACK);
         label.setText(getString("DatePickerDemo.name"));
+        Font baseFont = label.getFont();
+        Font boldLFont = baseFont.deriveFont(Font.BOLD, 18f);
+        UIManager.addPropertyChangeListener(e -> {
+            if ("lookAndFeel".equals(e.getPropertyName())) {
+                SwingUtilities.invokeLater(() -> {
+                    label.setFont(boldLFont);
+                });
+            }
+        });
         datePicker.setDateSelectionMode(DateSelectionModel.SelectionMode.RANGE_SELECTION);
         datePicker.setDate(LocalDate.of(2025, Calendar.SEPTEMBER + 1, 20));
         panel.setBorder(BorderFactory.createLineBorder(Color.BLACK, 2));
@@ -223,7 +248,9 @@ public class DatePickerDemo extends DemoModule {
         textPanel.add(labelDP);
         verticalPanel.add(textPanel, innerGbc);
         constraints.gridy = 0;
-
+        constraints.anchor = GridBagConstraints.CENTER;
+        constraints.weighty = 1.0;
+        constraints.insets = new Insets(0, 0, 80, 0);
         panel.add(verticalPanel, constraints);
         return panel;
     }
@@ -327,12 +354,95 @@ public class DatePickerDemo extends DemoModule {
 
     private JPanel createLocalisationSampleRow(JDatePicker datePicker) {
         JPanel panel = new JPanel(new GridBagLayout());
-        panel.setPreferredSize(new Dimension(250, 80));
+        panel.setPreferredSize(new Dimension(300, 80));
         GridBagConstraints gbc = new GridBagConstraints();
 
         JLabel label = new JLabel(datePicker.getLocale().getDisplayName());
         panel.setBorder(BorderFactory.createLineBorder(Color.black));
-        label.setPreferredSize(new Dimension(70, label.getPreferredSize().height));
+        label.setPreferredSize(new Dimension(100, label.getPreferredSize().height));
+        datePicker.setPreferredSize(new Dimension(70, datePicker.getPreferredSize().height));
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.gridx = 0;
+
+        panel.add(label, gbc);
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        panel.add(datePicker, gbc);
+        return panel;
+    }
+
+    private JPanel getDateFormatterSample() {
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        JPanel mainPanel = new JPanel(new GridBagLayout());
+
+        JDatePicker datePicker1 = new JDatePicker();
+        JDatePicker datePicker2 = new JDatePicker();
+        JDatePicker datePicker3 = new JDatePicker();
+        JDatePicker datePicker4 = new JDatePicker();
+        String p1 = "dd-MM-yyyy";
+        String p2 = "dd/MM/yyyy";
+        String p3 = "yyyy-MM-dd";
+        String p4 = "dd MMM yyyy";
+        UIManager.addPropertyChangeListener(e -> {
+            if ("lookAndFeel".equals(e.getPropertyName())) {
+                SwingUtilities.invokeLater(() -> {
+                    datePicker1.setTextFieldFormatter(DateTimeFormatter.ofPattern(p1));
+                    datePicker1.setDate(LocalDate.now());
+                });
+            }
+        });
+        UIManager.addPropertyChangeListener(e -> {
+            if ("lookAndFeel".equals(e.getPropertyName())) {
+                SwingUtilities.invokeLater(() -> {
+                    datePicker2.setTextFieldFormatter(DateTimeFormatter.ofPattern(p2));
+                    datePicker2.setDate(LocalDate.now());
+                });
+            }
+        });
+        UIManager.addPropertyChangeListener(e -> {
+            if ("lookAndFeel".equals(e.getPropertyName())) {
+                SwingUtilities.invokeLater(() -> {
+                    datePicker3.setTextFieldFormatter(DateTimeFormatter.ofPattern(p3));
+                    datePicker3.setDate(LocalDate.now());
+                });
+            }
+        });
+        UIManager.addPropertyChangeListener(e -> {
+            if ("lookAndFeel".equals(e.getPropertyName())) {
+                SwingUtilities.invokeLater(() -> {
+                    datePicker4.setTextFieldFormatter(DateTimeFormatter.ofPattern(p4));
+                    datePicker4.setDate(LocalDate.now());
+                });
+            }
+        });
+
+        gbc.gridy = 0;
+        gbc.gridx = 0;
+        gbc.anchor = GridBagConstraints.CENTER;
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.weightx = 1;
+        mainPanel.add(createDateFormatterSampleRow(datePicker1, p1), gbc);
+        gbc.gridy++;
+        mainPanel.add(createDateFormatterSampleRow(datePicker2, p2), gbc);
+        gbc.gridy++;
+        mainPanel.add(createDateFormatterSampleRow(datePicker3, p3), gbc);
+        gbc.gridy++;
+        mainPanel.add(createDateFormatterSampleRow(datePicker4, p4), gbc);
+
+        return mainPanel;
+    }
+
+    private JPanel createDateFormatterSampleRow(JDatePicker datePicker, String pattern) {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setPreferredSize(new Dimension(300, 80));
+        GridBagConstraints gbc = new GridBagConstraints();
+
+        JLabel label = new JLabel(pattern);
+        panel.setBorder(BorderFactory.createLineBorder(Color.black));
+        label.setPreferredSize(new Dimension(100, label.getPreferredSize().height));
         datePicker.setPreferredSize(new Dimension(70, datePicker.getPreferredSize().height));
         gbc.insets = new Insets(10, 10, 10, 10);
         gbc.anchor = GridBagConstraints.WEST;

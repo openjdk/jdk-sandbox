@@ -28,6 +28,8 @@ package sun.swing.calendarpanel;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Font;
+import java.beans.PropertyChangeEvent;
+import java.util.Objects;
 import javax.swing.JCalendarPanel;
 import javax.swing.JLabel;
 import javax.swing.JTable;
@@ -42,9 +44,6 @@ import javax.swing.table.DefaultTableCellRenderer;
 
 @SuppressWarnings("serial")
 class CalendarHeaderCellRenderer extends DefaultTableCellRenderer {
-    private Font cellHeaderTextFont;
-    private Color tableCellHeaderTextBGColor;
-    private Color tableCellHeaderTextFGColor;
     JCalendarPanel calendarPanel;
 
     /**
@@ -54,13 +53,6 @@ class CalendarHeaderCellRenderer extends DefaultTableCellRenderer {
      */
     public CalendarHeaderCellRenderer(JCalendarPanel calendarPanel) {
         this.calendarPanel = calendarPanel;
-        installDefaults();
-    }
-
-    private void installDefaults() {
-        cellHeaderTextFont = UIManager.getFont("DatePicker.tableHeaderCellFont");
-        tableCellHeaderTextFGColor = UIManager.getColor("DatePicker.tableHeaderForeground");
-        tableCellHeaderTextBGColor = UIManager.getColor("DatePicker.tableHeaderBackground");
     }
 
     @Override
@@ -71,11 +63,11 @@ class CalendarHeaderCellRenderer extends DefaultTableCellRenderer {
                 isSelected, hasFocus, row, column);
 
         if (value != null) {
-            comp.setBackground(tableCellHeaderTextBGColor);
-            comp.setForeground(tableCellHeaderTextFGColor);
+            comp.setBackground(calendarPanel.getTableHeaderBackground());
+            comp.setForeground(calendarPanel.getTableHeaderForeground());
             setHorizontalAlignment(JLabel.CENTER);
-            comp.setFont(new Font(cellHeaderTextFont.getName(), Font.BOLD,
-                    cellHeaderTextFont.getSize() + 2));
+            comp.setFont(new Font(calendarPanel.getTableHeaderCellFont().getName(), Font.BOLD,
+                    calendarPanel.getTableHeaderCellFont().getSize() + 2));
         }
         return comp;
     }
