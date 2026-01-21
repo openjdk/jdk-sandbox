@@ -139,19 +139,14 @@ public final class Json {
             s.append("{}");
         } else {
             s.append("{\n");
-            jo.members().forEach((name, value) -> {
-                if (value instanceof JsonValue val) {
+            jo.members().forEach((name, val) ->
                     s.append(prefix)
-                            .append(" ".repeat(indent))
-                            .append("\"")
-                            .append(name)
-                            .append("\":")
-                            .append(Json.toDisplayString(val, col + indent, indent, true))
-                            .append(",\n");
-                } else {
-                    throw new InternalError("type mismatch");
-                }
-            });
+                    .append(" ".repeat(indent))
+                    .append("\"")
+                    .append(name)
+                    .append("\":")
+                    .append(Json.toDisplayString(val, col + indent, indent, true))
+                    .append(",\n"));
             s.setLength(s.length() - 2); // trim final comma
             s.append("\n").append(prefix).append("}");
         }
@@ -165,12 +160,8 @@ public final class Json {
             s.append("[]");
         } else {
             s.append("[\n");
-            for (JsonValue v: ja.elements()) {
-                if (v instanceof JsonValue jv) {
-                    s.append(Json.toDisplayString(jv, col + indent, indent, false)).append(",\n");
-                } else {
-                    throw new InternalError("type mismatch");
-                }
+            for (JsonValue v : ja.elements()) {
+                s.append(Json.toDisplayString(v, col + indent, indent, false)).append(",\n");
             }
             s.setLength(s.length() - 2); // trim final comma/newline
             s.append("\n").append(prefix).append("]");
