@@ -141,7 +141,11 @@ public abstract class AttachProvider {
     /**
      * Attach to a Java virtual machine.
      *
-     * Takes an optional Map of parameters.
+     * This method accepts a Map of named parameters and values.
+     *
+     * This class provides a standard implementation which ignores the parameters in env.
+     * An overriding AttachProvider implementation can use these parameters to customize
+     * the attach process and return a VirtualMachine.
      *
      * @param  id
      *         The abstract identifier that identifies the Java virtual machine.
@@ -150,12 +154,46 @@ public abstract class AttachProvider {
      *         a map of provider specific properties to configure attach,
      *         may be null or empty
      *
+     * @implNote The Oracle JDK ships with an attach provider which recognises the id as a
+     * live process ID, or the filename of a core file (on Linux) or MiniDump (Windows).
+     * When reading a core or MiniDump, the properties are recognized:
+     *
+     * <table class="striped">
+     * <caption style="display:none">
+     *     Configurable properties that may be recongised by attach provider.
+     * </caption>
+	 * <thead>
+	 *   <tr>
+	 *     <th scope="col">Property Name</th>
+	 *     <th scope="col">Data Type</th>
+     *     <th scope="col">Default Value</th>
+     *     <th scope="col">Description</th>
+     *   </tr>
+     * </thead>
+     *
+     * <tbody>
+     * <tr>
+     *   <th scope="row">libDirs</th>
+     *   <td>{@link java.lang.String}</td>
+     *   <td>null/unset</td>
+     *   <td>Directory path of where to search for shared libraries when reading a core file.
+     *       This may be a list of multiple directories, separated by File.pathSeparator.
+     *   </td>
+     * </tr>
+     * <tr>
+     *   <th scope="row">revivalDataPath</th>
+     *   <td>{@link java.lang.String}</td>
+     *   <td>null/unset</td>
+     *   <td>Directory path of where to create temporary data needed.</td>
+     * </tr>
+     * </tbody>
+     * </table>
+     *
      * @since 27
      */
     public VirtualMachine attachVirtualMachine(String id, Map<String, ?> env)
         throws AttachNotSupportedException, IOException {
 
-        // Overridden to use the parameters...
         return attachVirtualMachine(id);
     }
 

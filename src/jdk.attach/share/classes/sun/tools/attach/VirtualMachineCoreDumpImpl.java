@@ -220,7 +220,12 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
         StringBuilder s = new StringBuilder();
         do {
             while (r.ready()) {
-                s.append(r.readLine()).append("\n");
+                String line = r.readLine();
+                if (line == null) {
+                    break;
+                } else {
+                    s.append(line).append("\n");
+                }
             }
         } while (p.isAlive());
 

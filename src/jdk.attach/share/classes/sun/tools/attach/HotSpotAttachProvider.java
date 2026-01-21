@@ -51,7 +51,7 @@ public abstract class HotSpotAttachProvider extends AttachProvider {
     }
 
     /**
-     *
+     * This method accepts a Map of parameters which is passed to the attach provider.
      */
     public VirtualMachine attachVirtualMachine(String vmid, Map<String, ?> env)
         throws AttachNotSupportedException, IOException {

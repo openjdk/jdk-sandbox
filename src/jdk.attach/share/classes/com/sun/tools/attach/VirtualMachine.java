@@ -207,7 +207,7 @@ public abstract class VirtualMachine {
         throw lastExc;
     }
 
-    /*
+    /**
      * Attach to a Java virtual machine.
      *
      * Takes an optional Map of parameters.
