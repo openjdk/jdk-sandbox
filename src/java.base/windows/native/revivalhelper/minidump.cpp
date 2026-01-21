@@ -225,8 +225,8 @@ int MiniDump::read_modules() {
             if (!PEFile::find_data_segs(jvm_filename, jvm_address, &jvm_data_seg, &jvm_rdata_seg, &jvm_iat_seg)) {
                 error("Failed to find jvm data segments.");
             }
-            logv("minidump: rdata SEG: 0x%llx - 0x%llx",  jvm_rdata_seg->start(), jvm_rdata_seg->end());
-            logv("minidump: .data SEG:  0x%llx - 0x%llx", jvm_data_seg->start(),  jvm_data_seg->end());
+            logv("minidump: jvm rdata SEG: 0x%llx - 0x%llx",  jvm_rdata_seg->start(), jvm_rdata_seg->end());
+            logv("minidump: jvm .data SEG: 0x%llx - 0x%llx", jvm_data_seg->start(),  jvm_data_seg->end());
         }
         free(name);
         count++;

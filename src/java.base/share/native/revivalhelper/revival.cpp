@@ -995,17 +995,17 @@ char *mappings_filename_set(const char* revival_data_path) {
  * Read version from core, and binary, and compare.
  * Memory mappings are in place, jvm_filename and jvm_address are set.
  */
-void doVersionCheck(const char* corename, const char* revival_dir) {
-    void *ver = symbol_resolve_from_symbol_file(revival_dir, SYM_VM_RELEASE);
+void doVersionCheck(const char* corename, const char* revival_dir, const char* version_symbol) {
+    void *ver = symbol_resolve_from_symbol_file(revival_dir, version_symbol);
     if (ver == nullptr || ver == (void*) -1) {
-        warn("No vm release symbol " SYM_VM_RELEASE " found, no version check.");
+        warn("No vm release symbol '%s' found, no version check.", version_symbol);
         return;
     }
 
     if (jvm_address == nullptr) {
         warn("doVersionCheck: No jvm_address?");
     } else {
-        logv("Version check... " SYM_VM_RELEASE " = 0x%llx", (unsigned long long) ver);
+        logv("Version check '%s' = 0x%llx", version_symbol, (unsigned long long) ver);
         char* ptr = *(char**) ver; // read pointer from now-live memory
 
         // Could read string from address space directly, but be specific about reading
@@ -1014,10 +1014,11 @@ void doVersionCheck(const char* corename, const char* revival_dir) {
         logv("Version check: ptr = 0x%llx",  (unsigned long long) ptr);
         char* vm_release_core = readstring_from_core_at_vaddr_pd(corename, (uint64_t) *(char**) ver);
         logv("Version check: vm release from core: 0x%llx 0x%llx '%s'",
-             (unsigned long long) ver, (unsigned long long) vm_release_core,  vm_release_core);
+             (unsigned long long) ver, (unsigned long long) *(uint64_t*) ver, vm_release_core);
 
         // Convert address to offset in binary.
         uint64_t vm_release_offset = (uint64_t) ptr - (uint64_t) jvm_address;
+
 #ifdef WINDOWS
         PEFile pefile(jvm_filename);
         vm_release_offset = pefile.file_offset_for_reladdr(vm_release_offset);
@@ -1109,7 +1110,7 @@ int revive_image(const char* corename, const char *javahome, const char* libdir,
     if (!versionCheckEnabled) {
         warn("JVM version check skipped.");
     } else {
-        doVersionCheck(corename, dirname);
+        doVersionCheck(corename, dirname, SYM_VM_RELEASE);
     }
 
     // OK:
