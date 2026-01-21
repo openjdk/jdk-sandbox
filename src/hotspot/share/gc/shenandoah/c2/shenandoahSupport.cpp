@@ -1465,6 +1465,9 @@ Node* ShenandoahBarrierC2Support::get_load_addr(PhaseIdealLoop* phase, VectorSet
     case Op_CompareAndExchangeP:
     case Op_GetAndSetN:
     case Op_GetAndSetP:
+      // Those instructions would just have stored a different
+      // value into the field. No use to attempt to fix it at this point.
+      return phase->igvn().zerocon(T_OBJECT);
     case Op_CMoveP:
     case Op_CMoveN: {
       Node* t = get_load_addr(phase, visited, in->in(CMoveNode::IfTrue));
