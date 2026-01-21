@@ -214,7 +214,7 @@ void DCmdParser::parse(CmdLine* line, char delim, outputStream* out, TRAPS) {
         argbuf[len] = '\0';
         jio_snprintf(buf, buflen, "Unknown argument '%s' in diagnostic command.", argbuf);
 
-          THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(), buf);
+        THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(), buf);
       }
     }
     cont = iter.next(CHECK);

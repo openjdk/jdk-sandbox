@@ -257,8 +257,8 @@ public:
     DCmdArgIter iter(line->args_addr(), line->args_len(), delim);
     bool has_arg = iter.next(CHECK);
     if (has_arg) {
-        THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(),
-                  "The argument list of this diagnostic command should be empty.");
+       THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(),
+                "The argument list of this diagnostic command should be empty.");
     }
   }
   virtual void execute(DCmdSource source, TRAPS) { }
