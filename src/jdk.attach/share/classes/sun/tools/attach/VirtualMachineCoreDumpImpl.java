@@ -60,14 +60,25 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
     /**
      * Attaches to a core file or minidump.
      */
-    VirtualMachineCoreDumpImpl(AttachProvider provider, String vmid, List<String> libDirs, String revivalDataPath)
+    VirtualMachineCoreDumpImpl(AttachProvider provider, String vmid, Map<String, ?> env)
             throws AttachNotSupportedException, IOException {
 
         // Superclass HotSpotVirtualMachine modified to accept String that is not a PID.
         super(provider, vmid);
+
         filename = vmid;
-        this.libDirs = libDirs;
-        this.revivalDataPath = revivalDataPath;
+        if (env != null) {
+            if (env.containsKey("libDirs")) {
+                String x = (String) env.get("libDirs");
+                libDirs = List.of(x.split(File.pathSeparator));
+            }  else {
+                libDirs = null;
+            }
+            revivalDataPath = (String) env.get("revivalDataPath");
+        } else {
+            libDirs = null;
+            revivalDataPath = null;
+        }
         attach();
     }
 

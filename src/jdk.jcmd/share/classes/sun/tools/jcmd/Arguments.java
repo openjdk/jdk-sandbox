@@ -26,6 +26,7 @@
 package sun.tools.jcmd;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -38,7 +39,7 @@ class Arguments {
     private String  command       = null;
     private String  processString = null;
     private boolean forceCore = false;
-    private List<String> libDirs = new ArrayList<>(1);
+    private String libDirs = null;
     private String revivalDataPath = null;
 
     public boolean isListProcesses() { return listProcesses; }
@@ -47,7 +48,7 @@ class Arguments {
     public String getCommand() { return command; }
     public String getProcessString() { return processString; }
     public boolean isForceCore() { return forceCore; }
-    public List<String> getLibDirs() { return libDirs; }
+    public String getLibDirs() { return libDirs; }
     public String getRevivalDataPath() { return revivalDataPath; }
 
     public Arguments(String[] args) {
@@ -71,7 +72,11 @@ class Arguments {
                 forceCore = true;
             } else if (args[i].equals("-L") || args[i].equals("--libdir")) {
                 i++;
-                libDirs.add(args[i]);
+                if (libDirs == null) {
+                    libDirs = args[i];
+                } else {
+                    libDirs = libDirs + File.pathSeparatorChar + args[i];
+                }
             } else if (args[i].equals("-R") || args[i].equals("--revivaldata")) {
                 i++;
                 revivalDataPath = args[i];

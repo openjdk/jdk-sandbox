@@ -28,6 +28,7 @@ package com.sun.tools.attach;
 import com.sun.tools.attach.spi.AttachProvider;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.io.IOException;
 
@@ -38,7 +39,7 @@ import java.io.IOException;
  * <p> A {@code VirtualMachine} represents a Java virtual machine to which this
  * Java virtual machine has attached. The Java virtual machine to which it is
  * attached is sometimes called the <i>target virtual machine</i>, or <i>target VM</i>.
- * An application (typically a tool such as a managemet console or profiler) uses a
+ * An application (typically a tool such as a management console or profiler) uses a
  * VirtualMachine to load an agent into the target VM. For example, a profiler tool
  * written in the Java Language might attach to a running application and load its
  * profiler agent to profile the running application. </p>
@@ -207,11 +208,20 @@ public abstract class VirtualMachine {
     }
 
     /*
-     * Alternate attach method for core files.
+     * Attach to a Java virtual machine.
      *
-     * @since 26
+     * Takes an optional Map of parameters.
+     *
+     * @param  id
+     *         The abstract identifier that identifies the Java virtual machine.
+     *
+     * @param env
+     *         a map of provider specific properties to configure attach,
+     *         may be null or empty
+     *
+     * @since 27
      */
-    public static VirtualMachine attach(String id, List<String> libDirs, String revivalDataPath)
+    public static VirtualMachine attach(String id, Map<String, ?> env)
         throws AttachNotSupportedException, IOException
     {
         if (id == null) {
@@ -224,7 +234,7 @@ public abstract class VirtualMachine {
         AttachNotSupportedException lastExc = null;
         for (AttachProvider provider: providers) {
             try {
-                return provider.attachVirtualMachine(id, libDirs, revivalDataPath);
+                return provider.attachVirtualMachine(id, env);
             } catch (AttachNotSupportedException x) {
                 lastExc = x;
             }

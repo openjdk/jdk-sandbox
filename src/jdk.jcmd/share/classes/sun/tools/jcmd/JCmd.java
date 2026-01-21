@@ -31,7 +31,9 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.net.URISyntaxException;
 
 import com.sun.tools.attach.AttachOperationFailedException;
@@ -138,10 +140,17 @@ public class JCmd {
         vm.detach();
     }
 
-    private static void executeCommandForCrashDump(String pid, List<String> libDirs, String revivalDataPath, String command)
+    private static void executeCommandForCrashDump(String pid, String libDirs, String revivalDataPath, String command)
         throws AttachNotSupportedException, IOException, UnsupportedEncodingException {
 
-        VirtualMachine vm = VirtualMachine.attach(pid, libDirs, revivalDataPath);
+        Map<String,String> env = new HashMap<>();
+        if (libDirs != null) {
+            env.put("libDirs", libDirs);
+        }
+        if (revivalDataPath != null) {
+            env.put("revivalDataPath", revivalDataPath);
+        }
+        VirtualMachine vm = VirtualMachine.attach(pid, env);
         executeCommandCommon(vm, command);
         vm.detach();
     }

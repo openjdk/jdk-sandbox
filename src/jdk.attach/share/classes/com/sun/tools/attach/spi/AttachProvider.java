@@ -30,6 +30,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import com.sun.tools.attach.VirtualMachine;
 import com.sun.tools.attach.VirtualMachineDescriptor;
 import com.sun.tools.attach.AttachNotSupportedException;
@@ -138,14 +139,23 @@ public abstract class AttachProvider {
         throws AttachNotSupportedException, IOException;
 
     /**
-      * Attaches to a Java virtual machine, with a list of library directories to use when
-      * attaching to a crash dump (core file or minidump).
-      *
-      * @since 26
-      */
-    public VirtualMachine attachVirtualMachine(String id, List<String> libDirs, String revivalDataPath)
+     * Attach to a Java virtual machine.
+     *
+     * Takes an optional Map of parameters.
+     *
+     * @param  id
+     *         The abstract identifier that identifies the Java virtual machine.
+     *
+     * @param env
+     *         a map of provider specific properties to configure attach,
+     *         may be null or empty
+     *
+     * @since 27
+     */
+    public VirtualMachine attachVirtualMachine(String id, Map<String, ?> env)
         throws AttachNotSupportedException, IOException {
 
+        // Overridden to use the parameters...
         return attachVirtualMachine(id);
     }
 

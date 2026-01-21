@@ -31,8 +31,9 @@ import com.sun.tools.attach.spi.AttachProvider;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import sun.jvmstat.monitor.HostIdentifier;
@@ -49,12 +50,15 @@ public abstract class HotSpotAttachProvider extends AttachProvider {
     public HotSpotAttachProvider() {
     }
 
-    public VirtualMachine attachVirtualMachine(String vmid, List<String> libDirs, String revivalDataPath)
+    /**
+     *
+     */
+    public VirtualMachine attachVirtualMachine(String vmid, Map<String, ?> env)
         throws AttachNotSupportedException, IOException {
 
         // The 'vmid' existing as a file implies it is a core or minidump:
         if (new File(vmid).exists()) {
-            return new VirtualMachineCoreDumpImpl(this, vmid, libDirs, revivalDataPath);
+            return new VirtualMachineCoreDumpImpl(this, vmid, env);
         }
         // AttachNotSupportedException will be thrown if the target VM can be determined
         // to be not attachable.

@@ -154,9 +154,7 @@ public class AttachRevival {
     static void testAttach(String coreFileName, String type, String command) throws Throwable {
 		System.out.println("TEST: core: " + coreFileName + " Test type: " + type + " Command: " + command);
 
-        List<String> libDirs = null;
-        String revivalDataPath = null;
-        VirtualMachine vm = VirtualMachine.attach(coreFileName, libDirs, revivalDataPath);
+        VirtualMachine vm = VirtualMachine.attach(coreFileName, null);
 
         System.out.println("vm = '" + vm.toString() + "'");
         String id = vm.id();
