@@ -121,52 +121,64 @@ public final class Json {
         if (indent < 0) {
             throw new IllegalArgumentException("indent is negative");
         }
-        return toDisplayString(value, 0, indent, false);
+        var s = new StringBuilder();
+        toDisplayString(value, s, 0, indent, false);
+        return s.toString();
     }
 
-    private static String toDisplayString(JsonValue jv, int col, int indent, boolean isField) {
-        return switch (jv) {
-            case JsonObject jo -> toDisplayString(jo, col, indent, isField);
-            case JsonArray ja -> toDisplayString(ja, col, indent, isField);
-            default -> " ".repeat(isField ? 1 : col) + jv;
-        };
+    private static void toDisplayString(JsonValue jv, StringBuilder s, int col, int indent, boolean isField) {
+        switch (jv) {
+            case JsonObject jo -> toDisplayString(jo, s, col, indent, isField);
+            case JsonArray ja -> toDisplayString(ja, s, col, indent, isField);
+            default -> s.append(" ".repeat(isField ? 1 : col)).append(jv);
+        }
     }
 
-    private static String toDisplayString(JsonObject jo, int col, int indent, boolean isField) {
+    private static void toDisplayString(JsonObject jo, StringBuilder s,
+                                          int col, int indent, boolean isField) {
         var prefix = " ".repeat(col);
-        var s = new StringBuilder(isField ? " " : prefix);
+        if (isField) {
+            s.append(" ");
+        } else {
+            s.append(prefix);
+        }
         if (jo.members().isEmpty()) {
             s.append("{}");
         } else {
             s.append("{\n");
-            jo.members().forEach((name, val) ->
-                    s.append(prefix)
-                    .append(" ".repeat(indent))
-                    .append("\"")
-                    .append(name)
-                    .append("\":")
-                    .append(Json.toDisplayString(val, col + indent, indent, true))
-                    .append(",\n"));
+            jo.members().forEach((name, val) -> {
+                s.append(prefix)
+                        .append(" ".repeat(indent))
+                        .append("\"")
+                        .append(name)
+                        .append("\":");
+                Json.toDisplayString(val, s, col + indent, indent, true);
+                s.append(",\n");
+            });
             s.setLength(s.length() - 2); // trim final comma
             s.append("\n").append(prefix).append("}");
         }
-        return s.toString();
     }
 
-    private static String toDisplayString(JsonArray ja, int col, int indent, boolean isField) {
+    private static void toDisplayString(JsonArray ja, StringBuilder s,
+                                          int col, int indent, boolean isField) {
         var prefix = " ".repeat(col);
-        var s = new StringBuilder(isField ? " " : prefix);
+        if (isField) {
+            s.append(" ");
+        } else {
+            s.append(prefix);
+        }
         if (ja.elements().isEmpty()) {
             s.append("[]");
         } else {
             s.append("[\n");
             for (JsonValue v : ja.elements()) {
-                s.append(Json.toDisplayString(v, col + indent, indent, false)).append(",\n");
+                Json.toDisplayString(v, s, col + indent, indent, false);
+                s.append(",\n");
             }
             s.setLength(s.length() - 2); // trim final comma/newline
             s.append("\n").append(prefix).append("]");
         }
-        return s.toString();
     }
 
     // no instantiation is allowed for this class
