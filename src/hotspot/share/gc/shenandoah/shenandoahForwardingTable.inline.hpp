@@ -25,6 +25,7 @@
 #define SHARE_GC_SHENANDOAH_SHENANDOAHFORWARDINGTABLE_INLINE_HPP
 
 #include "gc/shenandoah/shenandoahForwardingTable.hpp"
+
 #include "gc/shenandoah/shenandoahMarkingContext.inline.hpp"
 #include "utilities/fastHash.hpp"
 
