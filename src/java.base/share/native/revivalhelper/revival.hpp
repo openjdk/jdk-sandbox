@@ -75,7 +75,9 @@ void install_handler();
 // Platform specifics
 //
 
+//
 // Linux
+//
 #ifdef LINUX
 
 #include <dlfcn.h>
@@ -89,11 +91,10 @@ void install_handler();
 
 #define SYM_VM_RELEASE "_ZN19Abstract_VM_Version13_s_vm_releaseE"
 
-#endif /* LINUX */
-
-
+//
 // Windows
-#ifdef WIN32
+//
+#elif defined(WIN32)
 
 #include <io.h>
 #include <windows.h>
@@ -111,33 +112,16 @@ void normalize_path_pd(char *s);
 
 #define _exit _Exit
 
-#endif /* WINDOWS */
-
-
-// MacOSX
-#ifdef MACOSX
-
-#include <libgen.h>
-#include <unistd.h>
-#include <sys/time.h>
-
-#define JVM_FILENAME "libjvm.dylib"
-#define FILE_SEPARATOR  "/"
-
-#define SYM_VM_RELEASE "todo"
-
-#define _exit _Exit
-
-#endif /* MACOSX */
+#else
+#error "revival.hpp: OS Not implemented."
+#endif
 
 
 //
 // The revival interface:
-// revivalhelper tool uses only these two functions.
 //
 
 // One structure to keep in sync with the JVM:
-
 struct revival_data {
   uint64_t magic;
   uint64_t version;
@@ -160,6 +144,8 @@ struct revival_data {
   void* info2;
   void* info3;
 };
+
+// The revivalhelper tool uses only these two functions:
 
 /**
  * Main revival setup entry point.
@@ -186,36 +172,33 @@ int revival_dcmd(const char *command);
 // Revival internals:
 //
 
-// Behaviour:
+// Behavior settings:
+
+// Diagnostics
 extern int verbose;          // set from env: REVIVAL_VERBOSE
 extern int skipVersionCheck; // set from env: REVIVAL_SKIPVERSIONCHECK
-extern int _abortOnClash;    // set from env: REVIVAL_ABORT
 
 // Optionally map core files with write permission:
 // On Linux, map core files read only, signal handler remaps to handle writes.
 // If true, core file is actually changed by writes.
 extern int openCoreWrite;
 
-// Revival state:
+// Revival prep state:
 extern char *core_filename;
 extern int core_fd;
 extern const char *revivaldir;
-extern void *revivalthread;
-extern void *h; // handle to libjvm
+
+// Set during actual revival:
+extern char *jvm_filename;
+extern void *jvm_address;
+extern void *h; // Opaque handle to libjvm
+extern std::list<Segment> writableSegments;
+extern std::list<Segment> failedSegments;
 
 // Exit code signalling an address space clash that may be temporary, caller should retry.
 #define EXIT_CODE_SUGGEST_RETRY 7
 
 extern void exitForRetry(); // exit process using above exit code to signal a retry
-
-extern std::list<Segment> writableSegments;
-extern std::list<Segment> failedSegments;
-
-
-// Revival prep state:
-extern char *jvm_filename;
-extern void *jvm_address;
-extern std::list<Segment> avoidSegments;
 
 char* readstring(int fd);
 char* readstring_at_offset_pd(const char* filename, uint64_t offset);
@@ -273,7 +256,6 @@ void *do_map_allocate_pd(void *addr, size_t length);
  */
 void *revived_vm_thread();
 
-
 /**
  * Utilities to return a boolean for file or directory existence.
  */
@@ -286,13 +268,11 @@ char* find_filename_in_libdir(const char* libdir, const char* filename);
 
 unsigned long long file_size(const char* filename);
 
-
 int revival_mapping_allocate(void *vaddr, size_t length);
 
 int revival_mapping_copy(void *vaddr, size_t length, size_t offset, bool allocate, char *filename, int fd);
 
 int relocate_sharedlib_pd(const char* filename, const void *addr);
-
 
 int create_revivalbits_native_pd(const char* corename, const char* javahome, const char* dirname, const char *libdir);
 
@@ -321,7 +301,6 @@ void *load_sharedobject_pd(const char *name, void *vaddr);
  */
 int unload_sharedobject_pd(void *h);
 
-
 bool mem_canwrite_pd(void *vaddr, size_t length);
 
 int revival_checks_pd(const char *dirname);
@@ -338,6 +317,7 @@ unsigned long long max_user_vaddr_pd();
  */
 
 // Simple pause for debugging when REVIVAL_WAIT is set in env.
+// Only for when revivalhelper is run manually at command-line for diagnostic reasons.
 void waitHitRet();
 
 // Possibly implement a process memory map display for debugging.
@@ -372,6 +352,4 @@ void warn(const char *format, ...) ATTRIBUTE_PRINTF(1, 2);
 // Write to stderr and exit.  Adds newline.
 void error(const char *format, ...) ATTRIBUTE_PRINTF(1, 2);
 
-
 #endif /* REVIVAL_H */
-

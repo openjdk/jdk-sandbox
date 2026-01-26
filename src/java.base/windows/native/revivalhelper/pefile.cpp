@@ -70,7 +70,8 @@ PEFile::~PEFile() {
 /**
  */
 uint64_t PEFile::file_offset_for_reladdr(uint64_t reladdr) {
-    return reladdr - 0x1000; // product builds
+    //return reladdr - 0x1000; // product builds
+    return reladdr;
 }
 
 

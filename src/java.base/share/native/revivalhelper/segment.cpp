@@ -41,7 +41,6 @@ bool Segment::is_relevant() {
   return length > 0 && file_length > 0;
 }
 
-
 /**
  * Adjust by moving (adding to) the start vaddr, shortening the
  * segment.
@@ -60,10 +59,16 @@ int Segment::write_mapping(int fd) {
     return write_mapping(fd, "M");
 }
 
+/**
+ * Write this Segment, formatted as a core.mappings line, to the given fd.
+ */
 int Segment::write_mapping(int fd, const char *type) {
+    // Text format:
     // type vaddr endaddress fileoffset filesize memsize perms
     // e.g.
-    // M 2d05a12e000 2d05a12f000 19615fd4 1000 1000 RW-
+    // M 2d05a12e000 2d05a12f000 19615fd4 1000 1000 RWX
+    //
+    // Permissions are currently not implemented.
     char buf[BUFLEN];
     snprintf(buf, BUFLEN, "%s %llx %llx %llx %llx %llx %s\n",
              type,

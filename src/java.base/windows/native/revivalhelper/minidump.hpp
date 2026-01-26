@@ -24,28 +24,25 @@
  */
 
 #include <direct.h>
+#include <fileapi.h>
 #include <intrin.h>
+#include <imagehlp.h>
 #include <io.h>
 #include <memoryapi.h>
+#include <minidumpapiset.h>
 #include <processthreadsapi.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <shlwapi.h>
 #include <sysinfoapi.h>
 #include <windows.h>
-
-#include <minidumpapiset.h>
-
+#include <winternl.h>
 #include <sys/types.h>
 
-#include <fileapi.h>
-#include <imagehlp.h>
-#include <shlwapi.h>
-#include <winternl.h>
-
-//#include "revival.hpp" // for Segment
-
-
+/**
+ * A Windows MiniDump.
+ */
 class MiniDump {
   public:
     // Open and basic init of a MiniDump.
@@ -97,4 +94,3 @@ class MiniDump {
     Segment* jvm_rdata_seg;
     Segment* jvm_iat_seg;
 };
-

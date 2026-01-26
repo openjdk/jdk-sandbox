@@ -36,9 +36,9 @@ void write0(int fd, const char *buf);
 
 
 /**
- * A Segment is a memory range, where contents may be read from an offset into a file.
+ * A Segment describes a memory range.  It may have a name, and may describe from what offset in a file its contents can be read.
  *
- * Used to describe areas of memory, or a shared library location.
+ * Used to describe areas of memory, or a shared library.
  */
 class Segment {
     public:

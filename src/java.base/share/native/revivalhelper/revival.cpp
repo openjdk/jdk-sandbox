@@ -23,13 +23,7 @@
  * questions.
  */
 
-#ifndef MACOSX
-//using namespace std;
-#endif
-
-
 #include "revival.hpp"
-
 
 // Behavior settings:
 
@@ -38,32 +32,22 @@ int verbose = false;
 int _wait = false;
 int versionCheckEnabled = true;
 
-// Unmap segments before mapping them.
-int unmapFirst = false; // was used in testing, likely remove
-
 int openCoreWrite = false;
 
-// Set during revive_image:
+// Revival prep state:
 char *core_filename;
-unsigned long long core_timestamp;
 int core_fd;
 const char *revivaldir;
+unsigned long long core_timestamp;
 const char *mappings_filename;
 
-
 // Set during actual revival:
-void *h; // handle to libjvm
-struct revival_data* rdata;
-
-std::list<Segment> writableSegments;
-std::list<Segment> failedSegments;
-
-
-// Revival prep state:
 char *jvm_filename = nullptr;
 void *jvm_address = nullptr;
-std::list<Segment> avoidSegments;
-
+void *h; // Opaque handle to libjvm
+std::list<Segment> writableSegments;
+std::list<Segment> failedSegments;
+struct revival_data* rdata; // Data from revived JVM
 
 void exitForRetry() {
     _exit(EXIT_CODE_SUGGEST_RETRY);
@@ -280,13 +264,13 @@ int revival_mapping_mmap(void *vaddr, size_t length, size_t offset, int lines, c
     logv("  revival_mapping_mmap: map %d: " PTR_FORMAT " (to " PTR_FORMAT ") len=0x%zx fileoffset=0x%llx",
          lines, (uintptr_t) vaddr, (uintptr_t) ((uint64_t) vaddr + length), length, (long long) offset);
 
-    if (unmapFirst) {
+    /*if (unmapFirst) {
         logv("  revival_mapping_mmap: try UNMAP %p len=0x%zx", vaddr, length);
         e = do_munmap_pd(vaddr, length);
         if (e) {
             warn("  revival_mapping_mmap: unmap %d failed: vaddr %p: returns: %d", lines, vaddr, e);
         }
-    }
+    }*/
 
     void *mapped_addr = do_mmap_pd(vaddr, length, filename, fd, offset);
 
@@ -485,13 +469,14 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
                 warn("Load library '%s' failed to load at %p", s1, vaddr);
                 return -1;
             }
-            // Record jvm details: (we only load the JVM library right now)
-            // Needed for version check.
-            jvm_filename = (char*) malloc(BUFLEN);
-            snprintf(jvm_filename, BUFLEN - 1, "%s%s%s", dirname, FILE_SEPARATOR, s1);
-            jvm_address = vaddr;
-            logv("Loaded library '%s' at %p", jvm_filename, jvm_address);
-            waitHitRet();
+            logv("Loaded library '%s' at %p", s1, vaddr);
+            // Record jvm details: needed for version check.
+            if (strstr(s1, JVM_FILENAME)) {
+                jvm_filename = (char*) malloc(BUFLEN);
+                snprintf(jvm_filename, BUFLEN - 1, "%s%s%s", dirname, FILE_SEPARATOR, s1);
+                jvm_address = vaddr;
+                waitHitRet();
+            }
             continue;
         }
 

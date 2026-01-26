@@ -149,32 +149,38 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
         ProcessBuilder pb = new ProcessBuilder(pargs);
         pb.redirectErrorStream(true); // merge error with output
 
+        // Some System Properties are passed on to the native revival helper tool in the environment:
         Map<String, String> newEnv = pb.environment();
 
         String path = System.getenv("PATH");
         newEnv.put("PATH", System.getProperty("java.home") + File.separator + "bin" + File.pathSeparator + path);
 
-        if (Boolean.getBoolean("jdk.attach.core.verbose")) {
-            newEnv.put("REVIVAL_VERBOSE", "1");
+        boolean verbose = Boolean.getBoolean("jdk.attach.core.verbose");
+        if (verbose) {
+            newEnv.put("REVIVAL_VERBOSE", "1"); // any non-null value will be recognised
         }
+        if (Boolean.getBoolean("jdk.attach.core.skipversioncheck")) {
+            newEnv.put("REVIVAL_SKIPVERSIONCHECK", "1");
+        }
+        // Linux-specific:
         if (System.getProperty("os.name").startsWith("Linux")) {
             newEnv.put("LD_USE_LOAD_BIAS", "1");
             newEnv.put("LD_PRELOAD", jdkLibDir + File.separator + "librevival_support.so");
         }
+        // Windows-specific:
         String editbin = System.getProperty("jdk.attach.core.editbin");
         if (editbin != null) {
             newEnv.put("EDITBIN", editbin);
         }
         // Run the helper.
-        // Be prepared for it to fail, if Address Space Layout Randomization is unkind and causes a clash.
+        // Be prepared for it to fail, e.g. if Address Space Layout Randomization is unkind and causes a clash.
         // Recognise the process return value and retry with some limit.
         //
-        // This method returns an InputStream, although until recently there was no streaming from jcmd implementations,
+        // This method returns an InputStream, although until recently there was no streaming from jcmd,
         // the full output was written to a buffer and then printed.
         // For core files, for now, we can read the whole output, and only return it if it is a successful run.
         int TRIES = 10;
         int tries = Integer.getInteger("jdk.attach.core.tries", TRIES);
-        boolean verbose = Boolean.getBoolean("jdk.attach.core.verbose");
         String out = null;
 
         for (int i = 0; i < tries; i++) {
