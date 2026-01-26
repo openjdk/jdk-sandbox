@@ -53,43 +53,56 @@
 /**
  * Read a MINIDUMP_STRING, which is:
  * ULONG32 Length, WCHAR buffer (UTF16-LE)
+ *
+ * Return a malloc'd pointer which the caller should free.
  */
 char *readstring_minidump(int fd) {
+    int e = 0;
     wchar_t *wbuf = (wchar_t *) calloc(BUFLEN, 1);
-    char *mbuf = (char *) calloc(BUFLEN, 1);
-    if (wbuf == nullptr || mbuf == nullptr) {
-        warn("Failed to allocate buf for readstring");
+    if (wbuf == nullptr) {
+        warn("readstring_minidump: Failed to allocate wbuf");
         return nullptr;
     }
+    char *mbuf = (char *) calloc(BUFLEN, 1);
+    if (mbuf == nullptr) {
+        warn("readstring_minidump: Failed to allocate mbuf");
+        goto err;
+    }
+
     ULONG32 length;
-    int e = read(fd, &length, sizeof(ULONG32));
+    e = read(fd, &length, sizeof(ULONG32));
     if (e != sizeof(ULONG32)) {
         warn("Failed to read MINIDUMP_STRING length: %d", e);
-        return nullptr;
+        goto err;
     }
     if (length >= BUFLEN) {
         warn("MINIDUMP_STRING length too long: %d", length);
-        return nullptr;
+        goto err;
     }
     e = read(fd, wbuf, length);
     if (e != length) {
         warn("Failed to read MINIDUMP_STRING chars: %d", e);
-        return nullptr;
+        goto err;
     }
 
     e = (int) wcstombs(mbuf, wbuf, length);
     if (e < (int) (length/2)) {
-        warn("MINIDUMP_STRING length %d, short bad results from wcstombs: %d", length, e);
-        return nullptr;
+        warn("MINIDUMP_STRING length %d short, bad result from wcstombs: %d", length, e);
+        goto err;
     }
-
-    // Ideally put mbuf string into an accurately-sized buffer.
     free(wbuf);
     return mbuf;
+
+err:
+    free(wbuf);
+    free(mbuf);
+    return nullptr;
 }
 
 /**
  * Read a MINDUMP_STRING at a given offset in a file.
+ *
+ * Return a malloc'd pointer which the caller should free.
  */
 char *string_at_offset_minidump(int fd, ULONG32 offset) {
     off_t pos = lseek(fd, 0, SEEK_CUR);
@@ -100,26 +113,23 @@ char *string_at_offset_minidump(int fd, ULONG32 offset) {
 }
 
 
+/**
+ * Open a MiniDump, read header.
+ */
 MiniDump::MiniDump(const char* filename, const char* libdir) {
     this->filename = filename;
-    open(filename);
     this->libdir = libdir;
 
-    // read_modules() must be called if needed.
-}
-
-/**
- * Open a MINIDUMP.
- * Read header, module list.
- */
-void MiniDump::open(const char *filename) {
     fd = ::open(filename, O_RDONLY | O_BINARY);
     if (fd < 0) {
         warn("MiniDump::open '%s' failed: %d: %s", core_filename, errno, strerror(errno));
         return;
     }
-    // Read MiniDump header
+    // Read MiniDump header:
     int e = read(fd, &hdr, sizeof(_MINIDUMP_HEADER));
+    if (e != sizeof(_MINIDUMP_HEADER)) {
+        warn("MiniDump: header read %d != expected %d", e, sizeof(_MINIDUMP_HEADER));
+    }
     if (hdr.Signature != MINIDUMP_SIGNATURE) {
         warn("MiniDump header unexpected: %lx", hdr.Signature);
     }
@@ -134,41 +144,52 @@ void MiniDump::close() {
 
 MiniDump::~MiniDump() {
     close();
-    // Other cleanup...
 }
 
 /**
  * Read minidump to locate wanted stream.
  * Seek the dump file descriptor to the stream data.
+ * Return a pointer to a MINIDUMP_DIRECTORY which the caller should free.
+ * Return nullptr if not found.
  */
 MINIDUMP_DIRECTORY* MiniDump::find_stream(int stream) {
     if (fd < 0) {
         error("MiniDump not open");
     }
-    MINIDUMP_DIRECTORY* md = (MINIDUMP_DIRECTORY*) malloc(sizeof(MINIDUMP_DIRECTORY));
+    MINIDUMP_DIRECTORY* result = nullptr;
+
+    // Read MiniDump directory:
     lseek(fd, hdr.StreamDirectoryRva, SEEK_SET);
+    MINIDUMP_DIRECTORY* md = (MINIDUMP_DIRECTORY*) malloc(sizeof(MINIDUMP_DIRECTORY));
+
     for (unsigned int i = 0; i < hdr.NumberOfStreams; i++) {
         int e = read(fd, md, sizeof(*md));
         if (md->StreamType == stream) {
             lseek(fd, md->Location.Rva, SEEK_SET);
-            return md;
+            result = md;
+            break;
         }     
     }
-    return nullptr;
+    return result;
 }
 
-// Read ModuleListStream.
-// Populate the modules list, and specifically record jvm.dll details.
-int MiniDump::read_modules() {
+/*
+ * Read shared library list.
+ * Read ModuleListStream.
+ */
+void MiniDump::read_sharedlibs() {
     if (fd < 0) {
-        error("MiniDump::read_modules: MiniDump not open");
+        error("MiniDump::read_sharedlibs: MiniDump not open");
     }
     if (!is_valid()) {
-        error("MiniDump::read_modules: MiniDump not valid");
+        error("MiniDump::read_sharedlibs: MiniDump not valid");
+    }
+    if (sharedlibs.size() != 0) {
+        return;
     }
     MINIDUMP_DIRECTORY *md = find_stream(ModuleListStream);
     if (md == nullptr) {
-        error("MiniDump::read_modules: ModuleListStream not found.");
+        error("MiniDump::read_sharedlibs: ModuleListStream not found.");
     }
 
     int count = 0;
@@ -176,64 +197,59 @@ int MiniDump::read_modules() {
     ULONG32 size = md->Location.DataSize;
     ULONG32 n;
     int e = read(fd, &n, sizeof(n));
+    if (e != sizeof(n)) {
+        error("MiniDump::read_shared_libs: failed to read n = %d", e);
+    }
+
     for (unsigned int j = 0; j < n; j++) {
         MINIDUMP_MODULE module;
         e = read(fd, &module, sizeof(module));
         if (e != sizeof(module)) {
-            warn("MiniDump::read_modules: read wants %d got %d", sizeof(module), e);
+            error("MiniDump::read_sharedlibs: read wants %d got %d", sizeof(module), e);
         }
         char *name = string_at_offset_minidump(fd, module.ModuleNameRva);
         if (name == nullptr) {
-            warn("MiniDump::read_modules: %d: base 0x%llx: null string at offset 0x%llx", j, module.BaseOfImage, module.ModuleNameRva);
+            warn("MiniDump::read_sharedlibs: module %d: base 0x%llx: null string at ModuleNameRva 0x%llx",
+                 j, module.BaseOfImage, module.ModuleNameRva);
             continue;
         }
-        logv("MODULE name = '%s' 0x%llx", name, module.BaseOfImage);
-        // Populate Segment list of modules
-        Segment *seg = new Segment((void *) module.BaseOfImage, (size_t) module.SizeOfImage, 0, 0);
-        modules.push_back(seg);
-
-        // Is it the JVM?
-        if (strstr(name, FILE_SEPARATOR JVM_FILENAME) != nullptr) {
-            logv("FOUND JVM name = '%s' with base address 0x%llx", name, module.BaseOfImage);
-
-            // Record locally in dump object:
-            if (libdir != nullptr) {
-                // Use libdir if set:
-                jvm_filename = find_filename_in_libdir(libdir, name);
-                if (jvm_filename == nullptr) {
-                   error("No JVM found in libdir");
-                }
-                logv("Using from libdir: '%s'", jvm_filename);
-            } else {
-                // Otherwise use file from dump.  Check JVM exists:
-                if (!file_exists_pd(name)) {
-                    warn("JVM library required in core not found at: %s", jvm_filename);
-                    error("For minidumps from other systems, or if JDK at path in core has changed, use -L to specify JVM location.");
-                }
-                jvm_filename = strdup(name);
+        logv("MiniDump::read_shared_libs MODULE 0x%llx: '%s'", module.BaseOfImage, name);
+        // Populate Segment list of modules/sharedlibs.
+        // Adjust name using libdir if needed.
+        if (libdir != nullptr) {
+            char *alt_name = find_filename_in_libdir(libdir, name);
+            if (alt_name != nullptr) {
+                logv("Using from libdir: '%s'", alt_name);
+                name = alt_name;
             }
-            if (jvm_filename == nullptr) {
-               error("No JVM found in libdir");
-            }
-            jvm_address = (void *) module.BaseOfImage;
-            // Also lookup .data Section for later copying:
-            jvm_seg = seg; // without file offset details at this point
-            logv("JVM SEG:        0x%llx - 0x%llx ", jvm_seg->start(), jvm_seg->end());
-
-            // Find .data
-            // (using jvm_filename which may be in libdir);
-            if (!PEFile::find_data_segs(jvm_filename, jvm_address, &jvm_data_seg, &jvm_rdata_seg, &jvm_iat_seg)) {
-                error("Failed to find jvm data segments.");
-            }
-            logv("minidump: jvm rdata SEG: 0x%llx - 0x%llx",  jvm_rdata_seg->start(), jvm_rdata_seg->end());
-            logv("minidump: jvm .data SEG: 0x%llx - 0x%llx", jvm_data_seg->start(),  jvm_data_seg->end());
         }
-        free(name);
+
+        Segment *seg = new Segment(name, (void *) module.BaseOfImage, (size_t) module.SizeOfImage);
+        sharedlibs.push_back(seg);
         count++;
     }
-    logv("MiniDump::read_modules: NumberOfStreams = %d StreamDirectoryRva = %d", hdr.NumberOfStreams, hdr.StreamDirectoryRva);
-    return count;
+    logv("MiniDump::read_sharedlibs: NumberOfStreams = %d StreamDirectoryRva = %d", hdr.NumberOfStreams, hdr.StreamDirectoryRva);
+    free(md);
 }
+
+Segment* MiniDump::get_library_mapping(const char* filename) {
+    read_sharedlibs();
+    for (std::list<Segment>::iterator iter = sharedlibs.begin(); iter != sharedlibs.end(); iter++) {
+        waitHitRet();
+        if ((char*) iter->name == nullptr) {
+            continue; // no name
+        }
+        if (strstr((char*) iter->name, filename)) {
+            return new Segment(*iter);
+        }
+    }
+    return nullptr;
+}
+
+void write_mem_mappings(int mappings_fd, const char* exec_name) {
+    // Currently implemented in revival_windows.cpp directly, fetching data from MinDump.
+}
+
 
 
 /**
@@ -247,10 +263,17 @@ void MiniDump::prepare_memory_ranges() {
     if (md == nullptr) {
         error("MiniDump Memory64ListStream not found.");
     }
-    int e = read(get_fd(), &NumberOfMemoryRanges, sizeof(NumberOfMemoryRanges));
-    e = read(get_fd(), &BaseRVA, sizeof(BaseRVA));
+    int e = read(fd, &NumberOfMemoryRanges, sizeof(NumberOfMemoryRanges));
+    if (e != sizeof(NumberOfMemoryRanges)) {
+        error("MiniDump::prepare_memory_ranges: bad read 1 %d", e);
+    }
+    e = read(fd, &BaseRVA, sizeof(BaseRVA));
+    if (e != sizeof(BaseRVA)) {
+        error("MiniDump::prepare_memory_ranges: bad read 2 %d", e);
+    }
     logv("MiniDump::prepare_memory_ranges: NumberOfMemoryRanges %d, BaseRVA 0x%llx", NumberOfMemoryRanges, BaseRVA);
     rangesRead = 0;
+    free(md);
 }
 
 
@@ -323,13 +346,11 @@ Segment* MiniDump::readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRV
         // Simple check for clashes.  Comparing module list from dump, with memory list from dump,
         // so complex overlaps not possible.
         // Module extents (iter) likely to be larger than individual memory descriptors.
-        for (std::list<Segment>::iterator iter = modules.begin(); iter != modules.end(); iter++) {
+        for (std::list<Segment>::iterator iter = sharedlibs.begin(); iter != sharedlibs.end(); iter++) {
             if (skipLibraries &&
                 (seg->start() >= iter->start() && seg->end() <= iter->end())
               ) {
-                // Seg clashes with some module.
-                //
-                // But the JVM .data Section located earlier is needed.
+                // Seg clashes with some module.  Avoid, unless in our inlude list, e.g. the JVM .data Section.
                 if (jvm_data_seg != nullptr && (seg->contains(jvm_data_seg) || jvm_data_seg->contains(seg))) {
                     logv("readSegment: Using (JVM .data) seg: 0x%llx - 0x%llx ", seg->start(), seg->end());
                     //waitHitRet();

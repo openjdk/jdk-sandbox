@@ -49,8 +49,7 @@
 
 
 /**
- * Introduced to hold PE file logic, but only created then static methods, so this
- * class may not be required.
+ * Windows PE file.
  */
 class PEFile {
   public:
@@ -74,9 +73,8 @@ class PEFile {
 
   private:
     const char* filename;
-    PLOADED_IMAGE image;
     int fd;
+    PLOADED_IMAGE image;
 };
 
 #endif
-

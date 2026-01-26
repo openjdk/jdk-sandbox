@@ -677,7 +677,15 @@ char* check_editbin() {
 
 int relocate_sharedlib_pd(const char *filename, const void *addr) {
 
-    if (editbin != nullptr) {
+    if (editbin == nullptr) {
+        if (!PEFile::relocate(filename, (long long) addr)) {
+            return -1;
+        }
+        if (!PEFile::remove_dynamicbase(filename)) {
+            return -1;
+        }
+        return 0;
+    } else {
         // Call: EDITBIN.EXE /DYNAMICBASE:NO /REBASE:BASE=0xaddress filename
         char command[BUFLEN];
         memset(command, 0, BUFLEN);
@@ -693,15 +701,6 @@ int relocate_sharedlib_pd(const char *filename, const void *addr) {
         int e = system(command);
         logv("relocate_sharedlib_pd: '%s' returns %d", command, e);
         return e;
-
-    } else {
-        if (!PEFile::relocate(filename, (long long) addr)) {
-            return -1;
-        }
-        if (!PEFile::remove_dynamicbase(filename)) {
-            return -1;
-        }
-        return 0;
     }
 }
 
@@ -720,6 +719,7 @@ uint64_t resolve_teb(MiniDump* dump) {
     int e = read(dump->get_fd(), &NumberOfThreads, sizeof(NumberOfThreads));
     if (e < sizeof(NumberOfThreads)) {
         warn("resolve_teb: read of NumberOfThreads failed");
+        free(md);
         return 0;
     }
 
@@ -729,27 +729,26 @@ uint64_t resolve_teb(MiniDump* dump) {
         e = read(dump->get_fd(), &thread, sizeof(thread));
         if (e < sizeof(thread)) {
             warn("resolve_teb: read of MINIDUMP_THREAD %d failed: %d", i, e);
+            free(md);
             return 0;
         }
         logv("resolve_teb: MINIDUMP_THREAD id 0x%lx TEB: 0x%llx", thread.ThreadId, thread.Teb);
         if (thread.Teb != 0) {
+            free(md);
             return (uint64_t) thread.Teb;
         }
     }
+    free(md);
     return 0;
 }
 
-MiniDump* dump = nullptr;
 
-int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const char *javahome, void *addr) {
+int write_mem_mappings(MiniDump* dump, int fd, const char *corename, const char *jvm_copy,
+                       Segment* jvm_data_seg, Segment* jvm_rdata_seg, Segment* jvm_iat_seg) {
 
     // Read minidump memory list, create text of mappings list.
     // Plan to map data directly from core where possible.
     // If alignment simply does not work (segments too close), create larger mapping and copy bytes.
-
-    if (dump == nullptr || !dump->is_valid()) {
-        error("MiniDump not initialized");
-    }
 
     // Maintain a list of segments to copy bytes later.
     std::list<Segment> segsToCopy;
@@ -788,9 +787,9 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
         // Consider the next region also:
         segNext = dump->readSegment(&d, &currentRVA, true);
 
-        // (1) Can we coalesce (join) touching regions, if the file offsets work,
-        //     to reduce number of mappings (there are likely >600).
-        bool coalesce = false; // not currently using this..
+        // Can we coalesce (join) touching regions, if the file offsets work,
+        // to reduce number of mappings (there are likely >600).
+/*      bool coalesce = false;
         if (coalesce) {
         Segment *joinedSeg = nullptr;
         while (segNext != nullptr && seg->end() == segNext->start()
@@ -814,10 +813,10 @@ int create_mappings_pd(int fd, const char *corename, const char *jvm_copy, const
             seg = joinedSeg;  // Which may yet be relevant in (2) below.
             // segNext may still be set, but we seg is not joined to it.
         }
-        }
+        } */
 
-        // (2) Is next region too close for vaddralignment to work?
-        //     Grow a bigger segment to map, that will have these neighbouring segments' data copied in.
+        // Is next region too close for vaddralignment to work?
+        // Grow a bigger segment to map, that will have these neighbouring segments' data copied in.
         Segment *biggerSeg = nullptr;
         while (segNext != nullptr && align_up(seg->end(), vaddr_alignment_pd()) >= segNext->start()) {
             if (verbose) {
@@ -890,7 +889,6 @@ const char *JVM_SYMS[N_JVM_SYMS] = {
 };
 
 void write_symbols(int fd, const char* symbols[], int count, const char *revival_dirname) {
-
     // Using SymFromName() on jvm.dll after relocation will give final absoulute addresses.
     PLOADED_IMAGE image = ImageLoad(JVM_FILENAME, revival_dirname);
     if (image == nullptr) {
@@ -899,7 +897,6 @@ void write_symbols(int fd, const char* symbols[], int count, const char *revival
 
     HANDLE hCurrentProcess = GetCurrentProcess();
     HANDLE h2 = (HANDLE) 1;
-
     bool e = SymInitialize(h2, nullptr, false);
     if (e != TRUE) {
         error("write_symbols: SymInitialize error : 0x%lx", GetLastError());
@@ -918,8 +915,7 @@ void write_symbols(int fd, const char* symbols[], int count, const char *revival
 
     for (int i = 0; i < count; i++) {
     	strncpy(szSymbolName, symbols[i], MAX_SYM_NAME);
-
-         if (!SymFromName(h2, szSymbolName, pSymbol)) {
+        if (!SymFromName(h2, szSymbolName, pSymbol)) {
             warn("write_symbols: %d: SymFromName '%s' failed, error: %d", i, szSymbolName, GetLastError());
         } else {
             snprintf(buf, BUFLEN, "%s %llx\n", szSymbolName, pSymbol->Address);
@@ -941,33 +937,45 @@ bool create_directory_pd(char* dirname) {
     return _mkdir(dirname) == 0;
 }
 
-
 int create_revivalbits_native_pd(const char* corename, const char* javahome, const char* revival_dirname, const char* libdir) {
     char jvm_copy[BUFLEN];
 
     // Check early for editbin.exe:
     editbin = check_editbin();
 
-    // Using libdir to resolve JVM from alternative path is in MiniDump:
-    dump = new MiniDump(corename, libdir);
-    if (!dump->is_valid()) {
+    // Using libdir to resolve JVM from alternative path in MiniDump:
+    waitHitRet();
+    MiniDump dump(corename, libdir);
+    if (!dump.is_valid()) {
         warn ("Cannot open MiniDump: '%s'", corename);
-        delete dump;
         return -1;
     }
 
-    dump->read_modules();
+    // Find JVM and its load address from core
+    // Optionally find all library mappings.
+    Segment* jvm_mapping = dump.get_library_mapping(JVM_FILENAME);
+    if (jvm_mapping == nullptr) {
+        error("revival: cannot locate JVM from core.") ;
+    }
+    jvm_filename = strdup(jvm_mapping->name);
+    jvm_address = (void*) jvm_mapping->vaddr;
+    logv("JVM = '%s'", jvm_filename);
+    logv("JVM addr = %p", jvm_address);
+    if (!file_exists_pd(jvm_filename)) {
+        error("No file for JVM '%s'", jvm_filename);
+    }
 
-    jvm_filename = strdup(dump->get_jvm_filename()); // Use MiniDump jvm filename
-    if (jvm_filename == nullptr) {
-        error("revival: cannot locate JVM from minidump.") ;
+    // jvm_data_segs
+    Segment* jvm_data_seg = new Segment();
+    Segment* jvm_rdata_seg = new Segment();
+    Segment* jvm_iat_seg = new Segment();
+    if (!PEFile::find_data_segs(jvm_filename, jvm_address, &jvm_data_seg, &jvm_rdata_seg, &jvm_iat_seg)) {
+        error("Failed to find JVM data segments.");
     }
-    logv("JVM filename: '%s'", jvm_filename);
-    jvm_address = dump->get_jvm_address(); // JVM address is from dump, even if file path is not
-    if (jvm_address == nullptr) {
-        error("revival: cannot find address for JVM in minidump.") ;
-    }
-    logv("JVM address:  %p", jvm_address);
+    logv("JVM .rdata SEG: 0x%llx - 0x%llx", jvm_rdata_seg->start(), jvm_rdata_seg->end());
+    logv("JVM .data  SEG: 0x%llx - 0x%llx", jvm_data_seg->start(),  jvm_data_seg->end());
+    logv("JVM iat    SEG: 0x%llx - 0x%llx", jvm_iat_seg->start(),   jvm_iat_seg->end());
+    dump.set_jvm_data(jvm_data_seg, jvm_rdata_seg, jvm_iat_seg);
 
     // Copy jvm.dll into core.revival dir
     memset(jvm_copy, 0, BUFLEN);
@@ -1021,7 +1029,7 @@ int create_revivalbits_native_pd(const char* corename, const char* javahome, con
         error("Failed to create mappings file.");
     }
     // Write memory mappings into the file:
-    e = create_mappings_pd(fd, corename, jvm_copy, javahome, jvm_address);
+    e = write_mem_mappings(&dump, fd, corename, jvm_copy, jvm_data_seg, jvm_rdata_seg, jvm_iat_seg);
 
     close(fd);
     if (e != 0) {
@@ -1031,4 +1039,3 @@ int create_revivalbits_native_pd(const char* corename, const char* javahome, con
     logv("create_revivalbits_native_pd returning %d", 0);
     return 0;
 }
-

@@ -48,23 +48,24 @@
 
 class MiniDump {
   public:
+    // Open and basic init of a MiniDump.
     MiniDump(const char* filename, const char* libdir);
-    int read_modules(); // populate module list, and locate jvm
+    ~MiniDump();
+
     bool is_valid() { return fd >= 0; }
     void close();
-    ~MiniDump();
+
+    void read_sharedlibs(); // populate module list, and locate jvm
+
     MINIDUMP_DIRECTORY* find_stream(int stream);
     Segment* readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA, boolean skipLibraries);
 
-    char* get_jvm_filename() { return jvm_filename; }
-    void* get_jvm_address() { return jvm_address; }
+    Segment* get_library_mapping(const char* filename);
+
+    // Write the list of memory mappings in the core, to be used in the revived process.
+    void write_mem_mappings(int mappings_fd, const char* exec_name);
 
     void prepare_memory_ranges();
-
-    Segment* get_jvm_seg() { return jvm_seg; }
-    Segment* get_jvm_rdata_seg() { return jvm_rdata_seg; }
-    Segment* get_jvm_data_seg() { return jvm_data_seg; }
-    Segment* get_jvm_iat_seg() { return jvm_iat_seg; }
 
     int get_fd() { return fd; }
     RVA64 getBaseRVA() { return BaseRVA; }
@@ -72,25 +73,28 @@ class MiniDump {
     uint64_t file_offset_for_vaddr(uint64_t addr);
     char* readstring_at_address(uint64_t addr);
 
+    void set_jvm_data(Segment* data, Segment* rdata, Segment* iat) {
+        this->jvm_data_seg = data;
+        this->jvm_rdata_seg = rdata;
+        this->jvm_iat_seg = iat;
+    }
+
   private:
     const char* filename;
-    void open(const char* filename);
-    Segment* readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA);
-
     const char* libdir;
     int fd;
     _MINIDUMP_HEADER hdr;
-    std::list<Segment> modules;
 
-    char* jvm_filename;
-    void* jvm_address;
-    Segment* jvm_seg;
-    Segment* jvm_rdata_seg;
-    Segment* jvm_data_seg;
-    Segment* jvm_iat_seg;
+    std::list<Segment> sharedlibs;
 
+    Segment* readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA);
     ULONG64 NumberOfMemoryRanges;
     RVA64 BaseRVA;
     int rangesRead;
+
+    // jvm_data_segs
+    Segment* jvm_data_seg;
+    Segment* jvm_rdata_seg;
+    Segment* jvm_iat_seg;
 };
 

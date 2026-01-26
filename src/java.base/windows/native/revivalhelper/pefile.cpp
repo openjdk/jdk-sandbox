@@ -70,12 +70,12 @@ PEFile::~PEFile() {
 /**
  */
 uint64_t PEFile::file_offset_for_reladdr(uint64_t reladdr) {
-     return reladdr - 0x1000; // product builds
+    return reladdr - 0x1000; // product builds
 }
 
 
 bool PEFile::relocate(const char* filename, uint64_t address) {
-    warn("PEFile relocate: %s to 0x%llx", filename, address);
+    logv("PEFile::relocate: %s to 0x%llx", filename, address);
 
     // Use RebaseImage64: once to find image size, then again to rebase.
     PCSTR SymbolPath = nullptr;
@@ -83,7 +83,6 @@ bool PEFile::relocate(const char* filename, uint64_t address) {
     ULONG64 OldImageBase;
     ULONG NewImageSize;
     ULONG64 NewImageBase;
-    waitHitRet();
     BOOL e = ReBaseImage64(filename, SymbolPath, FALSE /* fReBase */, TRUE /* system file */, FALSE /* rebase downwards */,
                            0 /* max size */, &OldImageSize, &OldImageBase, &NewImageSize, &NewImageBase, 0 /* TimeStamp */);
     logv("ReBaseImage64 1: OldImageSize 0x%llx  OldImageBase 0x%llx  NewImageSize 0x%llx  NewImageBase 0x%llx",
@@ -101,7 +100,7 @@ bool PEFile::relocate(const char* filename, uint64_t address) {
         error("ReBaseImage64 2 failed: %d", GetLastError());
     }
     if (NewImageBase != address) {
-        warn("relocate failed, new base 0x%llx != 0x%llx", NewImageBase, address);
+        warn("Relocate failed: new base 0x%llx != required 0x%llx", NewImageBase, address);
         exitForRetry();
     }
     return e;
@@ -165,7 +164,6 @@ bool PEFile::remove_dynamicbase(const char* filename) {
 
 
 bool PEFile::find_data_segs(const char *filename, void* address, Segment** _data, Segment** _rdata, Segment** _iat) {
-
     logv("PEFile::find_data_segs");
     waitHitRet();
 
@@ -222,7 +220,6 @@ bool PEFile::find_data_segs(const char *filename, void* address, Segment** _data
 
 // Locate the .data section of a PE file.
 // Return a Segment using relative addresses.
-// 
 Segment* data_section(const char *filename) {
 
     PLOADED_IMAGE image = ImageLoad(filename, nullptr);
