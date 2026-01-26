@@ -285,36 +285,6 @@ void *symbol_dynamiclookup_pd(void *h, const char *str) {
 }
 
 
-void *safefetch32_fault_pc;
-void *safefetch32_continuation_pc;
-void *safefetchN_fault_pc;
-void *safefetchN_continuation_pc;
-
-/*
- * is_safefetch_fault
- *
- * An implementation (copy) of StubRoutines::is_safefetch_fault(pc))
- * We could just call continuation_for_safefetch_fault and check it returns a non-null address.
- */
-bool is_safefetch_fault(void *pc) {
-    return pc != NULL &&
-        (pc == safefetch32_fault_pc ||
-         pc == safefetchN_fault_pc);
-}
-
-/*
- * continuation_for_safefetch_fault
- *
- * Implementation of StubRoutines::continuation_for_safefetch_fault(pc)
- */
-void *continuation_for_safefetch_fault(void *pc) {
-    if (pc == safefetch32_fault_pc) return safefetch32_continuation_pc;
-    if (pc == safefetchN_fault_pc) return safefetchN_continuation_pc;
-    exitForRetry();
-    abort(); // Not reached
-}
-
-
 /*
  * Create a file name for the core page file, in the revivaldir.
  * Delete any existing file, otherwise it grows without limit.
@@ -422,13 +392,12 @@ void remap(Segment seg) {
 
 /*
  * Signal handler.
- * Used for safefetch, and for mapping writeable areas on demand.
+ * Catch errors and do mapping of writeable areas on demand.
  *
  * Could be used to map all memory lazily, for faster startup.
  */
 void handler(int sig, siginfo_t *info, void *ucontext) {
     void * addr  = (void *) info->si_addr;
-    void * pc;
     logv("revival: handler: sig = %d for address %p\n", sig, addr);
 
     if (addr == nullptr) {
@@ -436,24 +405,6 @@ void handler(int sig, siginfo_t *info, void *ucontext) {
         abort();
     }
 
-    if (info != NULL && ucontext != NULL) {
-        // Check if this is a safefetch which we should handle:
-#if defined (X86_64) || defined (__x86_64__)
-        pc = (void *) ((ucontext_t*)ucontext)->uc_mcontext.gregs[REG_RIP];
-#else // i.e. __aarch64__
-        pc = (void *) ((ucontext_t*)ucontext)->uc_mcontext.pc;
-#endif
-        // fprintf(stderr, "handler: pc = %p\n", pc);
-        if (is_safefetch_fault(pc)) {
-            void * new_pc = continuation_for_safefetch_fault(pc);
-#if defined (X86_64) || defined (__x86_64__)
-            ((ucontext_t*)ucontext)->uc_mcontext.gregs[REG_RIP] = (greg_t) new_pc;
-#else // i.e. __arch64__
-            ((ucontext_t*)ucontext)->uc_mcontext.pc = (greg_t) new_pc;
-#endif
-            return;
-        }
-    }
     // Catch access to areas we failed to map:
     std::list<Segment>::iterator iter;
     for (iter = failedSegments.begin(); iter != failedSegments.end(); iter++) {
@@ -486,15 +437,8 @@ void handler(int sig, siginfo_t *info, void *ucontext) {
 /*
  * Install the signal hander.
  *
- * Handling SEGV is enough with a serial GC for safefetch to work,
- * using G1, we see SIGBUS also.
  */
 void install_handler() {
-/*    safefetch32_fault_pc = symbol_deref("_ZN12StubRoutines21_safefetch32_fault_pcE");
-    safefetch32_continuation_pc = symbol_deref("_ZN12StubRoutines28_safefetch32_continuation_pcE");
-    safefetchN_fault_pc = symbol_deref("_ZN12StubRoutines20_safefetchN_fault_pcE");
-    safefetchN_continuation_pc = symbol_deref("_ZN12StubRoutines27_safefetchN_continuation_pcE"); */
-
     struct sigaction sa, old_sa;
     sigfillset(&sa.sa_mask);
     sa.sa_sigaction = handler;
@@ -717,14 +661,17 @@ int create_revivalbits_native_pd(const char* corename, const char* javahome, con
 
     {
         ELFFile core(corename, libdir);
-
+		if (!core.is_core()) {
+			error("Not a core file: %s", corename);
+		}
         // Find JVM and its load address from core
-        SharedLibMapping* jvm_mapping = core.get_library_mapping(JVM_FILENAME);
+		// Optionally find all library mappings.
+        Segment* jvm_mapping = core.get_library_mapping(JVM_FILENAME);
         if (jvm_mapping == nullptr) {
             error("revival: cannot locate JVM from core.") ;
         }
-        jvm_filename = strdup(jvm_mapping->path);
-        jvm_address = (void*) jvm_mapping->start;
+        jvm_filename = strdup(jvm_mapping->name);
+        jvm_address = (void*) jvm_mapping->vaddr;
         logv("JVM = '%s'", jvm_filename);
         logv("JVM addr = %p", jvm_address);
 
@@ -734,7 +681,7 @@ int create_revivalbits_native_pd(const char* corename, const char* javahome, con
             // error already printed
             return -1;
         }
-        core.write_mappings(mappings_fd, "bin/java");
+        core.write_mem_mappings(mappings_fd, "bin/java");
         close_file_descriptor(mappings_fd, "mappings file");
     }
 
