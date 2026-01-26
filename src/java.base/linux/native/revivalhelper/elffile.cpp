@@ -40,8 +40,8 @@ ELFFile::ELFFile(const char* filename, const char* libdir) {
     fd = -1;
     length = 0;
     m = nullptr;
-    mappings = nullptr;
-    mappings_count = 0;
+    sharedlibs = nullptr;
+    sharedlibs_count = 0;
 
     fd = open(filename, O_RDWR);
     if (fd < 0) {
@@ -71,7 +71,7 @@ ELFFile::ELFFile(const char* filename, const char* libdir) {
 
     logv("ELFFile: %s hdr = %p phoff = 0x%lx shoff = 0x%lx   ph = %p sh = %p",
          filename, hdr, hdr->e_phoff, hdr->e_shoff, ph, sh);
-   verify();
+    verify();
 }
 
 void ELFFile::verify() {
@@ -130,7 +130,10 @@ ELFFile::~ELFFile() {
         do_munmap_pd(m, length);
     }
 
-    // Free mappings
+    // Free sharedlibs
+    if (sharedlibs_count > 0) {
+        free(sharedlibs);
+    }
 }
 
 char* ELFFile::find_note_data(Elf64_Phdr* notes_ph, Elf64_Word type) {
@@ -161,47 +164,64 @@ char* ELFFile::find_note_data(Elf64_Phdr* notes_ph, Elf64_Word type) {
         return nullptr;
     }
 
-void ELFFile::read_file_mappings() {
-        // core files only
-        if (mappings != 0) return;
+/*
+ * Read shared library list.
+ */
+void ELFFile::read_sharedlibs() {
+    if (!is_core()) {
+		error("Not a core file: %s", filename);
+	}
+    if (sharedlibs != nullptr) return;
 
-        // Look for Program Header PT_NOTE:
-        Elf64_Phdr* notes_ph = program_header_by_type(PT_NOTE);
-        if (notes_ph == nullptr) {
-            error("Cannot locate NOTES");
-        }
-        // Look for NT_FILE note:
-        char* note_nt_file = find_note_data(notes_ph, 0x46494c45 /* NT_FILE */);
-        if (note_nt_file == nullptr) {
-            error("Cannot locate NOTE NT_FILE");
-        }
-        logv("NT_FILE note data at %p", note_nt_file);
-        // Read NT_FILE:
-        mappings_count = *(long*)note_nt_file;
-        note_nt_file += 8;
-        long pagesize = *(long*) note_nt_file;
-        note_nt_file += 8;
-        logv("NT_FILE count %d pagesize 0x%lx", mappings_count, pagesize);
+    // Look for Program Header PT_NOTE:
+    Elf64_Phdr* notes_ph = program_header_by_type(PT_NOTE);
+    if (notes_ph == nullptr) {
+        error("Cannot locate NOTES");
+    }
+    // Look for NT_FILE note:
+    char* note_nt_file = find_note_data(notes_ph, 0x46494c45 /* NT_FILE */);
+    if (note_nt_file == nullptr) {
+        error("Cannot locate NOTE NT_FILE in %s", filename);
+    }
+    logv("NT_FILE note data at %p", note_nt_file);
+    sharedlibs_count = *(long*)note_nt_file;
+    note_nt_file += 8;
+    long pagesize = *(long*) note_nt_file;
+    note_nt_file += 8;
+    logv("NT_FILE count %d pagesize 0x%lx", sharedlibs_count, pagesize);
 
-        mappings = new SharedLibMapping[mappings_count];
-        for (int i = 0; i < mappings_count; i++) {
-            mappings[i].start = *(long*) note_nt_file;
-            note_nt_file += 8;
-            mappings[i].end = *(long*) note_nt_file;
-            note_nt_file += 8;
-            note_nt_file += 8; // skip offset
+    sharedlibs = new Segment[sharedlibs_count];
+
+    // Two passes to read numerical data then library names:
+    for (int i = 0; i < sharedlibs_count; i++) {
+        sharedlibs[i].vaddr= (void*) *(long*) note_nt_file;
+        note_nt_file += 8;
+        uint64_t end = *(long*) note_nt_file;
+        sharedlibs[i].length = end - (uint64_t) sharedlibs[i].vaddr;
+        note_nt_file += 8;
+        note_nt_file += 8; // skip offset
+    }
+    for (int i = 0; i < sharedlibs_count; i++) {
+        sharedlibs[i].name = note_nt_file; // readstring(file);
+        note_nt_file += strlen(sharedlibs[i].name);
+        note_nt_file++; // terminator
+    }
+    if (verbose) {
+        for (int i = 0; i < sharedlibs_count; i++) {
+            fprintf(stderr, "NT_FILE: %lu %lu %s\n", (unsigned long) sharedlibs[i].vaddr, sharedlibs[i].end(), sharedlibs[i].name);
         }
-        for (int i = 0; i < mappings_count; i++) {
-            mappings[i].path = note_nt_file; // readstring(file);
-            note_nt_file += strlen(mappings[i].path);
-            note_nt_file++; // terminator
-        }
-        if (verbose) {
-            for (int i = 0; i < mappings_count; i++) {
-                fprintf(stderr, "NT_FILE: %lu %lu %s\n", mappings[i].start, mappings[i].end, mappings[i].path);
+    }
+
+    if (libdir != nullptr) {
+        for (int i = 0; i < sharedlibs_count; i++) {
+            char *alt_name = find_filename_in_libdir(libdir, sharedlibs[i].name);
+            if (alt_name != nullptr) {
+                logv("Using from libdir: '%s'", alt_name);
+                sharedlibs[i].name = alt_name;
             }
         }
     }
+}
 
 
 void ELFFile::print() {
@@ -285,16 +305,17 @@ void ELFFile::write_symbols(int fd, const char* symbols[], int count) {
 }
 
 
-SharedLibMapping* ELFFile::get_library_mapping(const char* filename) {
-    // Use libdir (if set) for finding the JVM library.
-    read_file_mappings();
-    SharedLibMapping* result = nullptr;
+Segment* ELFFile::get_library_mapping(const char* filename) {
+    read_sharedlibs();
 
-    for (int i = 0; i < mappings_count; i++) {
-        char* lib = mappings[i].path;
+    for (int i = 0; i < sharedlibs_count; i++) {
+        char* lib = sharedlibs[i].name;
+		if (lib == nullptr) {
+			continue;
+		}
         if (strstr(lib, filename)) {
             // Found.  JVM?
-            if (strcmp(filename, JVM_FILENAME) == 0) {
+/*            if (strcmp(filename, JVM_FILENAME) == 0) {
                 if (libdir != nullptr) {
                     // Use JVM from libdir: (must find)
                     char* found = find_filename_in_libdir(libdir, lib);
@@ -302,29 +323,25 @@ SharedLibMapping* ELFFile::get_library_mapping(const char* filename) {
                        error("No JVM found in libdir");
                     }
                     logv("Using from libdir: '%s'", found);
-                    mappings[i].path = found;
-                    result = &mappings[i];
+                    sharedlibs[i].name = found;
+                    result = &sharedlibs[i];
                     break;
                 } else {
                     if (!file_exists_pd(lib)) {
                         warn("JVM library required in core not found at: %s", lib);
                         error("For minidumps from other systems, or if JDK at path in core has changed, use -L to specify JVM location.");
                     }
-                    result = &mappings[i];
+                    result = &sharedlibs[i];
                     break;
-                }
-            } else {
-                // Non-JVM:
-                result = &mappings[i];
-                break;
-            }
+                } */
+            return &sharedlibs[i];
         }
     }
-    return result;
+    return nullptr;
 }
 
 
-void ELFFile::write_mappings(int mappings_fd, const char* exec_name) {
+void ELFFile::write_mem_mappings(int mappings_fd, const char* exec_name) {
    /* For each program header:
     *   Skip if:
     *     filesize or memsize is zero
@@ -332,68 +349,66 @@ void ELFFile::write_mappings(int mappings_fd, const char* exec_name) {
     *     not writeable and inOtherMapping*
     *   Create a Segment, call Segment::write_mapping(int fd) to write an "M" entry.
     */
-        logv("write_mappings");
-        if (hdr->e_type != ET_CORE) {
-            warn("write_mappings: Not writing mappings for non-core file.");
-            return;
+    logv("write_mem_mappings");
+    if (hdr->e_type != ET_CORE) {
+        warn("write_mem_mappings: Not writing mappings for non-core file.");
+        return;
+    }
+
+    read_sharedlibs();
+    int n_skipped = 0;
+    Elf64_Phdr* phdr = ph;
+    for (int i = 0; i < hdr->e_phnum; i++) {
+        if (is_unwanted_phdr(phdr)) {
+            n_skipped++;
+            phdr = next_ph(phdr);
+            continue;
+        }
+        if (phdr->p_vaddr >= max_user_vaddr_pd()) {
+            break; // Kernel mapping?  Not something we can map in.  Phdrs are in ascending address order.
         }
 
-        read_file_mappings();
-        int n_skipped = 0;
-        Elf64_Phdr* phdr = ph;
-        for (int i = 0; i < hdr->e_phnum; i++) {
-            if (is_unwanted_phdr(phdr)) {
-                n_skipped++;
-                phdr = next_ph(phdr);
-                continue;
+        // Now we want to exclude this mapping if it touches any unwanted mapping.
+        // Let's start with /bin/java #1
+        // If the virtaddr is between start and end, it touches, exclude it
+        bool skip = false;
+        for (int i = 0; i < sharedlibs_count; i++) {
+            if (is_inside(phdr, sharedlibs[i].start(), sharedlibs[i].end())
+                && strstr(sharedlibs[i].name, exec_name) /*|| false //!(phdr.p_flags & PF_W)) */
+               ) {
+                skip = true;
+                break;
             }
-            if (phdr->p_vaddr >= max_user_vaddr_pd()) {
-                break; // Kernel mapping?  Not something we can map in.  Phdrs are in ascending address order.
-            }
+        }
+        if (skip) {
+            logv("Skipping due to bin/java at %lu", phdr->p_vaddr);
+            n_skipped++;
+            phdr = next_ph(phdr);
+            continue;
+        }
 
-            // Now we want to exclude this mapping if it touches any unwanted mapping.
-            // Let's start with /bin/java #1
-            // If the virtaddr is between start and end, it touches, exclude it
-            bool skip = false;
-            for (int i = 0; i < mappings_count; i++) {
-                if (is_inside(phdr, mappings[i].start, mappings[i].end)
-                    && strstr(mappings[i].path, exec_name) /*|| false //!(phdr.p_flags & PF_W)) */
-                   ) {
+        if (!(phdr->p_flags & PF_W)) {
+            skip = false;
+            for (int i = 0; i < sharedlibs_count; i++) {
+                if (is_inside(phdr, sharedlibs[i].start(), sharedlibs[i].end())) {
                     skip = true;
                     break;
                 }
             }
             if (skip) {
-                logv("Skipping due to bin/java at %lu", phdr->p_vaddr);
+                logv("Skipping due to nonwritable overlap at %lu", phdr->p_vaddr);
                 n_skipped++;
                 phdr = next_ph(phdr);
                 continue;
             }
-
-            if (!(phdr->p_flags & PF_W)) {
-                skip = false;
-                for (int i = 0; i < mappings_count; i++) {
-                    if (is_inside(phdr, mappings[i].start, mappings[i].end)) {
-                        skip = true;
-                        break;
-                    }
-                }
-                if (skip) {
-                    logv("Skipping due to nonwritable overlap at %lu", phdr->p_vaddr);
-                    n_skipped++;
-                    phdr = next_ph(phdr);
-                    continue;
-                }
-            }
-
-            // TODO plt/GOTs maybe
-
-            logv("Writing: %lu", phdr->p_vaddr);
-            Segment s((void*) phdr->p_vaddr, phdr->p_memsz, phdr->p_offset, phdr->p_filesz);
-            s.write_mapping(mappings_fd);
-            phdr = next_ph(phdr);
         }
 
-        logv("create_mappings_pd done.  Skipped = %i", n_skipped);
+        logv("Writing: %lu", phdr->p_vaddr);
+        Segment s((void*) phdr->p_vaddr, phdr->p_memsz, phdr->p_offset, phdr->p_filesz);
+        s.write_mapping(mappings_fd);
+        phdr = next_ph(phdr);
     }
+
+    logv("write_mem_mappings done.  Skipped = %i", n_skipped);
+}
 

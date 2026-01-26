@@ -37,6 +37,8 @@ void write0(int fd, const char *buf);
 
 /**
  * A Segment is a memory range, where contents may be read from an offset into a file.
+ *
+ * Used to describe areas of memory, or a shared library location.
  */
 class Segment {
     public:
@@ -51,6 +53,9 @@ class Segment {
 
         Segment(Segment* s) :
             name(s->name), vaddr(s->vaddr), length(s->length), file_offset(s->file_offset), file_length(s->file_length) {}
+
+        Segment() :
+            name(nullptr), vaddr(0), length(0), file_offset(0), file_length(0) {}
 
         char*  name;
         void*  vaddr;

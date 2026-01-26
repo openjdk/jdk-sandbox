@@ -30,26 +30,25 @@
 
 
 /**
- * An ELF file.
+ * An ELF file.  Core files and binary/shared library.
  *
  * Provide operations such as file inspection, but also a destructive operation 
  * to relocate the file to a new base virtual address.
  *
- * To mmap the file and update in-memory proves faster than lseek and read/write.
- * But some core files may be unreasonable to mmap fully.
- *
- * Currently we only mmmap, may need to change that above some file size, or ensure
- * what we need is mapped in.
+ * To mmap the file and update in-memory proves faster than lseek and read/write,
+ * particularly for relocation.
+ * Currently we only mmmap, may need to change that above some file size, to
+ * deal with huge core files.
  */
 class ELFFile {
   public:
     ELFFile(const char* filename, const char* libdir);
     ~ELFFile();
 
+    bool is_core() { return hdr->e_type == ET_CORE; }
+
     uint64_t file_offset_for_vaddr(uint64_t addr);
     char* readstring_at_address(uint64_t addr);
-
-    void print(); // Show PHs and Sections
 
     // Relocate actual file by some amount.
     void relocate(long displacement);
@@ -59,10 +58,12 @@ class ELFFile {
 
     // Return mapping information.  Data is valid while this ELFFile is alive,
     // information should be copied to retain.
-    SharedLibMapping* get_library_mapping(const char* filename);
+    Segment* get_library_mapping(const char* filename);
 
     // Write the list of memory mappings in the core, to be used in the revived process.
-    void write_mappings(int mappings_fd, const char* exec_name);
+    void write_mem_mappings(int mappings_fd, const char* exec_name);
+
+    void print(); // Diagnostic, show PHs and Sections
 
   private:
     const char* filename;
@@ -76,13 +77,13 @@ class ELFFile {
     long long length;
     void *m; // Address of mapped ELF file
 
-    SharedLibMapping* mappings;
-    int mappings_count;
+    Segment* sharedlibs;
+    int sharedlibs_count;
 
     void verify();
 
     char* find_note_data(Elf64_Phdr* notes_ph, Elf64_Word type);
-    void read_file_mappings();
+    void read_sharedlibs();
 
 /*    template <typename T>
     T read_type() {

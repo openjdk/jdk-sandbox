@@ -208,16 +208,8 @@ extern void *h; // handle to libjvm
 
 extern void exitForRetry(); // exit process using above exit code to signal a retry
 
-struct SharedLibMapping {
-    uint64_t start;
-    uint64_t end;
-    char *path;
-};
-
-
 extern std::list<Segment> writableSegments;
 extern std::list<Segment> failedSegments;
-
 
 
 // Revival prep state:
