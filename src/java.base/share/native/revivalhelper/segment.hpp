@@ -40,13 +40,20 @@ void write0(int fd, const char *buf);
  */
 class Segment {
     public:
+        Segment(char* n, void *v, size_t len) :
+            name(n), vaddr(v), length(len), file_offset(0), file_length(0) {}
+
+        Segment(char* n, void *v, size_t len, size_t offset, size_t file_len) :
+            name(n), vaddr(v), length(len), file_offset(offset), file_length(file_len) {}
+
         Segment(void *v, size_t len, size_t offset, size_t file_len) :
-            vaddr(v), length(len), file_offset(offset), file_length(file_len) {}
+            name(nullptr), vaddr(v), length(len), file_offset(offset), file_length(file_len) {}
 
         Segment(Segment* s) :
-            vaddr(s->vaddr), length(s->length), file_offset(s->file_offset), file_length(s->file_length) {}
+            name(s->name), vaddr(s->vaddr), length(s->length), file_offset(s->file_offset), file_length(s->file_length) {}
 
-        void   *vaddr;
+        char*  name;
+        void*  vaddr;
         size_t length;
         size_t file_offset;
         size_t file_length;

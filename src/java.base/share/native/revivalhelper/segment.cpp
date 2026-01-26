@@ -26,16 +26,10 @@
 #include <segment.hpp>
 
 
-void Segment::move_start(long dist) {
-    vaddr = (void*) ((long long) vaddr + dist);
-    length -= dist;
-    file_offset += dist;
-    file_length -= dist;
-}
-
 bool Segment::contains(Segment* seg) {
   return seg->start() >= this->start() && seg->end() <= this->end();
 }
+
 bool Segment::contains(uint64_t addr) {
   return addr >= this->start() && addr <= this->end();
 }
@@ -45,6 +39,18 @@ bool Segment::contains(uint64_t addr) {
  */
 bool Segment::is_relevant() {
   return length > 0 && file_length > 0;
+}
+
+
+/**
+ * Adjust by moving (adding to) the start vaddr, shortening the
+ * segment.
+ */
+void Segment::move_start(long dist) {
+    vaddr = (void*) ((long long) vaddr + dist);
+    length -= dist;
+    file_offset += dist;
+    file_length -= dist;
 }
 
 /**
@@ -74,9 +80,10 @@ int Segment::write_mapping(int fd, const char *type) {
 
 char *Segment::toString() {
     char* buf = (char *) malloc(BUFLEN);
-    snprintf(buf, BUFLEN, "Segment: %llx - %llx off: %llx len:%llx",
+    snprintf(buf, BUFLEN, "Segment: %llx - %llx '%s' off: %llx len:%llx",
              (unsigned long long) vaddr,
              (unsigned long long) end(), // vaddr + length,
+             name != nullptr ? name : "",
              (unsigned long long) file_offset,
              (unsigned long long) file_length
             );
