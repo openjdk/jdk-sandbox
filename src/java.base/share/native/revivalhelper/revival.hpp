@@ -317,11 +317,8 @@ unsigned long long max_user_vaddr_pd();
  */
 
 // Simple pause for debugging when REVIVAL_WAIT is set in env.
-// Only for when revivalhelper is run manually at command-line for diagnostic reasons.
+// Only for when revivalhelper is run manually at command-line, as requires stdin.
 void waitHitRet();
-
-// Possibly implement a process memory map display for debugging.
-void pmap_pd();
 
 
 //

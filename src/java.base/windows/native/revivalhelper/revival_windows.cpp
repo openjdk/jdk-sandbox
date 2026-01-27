@@ -240,31 +240,6 @@ void printMemBasicInfo(void* addr) {
     }
 }
 
-void pmap_pd() {
-
-/*    // Is QueryWorkingSet more useful?
-    MEMORY_BASIC_INFORMATION meminfo;
-    uint64_t p = (uint64_t) &pmap_pd;
-    fprintf(stderr, "Memory Map: >>>\n");
-    HANDLE hProc = GetCurrentProcess();
-
-    size_t q = VirtualQueryEx(hProc, (PVOID) p, &meminfo, sizeof(meminfo));
-
-    while (q == sizeof(meminfo)) {
-        printMemBasicInfo(meminfo);
-        uint64_t end = (uint64_t) meminfo.BaseAddress + meminfo.RegionSize;
-        uint64_t next_p = end;
-        q = VirtualQueryEx(hProc, (PVOID) next_p, &meminfo, sizeof(meminfo));
-        if (next_p == p) {
-            break;
-        }
-        p = next_p;
-    }
-    fprintf(stderr, "<<<\n");
-    waitHitRet(); */
-}
-
-
 void *symbol_dynamiclookup_pd(void *h, const char*str) {
     FARPROC s = GetProcAddress((HMODULE) h, str);
     logv("symbol_dynamiclookup: %s = %p", str, s);

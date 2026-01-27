@@ -446,9 +446,7 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
     }
 #endif
 
-    if (verbose) {
-        pmap_pd(); // Show our new pmap.  Only implemented on Linux, using system() for now.
-    }
+    waitHitRet();
 
     // Read and process the mappings:
     while (1) {
@@ -564,11 +562,6 @@ int mappings_file_read(const char *corename, const char *dirname, const char *ma
         close(core_fd);
     }
     fclose(f);
-
-    if (verbose) {
-        pmap_pd(); // Show our new pmap, Linux only impl.
-    }
-
     waitHitRet();
     return 0;
 }
@@ -828,6 +821,8 @@ int mappings_file_create(const char *dirname, const char *corename) {
     write0(fd, buf);
     snprintf(buf, BUFLEN, "time %llu\n", file_time(corename));
     write0(fd, buf);
+
+    // Library list:
     const char *checksum = "0";
     snprintf(buf, BUFLEN, "L %s %llx %s\n", basename(jvm_filename), (unsigned long long) jvm_address, checksum);
     write0(fd, buf);

@@ -39,6 +39,7 @@
 #include <unistd.h>
 
 #include <sys/mman.h>
+#include <sys/sendfile.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -260,16 +261,6 @@ int revival_checks_pd(const char *dirname) {
         error("Error: LD_USE_LOAD_BIAS not set.");
     }
     return 0;
-}
-
-void pmap_pd() {
-    char buf[BUFLEN];
-    pid_t pid = getpid();
-    snprintf(buf, BUFLEN, "pmap %d", pid);
-    int e = system(buf);
-    if (e != 0) {
-        warn("pmap: %d", e);
-    }
 }
 
 void *symbol_dynamiclookup_pd(void *h, const char *str) {
@@ -600,19 +591,23 @@ int unload_sharedobject_pd(void *h) {
 }
 
 void copy_file_pd(const char *srcfile, const char *destfile) {
-    // sendfile(outfd, infd, 0, count);
-    char command[BUFLEN];
-    memset(command, 0, BUFLEN);
-    strncat(command, "cp ", BUFLEN - 1);
-    strncat(command, srcfile, BUFLEN - 1);
-    strncat(command, " ", BUFLEN - 1);
-    strncat(command,  destfile, BUFLEN - 1);
-    int e = system(command);
-    logv("copy: '%s' returns %d", command, e);
-    if (e != 0) {
-        warn("copy_file_pd: %s", strerror(errno));
+    int fd_src = open(srcfile, O_RDONLY, S_IRUSR);
+    if (fd_src < 0) {
+        error("Cannot open source file %s: %s", srcfile, strerror(errno));
     }
+    int fd_dest = open(destfile, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR);
+    if (fd_dest < 0) {
+        error("Cannot open destination file %s: %s", destfile, strerror(errno));
+    }
+    ssize_t count = (ssize_t) file_size(srcfile);
+    ssize_t e = sendfile(fd_dest, fd_src, 0, count);
+    if (e != count) {
+        warn("copy_file_pd: requested copy %ld bytes: got %s", count, strerror(errno));
+    }
+    close(fd_src);
+    close(fd_dest);
 }
+
 
 const int N_JVM_SYMS = 2;
 const char *JVM_SYMS[N_JVM_SYMS] = {
