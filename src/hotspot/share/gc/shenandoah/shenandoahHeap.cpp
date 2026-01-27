@@ -1257,8 +1257,8 @@ private:
           class SetupFillerWords {
           public:
             static void do_object(oop obj) {
-              assert(UseCompactObjectHeaders, "This only works with compact object headers");
-              obj->set_mark(vmClasses::Object_klass()->prototype_header());
+              // assert(UseCompactObjectHeaders, "This only works with compact object headers");
+              // obj->set_mark(vmClasses::Object_klass()->prototype_header());
             }
           } cl;
           HeapWord* limit = MIN2(r->forwarding_table_start(), r->top());
