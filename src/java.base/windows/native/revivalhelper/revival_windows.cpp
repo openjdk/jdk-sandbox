@@ -605,9 +605,7 @@ char* readstring_from_core_at_vaddr_pd(const char* filename, uint64_t addr) {
 }
 
 
-int copy_file_pd(const char *srcfile, const char *destfile) {
-    char command[BUFLEN];
-    memset(command, 0, BUFLEN);
+void copy_file_pd(const char *srcfile, const char *destfile) {
 
     // Normalise paths
     char* s = (char *) malloc(strlen(srcfile) + 1); // or strdup
@@ -620,17 +618,12 @@ int copy_file_pd(const char *srcfile, const char *destfile) {
     normalize_path_pd(s);
     normalize_path_pd(d);
 
-    strncat(command, "COPY ", BUFLEN - 1);
-    strncat(command, s, BUFLEN - 1);
-    strncat(command, " ", BUFLEN - 1);
-    strncat(command, d, BUFLEN - 1);
+    logv("copy_file_pd: src: %s dest: %s", s, d);
+    if (!CopyFile(s, d, false)) {
+        warn("Copy file failed: %s %s: error %d", s, d, GetLastError());
+    }
     free(s);
     free(d);
-
-    logv("copy: '%s'", command);
-    int e = system(command);
-    logv("copy: '%s' returns %d", command, e);
-    return e;
 }
 
 
@@ -651,8 +644,8 @@ char* check_editbin() {
 
 
 int relocate_sharedlib_pd(const char *filename, const void *addr) {
-
     if (editbin == nullptr) {
+        // Normal usage, editbin not specified at command-line:
         if (!PEFile::relocate(filename, (long long) addr)) {
             return -1;
         }
@@ -661,7 +654,8 @@ int relocate_sharedlib_pd(const char *filename, const void *addr) {
         }
         return 0;
     } else {
-        // Call: EDITBIN.EXE /DYNAMICBASE:NO /REBASE:BASE=0xaddress filename
+        // Alternative usage, call:
+        // EDITBIN.EXE /DYNAMICBASE:NO /REBASE:BASE=0xaddress filename
         char command[BUFLEN];
         memset(command, 0, BUFLEN);
 
@@ -956,11 +950,7 @@ int create_revivalbits_native_pd(const char* corename, const char* javahome, con
     memset(jvm_copy, 0, BUFLEN);
     strncpy(jvm_copy, revival_dirname, BUFLEN - 1);
     strncat(jvm_copy, "\\" JVM_FILENAME, BUFLEN - 1);
-    int e = copy_file_pd(jvm_filename, jvm_copy);
-    if (e != 0) {
-        warn("Failed copying JVM '%s' to '%s'", jvm_filename, jvm_copy);
-        return -1;
-    }
+    copy_file_pd(jvm_filename, jvm_copy);
 
     // Copy jvm.dll.pdb and .map files if present.
     // (move this before relocate, RebaseImage64 may update the .pdb).
@@ -982,7 +972,7 @@ int create_revivalbits_native_pd(const char* corename, const char* javahome, con
     }
 
     // Relocate copy of libjvm:
-    e = relocate_sharedlib_pd(jvm_copy, jvm_address);
+    int e = relocate_sharedlib_pd(jvm_copy, jvm_address);
     if (e != 0) {
         error("Failed to relocate JVM: %d", e);
     }
