@@ -35,6 +35,7 @@
 
 
 ELFFile::ELFFile(const char* filename, const char* libdir) {
+    logv("ELFFile:: %s", filename);
     this->filename = filename;
     this->libdir = libdir;
     fd = -1;
@@ -48,11 +49,13 @@ ELFFile::ELFFile(const char* filename, const char* libdir) {
         error("cannot open '%s': %s", filename, strerror(errno));
     }
     length = file_size(filename);
+    // Open for writing as we may be relocating:
     m = mmap(0, length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (m == (void *) -1) {
-        error("mmap of ELF file failed: %s", strerror(errno));
+        error("ELFFile: mmap of ELF file '%s' failed: %s", filename, strerror(errno));
     }
     hdr = (Elf64_Ehdr*) m;
+    verify();
 
     // Set absolute ph and sh pointers for ease.
     // Careful with ptr arithmetic, do NOT use:
@@ -71,14 +74,9 @@ ELFFile::ELFFile(const char* filename, const char* libdir) {
 
     logv("ELFFile: %s hdr = %p phoff = 0x%lx shoff = 0x%lx   ph = %p sh = %p",
          filename, hdr, hdr->e_phoff, hdr->e_shoff, ph, sh);
-    verify();
 }
 
 void ELFFile::verify() {
-        if (hdr->e_ident[0] != 0x7f || hdr->e_ident[1] != 'E'
-            || hdr->e_ident[2] != 'L' || hdr->e_ident[3] != 'F') {
-            error("%s: no ELF file signature.", filename);
-        }
 
 //        assert(hdr->e_ident[4] == ELFCLASS64);
 //        assert(hdr->e_ident[5] == ELFDATA2LSB);
@@ -130,53 +128,52 @@ ELFFile::~ELFFile() {
         do_munmap_pd(m, length);
     }
 
-    // Free sharedlibs
-    if (sharedlibs_count > 0) {
+    if (sharedlibs != nullptr) {
         free(sharedlibs);
     }
 }
 
 char* ELFFile::find_note_data(Elf64_Phdr* notes_ph, Elf64_Word type) {
-        // Read NOTES.  p_filesz is limit.
-        Elf64_Nhdr* nhdr = (Elf64_Nhdr*) ((uint64_t) m + notes_ph->p_offset);
-        Elf64_Nhdr* end  = nhdr + notes_ph->p_filesz;
+    // Read NOTES.  p_filesz is limit.
+    Elf64_Nhdr* nhdr = (Elf64_Nhdr*) ((uint64_t) m + notes_ph->p_offset);
+    Elf64_Nhdr* end  = nhdr + notes_ph->p_filesz;
 
-        while (nhdr < end) {
-            logv("NOTE at %p type 0x%x namesz %x descsz %x", nhdr, nhdr->n_type, nhdr->n_namesz, nhdr->n_descsz);
-            char *pos = (char*) nhdr;
-            pos += sizeof(Elf64_Nhdr);
-            if (nhdr->n_namesz > 0) {
-                char *name = (char *) pos;
-                logv("NOTE name='%s'", name);
-                pos += nhdr->n_namesz; // n_namesz includes terminator
-            }
-            // Align. 4 byte alignment, including when 64-bit.
-            while (((unsigned long long) pos & 0x3) != 0) {
-                pos++;
-            }
-            // After aligning, pos points at actual NOTE data.
-            if (nhdr->n_type == type) {
-                return pos;
-            }
-            pos += nhdr->n_descsz;
-            nhdr = (Elf64_Nhdr*) pos;
+    while (nhdr < end) {
+        logv("NOTE at %p type 0x%x namesz %x descsz %x", nhdr, nhdr->n_type, nhdr->n_namesz, nhdr->n_descsz);
+        char *pos = (char*) nhdr;
+        pos += sizeof(Elf64_Nhdr);
+        if (nhdr->n_namesz > 0) {
+            char *name = (char *) pos;
+            logv("NOTE name='%s'", name);
+            pos += nhdr->n_namesz; // n_namesz includes terminator
         }
-        return nullptr;
+        // Align. 4 byte alignment, including when 64-bit.
+        while (((unsigned long long) pos & 0x3) != 0) {
+            pos++;
+        }
+        // After aligning, pos points at actual NOTE data.
+        if (nhdr->n_type == type) {
+            return pos;
+        }
+        pos += nhdr->n_descsz;
+        nhdr = (Elf64_Nhdr*) pos;
     }
+    return nullptr;
+}
 
 /*
- * Read shared library list.
+ * Read shared library list from the NT_FILE NOTE in a core file.
  */
 void ELFFile::read_sharedlibs() {
     if (!is_core()) {
-		error("Not a core file: %s", filename);
+		error("read_sharedlibs: Not a core file: %s", filename);
 	}
     if (sharedlibs != nullptr) return;
 
     // Look for Program Header PT_NOTE:
     Elf64_Phdr* notes_ph = program_header_by_type(PT_NOTE);
     if (notes_ph == nullptr) {
-        error("Cannot locate NOTES");
+        error("Cannot locate NOTES in %s", filename);
     }
     // Look for NT_FILE note:
     char* note_nt_file = find_note_data(notes_ph, 0x46494c45 /* NT_FILE */);
@@ -192,7 +189,8 @@ void ELFFile::read_sharedlibs() {
 
     sharedlibs = new Segment[sharedlibs_count];
 
-    // Two passes to read numerical data then library names:
+    // Two passes to read numerical data then library names.
+    // NT_FILE lists can contain multiple entries per object.
     for (int i = 0; i < sharedlibs_count; i++) {
         sharedlibs[i].vaddr= (void*) *(long*) note_nt_file;
         note_nt_file += 8;
@@ -208,11 +206,12 @@ void ELFFile::read_sharedlibs() {
     }
     if (verbose) {
         for (int i = 0; i < sharedlibs_count; i++) {
-            fprintf(stderr, "NT_FILE: %lu %lu %s\n", (unsigned long) sharedlibs[i].vaddr, sharedlibs[i].end(), sharedlibs[i].name);
+            fprintf(stderr, "NT_FILE: 0x%lx - 0x%lx %s\n", (uint64_t) sharedlibs[i].vaddr, (uint64_t) sharedlibs[i].end(), sharedlibs[i].name);
         }
     }
-
+    // Use libdir if set, to rewrite paths:
     if (libdir != nullptr) {
+        logv("libdir: %s", libdir);
         for (int i = 0; i < sharedlibs_count; i++) {
             char *alt_name = find_filename_in_libdir(libdir, sharedlibs[i].name);
             if (alt_name != nullptr) {
@@ -260,11 +259,14 @@ char* ELFFile::readstring_at_address(uint64_t addr) {
 }
 
 void ELFFile::relocate(long displacement) {
+    if (is_core()) {
+        error("%s: ELFFile::relocate cannot be called on a core file", filename);
+    }
     if (hdr->e_type != ET_DYN) {
         error("%s: ELFFile::relocate needs to be on a ET_DYN file", filename);
     }
     if (sh == nullptr) {
-        error("%s: ELFFile::relocate expects Sections...", filename);
+        error("%s: ELFFile::relocate expects Sections", filename);
     }
     if (shdr_strings == 0) {
         error("%s: ELFFile::relocate expects shdr_strings", filename);
@@ -280,7 +282,7 @@ void ELFFile::relocate(long displacement) {
     relocate_symbol_table(displacement, ".symtab");
 }
 
-void ELFFile::write_symbols(int fd, const char* symbols[], int count) {
+void ELFFile::write_symbols(int symbols_fd, const char* symbols[], int count) {
     Elf64_Shdr* strtab = section_by_name(".strtab");
     char* SYMTAB_BUFFER = (char *) m + strtab->sh_offset;
 
@@ -295,7 +297,7 @@ void ELFFile::write_symbols(int fd, const char* symbols[], int count) {
                 int len = snprintf(buf, BUFLEN, "%s %llx\n",
                         SYMTAB_BUFFER + sym->st_name,
                         (unsigned long long) sym->st_value);
-                int e = write(fd, buf, len);
+                int e = write(symbols_fd, buf, len);
                 if (e != len) {
                     warn("write_symbols: write error: %s", strerror(errno));
                 }
@@ -314,30 +316,37 @@ Segment* ELFFile::get_library_mapping(const char* filename) {
 			continue;
 		}
         if (strstr(lib, filename)) {
-            // Found.  JVM?
-/*            if (strcmp(filename, JVM_FILENAME) == 0) {
-                if (libdir != nullptr) {
-                    // Use JVM from libdir: (must find)
-                    char* found = find_filename_in_libdir(libdir, lib);
-                    if (found == nullptr) {
-                       error("No JVM found in libdir");
-                    }
-                    logv("Using from libdir: '%s'", found);
-                    sharedlibs[i].name = found;
-                    result = &sharedlibs[i];
-                    break;
-                } else {
-                    if (!file_exists_pd(lib)) {
-                        warn("JVM library required in core not found at: %s", lib);
-                        error("For minidumps from other systems, or if JDK at path in core has changed, use -L to specify JVM location.");
-                    }
-                    result = &sharedlibs[i];
-                    break;
-                } */
             return &sharedlibs[i];
         }
     }
     return nullptr;
+}
+
+
+std::list<Segment>* get_library_mappings() {
+    return nullptr;
+}
+
+void ELFFile::write_sharedlib_mappings(int mappings_fd) {
+    read_sharedlibs();
+    char buf[BUFLEN];
+
+    // Shared libs read from NT_FILE contain multiple entries per object.
+    char* prev = nullptr;
+    logv("ELFFile::write_sharedlib_mappings");
+    for (int i = 0; i < sharedlibs_count; i++) {
+        const char *checksum = "0";
+        Segment lib = sharedlibs[i];
+        // Skip if name matches previous:
+        if (prev == nullptr || strcmp(lib.name, prev) != 0) {
+            if (file_exists_pd(lib.name)) {
+                logv("ELFFile::write_sharedlib_mappings: %s", lib.name);
+                snprintf(buf, BUFLEN, "L %s %llx %s\n", basename(lib.name), (unsigned long long) lib.vaddr, checksum);
+                write0(mappings_fd, buf);
+            }
+        }
+        prev = lib.name;
+    }
 }
 
 
@@ -346,12 +355,13 @@ void ELFFile::write_mem_mappings(int mappings_fd, const char* exec_name) {
     *   Skip if:
     *     filesize or memsize is zero
     *     it touches an unwanted mapping
-    *     not writeable and inOtherMapping*
+    *     not writeable and inOtherMapping
+    *
     *   Create a Segment, call Segment::write_mapping(int fd) to write an "M" entry.
     */
     logv("write_mem_mappings");
-    if (hdr->e_type != ET_CORE) {
-        warn("write_mem_mappings: Not writing mappings for non-core file.");
+    if (!is_core()) {
+        warn("write_mem_mappings: Not writing mappings for non-core file: %s", filename);
         return;
     }
 

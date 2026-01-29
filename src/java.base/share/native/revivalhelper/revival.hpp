@@ -274,12 +274,12 @@ int revival_mapping_copy(void *vaddr, size_t length, size_t offset, bool allocat
 
 int relocate_sharedlib_pd(const char* filename, const void *addr);
 
-int create_revivalbits_native_pd(const char* corename, const char* javahome, const char* dirname, const char *libdir);
+int create_revival_cache_pd(const char* corename, const char* javahome, const char* dirname, const char *libdir);
 
 /**
  * Create the named "core.mappings" file and write the header lines.
- * Return the fd so other code can write the memory mapping lines,
- * or negative on error.
+ * Return the fd so other code can write the memory mapping lines.
+ * Return a negative value on error.
  */
 int mappings_file_create(const char *filename, const char *corename);
 

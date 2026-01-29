@@ -906,7 +906,7 @@ bool create_directory_pd(char* dirname) {
     return _mkdir(dirname) == 0;
 }
 
-int create_revivalbits_native_pd(const char* corename, const char* javahome, const char* revival_dirname, const char* libdir) {
+int create_revival_cache_pd(const char* corename, const char* javahome, const char* revival_dirname, const char* libdir) {
     char jvm_copy[BUFLEN];
 
     // Check early for editbin.exe:
@@ -1001,6 +1001,6 @@ int create_revivalbits_native_pd(const char* corename, const char* javahome, con
         error("Failed to create memory mappings: %d", e);
     }
 
-    logv("create_revivalbits_native_pd returning %d", 0);
+    logv("create_revival_cache_pd returning %d", 0);
     return 0;
 }

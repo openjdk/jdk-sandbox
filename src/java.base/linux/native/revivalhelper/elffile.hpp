@@ -50,18 +50,21 @@ class ELFFile {
     uint64_t file_offset_for_vaddr(uint64_t addr);
     char* readstring_at_address(uint64_t addr);
 
+    // Return shared library information.
+    Segment* get_library_mapping(const char* filename);
+    std::list<Segment>* get_library_mappings();
+
     // Relocate actual file by some amount.
     void relocate(long displacement);
 
-    // Write symbol list for revived process.
-    void write_symbols(int fd, const char* symbols[], int count);
-
-    // Return mapping information.  Data is valid while this ELFFile is alive,
-    // information should be copied to retain.
-    Segment* get_library_mapping(const char* filename);
+    // Write the list of shared library mappings in the core, to be used in the revived process.
+    void write_sharedlib_mappings(int mappings_fd);
 
     // Write the list of memory mappings in the core, to be used in the revived process.
     void write_mem_mappings(int mappings_fd, const char* exec_name);
+
+    // Write symbol list for revived process.
+    void write_symbols(int symbols_fd, const char* symbols[], int count);
 
     void print(); // Diagnostic, show PHs and Sections
 

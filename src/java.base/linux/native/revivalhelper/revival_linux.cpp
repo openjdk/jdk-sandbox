@@ -634,12 +634,64 @@ int open_for_read_and_write(const char* filename) {
 
 void close_file_descriptor(int fd, const char* name) {
     if (close(fd) < 0) {
-        error("close_file_descriptor: %s", strerror(errno));
+        warn("close_file_descriptor: %s", strerror(errno));
     }
 }
 
 bool create_directory_pd(char* dirname) {
     return mkdir(dirname, S_IRUSR | S_IWUSR | S_IXUSR) == 0;
+}
+
+
+bool allLibraries = false;
+
+void write_sharedlib_mappings(int mappings_fd, ELFFile* core) {
+    logv("write_sharedlib_mappings");
+
+    if (!allLibraries) {
+        char buf[BUFLEN];
+        const char *checksum = "0";
+        snprintf(buf, BUFLEN, "L %s %llx %s\n", basename(jvm_filename), (unsigned long long) jvm_address, checksum);
+        write0(mappings_fd, buf);
+    } else {
+        core->write_sharedlib_mappings(mappings_fd);
+    }
+}
+
+void copy_and_relocate(const char* srcfile, const char* destdir, uint64_t address) {
+
+    if (!allLibraries) {
+    char copy_path[BUFLEN];
+    logv("Copying from %s", jvm_filename);
+    memset(copy_path, 0, BUFLEN);
+    strncpy(copy_path, destdir, BUFLEN - 1);
+    strncat(copy_path, "/", BUFLEN - 1);
+    char *basefilename = basename((char*) srcfile);
+    strncat(copy_path, basefilename, BUFLEN - 1);
+    copy_file_pd(srcfile, copy_path);
+
+    // Relocate the copy: address of 0 will avoid any relocation.
+    if (address != 0) {
+        ELFFile lib_copy(copy_path, nullptr);
+        logv("Relocate copy to 0x%lx", address);
+        lib_copy.relocate((unsigned long) address /* assume library currently has zero base address */);
+        logv("Relocate copy done");
+    }
+    // Copy libjvm.debuginfo if present
+    char debuginfo_path[BUFLEN];
+    char debuginfo_copy_path[BUFLEN];
+    snprintf(debuginfo_path, BUFLEN, "%s", srcfile);
+    char *p = strstr(debuginfo_path, ".so");
+    if (p != nullptr) {
+        snprintf(p, BUFLEN, ".debuginfo"); // Append to jvm_debuginfo_path
+        if (file_exists_pd(debuginfo_path)) {
+            snprintf(debuginfo_copy_path, BUFLEN - 1, "%s/%s.debuginfo", destdir, basefilename);
+            copy_file_pd(debuginfo_path, debuginfo_copy_path);
+        }
+    }
+    } else {
+
+    }
 }
 
 
@@ -652,75 +704,56 @@ bool create_directory_pd(char* dirname) {
  *
  * Also take a copy of libjvm.debuginfo if present.
  */
-int create_revivalbits_native_pd(const char* corename, const char* javahome, const char* revival_dirname, const char* libdir) {
+int create_revival_cache_pd(const char* corename, const char* javahome, const char* revival_dirname, const char* libdir) {
+    logv("create_revival_cache_pd");
 
-    {
-        ELFFile core(corename, libdir);
-		if (!core.is_core()) {
-			error("Not a core file: %s", corename);
-		}
-        // Find JVM and its load address from core
-		// Optionally find all library mappings.
-        Segment* jvm_mapping = core.get_library_mapping(JVM_FILENAME);
-        if (jvm_mapping == nullptr) {
-            error("revival: cannot locate JVM from core.") ;
-        }
-        jvm_filename = strdup(jvm_mapping->name);
-        jvm_address = (void*) jvm_mapping->vaddr;
-        logv("JVM = '%s'", jvm_filename);
-        logv("JVM addr = %p", jvm_address);
-
-        // Create mappings file
-        int mappings_fd = mappings_file_create(revival_dirname, corename);
-        if (mappings_fd < 0) {
-            // error already printed
-            return -1;
-        }
-        core.write_mem_mappings(mappings_fd, "bin/java");
-        close_file_descriptor(mappings_fd, "mappings file");
+    ELFFile core(corename, libdir);
+    if  (!core.is_core()) {
+        error("Not a core file: %s", corename);
     }
 
-    // Copy libjvm into core.revival dir
-    char jvm_copy_path[BUFLEN];
-    memset(jvm_copy_path, 0, BUFLEN);
-    strncpy(jvm_copy_path, revival_dirname, BUFLEN - 1);
-    strncat(jvm_copy_path, "/" JVM_FILENAME, BUFLEN - 1);
-    logv("Copying libjvm.so from %s", jvm_filename);
-    copy_file_pd(jvm_filename, jvm_copy_path);
-
-    // Relocate copy of libjvm:
-    {
-        ELFFile jvm_copy(jvm_copy_path, nullptr);
-        logv("Relocate copy of libjvm to %p", jvm_address);
-        jvm_copy.relocate((unsigned long) jvm_address /* assume library currently has zero base address */);
-        logv("Relocate copy of libjvm done");
-
-        // Create symbols file
-        int symbols_fd = symbols_file_create(revival_dirname);
-        if (symbols_fd < 0) {
-            warn("Failed to create symbols file\n");
-            return -1;
-        }
-        logv("Write symbols");
-        jvm_copy.write_symbols(symbols_fd, JVM_SYMS, N_JVM_SYMS);
-        logv("Write symbols done");
-        close_file_descriptor(symbols_fd, "symbols file");
+    // Find JVM and its load address from core.
+    Segment* jvm_mapping = core.get_library_mapping(JVM_FILENAME);
+    if (jvm_mapping == nullptr) {
+        warn("JVM library required in core not found.");
+        error("For cores from other systems, or if JDK at path in core has changed, use -L to specify JVM location.");
     }
+    jvm_filename = strdup(jvm_mapping->name);
+    jvm_address = (void*) jvm_mapping->vaddr;
+    logv("JVM = '%s'", jvm_filename);
+    logv("JVM addr = %p", jvm_address);
 
-    // Copy libjvm.debuginfo if present
-    char jvm_debuginfo_path[BUFLEN];
-    char jvm_debuginfo_copy_path[BUFLEN];
-    snprintf(jvm_debuginfo_path, BUFLEN, "%s", jvm_filename);
-    char *p = strstr(jvm_debuginfo_path, ".so");
-    if (p != nullptr) {
-        snprintf(p, BUFLEN, ".debuginfo"); // Append to jvm_debuginfo_path
-        if (file_exists_pd(jvm_debuginfo_path)) {
-            snprintf(jvm_debuginfo_copy_path, BUFLEN - 1, "%s/libjvm.debuginfo", revival_dirname);
-            copy_file_pd(jvm_debuginfo_path, jvm_debuginfo_copy_path);
-        }
+    // Create mappings file:
+    int mappings_fd = mappings_file_create(revival_dirname, corename);
+    if (mappings_fd < 0) {
+        // error already printed
+        return -1;
     }
+    // Write mappings file:
+    write_sharedlib_mappings(mappings_fd, &core);
+    core.write_mem_mappings(mappings_fd, "bin/java");
+    close_file_descriptor(mappings_fd, "mappings file");
 
-    logv("create_revivalbits_native_pd returning %d", 0);
+    // Copy jvm/libraries into core.revival dir
+    copy_and_relocate(jvm_filename, revival_dirname, (uint64_t) jvm_address);
+
+    // Create symbols file
+    int symbols_fd = symbols_file_create(revival_dirname);
+    if (symbols_fd < 0) {
+        warn("Failed to create symbols file\n");
+        return -1;
+    }
+    char buf[BUFLEN];
+    memset(buf, 0, BUFLEN);
+    strncpy(buf, revival_dirname, BUFLEN - 1);
+    strncat(buf, "/" JVM_FILENAME, BUFLEN - 1);
+    ELFFile lib_copy(buf, nullptr);
+    logv("Write symbols");
+    lib_copy.write_symbols(symbols_fd, JVM_SYMS, N_JVM_SYMS);
+    logv("Write symbols done");
+    close_file_descriptor(symbols_fd, "symbols file");
+
+    logv("create_revival_cache_pd returning %d", 0);
     return 0;
 }
 
