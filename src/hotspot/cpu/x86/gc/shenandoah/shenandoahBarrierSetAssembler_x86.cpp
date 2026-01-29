@@ -816,7 +816,7 @@ void ShenandoahBarrierSetAssembler::satb_barrier_c2(const MachNode* node, MacroA
   if (!ShenandoahSATBBarrierStubC2::needs_barrier(node)) {
     return;
   }
-  ShenandoahSATBBarrierStubC2* const stub = ShenandoahSATBBarrierStubC2::create(node, addr, preval, tmp);
+  ShenandoahSATBBarrierStubC2* const stub = ShenandoahSATBBarrierStubC2::create(node, addr, preval, tmp, /* TODO: */ false);
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
   Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
   __ testb(gc_state, ShenandoahHeap::MARKING);
