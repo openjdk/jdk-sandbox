@@ -645,39 +645,40 @@ bool create_directory_pd(char* dirname) {
 
 bool allLibraries = false;
 
+void write_sharedlib_mapping(int mappings_fd, char* filename, void* address) {
+        char buf[BUFLEN];
+        const char *checksum = "0";
+        snprintf(buf, BUFLEN, "L %s %llx %s\n", basename(filename), (unsigned long long) address, checksum);
+        write0(mappings_fd, buf);
+}
+
 void write_sharedlib_mappings(int mappings_fd, ELFFile* core) {
     logv("write_sharedlib_mappings");
 
     if (!allLibraries) {
-        char buf[BUFLEN];
-        const char *checksum = "0";
-        snprintf(buf, BUFLEN, "L %s %llx %s\n", basename(jvm_filename), (unsigned long long) jvm_address, checksum);
-        write0(mappings_fd, buf);
+        write_sharedlib_mapping(mappings_fd, jvm_filename, jvm_address);
     } else {
-        core->write_sharedlib_mappings(mappings_fd);
+        std::list<Segment> libs = core->get_library_mappings();
+        std::list<Segment>::iterator iter;
+        for (iter = libs.begin(); iter != libs.end(); iter++) {
+            write_sharedlib_mapping(mappings_fd, iter->name, iter->vaddr);
+        }
     }
 }
 
 void copy_and_relocate(const char* srcfile, const char* destdir, uint64_t address) {
-
-    if (!allLibraries) {
     char copy_path[BUFLEN];
-    logv("Copying from %s", jvm_filename);
+
+    // Copy the file:
     memset(copy_path, 0, BUFLEN);
     strncpy(copy_path, destdir, BUFLEN - 1);
     strncat(copy_path, "/", BUFLEN - 1);
     char *basefilename = basename((char*) srcfile);
     strncat(copy_path, basefilename, BUFLEN - 1);
+    logv("Copying %s to %s", srcfile, copy_path);
     copy_file_pd(srcfile, copy_path);
 
-    // Relocate the copy: address of 0 will avoid any relocation.
-    if (address != 0) {
-        ELFFile lib_copy(copy_path, nullptr);
-        logv("Relocate copy to 0x%lx", address);
-        lib_copy.relocate((unsigned long) address /* assume library currently has zero base address */);
-        logv("Relocate copy done");
-    }
-    // Copy libjvm.debuginfo if present
+    // Copy .debuginfo if present:
     char debuginfo_path[BUFLEN];
     char debuginfo_copy_path[BUFLEN];
     snprintf(debuginfo_path, BUFLEN, "%s", srcfile);
@@ -686,14 +687,31 @@ void copy_and_relocate(const char* srcfile, const char* destdir, uint64_t addres
         snprintf(p, BUFLEN, ".debuginfo"); // Append to jvm_debuginfo_path
         if (file_exists_pd(debuginfo_path)) {
             snprintf(debuginfo_copy_path, BUFLEN - 1, "%s/%s.debuginfo", destdir, basefilename);
+            logv("Copying debuginfo %s to %s", debuginfo_path, debuginfo_copy_path);
             copy_file_pd(debuginfo_path, debuginfo_copy_path);
         }
     }
-    } else {
-
+    // Relocate the copy: address of 0 will avoid any relocation.
+    if (address != 0) {
+        ELFFile lib_copy(copy_path, nullptr);
+        logv("Relocate copy to 0x%lx", address);
+        lib_copy.relocate((unsigned long) address /* assume library currently has zero base address */);
+        logv("Relocate copy done");
     }
 }
 
+void copy_and_relocate(ELFFile core, const char* destdir) {
+    logv("copy_and_relocate");
+    if (!allLibraries) {
+        copy_and_relocate(jvm_filename, destdir, (uint64_t) jvm_address);
+    } else {
+        std::list<Segment> libs = core.get_library_mappings();
+        std::list<Segment>::iterator iter;
+        for (iter = libs.begin(); iter != libs.end(); iter++) {
+            copy_and_relocate(iter->name, destdir, (uint64_t) iter->vaddr);
+        }
+    }
+}
 
 /**
  * Create a "core.revival" directory containing what's needed to revive a corefile:
@@ -735,7 +753,7 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
     close_file_descriptor(mappings_fd, "mappings file");
 
     // Copy jvm/libraries into core.revival dir
-    copy_and_relocate(jvm_filename, revival_dirname, (uint64_t) jvm_address);
+    copy_and_relocate(core, revival_dirname);
 
     // Create symbols file
     int symbols_fd = symbols_file_create(revival_dirname);

@@ -41,8 +41,6 @@ ELFFile::ELFFile(const char* filename, const char* libdir) {
     fd = -1;
     length = 0;
     m = nullptr;
-    sharedlibs = nullptr;
-    sharedlibs_count = 0;
 
     fd = open(filename, O_RDWR);
     if (fd < 0) {
@@ -127,10 +125,6 @@ ELFFile::~ELFFile() {
     if (m != 0) {
         do_munmap_pd(m, length);
     }
-
-    if (sharedlibs != nullptr) {
-        free(sharedlibs);
-    }
 }
 
 char* ELFFile::find_note_data(Elf64_Phdr* notes_ph, Elf64_Word type) {
@@ -161,6 +155,23 @@ char* ELFFile::find_note_data(Elf64_Phdr* notes_ph, Elf64_Word type) {
     return nullptr;
 }
 
+bool ELFFile::is_elf(const char* filename) {
+    if (file_exists_pd(filename)) {
+        int fd = open(filename, O_RDONLY);
+        if (fd >= 0) {
+            Elf64_Ehdr hdr;
+            int e = read(fd, &hdr, sizeof(Elf64_Ehdr));
+            close(fd);
+            if (e == sizeof(Elf64_Ehdr)) {
+                if (hdr.e_ident[0] == 0x7f) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
 /*
  * Read shared library list from the NT_FILE NOTE in a core file.
  */
@@ -168,26 +179,29 @@ void ELFFile::read_sharedlibs() {
     if (!is_core()) {
 		error("read_sharedlibs: Not a core file: %s", filename);
 	}
-    if (sharedlibs != nullptr) return;
+    if (libs.size() != 0) return;
 
     // Look for Program Header PT_NOTE:
     Elf64_Phdr* notes_ph = program_header_by_type(PT_NOTE);
     if (notes_ph == nullptr) {
-        error("Cannot locate NOTES in %s", filename);
+        error("read_sharedlibs: Cannot locate NOTES in %s", filename);
     }
     // Look for NT_FILE note:
     char* note_nt_file = find_note_data(notes_ph, 0x46494c45 /* NT_FILE */);
     if (note_nt_file == nullptr) {
-        error("Cannot locate NOTE NT_FILE in %s", filename);
+        error("read_sharedlibs: Cannot locate NOTE NT_FILE in %s", filename);
     }
     logv("NT_FILE note data at %p", note_nt_file);
-    sharedlibs_count = *(long*)note_nt_file;
+
+    // Read NT_FILE content:
+    int sharedlibs_count;
+    sharedlibs_count = *(long*) note_nt_file;
     note_nt_file += 8;
     long pagesize = *(long*) note_nt_file;
     note_nt_file += 8;
     logv("NT_FILE count %d pagesize 0x%lx", sharedlibs_count, pagesize);
 
-    sharedlibs = new Segment[sharedlibs_count];
+    Segment* sharedlibs = (Segment*) malloc(sizeof(Segment) * sharedlibs_count); // new Segment[sharedlibs_count];
 
     // Two passes to read numerical data then library names.
     // NT_FILE lists can contain multiple entries per object.
@@ -209,17 +223,34 @@ void ELFFile::read_sharedlibs() {
             fprintf(stderr, "NT_FILE: 0x%lx - 0x%lx %s\n", (uint64_t) sharedlibs[i].vaddr, (uint64_t) sharedlibs[i].end(), sharedlibs[i].name);
         }
     }
-    // Use libdir if set, to rewrite paths:
-    if (libdir != nullptr) {
-        logv("libdir: %s", libdir);
-        for (int i = 0; i < sharedlibs_count; i++) {
-            char *alt_name = find_filename_in_libdir(libdir, sharedlibs[i].name);
-            if (alt_name != nullptr) {
-                logv("Using from libdir: '%s'", alt_name);
-                sharedlibs[i].name = alt_name;
+
+    // Reread that infor to build final library list.
+    // Skip duplicate names.
+    // Use libdir if set, to rewrite paths.
+    char* prev = nullptr;
+    for (int i = 0; i < sharedlibs_count; i++) {
+        Segment lib = sharedlibs[i];
+        // Skip if name matches previous:
+        if (prev == nullptr || strcmp(lib.name, prev) != 0) {
+            char* name = lib.name;
+            if (libdir != nullptr) {
+                char* alt_name = find_filename_in_libdir(libdir, name);
+                if (alt_name != nullptr) {
+                    logv("Using from libdir: '%s'", alt_name);
+                    name = alt_name;
+                }
+            }
+            // Is it actually a shared library?
+            if (ELFFile::is_elf(name)) {
+                Segment seg(name, lib.vaddr, 0);
+                libs.push_back(seg);
             }
         }
+        prev = lib.name;
     }
+    logv("sharedlibs size = %ld", libs.size());
+
+    free(sharedlibs);
 }
 
 
@@ -287,6 +318,9 @@ void ELFFile::write_symbols(int symbols_fd, const char* symbols[], int count) {
     char* SYMTAB_BUFFER = (char *) m + strtab->sh_offset;
 
     Elf64_Shdr* symtab = section_by_name(".symtab");
+    if (symtab == nullptr) {
+        return;
+    }
     for (long unsigned int i = 0; i < symtab->sh_size / symtab->sh_entsize; i++) {
         Elf64_Sym* sym = (Elf64_Sym*) ((uint64_t) m + (symtab->sh_offset + i * symtab->sh_entsize));
 
@@ -309,45 +343,37 @@ void ELFFile::write_symbols(int symbols_fd, const char* symbols[], int count) {
 
 Segment* ELFFile::get_library_mapping(const char* filename) {
     read_sharedlibs();
-
-    for (int i = 0; i < sharedlibs_count; i++) {
-        char* lib = sharedlibs[i].name;
-		if (lib == nullptr) {
-			continue;
-		}
-        if (strstr(lib, filename)) {
-            return &sharedlibs[i];
+    for (std::list<Segment>::iterator iter = libs.begin(); iter != libs.end(); iter++) {
+        if ((char*) iter->name == nullptr) {
+            continue; // no name
+        }
+        if (strstr((char*) iter->name, filename)) {
+            return new Segment(*iter);
         }
     }
     return nullptr;
 }
 
 
-std::list<Segment>* get_library_mappings() {
-    return nullptr;
+std::list<Segment> ELFFile::get_library_mappings() {
+    return libs;
 }
 
-void ELFFile::write_sharedlib_mappings(int mappings_fd) {
+/*void ELFFile::write_sharedlib_mappings(int mappings_fd) {
     read_sharedlibs();
     char buf[BUFLEN];
 
-    // Shared libs read from NT_FILE contain multiple entries per object.
-    char* prev = nullptr;
     logv("ELFFile::write_sharedlib_mappings");
-    for (int i = 0; i < sharedlibs_count; i++) {
-        const char *checksum = "0";
-        Segment lib = sharedlibs[i];
-        // Skip if name matches previous:
-        if (prev == nullptr || strcmp(lib.name, prev) != 0) {
-            if (file_exists_pd(lib.name)) {
-                logv("ELFFile::write_sharedlib_mappings: %s", lib.name);
-                snprintf(buf, BUFLEN, "L %s %llx %s\n", basename(lib.name), (unsigned long long) lib.vaddr, checksum);
-                write0(mappings_fd, buf);
-            }
+    std::list<Segment>::iterator iter;
+    for (iter = libs.begin(); iter != libs.end(); iter++) {
+        Segment lib = *iter;
+        if (file_exists_pd(lib.name)) {
+            logv("ELFFile::write_sharedlib_mappings: %s", lib.name);
+            snprintf(buf, BUFLEN, "L %s %llx %s\n", basename(lib.name), (unsigned long long) lib.vaddr, "0");
+            write0(mappings_fd, buf);
         }
-        prev = lib.name;
     }
-}
+} */
 
 
 void ELFFile::write_mem_mappings(int mappings_fd, const char* exec_name) {
@@ -382,9 +408,12 @@ void ELFFile::write_mem_mappings(int mappings_fd, const char* exec_name) {
         // Let's start with /bin/java #1
         // If the virtaddr is between start and end, it touches, exclude it
         bool skip = false;
-        for (int i = 0; i < sharedlibs_count; i++) {
-            if (is_inside(phdr, sharedlibs[i].start(), sharedlibs[i].end())
-                && strstr(sharedlibs[i].name, exec_name) /*|| false //!(phdr.p_flags & PF_W)) */
+
+        std::list<Segment>::iterator iter;
+        for (iter = libs.begin(); iter != libs.end(); iter++) {
+            Segment lib = *iter;
+            if (is_inside(phdr, lib.start(), lib.end())
+                && strstr(lib.name, exec_name) /*|| false //!(phdr.p_flags & PF_W)) */
                ) {
                 skip = true;
                 break;
@@ -399,8 +428,10 @@ void ELFFile::write_mem_mappings(int mappings_fd, const char* exec_name) {
 
         if (!(phdr->p_flags & PF_W)) {
             skip = false;
-            for (int i = 0; i < sharedlibs_count; i++) {
-                if (is_inside(phdr, sharedlibs[i].start(), sharedlibs[i].end())) {
+            std::list<Segment>::iterator iter;
+            for (iter = libs.begin(); iter != libs.end(); iter++) {
+                Segment lib = *iter;
+                if (is_inside(phdr, lib.start(), lib.end())) {
                     skip = true;
                     break;
                 }
@@ -412,8 +443,6 @@ void ELFFile::write_mem_mappings(int mappings_fd, const char* exec_name) {
                 continue;
             }
         }
-
-        logv("Writing: %lu", phdr->p_vaddr);
         Segment s((void*) phdr->p_vaddr, phdr->p_memsz, phdr->p_offset, phdr->p_filesz);
         s.write_mapping(mappings_fd);
         phdr = next_ph(phdr);

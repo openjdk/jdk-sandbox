@@ -52,13 +52,13 @@ class ELFFile {
 
     // Return shared library information.
     Segment* get_library_mapping(const char* filename);
-    std::list<Segment>* get_library_mappings();
+    std::list<Segment> get_library_mappings();
 
     // Relocate actual file by some amount.
     void relocate(long displacement);
 
     // Write the list of shared library mappings in the core, to be used in the revived process.
-    void write_sharedlib_mappings(int mappings_fd);
+    //void write_sharedlib_mappings(int mappings_fd);
 
     // Write the list of memory mappings in the core, to be used in the revived process.
     void write_mem_mappings(int mappings_fd, const char* exec_name);
@@ -68,20 +68,21 @@ class ELFFile {
 
     void print(); // Diagnostic, show PHs and Sections
 
+    // Static check if named file is ELF
+    static bool is_elf(const char* filename);
+
   private:
     const char* filename;
     const char* libdir;
-    Elf64_Ehdr* hdr;  // Main ELF Header
-    Elf64_Phdr* ph;   // First Program Header absolute address
-    Elf64_Shdr* sh;   // First Section Header absolute address or nullptr
-    char *shdr_strings;
-
     int fd;
     long long length;
-    void *m; // Address of mapped ELF file
+    void *m;            // Address of mapped ELF file
+    Elf64_Ehdr* hdr;    // Main ELF Header
+    Elf64_Phdr* ph;     // First Program Header absolute address
+    Elf64_Shdr* sh;     // First Section Header absolute address or nullptr
+    char *shdr_strings;
 
-    Segment* sharedlibs;
-    int sharedlibs_count;
+    std::list<Segment> libs;
 
     void verify();
 
@@ -147,8 +148,8 @@ class ELFFile {
             }
             s = next_sh(s);
         }
-        error("Section not found: %s", name);
-        return nullptr; // Will not reach here
+        warn("Section not found: %s", name);
+        return nullptr;
     }
 
     Elf64_Shdr* section_by_index(unsigned long index) {
@@ -177,6 +178,9 @@ class ELFFile {
         }
         return nullptr;
     }
+
+
+    // Relocation methos
 
     bool should_relocate_addend(Elf64_Rela* rela) {
         switch (ELF64_R_TYPE(rela->r_info)) {
@@ -241,6 +245,9 @@ class ELFFile {
 
     void relocate_relocation_table(long displacement, const char* name) {
         Elf64_Shdr* sh_reladyn = section_by_name(name);
+        if (sh_reladyn == nullptr) {
+            return;
+        }
         for (unsigned long o = sh_reladyn->sh_offset; o < (sh_reladyn->sh_offset + sh_reladyn->sh_size); o += sh_reladyn->sh_entsize) {
             Elf64_Rela* rela = (Elf64_Rela*) ((uint64_t) m + o);
             rela->r_offset += displacement;
@@ -308,6 +315,9 @@ class ELFFile {
 
     void relocate_dynamic_table(long displacement) {
         Elf64_Shdr* s = section_by_name(".dynamic");
+        if (s == nullptr) {
+            return;
+        }
         for (unsigned long o = s->sh_offset; o < s->sh_offset + s->sh_size; o += s->sh_entsize) {
             Elf64_Dyn* dyn = (Elf64_Dyn*) ((uint64_t) m + o);
             if (dyn->d_tag == DT_NULL) {
@@ -335,6 +345,9 @@ class ELFFile {
 
     void relocate_symbol_table(long displacement, const char* name) {
         Elf64_Shdr* s = section_by_name(name);
+        if (s == nullptr) {
+            return;
+        }
         for (unsigned long o = s->sh_offset; o < s->sh_offset + s->sh_size; o += s->sh_entsize) {
             Elf64_Sym* s = (Elf64_Sym*) ((uint64_t) m + o);
             if (should_relocate_symbol(s)) {
