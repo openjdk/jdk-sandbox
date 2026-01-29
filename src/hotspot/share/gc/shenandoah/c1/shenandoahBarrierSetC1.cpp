@@ -323,7 +323,7 @@ bool ShenandoahBarrierSetC1::generate_c1_runtime_stubs(BufferBlob* buffer_blob) 
 
     C1ShenandoahCmpXChgOopCodeGenClosure cmpxchg_oop_code_gen_cl;
     _cmpxchg_oop_rt_code_blob = Runtime1::generate_blob(buffer_blob, StubId::NO_STUBID,
-                                               "shenandoah_load_reference_barrier_phantom_slow",
+                                               "shenandoah_cmpxchg_oop_slow",
                                                false, &cmpxchg_oop_code_gen_cl);
     if (_cmpxchg_oop_rt_code_blob == nullptr) {
       return false;

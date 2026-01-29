@@ -179,7 +179,7 @@ public:
     if (_tmp3->is_valid())                  state->do_temp(_tmp3);
   }
 
-  virtual void emit_code(LIR_Assembler* masm);
+  virtual void emit_code(LIR_Assembler* ce);
 
   virtual void print_instr(outputStream* out) const {
     addr()->print(out);      out->print(" ");

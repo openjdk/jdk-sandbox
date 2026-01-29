@@ -32,9 +32,9 @@
 #include "gc/shenandoah/shenandoahHeap.hpp"
 #include "gc/shenandoah/shenandoahThreadLocalData.hpp"
 
-#define __ masm->masm()->
+#define __ ce->masm()->
 
-void LIR_OpShenandoahCompareAndSwap::emit_code(LIR_Assembler* masm) {
+void LIR_OpShenandoahCompareAndSwap::emit_code(LIR_Assembler* ce) {
   Register addr = _addr->as_register_lo();
   Register newval = _new_value->as_register();
   Register cmpval = _cmp_value->as_register();
@@ -64,15 +64,38 @@ void LIR_OpShenandoahCompareAndSwap::emit_code(LIR_Assembler* masm) {
   __ ldrb(tmp3, gc_state);
   __ tbz(tmp3, ShenandoahHeap::HAS_FORWARDED_BITPOS, done);
 
-  masm->store_parameter(addr, 0);
-  masm->store_parameter(cmpval, 1);
-  masm->store_parameter(newval, 2);
+  // Save r0 unless it is the result or tmp register
+  // Set up SP to accommodate parameters and maybe r0
+  if (result != r0 && tmp1 != r0 && tmp2 != r0 && tmp3 != r0) {
+    __ sub(sp, sp, 4*16);
+    __ str(r0, Address(sp, 3*16));
+  } else {
+    __ sub(sp, sp, 3*16);
+  }
+
+  // Setup arguments and call runtime stub
+  ce->store_parameter(addr, 0);
+  ce->store_parameter(cmpval, 1);
+  ce->store_parameter(newval, 2);
 
   ShenandoahBarrierSetC1* bs = (ShenandoahBarrierSetC1*)BarrierSet::barrier_set()->barrier_set_c1();
   __ far_call(RuntimeAddress(bs->cmpxchg_oop_rt_code_blob()->code_begin()));
 
   assert(result != cmpval, "cmp");
-  __ mov(result, r0);
+
+  // Move result into place
+  if (result != r0) {
+    __ mov(result, r0);
+  }
+
+  // Restore r0 unless it is the result or tmp register
+  if (result != r0 && tmp1 != r0 && tmp2 != r0 && tmp3 != r0) {
+    __ ldr(r0, Address(sp, 3*16));
+    __ add(sp, sp, 4*16);
+  } else {
+    __ add(sp, sp, 3*16);
+  }
+
   __ cmp(result, cmpval);
   __ cset(result, Assembler::EQ);
 
