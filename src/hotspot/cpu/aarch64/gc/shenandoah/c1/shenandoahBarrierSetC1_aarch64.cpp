@@ -66,11 +66,13 @@ void LIR_OpShenandoahCompareAndSwap::emit_code(LIR_Assembler* ce) {
 
   // Save r0 unless it is the result or tmp register
   // Set up SP to accommodate parameters and maybe r0
-  if (result != r0 && tmp1 != r0 && tmp2 != r0 && tmp3 != r0) {
-    __ sub(sp, sp, 4*16);
-    __ str(r0, Address(sp, 3*16));
-  } else {
-    __ sub(sp, sp, 3*16);
+  bool need_to_save_r0 = (result != r0 && tmp1 != r0 && tmp2 != r0 && tmp3 != r0);
+  int reserve = align_up((need_to_save_r0 ? 4 : 3) * BytesPerWord, StackAlignmentInBytes);
+
+  __ sub(sp, sp, reserve);
+
+  if (need_to_save_r0) {
+    __ str(r0, Address(sp, 3 * BytesPerWord));
   }
 
   // Setup arguments and call runtime stub
@@ -89,12 +91,11 @@ void LIR_OpShenandoahCompareAndSwap::emit_code(LIR_Assembler* ce) {
   }
 
   // Restore r0 unless it is the result or tmp register
-  if (result != r0 && tmp1 != r0 && tmp2 != r0 && tmp3 != r0) {
-    __ ldr(r0, Address(sp, 3*16));
-    __ add(sp, sp, 4*16);
-  } else {
-    __ add(sp, sp, 3*16);
+  if (need_to_save_r0) {
+    __ ldr(r0, Address(sp, 3 * BytesPerWord));
   }
+
+  __ add(sp, sp, reserve);
 
   __ cmp(result, cmpval);
   __ cset(result, Assembler::EQ);
