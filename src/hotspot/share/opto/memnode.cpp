@@ -106,6 +106,7 @@ void MemNode::dump_spec(outputStream *st) const {
   if (_unsafe_access) {
     st->print(" unsafe");
   }
+  st->print(" barrier: %u", _barrier_data);
 }
 
 void MemNode::dump_adr_type(const Node* mem, const TypePtr* adr_type, outputStream *st) {
@@ -650,9 +651,7 @@ ArrayCopyNode* MemNode::find_array_copy_clone(Node* ld_alloc, Node* mem) const {
           mb->in(0)->in(0) != nullptr && mb->in(0)->in(0)->is_ArrayCopy()) {
         ac = mb->in(0)->in(0)->as_ArrayCopy();
       } else {
-        // Step over GC barrier when ReduceInitialCardMarks is disabled
-        BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-        Node* control_proj_ac = bs->step_over_gc_barrier(mb->in(0));
+        Node* control_proj_ac = mb->in(0);
 
         if (control_proj_ac->is_Proj() && control_proj_ac->in(0)->is_ArrayCopy()) {
           ac = control_proj_ac->in(0)->as_ArrayCopy();
@@ -872,6 +871,8 @@ uint8_t MemNode::barrier_data(const Node* n) {
     return n->as_LoadStore()->barrier_data();
   } else if (n->is_Mem()) {
     return n->as_Mem()->barrier_data();
+  } else if (n->is_DecodeN()) {
+    return MemNode::barrier_data(n->in(1));
   }
   return 0;
 }
@@ -912,6 +913,9 @@ void LoadNode::dump_spec(outputStream *st) const {
       st->print("unknown reason");
     }
     st->print(")");
+  }
+  if (is_acquire()) {
+    st->print("is_acquire");
   }
 }
 #endif

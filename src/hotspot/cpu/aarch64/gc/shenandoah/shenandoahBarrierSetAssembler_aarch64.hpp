@@ -91,9 +91,10 @@ public:
   virtual void try_resolve_jobject_in_native(MacroAssembler* masm, Register jni_env,
                                              Register obj, Register tmp, Label& slowpath);
 #ifdef COMPILER2
-  void cmpxchg_oop_c2(const MachNode* node, MacroAssembler* masm,
-                      Register addr, Register expected, Register new_val, Register result,
-                      bool acquire, bool release, bool weak, bool is_cae);
+  void load_ref_barrier_c2(const MachNode* node, MacroAssembler* masm, Register obj, Register addr, bool narrow, bool maybe_null, Register gc_state);
+  void satb_barrier_c2(const MachNode* node, MacroAssembler* masm, Register obj, Register pre_val, Register gc_state, bool encoded_preval);
+  void card_barrier_c2(const MachNode* node, MacroAssembler* masm, Register addr, Register tmp);
+  void cmpxchg_oop_c2(const MachNode* node, MacroAssembler* masm, Register addr, Register oldval, Register newval, Register res, Register gc_state, Register tmp, bool acquire, bool release, bool weak, bool exchange);
 #endif
   };
 

@@ -38,8 +38,15 @@ JRT_LEAF(void, ShenandoahRuntime::arraycopy_barrier_narrow_oop(narrowOop* src, n
   ShenandoahBarrierSet::barrier_set()->arraycopy_barrier(src, dst, length);
 JRT_END
 
+JRT_LEAF(void, ShenandoahRuntime::write_barrier_pre_c2(oopDesc* orig))
+//log_info(gc)("WB pre C2: " PTR_FORMAT, p2i(orig));
+  write_barrier_pre(orig);
+JRT_END
+
 JRT_LEAF(void, ShenandoahRuntime::write_barrier_pre(oopDesc* orig))
-  assert(orig != nullptr, "should be optimized out");
+  if (orig == nullptr) {
+    return ;
+  }
   shenandoah_assert_correct(nullptr, orig);
   // Capture the original value that was in the field reference.
   JavaThread* thread = JavaThread::current();

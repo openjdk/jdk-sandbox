@@ -660,6 +660,13 @@ public:
   Node* convert_to_reinterpret_store(PhaseGVN& gvn, Node* val, const Type* vt);
 
   MemBarNode* trailing_membar() const;
+
+#ifndef PRODUCT
+  virtual void dump_spec(outputStream *st) const {
+    MemNode::dump_spec(st);
+    if (is_release())  st->print("is_release");
+  }
+#endif
 };
 
 //------------------------------StoreBNode-------------------------------------

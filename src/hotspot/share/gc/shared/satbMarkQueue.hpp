@@ -186,10 +186,10 @@ inline void SATBMarkQueueSet::apply_filter(Filter filter_out, SATBMarkQueue& que
   for ( ; src < dst; ++src) {
     // Search low to high for an entry to keep.
     void* entry = *src;
-    if (!filter_out(entry)) {
+    if (entry != nullptr && !filter_out(entry)) {
       // Found keeper.  Search high to low for an entry to discard.
       while (src < --dst) {
-        if (filter_out(*dst)) {
+        if (*dst == nullptr || filter_out(*dst)) {
           *dst = entry;         // Replace discard with keeper.
           break;
         }
