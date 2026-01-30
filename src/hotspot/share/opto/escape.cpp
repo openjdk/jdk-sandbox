@@ -1559,7 +1559,6 @@ void ConnectionGraph::add_node_to_connection_graph(Node *n, Unique_Node_List *de
     return; // No need to redefine PointsTo node during first iteration.
   }
   int opcode = n->Opcode();
-
   if (n->is_Call()) {
     // Arguments to allocation and locking don't escape.
     if (n->is_AbstractLock()) {

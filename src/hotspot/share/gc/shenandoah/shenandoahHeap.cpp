@@ -1459,10 +1459,8 @@ void ShenandoahHeap::trash_cset_regions() {
   ShenandoahHeapRegion* r;
   set->clear_current_index();
   while ((r = set->next()) != nullptr) {
-    //log_info(gc)("Make region trash: %lu", r->index());
     r->make_trash();
   }
-  //log_info(gc)("Clearing cset");
   collection_set()->clear();
 }
 

@@ -436,7 +436,7 @@ void ShenandoahAsserts::assert_mark_complete(HeapWord* obj, const char* file, in
 }
 
 void ShenandoahAsserts::assert_in_cset(void* interior_loc, oop obj, const char* file, int line) {
-  //assert_correct(interior_loc, obj, file, line);
+  assert_correct(interior_loc, obj, file, line);
 
   ShenandoahHeap* heap = ShenandoahHeap::heap();
   if (!heap->in_collection_set(obj)) {

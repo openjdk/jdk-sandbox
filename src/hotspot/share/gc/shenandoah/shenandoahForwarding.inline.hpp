@@ -56,7 +56,7 @@ inline oop ShenandoahForwarding::get_forwardee_raw_unchecked(oop obj) {
 
 inline oop ShenandoahForwarding::get_forwardee_mutator(oop obj) {
   // Same as above, but mutator thread cannot ever see null forwardee.
-  //shenandoah_assert_correct(nullptr, obj);
+  shenandoah_assert_correct(nullptr, obj);
   assert(Thread::current()->is_Java_thread(), "Must be a mutator thread");
 
   // We cannot assert the below here, because that region forwarding state might
@@ -75,7 +75,7 @@ inline oop ShenandoahForwarding::get_forwardee_mutator(oop obj) {
 }
 
 inline oop ShenandoahForwarding::get_forwardee(oop obj) {
-  //shenandoah_assert_correct(nullptr, obj);
+  shenandoah_assert_correct(nullptr, obj);
   return get_forwardee_raw_unchecked(obj);
 }
 
