@@ -68,15 +68,15 @@ bool ShenandoahCollectionSet::use_forward_table(ShenandoahHeapRegion* r) const {
   return _cset_map.use_forward_table(r);
 }
 
-size_t ShenandoahCollectionSet::get_old_bytes_reserved_for_evacuation() const {
+size_t ShenandoahCollectionSet::get_live_bytes_in_old_regions() const {
   return _old_bytes_to_evacuate;
 }
 
-size_t ShenandoahCollectionSet::get_young_bytes_reserved_for_evacuation() const {
+size_t ShenandoahCollectionSet::get_live_bytes_in_untenurable_regions() const {
   return _young_bytes_to_evacuate - _young_bytes_to_promote;
 }
 
-size_t ShenandoahCollectionSet::get_young_bytes_to_be_promoted() const {
+size_t ShenandoahCollectionSet::get_live_bytes_in_tenurable_regions() const {
   return _young_bytes_to_promote;
 }
 

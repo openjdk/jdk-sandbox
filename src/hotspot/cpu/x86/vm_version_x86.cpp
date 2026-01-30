@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,7 +62,7 @@ address VM_Version::_cpuinfo_segv_addr_apx = nullptr;
 address VM_Version::_cpuinfo_cont_addr_apx = nullptr;
 
 static BufferBlob* stub_blob;
-static const int stub_size = 2000;
+static const int stub_size = 2550;
 
 int VM_Version::VM_Features::_features_bitmap_size = sizeof(VM_Version::VM_Features::_features_bitmap) / BytesPerLong;
 
@@ -73,10 +73,12 @@ extern "C" {
   typedef void (*get_cpu_info_stub_t)(void*);
   typedef void (*detect_virt_stub_t)(uint32_t, uint32_t*);
   typedef void (*clear_apx_test_state_t)(void);
+  typedef void (*getCPUIDBrandString_stub_t)(void*);
 }
 static get_cpu_info_stub_t get_cpu_info_stub = nullptr;
 static detect_virt_stub_t detect_virt_stub = nullptr;
 static clear_apx_test_state_t clear_apx_test_state_stub = nullptr;
+static getCPUIDBrandString_stub_t getCPUIDBrandString_stub = nullptr;
 
 bool VM_Version::supports_clflush() {
   // clflush should always be available on x86_64
@@ -141,7 +143,7 @@ class VM_Version_StubGenerator: public StubCodeGenerator {
 
     Label detect_486, cpu486, detect_586, std_cpuid1, std_cpuid4, std_cpuid24, std_cpuid29;
     Label sef_cpuid, sefsl1_cpuid, ext_cpuid, ext_cpuid1, ext_cpuid5, ext_cpuid7;
-    Label ext_cpuid8, done, wrapup, vector_save_restore, apx_save_restore_warning;
+    Label ext_cpuid8, done, wrapup, vector_save_restore, apx_save_restore_warning, apx_xstate;
     Label legacy_setup, save_restore_except, legacy_save_restore, start_simd_check;
 
     StubCodeMark mark(this, "VM_Version", "get_cpu_info_stub");
@@ -465,6 +467,20 @@ class VM_Version_StubGenerator: public StubCodeGenerator {
     __ lea(rsi, Address(rbp, in_bytes(VM_Version::apx_save_offset())));
     __ movq(Address(rsi, 0), r16);
     __ movq(Address(rsi, 8), r31);
+
+    //
+    // Query CPUID 0xD.19 for APX XSAVE offset
+    // Extended State Enumeration Sub-leaf 19 (APX)
+    // EAX = size of APX state (should be 128)
+    // EBX = offset in standard XSAVE format
+    //
+    __ movl(rax, 0xD);
+    __ movl(rcx, 19);
+    __ cpuid();
+    __ lea(rsi, Address(rbp, in_bytes(VM_Version::apx_xstate_size_offset())));
+    __ movl(Address(rsi, 0), rax);
+    __ lea(rsi, Address(rbp, in_bytes(VM_Version::apx_xstate_offset_offset())));
+    __ movl(Address(rsi, 0), rbx);
 
     UseAPX = save_apx;
     __ bind(vector_save_restore);
@@ -919,8 +935,9 @@ void VM_Version::get_processor_features() {
 
   // Check if processor has Intel Ecore
   if (FLAG_IS_DEFAULT(EnableX86ECoreOpts) && is_intel() && is_intel_server_family() &&
-    (_model == 0x97 || _model == 0xAA || _model == 0xAC || _model == 0xAF ||
-      _model == 0xCC || _model == 0xDD)) {
+    (supports_hybrid() ||
+     _model == 0xAF /* Xeon 6 E-cores (Sierra Forest) */ ||
+     _model == 0xDD /* Xeon 6+ E-cores (Clearwater Forest) */ )) {
     FLAG_SET_DEFAULT(EnableX86ECoreOpts, true);
   }
 
@@ -1258,21 +1275,18 @@ void VM_Version::get_processor_features() {
 
   // Kyber Intrinsics
   // Currently we only have them for AVX512
-#ifdef _LP64
   if (supports_evex() && supports_avx512bw()) {
       if (FLAG_IS_DEFAULT(UseKyberIntrinsics)) {
           UseKyberIntrinsics = true;
       }
   } else
-#endif
   if (UseKyberIntrinsics) {
      warning("Intrinsics for ML-KEM are not available on this CPU.");
      FLAG_SET_DEFAULT(UseKyberIntrinsics, false);
   }
 
   // Dilithium Intrinsics
-  // Currently we only have them for AVX512
-  if (supports_evex() && supports_avx512bw()) {
+  if (UseAVX > 1) {
       if (FLAG_IS_DEFAULT(UseDilithiumIntrinsics)) {
           UseDilithiumIntrinsics = true;
       }
@@ -2131,6 +2145,8 @@ void VM_Version::initialize() {
                                      g.generate_detect_virt());
   clear_apx_test_state_stub = CAST_TO_FN_PTR(clear_apx_test_state_t,
                                      g.clear_apx_test_state());
+  getCPUIDBrandString_stub = CAST_TO_FN_PTR(getCPUIDBrandString_stub_t,
+                                     g.generate_getCPUIDBrandString());
   get_processor_features();
 
   Assembler::precompute_instructions();
@@ -2186,15 +2202,6 @@ typedef enum {
    HTT_FLAG     = 0x10000000,
    TM_FLAG      = 0x20000000
 } FeatureEdxFlag;
-
-static BufferBlob* cpuid_brand_string_stub_blob;
-static const int   cpuid_brand_string_stub_size = 550;
-
-extern "C" {
-  typedef void (*getCPUIDBrandString_stub_t)(void*);
-}
-
-static getCPUIDBrandString_stub_t getCPUIDBrandString_stub = nullptr;
 
 // VM_Version statics
 enum {
@@ -2488,19 +2495,6 @@ const char* const _feature_extended_ecx_id[] = {
   ""
 };
 
-void VM_Version::initialize_tsc(void) {
-  ResourceMark rm;
-
-  cpuid_brand_string_stub_blob = BufferBlob::create("getCPUIDBrandString_stub", cpuid_brand_string_stub_size);
-  if (cpuid_brand_string_stub_blob == nullptr) {
-    vm_exit_during_initialization("Unable to allocate getCPUIDBrandString_stub");
-  }
-  CodeBuffer c(cpuid_brand_string_stub_blob);
-  VM_Version_StubGenerator g(&c);
-  getCPUIDBrandString_stub = CAST_TO_FN_PTR(getCPUIDBrandString_stub_t,
-                                   g.generate_getCPUIDBrandString());
-}
-
 const char* VM_Version::cpu_model_description(void) {
   uint32_t cpu_family = extended_cpu_family();
   uint32_t cpu_model = extended_cpu_model();
@@ -2589,7 +2583,12 @@ void VM_Version::resolve_cpu_information_details(void) {
   _no_of_threads = os::processor_count();
 
   // find out number of threads per cpu package
-  int threads_per_package = threads_per_core() * cores_per_cpu();
+  int threads_per_package = _cpuid_info.tpl_cpuidB1_ebx.bits.logical_cpus;
+  if (threads_per_package == 0) {
+    // Fallback code to avoid div by zero in subsequent code.
+    // CPUID 0Bh (ECX = 1) might return 0 on older AMD processor (EPYC 7763 at least)
+    threads_per_package = threads_per_core() * cores_per_cpu();
+  }
 
   // use amount of threads visible to the process in order to guess number of sockets
   _no_of_sockets = _no_of_threads / threads_per_package;
@@ -2741,6 +2740,10 @@ size_t VM_Version::cpu_write_support_string(char* const buf, size_t buf_len) {
 
   if (supports_tscinv_bit()) {
       WRITE_TO_BUF("Invariant TSC");
+  }
+
+  if (supports_hybrid()) {
+      WRITE_TO_BUF("Hybrid Architecture");
   }
 
   return written;

@@ -297,6 +297,10 @@ inline void ShenandoahConcUpdateRefsClosure::work(T* p) {
   }
 }
 
+inline void ShenandoahFlushSATB::do_thread(Thread* thread) {
+  // Transfer any partial buffer to the qset for completed buffer processing.
+  _satb_qset.flush_queue(ShenandoahThreadLocalData::satb_mark_queue(thread));
+}
 
 //
 // ========= Utilities

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2025 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -169,7 +169,7 @@ static void vmembk_print_on(outputStream* os);
 ////////////////////////////////////////////////////////////////////////////////
 // global variables (for a description see os_aix.hpp)
 
-size_t    os::Aix::_physical_memory = 0;
+physical_memory_size_type    os::Aix::_physical_memory = 0;
 
 pthread_t os::Aix::_main_thread = ((pthread_t)0);
 
@@ -254,43 +254,63 @@ static bool is_close_to_brk(address a) {
   return false;
 }
 
-bool os::free_memory(size_t& value) {
+bool os::free_memory(physical_memory_size_type& value) {
   return Aix::available_memory(value);
 }
 
-bool os::available_memory(size_t& value) {
+bool os::Machine::free_memory(physical_memory_size_type& value) {
   return Aix::available_memory(value);
 }
 
-bool os::Aix::available_memory(size_t& value) {
+bool os::available_memory(physical_memory_size_type& value) {
+  return Aix::available_memory(value);
+}
+
+bool os::Machine::available_memory(physical_memory_size_type& value) {
+  return Aix::available_memory(value);
+}
+
+bool os::Aix::available_memory(physical_memory_size_type& value) {
   os::Aix::meminfo_t mi;
   if (os::Aix::get_meminfo(&mi)) {
-    value = static_cast<size_t>(mi.real_free);
+    value = static_cast<physical_memory_size_type>(mi.real_free);
     return true;
   } else {
     return false;
   }
 }
 
-bool os::total_swap_space(size_t& value) {
+bool os::total_swap_space(physical_memory_size_type& value) {
+  return Machine::total_swap_space(value);
+}
+
+bool os::Machine::total_swap_space(physical_memory_size_type& value) {
   perfstat_memory_total_t memory_info;
   if (libperfstat::perfstat_memory_total(nullptr, &memory_info, sizeof(perfstat_memory_total_t), 1) == -1) {
     return false;
   }
-  value = static_cast<size_t>(memory_info.pgsp_total * 4 * K);
+  value = static_cast<physical_memory_size_type>(memory_info.pgsp_total * 4 * K);
   return true;
 }
 
-bool os::free_swap_space(size_t& value) {
+bool os::free_swap_space(physical_memory_size_type& value) {
+  return Machine::free_swap_space(value);
+}
+
+bool os::Machine::free_swap_space(physical_memory_size_type& value) {
   perfstat_memory_total_t memory_info;
   if (libperfstat::perfstat_memory_total(nullptr, &memory_info, sizeof(perfstat_memory_total_t), 1) == -1) {
     return false;
   }
-  value = static_cast<size_t>(memory_info.pgsp_free * 4 * K);
+  value = static_cast<physical_memory_size_type>(memory_info.pgsp_free * 4 * K);
   return true;
 }
 
-size_t os::physical_memory() {
+physical_memory_size_type os::physical_memory() {
+  return Aix::physical_memory();
+}
+
+physical_memory_size_type os::Machine::physical_memory() {
   return Aix::physical_memory();
 }
 
@@ -329,7 +349,7 @@ void os::Aix::initialize_system_info() {
   if (!os::Aix::get_meminfo(&mi)) {
     assert(false, "os::Aix::get_meminfo failed.");
   }
-  _physical_memory = static_cast<size_t>(mi.real_total);
+  _physical_memory = static_cast<physical_memory_size_type>(mi.real_total);
 }
 
 // Helper function for tracing page sizes.
@@ -1038,6 +1058,8 @@ static void* dll_load_library(const char *filename, int *eno, char *ebuf, int eb
     dflags |= RTLD_MEMBER;
   }
 
+  Events::log_dll_message(nullptr, "Attempting to load shared library %s", filename);
+
   void* result;
   const char* error_report = nullptr;
   JFR_ONLY(NativeLibraryLoadEvent load_event(filename, &result);)
@@ -1054,7 +1076,7 @@ static void* dll_load_library(const char *filename, int *eno, char *ebuf, int eb
       error_report = "dlerror returned no error description";
     }
     if (ebuf != nullptr && ebuflen > 0) {
-      os::snprintf_checked(ebuf, ebuflen - 1, "%s, LIBPATH=%s, LD_LIBRARY_PATH=%s : %s",
+      os::snprintf_checked(ebuf, ebuflen, "%s, LIBPATH=%s, LD_LIBRARY_PATH=%s : %s",
                            filename, ::getenv("LIBPATH"), ::getenv("LD_LIBRARY_PATH"), error_report);
     }
     Events::log_dll_message(nullptr, "Loading shared library %s failed, %s", filename, error_report);
@@ -1747,6 +1769,9 @@ size_t os::pd_pretouch_memory(void* first, void* last, size_t page_size) {
   return page_size;
 }
 
+void os::numa_set_thread_affinity(Thread *thread, int node) {
+}
+
 void os::numa_make_global(char *addr, size_t bytes) {
 }
 
@@ -2192,7 +2217,7 @@ jint os::init_2(void) {
   os::Posix::init_2();
 
   trcVerbose("processor count: %d", os::_processor_count);
-  trcVerbose("physical memory: %zu", Aix::_physical_memory);
+  trcVerbose("physical memory: " PHYS_MEM_TYPE_FORMAT, Aix::_physical_memory);
 
   // Initially build up the loaded dll map.
   LoadedLibraries::reload();
@@ -2259,6 +2284,10 @@ int os::active_processor_count() {
     return ActiveProcessorCount;
   }
 
+  return Machine::active_processor_count();
+}
+
+int os::Machine::active_processor_count() {
   int online_cpus = ::sysconf(_SC_NPROCESSORS_ONLN);
   assert(online_cpus > 0 && online_cpus <= processor_count(), "sanity check");
   return online_cpus;
@@ -2328,8 +2357,8 @@ int os::open(const char *path, int oflag, int mode) {
 
     if (ret != -1) {
       if ((st_mode & S_IFMT) == S_IFDIR) {
-        errno = EISDIR;
         ::close(fd);
+        errno = EISDIR;
         return -1;
       }
     } else {
