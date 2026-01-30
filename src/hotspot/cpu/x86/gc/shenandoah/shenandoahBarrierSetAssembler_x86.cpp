@@ -1015,11 +1015,6 @@ void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ jmp(*continuation());
 }
 
-void ShenandoahCASBarrierMidStubC2::emit_code(MacroAssembler& masm) {
-  // x86_64 does not implement this.
-  ShouldNotReachHere();
-}
-
 void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
   __ bind(*entry());
 

@@ -180,17 +180,4 @@ public:
   void emit_code(MacroAssembler& masm) override;
 };
 
-class ShenandoahCASBarrierMidStubC2 : public ShenandoahBarrierStubC2 {
-  ShenandoahCASBarrierSlowStubC2* const _slow_stub;
-  Register const _expected;
-  Register const _result;
-  Register const _tmp;
-  bool     const _cae;
-  ShenandoahCASBarrierMidStubC2(const MachNode* node, ShenandoahCASBarrierSlowStubC2* slow_stub, Register expected, Register result, Register tmp, bool cae) :
-    ShenandoahBarrierStubC2(node), _slow_stub(slow_stub), _expected(expected), _result(result), _tmp(tmp), _cae(cae) {}
-public:
-  static ShenandoahCASBarrierMidStubC2* create(const MachNode* node, ShenandoahCASBarrierSlowStubC2* slow_stub, Register expected, Register result, Register tmp, bool cae);
-  void emit_code(MacroAssembler& masm) override;
-};
-
 #endif // SHARE_GC_SHENANDOAH_C2_SHENANDOAHBARRIERSETC2_HPP

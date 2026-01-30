@@ -2094,6 +2094,7 @@ void Compile::inline_boxing_calls(PhaseIterGVN& igvn) {
 
 bool Compile::inline_incrementally_one() {
   assert(IncrementalInline, "incremental inlining should be on");
+  assert(_late_inlines.length() > 0, "should have been checked by caller");
 
   TracePhase tp(_t_incrInline_inline);
 
@@ -2205,6 +2206,10 @@ void Compile::inline_incrementally(PhaseIterGVN& igvn) {
 
     igvn_worklist()->ensure_empty(); // should be done with igvn
 
+    if (_late_inlines.length() == 0) {
+      break; // no more progress
+    }
+
     while (inline_incrementally_one()) {
       assert(!failing_internal() || failure_is_artificial(), "inconsistent");
     }
@@ -2215,10 +2220,6 @@ void Compile::inline_incrementally(PhaseIterGVN& igvn) {
     print_method(PHASE_INCREMENTAL_INLINE_STEP, 3);
 
     if (failing())  return;
-
-    if (_late_inlines.length() == 0) {
-      break; // no more progress
-    }
   }
 
   igvn_worklist()->ensure_empty(); // should be done with igvn

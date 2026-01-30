@@ -287,16 +287,11 @@ Node* ShenandoahBarrierSetC2::load_at_resolved(C2Access& access, const Type* val
   bool on_weak = (decorators & ON_WEAK_OOP_REF) != 0;
   bool on_phantom = (decorators & ON_PHANTOM_OOP_REF) != 0;
   bool no_keepalive = (decorators & AS_NO_KEEPALIVE) != 0;
-  // If we are reading the value of the referent field of a Reference object, we
-  // need to record the referent in an SATB log buffer using the pre-barrier
-  // mechanism. Also we need to add a memory barrier to prevent commoning reads
-  // from this field across safepoints, since GC can change its value.
-  uint8_t barriers = access.barrier_data();
-  bool need_read_barrier = ((on_weak || on_phantom) && !no_keepalive);
-  if (access.is_oop() && need_read_barrier) {
-    barriers |= ShenandoahBarrierSATB;
+  bool needs_read_barrier = ((on_weak || on_phantom) && !no_keepalive);
+  if (needs_read_barrier) {
+    uint8_t barriers = access.barrier_data() | ShenandoahBarrierSATB;
+    access.set_barrier_data(barriers);
   }
-  access.set_barrier_data(barriers);
 
   return BarrierSetC2::load_at_resolved(access, val_type);
 }
@@ -331,7 +326,6 @@ Node* ShenandoahBarrierSetC2::atomic_xchg_at_resolved(C2AtomicParseAccess& acces
   }
   return BarrierSetC2::atomic_xchg_at_resolved(access, val, value_type);
 }
-
 
 bool ShenandoahBarrierSetC2::is_gc_barrier_node(Node* node) const {
   return is_shenandoah_clone_call(node);
@@ -508,7 +502,6 @@ void ShenandoahBarrierSetC2::clone_at_expansion(PhaseMacroExpand* phase, ArrayCo
   }
 }
 
-
 // Support for macro expanded GC barriers
 void ShenandoahBarrierSetC2::eliminate_gc_barrier_data(Node* node) const {
   if (node->is_LoadStore()) {
@@ -657,14 +650,9 @@ ShenandoahCASBarrierSlowStubC2* ShenandoahCASBarrierSlowStubC2::create(const Mac
   return stub;
 }
 
-ShenandoahCASBarrierMidStubC2* ShenandoahCASBarrierMidStubC2::create(const MachNode* node, ShenandoahCASBarrierSlowStubC2* slow_stub, Register expected, Register result, Register tmp, bool cae) {
-  auto* stub = new (Compile::current()->comp_arena()) ShenandoahCASBarrierMidStubC2(node, slow_stub, expected, result, tmp, cae);
-  stub->register_stub();
-  return stub;
-}
-
 bool ShenandoahBarrierSetC2State::needs_liveness_data(const MachNode* mach) const {
-  return ShenandoahSATBBarrierStubC2::needs_barrier(mach) || ShenandoahLoadRefBarrierStubC2::needs_barrier(mach);
+  return ShenandoahSATBBarrierStubC2::needs_barrier(mach) ||
+         ShenandoahLoadRefBarrierStubC2::needs_barrier(mach);
 }
 
 bool ShenandoahBarrierSetC2State::needs_livein_data() const {

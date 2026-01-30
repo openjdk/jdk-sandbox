@@ -699,7 +699,6 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop_c2(const MachNode* node,
                                                    Register newval, Register res,
                                                    Register gc_state, Register tmp,
                                                    bool acquire, bool release, bool weak, bool exchange) {
-  BLOCK_COMMENT("cmpxchg_oop_c2 {");
   assert(res != noreg, "need result register");
   assert_different_registers(oldval, addr, res, gc_state, tmp);
   assert_different_registers(newval, addr, res, gc_state, tmp);
@@ -738,8 +737,6 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop_c2(const MachNode* node,
     // Slow stub re-enters with result set correctly.
     __ bind(*slow_stub->continuation());
   }
-
-  BLOCK_COMMENT("} cmpxchg_oop_c2");
 }
 
 #undef __
@@ -848,29 +845,6 @@ void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ pop(saved, sp);
   __ b(*continuation());
   BLOCK_COMMENT("} ShenandoahSATBBarrierStubC2::emit_code");
-}
-
-void ShenandoahCASBarrierMidStubC2::emit_code(MacroAssembler& masm) {
-  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
-  __ bind(*entry());
-
-  // Check if CAS result is null. If it is, then we must have a legitimate failure.
-  // This makes loading the fwdptr in the slow-path simpler.
-  __ tst(_result, _result);
-  // In case of !CAE, this has the correct value for legitimate failure (0/false)
-  // in result register.
-  __ br(Assembler::EQ, *continuation());
-
-  // Check if GC is in progress, otherwise we must have a legitimate failure.
-  Address gc_state(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-  __ ldrb(_tmp, gc_state);
-  __ tstw(_tmp, ShenandoahHeap::HAS_FORWARDED);
-  __ br(Assembler::NE, *_slow_stub->entry());
-
-  if (!_cae) {
-    __ mov(_result, 0); // result = false
-  }
-  __ b(*continuation());
 }
 
 void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
