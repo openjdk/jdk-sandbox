@@ -1127,7 +1127,6 @@ public:
     _num_forwardings++;
     if (!p->is_forwarded()) {
       oop fwd = _heap->evacuate_object(p, _thread);
-      //log_info(gc)("evacuated object: " PTR_FORMAT ", to: " PTR_FORMAT, p2i(p), p2i(fwd));
     }
     // Mark objects beyond TAMS here, so that we can find their headers
     // quickly when we're building the forwarding table.
@@ -1181,7 +1180,6 @@ private:
     ShenandoahHeapRegion* r;
     while ((r =_cs->claim_next()) != nullptr) {
       if (_sh->collection_set()->use_forward_table(r)) {
-        //log_info(gc)("Not evacuating region because it is using fwd table already: %lu", r->index());
         continue;
       }
       size_t num_forwardings;
@@ -2555,9 +2553,6 @@ private:
       HeapWord* update_watermark = r->get_update_watermark();
       assert (update_watermark >= r->bottom(), "sanity");
       if (r->is_active() && !r->is_cset()) {
-        //if (!CONCURRENT) {
-        //  log_info(gc)("Updating refs in region: %lu, is_active: %s, is_cset: %s", r->index(), BOOL_TO_STR(r->is_active()), BOOL_TO_STR(r->is_cset()));
-        //}
         _heap->marked_object_oop_iterate(r, &cl, update_watermark);
       }
       if (_heap->check_cancelled_gc_and_yield(CONCURRENT)) {

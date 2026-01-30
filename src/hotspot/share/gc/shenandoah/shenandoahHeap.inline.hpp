@@ -133,7 +133,6 @@ inline void ShenandoahHeap::non_conc_update_with_forwarded(T* p, ShenandoahCSetM
     // set that are not really forwarded. We can still go and try and update them
     // (uselessly) to simplify the common path.
     shenandoah_assert_marked_except(p, obj, cancelled_gc());
-    //shenandoah_assert_not_in_cset_except(p, fwd, cancelled_gc());
 
     // Unconditionally store the update: no concurrent updates expected.
     RawAccess<IS_NOT_NULL>::oop_store(p, fwd);
