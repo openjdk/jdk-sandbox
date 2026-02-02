@@ -30,7 +30,8 @@
 // Diagnostics
 int verbose = false;
 int _wait = false;
-int versionCheckEnabled = true;
+
+int versionCheckEnabled = true; // May be disabled in environment
 
 int openCoreWrite = false;
 
@@ -745,20 +746,6 @@ int symbol_set(const char* sym, int value) {
 }
 
 
-#ifdef WINDOWS
-char* basename(char* s) {
-    for (char* p = s + strlen(s); p != s; p--) {
-		if (*p == '\\') {
-			p++;
-            return p;
-        }
-	}
-    // consider checking for forward slashes if no backslashes found?
-    return s;
-}
-#endif
-
-
 /**
  * Attempt to find in the the given directory (libdir), the given filename/path.
  *
@@ -819,7 +806,7 @@ int mappings_file_create(const char* dirname, const char* corename) {
     }
 
     unsigned long long coresize = file_size(corename);
-    snprintf(buf, BUFLEN, "core %s %lld\n", basename((char*) corename), coresize);
+    snprintf(buf, BUFLEN, "core %s %lld\n", basename_pd((char*) corename), coresize);
     write0(fd, buf);
     snprintf(buf, BUFLEN, "time %llu\n", file_time(corename));
     write0(fd, buf);
@@ -946,7 +933,7 @@ char* revival_dirname(const char* corename, const char* revival_data_path) {
 
     int len;
     if (revival_data_path != nullptr) {
-        len = snprintf(buf, BUFLEN, "%s%s%s%s", revival_data_path, FILE_SEPARATOR, basename((char*) corename), REVIVAL_SUFFIX);
+        len = snprintf(buf, BUFLEN, "%s%s%s%s", revival_data_path, FILE_SEPARATOR, basename_pd((char*) corename), REVIVAL_SUFFIX);
     } else {
         len = snprintf(buf, BUFLEN, "%s%s", corename, REVIVAL_SUFFIX);
     }

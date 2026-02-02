@@ -52,12 +52,14 @@ class MiniDump {
     bool is_valid() { return fd >= 0; }
     void close();
 
-    void read_sharedlibs(); // populate module list, and locate jvm
-
     MINIDUMP_DIRECTORY* find_stream(int stream);
     Segment* readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA, boolean skipLibraries);
 
     Segment* get_library_mapping(const char* filename);
+    std::list<Segment> get_library_mappings();
+
+    // Write the list of shared library mappings in the core, to be used in the revived process.
+    void write_sharedlibrary_mappings(int mappings_fd);
 
     // Write the list of memory mappings in the core, to be used in the revived process.
     void write_mem_mappings(int mappings_fd, const char* exec_name);
@@ -82,7 +84,8 @@ class MiniDump {
     int fd;
     _MINIDUMP_HEADER hdr;
 
-    std::list<Segment> sharedlibs;
+    std::list<Segment> libs;
+    void read_sharedlibs(); // populate module list, and locate jvm
 
     Segment* readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA);
     ULONG64 NumberOfMemoryRanges;

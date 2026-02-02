@@ -175,8 +175,8 @@ int revival_dcmd(const char *command);
 // Behavior settings:
 
 // Diagnostics
-extern int verbose;          // set from env: REVIVAL_VERBOSE
-extern int skipVersionCheck; // set from env: REVIVAL_SKIPVERSIONCHECK
+extern int verbose;             // set from env: REVIVAL_VERBOSE
+extern int versionCheckEnabled; // set from env: REVIVAL_SKIPVERSIONCHECK
 
 // Optionally map core files with write permission:
 // On Linux, map core files read only, signal handler remaps to handle writes.
@@ -203,6 +203,8 @@ extern void exitForRetry(); // exit process using above exit code to signal a re
 char* readstring(int fd);
 char* readstring_at_offset_pd(const char* filename, uint64_t offset);
 char* readstring_from_core_at_vaddr_pd(const char* filename, uint64_t addr);
+
+char* basename_pd(char* path);
 
 bool create_directory_pd(char* dirname);
 

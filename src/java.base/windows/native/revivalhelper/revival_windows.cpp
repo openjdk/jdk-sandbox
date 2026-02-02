@@ -91,6 +91,17 @@ static void install_kernelbase_1803_symbol_or_exit(Fn*& fn, const char* name) {
 }
 
 
+char* basename_pd(char* s) {
+    for (char* p = s + strlen(s); p != s; p--) {
+        if (*p == '\\') {
+            p++;
+            return p;
+        }
+    }
+    // consider checking for forward slashes if no backslashes found?
+    return s;
+}
+
 uint64_t vaddr_alignment_pd() {
     return vaddr_align;
 }
@@ -109,6 +120,7 @@ unsigned long long max_user_vaddr_pd() {
 
 void init_pd() {
     int x;
+    versionCheckEnabled = false;
 
     openCoreWrite = true;
 
@@ -712,7 +724,7 @@ uint64_t resolve_teb(MiniDump* dump) {
 }
 
 
-int write_mem_mappings(MiniDump* dump, int fd, const char *corename, const char *jvm_copy,
+void write_mem_mappings(MiniDump* dump, int fd, const char *corename,
                        Segment* jvm_data_seg, Segment* jvm_rdata_seg, Segment* jvm_iat_seg) {
 
     // Read minidump memory list, create text of mappings list.
@@ -847,7 +859,6 @@ int write_mem_mappings(MiniDump* dump, int fd, const char *corename, const char 
     }
 
     writef(fd, "\n");
-    return 0;
 }
 
 
@@ -857,7 +868,7 @@ const char *JVM_SYMS[N_JVM_SYMS] = {
     SYM_VM_RELEASE
 };
 
-void write_symbols(int fd, const char* symbols[], int count, const char *revival_dirname) {
+void write_symbols(int symbols_fd, const char* symbols[], int count, const char *revival_dirname) {
     // Using SymFromName() on jvm.dll after relocation will give final absoulute addresses.
     PLOADED_IMAGE image = ImageLoad(JVM_FILENAME, revival_dirname);
     if (image == nullptr) {
@@ -889,7 +900,7 @@ void write_symbols(int fd, const char* symbols[], int count, const char *revival
         } else {
             snprintf(buf, BUFLEN, "%s %llx\n", szSymbolName, pSymbol->Address);
             logv("write_symbols: %d: %s", i, buf); // buf includes return char so causes extra newline
-            write0(fd, buf);
+            write0(symbols_fd, buf);
         }
     }
     e = SymCleanup(h2);
@@ -906,22 +917,100 @@ bool create_directory_pd(char* dirname) {
     return _mkdir(dirname) == 0;
 }
 
+
+bool allLibraries = false;
+
+void write_sharedlib_mapping(int mappings_fd, char* filename, void* address) {
+        char buf[BUFLEN];
+        const char *checksum = "0";
+        snprintf(buf, BUFLEN, "L %s %llx %s\n", basename_pd(filename), (unsigned long long) address, checksum);
+        write0(mappings_fd, buf);
+}
+
+
+void write_sharedlib_mappings(int mappings_fd, MiniDump* dump) {
+    logv("write_sharedlib_mappings");
+
+    if (!allLibraries) {
+        write_sharedlib_mapping(mappings_fd, jvm_filename, jvm_address);
+    } else {
+        std::list<Segment> libs = dump->get_library_mappings();
+        std::list<Segment>::iterator iter;
+        for (iter = libs.begin(); iter != libs.end(); iter++) {
+            write_sharedlib_mapping(mappings_fd, iter->name, iter->vaddr);
+        }
+    }
+}
+
+void copy_and_relocate(const char* srcfile, const char* destdir, uint64_t address) {
+    char copy_path[BUFLEN];
+
+    memset(copy_path, 0, BUFLEN);
+    strncpy(copy_path, destdir, BUFLEN - 1);
+    strncat(copy_path, FILE_SEPARATOR, BUFLEN - 1);
+    char *basefilename = basename_pd((char*) srcfile);
+    strncat(copy_path, basefilename, BUFLEN - 1);
+    logv("Copying %s to %s", srcfile, copy_path);
+    copy_file_pd(srcfile, copy_path);
+
+    // Copy .pdb and .map if present:
+    char debuginfo_path[BUFLEN];
+    char debuginfo_copy_path[BUFLEN];
+    snprintf(debuginfo_path, BUFLEN, "%s", srcfile);
+    char *p = strstr(debuginfo_path, ".dll");
+    if (p != nullptr) {
+        snprintf(p, BUFLEN, ".pdb"); // Append to debuginfo_path in place of .dll
+        if (file_exists_pd(debuginfo_path)) {
+            snprintf(debuginfo_copy_path, BUFLEN - 1, "%s/%s.pdb", destdir, basefilename);
+            copy_file_pd(debuginfo_path, debuginfo_copy_path);
+        }
+        snprintf(p, BUFLEN, ".map");
+        if (file_exists_pd(debuginfo_path)) {
+            snprintf(debuginfo_copy_path, BUFLEN - 1, "%s/%s.map", destdir, basefilename);
+            copy_file_pd(debuginfo_path, debuginfo_copy_path);
+        }
+        snprintf(p, BUFLEN, ".dll.pdb");
+        if (file_exists_pd(debuginfo_path)) {
+            snprintf(debuginfo_copy_path, BUFLEN - 1, "%s/%s.dll.pdb", destdir, basefilename);
+            copy_file_pd(debuginfo_path, debuginfo_copy_path);
+        }
+        snprintf(p, BUFLEN, ".dll.map");
+        if (file_exists_pd(debuginfo_path)) {
+            snprintf(debuginfo_copy_path, BUFLEN - 1, "%s/%s.dll.map", destdir, basefilename);
+            copy_file_pd(debuginfo_path, debuginfo_copy_path);
+        }
+    }
+    // Relocate the copy: address of 0 will avoid any relocation.
+    if (address != 0) {
+        relocate_sharedlib_pd(copy_path, (void*) address);
+    }
+}
+
+void copy_and_relocate(MiniDump dump, const char* destdir) {
+    logv("copy_and_relocate");
+    if (!allLibraries) {
+        copy_and_relocate(jvm_filename, destdir, (uint64_t) jvm_address);
+    } else {
+        std::list<Segment> libs = dump.get_library_mappings();
+        std::list<Segment>::iterator iter;
+        for (iter = libs.begin(); iter != libs.end(); iter++) {
+            copy_and_relocate(iter->name, destdir, (uint64_t) iter->vaddr);
+        }
+    }
+}
+
 int create_revival_cache_pd(const char* corename, const char* javahome, const char* revival_dirname, const char* libdir) {
-    char jvm_copy[BUFLEN];
+    logv("create_revival_cache_pd");
 
     // Check early for editbin.exe:
     editbin = check_editbin();
 
-    // Using libdir to resolve JVM from alternative path in MiniDump:
-    waitHitRet();
     MiniDump dump(corename, libdir);
     if (!dump.is_valid()) {
-        warn ("Cannot open MiniDump: '%s'", corename);
-        return -1;
+        error("Cannot open MiniDump: '%s'", corename);
     }
 
-    // Find JVM and its load address from core
-    // Optionally find all library mappings.
+    // Find JVM and its load address from dump.
     Segment* jvm_mapping = dump.get_library_mapping(JVM_FILENAME);
     if (jvm_mapping == nullptr) {
         error("revival: cannot locate JVM from core.") ;
@@ -946,36 +1035,18 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
     logv("JVM iat    SEG: 0x%llx - 0x%llx", jvm_iat_seg->start(),   jvm_iat_seg->end());
     dump.set_jvm_data(jvm_data_seg, jvm_rdata_seg, jvm_iat_seg);
 
-    // Copy jvm.dll into core.revival dir
-    memset(jvm_copy, 0, BUFLEN);
-    strncpy(jvm_copy, revival_dirname, BUFLEN - 1);
-    strncat(jvm_copy, "\\" JVM_FILENAME, BUFLEN - 1);
-    copy_file_pd(jvm_filename, jvm_copy);
-
-    // Copy jvm.dll.pdb and .map files if present.
-    // (move this before relocate, RebaseImage64 may update the .pdb).
-    char jvm_debuginfo_path[BUFLEN];
-    char jvm_debuginfo_copy_path[BUFLEN];
-    snprintf(jvm_debuginfo_path, BUFLEN, "%s", jvm_filename);
-    char *p = strstr(jvm_debuginfo_path, ".dll");
-    if (p != nullptr) {
-        snprintf(p, BUFLEN, ".dll.pdb");
-        if (file_exists_pd(jvm_debuginfo_path)) {
-            snprintf(jvm_debuginfo_copy_path, BUFLEN - 1, "%s/" JVM_FILENAME ".pdb", revival_dirname);
-            copy_file_pd(jvm_debuginfo_path, jvm_debuginfo_copy_path);
-        }
-        snprintf(p, BUFLEN, ".dll.map");
-        if (file_exists_pd(jvm_debuginfo_path)) {
-            snprintf(jvm_debuginfo_copy_path, BUFLEN - 1, "%s/" JVM_FILENAME ".map", revival_dirname);
-            copy_file_pd(jvm_debuginfo_path, jvm_debuginfo_copy_path);
-        }
+    // Create mappings file:
+    int mappings_fd = mappings_file_create(revival_dirname, corename);
+    if (mappings_fd < 0) {
+        error("Failed to create mappings file.");
     }
+    // Write mappings file:
+    write_sharedlib_mappings(mappings_fd, &dump);
+    write_mem_mappings(&dump, mappings_fd, corename, jvm_data_seg, jvm_rdata_seg, jvm_iat_seg);
+    close(mappings_fd);
 
-    // Relocate copy of libjvm:
-    int e = relocate_sharedlib_pd(jvm_copy, jvm_address);
-    if (e != 0) {
-        error("Failed to relocate JVM: %d", e);
-    }
+    // Copy jvm/libraries into core.revival dir
+    copy_and_relocate(dump, revival_dirname);
 
     // Create symbols file
     int symbols_fd = symbols_file_create(revival_dirname);
@@ -984,22 +1055,8 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
     }
     logv("Write symbols");
     write_symbols(symbols_fd, JVM_SYMS, N_JVM_SYMS, revival_dirname);
-    logv("Write symbols done");
     close(symbols_fd);
-
-    // Create (open) the core.mappings file:
-    // Normalize corename, so basename works. XXX
-    int fd = mappings_file_create(revival_dirname, corename);
-    if (fd < 0) {
-        error("Failed to create mappings file.");
-    }
-    // Write memory mappings into the file:
-    e = write_mem_mappings(&dump, fd, corename, jvm_copy, jvm_data_seg, jvm_rdata_seg, jvm_iat_seg);
-
-    close(fd);
-    if (e != 0) {
-        error("Failed to create memory mappings: %d", e);
-    }
+    logv("Write symbols done");
 
     logv("create_revival_cache_pd returning %d", 0);
     return 0;

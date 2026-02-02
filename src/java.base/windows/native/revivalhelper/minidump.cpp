@@ -184,7 +184,7 @@ void MiniDump::read_sharedlibs() {
     if (!is_valid()) {
         error("MiniDump::read_sharedlibs: MiniDump not valid");
     }
-    if (sharedlibs.size() != 0) {
+    if (libs.size() != 0) {
         return;
     }
     MINIDUMP_DIRECTORY *md = find_stream(ModuleListStream);
@@ -225,7 +225,7 @@ void MiniDump::read_sharedlibs() {
         }
 
         Segment *seg = new Segment(name, (void *) module.BaseOfImage, (size_t) module.SizeOfImage);
-        sharedlibs.push_back(seg);
+        libs.push_back(seg);
         count++;
     }
     logv("MiniDump::read_sharedlibs: NumberOfStreams = %d StreamDirectoryRva = %d", hdr.NumberOfStreams, hdr.StreamDirectoryRva);
@@ -234,8 +234,7 @@ void MiniDump::read_sharedlibs() {
 
 Segment* MiniDump::get_library_mapping(const char* filename) {
     read_sharedlibs();
-    for (std::list<Segment>::iterator iter = sharedlibs.begin(); iter != sharedlibs.end(); iter++) {
-        waitHitRet();
+    for (std::list<Segment>::iterator iter = libs.begin(); iter != libs.end(); iter++) {
         if ((char*) iter->name == nullptr) {
             continue; // no name
         }
@@ -246,10 +245,18 @@ Segment* MiniDump::get_library_mapping(const char* filename) {
     return nullptr;
 }
 
+std::list<Segment> MiniDump::get_library_mappings() {
+    return libs;
+}
+
+void write_sharedlib_mappings(int mappings_fd) {
+
+
+}
+
 void write_mem_mappings(int mappings_fd, const char* exec_name) {
     // Currently implemented in revival_windows.cpp directly, fetching data from MinDump.
 }
-
 
 
 /**
@@ -346,7 +353,7 @@ Segment* MiniDump::readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRV
         // Simple check for clashes.  Comparing module list from dump, with memory list from dump,
         // so complex overlaps not possible.
         // Module extents (iter) likely to be larger than individual memory descriptors.
-        for (std::list<Segment>::iterator iter = sharedlibs.begin(); iter != sharedlibs.end(); iter++) {
+        for (std::list<Segment>::iterator iter = libs.begin(); iter != libs.end(); iter++) {
             if (skipLibraries &&
                 (seg->start() >= iter->start() && seg->end() <= iter->end())
               ) {
