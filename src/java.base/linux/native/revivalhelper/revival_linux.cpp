@@ -608,11 +608,28 @@ void copy_file_pd(const char *srcfile, const char *destfile) {
     close(fd_dest);
 }
 
+void relocate_sharedlib_pd(const char *filename, const uint64_t address) {
+    ELFFile lib(filename, nullptr);
+    logv("Relocate %s to 0x%lx", filename, address);
+    lib.relocate(address /* assume library currently has zero base address */);
+    logv("Relocate done");
+}
+
 
 const int N_JVM_SYMS = 2;
 const char *JVM_SYMS[N_JVM_SYMS] = {
     SYM_REVIVE_VM, SYM_VM_RELEASE
 };
+
+void write_symbols(int symbols_fd, const char* symbols[], int count, const char *revival_dirname) {
+    char buf[BUFLEN];
+    memset(buf, 0, BUFLEN);
+    strncpy(buf, revival_dirname, BUFLEN - 1);
+    strncat(buf, "/" JVM_FILENAME, BUFLEN - 1);
+    ELFFile lib_copy(buf, nullptr);
+    lib_copy.write_symbols(symbols_fd, symbols, count);
+}
+
 
 int open_for_read(const char* filename) {
     int fd = open(filename, O_RDONLY);
@@ -630,12 +647,6 @@ int open_for_read_and_write(const char* filename) {
         return -1;
     }
     return fd;
-}
-
-void close_file_descriptor(int fd, const char* name) {
-    if (close(fd) < 0) {
-        warn("close_file_descriptor: %s", strerror(errno));
-    }
 }
 
 bool create_directory_pd(char* dirname) {
@@ -669,7 +680,6 @@ void write_sharedlib_mappings(int mappings_fd, ELFFile* core) {
 void copy_and_relocate(const char* srcfile, const char* destdir, uint64_t address) {
     char copy_path[BUFLEN];
 
-    // Copy the file:
     memset(copy_path, 0, BUFLEN);
     strncpy(copy_path, destdir, BUFLEN - 1);
     strncat(copy_path, "/", BUFLEN - 1);
@@ -684,7 +694,7 @@ void copy_and_relocate(const char* srcfile, const char* destdir, uint64_t addres
     snprintf(debuginfo_path, BUFLEN, "%s", srcfile);
     char *p = strstr(debuginfo_path, ".so");
     if (p != nullptr) {
-        snprintf(p, BUFLEN, ".debuginfo"); // Append to jvm_debuginfo_path
+        snprintf(p, BUFLEN, ".debuginfo"); // Append to debuginfo_path in place of .so
         if (file_exists_pd(debuginfo_path)) {
             snprintf(debuginfo_copy_path, BUFLEN - 1, "%s/%s.debuginfo", destdir, basefilename);
             logv("Copying debuginfo %s to %s", debuginfo_path, debuginfo_copy_path);
@@ -693,10 +703,7 @@ void copy_and_relocate(const char* srcfile, const char* destdir, uint64_t addres
     }
     // Relocate the copy: address of 0 will avoid any relocation.
     if (address != 0) {
-        ELFFile lib_copy(copy_path, nullptr);
-        logv("Relocate copy to 0x%lx", address);
-        lib_copy.relocate((unsigned long) address /* assume library currently has zero base address */);
-        logv("Relocate copy done");
+        relocate_sharedlib_pd(copy_path, address);
     }
 }
 
@@ -740,17 +747,19 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
     jvm_address = (void*) jvm_mapping->vaddr;
     logv("JVM = '%s'", jvm_filename);
     logv("JVM addr = %p", jvm_address);
+    if (!file_exists_pd(jvm_filename)) {
+        error("No file for JVM '%s'", jvm_filename);
+    }
 
     // Create mappings file:
     int mappings_fd = mappings_file_create(revival_dirname, corename);
     if (mappings_fd < 0) {
-        // error already printed
-        return -1;
+        error("Failed to create mappings file.");
     }
     // Write mappings file:
     write_sharedlib_mappings(mappings_fd, &core);
     core.write_mem_mappings(mappings_fd, "bin/java");
-    close_file_descriptor(mappings_fd, "mappings file");
+    close(mappings_fd);
 
     // Copy jvm/libraries into core.revival dir
     copy_and_relocate(core, revival_dirname);
@@ -758,18 +767,12 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
     // Create symbols file
     int symbols_fd = symbols_file_create(revival_dirname);
     if (symbols_fd < 0) {
-        warn("Failed to create symbols file\n");
-        return -1;
+        error("Failed to create symbols file");
     }
-    char buf[BUFLEN];
-    memset(buf, 0, BUFLEN);
-    strncpy(buf, revival_dirname, BUFLEN - 1);
-    strncat(buf, "/" JVM_FILENAME, BUFLEN - 1);
-    ELFFile lib_copy(buf, nullptr);
     logv("Write symbols");
-    lib_copy.write_symbols(symbols_fd, JVM_SYMS, N_JVM_SYMS);
+    write_symbols(symbols_fd, JVM_SYMS, N_JVM_SYMS, revival_dirname);
+    close(symbols_fd);
     logv("Write symbols done");
-    close_file_descriptor(symbols_fd, "symbols file");
 
     logv("create_revival_cache_pd returning %d", 0);
     return 0;
