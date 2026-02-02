@@ -204,7 +204,7 @@ void ELFFile::read_sharedlibs() {
     Segment* sharedlibs = (Segment*) malloc(sizeof(Segment) * sharedlibs_count); // new Segment[sharedlibs_count];
 
     // Two passes to read numerical data then library names.
-    // NT_FILE lists can contain multiple entries per object.
+    // NT_FILE lists can contain multiple entries for the same filename.
     for (int i = 0; i < sharedlibs_count; i++) {
         sharedlibs[i].vaddr= (void*) *(long*) note_nt_file;
         note_nt_file += 8;
@@ -214,42 +214,35 @@ void ELFFile::read_sharedlibs() {
         note_nt_file += 8; // skip offset
     }
     for (int i = 0; i < sharedlibs_count; i++) {
-        sharedlibs[i].name = note_nt_file; // readstring(file);
+        sharedlibs[i].name = note_nt_file;
         note_nt_file += strlen(sharedlibs[i].name);
         note_nt_file++; // terminator
     }
-    if (verbose) {
-        for (int i = 0; i < sharedlibs_count; i++) {
+
+    // Reread that info to build final library list.
+    // Use libdir if set, to rewrite paths.
+    //
+    // Considered skipping duplicate names, but would need to coalesce entires for same filename.
+    // The fetches get first match and want to find base address, so all good.
+    for (int i = 0; i < sharedlibs_count; i++) {
+        if (verbose) {
             fprintf(stderr, "NT_FILE: 0x%lx - 0x%lx %s\n", (uint64_t) sharedlibs[i].vaddr, (uint64_t) sharedlibs[i].end(), sharedlibs[i].name);
         }
-    }
-
-    // Reread that infor to build final library list.
-    // Skip duplicate names.
-    // Use libdir if set, to rewrite paths.
-    char* prev = nullptr;
-    for (int i = 0; i < sharedlibs_count; i++) {
         Segment lib = sharedlibs[i];
-        // Skip if name matches previous:
-        if (prev == nullptr || strcmp(lib.name, prev) != 0) {
-            char* name = lib.name;
-            if (libdir != nullptr) {
-                char* alt_name = find_filename_in_libdir(libdir, name);
-                if (alt_name != nullptr) {
-                    logv("Using from libdir: '%s'", alt_name);
-                    name = alt_name;
-                }
-            }
-            // Is it actually a shared library?
-            if (ELFFile::is_elf(name)) {
-                Segment seg(name, lib.vaddr, 0);
-                libs.push_back(seg);
+        char* name = lib.name;
+        if (libdir != nullptr) {
+            char* alt_name = find_filename_in_libdir(libdir, name);
+            if (alt_name != nullptr) {
+                logv("Using from libdir: '%s'", alt_name);
+                name = alt_name;
             }
         }
-        prev = lib.name;
+        // Keep all files in list, not just ELF sharedlibs.
+        Segment seg(name, lib.vaddr, lib.length);
+        libs.push_back(seg);
     }
-    logv("sharedlibs size = %ld", libs.size());
 
+    logv("sharedlibs size = %ld", libs.size());
     free(sharedlibs);
 }
 
@@ -348,7 +341,12 @@ Segment* ELFFile::get_library_mapping(const char* filename) {
             continue; // no name
         }
         if (strstr((char*) iter->name, filename)) {
-            return new Segment(*iter);
+            // Return it only if it is an ELF file.
+            if (ELFFile::is_elf(iter->name)) {
+                return new Segment(*iter);
+            } else {
+                break;
+            }
         }
     }
     return nullptr;
@@ -356,24 +354,9 @@ Segment* ELFFile::get_library_mapping(const char* filename) {
 
 
 std::list<Segment> ELFFile::get_library_mappings() {
+    // Can be used to copy and relocate all libraries, but would need an is_elf check.
     return libs;
 }
-
-/*void ELFFile::write_sharedlib_mappings(int mappings_fd) {
-    read_sharedlibs();
-    char buf[BUFLEN];
-
-    logv("ELFFile::write_sharedlib_mappings");
-    std::list<Segment>::iterator iter;
-    for (iter = libs.begin(); iter != libs.end(); iter++) {
-        Segment lib = *iter;
-        if (file_exists_pd(lib.name)) {
-            logv("ELFFile::write_sharedlib_mappings: %s", lib.name);
-            snprintf(buf, BUFLEN, "L %s %llx %s\n", basename(lib.name), (unsigned long long) lib.vaddr, "0");
-            write0(mappings_fd, buf);
-        }
-    }
-} */
 
 
 void ELFFile::write_mem_mappings(int mappings_fd, const char* exec_name) {
@@ -385,13 +368,13 @@ void ELFFile::write_mem_mappings(int mappings_fd, const char* exec_name) {
     *
     *   Create a Segment, call Segment::write_mapping(int fd) to write an "M" entry.
     */
-    logv("write_mem_mappings");
     if (!is_core()) {
         warn("write_mem_mappings: Not writing mappings for non-core file: %s", filename);
         return;
     }
-
+    logv("write_mem_mappings");
     read_sharedlibs();
+
     int n_skipped = 0;
     Elf64_Phdr* phdr = ph;
     for (int i = 0; i < hdr->e_phnum; i++) {
@@ -412,6 +395,7 @@ void ELFFile::write_mem_mappings(int mappings_fd, const char* exec_name) {
         std::list<Segment>::iterator iter;
         for (iter = libs.begin(); iter != libs.end(); iter++) {
             Segment lib = *iter;
+
             if (is_inside(phdr, lib.start(), lib.end())
                 && strstr(lib.name, exec_name) /*|| false //!(phdr.p_flags & PF_W)) */
                ) {
@@ -420,7 +404,7 @@ void ELFFile::write_mem_mappings(int mappings_fd, const char* exec_name) {
             }
         }
         if (skip) {
-            logv("Skipping due to bin/java at %lu", phdr->p_vaddr);
+            logv("Skipping due to %s at 0x%lx", exec_name, phdr->p_vaddr);
             n_skipped++;
             phdr = next_ph(phdr);
             continue;
@@ -437,7 +421,7 @@ void ELFFile::write_mem_mappings(int mappings_fd, const char* exec_name) {
                 }
             }
             if (skip) {
-                logv("Skipping due to nonwritable overlap at %lu", phdr->p_vaddr);
+                logv("Skipping due to nonwritable overlap at 0x%lx", phdr->p_vaddr);
                 n_skipped++;
                 phdr = next_ph(phdr);
                 continue;
