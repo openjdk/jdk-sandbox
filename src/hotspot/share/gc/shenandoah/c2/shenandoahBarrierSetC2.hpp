@@ -40,8 +40,6 @@ static const uint8_t ShenandoahBarrierCardMarkNotNull = 1 << 7;
 
 class ShenandoahBarrierStubC2;
 
-const uint8_t ShenandoahC2CASBarrier         = 1;
-
 class ShenandoahBarrierSetC2State : public BarrierSetC2State {
   GrowableArray<ShenandoahBarrierStubC2*>* _stubs;
   int _stubs_start_offset;
@@ -62,8 +60,7 @@ public:
 
   int stubs_start_offset() {
     return _stubs_start_offset;
-  }
-};
+  }};
 
 class ShenandoahBarrierSetC2 : public BarrierSetC2 {
   static bool clone_needs_barrier(Node* src, PhaseGVN& gvn);

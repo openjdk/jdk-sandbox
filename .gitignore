@@ -26,14 +26,10 @@ NashornProfile.txt
 *.rej
 *.orig
 test/benchmarks/**/target
-<<<<<<< HEAD
 clear.sh
 run.sh
 .clangd
 debug/
-||||||| 7bfdb012075
-=======
->>>>>>> sandbox/master
 /src/hotspot/CMakeLists.txt
 /src/hotspot/compile_commands.json
 /src/hotspot/cmake-build-debug/
