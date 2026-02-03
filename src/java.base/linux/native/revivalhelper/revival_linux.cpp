@@ -57,6 +57,10 @@
 #include "elffile.hpp"
 
 
+char* basename_pd(char* s) {
+    return basename(s);
+}
+
 long vaddr_align; // set by init_pd
 
 uint64_t vaddr_alignment_pd() {
