@@ -54,27 +54,29 @@ public class TestJsonNumber {
 
         @ParameterizedTest
         @MethodSource
-        void testUniformRepresentations(String str, double db, long l) {
+        void testUniformRepresentations(String str, double db, long l, int i) {
             var json = Json.parse(str);
             assertEquals(db, json.toDouble());
             assertEquals(l, json.toLong());
+            assertEquals(i, json.toInt());
             json = Json.parse("-" + str);
             assertEquals(-db, json.toDouble());
             assertEquals(-l, json.toLong());
+            assertEquals(-i, json.toInt());
         }
 
         private static Stream<Arguments> testUniformRepresentations() {
             return Stream.of(
-                    Arguments.of("5", 5d, 5L),
-                    Arguments.of("5.0", 5d, 5L),
-                    Arguments.of("5.00", 5d, 5L),
-                    Arguments.of("5e0", 5d, 5L),
-                    Arguments.of("5e+0", 5d, 5L),
-                    Arguments.of("5e-0", 5d, 5L),
-                    Arguments.of("5e3", 5e3, 5000L),
-                    Arguments.of("50e-1", 50e-1, 5L),
-                    Arguments.of("555.5e5", 555.5e5, 55550000L),
-                    Arguments.of("555.5e1", 555.5e1, 5555L)
+                    Arguments.of("5", 5d, 5L, 5),
+                    Arguments.of("5.0", 5d, 5L, 5),
+                    Arguments.of("5.00", 5d, 5L, 5),
+                    Arguments.of("5e0", 5d, 5L, 5),
+                    Arguments.of("5e+0", 5d, 5L, 5),
+                    Arguments.of("5e-0", 5d, 5L, 5),
+                    Arguments.of("5e3", 5e3, 5000L, 5000),
+                    Arguments.of("50e-1", 50e-1, 5L, 5),
+                    Arguments.of("555.5e5", 555.5e5, 55550000L, 55550000),
+                    Arguments.of("555.5e1", 555.5e1, 5555L, 5555)
             );
         }
 
@@ -133,6 +135,27 @@ public class TestJsonNumber {
 
         @ParameterizedTest
         @MethodSource
+        void testIntRepresentation(String str, int i) {
+            var json = Json.parse(str);
+            assertEquals(i, json.toInt());
+            assertDoesNotThrow(json::toLong);
+            assertDoesNotThrow(json::toDouble);
+            json = Json.parse("-" + str);
+            assertEquals(-i, json.toInt());
+            assertDoesNotThrow(json::toLong);
+            assertDoesNotThrow(json::toDouble);
+        }
+
+        private static Stream<Arguments> testIntRepresentation() {
+            return Stream.of(
+                Arguments.of("2147483647", Integer.MAX_VALUE),
+                Arguments.of("2147483647.0", Integer.MAX_VALUE),
+                Arguments.of("2147483647.0e0", Integer.MAX_VALUE)
+            );
+        }
+
+        @ParameterizedTest
+        @MethodSource
         void testDoubleOutOfRange(String str) {
             var json = Json.parse(str);
             assertThrows(JsonAssertionException.class, json::toDouble);
@@ -160,6 +183,20 @@ public class TestJsonNumber {
                 Arguments.of("-9e111111111111"),
                 Arguments.of("9223372036854775808"),
                 Arguments.of("-9223372036854775809")
+            );
+        }
+
+        @ParameterizedTest
+        @MethodSource
+        void testIntOutOfRange(String str) {
+            var json = Json.parse(str);
+            assertThrows(JsonAssertionException.class, json::toInt);
+        }
+
+        private static Stream<Arguments> testIntOutOfRange() {
+            return Stream.of(
+                Arguments.of("2147483648"),
+                Arguments.of("-2147483649")
             );
         }
     }
@@ -302,6 +339,7 @@ public class TestJsonNumber {
             assertEquals("42", JsonNumber.of((short)42).toString());
             assertEquals("42", JsonNumber.of(42).toString());
             assertEquals("42", JsonNumber.of(42L).toString());
+            assertEquals(JsonNumber.of(Integer.MAX_VALUE).toString(), Integer.valueOf(Integer.MAX_VALUE).toString());
             assertEquals(JsonNumber.of(Long.MAX_VALUE).toString(), Long.valueOf(Long.MAX_VALUE).toString());
             assertEquals(JsonNumber.of(0.1f).toString(), Double.valueOf(0.1f).toString());
             assertEquals("0.1", JsonNumber.of(0.1d).toString());
@@ -317,16 +355,23 @@ public class TestJsonNumber {
         @Test
         void testRoundTrip() {
             // factories
+            assertEquals(42, JsonNumber.of((byte)42).toInt());
+            assertEquals(42, JsonNumber.of((short)42).toInt());
+            assertEquals(42, JsonNumber.of(42).toInt());
+            assertEquals(42, JsonNumber.of(42L).toInt());
             assertEquals(42L, JsonNumber.of((byte)42).toLong());
             assertEquals(42L, JsonNumber.of((short)42).toLong());
             assertEquals(42L, JsonNumber.of(42).toLong());
             assertEquals(42L, JsonNumber.of(42L).toLong());
+            assertEquals(Integer.MAX_VALUE, JsonNumber.of(Integer.MAX_VALUE).toLong());
             assertEquals(Long.MAX_VALUE, JsonNumber.of(Long.MAX_VALUE).toLong());
             assertEquals((double)0.1f, JsonNumber.of(0.1f).toDouble());
             assertEquals(0.1d, JsonNumber.of(0.1d).toDouble());
             assertEquals(1d, JsonNumber.of(1e0).toDouble());
             assertEquals(Double.MAX_VALUE, JsonNumber.of(Double.MAX_VALUE).toDouble());
+            assertEquals(42, JsonNumber.of("42").toInt());
             assertEquals(42L, JsonNumber.of("42").toLong());
+            assertEquals(Integer.MAX_VALUE, JsonNumber.of("2147483647").toInt());
             assertEquals(Long.MAX_VALUE, JsonNumber.of("9223372036854775807").toLong());
             assertEquals(0.1d, JsonNumber.of("0.1").toDouble());
             assertEquals(1d, JsonNumber.of("1e0").toDouble());

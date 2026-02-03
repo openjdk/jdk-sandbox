@@ -39,10 +39,10 @@ import jdk.internal.util.json.JsonNumberImpl;
  * syntax</a>.
  * Alternatively, {@link #of(double)}, {@link #of(long)}, or {@link #of(String)}
  * can be used to obtain a {@code JsonNumber}.
- * The value of the {@code JsonNumber} can be retrieved as a {@code long}
- * with {@link #toLong()} or as a {@code double} with {@link #toDouble()}.
- * {@link #toString()} can be used to return the string representation of
- * the JSON number.
+ * The value of the {@code JsonNumber} can be retrieved as an {@code int} with
+ * {@link #toInt()}, as a {@code long} with {@link #toLong()}, or as a
+ * {@code double} with {@link #toDouble()}. {@link #toString()} can be used to
+ * return the string representation of the JSON number.
  *
  * @apiNote
  * To avoid precision loss when converting JSON numbers to Java types, or when
@@ -63,6 +63,22 @@ import jdk.internal.util.json.JsonNumberImpl;
  */
 @PreviewFeature(feature = PreviewFeature.Feature.JSON)
 public non-sealed interface JsonNumber extends JsonValue {
+
+    /**
+     * {@return an {@code int} if it can be translated from the string
+     * representation of this {@code JsonNumber}} That is, it can be expressed
+     * as a whole number and is within the range of {@link Integer#MIN_VALUE} and
+     * {@link Integer#MAX_VALUE}. This occurs, even if the string contains an
+     * exponent or a fractional part consisting of only zero digits. For example,
+     * both the JSON number "123.0" and "1.23e2" produce an {@code int} value of
+     * "123". A {@code JsonAssertionException} is thrown when the numeric value
+     * cannot be represented as an {@code int}; for example, the value "5.5".
+     *
+     * @throws JsonAssertionException if this {@code JsonNumber} cannot
+     *      be represented as an {@code int}.
+     */
+    @Override
+    int toInt();
 
     /**
      * {@return a {@code long} if it can be translated from the string
@@ -117,6 +133,19 @@ public non-sealed interface JsonNumber extends JsonValue {
         }
         var str = Double.toString(num);
         return new JsonNumberImpl(str.toCharArray(), 0, str.length(), 0, 0);
+    }
+
+    /**
+     * Creates a JSON number from the given {@code int} value.
+     * The string representation of the JSON number created is produced by applying
+     * {@link Integer#toString(int)} on {@code num}.
+     *
+     * @param num the given {@code int} value.
+     * @return a JSON number created from the {@code int} value
+     */
+    static JsonNumber of(int num) {
+        var str = Integer.toString(num);
+        return new JsonNumberImpl(str.toCharArray(), 0, str.length(), -1, -1);
     }
 
     /**

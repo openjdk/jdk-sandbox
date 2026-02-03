@@ -65,6 +65,10 @@ import java.util.Optional;
  *     <li>{@code string()} returns a String that represents the JSON string
  *     with all RFC 8259 JSON escapes translated to their corresponding
  *     characters.</li>
+ *     <li>{@code toInt()} returns an int provided the JSON number is a whole
+ *     number within range of {@code Integer.MIN_VALUE} and
+ *     {@code Integer.MAX_VALUE}.
+ *     </li>
  *     <li>{@code toLong()} returns a long provided the JSON number is a whole
  *     number within range of {@code Long.MIN_VALUE} and {@code Long.MAX_VALUE}.
  *     </li>
@@ -91,8 +95,8 @@ import java.util.Optional;
  * JSON type, for example {@code foo0.bool()}, a {@code JsonAssertionException} is thrown.
  * <p>
  * These conversion methods always return a value when the {@code JsonValue} is
- * of the correct JSON type. The exceptions are {@code toLong()} and
- * {@code toDouble()}; the {@code to} prefix implies that they may throw a
+ * of the correct JSON type. The exceptions are {@code toInt()}, {@code toLong()},
+ * and {@code toDouble()}; the {@code to} prefix implies that they may throw a
  * {@code JsonAssertionException} even when the {@code JsonValue} is a JSON
  * number, for example if it is outside their supported ranges.
  * <h2>Subtypes of JsonValue</h2>
@@ -167,6 +171,19 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      */
     default boolean bool() {
         throw Utils.composeTypeError(this, "JsonBoolean");
+    }
+
+    /**
+     * {@return this {@code JsonValue} as an {@code int}}
+     *
+     * @implSpec
+     * The default implementation throws {@code JsonAssertionException}.
+     *
+     * @throws JsonAssertionException if this {@code JsonValue} is not an instance
+     *      of {@code JsonNumber} nor can be represented as an {@code int}.
+     */
+    default int toInt() {
+        throw Utils.composeTypeError(this, "JsonNumber");
     }
 
     /**
