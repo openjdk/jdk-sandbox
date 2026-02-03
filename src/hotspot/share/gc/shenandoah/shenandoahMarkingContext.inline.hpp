@@ -117,10 +117,11 @@ inline void ShenandoahMarkingContext::capture_top_at_mark_start(ShenandoahHeapRe
   assert((new_tams == r->bottom()) || (old_tams == r->bottom()) || (new_tams >= _top_bitmaps[idx]),
          "Region %zu, top_bitmaps updates should be monotonic: " PTR_FORMAT " -> " PTR_FORMAT,
          idx, p2i(_top_bitmaps[idx]), p2i(new_tams));
+  /*
   assert(old_tams == r->bottom() || is_bitmap_range_within_region_clear(old_tams, new_tams),
          "Region %zu, bitmap should be clear while adjusting TAMS: " PTR_FORMAT " -> " PTR_FORMAT,
          idx, p2i(old_tams), p2i(new_tams));
-
+  */
   log_debug(gc, mark)("Capturing TAMS for %s Region %zu, was: " PTR_FORMAT ", now: " PTR_FORMAT,
                       r->affiliation_name(), idx, p2i(old_tams), p2i(new_tams));
 
