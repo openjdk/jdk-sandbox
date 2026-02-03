@@ -363,7 +363,7 @@ public class TestJsonNumber {
             assertEquals(42L, JsonNumber.of((short)42).toLong());
             assertEquals(42L, JsonNumber.of(42).toLong());
             assertEquals(42L, JsonNumber.of(42L).toLong());
-            assertEquals(Integer.MAX_VALUE, JsonNumber.of(Integer.MAX_VALUE).toLong());
+            assertEquals(Integer.MAX_VALUE, JsonNumber.of(Integer.MAX_VALUE).toInt());
             assertEquals(Long.MAX_VALUE, JsonNumber.of(Long.MAX_VALUE).toLong());
             assertEquals((double)0.1f, JsonNumber.of(0.1f).toDouble());
             assertEquals(0.1d, JsonNumber.of(0.1d).toDouble());
