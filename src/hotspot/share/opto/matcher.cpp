@@ -2105,7 +2105,8 @@ void Matcher::find_shared(Node* n) {
       mstack.pop(); // Remove node from stack
 
       // Now hack a few special opcodes
-      find_shared_post_visit(n, n->Opcode());
+      uint opcode = n->Opcode();
+      find_shared_post_visit(n, opcode);
     }
     else {
       ShouldNotReachHere();

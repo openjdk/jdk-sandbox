@@ -1242,7 +1242,9 @@ private:
   void do_oop_work(T* p) {
     T o = RawAccess<>::oop_load(p);
     if (!CompressedOops::is_null(o)) {
-      oop obj = CompressedOops::decode_not_null(o);
+      oop obj = CompressedOops::decode_raw_not_null(o);
+      ShenandoahAsserts::assert_correct(p, obj, __FILE__, __LINE__);
+
       oop fwd = ShenandoahForwarding::get_forwardee_raw_unchecked(obj);
       if (obj != fwd) {
         ShenandoahAsserts::print_failure(ShenandoahAsserts::_safe_all, obj, p, nullptr,
@@ -1262,7 +1264,9 @@ private:
   void do_oop_work(T* p) {
     T o = RawAccess<>::oop_load(p);
     if (!CompressedOops::is_null(o)) {
-      oop obj = CompressedOops::decode_not_null(o);
+      oop obj = CompressedOops::decode_raw_not_null(o);
+      ShenandoahAsserts::assert_correct(p, obj, __FILE__, __LINE__);
+
       ShenandoahHeap* heap = ShenandoahHeap::heap();
 
       if (!heap->marking_context()->is_marked_or_old(obj)) {
@@ -1316,7 +1320,9 @@ public:
   inline void work(T* p) {
     T o = RawAccess<>::oop_load(p);
     if (!CompressedOops::is_null(o)) {
-      oop obj = CompressedOops::decode_not_null(o);
+      oop obj = CompressedOops::decode_raw_not_null(o);
+      ShenandoahAsserts::assert_correct(p, obj, __FILE__, __LINE__);
+
       if (_heap->is_in_young(obj) && !_scanner->is_card_dirty((HeapWord*) p)) {
         ShenandoahAsserts::print_failure(ShenandoahAsserts::_safe_all, obj, p, nullptr,
                                          _message, "clean card, it should be dirty.", __FILE__, __LINE__);

@@ -870,8 +870,6 @@ uint8_t MemNode::barrier_data(const Node* n) {
     return n->as_LoadStore()->barrier_data();
   } else if (n->is_Mem()) {
     return n->as_Mem()->barrier_data();
-  } else if (n->is_DecodeN()) {
-    return MemNode::barrier_data(n->in(1));
   }
   return 0;
 }

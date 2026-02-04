@@ -651,7 +651,8 @@ ShenandoahCASBarrierSlowStubC2* ShenandoahCASBarrierSlowStubC2::create(const Mac
 }
 
 bool ShenandoahBarrierSetC2State::needs_liveness_data(const MachNode* mach) const {
-  return ShenandoahSATBBarrierStubC2::needs_barrier(mach) ||
+  return mach->barrier_data() ||
+         ShenandoahSATBBarrierStubC2::needs_barrier(mach) ||
          ShenandoahLoadRefBarrierStubC2::needs_barrier(mach);
 }
 

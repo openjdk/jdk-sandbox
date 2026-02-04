@@ -37,7 +37,9 @@
 
 oop* HandleArea::allocate_handle(oop obj) {
   assert_handle_mark_nesting();
-  assert(oopDesc::is_oop(obj), "not an oop: " INTPTR_FORMAT, p2i(obj));
+  if (oopDesc::is_oop(obj) == false) {
+    assert(oopDesc::is_oop(obj), "not an oop: " INTPTR_FORMAT, p2i(obj));
+  }
   return real_allocate_handle(obj);
 }
 
