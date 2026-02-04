@@ -23,7 +23,6 @@
  */
 
 #include "gc/shenandoah/shenandoahBarrierSet.inline.hpp"
-#include "gc/shenandoah/shenandoahBarrierSetClone.inline.hpp"
 #include "gc/shenandoah/shenandoahRuntime.hpp"
 #include "gc/shenandoah/shenandoahThreadLocalData.hpp"
 #include "oops/oop.inline.hpp"
@@ -81,8 +80,6 @@ JRT_LEAF(oopDesc*, ShenandoahRuntime::load_reference_barrier_phantom_narrow(oopD
   return (oopDesc*) ShenandoahBarrierSet::barrier_set()->load_reference_barrier<narrowOop>(ON_PHANTOM_OOP_REF, oop(src), load_addr);
 JRT_END
 
-JRT_LEAF(void, ShenandoahRuntime::clone_barrier(oopDesc* src))
-  oop s = oop(src);
-  shenandoah_assert_correct(nullptr, s);
-  ShenandoahBarrierSet::barrier_set()->clone_barrier(s);
+JRT_LEAF(void, ShenandoahRuntime::clone(oopDesc* src, oopDesc* dst, size_t size))
+  HeapAccess<>::clone(src, dst, size);
 JRT_END

@@ -514,6 +514,9 @@
   product(bool, ShenandoahStackWatermarkBarrier, true, DIAGNOSTIC,          \
           "Turn on/off stack watermark barriers in Shenandoah")             \
                                                                             \
+  product(bool, ShenandoahCloneRuntime, false, DIAGNOSTIC,                  \
+          "Handle clone in runtime instead of in copy stubs.")              \
+                                                                            \
   develop(bool, ShenandoahVerifyOptoBarriers, trueInDebug,                  \
           "Verify no missing barriers in C2.")                              \
                                                                             \

@@ -64,7 +64,7 @@ public:
 
 class ShenandoahBarrierSetC2 : public BarrierSetC2 {
 
-  static bool clone_needs_barrier(Node* src, PhaseGVN& gvn);
+  static bool clone_needs_barrier(const TypeOopPtr* src_type, bool& is_oop_array);
 
 protected:
   virtual Node* load_at_resolved(C2Access& access, const Type* val_type) const;
@@ -78,13 +78,10 @@ protected:
 public:
   static ShenandoahBarrierSetC2* bsc2();
 
-  static bool is_shenandoah_clone_call(Node* call);
-
   ShenandoahBarrierSetC2State* state() const;
 
-  static const TypeFunc* clone_barrier_Type();
-
   // This is the entry-point for the backend to perform accesses through the Access API.
+  virtual void clone(GraphKit* kit, Node* src_base, Node* dst_base, Node* size, bool is_array) const;
   virtual void clone_at_expansion(PhaseMacroExpand* phase, ArrayCopyNode* ac) const;
 
   // These are general helper methods used by C2
