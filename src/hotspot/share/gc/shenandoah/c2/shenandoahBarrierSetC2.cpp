@@ -310,10 +310,6 @@ Node* ShenandoahBarrierSetC2::atomic_xchg_at_resolved(C2AtomicParseAccess& acces
   return BarrierSetC2::atomic_xchg_at_resolved(access, val, value_type);
 }
 
-bool ShenandoahBarrierSetC2::is_gc_barrier_node(Node* node) const {
-  return false;
-}
-
 static void refine_barrier_by_new_val_type(const Node* n) {
   if (n->Opcode() != Op_StoreP && n->Opcode() != Op_StoreN) {
     return;

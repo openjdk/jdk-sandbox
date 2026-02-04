@@ -2497,8 +2497,7 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
                n->is_OpaqueNotNull()       ||
                n->is_OpaqueInitializedAssertionPredicate() ||
                n->Opcode() == Op_MaxL      ||
-               n->Opcode() == Op_MinL      ||
-               BarrierSet::barrier_set()->barrier_set_c2()->is_gc_barrier_node(n),
+               n->Opcode() == Op_MinL,
                "unknown node type in macro list");
       }
       assert(success == (C->macro_count() < old_macro_count), "elimination reduces macro count");
