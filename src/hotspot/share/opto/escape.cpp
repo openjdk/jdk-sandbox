@@ -4698,7 +4698,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
               op == Op_StrEquals || op == Op_VectorizedHashCode ||
               op == Op_StrIndexOf || op == Op_StrIndexOfChar ||
               op == Op_SubTypeCheck ||
-              op == Op_ReinterpretS2HF) {
+              op == Op_ReinterpretS2HF)) {
           n->dump();
           use->dump();
           assert(false, "EA: missing allocation reference path");
