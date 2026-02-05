@@ -708,7 +708,7 @@ bool ArrayCopyNode::may_modify(const TypeOopPtr* t_oop, MemBarNode* mb, PhaseVal
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
 
   CallNode* call = nullptr;
-  guarantee(c != nullptr, "step_over_gc_barrier failed, there must be something to step to.");
+  assert(c != nullptr, "shouldn't be nullptr");
   if (c->is_Region()) {
     for (uint i = 1; i < c->req(); i++) {
       if (c->in(i) != nullptr) {

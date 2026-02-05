@@ -63,7 +63,6 @@ public:
   }};
 
 class ShenandoahBarrierSetC2 : public BarrierSetC2 {
-
   static bool clone_needs_barrier(Node* src, PhaseGVN& gvn);
 
 protected:
@@ -112,7 +111,6 @@ public:
   void late_barrier_analysis() const /* override*/ {
     compute_liveness_at_stubs();
   }
-
 };
 
 class ShenandoahBarrierStubC2 : public BarrierStubC2 {

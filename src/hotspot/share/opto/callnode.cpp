@@ -1956,7 +1956,6 @@ bool AbstractLockNode::find_matching_unlock(const Node* ctrl, LockNode* lock,
     Node *n = ctrl_proj->in(0);
     if (n != nullptr && n->is_Unlock()) {
       UnlockNode *unlock = n->as_Unlock();
-      BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
       Node* lock_obj = lock->obj_node();
       Node* unlock_obj = unlock->obj_node();
       if (lock_obj->eqv_uncast(unlock_obj) &&
@@ -2004,7 +2003,6 @@ LockNode *AbstractLockNode::find_matching_lock(UnlockNode* unlock) {
   }
   if (ctrl->is_Lock()) {
     LockNode *lock = ctrl->as_Lock();
-    BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
     Node* lock_obj = lock->obj_node();
     Node* unlock_obj = unlock->obj_node();
     if (lock_obj->eqv_uncast(unlock_obj) &&
@@ -2038,7 +2036,6 @@ bool AbstractLockNode::find_lock_and_unlock_through_if(Node* node, LockNode* loc
       }
       if (lock1_node != nullptr && lock1_node->is_Lock()) {
         LockNode *lock1 = lock1_node->as_Lock();
-        BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
         Node* lock_obj = lock->obj_node();
         Node* lock1_obj = lock1->obj_node();
         if (lock_obj->eqv_uncast(lock1_obj) &&
