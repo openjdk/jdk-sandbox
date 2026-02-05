@@ -63,7 +63,8 @@ public:
   }};
 
 class ShenandoahBarrierSetC2 : public BarrierSetC2 {
-  static bool clone_needs_barrier(Node* src, PhaseGVN& gvn);
+
+  static bool clone_needs_barrier(const TypeOopPtr* src_type, bool& is_oop_array);
 
 protected:
   virtual Node* load_at_resolved(C2Access& access, const Type* val_type) const;
@@ -77,20 +78,16 @@ protected:
 public:
   static ShenandoahBarrierSetC2* bsc2();
 
-  static bool is_shenandoah_clone_call(Node* call);
-
   ShenandoahBarrierSetC2State* state() const;
 
-  static const TypeFunc* clone_barrier_Type();
-
   // This is the entry-point for the backend to perform accesses through the Access API.
+  virtual void clone(GraphKit* kit, Node* src_base, Node* dst_base, Node* size, bool is_array) const;
   virtual void clone_at_expansion(PhaseMacroExpand* phase, ArrayCopyNode* ac) const;
 
   // These are general helper methods used by C2
   virtual bool array_copy_requires_gc_barriers(bool tightly_coupled_alloc, BasicType type, bool is_clone, bool is_clone_instance, ArrayCopyPhase phase) const;
 
   // Support for GC barriers emitted during parsing
-  virtual bool is_gc_barrier_node(Node* node) const;
   virtual bool expand_barriers(Compile* C, PhaseIterGVN& igvn) const;
 
   // Support for macro expanded GC barriers
@@ -120,6 +117,38 @@ protected:
 public:
   virtual void emit_code(MacroAssembler& masm) = 0;
 };
+
+class ShenandoahStoreBarrierStubC2 : public ShenandoahBarrierStubC2 {
+  Address const _dst;
+  Register const _src;
+  Register const _tmp;
+  const bool _dst_narrow;
+  const bool _src_narrow;
+
+  ShenandoahStoreBarrierStubC2(const MachNode* node, Address dst, bool dst_narrow, Register src, bool src_narrow, Register tmp) :
+    ShenandoahBarrierStubC2(node), _dst(dst), _src(src), _tmp(tmp), _dst_narrow(dst_narrow), _src_narrow(src_narrow) {}
+
+public:
+  static bool needs_barrier(const MachNode* node) {
+    return needs_card_barrier(node) || needs_satb_barrier(node);
+  }
+  static bool needs_satb_barrier(const MachNode* node) {
+    return (node->barrier_data() & ShenandoahBarrierSATB) != 0;
+  }
+  static bool needs_card_barrier(const MachNode* node) {
+    return ShenandoahCardBarrier &&
+           ((node->barrier_data() & (ShenandoahBarrierCardMark | ShenandoahBarrierCardMarkNotNull)) != 0);
+  }
+  static bool src_not_null(const MachNode* node) {
+    // FIXME: Should be regular "NotNull", indepdendent of CardMark
+    return (node->barrier_data() & ShenandoahBarrierCardMarkNotNull) != 0;
+  }
+
+  static ShenandoahStoreBarrierStubC2* create(const MachNode* node, Address dst, bool dst_narrow, Register src, bool src_narrow, Register tmp);
+
+  void emit_code(MacroAssembler& masm) override;
+};
+
 
 class ShenandoahLoadRefBarrierStubC2 : public ShenandoahBarrierStubC2 {
   Register _obj;

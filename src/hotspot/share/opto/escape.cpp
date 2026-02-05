@@ -2216,7 +2216,6 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
                                        arg_has_oops && (i > TypeFunc::Parms);
 #ifdef ASSERT
           if (!(is_arraycopy ||
-                BarrierSet::barrier_set()->barrier_set_c2()->is_gc_barrier_node(call) ||
                 (call->as_CallLeaf()->_name != nullptr &&
                  (strcmp(call->as_CallLeaf()->_name, "updateBytesCRC32") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "updateBytesCRC32C") == 0 ||
@@ -4699,8 +4698,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
               op == Op_StrEquals || op == Op_VectorizedHashCode ||
               op == Op_StrIndexOf || op == Op_StrIndexOfChar ||
               op == Op_SubTypeCheck ||
-              op == Op_ReinterpretS2HF ||
-              BarrierSet::barrier_set()->barrier_set_c2()->is_gc_barrier_node(use))) {
+              op == Op_ReinterpretS2HF)) {
           n->dump();
           use->dump();
           assert(false, "EA: missing allocation reference path");
@@ -4872,8 +4870,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
             (op == Op_StrCompressedCopy || op == Op_StrInflatedCopy)) {
           // They overwrite memory edge corresponding to destination array,
           memnode_worklist.append_if_missing(use);
-        } else if (!(BarrierSet::barrier_set()->barrier_set_c2()->is_gc_barrier_node(use) ||
-              op == Op_AryEq || op == Op_StrComp || op == Op_CountPositives ||
+        } else if (!(op == Op_AryEq || op == Op_StrComp || op == Op_CountPositives ||
               op == Op_StrCompressedCopy || op == Op_StrInflatedCopy || op == Op_VectorizedHashCode ||
               op == Op_StrEquals || op == Op_StrIndexOf || op == Op_StrIndexOfChar)) {
           n->dump();

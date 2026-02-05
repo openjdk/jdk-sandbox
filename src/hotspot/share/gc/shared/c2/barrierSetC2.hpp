@@ -314,9 +314,6 @@ public:
   virtual bool array_copy_requires_gc_barriers(bool tightly_coupled_alloc, BasicType type, bool is_clone, bool is_clone_instance, ArrayCopyPhase phase) const { return false; }
   virtual void clone_at_expansion(PhaseMacroExpand* phase, ArrayCopyNode* ac) const;
 
-  // Support for GC barriers emitted during parsing
-  virtual bool is_gc_barrier_node(Node* node) const { return false; }
-
   // Support for macro expanded GC barriers
   virtual void eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) const { }
   virtual void eliminate_gc_barrier_data(Node* node) const { }

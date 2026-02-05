@@ -3083,15 +3083,6 @@ void PhaseCCP::push_loadp(Unique_Node_List& worklist, const Node* use) const {
   }
 }
 
-void PhaseCCP::push_load_barrier(Unique_Node_List& worklist, const BarrierSetC2* barrier_set, const Node* use) {
-  for (DUIterator_Fast imax, i = use->fast_outs(imax); i < imax; i++) {
-    Node* barrier_node = use->fast_out(i);
-    if (barrier_set->is_gc_barrier_node(barrier_node)) {
-      worklist.push(barrier_node);
-    }
-  }
-}
-
 // AndI/L::Value() optimizes patterns similar to (v << 2) & 3, or CON & 3 to zero if they are bitwise disjoint.
 // Add the AndI/L nodes back to the worklist to re-apply Value() in case the value is now a constant or shift
 // value changed.

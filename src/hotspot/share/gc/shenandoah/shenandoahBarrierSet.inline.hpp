@@ -372,12 +372,76 @@ inline oop ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_ato
 }
 
 // Clone barrier support
-template <DecoratorSet decorators, typename BarrierSetT>
-void ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::clone_in_heap(oop src, oop dst, size_t size) {
-  if (ShenandoahCloneBarrier) {
-    ShenandoahBarrierSet::barrier_set()->clone_barrier_runtime(src);
+template <bool EVAC>
+class ShenandoahUpdateEvacForCloneOopClosure : public BasicOopIterateClosure {
+private:
+  ShenandoahHeap* const _heap;
+  const ShenandoahCollectionSet* const _cset;
+  Thread* const _thread;
+
+  template <class T>
+  inline void do_oop_work(T* p) {
+    T o = RawAccess<>::oop_load(p);
+    if (!CompressedOops::is_null(o)) {
+      oop obj = CompressedOops::decode_not_null(o);
+      if (_cset->is_in(obj)) {
+        oop fwd = ShenandoahForwarding::get_forwardee(obj);
+        if (EVAC && obj == fwd) {
+          fwd = _heap->evacuate_object(obj, _thread);
+        }
+        shenandoah_assert_forwarded_except(p, obj, _heap->cancelled_gc());
+        ShenandoahHeap::atomic_update_oop(fwd, p, o);
+        obj = fwd;
+      }
+    }
   }
-  Raw::clone(src, dst, size);
+
+public:
+  ShenandoahUpdateEvacForCloneOopClosure() :
+          _heap(ShenandoahHeap::heap()),
+          _cset(_heap->collection_set()),
+          _thread(Thread::current()) {}
+
+  virtual void do_oop(oop* p)       { do_oop_work(p); }
+  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
+};
+
+void ShenandoahBarrierSet::clone_evacuation(oop obj) {
+  assert(_heap->is_evacuation_in_progress(), "only during evacuation");
+  if (need_bulk_update(cast_from_oop<HeapWord*>(obj))) {
+    ShenandoahEvacOOMScope oom_evac_scope;
+    ShenandoahUpdateEvacForCloneOopClosure<true> cl;
+    obj->oop_iterate(&cl);
+  }
+}
+
+void ShenandoahBarrierSet::clone_update(oop obj) {
+  assert(_heap->is_update_refs_in_progress(), "only during update-refs");
+  if (need_bulk_update(cast_from_oop<HeapWord*>(obj))) {
+    ShenandoahUpdateEvacForCloneOopClosure<false> cl;
+    obj->oop_iterate(&cl);
+  }
+}
+
+template <DecoratorSet decorators, typename BarrierSetT>
+void ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::clone_in_heap(oop src, oop dst, size_t count) {
+  // Hot code path, called from compiler/runtime. Make sure fast path is fast.
+
+  // Fix up src before doing the copy, if needed.
+  const char gc_state = ShenandoahThreadLocalData::gc_state(Thread::current());
+  if (gc_state > 0 && ShenandoahCloneBarrier) {
+    ShenandoahBarrierSet* bs = ShenandoahBarrierSet::barrier_set();
+    if ((gc_state & ShenandoahHeap::EVACUATION) != 0) {
+      bs->clone_evacuation(src);
+    } else if ((gc_state & ShenandoahHeap::UPDATE_REFS) != 0) {
+      bs->clone_update(src);
+    }
+  }
+
+  Raw::clone(src, dst, count);
+
+  // Safety: clone destination must be in young, otherwise we need card barriers.
+  shenandoah_assert_in_young_if(nullptr, dst, ShenandoahCardBarrier);
 }
 
 template <DecoratorSet decorators, typename BarrierSetT>

@@ -48,7 +48,8 @@ public:
   static oopDesc* load_reference_barrier_phantom(oopDesc* src, oop* load_addr);
   static oopDesc* load_reference_barrier_phantom_narrow(oopDesc* src, narrowOop* load_addr);
 
-  static void clone_barrier(oopDesc* src);
+  static void clone(oopDesc* src, oopDesc* dst, size_t size);
+  static address clone_addr() { return reinterpret_cast<address>(clone); }
 };
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHRUNTIME_HPP
