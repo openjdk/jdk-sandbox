@@ -28,6 +28,7 @@ package java.util.json;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import jdk.internal.javac.PreviewFeature;
@@ -50,11 +51,35 @@ import jdk.internal.util.json.JsonObjectImpl;
 public non-sealed interface JsonObject extends JsonValue {
 
     /**
-     * {@return an unmodifiable map of the {@code String} to {@code JsonValue}
-     * members in this {@code JsonObject}}
+     * {@inheritDoc}
      */
     @Override
     Map<String, JsonValue> members();
+
+    /**
+     * {@inheritDoc}
+     *
+     * @param name {@inheritDoc}
+     * @throws JsonAssertionException if there is no association with the member name
+     * @throws NullPointerException {@inheritDoc}
+     */
+    @Override
+    default JsonValue get(String name) {
+        // Overridden to specify
+        return JsonValue.super.get(name);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @param name {@inheritDoc}
+     * @throws NullPointerException {@inheritDoc}
+     */
+    @Override
+    default Optional<JsonValue> getOrAbsent(String name) {
+        // Overridden to specify
+        return JsonValue.super.getOrAbsent(name);
+    }
 
     /**
      * {@return the {@code JsonObject} created from the given

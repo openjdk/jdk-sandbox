@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 
 import jdk.internal.util.json.JsonArrayImpl;
 import jdk.internal.javac.PreviewFeature;
+import jdk.internal.util.json.Utils;
 
 /**
  * The interface that represents JSON array.
@@ -47,11 +48,21 @@ import jdk.internal.javac.PreviewFeature;
 public non-sealed interface JsonArray extends JsonValue {
 
     /**
-     * {@return an unmodifiable list of the {@code JsonValue} elements in
-     * this {@code JsonArray}}
+     * {@inheritDoc}
      */
     @Override
     List<JsonValue> elements();
+
+    /**
+     * {@inheritDoc}
+     *
+     * @param index {@inheritDoc}
+     * @throws JsonAssertionException if the given index is out of bounds
+     */
+    default JsonValue element(int index) {
+        // Overridden to specify
+        return JsonValue.super.element(index);
+    }
 
     /**
      * {@return the {@code JsonArray} created from the given
