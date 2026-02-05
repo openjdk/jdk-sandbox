@@ -32,7 +32,6 @@ import java.util.stream.Collectors;
 
 import jdk.internal.util.json.JsonArrayImpl;
 import jdk.internal.javac.PreviewFeature;
-import jdk.internal.util.json.Utils;
 
 /**
  * The interface that represents JSON array.
