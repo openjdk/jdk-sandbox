@@ -38,8 +38,6 @@ import java.util.TreeSet;
 import javax.accessibility.Accessible;
 import javax.accessibility.AccessibleContext;
 import javax.accessibility.AccessibleRole;
-import javax.swing.AbstractCalendarPanel;
-import javax.swing.DefaultDateSelectionModel;
 import javax.swing.plaf.CalendarPanelUI;
 import javax.swing.table.DefaultTableCellRenderer;
 
@@ -131,32 +129,32 @@ public class JCalendarPanel extends JComponent implements Accessible {
      * right key action
      */
     public static final String ACTION_SHIFT_DOWN_ARROW_KEY = "shiftDown";
-    /** The table font. */
-    protected Font tableFont;
-    /** The table foreground color */
-    protected Color tableForeground;
-    /** The table background color */
-    protected Color tableBackground;
-    /** The table header cell font. */
-    protected Font tableHeaderCellFont;
-    /** The table header foreground color */
-    protected Color tableHeaderForeground;
-    /** The table header background color */
-    protected Color tableHeaderBackground;
-    /** The table selection foreground color */
-    protected Color tableSelectionForeground;
-    /** The table selection background color */
-    protected Color tableSelectionBackground;
-    /** The table current date foreground color */
-    protected Color tableCurrentDateForeground;
-    /** The table current date background color */
-    protected Color tableCurrentDateBackground;
-    /** The table week number foreground color */
-    protected Color tableWeekNumberForeground;
-    /** The table grid color */
-    protected Color tableGridColor;
+    /** The grid font. */
+    protected Font gridFont;
+    /** The grid foreground color */
+    protected Color gridForeground;
+    /** The grid background color */
+    protected Color gridBackground;
+    /** The grid header cell font. */
+    protected Font gridHeaderCellFont;
+    /** The grid header foreground color */
+    protected Color gridHeaderForeground;
+    /** The grid header background color */
+    protected Color gridHeaderBackground;
+    /** The grid selection foreground color */
+    protected Color gridSelectionForeground;
+    /** The grid selection background color */
+    protected Color gridSelectionBackground;
+    /** The grid current date foreground color */
+    protected Color gridCurrentDateForeground;
+    /** The grid current date background color */
+    protected Color gridCurrentDateBackground;
+    /** The grid week number foreground color */
+    protected Color gridWeekNumberForeground;
+    /** The grid color */
+    protected Color gridColor;
     /** The table grid visible state */
-    protected boolean tableShowGrid;
+    protected boolean showGridLines;
 
     private final HashMap<DateSelectionModel.CalendarPanelType,
             AbstractCalendarPanel> calendarPanelHashMap = new HashMap<>();
@@ -554,7 +552,7 @@ public class JCalendarPanel extends JComponent implements Accessible {
     }
 
     /**
-     * Sets the table text font. Cell renderers and labels
+     * Sets the grid text font. Cell renderers and labels
      * can use this font to render text and graphics.
      * <p>
      * The default value of this property is defined by the look
@@ -562,27 +560,27 @@ public class JCalendarPanel extends JComponent implements Accessible {
      * <p>
      * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
      *
-     * @param font the <code>Font</code> to use for table text
+     * @param font the <code>Font</code> to use for grid cells
      */
     @BeanProperty(description
-            = "A default font type for table cells.")
-    public void setTableFont(Font font) {
-        Font old = this.tableFont;
-        this.tableFont = font;
+            = "A default font type for grid cells.")
+    public void setGridFont(Font font) {
+        Font old = this.gridFont;
+        this.gridFont = font;
         firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, font);
     }
 
     /**
-     * Returns the font for calendar table.
+     * Returns the font of calendar grid.
      *
-     * @return the <code>Font</code> used for the table cell text
+     * @return the <code>Font</code> used for the grid cell
      */
-    public Font getTableFont() {
-        return tableFont;
+    public Font getGridFont() {
+        return gridFont;
     }
 
     /**
-     * Sets the table foreground color for all the cells. Cell renderers
+     * Sets the grid foreground color for all the cells. Cell renderers
      * can use this color to render text and graphics for all the
      * cells.
      * <p>
@@ -592,28 +590,29 @@ public class JCalendarPanel extends JComponent implements Accessible {
      * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
      *
      * @param foreground  the <code>Color</code> to use in the foreground
-     *                             for all the cells
-     * @see #getTableForeground
+     *                             for all the grid cells
+     * @see #getGridForeground
      */
     @BeanProperty(description
-            = "A default foreground color for all the cells.")
-    public void setTableForeground(Color foreground) {
-        Color old = this.tableForeground;
-        this.tableForeground = foreground;
+            = "A default foreground color for all the grid cells.")
+    public void setGridForeground(Color foreground) {
+        Color old = this.gridForeground;
+        this.gridForeground = foreground;
         firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, foreground);
     }
 
     /**
-     * Returns the foreground color for all the cells.
+     * Returns the foreground color for all the grid cells.
      *
-     * @return the <code>Color</code> used for the foreground of all the cells
+     * @return the <code>Color</code> used for the foreground of all the grid
+     * cells
      */
-    public Color getTableForeground() {
-        return tableForeground;
+    public Color getGridForeground() {
+        return gridForeground;
     }
 
     /**
-     * Sets the table background color for all the cells. Cell renderers
+     * Sets the grid background color for all the cells. Cell renderers
      * can use this color to render text and graphics for all the
      * cells.
      * <p>
@@ -623,14 +622,14 @@ public class JCalendarPanel extends JComponent implements Accessible {
      * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
      *
      * @param background  the <code>Color</code> to use in the background
-     *                             for all the cells
-     * @see #getTableBackground
+     *                             for all the grid cells
+     * @see #getGridBackground
      */
     @BeanProperty(description
             = "A default background color for all the cells.")
-    public void setTableBackground(Color background) {
-        Color old = this.tableBackground;
-        this.tableBackground = background;
+    public void setGridBackground(Color background) {
+        Color old = this.gridBackground;
+        this.gridBackground = background;
         firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, background);
     }
 
@@ -639,41 +638,41 @@ public class JCalendarPanel extends JComponent implements Accessible {
      *
      * @return the <code>Color</code> used for the background of all the cells
      */
-    public Color getTableBackground() {
-        return tableBackground;
+    public Color getGridBackground() {
+        return gridBackground;
     }
 
     /**
-     * Sets the table header text cell font. Cell header renderers
+     * Sets the grid header text font. Cell header renderers
      * can use this font to render text and graphics for
-     * table header cells.
+     * grid header cells.
      * <p>
      * The default value of this property is defined by the look
      * and feel implementation.
      * <p>
      * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
      *
-     * @param headerCellFont the <code>Font</code> to use for table header cell text
+     * @param headerCellFont the <code>Font</code> to use for grid header cell
      */
     @BeanProperty(description
-            = "A default font type for table header cell.")
-    public void setTableHeaderCellFont(Font headerCellFont) {
-        Font old = this.tableHeaderCellFont;
-        this.tableHeaderCellFont = headerCellFont;
+            = "A default font type for grid header cell.")
+    public void setGridHeaderCellFont(Font headerCellFont) {
+        Font old = this.gridHeaderCellFont;
+        this.gridHeaderCellFont = headerCellFont;
         firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, headerCellFont);
     }
 
     /**
-     * Returns the font for table header cells.
+     * Returns the font for grid header cells.
      *
-     * @return the <code>Font</code> used for the table header cell text
+     * @return the <code>Font</code> used for the grid header cell
      */
-    public Font getTableHeaderCellFont() {
-        return tableHeaderCellFont;
+    public Font getGridHeaderCellFont() {
+        return gridHeaderCellFont;
     }
 
     /**
-     * Sets the table header foreground color for all the cells. Cell header
+     * Sets the grid header foreground color for all the cells. Cell header
      * renderers can use this color to render text and graphics for header
      * cells.
      * <p>
@@ -682,29 +681,29 @@ public class JCalendarPanel extends JComponent implements Accessible {
      * <p>
      * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
      *
-     * @param headerForeground  the <code>Color</code> to use in the foreground
-     *                             for header cell.
-     * @see #getTableHeaderForeground
+     * @param headerForeground the <code>Color</code> to use in the foreground
+     *                             for grid header cell.
+     * @see #getGridHeaderForeground
      */
     @BeanProperty(description
-            = "A default foreground color for header cell.")
-    public void setTableHeaderForeground(Color headerForeground) {
-        Color old = this.tableHeaderForeground;
-        this.tableHeaderForeground = headerForeground;
+            = "A default foreground color for grid header cell.")
+    public void setGridHeaderForeground(Color headerForeground) {
+        Color old = this.gridHeaderForeground;
+        this.gridHeaderForeground = headerForeground;
         firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, headerForeground);
     }
 
     /**
-     * Returns the foreground color for header cell.
+     * Returns the foreground color for grid header cell.
      *
-     * @return the <code>Color</code> used for the foreground of header cell
+     * @return the <code>Color</code> used for the foreground of grid header cell
      */
-    public Color getTableHeaderForeground() {
-        return tableHeaderForeground;
+    public Color getGridHeaderForeground() {
+        return gridHeaderForeground;
     }
 
     /**
-     * Sets the table header background color for all the cells. Cell header
+     * Sets the grid header background color for all the cells. Cell header
      * renderers can use this color to render text and graphics for header
      * cells.
      * <p>
@@ -713,15 +712,15 @@ public class JCalendarPanel extends JComponent implements Accessible {
      * <p>
      * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
      *
-     * @param headerBackground  the <code>Color</code> to use in the background
-     *                             for header cell
-     * @see #getTableHeaderBackground
+     * @param headerBackground the <code>Color</code> to use in the background
+     *                             for grid header cell
+     * @see #getGridHeaderBackground
      */
     @BeanProperty(description
-            = "A default background color for header cells.")
-    public void setTableHeaderBackground(Color headerBackground) {
-        Color old = this.tableHeaderBackground;
-        this.tableHeaderBackground = headerBackground;
+            = "A default background color for grid header cells.")
+    public void setGridHeaderBackground(Color headerBackground) {
+        Color old = this.gridHeaderBackground;
+        this.gridHeaderBackground = headerBackground;
         firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, headerBackground);
     }
 
@@ -730,12 +729,12 @@ public class JCalendarPanel extends JComponent implements Accessible {
      *
      * @return the <code>Color</code> used for the background of header cells
      */
-    public Color getTableHeaderBackground() {
-        return tableHeaderBackground;
+    public Color getGridHeaderBackground() {
+        return gridHeaderBackground;
     }
 
     /**
-     * Sets the table foreground color for selected cells. Cell renderers
+     * Sets the grid foreground color for selected cells. Cell renderers
      * can use this color to render text and graphics for selected
      * cells.
      * <p>
@@ -744,15 +743,15 @@ public class JCalendarPanel extends JComponent implements Accessible {
      * <p>
      * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
      *
-     * @param selectionForeground  the <code>Color</code> to use in the foreground
+     * @param selectionForeground the <code>Color</code> to use in the foreground
      *                             for selected cells
-     * @see #getTableForeground
+     * @see #getGridForeground
      */
     @BeanProperty(description
             = "A default foreground color for selected cells.")
-    public void setTableSelectionForeground(Color selectionForeground) {
-        Color old = this.tableSelectionForeground;
-        this.tableSelectionForeground = selectionForeground;
+    public void setGridSelectionForeground(Color selectionForeground) {
+        Color old = this.gridSelectionForeground;
+        this.gridSelectionForeground = selectionForeground;
         firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, selectionForeground);
     }
 
@@ -761,12 +760,12 @@ public class JCalendarPanel extends JComponent implements Accessible {
      *
      * @return the <code>Color</code> used for the foreground of selected cells
      */
-    public Color getTableSelectionForeground() {
-        return tableSelectionForeground;
+    public Color getGridSelectionForeground() {
+        return gridSelectionForeground;
     }
 
     /**
-     * Sets the table background color for selected cells. Cell renderers
+     * Sets the grid background color for selected cells. Cell renderers
      * can use this color to render text and graphics for selected
      * cells.
      * <p>
@@ -777,13 +776,13 @@ public class JCalendarPanel extends JComponent implements Accessible {
      *
      * @param selectionBackground  the <code>Color</code> to use in the background
      *                             for selected cells
-     * @see #getTableSelectionBackground
+     * @see #getGridSelectionBackground
      */
     @BeanProperty(description
             = "A default background color for selected cells.")
-    public void setTableSelectionBackground(Color selectionBackground) {
-        Color old = this.tableSelectionBackground;
-        this.tableSelectionBackground = selectionBackground;
+    public void setGridSelectionBackground(Color selectionBackground) {
+        Color old = this.gridSelectionBackground;
+        this.gridSelectionBackground = selectionBackground;
         firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, selectionBackground);
     }
 
@@ -792,12 +791,12 @@ public class JCalendarPanel extends JComponent implements Accessible {
      *
      * @return the <code>Color</code> used for the background of selected cells
      */
-    public Color getTableSelectionBackground() {
-        return tableSelectionBackground;
+    public Color getGridSelectionBackground() {
+        return gridSelectionBackground;
     }
 
     /**
-     * Sets the table foreground color for current date cell. Cell renderers
+     * Sets the grid foreground color for current date cell. Cell renderers
      * can use this color to render text and graphics for current date
      * cell.
      * <p>
@@ -808,13 +807,13 @@ public class JCalendarPanel extends JComponent implements Accessible {
      *
      * @param currentDateForeground  the <code>Color</code> to use in the foreground
      *                             for current date cell
-     * @see #getTableCurrentDateForeground
+     * @see #getGridCurrentDateForeground
      */
     @BeanProperty(description
             = "A default foreground color for current date cell.")
-    public void setTableCurrentDateForeground(Color currentDateForeground) {
-        Color old = this.tableCurrentDateForeground;
-        this.tableCurrentDateForeground = currentDateForeground;
+    public void setGridCurrentDateForeground(Color currentDateForeground) {
+        Color old = this.gridCurrentDateForeground;
+        this.gridCurrentDateForeground = currentDateForeground;
         firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, currentDateForeground);
     }
 
@@ -823,12 +822,12 @@ public class JCalendarPanel extends JComponent implements Accessible {
      *
      * @return the <code>Color</code> used for the foreground of current date cell
      */
-    public Color getTableCurrentDateForeground() {
-        return tableCurrentDateForeground;
+    public Color getGridCurrentDateForeground() {
+        return gridCurrentDateForeground;
     }
 
     /**
-     * Sets the table background color for current date cell. Cell renderers
+     * Sets the grid background color for current date cell. Cell renderers
      * can use this color to render text and graphics for current date
      * cell.
      * <p>
@@ -837,15 +836,15 @@ public class JCalendarPanel extends JComponent implements Accessible {
      * <p>
      * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
      *
-     * @param currentDateBackground  the <code>Color</code> to use in the background
+     * @param currentDateBackground the <code>Color</code> to use in the background
      *                             for current date cell
-     * @see #getTableCurrentDateBackground
+     * @see #getGridCurrentDateBackground
      */
     @BeanProperty(description
             = "A default background color for current date cell.")
-    public void setTableCurrentDateBackground(Color currentDateBackground) {
-        Color old = this.tableCurrentDateBackground;
-        this.tableCurrentDateBackground = currentDateBackground;
+    public void setGridCurrentDateBackground(Color currentDateBackground) {
+        Color old = this.gridCurrentDateBackground;
+        this.gridCurrentDateBackground = currentDateBackground;
         firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, currentDateBackground);
     }
 
@@ -854,12 +853,12 @@ public class JCalendarPanel extends JComponent implements Accessible {
      *
      * @return the <code>Color</code> used for the background of current cell
      */
-    public Color getTableCurrentDateBackground() {
-        return tableCurrentDateBackground;
+    public Color getGridCurrentDateBackground() {
+        return gridCurrentDateBackground;
     }
 
     /**
-     * Sets the table foreground color for week number column. Cell renderers
+     * Sets the grid foreground color for week number column. Cell renderers
      * can use this color to render text and graphics for week number column
      * <p>
      * The default value of this property is defined by the look
@@ -867,15 +866,15 @@ public class JCalendarPanel extends JComponent implements Accessible {
      * <p>
      * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
      *
-     * @param weekNumberForeground  the <code>Color</code> to use in the foreground
+     * @param weekNumberForeground the <code>Color</code> to use in the foreground
      *                             for week number column
      * @see #getWeekNumberForeground
      */
     @BeanProperty(description
             = "A default foreground color for week number column.")
-    public void setTableWeekNumberForeground(Color weekNumberForeground) {
-        Color old = this.tableWeekNumberForeground;
-        this.tableWeekNumberForeground = weekNumberForeground;
+    public void setGridWeekNumberForeground(Color weekNumberForeground) {
+        Color old = this.gridWeekNumberForeground;
+        this.gridWeekNumberForeground = weekNumberForeground;
         firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, weekNumberForeground);
     }
 
@@ -885,63 +884,62 @@ public class JCalendarPanel extends JComponent implements Accessible {
      * @return the <code>Color</code> used for the foreground of week number column
      */
     public Color getWeekNumberForeground() {
-        return tableWeekNumberForeground;
+        return gridWeekNumberForeground;
     }
 
     /**
-     * Sets the table grid color.
+     * Sets the grid color.
      * <p>
      * The default value of this property is defined by the look
      * and feel implementation.
      * <p>
      * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
      *
-     * @param gridColor  the <code>Color</code> to use in the table grid
-     * @see #getTableGridColor
+     * @param gridColor  the <code>Color</code> to use in the grid
+     * @see #getGridColor
      */
     @BeanProperty(description
-            = "A default table grid color.")
-    public void setTableGridColor(Color gridColor) {
-        Color old = this.tableGridColor;
-        this.tableGridColor = gridColor;
+            = "A default grid color.")
+    public void setGridColor(Color gridColor) {
+        Color old = this.gridColor;
+        this.gridColor = gridColor;
         firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, gridColor);
     }
 
     /**
-     * Returns the table grid color.
+     * Returns the grid color.
      *
-     * @return the <code>Color</code> used for the table grid.
+     * @return the <code>Color</code> used for the grid.
      */
-    public Color getTableGridColor() {
-        return tableGridColor;
+    public Color getGridColor() {
+        return gridColor;
     }
-
     /**
-     * Sets the visible state of table grid.
+     * Sets the visible state of grid lines.
      * <p>
      * The default value of this property is defined by the look
      * and feel implementation.
      * <p>
      * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
      *
-     * @param showGrid  if true, shows the table grid; otherwise, hides it
-     * @see #getTableShowGridStatus
+     * @param showGridLines  if true, shows the grid lines status; otherwise, hides it
+     * @see #isGridLinesVisible
      */
     @BeanProperty(description
             = "A default state to show/hide table grid.")
-    public void setTableShowGridStatus(boolean showGrid) {
-        boolean old = this.tableShowGrid;
-        this.tableShowGrid = showGrid;
-        firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, showGrid);
+    public void showGridLines(boolean showGridLines) {
+        boolean old = this.showGridLines;
+        this.showGridLines = showGridLines;
+        firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY, old, showGridLines);
     }
 
     /**
-     * Returns the visible state of table grid.
+     * Returns the visible state of table grid lines.
      *
-     * @return true if table grid is visible; otherwise, false
+     * @return true if grid lines are visible; otherwise, false
      */
-    public boolean getTableShowGridStatus() {
-        return tableShowGrid;
+    public boolean isGridLinesVisible() {
+        return showGridLines;
     }
 
     /******************Accessibility support******************/

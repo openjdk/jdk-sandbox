@@ -322,14 +322,14 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
 
     private void setupCalendarTable() {
         DefaultTableCellRenderer tableCellHeaderRenderer = getDefaultTableHeaderRenderer();
-        monthLabel.setForeground(calendarPanel.getTableForeground());
-        yearLabel.setForeground(calendarPanel.getTableForeground());
-        monthLabel.setFont(calendarPanel.getTableFont());
-        yearLabel.setFont(calendarPanel.getTableFont());
+        monthLabel.setForeground(calendarPanel.getGridForeground());
+        yearLabel.setForeground(calendarPanel.getGridForeground());
+        monthLabel.setFont(calendarPanel.getGridFont());
+        yearLabel.setFont(calendarPanel.getGridFont());
         calendarTable.setRowHeight((int) getCellDimension().getHeight());
-        if (calendarPanel.getTableShowGridStatus()) {
+        if (calendarPanel.isGridLinesVisible()) {
             calendarTable.setShowGrid(true);
-            calendarTable.setGridColor(calendarPanel.getTableGridColor());
+            calendarTable.setGridColor(calendarPanel.getGridColor());
         } else {
             calendarTable.setShowGrid(false);
         }

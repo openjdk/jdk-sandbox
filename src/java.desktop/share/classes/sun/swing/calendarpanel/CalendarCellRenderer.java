@@ -104,7 +104,7 @@ class CalendarCellRenderer extends DefaultTableCellRenderer {
         } else {
             localDate = prepareLabelForCurrentMonth(label, currentCalendar, day, isSelected, isWeekNumber);
         }
-        label.setFont(calendarPanel.getTableFont());
+        label.setFont(calendarPanel.getGridFont());
         label.setLocale(calendarPanel.getDateSelectionModel().getLocale());
         DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).
                 withLocale(calendarPanel.getLocale());
@@ -130,19 +130,19 @@ class CalendarCellRenderer extends DefaultTableCellRenderer {
         LocalDate localDate = LocalDate.of(calendar.get(Calendar.YEAR),
                 calendar.get(Calendar.MONTH) + 1, selectedDay);
         if (isWeekNumber) {
-            label.setBackground(calendarPanel.getTableBackground());
+            label.setBackground(calendarPanel.getGridBackground());
             label.setForeground(calendarPanel.getWeekNumberForeground());
         } else if (calendarPanel.getDateSelectionModel().getSelectedDates().contains(localDate)) {
-            label.setBackground(calendarPanel.getTableSelectionBackground());
-            label.setForeground(calendarPanel.getTableSelectionForeground().brighter());
+            label.setBackground(calendarPanel.getGridSelectionBackground());
+            label.setForeground(calendarPanel.getGridSelectionForeground().brighter());
         } else if (!isWeekNumber && currentCalendar.get(Calendar.DATE) == selectedDay
                 && currentCalendar.get(Calendar.MONTH) == calendar.get(Calendar.MONTH)
                 && currentCalendar.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)) {
-            label.setForeground(calendarPanel.getTableCurrentDateForeground());
-            label.setBackground(calendarPanel.getTableCurrentDateBackground().darker());
+            label.setForeground(calendarPanel.getGridCurrentDateForeground());
+            label.setBackground(calendarPanel.getGridCurrentDateBackground().darker());
         } else {
-            label.setBackground(calendarPanel.getTableBackground());
-            label.setForeground(calendarPanel.getTableForeground());
+            label.setBackground(calendarPanel.getGridBackground());
+            label.setForeground(calendarPanel.getGridForeground());
         }
         return localDate;
     }
@@ -173,14 +173,14 @@ class CalendarCellRenderer extends DefaultTableCellRenderer {
         }
 
         if (isWeekNumber) {
-            label.setBackground(calendarPanel.getTableBackground());
+            label.setBackground(calendarPanel.getGridBackground());
             label.setForeground(calendarPanel.getWeekNumberForeground());
         } else if (calendarPanel.getDateSelectionModel().getSelectedDates().contains(localDate)) {
-            label.setBackground(calendarPanel.getTableSelectionBackground());
-            label.setForeground(getLighterColor(calendarPanel.getTableSelectionForeground(), 0.5));
+            label.setBackground(calendarPanel.getGridSelectionBackground());
+            label.setForeground(getLighterColor(calendarPanel.getGridSelectionForeground(), 0.5));
         } else {
-            label.setBackground(calendarPanel.getTableBackground());
-            label.setForeground(getLighterColor(calendarPanel.getTableForeground(), 0.5));
+            label.setBackground(calendarPanel.getGridBackground());
+            label.setForeground(getLighterColor(calendarPanel.getGridForeground(), 0.5));
         }
         return localDate;
     }

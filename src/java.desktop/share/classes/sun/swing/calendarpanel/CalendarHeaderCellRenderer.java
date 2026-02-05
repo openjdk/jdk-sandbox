@@ -63,11 +63,11 @@ class CalendarHeaderCellRenderer extends DefaultTableCellRenderer {
                 isSelected, hasFocus, row, column);
 
         if (value != null) {
-            comp.setBackground(calendarPanel.getTableHeaderBackground());
-            comp.setForeground(calendarPanel.getTableHeaderForeground());
+            comp.setBackground(calendarPanel.getGridHeaderBackground());
+            comp.setForeground(calendarPanel.getGridHeaderForeground());
             setHorizontalAlignment(JLabel.CENTER);
-            comp.setFont(new Font(calendarPanel.getTableHeaderCellFont().getName(), Font.BOLD,
-                    calendarPanel.getTableHeaderCellFont().getSize() + 2));
+            comp.setFont(new Font(calendarPanel.getGridHeaderCellFont().getName(), Font.BOLD,
+                    calendarPanel.getGridHeaderCellFont().getSize() + 2));
         }
         return comp;
     }

@@ -1860,19 +1860,19 @@ public abstract class BasicLookAndFeel extends LookAndFeel implements Serializab
                "ctrl released ENTER", "release"
               },
                 // *** DatePicker
-                "DatePicker.tableFont", dialogPlain12,
-                "DatePicker.tableForeground", controlText,  // cell text color
-                "DatePicker.tableBackground", window,  // cell background color
-                "DatePicker.tableHeaderCellFont", dialogPlain12,
-                "DatePicker.tableHeaderForeground", controlText,   // header text color
-                "DatePicker.tableHeaderBackground", control,  // header background
-                "DatePicker.tableSelectionForeground", textHighlightText,
-                "DatePicker.tableSelectionBackground", textHighlight,
-                "DatePicker.tableCurrentDateForeground", white,
-                "DatePicker.tableCurrentDateBackground", textHighlight,
+                "DatePicker.gridFont", dialogPlain12,
+                "DatePicker.gridForeground", controlText,  // cell text color
+                "DatePicker.gridBackground", window,  // cell background color
+                "DatePicker.gridHeaderCellFont", dialogPlain12,
+                "DatePicker.gridHeaderForeground", controlText,   // header text color
+                "DatePicker.gridHeaderBackground", control,  // header background
+                "DatePicker.gridSelectionForeground", textHighlightText,
+                "DatePicker.gridSelectionBackground", textHighlight,
+                "DatePicker.gridCurrentDateForeground", white,
+                "DatePicker.gridCurrentDateBackground", textHighlight,
                 "DatePicker.weekNumberForeground", Color.blue,
-                "DatePicker.tableGridColor", gray,  // grid line color
-                "DatePicker.tableShowGrid", false,  // show grid
+                "DatePicker.gridColor", gray,  // grid line color
+                "DatePicker.showGridLines", false,  // show grid
                 "DatePicker.calendarIcon", (LazyValue) t ->
                 new CalendarIcon(Color.GRAY),
                 "DatePicker.ancestorInputMap",

@@ -143,9 +143,9 @@ public final class DefaultMonthSelectionPanel extends AbstractCalendarPanel {
     private void setupMonthSelection() {
         setLabelAttributes();
         calendarTable.setRowHeight((int) (getCellDimension().getHeight()));
-        if (calendarPanel.getTableShowGridStatus()) {
+        if (calendarPanel.isGridLinesVisible()) {
             calendarTable.setShowGrid(true);
-            calendarTable.setGridColor(calendarPanel.getTableGridColor());
+            calendarTable.setGridColor(calendarPanel.getGridColor());
         } else {
             calendarTable.setShowGrid(false);
         }
@@ -156,11 +156,13 @@ public final class DefaultMonthSelectionPanel extends AbstractCalendarPanel {
             calendarTable.getColumnModel().getColumn(i).setCellRenderer(tableCellRenderer);
         }
     }
-    
+
     private void setLabelAttributes() {
-        selectMonthLabel.setForeground(calendarPanel.getTableForeground());
-        selectMonthLabel.setFont(calendarPanel.getTableFont());
-        selectMonthLabel.setLocale(calendarPanel.getDateSelectionModel().getLocale());
+        selectMonthLabel.setForeground(calendarPanel.getGridForeground());
+        selectMonthLabel.setFont(calendarPanel.getGridFont());
+        selectMonthLabel.setLocale(calendarPanel.getDateSelectionModel().getLocale(
+                
+        ));
     }
 
     /**
@@ -263,20 +265,20 @@ public final class DefaultMonthSelectionPanel extends AbstractCalendarPanel {
             JLabel label = (JLabel) super.getTableCellRendererComponent(table, value,
                     isSelected, hasFocus, row, column);
             label.setHorizontalAlignment(JLabel.CENTER);
-            label.setFont(calendarPanel.getTableFont());
+            label.setFont(calendarPanel.getGridFont());
 
             if ((label.getText().compareToIgnoreCase(getCurrentMonth()) == 0) && isSelected) {
-                label.setForeground(calendarPanel.getTableSelectionForeground());
-                label.setBackground(calendarPanel.getTableSelectionBackground());
+                label.setForeground(calendarPanel.getGridSelectionForeground());
+                label.setBackground(calendarPanel.getGridSelectionBackground());
             } else if (label.getText().compareToIgnoreCase(getCurrentMonth()) == 0) {
-                label.setForeground(calendarPanel.getTableCurrentDateForeground());
-                label.setBackground(calendarPanel.getTableCurrentDateBackground().darker());
+                label.setForeground(calendarPanel.getGridCurrentDateForeground());
+                label.setBackground(calendarPanel.getGridCurrentDateBackground().darker());
             } else if (isSelected) {
-                label.setBackground(calendarPanel.getTableSelectionBackground());
-                label.setForeground(calendarPanel.getTableSelectionForeground());
+                label.setBackground(calendarPanel.getGridSelectionBackground());
+                label.setForeground(calendarPanel.getGridSelectionForeground());
             } else {
-                label.setBackground(calendarPanel.getTableBackground());
-                label.setForeground(calendarPanel.getTableForeground());
+                label.setBackground(calendarPanel.getGridBackground());
+                label.setForeground(calendarPanel.getGridForeground());
             }
             return label;
         }
