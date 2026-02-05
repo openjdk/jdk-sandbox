@@ -164,7 +164,8 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
 
     /**
      * {@return the {@code boolean} value represented by this {@code JsonValue} if
-     * it is an instance of {@link JsonBoolean}}
+     * it is an instance of {@link JsonBoolean}} Otherwise, throws an
+     * {@code JsonAssertionException}.
      *
      * @implSpec
      * The default implementation provided by {@code JsonValue} throws {@code
@@ -245,7 +246,8 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
 
     /**
      * {@return the {@code String} value represented by this {@code JsonValue} if
-     * it is an instance of {@link JsonString}}
+     * it is an instance of {@link JsonString}} Otherwise, throws an
+     * {@code JsonAssertionException}.
      * If this {@code JsonString} was created by parsing a JSON document, any
      * escaped characters in the original JSON document are converted to their
      * unescaped form.
@@ -263,7 +265,8 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
 
     /**
      * {@return an unmodifiable list of the {@code JsonValue} elements if this
-     * {@code JsonValue} is an instance of {@link JsonArray}}
+     * {@code JsonValue} is an instance of {@link JsonArray}} Otherwise, throws an
+     * {@code JsonAssertionException}.
      *
      * @implSpec
      * The default implementation provided by {@code JsonValue} throws {@code
@@ -278,7 +281,8 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
 
     /**
      * {@return an unmodifiable map of {@code String} to {@code JsonValue} if this
-     * {@code JsonValue} is an instance of {@link JsonObject}}
+     * {@code JsonValue} is an instance of {@link JsonObject}} Otherwise, throws an
+     * {@code JsonAssertionException}.
      *
      * @implSpec
      * The default implementation provided by {@code JsonValue} throws {@code
@@ -299,7 +303,9 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
     // a result is left un-overridden.
 
     /**
-     * {@return the {@code JsonValue} associated with the given member name of a {@code JsonObject}}
+     * {@return the {@code JsonValue} associated with the given member name if this
+     * {@code JsonValue} is an instance of {@link JsonObject}} Otherwise, throws an
+     * {@code JsonAssertionException}.
      *
      * @implSpec
      * The default implementation obtains a {@code JsonValue} which is the result
@@ -321,8 +327,11 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
     }
 
     /**
-     * {@return an {@code Optional} containing the {@code JsonValue} associated with the given member
-     * name of a {@code JsonObject}, otherwise if there is no association an empty {@code Optional}}
+     * {@return an {@code Optional} containing the {@code JsonValue} associated
+     * with the given member name if this {@code JsonValue} is an instance of
+     * {@link JsonObject}} Otherwise, throws a {@code JsonAssertionException}.
+     * If there is no association with the given member name, an empty
+     * {@code Optional}} is returned.
      *
      * @implSpec
      * The default implementation obtains an {@code Optional<JsonValue>} by invoking {@link
@@ -338,7 +347,9 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
     }
 
     /**
-     * {@return the {@code JsonValue} associated with the given index of a {@code JsonArray}}
+     * {@return the {@code JsonValue} associated with the given index if this
+     * {@code JsonValue} is an instance of {@link JsonArray}} Otherwise, throws an
+     * {@code JsonAssertionException}.
      *
      * @implSpec
      * The default implementation obtains a {@code JsonValue} which is the result

@@ -41,7 +41,7 @@ import jdk.incubator.json.impl.JsonBooleanImpl;
 public non-sealed interface JsonBoolean extends JsonValue {
 
     /**
-     * {@inheritDoc}
+     * {@return the {@code boolean} value represented by this {@code JsonBoolean}}
      */
     @Override
     boolean bool();

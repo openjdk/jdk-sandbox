@@ -49,13 +49,13 @@ import jdk.incubator.json.impl.JsonObjectImpl;
 public non-sealed interface JsonObject extends JsonValue {
 
     /**
-     * {@inheritDoc}
+     * {@return an unmodifiable map of {@code String} to {@code JsonValue}}
      */
     @Override
     Map<String, JsonValue> members();
 
     /**
-     * {@inheritDoc}
+     * {@return the {@code JsonValue} associated with the given member name}
      *
      * @param name {@inheritDoc}
      * @throws JsonAssertionException if there is no association with the member name
@@ -68,7 +68,10 @@ public non-sealed interface JsonObject extends JsonValue {
     }
 
     /**
-     * {@inheritDoc}
+     * {@return an {@code Optional} containing the {@code JsonValue} associated
+     * with the given member name}
+     * If there is no association with the given member name, an empty
+     * {@code Optional}} is returned.
      *
      * @param name {@inheritDoc}
      * @throws NullPointerException {@inheritDoc}

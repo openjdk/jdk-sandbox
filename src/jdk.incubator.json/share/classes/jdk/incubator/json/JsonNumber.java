@@ -63,7 +63,15 @@ import jdk.incubator.json.impl.JsonNumberImpl;
 public non-sealed interface JsonNumber extends JsonValue {
 
     /**
-     * {@inheritDoc}
+     * {@return an {@code int} value from the string representation}
+     * That is, it can be
+     * expressed as a whole number and is within the range of
+     * {@link Integer#MIN_VALUE} and {@link Integer#MAX_VALUE}. This occurs,
+     * even if the string contains an exponent or a fractional part consisting of
+     * only zero digits. For example, both the JSON number "123.0" and "1.23e2"
+     * produce an {@code int} value of "123". A {@code JsonAssertionException}
+     * is thrown when the numeric value cannot be represented as an {@code int};
+     * for example, the value "5.5".
      *
      * @throws JsonAssertionException if this {@code JsonNumber} cannot
      *      be represented as an {@code int}.
@@ -72,7 +80,14 @@ public non-sealed interface JsonNumber extends JsonValue {
     int toInt();
 
     /**
-     * {@inheritDoc}
+     * {@return a {@code long} value from the string representation}
+     * That is, it can be expressed
+     * as a whole number and is within the range of {@link Long#MIN_VALUE} and
+     * {@link Long#MAX_VALUE}. This occurs, even if the string contains an
+     * exponent or a fractional part consisting of only zero digits. For example,
+     * both the JSON number "123.0" and "1.23e2" produce a {@code long} value of
+     * "123". A {@code JsonAssertionException} is thrown when the numeric value
+     * cannot be represented as a {@code long}; for example, the value "5.5".
      *
      * @throws JsonAssertionException if this {@code JsonNumber} cannot
      *      be represented as a {@code long}.
@@ -81,7 +96,9 @@ public non-sealed interface JsonNumber extends JsonValue {
     long toLong();
 
     /**
-     * {@inheritDoc}
+     * {@return a finite {@code double} value from its string representation}
+     * If the string representation is outside the range of {@link Double#MAX_VALUE
+     * -Double.MAX_VALUE} and {@link Double#MAX_VALUE}, a {@code JsonAssertionException} is thrown.
      *
      * @apiNote {@inheritDoc}
      * @implNote The JDK reference implementation uses {@link
