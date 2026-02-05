@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -118,7 +118,6 @@ module java.base {
     exports java.util.concurrent.locks;
     exports java.util.function;
     exports java.util.jar;
-    exports java.util.json;
     exports java.util.random;
     exports java.util.regex;
     exports java.util.spi;
@@ -147,6 +146,7 @@ module java.base {
     exports com.sun.security.ntlm to
         java.security.sasl;
     exports jdk.internal to
+        jdk.incubator.json,
         jdk.incubator.vector;
     // Note: all modules in the exported list participate in preview  features
     // and therefore if they use preview features they do not need to be
@@ -155,7 +155,8 @@ module java.base {
     // module declaration be annotated with jdk.internal.javac.ParticipatesInPreview
     exports jdk.internal.javac to
         java.compiler,
-        jdk.compiler;
+        jdk.compiler,
+        jdk.incubator.json;
     exports jdk.internal.access to
         java.desktop,
         java.logging,

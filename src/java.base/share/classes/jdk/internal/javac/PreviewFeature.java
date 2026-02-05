@@ -91,7 +91,6 @@ public @interface PreviewFeature {
             status="Second Preview")
         PEM_API,
         LANGUAGE_MODEL,
-        JSON,
         /**
          * A key for testing.
          */

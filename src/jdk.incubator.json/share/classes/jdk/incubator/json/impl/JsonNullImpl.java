@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,28 +23,51 @@
  * questions.
  */
 
+package jdk.incubator.json.impl;
+
+import jdk.incubator.json.JsonNull;
+import jdk.internal.ValueBased;
+
 /**
- * Contains the collections framework, some internationalization support classes,
- * a service loader, properties, random number generation, string parsing
- * and scanning classes, base64 encoding and decoding, a bit array and
- * several miscellaneous utility classes. This package also contains
- * several miscellaneous utility classes. This package also contains
- * legacy collection classes and legacy date and time classes.
- *
- * <h2><a id="CollectionsFramework"></a>{@index "Java Collections Framework"}</h2>
- * <p>For an overview, API outline, and design rationale, please see:
- * <ul>
- *   <li><a href="doc-files/coll-index.html">
- *          <b>Collections Framework Documentation</b></a>
- * </ul>
- *
- * <p>For a tutorial and programming guide with examples of use
- * of the collections framework, please see:
- * <ul>
- *   <li><a href="http://docs.oracle.com/javase/tutorial/collections/index.html">
- *          <b>Collections Framework Tutorial</b></a>
- * </ul>
- *
- * @since 1.0
+ * JsonNull implementation class
  */
-package java.util;
+@ValueBased
+public final class JsonNullImpl implements JsonNull, JsonValueImpl {
+
+    private final int offset;
+    private final char[] doc;
+
+    public static final JsonNullImpl NULL = new JsonNullImpl(null, -1);
+    private static final String VALUE = "null";
+    private static final int HASH = VALUE.hashCode();
+
+    public JsonNullImpl(char[] doc, int offset) {
+        this.doc = doc;
+        this.offset = offset;
+    }
+
+    @Override
+    public char[] doc() {
+        return doc;
+    }
+
+    @Override
+    public int offset() {
+        return offset;
+    }
+
+    @Override
+    public String toString() {
+        return VALUE;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof JsonNull;
+    }
+
+    @Override
+    public int hashCode() {
+        return HASH;
+    }
+}
