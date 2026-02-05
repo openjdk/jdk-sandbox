@@ -811,6 +811,73 @@ void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, Ma
   __ bind(*stub->continuation());
 }
 
+void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm, 
+                                             Address dst, bool dst_narrow,
+                                             Register src, bool src_narrow,
+                                             Register tmp) {
+  // Emit barrier if needed
+  if (ShenandoahStoreBarrierStubC2::needs_barrier(node)) {
+    Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+
+    if (ShenandoahStoreBarrierStubC2::needs_satb_barrier(node)) {
+      ShenandoahStoreBarrierStubC2* const stub = ShenandoahStoreBarrierStubC2::create(node, dst, dst_narrow, src, src_narrow, tmp);
+      stub->dont_preserve(tmp); // temp, no need to preserve it
+      Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+      __ testb(gc_state, ShenandoahHeap::MARKING);
+      __ jcc(Assembler::notZero, *stub->entry());
+      __ bind(*stub->continuation());
+    }
+
+    if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
+      // Card table barrier is not conditional on GC state.
+      // You might think this needs to be a post-barrier. But I don't think it does: the card table updates
+      // and stores are not expected to be ordered. As long as there is no safepoint between these stores, we are
+      // free to do them in any order.
+
+      // So it is convenient to pull card table update here. It also follows the stencil we want:
+      // there should be a single gc-state check for every possible fast path. If card table barrier needed
+      // a gc state check, we would have commoned it with gc state check for SATB barrier above, and _then_
+      // called to the slowpath.
+
+      // Using this address compute sequence allows us to use only one temp register.
+      // TODO: Upstream this separately, mainline Shenandoah might benefit from this already?
+      __ lea(tmp, dst);
+      __ shrptr(tmp, CardTable::card_shift());
+      __ addptr(tmp, Address(r15_thread, in_bytes(ShenandoahThreadLocalData::card_table_offset())));
+
+      int dirty = CardTable::dirty_card_val();
+      if (UseCondCardMark) {
+        Label L_already_dirty;
+        __ cmpb(Address(tmp, 0), dirty);
+        __ jccb(Assembler::equal, L_already_dirty);
+        __ movb(Address(tmp, 0), dirty);
+        __ bind(L_already_dirty);
+      } else {
+        __ movb(Address(tmp, 0), dirty);
+      }
+    }
+  }
+
+  // Need to encode into tmp, because we cannot clobber src.
+  // TODO: Maybe there is a matcher way to test that src is unused after this?
+  if (dst_narrow && !src_narrow) {
+    __ movq(tmp, src);
+    if (ShenandoahStoreBarrierStubC2::src_not_null(node)) {
+      __ encode_heap_oop_not_null(tmp);
+    } else {
+      __ encode_heap_oop(tmp);
+    }
+    src = tmp;
+  }
+
+  // Do the actual store
+  if (dst_narrow) {
+    __ movl(dst, src);
+  } else {
+    __ movq(dst, src);
+  }
+}
+
 void ShenandoahBarrierSetAssembler::satb_barrier_c2(const MachNode* node, MacroAssembler* masm,
                                                     Register addr, Register preval, Register tmp) {
   if (!ShenandoahSATBBarrierStubC2::needs_barrier(node)) {
@@ -907,6 +974,83 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop_c2(const MachNode* node, MacroAs
 
 #undef __
 #define __ masm.
+
+void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
+  __ bind(*entry());
+
+  Label L_runtime, L_preval_null;
+
+  // We need 2 temp registers for this code to work.
+  // _tmp is already allocated and will carry preval for the call.
+  // Allocate the other one now.
+  Register tmp2 = noreg;
+  for (int i = 0; i < 8; i++) {
+    Register r = as_Register(i);
+    if (r != rsp && r != rbp && r != _src && r != _tmp) {
+      if (tmp2 == noreg) {
+        tmp2 = r;
+        break;
+      }
+    }
+  }
+
+  assert(tmp2 != noreg, "tmp2 allocated");
+  assert_different_registers(_tmp, tmp2, _src);
+
+  Register preval = _tmp;
+  Register slot = tmp2;
+
+  // Load value from memory
+  if (_dst_narrow) {
+    __ movl(preval, _dst);
+  } else {
+    __ movq(preval, _dst);
+  }
+
+  // Is the previous value null?
+  __ cmpptr(preval, NULL_WORD);
+  __ jccb(Assembler::equal, L_preval_null);
+
+  if (_dst_narrow) {
+    __ decode_heap_oop_not_null(preval);
+  }
+
+  // Can we store a value in the given thread's buffer?
+  // (The index field is typed as size_t.)
+  Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
+  Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
+
+  __ push(tmp2);
+  __ movptr(slot, index);
+  __ testptr(slot, slot);
+  __ jccb(Assembler::zero, L_runtime);
+   // The buffer is not full, store value into it.
+   __ subptr(slot, wordSize);
+  __ movptr(index, slot);
+  __ addptr(slot, buffer);
+  __ movptr(Address(slot, 0), preval);
+
+  // Pop temps and exit
+  __ pop(tmp2);
+  __ bind(L_preval_null);
+  __ jmp(*continuation());
+
+  __ bind(L_runtime);
+  __ pop(tmp2);
+  {
+    SaveLiveRegisters save_registers(&masm, this);
+    if (c_rarg0 != preval) {
+      __ mov(c_rarg0, preval);
+    }
+    // rax is a caller-saved, non-argument-passing register, so it does not
+    // interfere with c_rarg0 or c_rarg1. If it contained any live value before
+    // entering this stub, it is saved at this point, and restored after the
+    // call. If it did not contain any live value, it is free to be used. In
+    // either case, it is safe to use it here as a call scratch register.
+    __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre_c2)), rax);
+  }
+  __ jmp(*continuation());
+}
 
 void ShenandoahLoadRefBarrierStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);

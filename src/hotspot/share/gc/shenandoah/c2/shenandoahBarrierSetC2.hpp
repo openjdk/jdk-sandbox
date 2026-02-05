@@ -119,6 +119,38 @@ public:
   virtual void emit_code(MacroAssembler& masm) = 0;
 };
 
+class ShenandoahStoreBarrierStubC2 : public ShenandoahBarrierStubC2 {
+  Address const _dst;
+  Register const _src;
+  Register const _tmp;
+  const bool _dst_narrow;
+  const bool _src_narrow;
+
+  ShenandoahStoreBarrierStubC2(const MachNode* node, Address dst, bool dst_narrow, Register src, bool src_narrow, Register tmp) :
+    ShenandoahBarrierStubC2(node), _dst(dst), _src(src), _tmp(tmp), _dst_narrow(dst_narrow), _src_narrow(src_narrow) {}
+
+public:
+  static bool needs_barrier(const MachNode* node) {
+    return needs_card_barrier(node) || needs_satb_barrier(node);
+  }
+  static bool needs_satb_barrier(const MachNode* node) {
+    return (node->barrier_data() & ShenandoahBarrierSATB) != 0;
+  }
+  static bool needs_card_barrier(const MachNode* node) {
+    return ShenandoahCardBarrier &&
+           ((node->barrier_data() & (ShenandoahBarrierCardMark | ShenandoahBarrierCardMarkNotNull)) != 0);
+  }
+  static bool src_not_null(const MachNode* node) {
+    // FIXME: Should be regular "NotNull", indepdendent of CardMark
+    return (node->barrier_data() & ShenandoahBarrierCardMarkNotNull) != 0;
+  }
+
+  static ShenandoahStoreBarrierStubC2* create(const MachNode* node, Address dst, bool dst_narrow, Register src, bool src_narrow, Register tmp);
+
+  void emit_code(MacroAssembler& masm) override;
+};
+
+
 class ShenandoahLoadRefBarrierStubC2 : public ShenandoahBarrierStubC2 {
   Register _obj;
   Register _addr;

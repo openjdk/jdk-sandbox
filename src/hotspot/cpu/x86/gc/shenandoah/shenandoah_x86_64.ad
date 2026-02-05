@@ -28,75 +28,51 @@ source %{
 #include "gc/shenandoah/c2/shenandoahBarrierSetC2.hpp"
 %}
 
-instruct storeP_shenandoah(memory mem, any_RegP src, rRegP tmp1, rRegP tmp2, rRegP tmp3, rFlagsReg cr)
+instruct storeP_shenandoah(memory mem, any_RegP src, rRegP tmp, rFlagsReg cr)
 %{
   match(Set mem (StoreP mem src));
   predicate(UseShenandoahGC && n->as_Store()->barrier_data() != 0);
-  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
+  effect(TEMP tmp, KILL cr);
   ins_cost(125); // XXX
   format %{ "movq    $mem, $src\t# ptr" %}
   ins_encode %{
-    __ lea($tmp1$$Register, $mem$$Address);
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                       $tmp1$$Register /* addr */,
-                                                       $tmp2$$Register /* pre_val */,
-                                                       $tmp3$$Register /* tmp */);
-    __ movq(Address($tmp1$$Register, 0), $src$$Register);
-    ShenandoahBarrierSet::assembler()->card_barrier_c2(this, masm,
-                                                       noreg /* addr */,
-                                                       $tmp1$$Register /* addr_tmp */,
-                                                       $tmp2$$Register /* tmp */);
+    ShenandoahBarrierSet::assembler()->store_c2(this, masm,
+      $mem$$Address,  /* dst_narrow = */ false,
+      $src$$Register, /* src_narrow = */ false,
+      $tmp$$Register);
   %}
   ins_pipe(ialu_mem_reg);
 %}
 
-instruct storeN_shenandoah(memory mem, rRegN src, rRegP tmp1, rRegP tmp2, rRegP tmp3, rFlagsReg cr)
+instruct storeN_shenandoah(memory mem, rRegN src, rRegP tmp, rFlagsReg cr)
 %{
   match(Set mem (StoreN mem src));
   predicate(UseShenandoahGC && n->as_Store()->barrier_data() != 0);
-  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
+  effect(TEMP tmp, KILL cr);
   ins_cost(125); // XXX
   format %{ "movl    $mem, $src\t# ptr" %}
   ins_encode %{
-    __ lea($tmp1$$Register, $mem$$Address);
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                       $tmp1$$Register /* addr */,
-                                                       $tmp2$$Register /* pre_val */,
-                                                       $tmp3$$Register /* tmp */);
-    __ movl(Address($tmp1$$Register, 0), $src$$Register);
-    ShenandoahBarrierSet::assembler()->card_barrier_c2(this, masm,
-                                                       noreg /* addr */,
-                                                       $tmp1$$Register /* addr_tmp */,
-                                                       $tmp2$$Register /* tmp */);
+    ShenandoahBarrierSet::assembler()->store_c2(this, masm,
+      $mem$$Address,  /* dst_narrow = */ true,
+      $src$$Register, /* src_narrow = */ true,
+      $tmp$$Register);
   %}
   ins_pipe(ialu_mem_reg);
 %}
 
-instruct encodePAndStoreN_shenandoah(memory mem, any_RegP src, rRegP tmp1, rRegP tmp2, rRegP tmp3, rFlagsReg cr)
+instruct encodePAndStoreN_shenandoah(memory mem, any_RegP src, rRegP tmp, rFlagsReg cr)
 %{
   match(Set mem (StoreN mem (EncodeP src)));
   predicate(UseShenandoahGC && n->as_Store()->barrier_data() != 0);
-  effect(TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
+  effect(TEMP tmp, KILL cr);
   ins_cost(125); // XXX
   format %{ "encode_heap_oop $src\n\t"
             "movl   $mem, $src\t# ptr" %}
   ins_encode %{
-    __ lea($tmp1$$Register, $mem$$Address);
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                       $tmp1$$Register /* addr */,
-                                                       $tmp2$$Register /* pre_val */,
-                                                       $tmp3$$Register /* tmp */);
-    __ movq($tmp3$$Register, $src$$Register);
-    if ((barrier_data() & ShenandoahBarrierCardMarkNotNull) == 0) {
-      __ encode_heap_oop($tmp3$$Register);
-    } else {
-      __ encode_heap_oop_not_null($tmp3$$Register);
-    }
-    __ movl(Address($tmp1$$Register, 0), $tmp3$$Register);
-    ShenandoahBarrierSet::assembler()->card_barrier_c2(this, masm,
-                                                       noreg /* addr */,
-                                                       $tmp1$$Register /* addr_tmp */,
-                                                       $tmp2$$Register /* tmp */);
+    ShenandoahBarrierSet::assembler()->store_c2(this, masm, 
+      $mem$$Address,  /* dst_narrow = */ true,
+      $src$$Register, /* src_narrow = */ false,
+      $tmp$$Register);
   %}
   ins_pipe(ialu_mem_reg);
 %}
