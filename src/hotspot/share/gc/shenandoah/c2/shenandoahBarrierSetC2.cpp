@@ -228,9 +228,7 @@ Node* ShenandoahBarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue&
 }
 
 static void set_barrier_data(C2Access& access) {
-  if (!access.is_oop()) {
-    return;
-  }
+  assert(access.is_oop(), "Precondition");
 
   if (access.decorators() & C2_TIGHTLY_COUPLED_ALLOC) {
     access.set_barrier_data(ShenandoahBarrierElided);
@@ -281,11 +279,8 @@ Node* ShenandoahBarrierSetC2::load_at_resolved(C2Access& access, const Type* val
 
 Node* ShenandoahBarrierSetC2::atomic_cmpxchg_val_at_resolved(C2AtomicParseAccess& access, Node* expected_val,
                                                              Node* new_val, const Type* value_type) const {
-  if (ShenandoahCASBarrier) {
-    set_barrier_data(access);
-  }
-
   if (access.is_oop()) {
+    set_barrier_data(access);
     access.set_barrier_data(access.barrier_data() | ShenandoahBarrierSATB | ShenandoahBarrierCardMark);
   }
   return BarrierSetC2::atomic_cmpxchg_val_at_resolved(access, expected_val, new_val, value_type);
@@ -293,11 +288,8 @@ Node* ShenandoahBarrierSetC2::atomic_cmpxchg_val_at_resolved(C2AtomicParseAccess
 
 Node* ShenandoahBarrierSetC2::atomic_cmpxchg_bool_at_resolved(C2AtomicParseAccess& access, Node* expected_val,
                                                               Node* new_val, const Type* value_type) const {
-  if (ShenandoahCASBarrier) {
-    set_barrier_data(access);
-  }
-  GraphKit* kit = access.kit();
   if (access.is_oop()) {
+    set_barrier_data(access);
     access.set_barrier_data(access.barrier_data() | ShenandoahBarrierSATB | ShenandoahBarrierCardMark);
   }
   return BarrierSetC2::atomic_cmpxchg_bool_at_resolved(access, expected_val, new_val, value_type);
@@ -305,7 +297,8 @@ Node* ShenandoahBarrierSetC2::atomic_cmpxchg_bool_at_resolved(C2AtomicParseAcces
 
 Node* ShenandoahBarrierSetC2::atomic_xchg_at_resolved(C2AtomicParseAccess& access, Node* val, const Type* value_type) const {
   if (access.is_oop()) {
-    access.set_barrier_data(ShenandoahBarrierStrong | ShenandoahBarrierSATB | ShenandoahBarrierCardMark);
+    set_barrier_data(access);
+    access.set_barrier_data(access.barrier_data() | ShenandoahBarrierSATB | ShenandoahBarrierCardMark);
   }
   return BarrierSetC2::atomic_xchg_at_resolved(access, val, value_type);
 }
@@ -521,13 +514,72 @@ ShenandoahBarrierSetC2State* ShenandoahBarrierSetC2::state() const {
   return reinterpret_cast<ShenandoahBarrierSetC2State*>(Compile::current()->barrier_set_state());
 }
 
+void ShenandoahBarrierSetC2::print_barrier_data(outputStream* os, uint8_t data) {
+  os->print(" Node barriers: ");
+  if ((data & ShenandoahBarrierStrong) != 0) {
+    data &= ~ShenandoahBarrierStrong;
+    os->print("strong ");
+  }
+
+  if ((data & ShenandoahBarrierWeak) != 0) {
+    data &= ~ShenandoahBarrierWeak;
+    os->print("weak ");
+  }
+
+  if ((data & ShenandoahBarrierPhantom) != 0) {
+    data &= ~ShenandoahBarrierPhantom;
+    os->print("phantom ");
+  }
+
+  if ((data & ShenandoahBarrierNative) != 0) {
+    data &= ~ShenandoahBarrierNative;
+    os->print("native ");
+  }
+
+  if ((data & ShenandoahBarrierElided) != 0) {
+    data &= ~ShenandoahBarrierElided;
+    os->print("elided ");
+  }
+
+  if ((data & ShenandoahBarrierSATB) != 0) {
+    data &= ~ShenandoahBarrierSATB;
+    os->print("satb ");
+  }
+
+  if ((data & ShenandoahBarrierCardMark) != 0) {
+    data &= ~ShenandoahBarrierCardMark;
+    os->print("cardmark ");
+  }
+
+  if ((data & ShenandoahBarrierCardMarkNotNull) != 0) {
+    data &= ~ShenandoahBarrierCardMarkNotNull;
+    os->print("cardmark-not-null ");
+  }
+  os->cr();
+
+  if (data > 0) {
+    fatal("Unknown bit!");
+  }
+
+  os->print_cr(" GC configuration: %sLRB %sSATB %sCAS %sClone %sCard",
+    (ShenandoahLoadRefBarrier ? "+" : "-"),
+    (ShenandoahSATBBarrier    ? "+" : "-"),
+    (ShenandoahCASBarrier     ? "+" : "-"),
+    (ShenandoahCloneBarrier   ? "+" : "-"),
+    (ShenandoahCardBarrier    ? "+" : "-")
+  );
+}
+
 #ifdef ASSERT
-void ShenandoahBarrierSetC2::report_verify_failure(bool failed, const char* msg, Node* n) {
-  if (failed) {
-    tty->print_cr("----------------------------------- IDX  %d -----------------------------------", n->_idx);
-    n->dump(3);
-    tty->print_cr("---------------------------------------------------------------------------------");
-    fatal("%s", msg);
+void ShenandoahBarrierSetC2::verify_gc_barrier_assert(bool cond, const char* msg, uint8_t bd, Node* n) {
+  if (!cond) {
+    stringStream ss;
+    ss.print_cr("%s", msg);
+    ss.print_cr("-----------------");
+    print_barrier_data(&ss, bd);
+    ss.print_cr("-----------------");
+    n->dump_bfs(1, nullptr, "", &ss);
+    report_vm_error(__FILE__, __LINE__, ss.as_string());
   }
 }
 
@@ -546,27 +598,53 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
     int opc = n->Opcode();
 
     if (opc == Op_LoadP || opc == Op_LoadN) {
-      const TypePtr* adr_type = n->as_Load()->adr_type();
+      uint8_t bd = n->as_Load()->barrier_data();
 
-      if (!adr_type->isa_oopptr()) {
-        continue;
-      } else if (adr_type->isa_instptr() &&
-                  adr_type->is_instptr()->instance_klass()->is_subtype_of(Compile::current()->env()->Reference_klass()) &&
-                  adr_type->is_instptr()->offset() == java_lang_ref_Reference::referent_offset()) {
-        continue;
+      const TypePtr* adr_type = n->as_Load()->adr_type();
+      if (adr_type->isa_oopptr() || adr_type->isa_narrowoop()) {
+        verify_gc_barrier_assert(bd != 0, "Oop load should have barrier data", bd, n);
+
+        bool is_weak = ((bd & (ShenandoahBarrierWeak | ShenandoahBarrierPhantom)) != 0);
+        bool is_referent = adr_type->isa_instptr() &&
+            adr_type->is_instptr()->instance_klass()->is_subtype_of(Compile::current()->env()->Reference_klass()) &&
+            adr_type->is_instptr()->offset() == java_lang_ref_Reference::referent_offset();
+
+        verify_gc_barrier_assert(!is_weak || is_referent, "Weak load only for Reference.referent", bd, n);
+      } else if (adr_type->isa_rawptr() || adr_type->isa_klassptr()) {
+        // Some LoadP-s are used for T_ADDRESS loads from raw pointers. These are not oops.
+        // Some LoadP-s are used to load class data.
+        // TODO: Verify their barrier data.
       } else {
-        report_verify_failure(n->as_Load()->barrier_data() == 0, "Load should have barriers.", n);
+        verify_gc_barrier_assert(false, "Unclassified access type", bd, n);
       }
     } else if (opc == Op_StoreP || opc == Op_StoreN) {
+      uint8_t bd = n->as_Store()->barrier_data();
       const TypePtr* adr_type = n->as_Store()->adr_type();
-      if (adr_type->isa_oopptr() && n->in(MemNode::ValueIn)->bottom_type()->make_oopptr()) {
-        const TypePtr* adr_type = n->as_Store()->in(MemNode::Memory)->adr_type();
-        if (adr_type->isa_oopptr()) {
-          report_verify_failure(n->as_Store()->barrier_data() == 0, "Store should have barrier data.", n);
+      if (adr_type->isa_oopptr() || adr_type->isa_narrowoop()) {
+        // Reference.clear stores null
+        bool is_referent = adr_type->isa_instptr() &&
+             adr_type->is_instptr()->instance_klass()->is_subtype_of(Compile::current()->env()->Reference_klass()) &&
+             adr_type->is_instptr()->offset() == java_lang_ref_Reference::referent_offset();
+
+        const TypePtr* val_type = n->as_Store()->in(MemNode::Memory)->adr_type();
+        if (!is_referent && (val_type->isa_oopptr() || val_type->isa_narrowoop())) {
+          verify_gc_barrier_assert(bd != 0, "Oop store should have barrier data", bd, n);
         }
+      } else if (adr_type->isa_rawptr() || adr_type->isa_klassptr()) {
+        // Similar to LoadP-s, some of these accesses are raw, and some are handling oops.
+        // TODO: Verify their barrier data.
+      } else {
+        verify_gc_barrier_assert(false, "Unclassified access type", bd, n);
       }
-    } else if (n->is_LoadStore()) {
-      report_verify_failure(n->bottom_type()->make_oopptr() && n->as_LoadStore()->barrier_data() == 0, "LoadStore should have barrier data.", n);
+    } else if (opc == Op_WeakCompareAndSwapP || opc == Op_WeakCompareAndSwapN ||
+               opc == Op_CompareAndExchangeP || opc == Op_CompareAndExchangeN ||
+               opc == Op_CompareAndSwapP     || opc == Op_CompareAndSwapN ||
+               opc == Op_GetAndSetP          || opc == Op_GetAndSetN) {
+      uint8_t bd = n->as_LoadStore()->barrier_data();
+      verify_gc_barrier_assert(bd != 0, "Oop load-store should have barrier data", bd, n);
+    } else if (n->is_Mem()) {
+      uint8_t bd = MemNode::barrier_data(n); // FIXME: LOL HotSpot, why not n->as_Mem()? LoadStore is both is_Mem() and not as_Mem().
+      verify_gc_barrier_assert(bd == 0, "Other mem nodes should have no barrier data", bd, n);
     }
 
     for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {

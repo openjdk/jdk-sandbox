@@ -100,7 +100,7 @@ public:
 
 #ifdef ASSERT
   virtual void verify_gc_barriers(Compile* compile, CompilePhase phase) const;
-  static void report_verify_failure(bool failed, const char* msg, Node* n);
+  static void verify_gc_barrier_assert(bool cond, const char* msg, uint8_t bd, Node* n);
 #endif
 
   int estimate_stub_size() const /* override */;
@@ -108,6 +108,8 @@ public:
   void late_barrier_analysis() const /* override*/ {
     compute_liveness_at_stubs();
   }
+
+  static void print_barrier_data(outputStream* os, uint8_t data);
 };
 
 class ShenandoahBarrierStubC2 : public BarrierStubC2 {
