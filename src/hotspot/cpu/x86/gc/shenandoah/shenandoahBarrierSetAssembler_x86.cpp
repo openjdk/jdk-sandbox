@@ -883,7 +883,7 @@ void ShenandoahBarrierSetAssembler::satb_barrier_c2(const MachNode* node, MacroA
 void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroAssembler* masm,
                                                     Register addr, Register addr_tmp, Register tmp) {
   if (!ShenandoahCardBarrier ||
-      (node->barrier_data() & (ShenandoahBarrierCardMark | ShenandoahBarrierCardMarkNotNull)) == 0) {
+      (node->barrier_data() & ShenandoahBarrierCardMark) == 0) {
     return;
   }
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);

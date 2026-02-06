@@ -322,15 +322,11 @@ void ShenandoahBarrierSetC2::refine_store(const Node* n) {
     return;
   }
   if (newval_type == TypePtr::Null) {
+    barrier_data &= ~ShenandoahBarrierNotNull;
     // Simply elide post-barrier if writing null.
     barrier_data &= ~ShenandoahBarrierCardMark;
-    barrier_data &= ~ShenandoahBarrierCardMarkNotNull;
-  } else if ((barrier_data & ShenandoahBarrierCardMark) != 0 &&
-             newval_type == TypePtr::NotNull) {
-    // If the post-barrier has not been elided yet (e.g. due to newval being
-    // freshly allocated), mark it as not-null (simplifies barrier tests and
-    // compressed OOPs logic).
-    barrier_data |= ShenandoahBarrierCardMarkNotNull;
+  } else if (newval_type == TypePtr::NotNull) {
+    barrier_data |= ShenandoahBarrierNotNull;
   }
   store->set_barrier_data(barrier_data);
 }
@@ -593,9 +589,9 @@ void ShenandoahBarrierSetC2::print_barrier_data(outputStream* os, uint8_t data) 
     os->print("cardmark ");
   }
 
-  if ((data & ShenandoahBarrierCardMarkNotNull) != 0) {
-    data &= ~ShenandoahBarrierCardMarkNotNull;
-    os->print("cardmark-not-null ");
+  if ((data & ShenandoahBarrierNotNull) != 0) {
+    data &= ~ShenandoahBarrierNotNull;
+    os->print("not-null ");
   }
   os->cr();
 

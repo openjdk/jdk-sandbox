@@ -36,7 +36,7 @@ static const uint8_t ShenandoahBarrierNative          = 1 << 3;
 static const uint8_t ShenandoahBarrierElided          = 1 << 4;
 static const uint8_t ShenandoahBarrierSATB            = 1 << 5;
 static const uint8_t ShenandoahBarrierCardMark        = 1 << 6;
-static const uint8_t ShenandoahBarrierCardMarkNotNull = 1 << 7;
+static const uint8_t ShenandoahBarrierNotNull         = 1 << 7;
 
 class ShenandoahBarrierStubC2;
 
@@ -142,11 +142,10 @@ public:
   }
   static bool needs_card_barrier(const MachNode* node) {
     return ShenandoahCardBarrier &&
-           ((node->barrier_data() & (ShenandoahBarrierCardMark | ShenandoahBarrierCardMarkNotNull)) != 0);
+           ((node->barrier_data() & ShenandoahBarrierCardMark) != 0);
   }
   static bool src_not_null(const MachNode* node) {
-    // FIXME: Should be regular "NotNull", indepdendent of CardMark
-    return (node->barrier_data() & ShenandoahBarrierCardMarkNotNull) != 0;
+    return (node->barrier_data() & ShenandoahBarrierNotNull) != 0;
   }
 
   static ShenandoahStoreBarrierStubC2* create(const MachNode* node, Address dst, bool dst_narrow, Register src, bool src_narrow, Register tmp);

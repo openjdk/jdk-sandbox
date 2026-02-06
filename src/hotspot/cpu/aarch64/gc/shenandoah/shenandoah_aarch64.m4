@@ -86,7 +86,7 @@ instruct encodePAndStoreN_$1_shenandoah(indirect mem, iRegP src, iRegPNoSp tmp, 
                                                         $tmp$$Register /* gc_state on fas path */,
                                                         false           /* encoded_preval */);
 
-    if ((barrier_data() & ShenandoahBarrierCardMarkNotNull) == 0) {
+    if ((barrier_data() & ShenandoahBarrierNotNull) == 0) {
       __ encode_heap_oop($tmp$$Register, $src$$Register);
     } else {
       __ encode_heap_oop_not_null($tmp$$Register, $src$$Register);
