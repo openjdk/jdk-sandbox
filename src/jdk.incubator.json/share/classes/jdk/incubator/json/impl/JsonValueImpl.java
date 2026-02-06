@@ -25,8 +25,6 @@
 
 package jdk.incubator.json.impl;
 
-import jdk.internal.ValueBased;
-
 /**
  * Used for JsonAssertionException error message building.
  */
