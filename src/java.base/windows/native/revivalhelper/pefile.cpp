@@ -67,14 +67,33 @@ PEFile::~PEFile() {
     }
 }
 
-/**
- */
-uint64_t PEFile::file_offset_for_reladdr(uint64_t reladdr) {
-    //return reladdr - 0x1000; // product builds
-    return reladdr;
+void PEFile::imageLoad() {
+    if (image == nullptr) {
+        image = ImageLoad(filename, nullptr);
+        if (image == nullptr) {
+            error("PEFile: ImageLoad error: %d", GetLastError());
+        }
+    }
 }
 
+/**
+ * Given a relative virtual address, which is expected to be in the .rdata Section,
+ * return the file offset.
+ */
+uint64_t PEFile::file_offset_for_reladdr(uint64_t reladdr) {
+    // reladdr - 0x1000 is good for product builds, but more correctly:
 
+    Segment *seg = get_rdata_section();
+    uint64_t rdata_vaddr = reladdr - (uint64_t) seg->vaddr;
+    if (rdata_vaddr > seg->file_length) {
+        warn("PEFile::file_offset_for reladdr: 0x%llx > .rdata size", reladdr);
+    }
+    uint64_t file_offset = seg->file_offset + rdata_vaddr;
+    delete seg;
+    return file_offset;
+}
+
+// static
 bool PEFile::relocate(const char* filename, uint64_t address) {
     logv("PEFile::relocate: %s to 0x%llx", filename, address);
 
@@ -107,7 +126,7 @@ bool PEFile::relocate(const char* filename, uint64_t address) {
     return e;
 }
 
-
+// static
 bool PEFile::remove_dynamicbase(const char* filename) {
 
     // Set DYNAMICBASE:NO
@@ -164,21 +183,21 @@ bool PEFile::remove_dynamicbase(const char* filename) {
 }
 
 
-bool PEFile::find_data_segs(const char *filename, void* address, Segment** _data, Segment** _rdata, Segment** _iat) {
+bool PEFile::find_data_segs(void* address, Segment** _data, Segment** _rdata, Segment** _iat) {
     logv("PEFile::find_data_segs");
-    waitHitRet();
+    imageLoad();
 
-    PLOADED_IMAGE image = ImageLoad(filename, nullptr);
-    if (image == nullptr) {
-        error("PEFile::find_data_segs: ImageLoad error: %d", GetLastError());
-    }
+    logv("find_data_segs image: 0x%llx", image);
+
     Segment* data = nullptr;
     Segment* rdata = nullptr;
     Segment* iat = nullptr;
-    // Create a Segment from .data, and use the next Section to set its end address.
+    // Create a Segment from a Section, and use the next Section to set its end address.
     for (unsigned int i = 0; i < image->NumberOfSections; i++) {
-        logv("find_data_segs: image: %s vaddr 0x%llx size 0x%llx", image->Sections[i].Name, image->Sections[i].VirtualAddress,
-             image->Sections[i].SizeOfRawData);
+        IMAGE_SECTION_HEADER section = image->Sections[i];
+        logv("find_data_segs: image: %s vaddr 0x%llx size 0x%llx Misc.PhysicalAddress 0x%llx PointerToRawData 0x%llx",
+            image->Sections[i].Name, image->Sections[i].VirtualAddress, image->Sections[i].SizeOfRawData,
+            section.Misc.PhysicalAddress, section.PointerToRawData);
 
         if (rdata == nullptr && strncmp((char*) image->Sections[i].Name, ".rdata", 8) == 0) {
             rdata = new Segment((void *) (DWORD_PTR) image->Sections[i].VirtualAddress, (size_t) image->Sections[i].SizeOfRawData, 0, 0);
@@ -210,31 +229,31 @@ bool PEFile::find_data_segs(const char *filename, void* address, Segment** _data
     *_rdata = rdata;
     *_data = data;
 
-    int e = ImageUnload(image);
+/*    int e = ImageUnload(image);
     if (e != TRUE) {
-        warn("data_section: ImageUnload error: %d", GetLastError());
-    }
+        warn("find_data_segs: ImageUnload error: %d", GetLastError());
+    } */
     return true;
 }
 
 
 
-// Locate the .data section of a PE file.
-// Return a Segment using relative addresses.
-Segment* data_section(const char *filename) {
+/**
+ * Locate the .data section of a PE file.
+ * Return a Segment using relative addresses.
+ * Returns a new Segment which caller should delete.
+ */
+Segment* PEFile::get_rdata_section() {
+    imageLoad();
 
-    PLOADED_IMAGE image = ImageLoad(filename, nullptr);
-    if (image == nullptr) {
-    	error("data_section: ImageLoad error: %d", GetLastError());
-    }
     // Create a Segment from .data, and use the next Section to set its end address.
     Segment *seg = nullptr;
     for (unsigned int i = 0; i < image->NumberOfSections; i++) {
-        logv("data_section image: %s vaddr 0x%llx size 0x%llx", image->Sections[i].Name, image->Sections[i].VirtualAddress,
-             image->Sections[i].SizeOfRawData);
+        logv("data_section Name: %s vaddr 0x%llx size 0x%llx PointerToRawData 0x%llx",
+              image->Sections[i].Name, image->Sections[i].VirtualAddress, image->Sections[i].SizeOfRawData, image->Sections[i].PointerToRawData);
 
-        if (strncmp((char*) image->Sections[i].Name, ".data", 8) == 0) {
-            seg = new Segment((void *) (DWORD_PTR) image->Sections[i].VirtualAddress, (size_t) image->Sections[i].SizeOfRawData, 0, 0); 
+        if (strncmp((char*) image->Sections[i].Name, ".rdata", 8) == 0) {
+            seg = new Segment((void *) (DWORD_PTR) image->Sections[i].VirtualAddress, (size_t) image->Sections[i].SizeOfRawData, image->Sections[i].PointerToRawData, 0);
             continue;
         }
         if (seg != nullptr) {
@@ -244,11 +263,5 @@ Segment* data_section(const char *filename) {
             break;
         }
     }
-
-    int e = ImageUnload(image);
-    if (e != TRUE) {
-    	warn("data_section: ImageUnload error: %d", GetLastError());
-    }
     return seg;
 }
-

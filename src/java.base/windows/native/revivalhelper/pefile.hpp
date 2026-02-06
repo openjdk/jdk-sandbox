@@ -60,7 +60,7 @@ class PEFile {
     uint64_t file_offset_for_reladdr(uint64_t reladdr);
 
     // Locate data segments in named file.  Populate output parameters.
-    static bool find_data_segs(const char *filename, void* address, Segment** _data, Segment** _rdata, Segment** _iat);
+    bool find_data_segs(void* address, Segment** _data, Segment** _rdata, Segment** _iat);
 
     // Relocate a file to a new absolute load address.
     // *Destructive*: changes the actual named file.
@@ -70,10 +70,14 @@ class PEFile {
     // *Destructive*: changes the actual named file.
     static bool remove_dynamicbase(const char* filename);
 
+    Segment* get_rdata_section();
+
   private:
     const char* filename;
     int fd;
     PLOADED_IMAGE image;
+
+    void imageLoad();
 };
 
 #endif

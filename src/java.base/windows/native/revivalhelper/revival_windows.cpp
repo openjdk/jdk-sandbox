@@ -120,7 +120,6 @@ unsigned long long max_user_vaddr_pd() {
 
 void init_pd() {
     int x;
-    versionCheckEnabled = false;
 
     openCoreWrite = true;
 
@@ -944,11 +943,10 @@ void write_sharedlib_mappings(int mappings_fd, MiniDump* dump) {
 
 void copy_and_relocate(const char* srcfile, const char* destdir, uint64_t address) {
     char copy_path[BUFLEN];
-
     memset(copy_path, 0, BUFLEN);
     strncpy(copy_path, destdir, BUFLEN - 1);
     strncat(copy_path, FILE_SEPARATOR, BUFLEN - 1);
-    char *basefilename = basename_pd((char*) srcfile);
+    char *basefilename = basename_pd((char*) srcfile); // basefilename is e.g. "file.dll"
     strncat(copy_path, basefilename, BUFLEN - 1);
     logv("Copying %s to %s", srcfile, copy_path);
     copy_file_pd(srcfile, copy_path);
@@ -959,24 +957,31 @@ void copy_and_relocate(const char* srcfile, const char* destdir, uint64_t addres
     snprintf(debuginfo_path, BUFLEN, "%s", srcfile);
     char *p = strstr(debuginfo_path, ".dll");
     if (p != nullptr) {
+        // It is a dll, check for .pdb and .map files.
+        // JDK builds now create e.g. file.dll.pdb  but also check for just file.pdb
+        //
         snprintf(p, BUFLEN, ".pdb"); // Append to debuginfo_path in place of .dll
         if (file_exists_pd(debuginfo_path)) {
+            // file.pdb exists
             snprintf(debuginfo_copy_path, BUFLEN - 1, "%s/%s.pdb", destdir, basefilename);
             copy_file_pd(debuginfo_path, debuginfo_copy_path);
         }
         snprintf(p, BUFLEN, ".map");
         if (file_exists_pd(debuginfo_path)) {
+            // file.map exists
             snprintf(debuginfo_copy_path, BUFLEN - 1, "%s/%s.map", destdir, basefilename);
             copy_file_pd(debuginfo_path, debuginfo_copy_path);
         }
         snprintf(p, BUFLEN, ".dll.pdb");
         if (file_exists_pd(debuginfo_path)) {
-            snprintf(debuginfo_copy_path, BUFLEN - 1, "%s/%s.dll.pdb", destdir, basefilename);
+            // file.dll.pdb exists
+            snprintf(debuginfo_copy_path, BUFLEN - 1, "%s/%s.pdb", destdir, basefilename);
             copy_file_pd(debuginfo_path, debuginfo_copy_path);
         }
         snprintf(p, BUFLEN, ".dll.map");
         if (file_exists_pd(debuginfo_path)) {
-            snprintf(debuginfo_copy_path, BUFLEN - 1, "%s/%s.dll.map", destdir, basefilename);
+            // file.dll.map exists
+            snprintf(debuginfo_copy_path, BUFLEN - 1, "%s/%s.map", destdir, basefilename);
             copy_file_pd(debuginfo_path, debuginfo_copy_path);
         }
     }
@@ -1024,10 +1029,11 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
     }
 
     // jvm_data_segs
+    PEFile pefile(jvm_filename);
     Segment* jvm_data_seg = new Segment();
     Segment* jvm_rdata_seg = new Segment();
     Segment* jvm_iat_seg = new Segment();
-    if (!PEFile::find_data_segs(jvm_filename, jvm_address, &jvm_data_seg, &jvm_rdata_seg, &jvm_iat_seg)) {
+    if (!pefile.find_data_segs(jvm_address, &jvm_data_seg, &jvm_rdata_seg, &jvm_iat_seg)) {
         error("Failed to find JVM data segments.");
     }
     logv("JVM .rdata SEG: 0x%llx - 0x%llx", jvm_rdata_seg->start(), jvm_rdata_seg->end());
@@ -1036,13 +1042,17 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
     dump.set_jvm_data(jvm_data_seg, jvm_rdata_seg, jvm_iat_seg);
 
     // Create mappings file:
-    int mappings_fd = mappings_file_create(revival_dirname, corename);
+    // Normalize corename so basename works (if we were given forward slashes, basename fails).
+    char *corename_n = strdup(corename);
+    normalize_path_pd(corename_n);
+
+    int mappings_fd = mappings_file_create(revival_dirname, corename_n);
     if (mappings_fd < 0) {
         error("Failed to create mappings file.");
     }
     // Write mappings file:
     write_sharedlib_mappings(mappings_fd, &dump);
-    write_mem_mappings(&dump, mappings_fd, corename, jvm_data_seg, jvm_rdata_seg, jvm_iat_seg);
+    write_mem_mappings(&dump, mappings_fd, corename_n, jvm_data_seg, jvm_rdata_seg, jvm_iat_seg);
     close(mappings_fd);
 
     // Copy jvm/libraries into core.revival dir
@@ -1059,5 +1069,6 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
     logv("Write symbols done");
 
     logv("create_revival_cache_pd returning %d", 0);
+    free(corename_n);
     return 0;
 }

@@ -805,6 +805,7 @@ int mappings_file_create(const char* dirname, const char* corename) {
         return fd;
     }
 
+    // Write core file details.  Use base filename, as it can be moved.
     unsigned long long coresize = file_size(corename);
     snprintf(buf, BUFLEN, "core %s %lld\n", basename_pd((char*) corename), coresize);
     write0(fd, buf);
@@ -956,7 +957,8 @@ char* mappings_filename_set(const char* revival_data_path) {
 }
 
 /**
- * Read version from core, and binary, and compare.
+ * Read version string from core, and binary, and compare.
+ *
  * Memory mappings are in place, jvm_filename and jvm_address are set.
  */
 void doVersionCheck(const char* corename, const char* revival_dir, const char* version_symbol) {
@@ -972,24 +974,31 @@ void doVersionCheck(const char* corename, const char* revival_dir, const char* v
         logv("Version check '%s' = 0x%llx", version_symbol, (unsigned long long) ver);
         char* ptr = *(char**) ver; // read pointer from now-live memory
 
-        // Could read string from address space directly, but be specific about reading
-        // from core or binary.
-
+        // Can now read string from address space directly, but want to be specific about
+        // reading from core and binary, to compare.
+        // Read from core:
         logv("Version check: ptr = 0x%llx",  (unsigned long long) ptr);
         char* vm_release_core = readstring_from_core_at_vaddr_pd(corename, (uint64_t) *(char**) ver);
         logv("Version check: vm release from core: 0x%llx 0x%llx '%s'",
              (unsigned long long) ver, (unsigned long long) *(uint64_t*) ver, vm_release_core);
 
-        // Convert address to offset in binary.
-        uint64_t vm_release_offset = (uint64_t) ptr - (uint64_t) jvm_address;
+        // Read from binary:
+        char jvm_name[BUFLEN]; // or use jvm_filename
+        snprintf(jvm_name, BUFLEN - 1, "%s" FILE_SEPARATOR "%s", revival_dir, JVM_FILENAME);
 
+        // Location as relative virtual address:
+        // Convert address to offset in binary.
+        uint64_t vm_release_relative_vaddr = (uint64_t) ptr - (uint64_t) jvm_address;
 #ifdef WINDOWS
-        PEFile pefile(jvm_filename);
-        vm_release_offset = pefile.file_offset_for_reladdr(vm_release_offset);
+        PEFile pefile(jvm_name);
+        uint64_t vm_release_offset = pefile.file_offset_for_reladdr(vm_release_relative_vaddr);
+#else
+        // In ELF, the relative vaddr just is the file offset.
+        uint64_t vm_release_offset = vm_release_relative_vaddr;
 #endif
 
-        logv("Version check: vm binary offset:  0x%lx", vm_release_offset);
-        char* vm_release_binary = readstring_at_offset_pd(jvm_filename, vm_release_offset);
+        logv("Version check: vm binary offset:  0x%lx in %s", vm_release_offset, jvm_filename);
+        char* vm_release_binary = readstring_at_offset_pd(jvm_name, vm_release_offset);
         logv("Version check: vm release from binary:  %s", vm_release_binary);
 
         if (strncmp(vm_release_core, vm_release_binary, BUFLEN) != 0) {
@@ -1042,7 +1051,7 @@ int revive_image(const char* corename, const char* javahome, const char* libdir,
                 error("revival: cannot create directory '%s': use -R to specify usable location for cache directory.", dirname);
             }
         }
-        logv("Creating revival data.");
+        logv("Creating revival data: %s", dirname);
         e = create_revival_cache(corename, javahome, dirname, libdir);
         logv("revive_image: create_revival_cache return code: %d", e);
         waitHitRet();
@@ -1051,7 +1060,7 @@ int revive_image(const char* corename, const char* javahome, const char* libdir,
             return e;
         }
     } else {
-        logv("Using cached revival data.");
+        logv("Using cached revival data: %s", dirname);
     }
 
     if (revival_checks_pd(dirname) < 0) {
