@@ -84,7 +84,7 @@ public class JCmdRevival {
     private static String MAJOR;
 
     public static void main(String[] args) throws Throwable {
-        //  '26-internal-2025-06-12-1811022.kwalls...'
+        //  '27-...'
         MAJOR = System.getProperty("java.vm.version").substring(0, 2);
 
         if (args.length > 1) { 
@@ -346,8 +346,8 @@ public class JCmdRevival {
             }
             case "VM.version": {
                 // e.g.
-                // Java HotSpot(TM) 64-Bit Server VM version 26-...
-                // JDK 26.0.0
+                // Java HotSpot(TM) 64-Bit Server VM version 27-...
+                // JDK 27.0.0
                 out.shouldContain("VM version " + MAJOR + "-");
                 out.shouldContain("JDK " + MAJOR + ".");
                 break;
