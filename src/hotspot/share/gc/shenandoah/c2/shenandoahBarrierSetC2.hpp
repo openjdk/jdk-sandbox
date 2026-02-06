@@ -66,6 +66,8 @@ class ShenandoahBarrierSetC2 : public BarrierSetC2 {
 
   static bool clone_needs_barrier(const TypeOopPtr* src_type, bool& is_oop_array);
 
+  static void refine_store(const Node* node);
+
 protected:
   virtual Node* load_at_resolved(C2Access& access, const Type* val_type) const;
   virtual Node* store_at_resolved(C2Access& access, C2AccessValue& val) const;
@@ -89,6 +91,7 @@ public:
 
   // Support for GC barriers emitted during parsing
   virtual bool expand_barriers(Compile* C, PhaseIterGVN& igvn) const;
+  virtual void final_refinement(Compile* C) const;
 
   // Support for macro expanded GC barriers
   virtual void eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) const;

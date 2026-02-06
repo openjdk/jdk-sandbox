@@ -303,11 +303,8 @@ Node* ShenandoahBarrierSetC2::atomic_xchg_at_resolved(C2AtomicParseAccess& acces
   return BarrierSetC2::atomic_xchg_at_resolved(access, val, value_type);
 }
 
-static void refine_barrier_by_new_val_type(const Node* n) {
-  if (n->Opcode() != Op_StoreP && n->Opcode() != Op_StoreN) {
-    return;
-  }
-  MemNode* store = n->as_Mem();
+void ShenandoahBarrierSetC2::refine_store(const Node* n) {
+  MemNode* store = n->as_Store();
   const Node* newval = n->in(MemNode::ValueIn);
   assert(newval != nullptr, "");
   const Type* newval_bottom = newval->bottom_type();
@@ -338,6 +335,44 @@ static void refine_barrier_by_new_val_type(const Node* n) {
   store->set_barrier_data(barrier_data);
 }
 
+void ShenandoahBarrierSetC2::final_refinement(Compile* C) const {
+  ResourceMark rm;
+  VectorSet visited;
+  Node_List worklist;
+  worklist.push(C->root());
+  while (worklist.size() > 0) {
+    Node* n = worklist.pop();
+    if (visited.test_set(n->_idx)) {
+      continue;
+    }
+
+    // Drop elided flag. Matcher does not care about this, and we would like to
+    // avoid invoking "barrier_data() != 0" rules when the *only* flag is Elided.
+    if (n->is_LoadStore()) {
+      LoadStoreNode* load_store = n->as_LoadStore();
+      uint8_t barrier_data = load_store->barrier_data();
+      if (barrier_data != 0) {
+        barrier_data &= ~ShenandoahBarrierElided;
+        load_store->set_barrier_data(barrier_data);
+      }
+    } else if (n->is_Mem()) {
+      MemNode* mem = n->as_Mem();
+      uint8_t barrier_data = mem->barrier_data();
+      if (barrier_data != 0) {
+        barrier_data &= ~ShenandoahBarrierElided;
+        mem->set_barrier_data(barrier_data);
+      }
+    }
+
+    for (uint j = 0; j < n->req(); j++) {
+      Node* in = n->in(j);
+      if (in != nullptr) {
+        worklist.push(in);
+      }
+    }
+  }
+}
+
 bool ShenandoahBarrierSetC2::expand_barriers(Compile* C, PhaseIterGVN& igvn) const {
   ResourceMark rm;
   VectorSet visited;
@@ -348,7 +383,14 @@ bool ShenandoahBarrierSetC2::expand_barriers(Compile* C, PhaseIterGVN& igvn) con
     if (visited.test_set(n->_idx)) {
       continue;
     }
-    refine_barrier_by_new_val_type(n);
+    switch(n->Opcode()) {
+      case Op_StoreP:
+      case Op_StoreN: {
+        refine_store(n);
+        break;
+      }
+    }
+
     for (uint j = 0; j < n->req(); j++) {
       Node* in = n->in(j);
       if (in != nullptr) {
@@ -588,6 +630,11 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
     return;
   }
 
+  // Final refinement might have removed the remaining ShenandoahBarrierElided flag,
+  // making some accesses completely blank. TODO: If we get rid of ShenandoahBarrierElided
+  // machinery completely, we can drop this filter too.
+  bool accept_blank = (phase == BeforeCodeGen);
+
   Unique_Node_List wq;
   Node_Stack phis(0);
   VectorSet visited;
@@ -602,7 +649,7 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
 
       const TypePtr* adr_type = n->as_Load()->adr_type();
       if (adr_type->isa_oopptr() || adr_type->isa_narrowoop()) {
-        verify_gc_barrier_assert(bd != 0, "Oop load should have barrier data", bd, n);
+        verify_gc_barrier_assert(accept_blank || bd != 0, "Oop load should have barrier data", bd, n);
 
         bool is_weak = ((bd & (ShenandoahBarrierWeak | ShenandoahBarrierPhantom)) != 0);
         bool is_referent = adr_type->isa_instptr() &&
@@ -628,7 +675,7 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
 
         const TypePtr* val_type = n->as_Store()->in(MemNode::Memory)->adr_type();
         if (!is_referent && (val_type->isa_oopptr() || val_type->isa_narrowoop())) {
-          verify_gc_barrier_assert(bd != 0, "Oop store should have barrier data", bd, n);
+          verify_gc_barrier_assert(accept_blank || bd != 0, "Oop store should have barrier data", bd, n);
         }
       } else if (adr_type->isa_rawptr() || adr_type->isa_klassptr()) {
         // Similar to LoadP-s, some of these accesses are raw, and some are handling oops.
@@ -641,7 +688,7 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
                opc == Op_CompareAndSwapP     || opc == Op_CompareAndSwapN ||
                opc == Op_GetAndSetP          || opc == Op_GetAndSetN) {
       uint8_t bd = n->as_LoadStore()->barrier_data();
-      verify_gc_barrier_assert(bd != 0, "Oop load-store should have barrier data", bd, n);
+      verify_gc_barrier_assert(accept_blank || bd != 0, "Oop load-store should have barrier data", bd, n);
     } else if (n->is_Mem()) {
       uint8_t bd = MemNode::barrier_data(n); // FIXME: LOL HotSpot, why not n->as_Mem()? LoadStore is both is_Mem() and not as_Mem().
       verify_gc_barrier_assert(bd == 0, "Other mem nodes should have no barrier data", bd, n);
