@@ -149,8 +149,7 @@ public:
     return (node->barrier_data() & ShenandoahBarrierSATB) != 0;
   }
   static bool needs_card_barrier(const MachNode* node) {
-    return ShenandoahCardBarrier &&
-           ((node->barrier_data() & ShenandoahBarrierCardMark) != 0);
+    return (node->barrier_data() & ShenandoahBarrierCardMark) != 0;
   }
   static bool src_not_null(const MachNode* node) {
     return (node->barrier_data() & ShenandoahBarrierNotNull) != 0;
