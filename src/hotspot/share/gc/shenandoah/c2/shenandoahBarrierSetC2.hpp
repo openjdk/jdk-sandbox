@@ -38,6 +38,14 @@ static const uint8_t ShenandoahBarrierSATB            = 1 << 5;
 static const uint8_t ShenandoahBarrierCardMark        = 1 << 6;
 static const uint8_t ShenandoahBarrierNotNull         = 1 << 7;
 
+// Barrier data that implies real barriers, not additional metadata.
+static const uint8_t ShenandoahBarriersReal =
+  ShenandoahBarrierStrong   | // LRB strong
+  ShenandoahBarrierWeak     | // LRB weak
+  ShenandoahBarrierPhantom  | // LRB phantom
+  ShenandoahBarrierSATB     | // SATB
+  ShenandoahBarrierCardMark;  // Card Mark
+
 class ShenandoahBarrierStubC2;
 
 class ShenandoahBarrierSetC2State : public BarrierSetC2State {
