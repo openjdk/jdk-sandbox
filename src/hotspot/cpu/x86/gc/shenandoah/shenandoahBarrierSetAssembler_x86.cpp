@@ -775,6 +775,7 @@ void ShenandoahBarrierSetAssembler::gc_state_check_c2(MacroAssembler* masm, cons
   const int size = 11;
   if (ShenandoahNopGCState) {
     __ nop(size);
+    return;
   }
 #ifdef ASSERT
   address start = __ pc();
