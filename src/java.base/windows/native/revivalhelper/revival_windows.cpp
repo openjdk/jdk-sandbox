@@ -342,14 +342,14 @@ bool mem_canwrite_pd(void *vaddr, size_t length) {
             //logv("    mem_canwrite_pd: %p protect: 0x%lx: YES", vaddr, meminfo.Protect);
             return true;
         } else {
-            warn("    mem_canwrite_pd: %p protect: 0x%lx: NO", vaddr, meminfo.Protect);
-            fprintf(stderr, "    ");
-            printMemBasicInfo(meminfo);
+            logv("    mem_canwrite_pd: %p protect: 0x%lx: NO", vaddr, meminfo.Protect);
+            //fprintf(stderr, "    ");
+            //printMemBasicInfo(meminfo);
             set_prot(vaddr, length);
             return false;
         }
     } else {
-        logv("    mem_canwrite_pd: %p VirtualQueryEx failed: NO", vaddr);
+        warn("    mem_canwrite_pd: %p VirtualQueryEx failed, returning false. Error 0x%x", vaddr, GetLastError());
     }
     return false;
 }
@@ -656,7 +656,7 @@ char* check_editbin() {
 
 int relocate_sharedlib_pd(const char *filename, const void *addr) {
     if (editbin == nullptr) {
-        // Normal usage, editbin not specified at command-line:
+        // Normal usage, editbin not specified:
         if (!PEFile::relocate(filename, (long long) addr)) {
             return -1;
         }
@@ -682,44 +682,6 @@ int relocate_sharedlib_pd(const char *filename, const void *addr) {
         logv("relocate_sharedlib_pd: '%s' returns %d", command, e);
         return e;
     }
-}
-
-
-uint64_t resolve_teb(MiniDump* dump) {
-    // Find MiniDump ThreadListStream
-    // Read _MINIDUMP_THREAD
-    // Read TEB
-    MINIDUMP_DIRECTORY *md = dump->find_stream(ThreadListStream);
-    if (md == nullptr) {
-        warn("resolve_teb: MiniDump ThreadListStream not found\n");
-        return 0;
-    }
-    // Read MINIDUMP_THREAD_LIST
-    ULONG32 NumberOfThreads;
-    int e = read(dump->get_fd(), &NumberOfThreads, sizeof(NumberOfThreads));
-    if (e < sizeof(NumberOfThreads)) {
-        warn("resolve_teb: read of NumberOfThreads failed");
-        free(md);
-        return 0;
-    }
-
-    MINIDUMP_THREAD thread;
-    for (unsigned int i = 0; i < NumberOfThreads; i++) {
-        memset(&thread, 0, sizeof(thread));
-        e = read(dump->get_fd(), &thread, sizeof(thread));
-        if (e < sizeof(thread)) {
-            warn("resolve_teb: read of MINIDUMP_THREAD %d failed: %d", i, e);
-            free(md);
-            return 0;
-        }
-        logv("resolve_teb: MINIDUMP_THREAD id 0x%lx TEB: 0x%llx", thread.ThreadId, thread.Teb);
-        if (thread.Teb != 0) {
-            free(md);
-            return (uint64_t) thread.Teb;
-        }
-    }
-    free(md);
-    return 0;
 }
 
 
@@ -751,11 +713,9 @@ void write_mem_mappings(MiniDump* dump, int fd, const char *corename,
             seg = segNext;
             segNext = nullptr;
         }
-
         if (seg == nullptr) {
             break;
         }
-
         logv("create_mappings_pd: addr 0x%llx size 0x%llx   current RVA/file offset: 0x%llx", d.StartOfMemoryRange, d.DataSize, currentRVA);
         prevAddr = d.StartOfMemoryRange;
 
@@ -763,36 +723,34 @@ void write_mem_mappings(MiniDump* dump, int fd, const char *corename,
             logv("create_mappings_pd: not relevant: 0x%llx", d.StartOfMemoryRange);
             continue;
         }
-
         // Consider the next region also:
         segNext = dump->readSegment(&d, &currentRVA, true);
 
-        // Can we coalesce (join) touching regions, if the file offsets work,
-        // to reduce number of mappings (there are likely >600).
+        // Considering joining touching regions, if the file offsets work, to reduce number of mappings (there are likely >600).
+        // This may just complicate things, skip for now.
 /*      bool coalesce = false;
         if (coalesce) {
-        Segment *joinedSeg = nullptr;
-        while (segNext != nullptr && seg->end() == segNext->start()
-               && (seg->file_offset + seg->file_length == segNext->file_offset)) {
+            Segment *joinedSeg = nullptr;
+            while (segNext != nullptr && seg->end() == segNext->start()
+                && (seg->file_offset + seg->file_length == segNext->file_offset)) {
 
-            logv("create_mappings_pd: join 0x%llx - 0x%llx and 0x%llx - 0x%llx", seg->start(), seg->end(), segNext->start(), segNext->end());
-            if (joinedSeg == nullptr) {
-                joinedSeg = new Segment(seg);
+                logv("create_mappings_pd: join 0x%llx - 0x%llx and 0x%llx - 0x%llx", seg->start(), seg->end(), segNext->start(), segNext->end());
+                if (joinedSeg == nullptr) {
+                    joinedSeg = new Segment(seg);
+                }
+                joinedSeg->set_length(seg->length + segNext->length);
+                if (verbose) {
+                    char *b = joinedSeg->toString();
+                    warn("JOINED seg expanded: %s", b);
+                    free(b);
+                }
+                seg = joinedSeg;
+                segNext = dump->readSegment(&d, &currentRVA, true);
             }
-            joinedSeg->set_length(seg->length + segNext->length);
-            if (verbose) {
-                char *b = joinedSeg->toString();
-                warn("JOINED seg expanded: %s", b);
-                free(b);
+            if (joinedSeg != nullptr) {
+                seg = joinedSeg;  // Which may yet be relevant in loop below.
+                // segNext may still be set, but seg is not joined to it.
             }
-
-            seg = joinedSeg;
-            segNext = dump->readSegment(&d, &currentRVA, true);
-        }
-        if (joinedSeg != nullptr) {
-            seg = joinedSeg;  // Which may yet be relevant in (2) below.
-            // segNext may still be set, but we seg is not joined to it.
-        }
         } */
 
         // Is next region too close for vaddralignment to work?
@@ -849,8 +807,7 @@ void write_mem_mappings(MiniDump* dump, int fd, const char *corename,
     }
 
     // Windows TEB: used to setup TLS on revival.
-    // Could this be not necessary, with JVM cooperation?
-    uint64_t tls = resolve_teb(dump);
+    uint64_t tls = dump->resolve_teb();
     if (tls != 0) {
         writef(fd, "TEB %llx\n", tls);
     } else {
@@ -897,8 +854,8 @@ void write_symbols(int symbols_fd, const char* symbols[], int count, const char 
         if (!SymFromName(h2, szSymbolName, pSymbol)) {
             warn("write_symbols: %d: SymFromName '%s' failed, error: %d", i, szSymbolName, GetLastError());
         } else {
-            snprintf(buf, BUFLEN, "%s %llx\n", szSymbolName, pSymbol->Address);
-            logv("write_symbols: %d: %s", i, buf); // buf includes return char so causes extra newline
+            snprintf(buf, BUFLEN, "%s %llx", szSymbolName, pSymbol->Address);
+            logv("write_symbols: %d: %s", i, buf);
             write0(symbols_fd, buf);
         }
     }
@@ -1029,6 +986,7 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
     }
 
     // jvm_data_segs
+    {
     PEFile pefile(jvm_filename);
     Segment* jvm_data_seg = new Segment();
     Segment* jvm_rdata_seg = new Segment();
@@ -1050,10 +1008,13 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
     if (mappings_fd < 0) {
         error("Failed to create mappings file.");
     }
+    logv("mappings_fd = %d", mappings_fd);
     // Write mappings file:
     write_sharedlib_mappings(mappings_fd, &dump);
     write_mem_mappings(&dump, mappings_fd, corename_n, jvm_data_seg, jvm_rdata_seg, jvm_iat_seg);
-    close(mappings_fd);
+    //close(mappings_fd);
+    free(corename_n);
+    }
 
     // Copy jvm/libraries into core.revival dir
     copy_and_relocate(dump, revival_dirname);
@@ -1067,8 +1028,8 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
     write_symbols(symbols_fd, JVM_SYMS, N_JVM_SYMS, revival_dirname);
     close(symbols_fd);
     logv("Write symbols done");
+    waitHitRet();
 
     logv("create_revival_cache_pd returning %d", 0);
-    free(corename_n);
     return 0;
 }

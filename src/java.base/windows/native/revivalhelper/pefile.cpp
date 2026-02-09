@@ -62,14 +62,25 @@ PEFile::~PEFile() {
     if (image != nullptr) {
         int e = ImageUnload(image);
         if (e != TRUE) {
-        	warn("PEFile: ImageUnload error: %d", GetLastError());
+            warn("PEFile: ImageUnload %s: error: %d", filename, GetLastError());
+        } else {
+            logv("PEFile: ImageUnload %s: done", filename);
         }
     }
+    warn("PEFile: ImageUnload done");
 }
 
 void PEFile::imageLoad() {
     if (image == nullptr) {
         image = ImageLoad(filename, nullptr);
+
+        for (unsigned int i = 0; i < image->NumberOfSections; i++) {
+            IMAGE_SECTION_HEADER section = image->Sections[i];
+            logv("imageLoad: image: %s vaddr 0x%llx size 0x%llx Misc.PhysicalAddress 0x%llx PointerToRawData 0x%llx",
+                image->Sections[i].Name, image->Sections[i].VirtualAddress, image->Sections[i].SizeOfRawData,
+                section.Misc.PhysicalAddress, section.PointerToRawData);
+        }
+
         if (image == nullptr) {
             error("PEFile: ImageLoad error: %d", GetLastError());
         }
@@ -222,17 +233,10 @@ bool PEFile::find_data_segs(void* address, Segment** _data, Segment** _rdata, Se
     // Rebase segs to library address:
     rdata = new Segment((void*) ((uint64_t) address + (uint64_t) rdata->start()), rdata->length, 0, 0);
     data = new Segment((void*) ((uint64_t) address + (uint64_t) data->start()), data->length, 0, 0);
-
     logv(".rdata SEG: 0x%llx - 0x%llx ", rdata->start(), rdata->end());
     logv(".data SEG:  0x%llx - 0x%llx ", data->start(),  data->end());
-
     *_rdata = rdata;
     *_data = data;
-
-/*    int e = ImageUnload(image);
-    if (e != TRUE) {
-        warn("find_data_segs: ImageUnload error: %d", GetLastError());
-    } */
     return true;
 }
 

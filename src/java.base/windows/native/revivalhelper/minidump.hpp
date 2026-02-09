@@ -52,6 +52,8 @@ class MiniDump {
     bool is_valid() { return fd >= 0; }
     void close();
 
+    uint64_t resolve_teb();
+
     MINIDUMP_DIRECTORY* find_stream(int stream);
     Segment* readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA, boolean skipLibraries);
 
@@ -65,16 +67,14 @@ class MiniDump {
     void write_mem_mappings(int mappings_fd, const char* exec_name);
 
     void prepare_memory_ranges();
-
-    int get_fd() { return fd; }
     RVA64 getBaseRVA() { return BaseRVA; }
 
     uint64_t file_offset_for_vaddr(uint64_t addr);
     char* readstring_at_address(uint64_t addr);
 
     void set_jvm_data(Segment* data, Segment* rdata, Segment* iat) {
-        this->jvm_data_seg = data;
         this->jvm_rdata_seg = rdata;
+        this->jvm_data_seg = data;
         this->jvm_iat_seg = iat;
     }
 
@@ -93,7 +93,7 @@ class MiniDump {
     int rangesRead;
 
     // jvm_data_segs
-    Segment* jvm_data_seg;
     Segment* jvm_rdata_seg;
+    Segment* jvm_data_seg;
     Segment* jvm_iat_seg;
 };

@@ -173,12 +173,12 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
             newEnv.put("EDITBIN", editbin);
         }
         // Run the helper.
-        // Be prepared for it to fail, e.g. if Address Space Layout Randomization is unkind and causes a clash.
-        // Recognise the process return value and retry with some limit.
+        // Be prepared for it to fail, e.g. if Address Space Layout Randomization is unkind and causes
+        // a clash, recognise from the process return value and retry.
         //
         // This method returns an InputStream, although until recently there was no streaming from jcmd,
         // the full output was written to a buffer and then printed.
-        // For core files, for now, we can read the whole output, and only return it if it is a successful run.
+        // For core files, for now, we read the whole output, and only return it if it is a successful run.
         int TRIES = 10;
         int tries = Integer.getInteger("jdk.attach.core.tries", TRIES);
         String out = null;
@@ -224,17 +224,13 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
 
     public static String drain(Process p, BufferedReader r) throws IOException {
         StringBuilder s = new StringBuilder();
+        int c = 0;
         do {
-            while (r.ready()) {
-                String line = r.readLine();
-                if (line == null) {
-                    break;
-                } else {
-                    s.append(line).append("\n");
-                }
+            c = r.read();
+            if (c >= 0) {
+                s.append((char) c);
             }
-        } while (p.isAlive());
-
+        } while (c != -1);
         return s.toString();
     }
 
