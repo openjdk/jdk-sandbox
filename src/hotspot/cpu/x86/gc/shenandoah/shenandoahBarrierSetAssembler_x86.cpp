@@ -771,7 +771,7 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop(MacroAssembler* masm,
 }
 
 #ifdef COMPILER2
-void ShenandoahBarrierSetAssembler::gc_state_check_c2(MacroAssembler* masm, const char test_state, ShenandoahBarrierStubC2* slow_stub) {
+void ShenandoahBarrierSetAssembler::gc_state_check_c2(MacroAssembler* masm, const char test_state, BarrierStubC2* slow_stub) {
   const int size = 11;
   if (ShenandoahNopGCState) {
     __ nop(size);
@@ -782,7 +782,7 @@ void ShenandoahBarrierSetAssembler::gc_state_check_c2(MacroAssembler* masm, cons
 
   Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
   __ testb(gc_state, test_state);
-  __ jcc(Assembler::notZero, slow_stub->entry());
+  __ jcc(Assembler::notZero, *slow_stub->entry());
 
 #ifdef ASSERT
   int actual_size = __ pc() - start;

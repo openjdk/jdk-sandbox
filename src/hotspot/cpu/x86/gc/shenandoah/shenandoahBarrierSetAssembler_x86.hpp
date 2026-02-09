@@ -71,7 +71,7 @@ public:
                    Register res, Address addr, Register oldval, Register newval,
                    bool exchange, Register tmp1, Register tmp2);
 #ifdef COMPILER2
-  void gc_state_check_c2(MacroAssembler* masm, const char test_state, ShenandoahBarrierStubC2* slow_stub);
+  void gc_state_check_c2(MacroAssembler* masm, const char test_state, BarrierStubC2* slow_stub);
 
   void load_ref_barrier_c2(const MachNode* node, MacroAssembler* masm, Register obj, Register addr, Register tmp1, Register tmp2, Register tmp3, bool narrow);
   void satb_barrier_c2(const MachNode* node, MacroAssembler* masm,
