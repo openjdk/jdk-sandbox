@@ -771,6 +771,25 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop(MacroAssembler* masm,
 }
 
 #ifdef COMPILER2
+void ShenandoahBarrierSetAssembler::gc_state_check_c2(MacroAssembler* masm, const char test_state, ShenandoahBarrierStubC2* slow_stub) {
+  const int size = 11;
+  if (ShenandoahNopGCState) {
+    __ nop(size);
+  }
+#ifdef ASSERT
+  address start = __ pc();
+#endif
+
+  Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+  __ testb(gc_state, test_state);
+  __ jcc(Assembler::notZero, slow_stub->entry());
+
+#ifdef ASSERT
+  int actual_size = __ pc() - start;
+  assert(actual_size == size, "Should be: %d == %d", actual_size, size);
+#endif
+}
+
 void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, MacroAssembler* masm, Register obj, Register addr, Register tmp1, Register tmp2, Register tmp3, bool narrow) {
   if (!ShenandoahLoadRefBarrierStubC2::needs_barrier(node)) {
     return;
@@ -789,14 +808,11 @@ void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, Ma
     stub->dont_preserve(tmp3); // temp, no need to save
   }
 
-  Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
   int flags = ShenandoahHeap::HAS_FORWARDED;
-  bool is_strong = (node->barrier_data() & ShenandoahBarrierStrong) != 0;
-  if (!is_strong) {
+  if ((node->barrier_data() & ShenandoahBarrierStrong) == 0) {
     flags |= ShenandoahHeap::WEAK_ROOTS;
   }
-  __ testb(gc_state, flags);
-  __ jcc(Assembler::notZero, *stub->entry());
+  gc_state_check_c2(masm, flags, stub);
   __ bind(*stub->continuation());
 }
 
@@ -811,9 +827,8 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
     if (ShenandoahStoreBarrierStubC2::needs_satb_barrier(node)) {
       ShenandoahStoreBarrierStubC2* const stub = ShenandoahStoreBarrierStubC2::create(node, dst, dst_narrow, src, src_narrow, tmp);
       stub->dont_preserve(tmp); // temp, no need to preserve it
-      Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-      __ testb(gc_state, ShenandoahHeap::MARKING);
-      __ jcc(Assembler::notZero, *stub->entry());
+
+      gc_state_check_c2(masm, ShenandoahHeap::MARKING, stub);
       __ bind(*stub->continuation());
     }
 
@@ -874,9 +889,8 @@ void ShenandoahBarrierSetAssembler::satb_barrier_c2(const MachNode* node, MacroA
   }
   ShenandoahSATBBarrierStubC2* const stub = ShenandoahSATBBarrierStubC2::create(node, addr, preval, tmp, /* TODO: */ false);
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
-  Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-  __ testb(gc_state, ShenandoahHeap::MARKING);
-  __ jcc(Assembler::notZero, *stub->entry());
+
+  gc_state_check_c2(masm, ShenandoahHeap::MARKING, stub);
   __ bind(*stub->continuation());
 }
 
@@ -939,25 +953,22 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop_c2(const MachNode* node, MacroAs
   }
 
   if (ShenandoahCASBarrier) {
-    ShenandoahCASBarrierSlowStubC2* const slow_stub =
+    ShenandoahCASBarrierSlowStubC2* const stub =
       ShenandoahCASBarrierSlowStubC2::create(node, addr, oldval, newval, res, tmp1, tmp2, exchange);
     if (res != noreg) {
-      slow_stub->dont_preserve(res);  // set at the end, no need to save
+      stub->dont_preserve(res);  // set at the end, no need to save
     }
-    slow_stub->dont_preserve(oldval); // saved explicitly
-    slow_stub->dont_preserve(tmp1);   // temp, no need to save
-    slow_stub->dont_preserve(tmp2);   // temp, no need to save
+    stub->dont_preserve(oldval); // saved explicitly
+    stub->dont_preserve(tmp1);   // temp, no need to save
+    stub->dont_preserve(tmp2);   // temp, no need to save
 
     // On success, we do not need any additional handling.
-    __ jccb(Assembler::equal, *slow_stub->continuation());
+    __ jccb(Assembler::equal, *stub->continuation());
 
     // If GC is in progress, it is likely we need additional handling for false negatives.
-    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED);
-    __ jcc(Assembler::notZero, *slow_stub->entry());
-
     // Slow stub re-enters with result set correctly.
-    __ bind(*slow_stub->continuation());
+    gc_state_check_c2(masm, ShenandoahHeap::HAS_FORWARDED, stub);
+    __ bind(*stub->continuation());
   }
 }
 

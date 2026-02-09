@@ -517,6 +517,9 @@
   product(bool, ShenandoahCloneRuntime, false, DIAGNOSTIC,                  \
           "Handle clone in runtime instead of in copy stubs.")              \
                                                                             \
+  product(bool, ShenandoahNopGCState, false, EXPERIMENTAL,                  \
+          "DANGEROUS, ONLY WITH PASSIVE MODE: NOP out GC state checks.")    \
+                                                                            \
   develop(bool, ShenandoahVerifyOptoBarriers, trueInDebug,                  \
           "Verify no missing barriers in C2.")                              \
                                                                             \
