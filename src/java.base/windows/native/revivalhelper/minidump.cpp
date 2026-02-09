@@ -376,13 +376,19 @@ Segment* MiniDump::readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentR
  */
 Segment* MiniDump::readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA, boolean skipLibraries) {
     Segment *seg = nullptr;
-    bool clash;
+    bool retry;
     do {
-        clash = false;
+        retry = false;
         seg = readSegment0(d, currentRVA);
         if (seg == nullptr) {
             return nullptr;
         }
+        if (seg->start() == (uint64_t) 0x7FFE0000 || seg->start() == (uint64_t) 0x7FFE8000) {
+            warn("readSegment: skip seg: 0x%llx - 0x%llx ", seg->start(), seg->end());
+            retry = true; // Memory from kernel we can't map.  Ignore, go to next segment.
+            continue;
+        }
+
         // Simple check for clashes.  Comparing module list from dump, with memory list from dump,
         // so complex overlaps not possible.
         // Module extents (iter) likely to be larger than individual memory descriptors.
@@ -390,26 +396,17 @@ Segment* MiniDump::readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRV
             if (skipLibraries &&
                 (seg->start() >= iter->start() && seg->end() <= iter->end())
               ) {
-                // Seg clashes with some module.  Avoid, unless in our include list, e.g. the JVM .data Section.
+                // Seg clashes with some module.  Avoid, unless it is the JVM .data Section.
                 if (jvm_data_seg != nullptr && (seg->contains(jvm_data_seg) || jvm_data_seg->contains(seg))) {
                     logv("readSegment: Using (JVM .data) seg: 0x%llx - 0x%llx ", seg->start(), seg->end());
-                    waitHitRet();
-                /*} else if (jvm_rdata_seg != nullptr && (seg->contains(jvm_rdata_seg) || jvm_rdata_seg->contains(seg))) {
-                    // .rdata start with IAT so don't change that.
-                    // Need to copy only, not map, as mapping will get aligned and overwrite.
-                    logv("readSegment: Using (JVM .rdata) seg: 0x%llx - 0x%llx ", seg->start(), seg->end());
-                    seg->move_start(0xa30);
-                   // seg->set_copyonly();
-                    log("should also NOT map: 0x%llx", seg->start());
-                    waitHitRet(); */
                 } else {
                     logv("readSegment: Skipping seg 0x%llx - 0x%llx due to hit in module list", seg->start(), seg->end());
-                    clash = true; // Loop and call readSegment0 again
+                    retry = true;
                 }
-                break;
+                break; // out of this for loop, possibly retry readSegment0
             }
         }
-    } while (clash);
+    } while (retry);
 
     return seg;
 }

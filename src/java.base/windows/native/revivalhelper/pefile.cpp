@@ -159,7 +159,7 @@ bool PEFile::remove_dynamicbase(const char* filename) {
     uint64_t peOffsetAddr = (uint64_t) base + 0x3c;
     ULONG32 peOffset = *(ULONG32*) peOffsetAddr;
     uint64_t peAddr = (uint64_t) base + peOffset;
-    logv("peAddr    0x%llx", peAddr);
+    logd("remove_dynamicbase: peAddr    0x%llx", peAddr);
 
     // At peOffset, is IMAGE_NT_HEADERS32 containing:
     //   DWORD                   Signature;
@@ -171,15 +171,15 @@ bool PEFile::remove_dynamicbase(const char* filename) {
     }
 
     PIMAGE_OPTIONAL_HEADER32 optional = (PIMAGE_OPTIONAL_HEADER32) ((uint64_t) peAddr + sizeof(DWORD) + sizeof(IMAGE_FILE_HEADER));
-    logv("Optional hdr = 0x%llx", optional);
-    logv("DllCharacteristics = 0x%llx", optional->DllCharacteristics);
-    logv("Checksum           = 0x%llx", optional->CheckSum);
+    logd("Optional hdr = 0x%llx", optional);
+    logd("DllCharacteristics = 0x%llx", optional->DllCharacteristics);
+    logd("Checksum           = 0x%llx", optional->CheckSum);
 
     WORD dllCharacteristics = optional->DllCharacteristics;
     dllCharacteristics = dllCharacteristics & ~IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE; // Remove bit value of flag (64)
-    logv("DllCharacteristics = 0x%llx", dllCharacteristics);
+    logd("DllCharacteristics = 0x%llx", dllCharacteristics);
 
-    logv("&o.DllChar =  0x%llx", &(optional->DllCharacteristics));
+    logv("&o.DllCharacteristics =  0x%llx", &(optional->DllCharacteristics));
     *(WORD*)(&(optional->DllCharacteristics)) = dllCharacteristics;
 
     // Checksum? Update does not appear to be needed.
@@ -233,8 +233,8 @@ bool PEFile::find_data_segs(void* address, Segment** _data, Segment** _rdata, Se
     // Rebase segs to library address:
     rdata = new Segment((void*) ((uint64_t) address + (uint64_t) rdata->start()), rdata->length, 0, 0);
     data = new Segment((void*) ((uint64_t) address + (uint64_t) data->start()), data->length, 0, 0);
-    logv(".rdata SEG: 0x%llx - 0x%llx ", rdata->start(), rdata->end());
-    logv(".data SEG:  0x%llx - 0x%llx ", data->start(),  data->end());
+    //logd(".rdata SEG: 0x%llx - 0x%llx ", rdata->start(), rdata->end());
+    //logd(".data SEG:  0x%llx - 0x%llx ", data->start(),  data->end());
     *_rdata = rdata;
     *_data = data;
     return true;

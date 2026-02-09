@@ -305,7 +305,7 @@ void set_prot(void* addr, uint64_t length) {
     DWORD lpfOldProtect;
     if (!VirtualProtect((PVOID) addr, length, prot, &lpfOldProtect)) {
         logv("    set_prot: failed setting rw (0x%lx) for: 0x%p, len 0x%lx: error 0x%x.",  prot, addr, length, GetLastError());
-        if (verbose) {
+        if (logLevel >= LOG_VERBOSE) {
             fprintf(stderr, "    ");
             printMemBasicInfo(addr);
         }
@@ -320,7 +320,7 @@ void set_prot(void* addr, uint64_t length) {
                 warn("        set_prot: failed setting rw (0x%lx) for: 0x%p, len 0x%lx: error 0x%x.",
                     prot, meminfo.AllocationBase, meminfo.RegionSize, GetLastError());
             } else {
-                logv("        set_prot: OK setting rw (0x%lx) for: 0x%p, len 0x%lx",
+                logd("        set_prot: OK setting rw (0x%lx) for: 0x%p, len 0x%lx",
                     prot, meminfo.AllocationBase, meminfo.RegionSize);
 
             }
@@ -339,10 +339,10 @@ bool mem_canwrite_pd(void *vaddr, size_t length) {
             || meminfo.Protect == PAGE_EXECUTE_WRITECOPY
             || meminfo.Protect == PAGE_READWRITE
             || meminfo.Protect == PAGE_WRITECOPY) {
-            //logv("    mem_canwrite_pd: %p protect: 0x%lx: YES", vaddr, meminfo.Protect);
+            logd("    mem_canwrite_pd: %p protect: 0x%lx: YES", vaddr, meminfo.Protect);
             return true;
         } else {
-            logv("    mem_canwrite_pd: %p protect: 0x%lx: NO", vaddr, meminfo.Protect);
+            logd("    mem_canwrite_pd: %p protect: 0x%lx: NO", vaddr, meminfo.Protect);
             //fprintf(stderr, "    ");
             //printMemBasicInfo(meminfo);
             set_prot(vaddr, length);
@@ -448,7 +448,7 @@ void *do_map_allocate_pd_MapViewOfFile(void *vaddr, size_t length) {
     LPVOID p = MapViewOfFileEx(h, mapViewAccess, 0, 0, length, (void *) vaddr);
 
     if ((void*) p == vaddr) {
-        logv("do_map_allocate_pd: MapViewOfFile 0x%llx 0x%llx OK", (unsigned long long) vaddr, length);
+        logd("do_map_allocate_pd: MapViewOfFile 0x%llx 0x%llx OK", (unsigned long long) vaddr, length);
         return vaddr;
     }
 
@@ -720,7 +720,7 @@ void write_mem_mappings(MiniDump* dump, int fd, const char *corename,
         prevAddr = d.StartOfMemoryRange;
 
         if (!seg->is_relevant()) {
-            logv("create_mappings_pd: not relevant: 0x%llx", d.StartOfMemoryRange);
+            logd("create_mappings_pd: not relevant: 0x%llx", d.StartOfMemoryRange);
             continue;
         }
         // Consider the next region also:
@@ -757,7 +757,7 @@ void write_mem_mappings(MiniDump* dump, int fd, const char *corename,
         // Grow a bigger segment to map, that will have these neighbouring segments' data copied in.
         Segment *biggerSeg = nullptr;
         while (segNext != nullptr && align_up(seg->end(), vaddr_alignment_pd()) >= segNext->start()) {
-            if (verbose) {
+            if (logLevel >= LOG_DEBUG) {
                 warn("create_mappings: segs too close for alignment, seg: %p - %p next seg: %p", seg->vaddr, seg->end(), segNext->vaddr);
                 char *b = seg->toString();
                 warn("later seg    : %s", b);
@@ -774,7 +774,7 @@ void write_mem_mappings(MiniDump* dump, int fd, const char *corename,
             segsToCopy.push_back(segNext);      // Write segNext on all iterations
 
             biggerSeg->set_end(segNext->end());  // Expand to cover both.
-            if (verbose) {
+            if (logLevel >= LOG_DEBUG) {
                 char *b = biggerSeg->toString();
                 warn("BIGGER seg expanded: %s", b);
                 free(b);
@@ -788,7 +788,7 @@ void write_mem_mappings(MiniDump* dump, int fd, const char *corename,
         // Use the biggerSeg if we were in the above loop.
         int e = 0;
         if (biggerSeg != nullptr) {
-            if (verbose) {
+            if (logLevel >= LOG_DEBUG) {
                 char *b = biggerSeg->toString();
                 warn("write BIGGER seg    : %s", b);
                 free(b);
@@ -861,11 +861,11 @@ void write_symbols(int symbols_fd, const char* symbols[], int count, const char 
     }
     e = SymCleanup(h2);
     if (e != TRUE) {
-    	warn("SymCleanup error: %d", GetLastError());
+        warn("write_symbols: SymCleanup error: %d", GetLastError());
     }
     e = ImageUnload(image);
     if (e != TRUE) {
-    	warn("ImageUnload error : %d", GetLastError());
+        warn("write_symbols: ImageUnload error : %d", GetLastError());
     }
 }
 

@@ -172,10 +172,11 @@ int revival_dcmd(const char *command);
 // Revival internals:
 //
 
-// Behavior settings:
-
 // Diagnostics
-extern int verbose;             // set from env: REVIVAL_VERBOSE
+extern int logLevel;            // set from env: REVIVAL_VERBOSE
+#define LOG_VERBOSE 1
+#define LOG_DEBUG   2
+
 extern int versionCheckEnabled; // set from env: REVIVAL_SKIPVERSIONCHECK
 
 // Optionally map core files with write permission:
@@ -340,15 +341,19 @@ void write0(int fd, const char *buf);
 void writef(int fd, const char *format, ...) ATTRIBUTE_PRINTF(2, 3);
 
 // Log to stderr.  Adds timestamp and newline to given message.
+// logv, logd and warn and error all call this method.
 void log(const char *format, ...) ATTRIBUTE_PRINTF(1, 2);
 
-// With verbose check.
+// Log if we are "verbose".
 void logv(const char *format, ...) ATTRIBUTE_PRINTF(1, 2);
 
-// Write to stderr.  Adds newline.
+// Log if we are "debug".
+void logd(const char *format, ...) ATTRIBUTE_PRINTF(1, 2);
+
+// Write to stderr.
 void warn(const char *format, ...) ATTRIBUTE_PRINTF(1, 2);
 
-// Write to stderr and exit.  Adds newline.
+// Write to stderr and exit.
 void error(const char *format, ...) ATTRIBUTE_PRINTF(1, 2);
 
 #endif /* REVIVAL_H */

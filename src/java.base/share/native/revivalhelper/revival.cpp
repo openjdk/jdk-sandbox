@@ -28,7 +28,7 @@
 // Behavior settings:
 
 // Diagnostics
-int verbose = false;
+int logLevel = 0;
 int _wait = false;
 
 int versionCheckEnabled = true; // May be disabled in environment
@@ -130,7 +130,7 @@ void log(const char* format, ...) {
 }
 
 void logv(const char* format, ...) {
-    if (verbose) {
+    if (logLevel >= LOG_VERBOSE) {
         char buffer[BUFLEN];
         memset(buffer, 0, BUFLEN);
         va_list args;
@@ -141,6 +141,17 @@ void logv(const char* format, ...) {
     }
 }
 
+void logd(const char* format, ...) {
+    if (logLevel >= LOG_DEBUG) {
+        char buffer[BUFLEN];
+        memset(buffer, 0, BUFLEN);
+        va_list args;
+        va_start(args, format);
+        vsnprintf(buffer, BUFLEN - 1, format, args);
+        va_end(args);
+        log0(buffer);
+    }
+}
 void warn(const char* format, ...) {
     char buffer[BUFLEN];
     memset(buffer, 0, BUFLEN);
@@ -554,7 +565,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
         }
         break;
     }
-    if (verbose) {
+    if (logLevel >= LOG_VERBOSE) {
         warn("mappings_file_read: read %d lines, Mappings: %d good, %d bad. map allocs: %d good, %d bad.  Copies: %d good, %d bad",
                lines, M_good, M_bad, m_good, m_bad, C_good, C_bad);
         warn("writableSegments.size = %d", (int) writableSegments.size());
@@ -1013,9 +1024,20 @@ int revive_image(const char* corename, const char* javahome, const char* libdir,
     char* dirname;
 
     // Environment settings: set to anything means "on".
-    verbose = env_check((char*) "REVIVAL_VERBOSE");
     _wait = env_check((char*) "REVIVAL_WAIT");
     versionCheckEnabled = !env_check((char*) "REVIVAL_SKIPVERSIONCHECK");
+    // logLevel we actually read the env value:
+    logLevel = 0;
+    if (env_check((char*) "REVIVAL_VERBOSE")) {
+        char* logLevelText = getenv("REVIVAL_VERBOSE");
+        if (logLevelText != nullptr) {
+            if (strcmp("DEBUG", logLevelText) ==0) {
+                logLevel = LOG_DEBUG;
+            } else if (strcmp("VERBOSE", logLevelText) ==0) {
+                logLevel = LOG_VERBOSE;
+            }
+        }
+    }
 
     init_pd();
 

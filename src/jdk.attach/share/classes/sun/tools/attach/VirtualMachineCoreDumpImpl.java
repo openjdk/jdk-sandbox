@@ -155,16 +155,21 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
         String path = System.getenv("PATH");
         newEnv.put("PATH", System.getProperty("java.home") + File.separator + "bin" + File.pathSeparator + path);
 
-        boolean verbose = Boolean.getBoolean("jdk.attach.core.verbose");
-        if (verbose) {
-            newEnv.put("REVIVAL_VERBOSE", "1"); // any non-null value will be recognised
+        // "verbose" is a log level, VERBOSE or DEBUG are recognised by the native helper, but do not want to
+        // confuse with a Java Logger.
+        String verboseFlag = System.getProperty("jdk.attach.core.verbose");
+        boolean verbose = false; // Used in this method as well as native helper
+        if (verboseFlag != null) {
+            newEnv.put("REVIVAL_VERBOSE", verboseFlag);
+            verbose = verboseFlag.equals("VERBOSE") || verboseFlag.equals("DEBUG");
         }
+
         if (Boolean.getBoolean("jdk.attach.core.skipversioncheck")) {
             newEnv.put("REVIVAL_SKIPVERSIONCHECK", "1");
         }
         // Linux-specific:
         if (System.getProperty("os.name").startsWith("Linux")) {
-            newEnv.put("LD_USE_LOAD_BIAS", "1");
+            newEnv.put("LD_USE_LOAD_BIAS", "1"); // Required by OS to respect shared object load addresses
             newEnv.put("LD_PRELOAD", jdkLibDir + File.separator + "librevival_support.so");
         }
         // Windows-specific:
@@ -185,32 +190,25 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
 
         for (int i = 0; i < tries; i++) {
             Process p = pb.start();
-            BufferedReader outReader = p.inputReader();
-            BufferedReader errReader = p.errorReader();
+            BufferedReader outReader = p.inputReader();  // Includes error output
             out = drain(p, outReader);
             try {
                 int e = p.waitFor();
                 if (e == 1) {
                     // Actual error from JCmd, e.g. Exception thrown by command implementation.
-                    System.out.println(out);
-                    String err = drain(p, errReader);
-                    System.err.println(err);
+                    System.out.print(out);
                     throw new IOException("jcmd returned an error");  // JCmd caller will call System.exit(1);
                 } else if (e == 7) {
                     // Hint to retry due to address space clash.
                     if (verbose) {
-                        System.err.println(out);
-                        String err = drain(p, errReader);
-                        System.err.println(err);
+                        System.err.print(out);
                         System.out.println("(Retrying process revival)");
                     }
                     continue; // ...and retry.
                 } else if (e != 0) {
                     // Other errors
-                    System.out.println(out);
+                    System.out.print(out);
                     System.out.println("ERROR (" + e + ")");
-                    String err = drain(p, errReader);
-                    System.err.println(err);
                 } else {
                     // Success
                 }
