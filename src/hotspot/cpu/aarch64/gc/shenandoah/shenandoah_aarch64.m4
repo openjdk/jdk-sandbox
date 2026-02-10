@@ -34,14 +34,11 @@ instruct store_$1_$2_shenandoah(indirect mem, iReg$1 src, iRegPNoSp tmp, rFlagsR
   ins_cost(ifelse($2,Volatile,VOLATILE_REF_COST,3*INSN_COST));
   format %{ "str  $src, $mem" %}
   ins_encode %{
-    bool is_narrow = ifelse($1,N,'true`,'false`);
-    bool is_volatile = ifelse($2,Volatile,'true`,'false`);
-
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
-      $mem$$Register, /* dst_narrow  = */ is_narrow,
-      $src$$Register, /* src_narrow  = */ is_narrow,
+      $mem$$Register, /* dst_narrow  = */ ifelse($1,N,'true`,'false`),
+      $src$$Register, /* src_narrow  = */ ifelse($1,N,'true`,'false`),
       $tmp$$Register, /* pre_val     = */ noreg,
-                      /* is_volatile = */ is_volatile);
+                      /* is_volatile = */ ifelse($2,Volatile,'true`,'false`));
   %}
   ins_pipe(pipe_class_memory);
 %}')dnl
@@ -71,13 +68,11 @@ instruct encodePAndStoreN_$1_shenandoah(indirect mem, iRegP src, iRegPNoSp tmp, 
   format %{ "encode_heap_oop $tmp, $src\n\t"
             "str  $tmp, $mem\t# compressed ptr" %}
   ins_encode %{
-    bool is_volatile = ifelse($1,Volatile,'true`,'false`);
-
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
       $mem$$Register, /* dst_narrow  = */ true,
       $src$$Register, /* src_narrow  = */ false,
       $tmp$$Register, /* pre_val     = */ noreg,
-                      /* is_volatile = */ is_volatile);
+                      /* is_volatile = */ ifelse($1,Volatile,'true`,'false`));
   %}
   ins_pipe(pipe_class_memory);
 %}')dnl
