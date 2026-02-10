@@ -92,6 +92,79 @@ instruct loadN_shenandoah(rRegN dst, memory mem, rRegP tmp1, rRegP tmp2, rRegP t
   ins_pipe(ialu_reg_mem);
 %}
 
+// ---------------------------- LOAD SPECIALIZATIONS ------------------------
+// These rules match x86.ad match rules with barrier_data() == 0.
+// For these cases, Shenandoah does not care about applying the GC barriers:
+// this applies to everywhere we do not expose the untreated oop to the rest
+// of the system.
+//
+
+instruct testP_mem_shenandoah(rFlagsReg cr, memory op, immP0 zero)
+%{
+  predicate((!UseCompressedOops || (CompressedOops::base() != nullptr)) &&
+            UseShenandoahGC && n->in(1)->as_Load()->barrier_data() != 0);
+  match(Set cr (CmpP (LoadP op) zero));
+
+  ins_cost(500); // XXX
+  format %{ "testq   $op, 0xffffffffffffffff\t# ptr" %}
+  ins_encode %{
+    __ testq($op$$Address, 0xFFFFFFFF);
+  %}
+  ins_pipe(ialu_cr_reg_imm);
+%}
+
+instruct testP_mem_reg0_shenandoah(rFlagsReg cr, memory mem, immP0 zero)
+%{
+  predicate(UseCompressedOops && (CompressedOops::base() == nullptr) &&
+            UseShenandoahGC && n->in(1)->as_Load()->barrier_data() != 0);
+  match(Set cr (CmpP (LoadP mem) zero));
+
+  format %{ "cmpq    R12, $mem\t# ptr (R12_heapbase==0)" %}
+  ins_encode %{
+    __ cmpq(r12, $mem$$Address);
+  %}
+  ins_pipe(ialu_cr_reg_mem);
+%}
+
+instruct compN_rReg_mem_shenandoah(rFlagsRegU cr, rRegN src, memory mem)
+%{
+  predicate(UseShenandoahGC && n->in(2)->as_Load()->barrier_data() != 0);
+  match(Set cr (CmpN src (LoadN mem)));
+
+  format %{ "cmpl    $src, $mem\t# compressed ptr" %}
+  ins_encode %{
+    __ cmpl($src$$Register, $mem$$Address);
+  %}
+  ins_pipe(ialu_cr_reg_mem);
+%}
+
+instruct testN_mem_shenandoah(rFlagsReg cr, memory mem, immN0 zero)
+%{
+  predicate(CompressedOops::base() != nullptr &&
+            UseShenandoahGC && n->in(1)->as_Load()->barrier_data() != 0);
+  match(Set cr (CmpN (LoadN mem) zero));
+
+  ins_cost(500); // XXX
+  format %{ "testl   $mem, 0xffffffff\t# compressed ptr" %}
+  ins_encode %{
+    __ cmpl($mem$$Address, (int)0xFFFFFFFF);
+  %}
+  ins_pipe(ialu_cr_reg_mem);
+%}
+
+instruct testN_mem_reg0_shenandoah(rFlagsReg cr, memory mem, immN0 zero)
+%{
+  predicate(CompressedOops::base() == nullptr &&
+            UseShenandoahGC && n->in(1)->as_Load()->barrier_data() != 0);
+  match(Set cr (CmpN (LoadN mem) zero));
+
+  format %{ "cmpl    R12, $mem\t# compressed ptr (R12_heapbase==0)" %}
+  ins_encode %{
+    __ cmpl(r12, $mem$$Address);
+  %}
+  ins_pipe(ialu_cr_reg_mem);
+%}
+
 // ---------------------------------- STORES ---------------------------------------
 //
 
