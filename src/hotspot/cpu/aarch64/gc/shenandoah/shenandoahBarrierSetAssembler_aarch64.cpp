@@ -646,6 +646,47 @@ void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, Ma
   BLOCK_COMMENT("} load_ref_barrier_c2");
 }
 
+void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm,
+                                             Register dst, bool dst_narrow,
+                                             Register src, bool src_narrow,
+                                             Register tmp, Register pre_val,
+                                             bool is_volatile) {
+
+  Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+  __ ldrb(tmp, gcs_addr);
+
+  satb_barrier_c2(node, masm, dst, pre_val, tmp, src_narrow);
+
+  card_barrier_c2(node, masm, dst, tmp);
+
+  // Need to encode into tmp, because we cannot clobber src.
+  // TODO: Maybe there is a matcher way to test that src is unused after this?
+  if (dst_narrow && !src_narrow) {
+    __ mov(tmp, src);
+    if (ShenandoahStoreBarrierStubC2::src_not_null(node)) {
+      __ encode_heap_oop_not_null(tmp);
+    } else {
+      __ encode_heap_oop(tmp);
+    }
+    src = tmp;
+  }
+
+  // Do the actual store
+  if (dst_narrow) {
+    if (is_volatile) {
+      __ stlrw(src, dst);
+    } else {
+      __ strw(src, dst);
+    }
+  } else {
+    if (is_volatile) {
+      __ stlr(src, dst);
+    } else {
+      __ str(src, dst);
+    }
+  }
+}
+
 void ShenandoahBarrierSetAssembler::satb_barrier_c2(const MachNode* node, MacroAssembler* masm, Register addr, Register pre_val,
                                                     Register gc_state, bool encoded_preval) {
   BLOCK_COMMENT("satb_barrier_c2 {");

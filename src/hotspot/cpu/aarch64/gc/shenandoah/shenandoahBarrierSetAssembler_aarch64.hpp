@@ -86,6 +86,8 @@ public:
   void cmpxchg_oop(MacroAssembler* masm, Register addr, Register expected, Register new_val,
                    bool acquire, bool release, bool is_cae, Register result);
 #ifdef COMPILER2
+  void store_c2(const MachNode* node, MacroAssembler* masm, Register dst, bool dst_narrow, Register src, bool src_narrow, Register tmp, Register pre_val, bool is_volatile);
+
   void load_ref_barrier_c2(const MachNode* node, MacroAssembler* masm, Register obj, Register addr, bool narrow, bool maybe_null, Register gc_state);
   void satb_barrier_c2(const MachNode* node, MacroAssembler* masm, Register obj, Register pre_val, Register gc_state, bool encoded_preval);
   void card_barrier_c2(const MachNode* node, MacroAssembler* masm, Register addr, Register tmp);

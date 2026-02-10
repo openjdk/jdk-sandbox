@@ -43,20 +43,14 @@ instruct store_P_Normal_shenandoah(indirect mem, iRegP src, iRegPNoSp tmp, rFlag
   ins_cost(3*INSN_COST);
   format %{ "str  $src, $mem" %}
   ins_encode %{
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb($tmp$$Register, gcs_addr);
+    bool is_narrow = false;
+    bool is_volatile = false;
 
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                        $mem$$Register /* addr, used in slow path only */,
-                                                        noreg          /* pre_val, used in slow path only */,
-                                                        $tmp$$Register /* gc_state on fas path */,
-                                                        false           /* unused in this case */);
-
-    __ str($src$$Register, $mem$$Register);
-
-    ShenandoahBarrierSet::assembler()->card_barrier_c2(this, masm,
-                                                       $mem$$Register /* addr */,
-                                                       $tmp$$Register /* tmp */);
+    ShenandoahBarrierSet::assembler()->store_c2(this, masm,
+      $mem$$Register, /* dst_narrow  = */ is_narrow,
+      $src$$Register, /* src_narrow  = */ is_narrow,
+      $tmp$$Register, /* pre_val     = */ noreg,
+                      /* is_volatile = */ is_volatile);
   %}
   ins_pipe(pipe_class_memory);
 %}
@@ -69,22 +63,16 @@ instruct store_P_Volatile_shenandoah(indirect mem, iRegP src, iRegPNoSp tmp, rFl
   predicate(UseShenandoahGC && needs_releasing_store(n) && n->as_Store()->barrier_data() != 0);
   effect(TEMP tmp, KILL cr);
   ins_cost(VOLATILE_REF_COST);
-  format %{ "stlr  $src, $mem" %}
+  format %{ "str  $src, $mem" %}
   ins_encode %{
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb($tmp$$Register, gcs_addr);
+    bool is_narrow = false;
+    bool is_volatile = true;
 
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                        $mem$$Register /* addr, used in slow path only */,
-                                                        noreg          /* pre_val, used in slow path only */,
-                                                        $tmp$$Register /* gc_state on fas path */,
-                                                        false           /* unused in this case */);
-
-    __ stlr($src$$Register, $mem$$Register);
-
-    ShenandoahBarrierSet::assembler()->card_barrier_c2(this, masm,
-                                                       $mem$$Register /* addr */,
-                                                       $tmp$$Register /* tmp */);
+    ShenandoahBarrierSet::assembler()->store_c2(this, masm,
+      $mem$$Register, /* dst_narrow  = */ is_narrow,
+      $src$$Register, /* src_narrow  = */ is_narrow,
+      $tmp$$Register, /* pre_val     = */ noreg,
+                      /* is_volatile = */ is_volatile);
   %}
   ins_pipe(pipe_class_memory);
 %}
@@ -97,22 +85,16 @@ instruct store_N_Normal_shenandoah(indirect mem, iRegN src, iRegPNoSp tmp, rFlag
   predicate(UseShenandoahGC && !needs_releasing_store(n) && n->as_Store()->barrier_data() != 0);
   effect(TEMP tmp, KILL cr);
   ins_cost(3*INSN_COST);
-  format %{ "strw  $src, $mem" %}
+  format %{ "str  $src, $mem" %}
   ins_encode %{
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb($tmp$$Register, gcs_addr);
+    bool is_narrow = true;
+    bool is_volatile = false;
 
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                        $mem$$Register /* addr, used in slow path only */,
-                                                        noreg          /* pre_val, used in slow path only */,
-                                                        $tmp$$Register /* gc_state on fas path */,
-                                                        false           /* unused in this case */);
-
-    __ strw($src$$Register, $mem$$Register);
-
-    ShenandoahBarrierSet::assembler()->card_barrier_c2(this, masm,
-                                                       $mem$$Register /* addr */,
-                                                       $tmp$$Register /* tmp */);
+    ShenandoahBarrierSet::assembler()->store_c2(this, masm,
+      $mem$$Register, /* dst_narrow  = */ is_narrow,
+      $src$$Register, /* src_narrow  = */ is_narrow,
+      $tmp$$Register, /* pre_val     = */ noreg,
+                      /* is_volatile = */ is_volatile);
   %}
   ins_pipe(pipe_class_memory);
 %}
@@ -125,22 +107,16 @@ instruct store_N_Volatile_shenandoah(indirect mem, iRegN src, iRegPNoSp tmp, rFl
   predicate(UseShenandoahGC && needs_releasing_store(n) && n->as_Store()->barrier_data() != 0);
   effect(TEMP tmp, KILL cr);
   ins_cost(VOLATILE_REF_COST);
-  format %{ "stlrw  $src, $mem" %}
+  format %{ "str  $src, $mem" %}
   ins_encode %{
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb($tmp$$Register, gcs_addr);
+    bool is_narrow = true;
+    bool is_volatile = true;
 
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                        $mem$$Register /* addr, used in slow path only */,
-                                                        noreg          /* pre_val, used in slow path only */,
-                                                        $tmp$$Register /* gc_state on fas path */,
-                                                        false           /* unused in this case */);
-
-    __ stlrw($src$$Register, $mem$$Register);
-
-    ShenandoahBarrierSet::assembler()->card_barrier_c2(this, masm,
-                                                       $mem$$Register /* addr */,
-                                                       $tmp$$Register /* tmp */);
+    ShenandoahBarrierSet::assembler()->store_c2(this, masm,
+      $mem$$Register, /* dst_narrow  = */ is_narrow,
+      $src$$Register, /* src_narrow  = */ is_narrow,
+      $tmp$$Register, /* pre_val     = */ noreg,
+                      /* is_volatile = */ is_volatile);
   %}
   ins_pipe(pipe_class_memory);
 %}
@@ -163,28 +139,15 @@ instruct encodePAndStoreN_Normal_shenandoah(indirect mem, iRegP src, iRegPNoSp t
   effect(TEMP tmp, KILL cr);
   ins_cost(4*INSN_COST);
   format %{ "encode_heap_oop $tmp, $src\n\t"
-            "strw  $tmp, $mem\t# compressed ptr" %}
+            "str  $tmp, $mem\t# compressed ptr" %}
   ins_encode %{
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb($tmp$$Register, gcs_addr);
+    bool is_volatile = false;
 
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                        $mem$$Register /* addr, used in slow path only */,
-                                                        noreg /* pre_val, used in slow path only */,
-                                                        $tmp$$Register /* gc_state on fas path */,
-                                                        false           /* encoded_preval */);
-
-    if ((barrier_data() & ShenandoahBarrierCardMarkNotNull) == 0) {
-      __ encode_heap_oop($tmp$$Register, $src$$Register);
-    } else {
-      __ encode_heap_oop_not_null($tmp$$Register, $src$$Register);
-    }
-
-    __ strw($tmp$$Register, $mem$$Register);
-
-    ShenandoahBarrierSet::assembler()->card_barrier_c2(this, masm,
-                                                       $mem$$Register /* addr */,
-                                                       $tmp$$Register /* tmp */);
+    ShenandoahBarrierSet::assembler()->store_c2(this, masm,
+      $mem$$Register, /* dst_narrow  = */ true,
+      $src$$Register, /* src_narrow  = */ false,
+      $tmp$$Register, /* pre_val     = */ noreg,
+                      /* is_volatile = */ is_volatile);
   %}
   ins_pipe(pipe_class_memory);
 %}
@@ -198,28 +161,15 @@ instruct encodePAndStoreN_Volatile_shenandoah(indirect mem, iRegP src, iRegPNoSp
   effect(TEMP tmp, KILL cr);
   ins_cost(VOLATILE_REF_COST);
   format %{ "encode_heap_oop $tmp, $src\n\t"
-            "stlrw  $tmp, $mem\t# compressed ptr" %}
+            "str  $tmp, $mem\t# compressed ptr" %}
   ins_encode %{
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb($tmp$$Register, gcs_addr);
+    bool is_volatile = true;
 
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                        $mem$$Register /* addr, used in slow path only */,
-                                                        noreg /* pre_val, used in slow path only */,
-                                                        $tmp$$Register /* gc_state on fas path */,
-                                                        false           /* encoded_preval */);
-
-    if ((barrier_data() & ShenandoahBarrierCardMarkNotNull) == 0) {
-      __ encode_heap_oop($tmp$$Register, $src$$Register);
-    } else {
-      __ encode_heap_oop_not_null($tmp$$Register, $src$$Register);
-    }
-
-    __ stlrw($tmp$$Register, $mem$$Register);
-
-    ShenandoahBarrierSet::assembler()->card_barrier_c2(this, masm,
-                                                       $mem$$Register /* addr */,
-                                                       $tmp$$Register /* tmp */);
+    ShenandoahBarrierSet::assembler()->store_c2(this, masm,
+      $mem$$Register, /* dst_narrow  = */ true,
+      $src$$Register, /* src_narrow  = */ false,
+      $tmp$$Register, /* pre_val     = */ noreg,
+                      /* is_volatile = */ is_volatile);
   %}
   ins_pipe(pipe_class_memory);
 %}
