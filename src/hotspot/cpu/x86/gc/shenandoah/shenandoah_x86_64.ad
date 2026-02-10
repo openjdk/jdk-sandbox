@@ -31,62 +31,41 @@ source %{
 // ---------------------------------- LOADS ---------------------------------------
 //
 
-instruct loadP_shenandoah(rRegP dst, memory mem, rRegP tmp1, rRegP tmp2, rRegP tmp3, rFlagsReg cr)
+instruct loadP_shenandoah(rRegP dst, memory mem, rRegP tmp, rFlagsReg cr)
 %{
   match(Set dst (LoadP mem));
   predicate(UseShenandoahGC && n->as_Load()->barrier_data() != 0);
-  effect(TEMP_DEF dst, TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
-
+  effect(TEMP_DEF dst, TEMP tmp, KILL cr);
   // The main load is a candidate to implement implicit null checks.
   ins_is_late_expanded_null_check_candidate(true);
-
   format %{ "movq    $dst, $mem\t# ptr" %}
   ins_encode %{
-    __ movq($dst$$Register, $mem$$Address); // Must be first, implicit null check here.
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                       noreg /* addr */,
-                                                       $dst$$Register /* pre_val */,
-                                                       $tmp1$$Register /* tmp */);
-    __ lea($tmp3$$Register, $mem$$Address);
-    ShenandoahBarrierSet::assembler()->load_ref_barrier_c2(this, masm,
-                                                           $dst$$Register /* obj */,
-                                                           $tmp3$$Register /* addr */,
-                                                           noreg /* tmp1 */,
-                                                           $tmp1$$Register /* tmp2 */,
-                                                           $tmp2$$Register /* tmp3 */,
-                                                           false /* narrow */);
+    ShenandoahBarrierSet::assembler()->load_c2(this, masm,
+      $dst$$Register,
+      $mem$$Address,
+      /* narrow = */ false,
+      $tmp$$Register
+    );
   %}
   ins_cost(125);
   ins_pipe(ialu_reg_mem);
 %}
 
-instruct loadN_shenandoah(rRegN dst, memory mem, rRegP tmp1, rRegP tmp2, rRegP tmp3, rFlagsReg cr)
+instruct loadN_shenandoah(rRegN dst, memory mem, rRegP tmp, rFlagsReg cr)
 %{
   match(Set dst (LoadN mem));
   predicate(UseShenandoahGC && n->as_Load()->barrier_data() != 0);
-  effect(TEMP_DEF dst, TEMP tmp1, TEMP tmp2, TEMP tmp3, KILL cr);
-
+  effect(TEMP_DEF dst, TEMP tmp, KILL cr);
   // The main load is a candidate to implement implicit null checks.
   ins_is_late_expanded_null_check_candidate(true);
-
   format %{ "movl    $dst, $mem\t# compressed ptr" %}
   ins_encode %{
-    __ movl($dst$$Register, $mem$$Address); // Must be first, implicit null check here.
-    if (ShenandoahSATBBarrierStubC2::needs_barrier(this)) {
-      __ movl($tmp1$$Register, $dst$$Register);
-      __ decode_heap_oop($tmp1$$Register);
-      ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                         noreg /* addr */,
-                                                         $tmp1$$Register /* pre_val */,
-                                                         $tmp2$$Register /* tmp */);
-    }
-    ShenandoahBarrierSet::assembler()->load_ref_barrier_c2(this, masm,
-                                                           $dst$$Register /* obj */,
-                                                           $mem$$Register /* addr */,
-                                                           $tmp1$$Register /* tmp1 */,
-                                                           $tmp2$$Register /* tmp2 */,
-                                                           $tmp3$$Register /* tmp3 */,
-                                                           true /* narrow */);
+    ShenandoahBarrierSet::assembler()->load_c2(this, masm,
+      $dst$$Register,
+      $mem$$Address,
+      /* narrow = */ true,
+      $tmp$$Register
+    );
   %}
   ins_cost(125);
   ins_pipe(ialu_reg_mem);

@@ -843,6 +843,10 @@ void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
   BLOCK_COMMENT("} ShenandoahSATBBarrierStubC2::emit_code");
 }
 
+void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
+  Unimplemented();
+}
+
 void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
   Unimplemented();
 }

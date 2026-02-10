@@ -817,6 +817,34 @@ void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, Ma
   __ bind(*stub->continuation());
 }
 
+void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, 
+                                            Register dst,
+                                            Address src,
+                                            bool narrow,
+                                            Register tmp) {
+  // Do the actual load. This load is the candidate for implicit null check, and MUST come first.
+  if (narrow) {
+    __ movl(dst, src);
+  } else {
+    __ movq(dst, src);
+  }
+
+  // Emit barrier if needed
+  if (ShenandoahLoadBarrierStubC2::needs_barrier(node)) {
+    Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+
+    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, dst, src, narrow, tmp);
+    stub->dont_preserve(tmp); // temp, no need to save
+
+    char check = 0;
+    check |= ShenandoahLoadBarrierStubC2::needs_satb_barrier(node)          ? ShenandoahHeap::MARKING : 0;
+    check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
+    check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier_weak(node) ? ShenandoahHeap::WEAK_ROOTS : 0;
+    gc_state_check_c2(masm, check, stub);
+    __ bind(*stub->continuation());
+  }
+}
+
 void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm, 
                                              Address dst, bool dst_narrow,
                                              Register src, bool src_narrow,
@@ -974,6 +1002,141 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop_c2(const MachNode* node, MacroAs
 
 #undef __
 #define __ masm.
+
+void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
+  __ bind(*entry());
+
+  assert_different_registers(_tmp, _dst);
+
+  Label L_end;
+
+  // If the object is null, there is no point in applying barriers.
+  if (_narrow) {
+    __ testl(_dst, _dst);
+  } else {
+    __ testptr(_dst, _dst);
+  }
+  __ jcc(Assembler::equal, *continuation());
+
+  // If object is narrow, we need to decode it first.
+  if (_narrow) {
+    __ decode_heap_oop_not_null(_dst);
+  }
+
+  if (_needs_load_ref_barrier) {
+    Label L_lrb_done;
+
+    bool is_weak = (_node->barrier_data() & ShenandoahBarrierStrong) == 0;
+
+    // Runtime check for LRB
+    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+    __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED | (is_weak ? ShenandoahHeap::WEAK_ROOTS : 0));
+    __ jcc(Assembler::zero, L_lrb_done);
+
+    // Weak/phantom loads always need to go to runtime.
+    if (!is_weak) {
+      __ movptr(_tmp, _dst);
+      __ shrptr(_tmp, ShenandoahHeapRegion::region_size_bytes_shift_jint());
+      __ addptr(_tmp, (intptr_t) ShenandoahHeap::in_cset_fast_test_addr());
+      __ testb(Address(_tmp, 0), 0xFF);
+      __ jcc(Assembler::zero, L_lrb_done);
+    }
+
+    dont_preserve(_dst); // For LRB we must not preserve _dst
+    {
+      SaveLiveRegisters save_registers(&masm, this);
+
+      // Shuffle in the arguments. The end result should be:
+      //   c_rarg0 <-- _dst
+      //   c_rarg1 <-- lea(_src)
+      if (c_rarg0 == _dst) {
+        __ lea(c_rarg1, _src);
+      } else if (c_rarg1 == _dst) {
+        // Set up arguments in reverse, and then flip them
+        __ lea(c_rarg0, _src);
+        __ xchgptr(c_rarg0, c_rarg1);
+      } else {
+        assert_different_registers(c_rarg1, _dst);
+        __ lea(c_rarg1, _src);
+        __ movptr(c_rarg0, _dst);
+      }
+
+      address entry;
+      if (_narrow) {
+        if ((_node->barrier_data() & ShenandoahBarrierStrong) != 0) {
+          entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow);
+        } else if ((_node->barrier_data() & ShenandoahBarrierWeak) != 0) {
+          entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow);
+        } else if ((_node->barrier_data() & ShenandoahBarrierPhantom) != 0) {
+          entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow);
+        }
+      } else {
+        if ((_node->barrier_data() & ShenandoahBarrierStrong) != 0) {
+          entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong);
+        } else if ((_node->barrier_data() & ShenandoahBarrierWeak) != 0) {
+          entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak);
+        } else if ((_node->barrier_data() & ShenandoahBarrierPhantom) != 0) {
+          entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom);
+        }
+      }
+      __ call(RuntimeAddress(entry), rax);
+      assert(!save_registers.contains(_dst), "must not save result register");
+      __ movptr(_dst, rax);
+    }
+
+    // Paranoia: if LRB returns null for a weak access, do NOT feed it into SATB, which does not accept null pointers.
+    __ testptr(_dst, _dst);
+    __ jcc(Assembler::equal, L_end);
+
+    __ bind(L_lrb_done);
+  }
+
+  if (_needs_satb_barrier) {
+    // Push obj to SATB, if needed.
+
+    Label L_satb_done, L_satb_runtime;
+
+    // Runtime check for SATB
+    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+    __ testb(gc_state, ShenandoahHeap::MARKING);
+    __ jcc(Assembler::zero, L_satb_done);
+
+    // Can we store a value in the given thread's buffer?
+    // (The index field is typed as size_t.)
+    Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
+    Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
+
+    __ movptr(_tmp, index);
+    __ testptr(_tmp, _tmp);
+    __ jccb(Assembler::zero, L_satb_runtime);
+    // The buffer is not full, store value into it.
+    __ subptr(_tmp, wordSize);
+    __ movptr(index, _tmp);
+    __ addptr(_tmp, buffer);
+    __ movptr(Address(_tmp, 0), _dst);
+    __ jmp(L_satb_done);
+
+    __ bind(L_satb_runtime);
+
+    preserve(_dst); // For SATB we must preserve _dst
+    {
+      SaveLiveRegisters save_registers(&masm, this);
+      if (c_rarg0 != _dst) {
+        __ mov(c_rarg0, _dst);
+      }
+      __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre_c2)), rax);
+    }
+
+    __ bind(L_satb_done);
+  }
+
+  __ bind(L_end);
+  if (_narrow) {
+    __ encode_heap_oop(_dst);
+  }
+
+  __ jmp(*continuation());
+}
 
 void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ bind(*entry());

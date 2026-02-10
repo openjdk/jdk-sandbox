@@ -131,6 +131,41 @@ public:
   virtual void emit_code(MacroAssembler& masm) = 0;
 };
 
+class ShenandoahLoadBarrierStubC2 : public ShenandoahBarrierStubC2 {
+  Register const _dst;
+  Address  const _src;
+  Register const _tmp;
+  const bool _narrow;
+  const bool _needs_load_ref_barrier;
+  const bool _needs_satb_barrier;
+
+  ShenandoahLoadBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow, Register tmp) :
+    ShenandoahBarrierStubC2(node), _dst(dst), _src(src), _tmp(tmp), _narrow(narrow),
+    _needs_load_ref_barrier(needs_load_ref_barrier(node)), _needs_satb_barrier(needs_satb_barrier(node)) {}
+
+public:
+  static bool needs_barrier(const MachNode* node) {
+    return needs_load_ref_barrier(node) || needs_satb_barrier(node);
+  }
+  static bool needs_satb_barrier(const MachNode* node) {
+    return (node->barrier_data() & ShenandoahBarrierSATB) != 0;
+  }
+  static bool needs_load_ref_barrier(const MachNode* node) {
+    return (node->barrier_data() & (ShenandoahBarrierStrong | ShenandoahBarrierWeak | ShenandoahBarrierPhantom)) != 0;
+  }
+  static bool needs_load_ref_barrier_weak(const MachNode* node) {
+    return (node->barrier_data() & (ShenandoahBarrierWeak | ShenandoahBarrierPhantom)) != 0;
+  }
+  static bool src_not_null(const MachNode* node) {
+    return (node->barrier_data() & ShenandoahBarrierNotNull) != 0;
+  }
+
+  static ShenandoahLoadBarrierStubC2* create(const MachNode* node, Register dst, Address src, bool narrow, Register tmp);
+
+  void emit_code(MacroAssembler& masm) override;
+};
+
+
 class ShenandoahStoreBarrierStubC2 : public ShenandoahBarrierStubC2 {
   Address const _dst;
   Register const _src;

@@ -81,6 +81,7 @@ public:
   void cmpxchg_oop_c2(const MachNode* node, MacroAssembler* masm,
                       Register res, Address addr, Register oldval, Register newval, Register tmp1, Register tmp2,
                       bool exchange);
+  void load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src, bool narrow, Register tmp);
   void store_c2(const MachNode* node, MacroAssembler* masm, Address dst, bool dst_narrow, Register src, bool src_narrow, Register tmp);
 #endif
   virtual void arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
