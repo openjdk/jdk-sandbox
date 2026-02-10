@@ -70,7 +70,7 @@ ELFFile::ELFFile(const char* filename, const char* libdir) {
         sh = nullptr;
     }
 
-    logv("ELFFile: %s hdr = %p phoff = 0x%lx shoff = 0x%lx   ph = %p sh = %p",
+    logd("ELFFile: %s hdr = %p phoff = 0x%lx shoff = 0x%lx   ph = %p sh = %p",
          filename, hdr, hdr->e_phoff, hdr->e_shoff, ph, sh);
 }
 
@@ -133,12 +133,12 @@ char* ELFFile::find_note_data(Elf64_Phdr* notes_ph, Elf64_Word type) {
     Elf64_Nhdr* end  = nhdr + notes_ph->p_filesz;
 
     while (nhdr < end) {
-        logv("NOTE at %p type 0x%x namesz %x descsz %x", nhdr, nhdr->n_type, nhdr->n_namesz, nhdr->n_descsz);
+        logd("NOTE at %p type 0x%x namesz %x descsz %x", nhdr, nhdr->n_type, nhdr->n_namesz, nhdr->n_descsz);
         char *pos = (char*) nhdr;
         pos += sizeof(Elf64_Nhdr);
         if (nhdr->n_namesz > 0) {
             char *name = (char *) pos;
-            logv("NOTE name='%s'", name);
+            logd("NOTE name='%s'", name);
             pos += nhdr->n_namesz; // n_namesz includes terminator
         }
         // Align. 4 byte alignment, including when 64-bit.
@@ -199,7 +199,7 @@ void ELFFile::read_sharedlibs() {
     note_nt_file += 8;
     long pagesize = *(long*) note_nt_file;
     note_nt_file += 8;
-    logv("NT_FILE count %d pagesize 0x%lx", sharedlibs_count, pagesize);
+    logd("NT_FILE count %d pagesize 0x%lx", sharedlibs_count, pagesize);
 
     Segment* sharedlibs = (Segment*) malloc(sizeof(Segment) * sharedlibs_count); // new Segment[sharedlibs_count];
 
@@ -225,9 +225,7 @@ void ELFFile::read_sharedlibs() {
     // Considered skipping duplicate names, but would need to coalesce entires for same filename.
     // The fetches get first match and want to find base address, so all good.
     for (int i = 0; i < sharedlibs_count; i++) {
-        if (verbose) {
-            fprintf(stderr, "NT_FILE: 0x%lx - 0x%lx %s\n", (uint64_t) sharedlibs[i].vaddr, (uint64_t) sharedlibs[i].end(), sharedlibs[i].name);
-        }
+        logd("NT_FILE: 0x%lx - 0x%lx %s\n", (uint64_t) sharedlibs[i].vaddr, (uint64_t) sharedlibs[i].end(), sharedlibs[i].name);
         Segment lib = sharedlibs[i];
         char* name = lib.name;
         if (libdir != nullptr) {
@@ -242,7 +240,7 @@ void ELFFile::read_sharedlibs() {
         libs.push_back(seg);
     }
 
-    logv("sharedlibs size = %ld", libs.size());
+    logd("sharedlibs size = %ld", libs.size());
     free(sharedlibs);
 }
 

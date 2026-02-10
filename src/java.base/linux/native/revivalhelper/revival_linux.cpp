@@ -271,7 +271,7 @@ void *symbol_dynamiclookup_pd(void *h, const char *str) {
     void *s = dlsym(RTLD_NEXT, str);
     logv("symbol_dynamiclookup: %s = %p \n", str, s);
     if (s == 0) {
-        if (verbose) {
+        if (logLevel >= LOG_VERBOSE) {
             warn("dlsym: %s", dlerror());
         }
         return (void *) -1;

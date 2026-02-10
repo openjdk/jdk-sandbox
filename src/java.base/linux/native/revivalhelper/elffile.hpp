@@ -208,7 +208,7 @@ class ELFFile {
     void relocate_program_headers(long displacement) {
         Elf64_Phdr* p = ph;
         for (int i = 0; i < hdr->e_phnum; i++) {
-            logv("relocate_program_headers %3d %p", i, p);
+            logd("relocate_program_headers %3d %p", i, p);
             if (should_relocate_program_header(p)) {
                 p->p_vaddr += displacement;
                 p->p_paddr += displacement;
@@ -235,7 +235,7 @@ class ELFFile {
     void relocate_section_headers(long displacement) {
         Elf64_Shdr* s = sh;
         for (int i = 0; i < hdr->e_shnum; i++) {
-            logv("relocate_section_headers %3d %p", i, s);
+            logd("relocate_section_headers %3d %p", i, s);
             if (should_relocate_section_header(s)) {
                 s->sh_addr += displacement;
             }
@@ -297,7 +297,7 @@ class ELFFile {
      * Relocate e.g. INIT_ARRAY contents.
      */
     void relocate_dyn_array(long displacement, Elf64_Dyn* dyn, int count) {
-        logv("relocate_dyn_array: updating %d", count);
+        logd("relocate_dyn_array: updating %d", count);
         // Get our mmapped address of the array:
         uint64_t *p = (uint64_t*) ((uint64_t) m + dyn->d_un.d_ptr);
         // Relocate contents:
