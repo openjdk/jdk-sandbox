@@ -67,6 +67,7 @@ void write0(int fd, const char* buf) {
     size_t len = strlen(buf);
     int e = (int) write(fd, buf, (unsigned int) len);
     if (e < 0) {
+        // Do not call warn(), that calls this method.
         fprintf(stderr, "revival write: Write failed: %s\n", strerror(errno));
     } else if (e != (int) len) {
         fprintf(stderr, "revival write: Write failed: written %d buf %d.\n", e, (int) len);
@@ -291,13 +292,13 @@ int revival_mapping_mmap(void* vaddr, size_t length, size_t offset, int lines, c
         logv("  revival_mapping_mmap: line %d: mapping failed: wanted vaddr: %p returned: %p", lines, vaddr, mapped_addr);
         e = -1;
     } else {
-        logv("  revival_mapping_mmap: line %d: mapping OK %p - %p", lines, vaddr, (void*) ((uint64_t) vaddr + length));
+        logd("  revival_mapping_mmap: line %d: mapping OK %p - %p", lines, vaddr, (void*) ((uint64_t) vaddr + length));
         e = 0;
     }
 #ifdef WINDOWS
     // Windows: alignment is more difficult as vaddr and file offset must be aligned.  Fallback to alloc and copy:
     if (e) {
-        logv("  revival_mapping_mmap: map failed, will retry using alloc + copy");
+        logd("  revival_mapping_mmap: map failed, will retry using alloc + copy");
         e = revival_mapping_copy(vaddr, length, offset, true /* allocate */, filename, core_fd);
         logv("  revival_mapping_mmap: retry using revival_mapping_copy returns: %d", e);
     }
@@ -326,8 +327,8 @@ int revival_mapping_allocate(void* vaddr, size_t length) {
  */
 int revival_mapping_copy(void* vaddr, size_t length, size_t offset, bool allocate, char* filename, int fd) {
     int e = 0;
-//    logv("  revival_mapping_copy: alloc=%d vaddr " PTR_FORMAT " - " PTR_FORMAT " len=" SIZE_FORMAT_X_0 " from file offset 0x%llx",
-//         allocate, (uintptr_t) vaddr, (uintptr_t) ((address) vaddr + length), length, (long long) offset);
+    logd("  revival_mapping_copy: alloc=%d vaddr " PTR_FORMAT " - " PTR_FORMAT " len=" SIZE_FORMAT_X_0 " from file offset 0x%llx",
+         allocate, (uintptr_t) vaddr, (uintptr_t) ((address) vaddr + length), length, (long long) offset);
 
     if (allocate) {
         // Need to create a mapping: (not normally true)
@@ -357,9 +358,7 @@ int revival_mapping_copy(void* vaddr, size_t length, size_t offset, bool allocat
     }
     // Copy bytes from file offset to vaddr (not to a changed/aligned vaddr):
     int *p = (int*) vaddr;
-    // printf("map test\n");
     *p = 123;
-    //warn("map test done\n");
 
     // Read.  --> todo: use ptr to destination, read to there directly...
     int value;
@@ -472,7 +471,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
         e = fscanf(f, "L %s %s %s\n", s1, s2, s3);
         if (e == 3) {
             void* vaddr = (void*) strtoull(s2, nullptr, 16);
-            logv("Load library '%s' required at %p...\n", s1, vaddr);
+            logv("Load library '%s' required at %p...", s1, vaddr);
             h = load_sharedlibrary_fromdir(dirname, s1, vaddr, s3);
             logv("load_sharedlibrary_fromdir returns: %p", h);
             if (h == (void*) -1) {
@@ -611,7 +610,7 @@ void* symbol_resolve_from_symbol_file(const char* dirname, const char* sym) {
         }
     }
 
-    logv("symbol: %s = %p\n", sym, addr);
+    logv("symbol: %s = %p", sym, addr);
     fclose(f);
 
     if (addr == 0) {
@@ -641,7 +640,7 @@ void* symbol_deref(const char* sym) {
  */
 void* symbol(const char* sym) {
     if (!revivaldir) {
-        printf("symbol: call revive_image first.\n");
+        warn("symbol: call revive_image first.");
         return (void*) -1;
     }
     void* s = symbol_resolve_from_symbol_file(revivaldir, sym);
@@ -968,53 +967,53 @@ char* mappings_filename_set(const char* revival_data_path) {
 }
 
 /**
- * Read version string from core, and binary, and compare.
+ * Read version string pointed to by some symbol, from both core and binary, and compare.
  *
- * Memory mappings are in place, jvm_filename and jvm_address are set.
+ * filename parameter is the name of a file in the given directory.
+ *
+ * Memory mappings are in place. jvm_filename and jvm_address are set.
  */
-void doVersionCheck(const char* corename, const char* revival_dir, const char* version_symbol) {
-    void* ver = symbol_resolve_from_symbol_file(revival_dir, version_symbol);
+void doVersionCheck(const char* corename, const char* directory, const char* filename, void* base_address,
+                    const char* version_symbol) {
+
+    void* ver = symbol_resolve_from_symbol_file(directory, version_symbol);
     if (ver == nullptr || ver == (void*) -1) {
-        warn("No vm release symbol '%s' found, no version check.", version_symbol);
+        warn("No version symbol '%s' found, no version check.", version_symbol);
         return;
     }
 
-    if (jvm_address == nullptr) {
-        warn("doVersionCheck: No jvm_address?");
-    } else {
-        logv("Version check '%s' = 0x%llx", version_symbol, (unsigned long long) ver);
-        char* ptr = *(char**) ver; // read pointer from now-live memory
+    logv("Version check '%s' = 0x%llx", version_symbol, (unsigned long long) ver);
+    char* ptr = *(char**) ver; // read pointer from now-live memory
 
-        // Can now read string from address space directly, but want to be specific about
-        // reading from core and binary, to compare.
-        // Read from core:
-        logv("Version check: ptr = 0x%llx",  (unsigned long long) ptr);
-        char* vm_release_core = readstring_from_core_at_vaddr_pd(corename, (uint64_t) *(char**) ver);
-        logv("Version check: vm release from core: 0x%llx 0x%llx '%s'",
-             (unsigned long long) ver, (unsigned long long) *(uint64_t*) ver, vm_release_core);
+    // Can now read string from address space directly, but want to be specific about
+    // reading from core and binary, to compare.
+    // Read from core:
+    logv("Version check: ptr = 0x%llx",  (unsigned long long) ptr);
+    char* vm_release_core = readstring_from_core_at_vaddr_pd(corename, (uint64_t) *(char**) ver);
+    logv("Version check: vm release from core: 0x%llx 0x%llx '%s'",
+         (unsigned long long) ver, (unsigned long long) *(uint64_t*) ver, vm_release_core);
 
-        // Read from binary:
-        char jvm_name[BUFLEN]; // or use jvm_filename
-        snprintf(jvm_name, BUFLEN - 1, "%s" FILE_SEPARATOR "%s", revival_dir, JVM_FILENAME);
+    // Read from binary:
+    char jvm_name[BUFLEN];
+    snprintf(jvm_name, BUFLEN - 1, "%s" FILE_SEPARATOR "%s", directory, filename);
 
-        // Location as relative virtual address:
-        // Convert address to offset in binary.
-        uint64_t vm_release_relative_vaddr = (uint64_t) ptr - (uint64_t) jvm_address;
+    // Location as relative virtual address:
+    // Convert address to offset in binary.
+    uint64_t vm_release_relative_vaddr = (uint64_t) ptr - (uint64_t) base_address;
 #ifdef WINDOWS
-        PEFile pefile(jvm_name);
-        uint64_t vm_release_offset = pefile.file_offset_for_reladdr(vm_release_relative_vaddr);
+    PEFile pefile(jvm_name);
+    uint64_t vm_release_offset = pefile.file_offset_for_reladdr(vm_release_relative_vaddr);
 #else
-        // In ELF, the relative vaddr just is the file offset.
-        uint64_t vm_release_offset = vm_release_relative_vaddr;
+    // In ELF, the relative vaddr just is the file offset.
+    uint64_t vm_release_offset = vm_release_relative_vaddr;
 #endif
 
-        logv("Version check: vm binary offset:  0x%lx in %s", vm_release_offset, jvm_filename);
-        char* vm_release_binary = readstring_at_offset_pd(jvm_name, vm_release_offset);
-        logv("Version check: vm release from binary:  %s", vm_release_binary);
+    logv("Version check: vm binary offset:  0x%lx in %s", vm_release_offset, jvm_filename);
+    char* vm_release_binary = readstring_at_offset_pd(jvm_name, vm_release_offset);
+    logv("Version check: vm release from binary:  %s", vm_release_binary);
 
-        if (strncmp(vm_release_core, vm_release_binary, BUFLEN) != 0) {
-            error("Failed: JVM version mismatch, core '%s', jvm binary '%s'", vm_release_core, vm_release_binary);
-        }
+    if (strncmp(vm_release_core, vm_release_binary, BUFLEN) != 0) {
+        error("Failed: JVM version mismatch, core '%s', jvm binary '%s'", vm_release_core, vm_release_binary);
     }
 }
 
@@ -1097,6 +1096,10 @@ int revive_image(const char* corename, const char* javahome, const char* libdir,
         return -1;
     }
 
+    if (jvm_address == nullptr) {
+        error("No JVM load address."); // Should have been set in mappings_file_read()
+    }
+
     // Install signal handler:
     logv("Install handler...");
     install_handler();
@@ -1105,7 +1108,7 @@ int revive_image(const char* corename, const char* javahome, const char* libdir,
     if (!versionCheckEnabled) {
         warn("JVM version check skipped.");
     } else {
-        doVersionCheck(corename, dirname, SYM_VM_RELEASE);
+        doVersionCheck(corename, dirname, JVM_FILENAME, jvm_address, SYM_VM_RELEASE);
     }
 
     // Preparation all OK:

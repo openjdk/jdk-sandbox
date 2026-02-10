@@ -97,7 +97,7 @@ void init_pd() {
         value = 0x1000; // consider exiting
     }
     vaddr_align = value;
-    logv("revival: init_pd: vaddr_alignment = 0x%llx\n", (unsigned long long) vaddr_alignment_pd());
+    logv("revival: init_pd: vaddr_alignment = 0x%llx", (unsigned long long) vaddr_alignment_pd());
 }
 
 
@@ -192,25 +192,25 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offse
         if (errno == EINVAL) {
             // EINVAL is likely on a Linux gcore (gdb) due to unaligned file offsets.
             // mmap requires offset to be a multiple of pagesize, retry with aligned offset.
-            logv("do_mmap_pd: 1 mmap(%p, %zu, %d, %d, %d, offset %zu) EINVAL\n", addr, length, prot, flags, fd, offset);
+            logv("do_mmap_pd: 1 mmap(%p, %zu, %d, %d, %d, offset %zu) EINVAL", addr, length, prot, flags, fd, offset);
 
             long align_mask = offset_alignment_pd() - 1;
             size_t offset_aligned = align_down((uint64_t) offset, align_mask);
             size_t shift = (offset - offset_aligned);
             size_t length_aligned = length + shift;
             void *addr_aligned = (void*) (((unsigned long long) addr) - shift);
-            logv(" offset_alignment = %p offset = %zu offset aligned = %zu shift = %zu new length = %zu new addr = %p\n",
+            logv(" offset_alignment = %p offset = %zu offset aligned = %zu shift = %zu new length = %zu new addr = %p",
                  (void*) align_mask, offset, offset_aligned, shift, length_aligned, addr_aligned);
             e = mmap(addr_aligned, length_aligned, prot, flags, fd, offset_aligned);
 
             if (e == (void*) -1L) {
                 if (errno == EINVAL) {
                     // But the above made the address badly aligned...  Will need to allocate and copy data.
-                    logv("do_mmap_pd: 2 mmap(%p, %zu, %d, %d, %d, offset %zu) EINVAL\n",
+                    logv("do_mmap_pd: 2 mmap(%p, %zu, %d, %d, %d, offset %zu) EINVAL",
                          addr_aligned, length_aligned, prot, flags, fd, offset_aligned);
                     int e2 = revival_mapping_copy(addr, length, offset, true, filename, fd);
                     if (e2 == -1L) {
-                        warn("do_mmap_pd: called revival_mapping_copy and failed: %d\n", e2);
+                        warn("do_mmap_pd: called revival_mapping_copy and failed: %d", e2);
                         e = (void*) -1L;
                     } else {
                         e = addr; // meaning ok, mapped at that address
@@ -248,10 +248,10 @@ void *do_map_allocate_pd(void *vaddr, size_t length) {
     size_t offset = 0;
 
     void *h = mmap(vaddr, length, prot, flags, fd, offset);
-    logv("do_map_allocate: mmap(%p, %zu, %d, %d, %d, %zu) returns: %p\n",
+    logv("do_map_allocate: mmap(%p, %zu, %d, %d, %d, %zu) returns: %p",
           vaddr, length, prot, flags, fd, offset, h);
     if (h == (void *) -1) {
-        warn("do_map_allocate: mmap(%p, %zu, %d, %d, %d, %zu) failed: returns: %p: errno = %d: %s\n",
+        warn("do_map_allocate: mmap(%p, %zu, %d, %d, %d, %zu) failed: returns: %p: errno = %d: %s",
              vaddr, length, prot, flags, fd, offset, h, errno, strerror(errno));
     }
     return h;
@@ -269,7 +269,7 @@ int revival_checks_pd(const char *dirname) {
 
 void *symbol_dynamiclookup_pd(void *h, const char *str) {
     void *s = dlsym(RTLD_NEXT, str);
-    logv("symbol_dynamiclookup: %s = %p \n", str, s);
+    logv("symbol_dynamiclookup: %s = %p", str, s);
     if (s == 0) {
         if (logLevel >= LOG_VERBOSE) {
             warn("dlsym: %s", dlerror());
@@ -291,11 +291,11 @@ const char *createTempFilename() {
     }
     char *p = strncat(tempName, revivaldir, BUFLEN - 1);
     p = strncat(p, "/revivaltemp", BUFLEN - 1);
-    logv("core page file: '%s'\n", tempName);
+    logv("core page file: '%s'", tempName);
     int fdTemp = open(tempName, O_WRONLY | O_CREAT | O_EXCL, 0600);
     if (fdTemp < 0) {
         if (errno == EEXIST) {
-            logv("revival: remove existing core page file '%s'\n", tempName);
+            logv("revival: remove existing core page file '%s'", tempName);
             int e = unlink(tempName);
             if (e < 0) {
                 warn("revival: remove existing core page file failed: %d", e);
@@ -343,7 +343,7 @@ size_t writeTempFileBytes(const char *tempName, Segment seg) {
     // Write bytes
     size_t s = write(fdTemp, seg.vaddr, seg.length);
     if (s != seg.length) {
-        warn("writeTempFileBytes: written %d of %d.\n", (int) s, (int) seg.length);
+        warn("writeTempFileBytes: written %d of %d", (int) s, (int) seg.length);
     }
     close (fdTemp);
     return (size_t) pos;
@@ -393,7 +393,7 @@ void remap(Segment seg) {
  */
 void handler(int sig, siginfo_t *info, void *ucontext) {
     void * addr  = (void *) info->si_addr;
-    logv("revival: handler: sig = %d for address %p\n", sig, addr);
+    logv("revival: handler: sig = %d for address %p", sig, addr);
 
     if (addr == nullptr) {
         warn("handler: null address");
@@ -419,7 +419,7 @@ void handler(int sig, siginfo_t *info, void *ucontext) {
     for (iter = writableSegments.begin(); iter != writableSegments.end(); iter++) {
         if (addr >= iter->vaddr &&
                 (unsigned long long) addr < (unsigned long long) (iter->vaddr) + (unsigned long long)(iter->length) ) {
-            logv("handler: si_addr = %p found writable segment %p\n", addr, iter->vaddr);
+            logv("handler: si_addr = %p found writable segment %p", addr, iter->vaddr);
             remap((Segment) *iter);
             return;
         }
@@ -440,11 +440,11 @@ void install_handler() {
     sa.sa_flags = SA_SIGINFO|SA_RESTART;
     int e = sigaction(SIGSEGV, &sa, &old_sa);
     if (e) {
-        warn("sigaction SIGSEGV: %d\n", e);
+        warn("sigaction SIGSEGV: %d", e);
     }
     e = sigaction(SIGBUS, &sa, &old_sa);
     if (e) {
-        warn("sigaction SIGBUS: %d\n", e);
+        warn("sigaction SIGBUS: %d", e);
     }
 }
 
@@ -490,7 +490,7 @@ void *load_sharedobject_verify_pd(const char *name, void *vaddr) {
         }
 
         actual = base_address_for_sharedobject_live(h);
-        logv("load_sharedobject_pd %d: actual = %p \n", i, actual);
+        logv("load_sharedobject_pd %d: actual = %p", i, actual);
 
         if (actual == (void *) 0 || actual == vaddr) {
             return h;
@@ -543,17 +543,17 @@ void *load_sharedobject_mmap_pd(const char *filename, void *vaddr) {
             warn("load_sharedobject_mmap_pd: failed to read ELF Program Header %s: %ld", filename, e);
             return (void *) -1;
         }
-        warn("load_sharedobject_mmap_pd: PH %d: type 0x%x flags 0x%x vaddr 0x%lx\n", i, phdr.p_type, phdr.p_flags, phdr.p_vaddr);
+        warn("load_sharedobject_mmap_pd: PH %d: type 0x%x flags 0x%x vaddr 0x%lx", i, phdr.p_type, phdr.p_flags, phdr.p_vaddr);
         if (phdr.p_type == PT_LOAD) {
             if (phdr.p_flags == (PF_X | PF_R) || phdr.p_flags == (PF_R | PF_W)) {
                 // Expect a non-prelinked/relocated library, with zero base address.
                 // Map PH at the given vaddr plus PH vaddr.
                 uint64_t va = (uint64_t) vaddr + (uint64_t) phdr.p_vaddr;
-                warn("load_sharedobject_mmap_pd: LOAD offset %lx vaddr %p \n", phdr.p_offset, (void *) va);
+                warn("load_sharedobject_mmap_pd: LOAD offset %lx vaddr %p", phdr.p_offset, (void *) va);
                 void * a = do_mmap_pd((void *) va, (size_t) phdr.p_filesz, (char *) filename, fd, (size_t) phdr.p_offset);
-                warn("load_sharedobject_mmap_pd: %s: %p\n", filename, a);
+                warn("load_sharedobject_mmap_pd: %s: %p", filename, a);
                 if ((uint64_t) a > 0) {
-                    warn("load_sharedobject_mmap_pd OK\n");
+                    warn("load_sharedobject_mmap_pd OK");
                     loaded++;
                 }
             }
@@ -638,7 +638,7 @@ void write_symbols(int symbols_fd, const char* symbols[], int count, const char 
 int open_for_read(const char* filename) {
     int fd = open(filename, O_RDONLY);
     if (fd < 0) {
-        warn("Cannot open %s: %s\n", filename, strerror(errno));
+        warn("Cannot open %s: %s", filename, strerror(errno));
         return -1;
     }
     return fd;
@@ -647,7 +647,7 @@ int open_for_read(const char* filename) {
 int open_for_read_and_write(const char* filename) {
     int fd = open(filename, O_RDWR);
     if (fd < 0) {
-        warn("Cannot open %s: %s\n", filename, strerror(errno));
+        warn("Cannot open %s: %s", filename, strerror(errno));
         return -1;
     }
     return fd;
@@ -662,7 +662,7 @@ bool allLibraries = false;
 
 void write_sharedlib_mapping(int mappings_fd, char* filename, void* address) {
         char buf[BUFLEN];
-        const char *checksum = "0";
+        const char *checksum = "0"; // possible enhancement
         snprintf(buf, BUFLEN, "L %s %llx %s\n", basename(filename), (unsigned long long) address, checksum);
         write0(mappings_fd, buf);
 }
@@ -671,7 +671,8 @@ void write_sharedlib_mappings(int mappings_fd, ELFFile* core) {
     logv("write_sharedlib_mappings");
 
     if (!allLibraries) {
-        write_sharedlib_mapping(mappings_fd, jvm_filename, jvm_address);
+        Segment* jvm_mapping = core->get_library_mapping(JVM_FILENAME);
+        write_sharedlib_mapping(mappings_fd, jvm_mapping->name, jvm_mapping->vaddr);
     } else {
         std::list<Segment> libs = core->get_library_mappings();
         std::list<Segment>::iterator iter;
@@ -714,7 +715,8 @@ void copy_and_relocate(const char* srcfile, const char* destdir, uint64_t addres
 void copy_and_relocate(ELFFile core, const char* destdir) {
     logv("copy_and_relocate");
     if (!allLibraries) {
-        copy_and_relocate(jvm_filename, destdir, (uint64_t) jvm_address);
+        Segment* jvm_mapping = core.get_library_mapping(JVM_FILENAME);
+        copy_and_relocate(jvm_mapping->name, destdir, (uint64_t) jvm_mapping->vaddr);
     } else {
         std::list<Segment> libs = core.get_library_mappings();
         std::list<Segment>::iterator iter;
@@ -747,12 +749,10 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
         warn("JVM library required in core not found.");
         error("For cores from other systems, or if JDK at path in core has changed, use -L to specify JVM location.");
     }
-    jvm_filename = strdup(jvm_mapping->name);
-    jvm_address = (void*) jvm_mapping->vaddr;
-    logv("JVM = '%s'", jvm_filename);
-    logv("JVM addr = %p", jvm_address);
-    if (!file_exists_pd(jvm_filename)) {
-        error("No file for JVM '%s'", jvm_filename);
+    logv("JVM = '%s'", jvm_mapping->name);
+    logv("JVM addr = %p", jvm_mapping->vaddr);
+    if (!file_exists_pd(jvm_mapping->name)) {
+        error("No file for JVM '%s'", jvm_mapping->name);
     }
 
     // Create mappings file:

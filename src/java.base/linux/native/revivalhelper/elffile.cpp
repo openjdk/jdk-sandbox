@@ -402,7 +402,7 @@ void ELFFile::write_mem_mappings(int mappings_fd, const char* exec_name) {
             }
         }
         if (skip) {
-            logv("Skipping due to %s at 0x%lx", exec_name, phdr->p_vaddr);
+            logd("Skipping due to %s at 0x%lx", exec_name, phdr->p_vaddr);
             n_skipped++;
             phdr = next_ph(phdr);
             continue;
@@ -419,7 +419,7 @@ void ELFFile::write_mem_mappings(int mappings_fd, const char* exec_name) {
                 }
             }
             if (skip) {
-                logv("Skipping due to nonwritable overlap at 0x%lx", phdr->p_vaddr);
+                logd("Skipping due to nonwritable overlap at 0x%lx", phdr->p_vaddr);
                 n_skipped++;
                 phdr = next_ph(phdr);
                 continue;
