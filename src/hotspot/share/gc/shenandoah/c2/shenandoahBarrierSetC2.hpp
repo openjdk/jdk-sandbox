@@ -74,6 +74,9 @@ class ShenandoahBarrierSetC2 : public BarrierSetC2 {
 
   static bool clone_needs_barrier(const TypeOopPtr* src_type, bool& is_oop_array);
 
+  static bool can_remove_load_barrier(Node* node);
+
+  static void refine_load(Node* node);
   static void refine_store(const Node* node);
 
 protected:
