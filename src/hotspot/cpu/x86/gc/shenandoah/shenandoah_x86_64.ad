@@ -73,9 +73,10 @@ instruct loadN_shenandoah(rRegN dst, memory mem, rRegP tmp, rFlagsReg cr)
 
 // ---------------------------- LOAD SPECIALIZATIONS ------------------------
 // These rules match x86.ad match rules with barrier_data() == 0.
-// For these cases, Shenandoah does not care about applying the GC barriers:
-// this applies to everywhere we do not expose the untreated oop to the rest
-// of the system.
+//
+// We can skip Shenandoah barriers if the untreated oop is not exposed to the
+// rest of the system, and the things we access in it are the same in both copies.
+// This is trivially true for null checks and some immutable fields.
 //
 
 instruct testP_mem_shenandoah(rFlagsReg cr, memory op, immP0 zero)
@@ -101,18 +102,6 @@ instruct testP_mem_reg0_shenandoah(rFlagsReg cr, memory mem, immP0 zero)
   format %{ "cmpq    R12, $mem\t# ptr (R12_heapbase==0)" %}
   ins_encode %{
     __ cmpq(r12, $mem$$Address);
-  %}
-  ins_pipe(ialu_cr_reg_mem);
-%}
-
-instruct compN_rReg_mem_shenandoah(rFlagsRegU cr, rRegN src, memory mem)
-%{
-  predicate(UseShenandoahGC && n->in(2)->as_Load()->barrier_data() != 0);
-  match(Set cr (CmpN src (LoadN mem)));
-
-  format %{ "cmpl    $src, $mem\t# compressed ptr" %}
-  ins_encode %{
-    __ cmpl($src$$Register, $mem$$Address);
   %}
   ins_pipe(ialu_cr_reg_mem);
 %}
