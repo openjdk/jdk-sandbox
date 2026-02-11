@@ -48,7 +48,7 @@ instruct loadP_shenandoah(rRegP dst, memory mem, rRegP tmp, rFlagsReg cr)
     );
   %}
   ins_cost(125);
-  ins_pipe(ialu_reg_mem);
+  ins_pipe(ialu_cr_reg_mem);
 %}
 
 instruct loadN_shenandoah(rRegN dst, memory mem, rRegP tmp, rFlagsReg cr)
@@ -68,7 +68,7 @@ instruct loadN_shenandoah(rRegN dst, memory mem, rRegP tmp, rFlagsReg cr)
     );
   %}
   ins_cost(125);
-  ins_pipe(ialu_reg_mem);
+  ins_pipe(ialu_cr_reg_mem);
 %}
 
 // ---------------------------- LOAD SPECIALIZATIONS ------------------------
@@ -85,11 +85,11 @@ instruct testP_mem_shenandoah(rFlagsReg cr, memory op, immP0 zero)
             UseShenandoahGC && n->in(1)->as_Load()->barrier_data() != 0);
   match(Set cr (CmpP (LoadP op) zero));
 
-  ins_cost(500); // XXX
   format %{ "testq   $op, 0xffffffffffffffff\t# ptr" %}
   ins_encode %{
     __ testq($op$$Address, 0xFFFFFFFF);
   %}
+  ins_cost(10);
   ins_pipe(ialu_cr_reg_imm);
 %}
 
@@ -103,6 +103,7 @@ instruct testP_mem_reg0_shenandoah(rFlagsReg cr, memory mem, immP0 zero)
   ins_encode %{
     __ cmpq(r12, $mem$$Address);
   %}
+  ins_cost(10);
   ins_pipe(ialu_cr_reg_mem);
 %}
 
@@ -112,12 +113,12 @@ instruct testN_mem_shenandoah(rFlagsReg cr, memory mem, immN0 zero)
             UseShenandoahGC && n->in(1)->as_Load()->barrier_data() != 0);
   match(Set cr (CmpN (LoadN mem) zero));
 
-  ins_cost(500); // XXX
   format %{ "testl   $mem, 0xffffffff\t# compressed ptr" %}
   ins_encode %{
     __ cmpl($mem$$Address, (int)0xFFFFFFFF);
   %}
-  ins_pipe(ialu_cr_reg_mem);
+  ins_cost(10);
+  ins_pipe(ialu_cr_reg_imm);
 %}
 
 instruct testN_mem_reg0_shenandoah(rFlagsReg cr, memory mem, immN0 zero)
@@ -130,6 +131,7 @@ instruct testN_mem_reg0_shenandoah(rFlagsReg cr, memory mem, immN0 zero)
   ins_encode %{
     __ cmpl(r12, $mem$$Address);
   %}
+  ins_cost(10);
   ins_pipe(ialu_cr_reg_mem);
 %}
 
@@ -141,7 +143,6 @@ instruct storeP_shenandoah(memory mem, any_RegP src, rRegP tmp, rFlagsReg cr)
   match(Set mem (StoreP mem src));
   predicate(UseShenandoahGC && n->as_Store()->barrier_data() != 0);
   effect(TEMP tmp, KILL cr);
-  ins_cost(125); // XXX
   format %{ "movq    $mem, $src\t# ptr" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
@@ -149,7 +150,8 @@ instruct storeP_shenandoah(memory mem, any_RegP src, rRegP tmp, rFlagsReg cr)
       $src$$Register, /* src_narrow = */ false,
       $tmp$$Register);
   %}
-  ins_pipe(ialu_mem_reg);
+  ins_cost(125);
+  ins_pipe(ialu_cr_reg_mem);
 %}
 
 instruct storeN_shenandoah(memory mem, rRegN src, rRegP tmp, rFlagsReg cr)
@@ -157,7 +159,6 @@ instruct storeN_shenandoah(memory mem, rRegN src, rRegP tmp, rFlagsReg cr)
   match(Set mem (StoreN mem src));
   predicate(UseShenandoahGC && n->as_Store()->barrier_data() != 0);
   effect(TEMP tmp, KILL cr);
-  ins_cost(125); // XXX
   format %{ "movl    $mem, $src\t# ptr" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
@@ -165,7 +166,8 @@ instruct storeN_shenandoah(memory mem, rRegN src, rRegP tmp, rFlagsReg cr)
       $src$$Register, /* src_narrow = */ true,
       $tmp$$Register);
   %}
-  ins_pipe(ialu_mem_reg);
+  ins_cost(125);
+  ins_pipe(ialu_cr_reg_mem);
 %}
 
 instruct encodePAndStoreN_shenandoah(memory mem, any_RegP src, rRegP tmp, rFlagsReg cr)
@@ -173,7 +175,6 @@ instruct encodePAndStoreN_shenandoah(memory mem, any_RegP src, rRegP tmp, rFlags
   match(Set mem (StoreN mem (EncodeP src)));
   predicate(UseShenandoahGC && n->as_Store()->barrier_data() != 0);
   effect(TEMP tmp, KILL cr);
-  ins_cost(125); // XXX
   format %{ "encode_heap_oop $src\n\t"
             "movl   $mem, $src\t# ptr" %}
   ins_encode %{
@@ -182,7 +183,8 @@ instruct encodePAndStoreN_shenandoah(memory mem, any_RegP src, rRegP tmp, rFlags
       $src$$Register, /* src_narrow = */ false,
       $tmp$$Register);
   %}
-  ins_pipe(ialu_mem_reg);
+  ins_cost(125);
+  ins_pipe(ialu_cr_reg_mem);
 %}
 
 // ---------------------------------- LOAD-STORES ---------------------------------------
