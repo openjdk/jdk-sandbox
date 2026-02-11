@@ -669,6 +669,10 @@ void ShenandoahBarrierSetAssembler::cas_c2(const MachNode* node, MacroAssembler*
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
   Assembler::operand_size op_size = UseCompressedOops ? Assembler::word : Assembler::xword;
 
+  // We need to do a combination of short and long jump because the stub entry
+  // may be too far to jump directly to.
+  Label short_branch;
+
   // Assuming just for now that we need both barriers
   NewShenandoahCASBarrierSlowStubC2* const cmpx = NewShenandoahCASBarrierSlowStubC2::create(node, addr, oldval, newval, res, tmp1, tmp2, narrow, false, acquire, release, weak);
 
@@ -690,10 +694,12 @@ void ShenandoahBarrierSetAssembler::cas_c2(const MachNode* node, MacroAssembler*
 
   // Test bit '0' of tmp1, which at this point will be FORWARDING bit if CAS
   // failed, or SATB bit if CAS succeded.
-  __ tbnz(tmp1, 0x0, *cmpx->entry());
+  __ tbz(tmp1, 0x0, short_branch);
+  __ b(*cmpx->entry());
 
   // Would be nice to fold this in the comparison above, but how?
   // Skip Card Table dirtying if CAS failed.
+  __ bind(short_branch);
   __ cbz(res, *cmpx->continuation());
   card_barrier_c2(node, masm, addr, tmp1);
 
@@ -1331,35 +1337,3 @@ void ShenandoahBarrierSetAssembler::generate_c1_load_reference_barrier_runtime_s
 #undef __
 
 #endif // COMPILER1
-
-//void ShenandoahBarrierSetAssembler::cas_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval, Register newval, Register tmp1, Register tmp2, bool narrow, bool acquire, bool release, bool weak) {
-//  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
-//  Assembler::operand_size op_size = UseCompressedOops ? Assembler::word : Assembler::xword;
-//
-//  Label succeded;
-//
-//  ShenandoahSATBBarrierStubC2* const satb = ShenandoahSATBBarrierStubC2::create(node, addr, oldval, tmp1, narrow);
-//
-//  // Assuming just for now that we need both barriers
-//  ShenandoahCASBarrierSlowStubC2* const cmpx = ShenandoahCASBarrierSlowStubC2::create(node, addr, oldval, newval, res, tmp1, tmp2, false, acquire, release, weak);
-//
-//  // Load GC state in tmp1
-//  Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-//  __ ldrb(tmp1, gcs_addr);
-//
-//  // Fast-path: Try to CAS optimistically. If successful, then we are done.
-//  // EQ flag set iff success. 'res' holds value fetched.
-//  __ cmpxchg(addr, oldval, newval, op_size, acquire, release, weak, res);
-//  __ cset(res, Assembler::EQ);
-//  __ br(Assembler::EQ, succeded);
-//
-//  __ tbnz(tmp1, ShenandoahHeap::HAS_FORWARDED_BITPOS, *cmpx->entry());
-//  __ b(*cmpx->continuation());
-//
-//  __ bind(succeded);
-//  __ tbnz(tmp1, ShenandoahHeap::MARKING_BITPOS, *satb->entry());
-//  __ bind(*satb->continuation());
-//  card_barrier_c2(node, masm, addr, tmp1);
-//
-//  __ bind(*cmpx->continuation());
-//}
