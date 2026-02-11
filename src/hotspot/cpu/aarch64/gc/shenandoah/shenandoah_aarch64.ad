@@ -185,13 +185,15 @@ instruct compareAndSwap_P_Normal_shenandoah(iRegINoSp res, indirect mem, iRegPNo
     assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
-    ShenandoahBarrierSet::assembler()->cas_c2(this, masm,
+    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
       $res$$Register,
       $mem$$base$$Register,
       $oldval$$Register,
       $newval$$Register,
       $tmp1$$Register,
       $tmp2$$Register,
+      /* exchange */ false,
+      /* maybe_null */ false,
       /* is_narrow */ false,
       /* acquire */ false,
       /* release */ true,
@@ -216,13 +218,15 @@ instruct compareAndSwap_N_Normal_shenandoah(iRegINoSp res, indirect mem, iRegNNo
     assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
-    ShenandoahBarrierSet::assembler()->cas_c2(this, masm,
+    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
       $res$$Register,
       $mem$$base$$Register,
       $oldval$$Register,
       $newval$$Register,
       $tmp1$$Register,
       $tmp2$$Register,
+      /* exchange */ false,
+      /* maybe_null */ false,
       /* is_narrow */ true,
       /* acquire */ false,
       /* release */ true,
@@ -247,13 +251,15 @@ instruct compareAndSwap_P_Volatile_shenandoah(iRegINoSp res, indirect mem, iRegP
     assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
-    ShenandoahBarrierSet::assembler()->cas_c2(this, masm,
+    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
       $res$$Register,
       $mem$$base$$Register,
       $oldval$$Register,
       $newval$$Register,
       $tmp1$$Register,
       $tmp2$$Register,
+      /* exchange */ false,
+      /* maybe_null */ false,
       /* is_narrow */ false,
       /* acquire */ true,
       /* release */ true,
@@ -278,13 +284,15 @@ instruct compareAndSwap_N_Volatile_shenandoah(iRegINoSp res, indirect mem, iRegN
     assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
-    ShenandoahBarrierSet::assembler()->cas_c2(this, masm,
+    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
       $res$$Register,
       $mem$$base$$Register,
       $oldval$$Register,
       $newval$$Register,
       $tmp1$$Register,
       $tmp2$$Register,
+      /* exchange */ false,
+      /* maybe_null */ false,
       /* is_narrow */ true,
       /* acquire */ true,
       /* release */ true,
@@ -313,40 +321,19 @@ instruct compareAndExchange_N_Normal_shenandoah(iRegNNoSp res, indirect mem, iRe
     assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb($tmp1$$Register, gcs_addr);
-
-    bool is_narrow = true;
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                        noreg             /* addr */,
-                                                        $oldval$$Register /* pre_val */,
-                                                        $tmp1$$Register   /* gc_state */,
-                                                        is_narrow         /* encoded_preval */);
-
-    bool is_acquire = false;
-    ShenandoahBarrierSet::assembler()->cmpxchg_oop_c2(this, masm,
-                                                        $mem$$base$$Register,
-                                                        $oldval$$Register,
-                                                        $newval$$Register,
-                                                        $res$$Register,
-                                                        $tmp1$$Register,        /* gc_state */
-                                                        $tmp2$$Register,
-                                                        /*acquire*/ is_acquire,
-                                                        /*release*/ true,
-                                                        /*weak*/ false,
-                                                        /*is_cae*/ true);
-
-    bool maybe_null = (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull);
-    ShenandoahBarrierSet::assembler()->load_ref_barrier_c2(this, masm,
-                                                           $res$$Register     /* obj */,
-                                                           $mem$$Register     /* addr */,
-                                                           is_narrow          /* narrow */,
-                                                           maybe_null,
-                                                           $tmp1$$Register    /* gc_state */);
-
-    ShenandoahBarrierSet::assembler()->card_barrier_c2(this, masm,
-                                                       $mem$$Register         /* addr */,
-                                                       $tmp1$$Register        /* tmp */);
+    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
+      $res$$Register,
+      $mem$$base$$Register,
+      $oldval$$Register,
+      $newval$$Register,
+      $tmp1$$Register,
+      $tmp2$$Register,
+      /* exchange */ true,
+      /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
+      /* is_narrow */ true,
+      /* acquire */ false,
+      /* release */ true,
+      /* weak */ false);
   %}
   ins_pipe(pipe_slow);
 %}
@@ -366,40 +353,19 @@ instruct compareAndExchange_P_Normal_shenandoah(iRegPNoSp res, indirect mem, iRe
     assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb($tmp1$$Register, gcs_addr);
-
-    bool is_narrow = false;
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                        noreg             /* addr */,
-                                                        $oldval$$Register /* pre_val */,
-                                                        $tmp1$$Register   /* gc_state */,
-                                                        is_narrow         /* encoded_preval */);
-
-    bool is_acquire = false;
-    ShenandoahBarrierSet::assembler()->cmpxchg_oop_c2(this, masm,
-                                                        $mem$$base$$Register,
-                                                        $oldval$$Register,
-                                                        $newval$$Register,
-                                                        $res$$Register,
-                                                        $tmp1$$Register,        /* gc_state */
-                                                        $tmp2$$Register,
-                                                        /*acquire*/ is_acquire,
-                                                        /*release*/ true,
-                                                        /*weak*/ false,
-                                                        /*is_cae*/ true);
-
-    bool maybe_null = (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull);
-    ShenandoahBarrierSet::assembler()->load_ref_barrier_c2(this, masm,
-                                                           $res$$Register     /* obj */,
-                                                           $mem$$Register     /* addr */,
-                                                           is_narrow          /* narrow */,
-                                                           maybe_null,
-                                                           $tmp1$$Register    /* gc_state */);
-
-    ShenandoahBarrierSet::assembler()->card_barrier_c2(this, masm,
-                                                       $mem$$Register         /* addr */,
-                                                       $tmp1$$Register        /* tmp */);
+    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
+      $res$$Register,
+      $mem$$base$$Register,
+      $oldval$$Register,
+      $newval$$Register,
+      $tmp1$$Register,
+      $tmp2$$Register,
+      /* exchange */ true,
+      /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
+      /* is_narrow */ false,
+      /* acquire */ false,
+      /* release */ true,
+      /* weak */ false);
   %}
   ins_pipe(pipe_slow);
 %}
@@ -419,40 +385,19 @@ instruct compareAndExchange_N_Volatile_shenandoah(iRegNNoSp res, indirect mem, i
     assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb($tmp1$$Register, gcs_addr);
-
-    bool is_narrow = true;
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                        noreg             /* addr */,
-                                                        $oldval$$Register /* pre_val */,
-                                                        $tmp1$$Register   /* gc_state */,
-                                                        is_narrow         /* encoded_preval */);
-
-    bool is_acquire = true;
-    ShenandoahBarrierSet::assembler()->cmpxchg_oop_c2(this, masm,
-                                                        $mem$$base$$Register,
-                                                        $oldval$$Register,
-                                                        $newval$$Register,
-                                                        $res$$Register,
-                                                        $tmp1$$Register,        /* gc_state */
-                                                        $tmp2$$Register,
-                                                        /*acquire*/ is_acquire,
-                                                        /*release*/ true,
-                                                        /*weak*/ false,
-                                                        /*is_cae*/ true);
-
-    bool maybe_null = (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull);
-    ShenandoahBarrierSet::assembler()->load_ref_barrier_c2(this, masm,
-                                                           $res$$Register     /* obj */,
-                                                           $mem$$Register     /* addr */,
-                                                           is_narrow          /* narrow */,
-                                                           maybe_null,
-                                                           $tmp1$$Register    /* gc_state */);
-
-    ShenandoahBarrierSet::assembler()->card_barrier_c2(this, masm,
-                                                       $mem$$Register         /* addr */,
-                                                       $tmp1$$Register        /* tmp */);
+    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
+      $res$$Register,
+      $mem$$base$$Register,
+      $oldval$$Register,
+      $newval$$Register,
+      $tmp1$$Register,
+      $tmp2$$Register,
+      /* exchange */ true,
+      /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
+      /* is_narrow */ true,
+      /* acquire */ true,
+      /* release */ true,
+      /* weak */ false);
   %}
   ins_pipe(pipe_slow);
 %}
@@ -472,40 +417,19 @@ instruct compareAndExchange_P_Volatile_shenandoah(iRegPNoSp res, indirect mem, i
     assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb($tmp1$$Register, gcs_addr);
-
-    bool is_narrow = false;
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                        noreg             /* addr */,
-                                                        $oldval$$Register /* pre_val */,
-                                                        $tmp1$$Register   /* gc_state */,
-                                                        is_narrow         /* encoded_preval */);
-
-    bool is_acquire = true;
-    ShenandoahBarrierSet::assembler()->cmpxchg_oop_c2(this, masm,
-                                                        $mem$$base$$Register,
-                                                        $oldval$$Register,
-                                                        $newval$$Register,
-                                                        $res$$Register,
-                                                        $tmp1$$Register,        /* gc_state */
-                                                        $tmp2$$Register,
-                                                        /*acquire*/ is_acquire,
-                                                        /*release*/ true,
-                                                        /*weak*/ false,
-                                                        /*is_cae*/ true);
-
-    bool maybe_null = (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull);
-    ShenandoahBarrierSet::assembler()->load_ref_barrier_c2(this, masm,
-                                                           $res$$Register     /* obj */,
-                                                           $mem$$Register     /* addr */,
-                                                           is_narrow          /* narrow */,
-                                                           maybe_null,
-                                                           $tmp1$$Register    /* gc_state */);
-
-    ShenandoahBarrierSet::assembler()->card_barrier_c2(this, masm,
-                                                       $mem$$Register         /* addr */,
-                                                       $tmp1$$Register        /* tmp */);
+    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
+      $res$$Register,
+      $mem$$base$$Register,
+      $oldval$$Register,
+      $newval$$Register,
+      $tmp1$$Register,
+      $tmp2$$Register,
+      /* exchange */ true,
+      /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
+      /* is_narrow */ false,
+      /* acquire */ true,
+      /* release */ true,
+      /* weak */ false);
   %}
   ins_pipe(pipe_slow);
 %}
@@ -526,20 +450,22 @@ instruct weakCompareAndSwap_N_Normal_shenandoah(iRegINoSp res, indirect mem, iRe
   ins_cost(VOLATILE_REF_COST);
   effect(TEMP_DEF res, TEMP tmp1, TEMP tmp2, KILL cr);
   format %{
-    "cmpxchg_oop_c2 $res = $mem, $oldval, $newval\t# (N, weak, Normal) if $mem == $oldval then $mem <-- $newval\n\t"
+    "cas $res = $mem, $oldval, $newval\t# (N, weak, Normal) if $mem == $oldval then $mem <-- $newval\n\t"
     "csetw $res, EQ\t# $res <-- (EQ ? 1 : 0)"
   %}
   ins_encode %{
     assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
-    ShenandoahBarrierSet::assembler()->cas_c2(this, masm,
+    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
       $res$$Register,
       $mem$$base$$Register,
       $oldval$$Register,
       $newval$$Register,
       $tmp1$$Register,
       $tmp2$$Register,
+      /* exchange */ false,
+      /* maybe_null */ false,
       /* is_narrow */ true,
       /* acquire */ false,
       /* release */ true,
@@ -557,20 +483,22 @@ instruct weakCompareAndSwap_P_Normal_shenandoah(iRegINoSp res, indirect mem, iRe
   ins_cost(VOLATILE_REF_COST);
   effect(TEMP_DEF res, TEMP tmp1, TEMP tmp2, KILL cr);
   format %{
-    "cmpxchg_oop_c2 $res = $mem, $oldval, $newval\t# (P, weak, Normal) if $mem == $oldval then $mem <-- $newval\n\t"
+    "cas $res = $mem, $oldval, $newval\t# (P, weak, Normal) if $mem == $oldval then $mem <-- $newval\n\t"
     "csetw $res, EQ\t# $res <-- (EQ ? 1 : 0)"
   %}
   ins_encode %{
     assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
-    ShenandoahBarrierSet::assembler()->cas_c2(this, masm,
+    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
       $res$$Register,
       $mem$$base$$Register,
       $oldval$$Register,
       $newval$$Register,
       $tmp1$$Register,
       $tmp2$$Register,
+      /* exchange */ false,
+      /* maybe_null */ false,
       /* is_narrow */ false,
       /* acquire */ true,
       /* release */ true,
@@ -588,20 +516,22 @@ instruct weakCompareAndSwap_N_Volatile_shenandoah(iRegINoSp res, indirect mem, i
   ins_cost(VOLATILE_REF_COST);
   effect(TEMP_DEF res, TEMP tmp1, TEMP tmp2, KILL cr);
   format %{
-    "cmpxchg_oop_c2 $res = $mem, $oldval, $newval\t# (N, weak, Volatile) if $mem == $oldval then $mem <-- $newval\n\t"
+    "cas $res = $mem, $oldval, $newval\t# (N, weak, Volatile) if $mem == $oldval then $mem <-- $newval\n\t"
     "csetw $res, EQ\t# $res <-- (EQ ? 1 : 0)"
   %}
   ins_encode %{
     assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
-    ShenandoahBarrierSet::assembler()->cas_c2(this, masm,
+    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
       $res$$Register,
       $mem$$base$$Register,
       $oldval$$Register,
       $newval$$Register,
       $tmp1$$Register,
       $tmp2$$Register,
+      /* exchange */ false,
+      /* maybe_null */ false,
       /* is_narrow */ true,
       /* acquire */ true,
       /* release */ true,
@@ -619,20 +549,22 @@ instruct weakCompareAndSwap_P_Volatile_shenandoah(iRegINoSp res, indirect mem, i
   ins_cost(VOLATILE_REF_COST);
   effect(TEMP_DEF res, TEMP tmp1, TEMP tmp2, KILL cr);
   format %{
-    "cmpxchg_oop_c2 $res = $mem, $oldval, $newval\t# (P, weak, Volatile) if $mem == $oldval then $mem <-- $newval\n\t"
+    "cas $res = $mem, $oldval, $newval\t# (P, weak, Volatile) if $mem == $oldval then $mem <-- $newval\n\t"
     "csetw $res, EQ\t# $res <-- (EQ ? 1 : 0)"
   %}
   ins_encode %{
     assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
-    ShenandoahBarrierSet::assembler()->cas_c2(this, masm,
+    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
       $res$$Register,
       $mem$$base$$Register,
       $oldval$$Register,
       $newval$$Register,
       $tmp1$$Register,
       $tmp2$$Register,
+      /* exchange */ false,
+      /* maybe_null */ false,
       /* is_narrow */ false,
       /* acquire */ false,
       /* release */ true,

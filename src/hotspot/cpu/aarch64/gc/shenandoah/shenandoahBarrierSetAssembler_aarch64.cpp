@@ -665,7 +665,7 @@ void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, Ma
  *      too for CAS succeed too.
  *    - If FORWARDING bit is clear there is nothing else to do.
  */
-void ShenandoahBarrierSetAssembler::cas_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval, Register newval, Register tmp1, Register tmp2, bool narrow, bool acquire, bool release, bool weak) {
+void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval, Register newval, Register tmp1, Register tmp2, bool exchange, bool maybe_null, bool narrow, bool acquire, bool release, bool weak) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
   Assembler::operand_size op_size = UseCompressedOops ? Assembler::word : Assembler::xword;
 
@@ -674,23 +674,23 @@ void ShenandoahBarrierSetAssembler::cas_c2(const MachNode* node, MacroAssembler*
   Label short_branch;
 
   // Assuming just for now that we need both barriers
-  NewShenandoahCASBarrierSlowStubC2* const cmpx = NewShenandoahCASBarrierSlowStubC2::create(node, addr, oldval, newval, res, tmp1, tmp2, narrow, false, acquire, release, weak);
+  ShenandoahCASBarrierSlowStubC2* const cmpx = ShenandoahCASBarrierSlowStubC2::create(node, addr, oldval, newval, res, tmp1, tmp2, narrow, exchange, acquire, release, weak);
 
-  // Issue cmpxchg first
-  __ cmpxchg(addr, oldval, newval, op_size, acquire, release, weak, tmp2);
+  // Issue cmpxchg first, res will have the failure witness if CAS fails
+  __ cmpxchg(addr, oldval, newval, op_size, acquire, release, weak, exchange ? res : tmp2);
 
   // Load GC state in tmp1
   Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
   __ ldrb(tmp1, gcs_addr);
 
   // First CAS attempt. If successful, then we are done.
-  // EQ flag set iff success. 'res' holds value fetched.
-  __ cset(res, Assembler::EQ);
+  // EQ flag set iff success.
+  __ cset(exchange? tmp2 : res, Assembler::EQ);
 
   // Shift GCState right according to result of previous CAS. Luckily, the
   // boolean result of the CAS also matches the index of the bit that we need
   // to test later on.
-  __ lsrv(tmp1, tmp1, res);
+  __ lsrv(tmp1, tmp1, exchange ? tmp2 : res);
 
   // Test bit '0' of tmp1, which at this point will be FORWARDING bit if CAS
   // failed, or SATB bit if CAS succeded.
@@ -700,33 +700,7 @@ void ShenandoahBarrierSetAssembler::cas_c2(const MachNode* node, MacroAssembler*
   // Would be nice to fold this in the comparison above, but how?
   // Skip Card Table dirtying if CAS failed.
   __ bind(short_branch);
-  __ cbz(res, *cmpx->continuation());
-  card_barrier_c2(node, masm, addr, tmp1);
-
-  __ bind(*cmpx->continuation());
-}
-
-void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval, Register newval, Register tmp1, Register tmp2, bool maybe_null, bool narrow, bool acquire, bool release, bool weak) {
-  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
-  Assembler::operand_size op_size = UseCompressedOops ? Assembler::word : Assembler::xword;
-
-  Label succeded;
-
-  // Assuming just for now that we need both barriers
-  ShenandoahCASBarrierSlowStubC2* const cmpx = ShenandoahCASBarrierSlowStubC2::create(node, addr, oldval, newval, res, tmp1, tmp2, false, acquire, release, weak);
-
-  // Load GC state in tmp1
-  Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-  __ ldrb(tmp1, gcs_addr);
-
-  // Fast-path: Try to CAS optimistically. If successful, then we are done.
-  // EQ flag set iff success. 'res' holds value fetched.
-  __ cmpxchg(addr, oldval, newval, op_size, acquire, release, weak, res);
-  __ cset(res, Assembler::EQ);
-  __ lsrv(tmp1, tmp1, res);
-  __ tbnz(tmp1, 0x0, *cmpx->entry());
-
-  __ tbz(res, 0x0, *cmpx->continuation());
+  __ cbz(exchange ? tmp2 : res, *cmpx->continuation());
   card_barrier_c2(node, masm, addr, tmp1);
 
   __ bind(*cmpx->continuation());
@@ -817,53 +791,6 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroA
     __ strb(zr, Address(tmp, rscratch1));
   }
 }
-
-void ShenandoahBarrierSetAssembler::cmpxchg_oop_c2(const MachNode* node,
-                                                   MacroAssembler* masm,
-                                                   Register addr, Register oldval,
-                                                   Register newval, Register res,
-                                                   Register gc_state, Register tmp,
-                                                   bool acquire, bool release, bool weak, bool exchange) {
-  assert(res != noreg, "need result register");
-  assert_different_registers(oldval, addr, res, gc_state, tmp);
-  assert_different_registers(newval, addr, res, gc_state, tmp);
-
-  // Fast-path: Try to CAS optimistically. If successful, then we are done.
-  // EQ flag set iff success. 'tmp' holds value fetched.
-  Assembler::operand_size size = UseCompressedOops ? Assembler::word : Assembler::xword;
-  __ cmpxchg(addr, oldval, newval, size, acquire, release, weak, tmp);
-
-  // If we need a boolean result out of CAS, set the flag appropriately.  This
-  // would be the final result if we do not go slow.
-  if (!exchange) {
-    __ cset(res, Assembler::EQ);
-  } else {
-    __ mov(res, tmp);
-  }
-
-  if (ShenandoahCASBarrier) {
-    ShenandoahCASBarrierSlowStubC2* const slow_stub =
-      ShenandoahCASBarrierSlowStubC2::create(node, addr, oldval, newval, res, gc_state, tmp, exchange, acquire, release, weak);
-
-    slow_stub->preserve(gc_state);    // this really need to be preserved as we
-                                      // try to use it in subsequent barriers
-
-    slow_stub->dont_preserve(res);    // set at the end, no need to save
-    slow_stub->dont_preserve(oldval); // saved explicitly
-    slow_stub->dont_preserve(tmp);    // temp, no need to save
-
-    // On success, we do not need any additional handling.
-    __ br(Assembler::EQ, *slow_stub->continuation());
-
-    // If GC is in progress, it is likely we need additional handling for false negatives.
-    __ tbz(gc_state, ShenandoahHeap::HAS_FORWARDED_BITPOS, *slow_stub->continuation());
-    __ b(*slow_stub->entry());
-
-    // Slow stub re-enters with result set correctly.
-    __ bind(*slow_stub->continuation());
-  }
-}
-
 #undef __
 #define __ masm.
 
@@ -983,69 +910,6 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
 void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
   __ bind(*entry());
 
-  // CAS has failed because the value held at addr does not match expected.
-  // This may be a false negative because the version in memory might be
-  // the from-space version of the same object we currently hold to-space
-  // reference for.
-  //
-  // To resolve this, we need to pass the location through the LRB fixup,
-  // this will make sure that the location has only to-space pointers.
-  // To avoid calling into runtime often, we cset-check the object first.
-  // We can inline most of the work here, but there is little point,
-  // as CAS failures over cset locations must be rare. This fast-slow split
-  // matches what we do for normal LRB.
-
-  // Non-strong references should always go to runtime. We do not expect
-  // CASes over non-strong locations.
-  assert((_node->barrier_data() & ShenandoahBarrierStrong) != 0, "Only strong references for CASes");
-
-  Label L_final;
-
-  // (Compressed) failure witness is in _tmp2.
-  // Unpack it and check if it is in collection set.
-  // We need to backup the compressed version to use in the LRB.
-  __ mov(_result, _tmp2);
-  if (UseCompressedOops) {
-    __ decode_heap_oop(_tmp2);
-  }
-
-  __ mov(_tmp1, ShenandoahHeap::in_cset_fast_test_addr());
-  __ lsr(_tmp2, _tmp2, ShenandoahHeapRegion::region_size_bytes_shift_jint());
-  __ ldrb(_tmp1, Address(_tmp1, _tmp2));
-  __ cbz(_tmp1, L_final);
-
-  {
-    SaveLiveRegisters save_registers(&masm, this);
-    // Load up failure witness again.
-    __ mov(c_rarg0, _result);
-    if (UseCompressedOops) {
-      __ decode_heap_oop(c_rarg0);
-    }
-    __ mov(c_rarg1, _addr_reg);
-
-    if (UseCompressedOops) {
-      __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow), 2);
-    } else {
-      __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong), 2);
-    }
-    // We have called LRB to fix up the heap location. We do not care about its
-    // result, as we will just try to CAS the location again.
-  }
-
-  __ bind(L_final);
-
-  Assembler::operand_size size = UseCompressedOops ? Assembler::word : Assembler::xword;
-  __ cmpxchg(_addr_reg, _expected, _new_val, size, _acquire, _release, _weak, _result);
-
-  if (!_cae) {
-    __ cset(_result, Assembler::EQ);
-  }
-  __ b(*continuation());
-}
-
-void NewShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
-  __ bind(*entry());
-
   // Non-strong references should always go to runtime. We do not expect
   // CASes over non-strong locations.
   assert((_node->barrier_data() & ShenandoahBarrierStrong) != 0, "Only strong references for CASes");
@@ -1054,20 +918,22 @@ void NewShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
   Label L_succeded;
 
   // check if first CAS succeded, if it did we just need to write to SATB
-  __ cbnz(_result, L_succeded);
+  __ cbnz(_cae ? _tmp2 : _result, L_succeded);
 
           // First CAS attempt did not succed. Execute LRB on 'addr' and retry CAS.
+          if (!_cae) {
+            __ mov(_result, _tmp2);
+          }
 
-          // (Compressed) failure witness is in _tmp2.
+          // (Compressed) failure witness is in _result.
           // Unpack it and check if it is in collection set.
           // We need to backup the compressed version to use in the LRB.
-          __ mov(_result, _tmp2);
           if (UseCompressedOops) {
-            __ decode_heap_oop(_tmp2);
+            __ decode_heap_oop(_result);
           }
 
           __ mov(_tmp1, ShenandoahHeap::in_cset_fast_test_addr());
-          __ lsr(_tmp2, _tmp2, ShenandoahHeapRegion::region_size_bytes_shift_jint());
+          __ lsr(_tmp2, _result, ShenandoahHeapRegion::region_size_bytes_shift_jint());
           __ ldrb(_tmp1, Address(_tmp1, _tmp2));
           __ cbz(_tmp1, L_final);
 
@@ -1075,9 +941,6 @@ void NewShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
             SaveLiveRegisters save_registers(&masm, this);
             // Load up failure witness again.
             __ mov(c_rarg0, _result);
-            if (UseCompressedOops) {
-              __ decode_heap_oop(c_rarg0);
-            }
             __ mov(c_rarg1, _addr_reg);
 
             if (UseCompressedOops) {
@@ -1094,10 +957,12 @@ void NewShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
           Assembler::operand_size size = UseCompressedOops ? Assembler::word : Assembler::xword;
           __ cmpxchg(_addr_reg, _expected, _new_val, size, _acquire, _release, _weak, _result);
 
-          __ cset(_result, Assembler::EQ);
-
+          if (!_cae) {
+            __ cset(_result, Assembler::EQ);
+          }
           // If the retry did not succeed skip SATB
-          __ cbz(_result, *continuation());
+          __ br(Assembler::NE, *continuation());
+
 
 
 
