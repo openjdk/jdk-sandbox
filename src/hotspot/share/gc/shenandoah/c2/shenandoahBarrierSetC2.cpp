@@ -335,6 +335,92 @@ void ShenandoahBarrierSetC2::refine_store(const Node* n) {
   store->set_barrier_data(barrier_data);
 }
 
+bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* n) {
+  // Check if all outs feed into nodes that do not expose the oops to the rest
+  // of the runtime system. In this case, we can elide the LRB barrier. We bail
+  // out with false at the first sight of trouble.
+
+  ResourceMark rm;
+  VectorSet visited;
+  Node_List worklist;
+  worklist.push(n);
+
+  while (worklist.size() > 0) {
+    Node* n = worklist.pop();
+    if (visited.test_set(n->_idx)) {
+      continue;
+    }
+
+    for (DUIterator i = n->outs(); n->has_out(i); i++) {
+      Node* out = n->out(i);
+      switch (out->Opcode()) {
+        case Op_CmpN: {
+          if (out->in(1) == n &&
+              out->in(2)->Opcode() == Op_ConN &&
+              out->in(2)->get_narrowcon() == 0) {
+            // Null check, no oop is exposed.
+            break;
+          } else {
+            return false;
+          }
+        }
+        case Op_CmpP: {
+          if (out->in(1) == n &&
+              out->in(2)->Opcode() == Op_ConP &&
+              out->in(2)->get_ptr() == 0) {
+            // Null check, no oop is exposed.
+            break;
+          } else {
+            return false;
+          }
+        }
+        case Op_DecodeN:
+        case Op_CastPP: {
+          // Check if any other outs are escaping.
+          worklist.push(out);
+          break;
+        }
+        case Op_CallStaticJava: {
+          if (out->as_CallStaticJava()->is_uncommon_trap()) {
+            // Local feeds into uncommon trap. Deopt machinery handles barriers itself.
+            break;
+          } else {
+            return false;
+          }
+        }
+
+        default: {
+          // Paranoidly distrust any other nodes.
+          // TODO: Check if there are other patterns that benefit from this elision.
+          return false;
+        }
+      }
+    }
+  }
+
+  // Nothing troublesome found.
+  return true;
+}
+
+void ShenandoahBarrierSetC2::refine_load(Node* n) {
+  MemNode* load = n->as_Load();
+
+  uint8_t barrier_data = load->barrier_data();
+
+  // Do not touch weak LRBs at all: they are responsible for shielding from
+  // Reference.referent resurrection.
+  if ((barrier_data & (ShenandoahBarrierWeak | ShenandoahBarrierPhantom)) != 0) {
+    return;
+  }
+
+  if (can_remove_load_barrier(n)) {
+    barrier_data &= ~ShenandoahBarrierStrong;
+    barrier_data |= ShenandoahBarrierElided;
+  }
+
+  load->set_barrier_data(barrier_data);
+}
+
 void ShenandoahBarrierSetC2::final_refinement(Compile* C) const {
   ResourceMark rm;
   VectorSet visited;
@@ -386,6 +472,11 @@ bool ShenandoahBarrierSetC2::expand_barriers(Compile* C, PhaseIterGVN& igvn) con
       case Op_StoreP:
       case Op_StoreN: {
         refine_store(n);
+        break;
+      }
+      case Op_LoadN:
+      case Op_LoadP: {
+        refine_load(n);
         break;
       }
     }

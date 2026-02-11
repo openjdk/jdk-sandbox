@@ -773,22 +773,27 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop(MacroAssembler* masm,
 #ifdef COMPILER2
 void ShenandoahBarrierSetAssembler::gc_state_check_c2(MacroAssembler* masm, const char test_state, BarrierStubC2* slow_stub) {
   const int size = 11;
-  if (ShenandoahNopGCState) {
-    __ nop(size);
-    return;
-  }
-#ifdef ASSERT
   address start = __ pc();
-#endif
 
-  Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-  __ testb(gc_state, test_state);
-  __ jcc(Assembler::notZero, *slow_stub->entry());
+  if (ShenandoahNopGCState) {
+    // x86 performance quirk: make sure multi-byte nops do not straggle the fetch line
+    address mid = align_up(start, 16);
+    int first = MIN2(size, (int)(mid - start));
+    int second = MAX2(0, size - first);
+    if (first > 0) {
+      __ nop(first);
+    }
+    if (second > 0) {
+      __ nop(second);
+    }
+  } else {
+    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+    __ testb(gc_state, test_state);
+    __ jcc(Assembler::notZero, *slow_stub->entry());
+  }
 
-#ifdef ASSERT
   int actual_size = __ pc() - start;
   assert(actual_size == size, "Should be: %d == %d", actual_size, size);
-#endif
 }
 
 void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, MacroAssembler* masm, Register obj, Register addr, Register tmp1, Register tmp2, Register tmp3, bool narrow) {
