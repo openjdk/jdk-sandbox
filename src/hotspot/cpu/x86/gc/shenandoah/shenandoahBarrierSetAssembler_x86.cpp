@@ -817,7 +817,7 @@ void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, Ma
   __ bind(*stub->continuation());
 }
 
-void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, 
+void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm,
                                             Register dst,
                                             Address src,
                                             bool narrow,
@@ -845,7 +845,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
   }
 }
 
-void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm, 
+void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm,
                                              Address dst, bool dst_narrow,
                                              Register src, bool src_narrow,
                                              Register tmp) {
@@ -1628,6 +1628,10 @@ void ShenandoahBarrierSetAssembler::generate_c1_load_reference_barrier_runtime_s
   __ restore_live_registers_except_rax(true);
 
   __ epilogue();
+}
+
+void NewShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
+  // temporary
 }
 
 #undef __
