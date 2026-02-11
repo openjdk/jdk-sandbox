@@ -65,14 +65,11 @@ instruct store_P_Volatile_shenandoah(indirect mem, iRegP src, iRegPNoSp tmp, rFl
   ins_cost(VOLATILE_REF_COST);
   format %{ "str  $src, $mem" %}
   ins_encode %{
-    bool is_narrow = false;
-    bool is_volatile = true;
-
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
-      $mem$$Register, /* dst_narrow  = */ is_narrow,
-      $src$$Register, /* src_narrow  = */ is_narrow,
+      $mem$$Register, /* dst_narrow  = */ false,
+      $src$$Register, /* src_narrow  = */ false,
       $tmp$$Register, /* pre_val     = */ noreg,
-                      /* is_volatile = */ is_volatile);
+                      /* is_volatile = */ true);
   %}
   ins_pipe(pipe_class_memory);
 %}
@@ -87,14 +84,11 @@ instruct store_N_Normal_shenandoah(indirect mem, iRegN src, iRegPNoSp tmp, rFlag
   ins_cost(3*INSN_COST);
   format %{ "str  $src, $mem" %}
   ins_encode %{
-    bool is_narrow = true;
-    bool is_volatile = false;
-
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
-      $mem$$Register, /* dst_narrow  = */ is_narrow,
-      $src$$Register, /* src_narrow  = */ is_narrow,
+      $mem$$Register, /* dst_narrow  = */ true,
+      $src$$Register, /* src_narrow  = */ true,
       $tmp$$Register, /* pre_val     = */ noreg,
-                      /* is_volatile = */ is_volatile);
+                      /* is_volatile = */ false);
   %}
   ins_pipe(pipe_class_memory);
 %}
@@ -109,14 +103,11 @@ instruct store_N_Volatile_shenandoah(indirect mem, iRegN src, iRegPNoSp tmp, rFl
   ins_cost(VOLATILE_REF_COST);
   format %{ "str  $src, $mem" %}
   ins_encode %{
-    bool is_narrow = true;
-    bool is_volatile = true;
-
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
-      $mem$$Register, /* dst_narrow  = */ is_narrow,
-      $src$$Register, /* src_narrow  = */ is_narrow,
+      $mem$$Register, /* dst_narrow  = */ true,
+      $src$$Register, /* src_narrow  = */ true,
       $tmp$$Register, /* pre_val     = */ noreg,
-                      /* is_volatile = */ is_volatile);
+                      /* is_volatile = */ true);
   %}
   ins_pipe(pipe_class_memory);
 %}
@@ -141,13 +132,11 @@ instruct encodePAndStoreN_Normal_shenandoah(indirect mem, iRegP src, iRegPNoSp t
   format %{ "encode_heap_oop $tmp, $src\n\t"
             "str  $tmp, $mem\t# compressed ptr" %}
   ins_encode %{
-    bool is_volatile = false;
-
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
       $mem$$Register, /* dst_narrow  = */ true,
       $src$$Register, /* src_narrow  = */ false,
       $tmp$$Register, /* pre_val     = */ noreg,
-                      /* is_volatile = */ is_volatile);
+                      /* is_volatile = */ false);
   %}
   ins_pipe(pipe_class_memory);
 %}
@@ -163,13 +152,11 @@ instruct encodePAndStoreN_Volatile_shenandoah(indirect mem, iRegP src, iRegPNoSp
   format %{ "encode_heap_oop $tmp, $src\n\t"
             "str  $tmp, $mem\t# compressed ptr" %}
   ins_encode %{
-    bool is_volatile = true;
-
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
       $mem$$Register, /* dst_narrow  = */ true,
       $src$$Register, /* src_narrow  = */ false,
       $tmp$$Register, /* pre_val     = */ noreg,
-                      /* is_volatile = */ is_volatile);
+                      /* is_volatile = */ true);
   %}
   ins_pipe(pipe_class_memory);
 %}
@@ -198,32 +185,17 @@ instruct compareAndSwap_P_Normal_shenandoah(iRegINoSp res, indirect mem, iRegPNo
     assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb($tmp1$$Register, gcs_addr);
-
-    bool is_narrow = false;
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                        noreg             /* addr */,
-                                                        $oldval$$Register /* pre_val, only used in slow path */,
-                                                        $tmp1$$Register   /* gc_state */,
-                                                        is_narrow         /* encoded_preval */);
-
-    bool is_acquire = false;
-    ShenandoahBarrierSet::assembler()->cmpxchg_oop_c2(this, masm,
-                                                        $mem$$base$$Register,
-                                                        $oldval$$Register,
-                                                        $newval$$Register,
-                                                        $res$$Register,
-                                                        $tmp1$$Register,    /* gc_state */
-                                                        $tmp2$$Register,
-                                                        /*acquire*/ is_acquire,
-                                                        /*release*/ true,
-                                                        /*weak*/ false,
-                                                        /*is_cae*/ false);
-
-    ShenandoahBarrierSet::assembler()->card_barrier_c2(this, masm,
-                                                       $mem$$Register /* addr */,
-                                                       $tmp1$$Register /* tmp */);
+    ShenandoahBarrierSet::assembler()->cas_c2(this, masm,
+      $res$$Register,
+      $mem$$base$$Register,
+      $oldval$$Register,  /* preval */
+      $newval$$Register,  /* preval */
+      $tmp1$$Register,
+      $tmp2$$Register,
+      /* is_narrow */ false,
+      /* acquire */ false,
+      /* release */ true,
+      /* weak */ false);
   %}
 
   ins_pipe(pipe_slow);
@@ -244,32 +216,17 @@ instruct compareAndSwap_N_Normal_shenandoah(iRegINoSp res, indirect mem, iRegNNo
     assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb($tmp1$$Register, gcs_addr);
-
-    bool is_narrow = true;
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                        noreg             /* addr */,
-                                                        $oldval$$Register /* pre_val, only used in slow path */,
-                                                        $tmp1$$Register   /* gc_state */,
-                                                        is_narrow         /* encoded_preval */);
-
-    bool is_acquire = false;
-    ShenandoahBarrierSet::assembler()->cmpxchg_oop_c2(this, masm,
-                                                        $mem$$base$$Register,
-                                                        $oldval$$Register,
-                                                        $newval$$Register,
-                                                        $res$$Register,
-                                                        $tmp1$$Register,    /* gc_state */
-                                                        $tmp2$$Register,
-                                                        /*acquire*/ is_acquire,
-                                                        /*release*/ true,
-                                                        /*weak*/ false,
-                                                        /*is_cae*/ false);
-
-    ShenandoahBarrierSet::assembler()->card_barrier_c2(this, masm,
-                                                       $mem$$Register /* addr */,
-                                                       $tmp1$$Register /* tmp */);
+    ShenandoahBarrierSet::assembler()->cas_c2(this, masm,
+      $res$$Register,
+      $mem$$base$$Register,
+      $oldval$$Register,  /* preval */
+      $newval$$Register,  /* preval */
+      $tmp1$$Register,
+      $tmp2$$Register,
+      /* is_narrow */ true,
+      /* acquire */ false,
+      /* release */ true,
+      /* weak */ false);
   %}
 
   ins_pipe(pipe_slow);
@@ -290,32 +247,17 @@ instruct compareAndSwap_P_Volatile_shenandoah(iRegINoSp res, indirect mem, iRegP
     assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb($tmp1$$Register, gcs_addr);
-
-    bool is_narrow = false;
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                        noreg             /* addr */,
-                                                        $oldval$$Register /* pre_val, only used in slow path */,
-                                                        $tmp1$$Register   /* gc_state */,
-                                                        is_narrow         /* encoded_preval */);
-
-    bool is_acquire = true;
-    ShenandoahBarrierSet::assembler()->cmpxchg_oop_c2(this, masm,
-                                                        $mem$$base$$Register,
-                                                        $oldval$$Register,
-                                                        $newval$$Register,
-                                                        $res$$Register,
-                                                        $tmp1$$Register,    /* gc_state */
-                                                        $tmp2$$Register,
-                                                        /*acquire*/ is_acquire,
-                                                        /*release*/ true,
-                                                        /*weak*/ false,
-                                                        /*is_cae*/ false);
-
-    ShenandoahBarrierSet::assembler()->card_barrier_c2(this, masm,
-                                                       $mem$$Register /* addr */,
-                                                       $tmp1$$Register /* tmp */);
+    ShenandoahBarrierSet::assembler()->cas_c2(this, masm,
+      $res$$Register,
+      $mem$$base$$Register,
+      $oldval$$Register,  /* preval */
+      $newval$$Register,  /* preval */
+      $tmp1$$Register,
+      $tmp2$$Register,
+      /* is_narrow */ false,
+      /* acquire */ true,
+      /* release */ true,
+      /* weak */ false);
   %}
 
   ins_pipe(pipe_slow);
@@ -336,34 +278,18 @@ instruct compareAndSwap_N_Volatile_shenandoah(iRegINoSp res, indirect mem, iRegN
     assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb($tmp1$$Register, gcs_addr);
-
-    bool is_narrow = true;
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                        noreg             /* addr */,
-                                                        $oldval$$Register /* pre_val, only used in slow path */,
-                                                        $tmp1$$Register   /* gc_state */,
-                                                        is_narrow         /* encoded_preval */);
-
-    bool is_acquire = true;
-    ShenandoahBarrierSet::assembler()->cmpxchg_oop_c2(this, masm,
-                                                        $mem$$base$$Register,
-                                                        $oldval$$Register,
-                                                        $newval$$Register,
-                                                        $res$$Register,
-                                                        $tmp1$$Register,    /* gc_state */
-                                                        $tmp2$$Register,
-                                                        /*acquire*/ is_acquire,
-                                                        /*release*/ true,
-                                                        /*weak*/ false,
-                                                        /*is_cae*/ false);
-
-    ShenandoahBarrierSet::assembler()->card_barrier_c2(this, masm,
-                                                       $mem$$Register /* addr */,
-                                                       $tmp1$$Register /* tmp */);
+    ShenandoahBarrierSet::assembler()->cas_c2(this, masm,
+      $res$$Register,
+      $mem$$base$$Register,
+      $oldval$$Register,  /* preval */
+      $newval$$Register,  /* preval */
+      $tmp1$$Register,
+      $tmp2$$Register,
+      /* is_narrow */ true,
+      /* acquire */ true,
+      /* release */ true,
+      /* weak */ false);
   %}
-
   ins_pipe(pipe_slow);
 %}
 
