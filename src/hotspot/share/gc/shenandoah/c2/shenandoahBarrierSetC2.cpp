@@ -351,8 +351,8 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* n) {
       continue;
     }
 
-    for (DUIterator i = n->outs(); n->has_out(i); i++) {
-      Node* out = n->out(i);
+    for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
+      Node* out = n->fast_out(i);
       switch (out->Opcode()) {
         case Op_CmpN: {
           if (out->in(1) == n &&
