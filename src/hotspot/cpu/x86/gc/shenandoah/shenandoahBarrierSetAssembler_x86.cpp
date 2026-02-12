@@ -1013,7 +1013,9 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   assert_different_registers(_tmp, _dst);
 
-  Label L_end;
+  Label L_lrb_done, L_lrb_slow;
+  Label L_satb_done, L_satb_pack_and_done, L_satb_slow;
+  Label L_done;
 
   // If the object is null, there is no point in applying barriers.
   if (_narrow) {
@@ -1021,30 +1023,85 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   } else {
     __ testptr(_dst, _dst);
   }
-  __ jcc(Assembler::equal, *continuation());
+  if (!_needs_satb_barrier && _needs_load_ref_barrier) {
+    __ jccb(Assembler::equal, L_done);
+  } else {
+    __ jcc(Assembler::equal, L_done);
+  }
 
-  // If object is narrow, we need to decode it first.
-  if (_narrow) {
-    __ decode_heap_oop_not_null(_dst);
+  // Lay out barrier mid-paths here. The goal is to do quick checks/actions
+  // that can be done without going to slowpath calls. This also allows doing
+  // shorter branches, where possible.
+
+  if (_needs_satb_barrier) {
+    // Runtime check for SATB
+    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+    __ testb(gc_state, ShenandoahHeap::MARKING);
+    __ jccb(Assembler::zero, L_satb_done);
+
+    // If object is narrow, we need to decode it first.
+    if (_narrow) {
+      __ decode_heap_oop_not_null(_dst);
+    }
+
+    // Can we store a value in the given thread's buffer?
+    // (The index field is typed as size_t.)
+    Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
+    Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
+
+    __ movptr(_tmp, index);
+    __ testptr(_tmp, _tmp);
+    __ jcc(Assembler::zero, L_satb_slow);
+    // The buffer is not full, store value into it.
+    __ subptr(_tmp, wordSize);
+    __ movptr(index, _tmp);
+    __ addptr(_tmp, buffer);
+    __ movptr(Address(_tmp, 0), _dst);
+
+    __ bind(L_satb_pack_and_done);
+    if (_narrow) {
+      __ encode_heap_oop(_dst);
+    }
+    __ bind(L_satb_done);
   }
 
   if (_needs_load_ref_barrier) {
-    Label L_lrb_done;
-
     bool is_weak = (_node->barrier_data() & ShenandoahBarrierStrong) == 0;
 
     // Runtime check for LRB
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED | (is_weak ? ShenandoahHeap::WEAK_ROOTS : 0));
-    __ jcc(Assembler::zero, L_lrb_done);
+    __ jccb(Assembler::zero, L_lrb_done);
 
     // Weak/phantom loads always need to go to runtime.
     if (!is_weak) {
-      __ movptr(_tmp, _dst);
+      if (_narrow) {
+        __ decode_heap_oop_not_null(_tmp, _dst);
+      } else {
+        __ movptr(_tmp, _dst);
+      }
       __ shrptr(_tmp, ShenandoahHeapRegion::region_size_bytes_shift_jint());
       __ addptr(_tmp, (intptr_t) ShenandoahHeap::in_cset_fast_test_addr());
       __ testb(Address(_tmp, 0), 0xFF);
-      __ jcc(Assembler::zero, L_lrb_done);
+      __ jccb(Assembler::notZero, L_lrb_slow);
+    } else {
+      __ jmpb(L_lrb_slow);
+    }
+
+    __ bind(L_lrb_done);
+  }
+
+  // Exit here.
+  __ bind(L_done);
+  __ jmp(*continuation());
+
+  // Slow paths here. LRB slow path goes first: this allows the short branches from LRB fastpath,
+  // the overwhelmingly major case.
+  if (_needs_load_ref_barrier) {
+    __ bind(L_lrb_slow);
+      // If object is narrow, we need to decode it first.
+    if (_narrow) {
+      __ decode_heap_oop_not_null(_dst);
     }
 
     dont_preserve(_dst); // For LRB we must not preserve _dst
@@ -1088,41 +1145,14 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
       assert(!save_registers.contains(_dst), "must not save result register");
       __ movptr(_dst, rax);
     }
-
-    // Paranoia: if LRB returns null for a weak access, do NOT feed it into SATB, which does not accept null pointers.
-    __ testptr(_dst, _dst);
-    __ jcc(Assembler::equal, L_end);
-
-    __ bind(L_lrb_done);
+    if (_narrow) {
+      __ encode_heap_oop(_dst);
+    }
+    __ jmp(L_lrb_done);
   }
 
   if (_needs_satb_barrier) {
-    // Push obj to SATB, if needed.
-
-    Label L_satb_done, L_satb_runtime;
-
-    // Runtime check for SATB
-    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ testb(gc_state, ShenandoahHeap::MARKING);
-    __ jcc(Assembler::zero, L_satb_done);
-
-    // Can we store a value in the given thread's buffer?
-    // (The index field is typed as size_t.)
-    Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
-    Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
-
-    __ movptr(_tmp, index);
-    __ testptr(_tmp, _tmp);
-    __ jccb(Assembler::zero, L_satb_runtime);
-    // The buffer is not full, store value into it.
-    __ subptr(_tmp, wordSize);
-    __ movptr(index, _tmp);
-    __ addptr(_tmp, buffer);
-    __ movptr(Address(_tmp, 0), _dst);
-    __ jmp(L_satb_done);
-
-    __ bind(L_satb_runtime);
-
+    __ bind(L_satb_slow);
     preserve(_dst); // For SATB we must preserve _dst
     {
       SaveLiveRegisters save_registers(&masm, this);
@@ -1131,16 +1161,8 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
       }
       __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre_c2)), rax);
     }
-
-    __ bind(L_satb_done);
+    __ jmp(L_satb_pack_and_done);
   }
-
-  __ bind(L_end);
-  if (_narrow) {
-    __ encode_heap_oop(_dst);
-  }
-
-  __ jmp(*continuation());
 }
 
 void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
@@ -1176,7 +1198,7 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
 
   // Is the previous value null?
-  __ cmpptr(preval, NULL_WORD);
+  __ testptr(preval, preval);
   __ jccb(Assembler::equal, L_preval_null);
 
   if (_dst_narrow) {
@@ -1192,8 +1214,7 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ movptr(slot, index);
   __ testptr(slot, slot);
   __ jccb(Assembler::zero, L_runtime);
-   // The buffer is not full, store value into it.
-   __ subptr(slot, wordSize);
+  __ subptr(slot, wordSize);
   __ movptr(index, slot);
   __ addptr(slot, buffer);
   __ movptr(Address(slot, 0), preval);
