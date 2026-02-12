@@ -866,11 +866,11 @@ int revive_image_cooperative() {
         return -1;
     }  
 
-    logv("revive_image: calling revival helper %p", s);
+    logv("revive_image: calling JVM revival helper method %p", s);
     void*(*helper)() = (void*(*)()) s;
     waitHitRet();
     rdata = (struct revival_data *) (helper)();
-    logv("revive_image: helper returns %p", rdata);
+    logv("revive_image: JVM revival helper method returns %p", rdata);
     if (rdata == nullptr) {
         warn("revive_image: JVM helper failed");
         return -1;

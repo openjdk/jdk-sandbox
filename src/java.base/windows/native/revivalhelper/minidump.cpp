@@ -137,7 +137,6 @@ MiniDump::MiniDump(const char* filename, const char* libdir) {
 
 void MiniDump::close() {
     if (fd >= 0) {
-        warn("MiniDump close fd %d", fd);
         // ::close(fd);
     }
     fd = -1;
@@ -246,7 +245,7 @@ void MiniDump::read_sharedlibs() {
                  j, module.BaseOfImage, module.ModuleNameRva);
             continue;
         }
-        logv("MiniDump::read_shared_libs MODULE 0x%llx: '%s'", module.BaseOfImage, name);
+        logd("MiniDump::read_shared_libs MODULE 0x%llx: '%s'", module.BaseOfImage, name);
         // Populate Segment list of modules/sharedlibs.
         // Adjust name using libdir if needed.
         if (libdir != nullptr) {
@@ -261,7 +260,7 @@ void MiniDump::read_sharedlibs() {
         libs.push_back(seg);
         count++;
     }
-    logv("MiniDump::read_sharedlibs: NumberOfStreams = %d StreamDirectoryRva = %d", hdr.NumberOfStreams, hdr.StreamDirectoryRva);
+    logd("MiniDump::read_sharedlibs: NumberOfStreams = %d StreamDirectoryRva = %d", hdr.NumberOfStreams, hdr.StreamDirectoryRva);
     free(md);
 }
 
@@ -351,16 +350,11 @@ Segment* MiniDump::readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentR
     } while (true);
 
     if (max_user_vaddr_pd() > 0 && d->StartOfMemoryRange >= max_user_vaddr_pd()) {
-        logv("MiniDump::readSegment0: terminating as address 0x%llx >= 0x%llx", d->StartOfMemoryRange, max_user_vaddr_pd());
+        logd("MiniDump::readSegment0: terminating as address 0x%llx >= 0x%llx", d->StartOfMemoryRange, max_user_vaddr_pd());
         return nullptr; // End of user space mappings.
     }
 
     Segment *seg = new Segment((void *) d->StartOfMemoryRange, (size_t) d->DataSize, (size_t) *currentRVA, (size_t) d->DataSize);
-    /* if (verbose) {
-        char *b = seg->toString();
-        warn("readSegment0: minidump range %d new seg = %s", rangesRead, b);
-        free(b);
-    } */
     *currentRVA += d->DataSize;
     rangesRead++;
     return seg;
@@ -384,7 +378,7 @@ Segment* MiniDump::readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRV
             return nullptr;
         }
         if (seg->start() == (uint64_t) 0x7FFE0000 || seg->start() == (uint64_t) 0x7FFE8000) {
-            warn("readSegment: skip seg: 0x%llx - 0x%llx ", seg->start(), seg->end());
+            logd("readSegment: skip seg: 0x%llx - 0x%llx", seg->start(), seg->end());
             retry = true; // Memory from kernel we can't map.  Ignore, go to next segment.
             continue;
         }
@@ -398,9 +392,9 @@ Segment* MiniDump::readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRV
               ) {
                 // Seg clashes with some module.  Avoid, unless it is the JVM .data Section.
                 if (jvm_data_seg != nullptr && (seg->contains(jvm_data_seg) || jvm_data_seg->contains(seg))) {
-                    logv("readSegment: Using (JVM .data) seg: 0x%llx - 0x%llx ", seg->start(), seg->end());
+                    logd("readSegment: Using (JVM .data) seg: 0x%llx - 0x%llx", seg->start(), seg->end());
                 } else {
-                    logv("readSegment: Skipping seg 0x%llx - 0x%llx due to hit in module list", seg->start(), seg->end());
+                    logd("readSegment: Skipping seg 0x%llx - 0x%llx due to hit in module list", seg->start(), seg->end());
                     retry = true;
                 }
                 break; // out of this for loop, possibly retry readSegment0

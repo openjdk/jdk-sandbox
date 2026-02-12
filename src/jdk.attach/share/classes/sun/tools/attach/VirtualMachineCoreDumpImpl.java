@@ -41,6 +41,7 @@ import java.nio.file.Paths;
 
 import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.concurrent.*;
 import java.util.List;
 import java.util.Map;
 
@@ -101,6 +102,9 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
         }
     }
 
+    private static final int HELPER_TRIES = 10; // Default attempts to run helper
+    private static final int HELPER_RETRY = 7;  // revivalhelper exit value hint to retry due to e.g. address space clash
+
     /**
      * Execute the given command in the target VM.
      */
@@ -108,7 +112,7 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
     InputStream execute(String cmd, Object ... args) throws IOException {
         checkNulls(args);
 
-        // Only 'jcmd' command is implemented.
+        // Only 'jcmd' the command operation is implemented on a core/minidump.
         if (!cmd.equals("jcmd")) {
             throw new IOException("command '" + cmd + "' not implemented");
         }
@@ -123,21 +127,18 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
         String helper = jdkLibDir + File.separator + "revivalhelper"
                         + (System.getProperty("os.name").startsWith("Windows") ? ".exe" : "");
         if (!(new File(helper).exists())) {
-            throw new IOException("Revival helper '" + helper + "' not found");
+            throw new IOException("jcmd helper '" + helper + "' not found");
         }
         List<String> pargs = new ArrayList<String>();
         pargs.add(helper);
 
-        // Pass library directory as -L/path
         if (libDirs != null) {
             for (String s : libDirs) {
-                pargs.add("-L" + s);
+                pargs.add("-L" + s); // Pass library directory as -L/path
             }
         }
-
-        // Revival data location
         if (revivalDataPath != null) {
-            pargs.add("-R" + revivalDataPath);
+            pargs.add("-R" + revivalDataPath); // Revival data cache  location
         }
 
         pargs.add(filename);
@@ -184,22 +185,26 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
         // This method returns an InputStream, although until recently there was no streaming from jcmd,
         // the full output was written to a buffer and then printed.
         // For core files, for now, we read the whole output, and only return it if it is a successful run.
-        int TRIES = 10;
-        int tries = Integer.getInteger("jdk.attach.core.tries", TRIES);
+        int tries = Integer.getInteger("jdk.attach.core.tries", HELPER_TRIES);
         String out = null;
 
         for (int i = 0; i < tries; i++) {
+            if (verbose) System.err.println("revivalhelper: (run " + i + ")");
             Process p = pb.start();
-            BufferedReader outReader = p.inputReader();  // Includes error output
-            out = drain(p, outReader);
+            long pid = p.pid();
+            if (verbose) System.err.println("revivalhelper: pid = " + pid);
+
             try {
+                ExecutorService executor = Executors.newFixedThreadPool(2);
+                Future<String> stdout = executor.submit(() -> drain(p.getInputStream()));
+                // Future<String> stderr = executor.submit(() -> drain(p.getErrorStream()));
                 int e = p.waitFor();
+                out = stdout.get(5, TimeUnit.SECONDS);
                 if (e == 1) {
                     // Actual error from JCmd, e.g. Exception thrown by command implementation.
                     System.out.print(out);
                     throw new IOException("jcmd returned an error");  // JCmd caller will call System.exit(1);
-                } else if (e == 7) {
-                    // Hint to retry due to address space clash.
+                } else if (e == HELPER_RETRY) {
                     if (verbose) {
                         System.err.print(out);
                         System.out.println("(Retrying process revival)");
@@ -209,47 +214,28 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
                     // Other errors
                     System.out.print(out);
                     System.out.println("ERROR (" + e + ")");
-                } else {
-                    // Success
                 }
-            } catch (InterruptedException ie) {
-                System.err.println("VirtualMachineCoreDumpImpl.execute: " + ie);
+                // Success.
+
+            } catch (InterruptedException | ExecutionException | TimeoutException ex) {
+                System.err.println("VirtualMachineCoreDumpImpl.execute: " + ex);
+                if (verbose) {
+                    ex.printStackTrace();
+                }
             }
             break; // No retry except for explicit continue above.
         }
         return new StringBufferInputStream(out);
     }
 
-    public static String drain(Process p, BufferedReader r) throws IOException {
-        StringBuilder s = new StringBuilder();
-        int c = 0;
-        do {
-            c = r.read();
-            if (c >= 0) {
-                s.append((char) c);
+    private static String drain(InputStream is) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(is, UTF_8))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                sb.append(line).append(System.lineSeparator());
             }
-        } while (c != -1);
-        return s.toString();
-    }
-
-    public static long drainUTF8(InputStream is, PrintStream ps) throws IOException {
-        long result = 0;
-
-        try (BufferedInputStream bis = new BufferedInputStream(is);
-             InputStreamReader isr = new InputStreamReader(bis, UTF_8)) {
-            char c[] = new char[256];
-            int n;
-
-            do {
-                n = isr.read(c);
-
-                if (n > 0) {
-                    result += n;
-                    ps.print(n == c.length ? c : Arrays.copyOf(c, n));
-                }
-            } while (n > 0);
         }
-
-        return result;
+        return sb.toString();
     }
 }

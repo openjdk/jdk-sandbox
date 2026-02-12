@@ -32,32 +32,32 @@
  */
 
 /**
- * @test id=JCmdRevivalOOM
+ * @test id=OOM
  * @summary Test process revival for serviceability: jcmd on a core file (OOM crash).
  * @requires os.family == "linux" | os.family == "windows"
  * @library /test/lib
  *
- * @run main/othervm -Djdk.attach.core.verbose=VERBOSE JCmdRevival oom VM.version help Thread.print GC.class_histogram GC.heap_dump Compiler.CodeHeap_Analytics Compiler.codecache Compiler.codelist Compiler.memory GC.heap_info VM.class_hierarchy VM.classes VM.classloader_stats VM.classloaders VM.command_line VM.dynlibs VM.events VM.flags VM.metaspace VM.stringtable VM.symboltable VM.systemdictionary VM.version_UNKNOWN VM.unknowncommand VM.flags_UNKNOWNARG
+ * @run main/othervm JCmdRevival oom VM.version help Thread.print GC.class_histogram GC.heap_dump Compiler.CodeHeap_Analytics Compiler.codecache Compiler.codelist Compiler.memory GC.heap_info VM.class_hierarchy VM.classes VM.classloader_stats VM.classloaders VM.command_line VM.dynlibs VM.events VM.flags VM.metaspace VM.stringtable VM.symboltable VM.systemdictionary VM.version_UNEXPECTED_ARG VM.unknowncommand VM.flags_UNKNOWN_ARG
  */
 
 /*
- * @test id=JCmdRevivalCICrash
+ * @test id=CICrash
  * @summary Test process revival for serviceability: jcmd on a core file (CI crash, debug VM).
  * @requires os.family == "linux" | os.family == "windows"
  * @library /test/lib
  * @requires vm.debug == true
  *
- * @run main/othervm JCmdRevival cicrash VM.version help Thread.print GC.class_histogram GC.heap_dump Compiler.CodeHeap_Analytics Compiler.codecache Compiler.codelist Compiler.memory GC.heap_info VM.class_hierarchy VM.classes VM.classloader_stats VM.classloaders VM.command_line VM.dynlibs VM.events VM.flags VM.metaspace VM.stringtable VM.symboltable VM.systemdictionary VM.version_UNKNOWN VM.unknowncommand VM.flags_UNKNOWNARG
+ * @run main/othervm JCmdRevival cicrash VM.version help Thread.print GC.class_histogram GC.heap_dump Compiler.CodeHeap_Analytics Compiler.codecache Compiler.codelist Compiler.memory GC.heap_info VM.class_hierarchy VM.classes VM.classloader_stats VM.classloaders VM.command_line VM.dynlibs VM.events VM.flags VM.metaspace VM.stringtable VM.symboltable VM.systemdictionary VM.version_UNEXPECTED_ARG VM.unknowncommand VM.flags_UNKNOWN_ARG
  *
  */
 
 /*
- * @test id=JCmdRevivalAbortOnException
+ * @test id=AbortOnException
  * @summary Test process revival for serviceability: jcmd on a core file (AbortVMOnException).
  * @requires os.family == "linux" | os.family == "windows"
  * @library /test/lib
  *
- * @run main/othervm JCmdRevival abortvmonexception VM.version help Thread.print GC.class_histogram GC.heap_dump Compiler.CodeHeap_Analytics Compiler.codecache Compiler.codelist Compiler.memory GC.heap_info VM.class_hierarchy VM.classes VM.classloader_stats VM.classloaders VM.command_line VM.dynlibs VM.events VM.flags VM.metaspace VM.stringtable VM.symboltable VM.systemdictionary VM.version_UNKNOWN VM.unknowncommand VM.flags_UNKNOWNARG
+ * @run main/othervm JCmdRevival abortvmonexception VM.version help Thread.print GC.class_histogram GC.heap_dump Compiler.CodeHeap_Analytics Compiler.codecache Compiler.codelist Compiler.memory GC.heap_info VM.class_hierarchy VM.classes VM.classloader_stats VM.classloaders VM.command_line VM.dynlibs VM.events VM.flags VM.metaspace VM.stringtable VM.symboltable VM.systemdictionary VM.version_UNEXPECTED_ARG VM.unknowncommand VM.flags_UNKNOWN_ARG
  *
  */
 
@@ -182,7 +182,7 @@ public class JCmdRevival {
 
         String heapDumpName = null;
         JDKToolLauncher launcher = JDKToolLauncher.createUsingTestJDK("jcmd");
-        // Run jcmd with -J-Dprop=value to pass any Sytem property we care about: the verbose setting.
+        // Run jcmd with -J-Dprop=value to pass any System property we care about: the verbose setting.
         String verbose = System.getProperty("jdk.attach.core.verbose");
         if (verbose != null) {
             launcher.addVMArg("-Djdk.attach.core.verbose=" + verbose);
@@ -190,17 +190,16 @@ public class JCmdRevival {
         launcher.addVMArgs(Utils.getTestJavaOpts()); // People do not generally run jcmd itself with other options.
         launcher.addToolArg(coreFileName);
 
-        // This method just takes a command name to test.  For some commands we will
-        // add a further argument:
+        // This method just takes a command name to test.  For some commands add a further argument:
         if (command.equals("GC.heap_dump")) {
             launcher.addToolArg(command);
             heapDumpName = "heapdump.hprof";
             launcher.addToolArg(heapDumpName);
-        } else if (command.equals("VM.version_UNKNOWN")) {
+        } else if (command.equals("VM.version_UNEXPECTED_ARG")) {
             // Test additional args when none are expected:
             launcher.addToolArg("VM.version");
             launcher.addToolArg("badarg1");
-        } else if (command.equals("VM.flags_UNKNOWNARG")) {
+        } else if (command.equals("VM.flags_UNKNOWN_ARG")) {
             // Test additional unknown args:
             launcher.addToolArg("VM.flags");
             launcher.addToolArg("badarg1");
@@ -217,162 +216,165 @@ public class JCmdRevival {
         Map<String, String> env = jcmdpb.environment();
 
         Process jcmd = jcmdpb.start();
+        long t1 = System.currentTimeMillis();
+        long jcmdPid = jcmd.pid();
+        System.out.println("jcmd running, pid " + jcmdPid);
         OutputAnalyzer out = new OutputAnalyzer(jcmd);
         int e = jcmd.waitFor();
-        System.out.println("jcmd completed, return code " + e);
+        long t2 = System.currentTimeMillis();
+        System.out.println("jcmd completed, return code " + e + " duration: " + (t2 - t1) + " ms");
+        System.out.println("STDOUT>>");
         System.out.println(out.getStdout());
+        System.out.println("<<STDOUT");
+        System.out.println("STDERR>>");
         System.err.println(out.getStderr());
-
-        // Generic checks:
-        // out.shouldContain("Opening dump file "); // changed to "FILENAME:" to be same format as PIDs.
-
+        System.out.println("<<STDERR");
         int expectedExit = 0;
 
         // Verify specific jcmd output:
         try {
-        switch (command) {
-            case "Compiler.CodeHeap_Analytics": {
-                // out.shouldContain("buffer blob         flush_icache_stub");
-                out.shouldContain("__ CodeHeapStateAnalytics total duration ");
-                break;
-            }
-            case "Compiler.codecache": {
-                out.shouldContain("CodeHeap 'non-profiled nmethods': size=");
-                break;
-            }
-            case "Compiler.codelist": {
-                out.shouldContain("jdk.internal.misc.Unsafe.getReferenceVolatile(Ljava/lang/Object;J)Ljava/lang/Object; [0x");
-                break;
-            }
-            case "Compiler.memory": {
-                // Compiler memory stats not usually enabled.
-                if (Platform.isDebugBuild()) {
-                    out.shouldContain("ctyp  total     ra        node      comp      idealloop type      states    reglive"); // Not matching the whole header line.
+            switch (command) {
+                case "Compiler.CodeHeap_Analytics": {
+                    // out.shouldContain("buffer blob         flush_icache_stub");
+                    out.shouldContain("__ CodeHeapStateAnalytics total duration ");
+                    break;
                 }
-                break;
-            }
-            case "GC.class_histogram": {
-                out.shouldContain(" num     #instances         #bytes  class name (module)");
-                out.shouldContain("java.lang.String (java.base@" + MAJOR);
-                break;
-            }
-            case "GC.heap_dump": {
-                File dumpFile = new File(heapDumpName);
-                if (!dumpFile.exists() && dumpFile.isFile()) {
-                    throw new RuntimeException("Could not find dump file '" + heapDumpName + "'");
-                } else {
-                    System.out.println("Reading dump file '" + heapDumpName + "'");
-                    HprofParser.parse(dumpFile);
+                case "Compiler.codecache": {
+                    out.shouldContain("CodeHeap 'non-profiled nmethods': size=");
+                    break;
                 }
-                break;
-            }
-            case "GC.heap_info": {
-                out.shouldMatch("total reserved ");
-                // out.shouldMatch("Metaspace\\s+used "); // not any more...
-                break;
-            }
-            case "Thread.print": {
-                out.shouldContain("Full thread dump");
-                out.shouldContain("_java_thread_list=0x");
-                // OOM crash will contain the stack of the test app, but not likely for cicrash.
-                if (!(type.equals("cicrash"))) {
-                    out.shouldContain("at JCmdRevival.main(JCmdRevival.java:");
+                case "Compiler.codelist": {
+                    out.shouldContain("jdk.internal.misc.Unsafe.getReferenceVolatile(Ljava/lang/Object;J)Ljava/lang/Object; [0x");
+                    break;
                 }
-                out.shouldContain("VM Thread");
-                out.shouldContain("JNI global refs:");
-                break;
-            }
-            case "VM.class_hierarchy": {
-                out.shouldContain("java.lang.Object/null");
-                out.shouldContain("|--java.lang.String/null");
-                break;
-            }
-            case "VM.classes": {
-                out.shouldContain("fully_initialized     WS       java.lang.String");
-                break;
-            }
-            case "VM.classloader_stats": {
-                out.shouldContain("<boot class loader>");
-                break;
-            }
-            case "VM.classloaders": {
-                out.shouldContain("jdk.internal.loader.ClassLoaders$AppClassLoader");
-                break;
-            }
-            case "VM.command_line": {
-                out.shouldContain("Launcher Type: SUN_STANDARD");
-                break;
-            }
-            case "VM.dynlibs": {
-                out.shouldContain("");
-                break;
-            }
-            case "VM.events": {
-                out.shouldContain("Events");
-                break;
-            }
-            case "VM.flags": {
-                out.shouldContain("-XX:+CreateCoredumpOnCrash");
-                out.shouldContain("-XX:ReservedCodeCacheSize=");
-                // Should find a flag with a value we can verify.
-                // ConcGCThreads can be set, but is changed on some test machines, e.g. to 2.
-                // out.shouldContain("-XX:ConcGCThreads=3"); // Recognise value set in test header
-                break;
-            }
-            case "VM.log": {
-                break;
-            }
-            case "VM.metaspace": {
-                out.shouldContain("Narrow klass pointer bits ");
-                break;
-            }
-            case "VM.stringtable": {
-                out.shouldContain("Maximum bucket size     : ");
-                break;
-            }
-            case "VM.symboltable": {
-                out.shouldContain("Maximum bucket size     : ");
-                break;
-            }
-            case "VM.systemdictionary": {
-                // out.shouldContain("System Dictionary for 'bootstrap' class loader statistics:");
-                out.shouldContain("Number of buckets       :");
-                break;
-            }
-            case "VM.unknowncommand": {
-                out.stdoutShouldContain("Unknown diagnostic command");
-                expectedExit = 1;
-                break;
-            }
-            case "VM.version": {
-                // e.g.
-                // Java HotSpot(TM) 64-Bit Server VM version 27-...
-                // JDK 27.0.0
-                out.shouldContain("VM version " + MAJOR + "-");
-                out.shouldContain("JDK " + MAJOR + ".");
-                break;
-            }
-            case "VM.version_UNKNOWN": {
-                out.stdoutShouldContain("The argument list of this diagnostic command should be empty.");
-                expectedExit = 1;
-                break;
-            }
-            case "VM.flags_UNKNOWNARG": {
-                out.stdoutShouldContain("Unknown argument 'badarg1' in diagnostic command.");
-                expectedExit = 1;
-                break;
-            }
-            case "help": {
-                out.shouldContain("The following commands are available:");
-                out.shouldContain("VM.version");
-                out.shouldContain("help");
-                out.shouldNotContain("GC.run");
-                out.shouldNotContain("VM.set_flag");
-                break;
-            }
-            default: {
-                throw new RuntimeException("Unknown command being tested: '" + command + "'");
-            }
+                case "Compiler.memory": {
+                    // Compiler memory stats not usually enabled.
+                    if (Platform.isDebugBuild()) {
+                        out.shouldContain("ctyp  total     ra        node      comp      idealloop type      states    reglive"); // Not matching the whole header line.
+                    }
+                    break;
+                }
+                case "GC.class_histogram": {
+                    out.shouldContain(" num     #instances         #bytes  class name (module)");
+                    out.shouldContain("java.lang.String (java.base@" + MAJOR);
+                    break;
+                }
+                case "GC.heap_dump": {
+                    File dumpFile = new File(heapDumpName);
+                    if (!dumpFile.exists() && dumpFile.isFile()) {
+                        throw new RuntimeException("Could not find dump file '" + heapDumpName + "'");
+                    } else {
+                        System.out.println("Reading dump file '" + heapDumpName + "' size " + dumpFile.length());
+                        HprofParser.parse(dumpFile);
+                    }
+                    break;
+                }
+                case "GC.heap_info": {
+                    out.shouldMatch("total reserved ");
+                    break;
+                }
+                case "Thread.print": {
+                    out.shouldContain("Full thread dump");
+                    out.shouldContain("_java_thread_list=0x");
+                    // OOM crash will contain the stack of the test app, but not likely for cicrash.
+                    if (!(type.equals("cicrash"))) {
+                        out.shouldContain("at JCmdRevival.main(JCmdRevival.java:");
+                    }
+                    out.shouldContain("VM Thread");
+                    out.shouldContain("JNI global refs:");
+                    break;
+                }
+                case "VM.class_hierarchy": {
+                    out.shouldContain("java.lang.Object/null");
+                    out.shouldContain("|--java.lang.String/null");
+                    break;
+                }
+                case "VM.classes": {
+                    out.shouldContain("fully_initialized     WS       java.lang.String");
+                    break;
+                }
+                case "VM.classloader_stats": {
+                    out.shouldContain("<boot class loader>");
+                    break;
+                }
+                case "VM.classloaders": {
+                    out.shouldContain("jdk.internal.loader.ClassLoaders$AppClassLoader");
+                    break;
+                }
+                case "VM.command_line": {
+                    out.shouldContain("Launcher Type: SUN_STANDARD");
+                    break;
+                }
+                case "VM.dynlibs": {
+                    out.shouldContain("");
+                    break;
+                }
+                case "VM.events": {
+                    out.shouldContain("Events");
+                    break;
+                }
+                case "VM.flags": {
+                    out.shouldContain("-XX:+CreateCoredumpOnCrash");
+                    out.shouldContain("-XX:ReservedCodeCacheSize=");
+                    // Would be good to find a flag with a value we can verify in this test.
+                    // ConcGCThreads can be set, but is changed on some test machines, e.g. to 2.
+                    // out.shouldContain("-XX:ConcGCThreads=3"); // Recognise value set in test header
+                    break;
+                }
+                case "VM.log": {
+                    break;
+                }
+                case "VM.metaspace": {
+                    out.shouldContain("Narrow klass pointer bits ");
+                    break;
+                }
+                case "VM.stringtable": {
+                    out.shouldContain("Maximum bucket size     : ");
+                    break;
+                }
+                case "VM.symboltable": {
+                    out.shouldContain("Maximum bucket size     : ");
+                    break;
+                }
+                case "VM.systemdictionary": {
+                    // out.shouldContain("System Dictionary for 'bootstrap' class loader statistics:");
+                    out.shouldContain("Number of buckets       :");
+                    break;
+                }
+                case "VM.unknowncommand": {
+                    out.stdoutShouldContain("Unknown diagnostic command");
+                    expectedExit = 1;
+                    break;
+                }
+                case "VM.version": {
+                    // e.g.
+                    // Java HotSpot(TM) 64-Bit Server VM version 27-...
+                    // JDK 27.0.0
+                    out.shouldContain("VM version " + MAJOR + "-");
+                    out.shouldContain("JDK " + MAJOR + ".");
+                    break;
+                }
+                case "VM.version_UNEXPECTED_ARG": {
+                    out.stdoutShouldContain("The argument list of this diagnostic command should be empty.");
+                    expectedExit = 1;
+                    break;
+                }
+                case "VM.flags_UNKNOWN_ARG": {
+                    out.stdoutShouldContain("Unknown argument 'badarg1' in diagnostic command.");
+                    expectedExit = 1;
+                    break;
+                }
+                case "help": {
+                    out.shouldContain("The following commands are available:");
+                    out.shouldContain("VM.version");
+                    out.shouldContain("help");
+                    out.shouldNotContain("GC.run");
+                    out.shouldNotContain("VM.set_flag");
+                    break;
+                }
+                default: {
+                    throw new RuntimeException("Unknown command being tested: '" + command + "'");
+                }
             }
         } finally {
             // Show an unusual jcmd exit code in finally, in case a check above throws (and skips exit value assert below).

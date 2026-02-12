@@ -64,10 +64,10 @@ PEFile::~PEFile() {
         if (e != TRUE) {
             warn("PEFile: ImageUnload %s: error: %d", filename, GetLastError());
         } else {
-            logv("PEFile: ImageUnload %s: done", filename);
+            logd("PEFile: ImageUnload %s: done", filename);
         }
     }
-    warn("PEFile: ImageUnload done");
+    logd("PEFile: ImageUnload done");
 }
 
 void PEFile::imageLoad() {
@@ -76,7 +76,7 @@ void PEFile::imageLoad() {
 
         for (unsigned int i = 0; i < image->NumberOfSections; i++) {
             IMAGE_SECTION_HEADER section = image->Sections[i];
-            logv("imageLoad: image: %s vaddr 0x%llx size 0x%llx Misc.PhysicalAddress 0x%llx PointerToRawData 0x%llx",
+            logd("imageLoad: image: %s vaddr 0x%llx size 0x%llx Misc.PhysicalAddress 0x%llx PointerToRawData 0x%llx",
                 image->Sections[i].Name, image->Sections[i].VirtualAddress, image->Sections[i].SizeOfRawData,
                 section.Misc.PhysicalAddress, section.PointerToRawData);
         }
@@ -173,13 +173,12 @@ bool PEFile::remove_dynamicbase(const char* filename) {
     PIMAGE_OPTIONAL_HEADER32 optional = (PIMAGE_OPTIONAL_HEADER32) ((uint64_t) peAddr + sizeof(DWORD) + sizeof(IMAGE_FILE_HEADER));
     logd("Optional hdr = 0x%llx", optional);
     logd("DllCharacteristics = 0x%llx", optional->DllCharacteristics);
-    logd("Checksum           = 0x%llx", optional->CheckSum);
 
     WORD dllCharacteristics = optional->DllCharacteristics;
     dllCharacteristics = dllCharacteristics & ~IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE; // Remove bit value of flag (64)
     logd("DllCharacteristics = 0x%llx", dllCharacteristics);
 
-    logv("&o.DllCharacteristics =  0x%llx", &(optional->DllCharacteristics));
+    logv("&optional.DllCharacteristics =  0x%llx", &(optional->DllCharacteristics));
     *(WORD*)(&(optional->DllCharacteristics)) = dllCharacteristics;
 
     // Checksum? Update does not appear to be needed.
@@ -198,11 +197,13 @@ bool PEFile::find_data_segs(void* address, Segment** _data, Segment** _rdata, Se
     logv("PEFile::find_data_segs");
     imageLoad();
 
-    logv("find_data_segs image: 0x%llx", image);
-
+    logv("find_data_segs image: base address 0x%llx", address);
+    if (address == nullptr) {
+        error("find_data_segs: null base address");
+    }
     Segment* data = nullptr;
     Segment* rdata = nullptr;
-    Segment* iat = nullptr;
+    // Segment* iat = nullptr;
     // Create a Segment from a Section, and use the next Section to set its end address.
     for (unsigned int i = 0; i < image->NumberOfSections; i++) {
         IMAGE_SECTION_HEADER section = image->Sections[i];
@@ -233,8 +234,6 @@ bool PEFile::find_data_segs(void* address, Segment** _data, Segment** _rdata, Se
     // Rebase segs to library address:
     rdata = new Segment((void*) ((uint64_t) address + (uint64_t) rdata->start()), rdata->length, 0, 0);
     data = new Segment((void*) ((uint64_t) address + (uint64_t) data->start()), data->length, 0, 0);
-    //logd(".rdata SEG: 0x%llx - 0x%llx ", rdata->start(), rdata->end());
-    //logd(".data SEG:  0x%llx - 0x%llx ", data->start(),  data->end());
     *_rdata = rdata;
     *_data = data;
     return true;
@@ -253,7 +252,7 @@ Segment* PEFile::get_rdata_section() {
     // Create a Segment from .data, and use the next Section to set its end address.
     Segment *seg = nullptr;
     for (unsigned int i = 0; i < image->NumberOfSections; i++) {
-        logv("data_section Name: %s vaddr 0x%llx size 0x%llx PointerToRawData 0x%llx",
+        logv("get_rdata_section: Name: %s vaddr 0x%llx size 0x%llx PointerToRawData 0x%llx",
               image->Sections[i].Name, image->Sections[i].VirtualAddress, image->Sections[i].SizeOfRawData, image->Sections[i].PointerToRawData);
 
         if (strncmp((char*) image->Sections[i].Name, ".rdata", 8) == 0) {
@@ -263,7 +262,7 @@ Segment* PEFile::get_rdata_section() {
         if (seg != nullptr) {
             // Already read and set Seg, use this section as the end of that Seg.
             seg->set_length(image->Sections[i].VirtualAddress - seg->start());
-            logv("DATA SEG: 0x%llx - 0x%llx ", seg->start(), seg->end());
+            logd("get_rdata_section seg: 0x%llx - 0x%llx ", seg->start(), seg->end());
             break;
         }
     }

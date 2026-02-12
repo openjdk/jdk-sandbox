@@ -166,7 +166,7 @@ bool file_exists_pd(const char *filename) {
 
 bool file_exists_indir_pd(const char* dirname, const char* filename) {
     char path[BUFLEN];
-    snprintf(path, BUFLEN - 1, "%s%s%s", dirname, FILE_SEPARATOR, filename);
+    snprintf(path, BUFLEN - 1, "%s" FILE_SEPARATOR "%s", dirname, filename);
     return file_exists_pd(path);
 }
 
@@ -181,12 +181,10 @@ LPTOP_LEVEL_EXCEPTION_FILTER previousUnhandledExceptionFilter = nullptr;
 
 LONG WINAPI topLevelUnhandledExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo) {
 
-//#if defined(_M_ARM64)
-//    address pc = (address) exceptionInfo->ContextRecord->Pc;
-//#elif defined(_M_AMD64)
 #if defined(_M_AMD64)
     address pc = (address) exceptionInfo->ContextRecord->Rip;
 #else
+    // _M_ARM64 would be: address pc = (address) exceptionInfo->ContextRecord->Pc;
     error("revival: handler: unsupported platform");
 #endif
 
@@ -716,7 +714,7 @@ void write_mem_mappings(MiniDump* dump, int fd, const char *corename,
         if (seg == nullptr) {
             break;
         }
-        logv("create_mappings_pd: addr 0x%llx size 0x%llx   current RVA/file offset: 0x%llx", d.StartOfMemoryRange, d.DataSize, currentRVA);
+        logd("create_mappings_pd: addr 0x%llx size 0x%llx   current RVA/file offset: 0x%llx", d.StartOfMemoryRange, d.DataSize, currentRVA);
         prevAddr = d.StartOfMemoryRange;
 
         if (!seg->is_relevant()) {
@@ -839,7 +837,7 @@ void write_symbols(int symbols_fd, const char* symbols[], int count, const char 
     }
 
     char moduleFilename[BUFLEN];
-    snprintf(moduleFilename, BUFLEN, "%s\\" JVM_FILENAME, revival_dirname);
+    snprintf(moduleFilename, BUFLEN, "%s" FILE_SEPARATOR JVM_FILENAME, revival_dirname);
     SymLoadModuleEx(h2, NULL, moduleFilename, NULL, 0, 0, NULL, 0);
 
     TCHAR szSymbolName[MAX_SYM_NAME];
@@ -854,7 +852,7 @@ void write_symbols(int symbols_fd, const char* symbols[], int count, const char 
         if (!SymFromName(h2, szSymbolName, pSymbol)) {
             warn("write_symbols: %d: SymFromName '%s' failed, error: %d", i, szSymbolName, GetLastError());
         } else {
-            snprintf(buf, BUFLEN, "%s %llx", szSymbolName, pSymbol->Address);
+            snprintf(buf, BUFLEN, "%s %llx\n", szSymbolName, pSymbol->Address);
             logv("write_symbols: %d: %s", i, buf);
             write0(symbols_fd, buf);
         }
@@ -888,7 +886,8 @@ void write_sharedlib_mappings(int mappings_fd, MiniDump* dump) {
     logv("write_sharedlib_mappings");
 
     if (!allLibraries) {
-        write_sharedlib_mapping(mappings_fd, jvm_filename, jvm_address);
+        Segment* jvm_mapping = dump->get_library_mapping(JVM_FILENAME);
+        write_sharedlib_mapping(mappings_fd, jvm_mapping->name, jvm_mapping->vaddr);
     } else {
         std::list<Segment> libs = dump->get_library_mappings();
         std::list<Segment>::iterator iter;
@@ -951,7 +950,8 @@ void copy_and_relocate(const char* srcfile, const char* destdir, uint64_t addres
 void copy_and_relocate(MiniDump dump, const char* destdir) {
     logv("copy_and_relocate");
     if (!allLibraries) {
-        copy_and_relocate(jvm_filename, destdir, (uint64_t) jvm_address);
+        Segment* jvm_mapping = dump.get_library_mapping(JVM_FILENAME);
+        copy_and_relocate(jvm_mapping->name, destdir, (uint64_t) jvm_mapping->vaddr);
     } else {
         std::list<Segment> libs = dump.get_library_mappings();
         std::list<Segment>::iterator iter;
@@ -975,45 +975,42 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
     // Find JVM and its load address from dump.
     Segment* jvm_mapping = dump.get_library_mapping(JVM_FILENAME);
     if (jvm_mapping == nullptr) {
-        error("revival: cannot locate JVM from core.") ;
+        warn("JVM library required in core not found.");
+        error("For cores from other systems, or if JDK at path in core has changed, use -L to specify JVM location.");
     }
-    jvm_filename = strdup(jvm_mapping->name);
-    jvm_address = (void*) jvm_mapping->vaddr;
-    logv("JVM = '%s'", jvm_filename);
-    logv("JVM addr = %p", jvm_address);
-    if (!file_exists_pd(jvm_filename)) {
-        error("No file for JVM '%s'", jvm_filename);
+    logv("JVM = '%s'", jvm_mapping->name);
+    logv("JVM addr = %p", (void*) jvm_mapping->vaddr);
+    if (!file_exists_pd( jvm_mapping->name)) {
+        error("No file for JVM '%s'",  jvm_mapping->name);
     }
 
-    // jvm_data_segs
     {
-    PEFile pefile(jvm_filename);
-    Segment* jvm_data_seg = new Segment();
-    Segment* jvm_rdata_seg = new Segment();
-    Segment* jvm_iat_seg = new Segment();
-    if (!pefile.find_data_segs(jvm_address, &jvm_data_seg, &jvm_rdata_seg, &jvm_iat_seg)) {
-        error("Failed to find JVM data segments.");
-    }
-    logv("JVM .rdata SEG: 0x%llx - 0x%llx", jvm_rdata_seg->start(), jvm_rdata_seg->end());
-    logv("JVM .data  SEG: 0x%llx - 0x%llx", jvm_data_seg->start(),  jvm_data_seg->end());
-    logv("JVM iat    SEG: 0x%llx - 0x%llx", jvm_iat_seg->start(),   jvm_iat_seg->end());
-    dump.set_jvm_data(jvm_data_seg, jvm_rdata_seg, jvm_iat_seg);
+        PEFile pefile(jvm_mapping->name); // Narrow scope means the jvm file gets closed
+        Segment* jvm_data_seg = new Segment();
+        Segment* jvm_rdata_seg = new Segment();
+        Segment* jvm_iat_seg = new Segment();
+        if (!pefile.find_data_segs(jvm_mapping->vaddr, &jvm_data_seg, &jvm_rdata_seg, &jvm_iat_seg)) {
+            error("Failed to find JVM data segments.");
+        }
+        logv("JVM .rdata SEG: 0x%llx - 0x%llx", jvm_rdata_seg->start(), jvm_rdata_seg->end());
+        logv("JVM .data  SEG: 0x%llx - 0x%llx", jvm_data_seg->start(),  jvm_data_seg->end());
+        // logv("JVM iat    SEG: 0x%llx - 0x%llx", jvm_iat_seg->start(),   jvm_iat_seg->end());
+        dump.set_jvm_data(jvm_data_seg, jvm_rdata_seg, jvm_iat_seg);
 
-    // Create mappings file:
-    // Normalize corename so basename works (if we were given forward slashes, basename fails).
-    char *corename_n = strdup(corename);
-    normalize_path_pd(corename_n);
+        // Create mappings file:
+        // Normalize corename so basename works (if we were given forward slashes, basename fails).
+        char *corename_n = strdup(corename);
+        normalize_path_pd(corename_n);
 
-    int mappings_fd = mappings_file_create(revival_dirname, corename_n);
-    if (mappings_fd < 0) {
-        error("Failed to create mappings file.");
-    }
-    logv("mappings_fd = %d", mappings_fd);
-    // Write mappings file:
-    write_sharedlib_mappings(mappings_fd, &dump);
-    write_mem_mappings(&dump, mappings_fd, corename_n, jvm_data_seg, jvm_rdata_seg, jvm_iat_seg);
-    //close(mappings_fd);
-    free(corename_n);
+        int mappings_fd = mappings_file_create(revival_dirname, corename_n);
+        if (mappings_fd < 0) {
+            error("Failed to create mappings file.");
+        }
+        // Write mappings file:
+        write_sharedlib_mappings(mappings_fd, &dump);
+        write_mem_mappings(&dump, mappings_fd, corename_n, jvm_data_seg, jvm_rdata_seg, jvm_iat_seg);
+        close(mappings_fd);
+        free(corename_n);
     }
 
     // Copy jvm/libraries into core.revival dir
