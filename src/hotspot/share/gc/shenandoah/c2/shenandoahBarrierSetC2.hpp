@@ -128,7 +128,9 @@ public:
 
 class ShenandoahBarrierStubC2 : public BarrierStubC2 {
 protected:
-  explicit ShenandoahBarrierStubC2(const MachNode* node) : BarrierStubC2(node) {}
+  explicit ShenandoahBarrierStubC2(const MachNode* node) : BarrierStubC2(node) {
+    assert(!ShenandoahSkipBarrierStubs, "Do not touch stubs when disabled");
+  }
   void register_stub();
 public:
   virtual void emit_code(MacroAssembler& masm) = 0;

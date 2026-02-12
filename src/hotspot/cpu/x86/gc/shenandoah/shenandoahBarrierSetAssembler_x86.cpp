@@ -797,7 +797,7 @@ void ShenandoahBarrierSetAssembler::gc_state_check_c2(MacroAssembler* masm, cons
 }
 
 void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, MacroAssembler* masm, Register obj, Register addr, Register tmp1, Register tmp2, Register tmp3, bool narrow) {
-  if (!ShenandoahLoadRefBarrierStubC2::needs_barrier(node)) {
+  if (ShenandoahSkipBarrierStubs || !ShenandoahLoadRefBarrierStubC2::needs_barrier(node)) {
     return;
   }
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
@@ -835,7 +835,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
   }
 
   // Emit barrier if needed
-  if (ShenandoahLoadBarrierStubC2::needs_barrier(node)) {
+  if (!ShenandoahSkipBarrierStubs && ShenandoahLoadBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
     ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, dst, src, narrow, tmp);
@@ -855,7 +855,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
                                              Register src, bool src_narrow,
                                              Register tmp) {
   // Emit barrier if needed
-  if (ShenandoahStoreBarrierStubC2::needs_barrier(node)) {
+  if (!ShenandoahSkipBarrierStubs && ShenandoahStoreBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
     if (ShenandoahStoreBarrierStubC2::needs_satb_barrier(node)) {
@@ -918,7 +918,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
 
 void ShenandoahBarrierSetAssembler::satb_barrier_c2(const MachNode* node, MacroAssembler* masm,
                                                     Register addr, Register preval, Register tmp) {
-  if (!ShenandoahSATBBarrierStubC2::needs_barrier(node)) {
+  if (ShenandoahSkipBarrierStubs || !ShenandoahSATBBarrierStubC2::needs_barrier(node)) {
     return;
   }
   ShenandoahSATBBarrierStubC2* const stub = ShenandoahSATBBarrierStubC2::create(node, addr, preval, tmp, /* TODO: */ false);
@@ -930,7 +930,7 @@ void ShenandoahBarrierSetAssembler::satb_barrier_c2(const MachNode* node, MacroA
 
 void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroAssembler* masm,
                                                     Register addr, Register addr_tmp, Register tmp) {
-  if ((node->barrier_data() & ShenandoahBarrierCardMark) == 0) {
+  if (ShenandoahSkipBarrierStubs || (node->barrier_data() & ShenandoahBarrierCardMark) == 0) {
     return;
   }
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
@@ -985,7 +985,7 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop_c2(const MachNode* node, MacroAs
     assert(res == noreg, "no result expected");
   }
 
-  if (ShenandoahCASBarrier) {
+  if (!ShenandoahSkipBarrierStubs && ShenandoahCASBarrier) {
     ShenandoahCASBarrierSlowStubC2* const stub =
       ShenandoahCASBarrierSlowStubC2::create(node, addr, oldval, newval, res, tmp1, tmp2, UseCompressedOops, exchange);
     if (res != noreg) {
@@ -1010,6 +1010,9 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop_c2(const MachNode* node, MacroAs
 
 void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ bind(*entry());
+  if (ShenandoahHollowBarrierStubs) {
+    return;
+  }
 
   assert_different_registers(_tmp, _dst);
 
@@ -1167,7 +1170,10 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 
 void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ bind(*entry());
-
+  if (ShenandoahHollowBarrierStubs) {
+    return;
+  }
+ 
   Label L_runtime, L_preval_null;
 
   // We need 2 temp registers for this code to work.
@@ -1244,6 +1250,9 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
 void ShenandoahLoadRefBarrierStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
   __ bind(*entry());
+  if (ShenandoahHollowBarrierStubs) {
+    return;
+  }
 
   Register obj = _obj;
   if (_narrow) {
@@ -1306,6 +1315,10 @@ void ShenandoahLoadRefBarrierStubC2::emit_code(MacroAssembler& masm) {
 
 void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ bind(*entry());
+  if (ShenandoahHollowBarrierStubs) {
+    return;
+  }
+
   Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
 
@@ -1350,6 +1363,9 @@ void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
 
 void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
   __ bind(*entry());
+  if (ShenandoahHollowBarrierStubs) {
+    return;
+  }
 
   // CAS has failed because the value held at addr does not match expected.
   // This may be a false negative because the version in memory might be
