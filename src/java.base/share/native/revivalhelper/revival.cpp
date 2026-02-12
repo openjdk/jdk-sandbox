@@ -420,8 +420,9 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
         warn("cannot open: '%s': %s", mappings_filename, strerror(errno));
         return -1;
     }
-    // corefile details:
-    e = fscanf(f, "core %s %s\n", s1 /* core filename */, s2 /* length */); 
+    // Read corefile details:
+    // Use generous sizes for scanf string destinations, easily within BUFLEN.
+    e = fscanf(f, "core %1024s %32s\n", s1 /* core filename */, s2 /* length */); 
     if (e != 2) {
         warn("mappings_file_read: unrecognised header in: %s", mappings_filename);
         return -1;
@@ -438,7 +439,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
     // time:
     // time of crash or core file generation.  millis since epoch.
     core_timestamp = 0;
-    e = fscanf(f, "time %s\n", s1);
+    e = fscanf(f, "time %32s\n", s1);
     if (e == 1) {
         core_timestamp = (long long) strtoll(s1, nullptr, 10);
         logv("core time: %lld", core_timestamp);
@@ -468,7 +469,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
         char s5[BUFLEN];
         char s6[BUFLEN];
         char s7[BUFLEN];
-        e = fscanf(f, "L %s %s %s\n", s1, s2, s3);
+        e = fscanf(f, "L %32s %32s %32s\n", s1, s2, s3);
         if (e == 3) {
             void* vaddr = (void*) strtoull(s2, nullptr, 16);
             logv("Load library '%s' required at %p...", s1, vaddr);
@@ -490,7 +491,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
         }
 
         // Windows revival preparation records TEB, to fixup TLS on revival:
-        e = fscanf(f, "TEB %s\n", s1);
+        e = fscanf(f, "TEB %32s\n", s1);
         if (e == 1) {
 #ifdef WINDOWS
             void* teb_addr = (void*) strtoull(s1, nullptr, 16);
@@ -501,7 +502,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
             continue;
         }
 
-        e = fscanf(f, "%s %s %s %s %s %s %s\n", s1, s2, s3, s4, s5, s6, s7);
+        e = fscanf(f, "%32s %32s %32s %32s %32s %32s %32s\n", s1, s2, s3, s4, s5, s6, s7);
         if (e == 7) {
             // command, virtual address, virtual address end, source file offset, source file mapping size, length in memory, RWX
             //  s1      s2               s3                   s4                  s5                        s6                s7
@@ -593,15 +594,12 @@ void* symbol_resolve_from_symbol_file(const char* dirname, const char* sym) {
     char line_buffer[BUFLEN];
     char s1[BUFLEN];
     char s2[BUFLEN];
-    char s3[BUFLEN];
 
     while (fgets(line_buffer, BUFLEN, f) != nullptr) {
         memset(s1, 0, BUFLEN);
         memset(s2, 0, BUFLEN);
-        memset(s3, 0, BUFLEN);
-        e = sscanf(line_buffer, "%s %s %s\n", s1, s2, s3);  // symbol address [contents]
-        if (e >= 2) {
-            // Optional contents field was used for testing, now ignored.
+        e = sscanf(line_buffer, "%128s %32s\n", s1, s2);  // symbol address
+        if (e == 2) {
             if (strncmp(s1, sym, BUFLEN) == 0) {
                 char* endptr;
                 addr = (void*) strtoll(s2, &endptr, 16);
@@ -612,7 +610,6 @@ void* symbol_resolve_from_symbol_file(const char* dirname, const char* sym) {
 
     logv("symbol: %s = %p", sym, addr);
     fclose(f);
-
     if (addr == 0) {
         return (void*) -1;
     } else {
