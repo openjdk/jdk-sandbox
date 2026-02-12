@@ -355,12 +355,8 @@ bool mem_canwrite_pd(void *vaddr, size_t length) {
 
 
 /**
- * do_mmap_pd
- *
- * Mappings are not always simple on Windows, so this is likely to fail
- * file offset is not usually aligned as required,
- * and changing file offset to be aligned means mapping to a different vaddr, which will then not be aligned.
- *
+ * Map a file into memory.
+ * Can be complicated if file offset is not aligned as required.
  */
 void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offset) {
     // TODO test FILE_MAP_COPY (COW)
@@ -371,17 +367,16 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offse
         logv("do_mmap_pd: address 0x%llx file offset 0x%llx not aligned, do not try mapping directly, return", addr, offset);
         return (void *) -1;
     }
-
     LPVOID p = nullptr;
     HANDLE h;
     HANDLE h2;
     DWORD createFileDesiredAccess = GENERIC_READ | GENERIC_EXECUTE;
     DWORD mappingProt = PAGE_EXECUTE_READ;
     DWORD mapViewAccess = FILE_MAP_READ | FILE_MAP_EXECUTE;
-      if (openCoreWrite) {
+    if (openCoreWrite) {
         createFileDesiredAccess |= GENERIC_WRITE;
         mappingProt |= PAGE_READWRITE;
-        }
+    }
     h = CreateFile(filename, createFileDesiredAccess, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (h == nullptr) {
         logv("    do_mmap_pd: CreateFile failed: %s: 0x%lx", filename, GetLastError());
@@ -418,12 +413,6 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offse
     return (void *) p;
 }
 
-
-void *do_mmap_pd(void *addr, size_t length, size_t offset) {
-    return do_mmap_pd(addr, length, core_filename, -1, offset);
-}
-
-
 int do_munmap_pd(void *addr, size_t length) {
     int e = UnmapViewOfFile(addr); // Returns non-zero on success.  Zero on failure.
     if (e == 0) {
@@ -431,7 +420,6 @@ int do_munmap_pd(void *addr, size_t length) {
     }
     return e;
 }
-
 
 void *do_map_allocate_pd_MapViewOfFile(void *vaddr, size_t length) {
     DWORD mappingProt = PAGE_EXECUTE_READWRITE;
