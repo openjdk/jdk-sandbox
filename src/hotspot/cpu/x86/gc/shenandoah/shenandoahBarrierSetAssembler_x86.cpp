@@ -987,7 +987,7 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop_c2(const MachNode* node, MacroAs
 
   if (ShenandoahCASBarrier) {
     ShenandoahCASBarrierSlowStubC2* const stub =
-      ShenandoahCASBarrierSlowStubC2::create(node, addr, oldval, newval, res, tmp1, tmp2, exchange);
+      ShenandoahCASBarrierSlowStubC2::create(node, addr, oldval, newval, res, tmp1, tmp2, UseCompressedOops, exchange);
     if (res != noreg) {
       stub->dont_preserve(res);  // set at the end, no need to save
     }
@@ -1633,10 +1633,6 @@ void ShenandoahBarrierSetAssembler::generate_c1_load_reference_barrier_runtime_s
   __ restore_live_registers_except_rax(true);
 
   __ epilogue();
-}
-
-void NewShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
-  // temporary
 }
 
 #undef __
