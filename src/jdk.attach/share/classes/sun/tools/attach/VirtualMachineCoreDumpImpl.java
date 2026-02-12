@@ -56,7 +56,7 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
     protected boolean attached;
     protected String filename;
     protected List<String> libDirs;
-    protected String revivalDataPath;
+    protected String revivalCachePath;
 
     /**
      * Attaches to a core file or minidump.
@@ -75,10 +75,10 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
             }  else {
                 libDirs = null;
             }
-            revivalDataPath = (String) env.get("revivalDataPath");
+            revivalCachePath = (String) env.get("revivalCachePath");
         } else {
             libDirs = null;
-            revivalDataPath = null;
+            revivalCachePath = null;
         }
         attach();
     }
@@ -137,8 +137,8 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
                 pargs.add("-L" + s); // Pass library directory as -L/path
             }
         }
-        if (revivalDataPath != null) {
-            pargs.add("-R" + revivalDataPath); // Revival data cache  location
+        if (revivalCachePath != null) {
+            pargs.add("-R" + revivalCachePath);
         }
 
         pargs.add(filename);
@@ -158,14 +158,16 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
 
         // "verbose" is a log level, VERBOSE or DEBUG are recognised by the native helper, but do not want to
         // confuse with a Java Logger.
-        String verboseFlag = System.getProperty("jdk.attach.core.verbose");
+        String logString = System.getProperty("jdk.attach.core.log");
         boolean verbose = false; // Used in this method as well as native helper
-        if (verboseFlag != null) {
-            newEnv.put("REVIVAL_VERBOSE", verboseFlag);
-            verbose = verboseFlag.equals("VERBOSE") || verboseFlag.equals("DEBUG");
+        if (logString != null) {
+            // Pass on 
+            logString = logString.toLowerCase();
+            newEnv.put("REVIVAL_LOG", logString);
+            verbose = logString.equals("verbose") || logString.equals("debug");
         }
 
-        if (Boolean.getBoolean("jdk.attach.core.skipversioncheck")) {
+        if (Boolean.getBoolean("jdk.attach.core.skipVersionCheck")) {
             newEnv.put("REVIVAL_SKIPVERSIONCHECK", "1");
         }
         // Linux-specific:

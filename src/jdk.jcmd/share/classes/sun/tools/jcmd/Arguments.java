@@ -40,7 +40,7 @@ class Arguments {
     private String  processString = null;
     private boolean forceCore = false;
     private String libDirs = null;
-    private String revivalDataPath = null;
+    private String revivalCachePath = null;
 
     public boolean isListProcesses() { return listProcesses; }
     public boolean isListCounters() { return listCounters; }
@@ -49,7 +49,7 @@ class Arguments {
     public String getProcessString() { return processString; }
     public boolean isForceCore() { return forceCore; }
     public String getLibDirs() { return libDirs; }
-    public String getRevivalDataPath() { return revivalDataPath; }
+    public String getRevivalCachePath() { return revivalCachePath; }
 
     public Arguments(String[] args) {
         if (args.length == 0 || args[0].equals("-l")) {
@@ -79,7 +79,7 @@ class Arguments {
                 }
             } else if (args[i].equals("-R") || args[i].equals("--revivaldata")) {
                 i++;
-                revivalDataPath = args[i];
+                revivalCachePath = args[i];
             } else {
                 // Not a known argument, move on to read process string/pid.
                 break;

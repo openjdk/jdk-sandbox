@@ -88,16 +88,13 @@ public class JCmd {
             pids = ap.getVirtualMachinePids(JCmd.class);
         }
 
-        if (pids == null || pids.isEmpty() || arg.isForceCore()) {
+        if (pids == null /* including if arg.isForceCore() */ || pids.isEmpty()) {
             System.out.println(arg.getProcessString() + ":");
             try {
-                executeCommandForCrashDump(arg.getProcessString(), arg.getLibDirs(), arg.getRevivalDataPath(), arg.getCommand());
+                executeCommandForCrashDump(arg.getProcessString(), arg.getLibDirs(), arg.getRevivalCachePath(), arg.getCommand());
                 System.exit(0);
             } catch (IOException ioe) {
                 // IOException is used to signal that something went wrong, and error detail is already printed.
-                if (Boolean.getBoolean("jdk.attach.core.verbose")) {
-                    ioe.printStackTrace();
-                }
                 System.exit(1);
             } catch (Throwable thr) {
                 thr.printStackTrace();
@@ -140,15 +137,15 @@ public class JCmd {
         vm.detach();
     }
 
-    private static void executeCommandForCrashDump(String pid, String libDirs, String revivalDataPath, String command)
+    private static void executeCommandForCrashDump(String pid, String libDirs, String revivalCachePath, String command)
         throws AttachNotSupportedException, IOException, UnsupportedEncodingException {
 
         Map<String,String> env = new HashMap<>();
         if (libDirs != null) {
             env.put("libDirs", libDirs);
         }
-        if (revivalDataPath != null) {
-            env.put("revivalDataPath", revivalDataPath);
+        if (revivalCachePath != null) {
+            env.put("revivalCachePath", revivalCachePath);
         }
         VirtualMachine vm = VirtualMachine.attach(pid, env);
         executeCommandCommon(vm, command);

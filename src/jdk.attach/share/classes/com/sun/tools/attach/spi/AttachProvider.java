@@ -176,12 +176,12 @@ public abstract class AttachProvider {
      *   <th scope="row">libDirs</th>
      *   <td>{@link java.lang.String}</td>
      *   <td>null/unset</td>
-     *   <td>Directory path of where to search for shared libraries when reading a core file.
+     *   <td>Directory path of where to search for shared libraries when initially reading a core file.
      *       This may be a list of multiple directories, separated by File.pathSeparator.
      *   </td>
      * </tr>
      * <tr>
-     *   <th scope="row">revivalDataPath</th>
+     *   <th scope="row">revivalCachePath</th>
      *   <td>{@link java.lang.String}</td>
      *   <td>null/unset</td>
      *   <td>Directory path of where to create temporary data needed.</td>

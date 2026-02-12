@@ -173,7 +173,7 @@ int revival_dcmd(const char *command);
 //
 
 // Diagnostics
-extern int logLevel;            // set from env: REVIVAL_VERBOSE
+extern int logLevel;            // set from env: REVIVAL_LOG
 #define LOG_VERBOSE 1
 #define LOG_DEBUG   2
 

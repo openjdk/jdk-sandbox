@@ -1024,12 +1024,12 @@ int revive_image(const char* corename, const char* javahome, const char* libdir,
     versionCheckEnabled = !env_check((char*) "REVIVAL_SKIPVERSIONCHECK");
     // logLevel we actually read the env value:
     logLevel = 0;
-    if (env_check((char*) "REVIVAL_VERBOSE")) {
-        char* logLevelText = getenv("REVIVAL_VERBOSE");
+    if (env_check((char*) "REVIVAL_LOG")) {
+        char* logLevelText = getenv("REVIVAL_LOG");
         if (logLevelText != nullptr) {
-            if (strcmp("DEBUG", logLevelText) ==0) {
+            if (strcmp("debug", logLevelText) == 0) {
                 logLevel = LOG_DEBUG;
-            } else if (strcmp("VERBOSE", logLevelText) ==0) {
+            } else if (strcmp("debug", logLevelText) == 0) {
                 logLevel = LOG_VERBOSE;
             }
         }
