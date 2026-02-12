@@ -432,6 +432,20 @@ void ShenandoahBarrierSetC2::final_refinement(Compile* C) const {
       continue;
     }
 
+    // Do another pass to catch new opportunities after post-expansion optimizations.
+    switch(n->Opcode()) {
+      case Op_StoreP:
+      case Op_StoreN: {
+        refine_store(n);
+        break;
+      }
+      case Op_LoadN:
+      case Op_LoadP: {
+        refine_load(n);
+        break;
+      }
+    }
+
     // If there are no real barrier flags on the node, strip away additional fluff.
     // Matcher does not care about this, and we would like to avoid invoking "barrier_data() != 0"
     // rules when the only flags are the irrelevant fluff.
