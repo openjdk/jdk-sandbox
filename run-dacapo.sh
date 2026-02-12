@@ -18,7 +18,7 @@ if [ ! -d $DACAPO ]; then
   echo "Download Dacapo to $DACAPO"
   exit 1
 fi
-W="-jar $DACAPO/dacapo-23.11-chopin.jar $*"
+W="-jar $DACAPO/dacapo-23.11-MR2-chopin.jar $*"
 
 
 OPTS="-XX:+UseShenandoahGC -Xmx8g -Xms8g -XX:+AlwaysPreTouch -XX:+UseTransparentHugePages -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions -XX:ShenandoahGCMode=passive -XX:+UnlockExperimentalVMOptions"
@@ -31,6 +31,8 @@ run_with() {
 		echo -n " run $I: "
 		$J $P $W 2>&1 | awk '/completed/ { printf "%s ", $(NF-2)} END { print "" }'
 	done
+	echo -n " footprint: "
+	$J $P -XX:+CITime $W 2>&1 | grep "Tier4" | cut -d' ' -f 3,23-
 }
 
 echo
