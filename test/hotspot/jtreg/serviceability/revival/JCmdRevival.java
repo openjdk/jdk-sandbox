@@ -227,7 +227,7 @@ public class JCmdRevival {
         System.out.println(out.getStdout());
         System.out.println("<<STDOUT");
         System.out.println("STDERR>>");
-        System.err.println(out.getStderr());
+        System.out.println(out.getStderr());
         System.out.println("<<STDERR");
         int expectedExit = 0;
 
@@ -255,7 +255,7 @@ public class JCmdRevival {
                     break;
                 }
                 case "GC.class_histogram": {
-                    out.shouldContain(" num     #instances         #bytes  class name (module)");
+                    out.shouldContain("num     #instances         #bytes  class name (module)");
                     out.shouldContain("java.lang.String (java.base@" + MAJOR);
                     break;
                 }

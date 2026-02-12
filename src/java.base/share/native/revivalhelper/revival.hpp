@@ -196,9 +196,8 @@ extern void *h; // Opaque handle to libjvm
 extern std::list<Segment> writableSegments;
 extern std::list<Segment> failedSegments;
 
-// Exit code signalling an address space clash that may be temporary, caller should retry.
-#define EXIT_CODE_SUGGEST_RETRY 7
-
+// Exit signalling e.g. address space clash, caller should retry.
+#define EXIT_SUGGEST_RETRY 7
 extern void exitForRetry(); // exit process using above exit code to signal a retry
 
 char* readstring(int fd);
@@ -212,7 +211,6 @@ bool create_directory_pd(char* dirname);
 bool try_init_jvm_filename_if_exists(const char* path, const char* suffix);
 void init_jvm_filename_from_libdir(const char* libdir);
 
-
 // Symbol lookup
 void *symbol(const char *symbol);
 void *symbol_deref(const char *symbol);
@@ -225,7 +223,9 @@ void *symbol_deref(const char *symbol);
  */
 void *symbol_dynamiclookup_pd(void *h, const char*str);
 
-
+/**
+ * Make a call to an address in a named symbol.  Variants to pass arguments.
+ */
 void *symbol_call(const char *sym);
 void *symbol_call1(const char *sym, void *arg);
 void *symbol_call2(const char *sym, void *arg1, void *arg2);
@@ -240,19 +240,23 @@ uint64_t vaddr_alignment_pd(); // return a mask, e.g. 0xfff
 uint64_t offset_alignment_pd();
 uint64_t length_alignment_pd();
 
-/*
+/**
  * Platform-specific setup, e.g. find system alignment.
  */
 void init_pd();
 
-// Create a memory mapping from the core/dump file.
-// Return address of allocation, or -1 for failure.
+/**
+ * Create a memory mapping, from a file.
+ * Return address of allocation, or -1 for failure.
+ */
 void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offset);
-void *do_mmap_pd(void *addr, size_t length, size_t offset);
+
+/**
+ * Create a memory mapped allocation at a given address, length.
+ */
+void *do_map_allocate_pd(void *addr, size_t length);
 
 int do_munmap_pd(void *addr, size_t length);
-
-void *do_map_allocate_pd(void *addr, size_t length);
 
 /**
  * Return the VMThread created.
@@ -316,17 +320,12 @@ const char *dangerous( void *vaddr, unsigned long long length);
 unsigned long long max_user_vaddr_pd();
 
 /**
- * Diagnostic utils:
+ * Diagnostics:
  */
 
 // Simple pause for debugging when REVIVAL_WAIT is set in env.
 // Only for when revivalhelper is run manually at command-line, as requires stdin.
 void waitHitRet();
-
-
-//
-// Diagnostics:
-//
 
 // Avoid "error: format string is not a string literal [-Werror,-Wformat-nonliteral]"
 // on Mac, but __attribute__ not a feature on MSVC/Windows.

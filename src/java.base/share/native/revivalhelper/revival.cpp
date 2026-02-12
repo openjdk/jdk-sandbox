@@ -29,7 +29,7 @@
 
 // Diagnostics
 int logLevel = 0;
-int _wait = false;
+int debugPause = false;
 
 int versionCheckEnabled = true; // May be disabled in environment
 
@@ -51,7 +51,7 @@ std::list<Segment> failedSegments;
 struct revival_data* rdata; // Data from revived JVM
 
 void exitForRetry() {
-    _exit(EXIT_CODE_SUGGEST_RETRY);
+    _exit(EXIT_SUGGEST_RETRY);
 }
 
 address align_down(address ptr, uint64_t mask) {
@@ -180,8 +180,8 @@ void error(const char* format, ...) {
  * Diagnostic pause (e.g. for debugger attach) when revivalhelper is run with REVIVAL_WAIT=1 in environment.
  */
 void waitHitRet() {
-    if (_wait) {
-        warn("hit return");
+    if (debugPause) {
+        warn("(waiting, hit return)");
         getchar();
     }
 }
@@ -1020,7 +1020,7 @@ int revive_image(const char* corename, const char* javahome, const char* libdir,
     char* dirname;
 
     // Environment settings: set to anything means "on".
-    _wait = env_check((char*) "REVIVAL_WAIT");
+    debugPause = env_check((char*) "REVIVAL_WAIT");
     versionCheckEnabled = !env_check((char*) "REVIVAL_SKIPVERSIONCHECK");
     // logLevel we actually read the env value:
     logLevel = 0;

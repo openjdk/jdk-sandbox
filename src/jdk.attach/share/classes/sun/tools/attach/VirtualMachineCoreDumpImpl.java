@@ -238,6 +238,6 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
                 sb.append(line).append(System.lineSeparator());
             }
         }
-        return sb.toString();
+        return sb.toString().trim();
     }
 }

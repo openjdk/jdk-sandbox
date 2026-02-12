@@ -226,10 +226,6 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offse
     return e;
 }
 
-void *do_mmap_pd(void *addr, size_t length, size_t offset) {
-    return do_mmap_pd(addr, length, NULL, core_fd, offset);
-}
-
 int do_munmap_pd(void *addr, size_t length) {
     int e = munmap(addr, length);
     if (e) {
