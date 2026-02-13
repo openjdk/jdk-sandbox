@@ -787,6 +787,7 @@ void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, Ma
   if (ShenandoahSkipBarrierStubs || !ShenandoahLoadRefBarrierStubC2::needs_barrier(node)) {
     return;
   }
+
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
   ShenandoahLoadRefBarrierStubC2* const stub = ShenandoahLoadRefBarrierStubC2::create(node, obj, addr, tmp1, tmp2, tmp3, narrow);
@@ -908,8 +909,10 @@ void ShenandoahBarrierSetAssembler::satb_barrier_c2(const MachNode* node, MacroA
   if (ShenandoahSkipBarrierStubs || !ShenandoahSATBBarrierStubC2::needs_barrier(node)) {
     return;
   }
-  ShenandoahSATBBarrierStubC2* const stub = ShenandoahSATBBarrierStubC2::create(node, addr, preval, tmp, /* TODO: */ false);
+
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+
+  ShenandoahSATBBarrierStubC2* const stub = ShenandoahSATBBarrierStubC2::create(node, addr, preval, tmp, /* TODO: */ false);
 
   gc_state_check_c2(masm, ShenandoahHeap::MARKING, stub);
   __ bind(*stub->continuation());
@@ -920,7 +923,9 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroA
   if (ShenandoahSkipBarrierStubs || (node->barrier_data() & ShenandoahBarrierCardMark) == 0) {
     return;
   }
+
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+
   if (addr != noreg) {
     __ mov(addr_tmp, addr);
   }
@@ -952,6 +957,7 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop_c2(const MachNode* node, MacroAs
   // Remember oldval for retry logic in slow path. We need to do it here,
   // because it will be overwritten by the fast-path CAS.
   if (ShenandoahCASBarrier) {
+    Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
     __ movptr(tmp2, oldval);
   }
 
@@ -973,6 +979,7 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop_c2(const MachNode* node, MacroAs
   }
 
   if (!ShenandoahSkipBarrierStubs && ShenandoahCASBarrier) {
+    Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
     ShenandoahCASBarrierSlowStubC2* const stub =
       ShenandoahCASBarrierSlowStubC2::create(node, addr, oldval, newval, res, tmp1, tmp2, UseCompressedOops, exchange);
     if (res != noreg) {
@@ -996,6 +1003,8 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop_c2(const MachNode* node, MacroAs
 #define __ masm.
 
 void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
+  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
+
   __ bind(*entry());
   if (ShenandoahHollowBarrierStubs) {
     return;
@@ -1172,6 +1181,8 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 }
 
 void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
+  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
+
   __ bind(*entry());
   if (ShenandoahHollowBarrierStubs) {
     return;
@@ -1252,6 +1263,7 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
 
 void ShenandoahLoadRefBarrierStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
+
   __ bind(*entry());
   if (ShenandoahHollowBarrierStubs) {
     return;
@@ -1317,6 +1329,8 @@ void ShenandoahLoadRefBarrierStubC2::emit_code(MacroAssembler& masm) {
 }
 
 void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
+  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
+
   __ bind(*entry());
   if (ShenandoahHollowBarrierStubs) {
     return;
@@ -1365,6 +1379,8 @@ void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
 }
 
 void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
+  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
+
   __ bind(*entry());
   if (ShenandoahHollowBarrierStubs) {
     return;
