@@ -38,7 +38,7 @@ EOF
 
 run_with() {
         P=$*
-        for I in `seq 1 1`; do
+        for I in `seq 1 3`; do
                 echo -n " run $I: "
 		$P -Xcomp -XX:+CITime Hello.java 2>&1 | grep "Tier4"
         done

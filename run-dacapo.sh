@@ -36,7 +36,7 @@ run_with() {
 	P=$*
 	for I in `seq 1 3`; do
 		echo -n " run $I: "
-#		$P $W 2>&1 | awk '/completed/ { printf "%s ", $(NF-2)} END { print "" }'
+		$P $W 2>&1 | awk '/completed/ { printf "%s ", $(NF-2)} END { print "" }'
 	done
 	echo -n " stats: "
 	$P -XX:+CITime $W 2>&1 | grep Tier4
@@ -53,12 +53,12 @@ if [ "x" != "x$J_ML" ]; then
 
   echo
   echo "Mainline: All barriers"
-#  run_with $J_ML $OPTS_ALL
+  run_with $J_ML $OPTS_ALL
 fi
 
 echo
 echo "LBE: No barriers"
-#run_with $J_LBE $OPTS
+run_with $J_LBE $OPTS
 
 echo
 echo "LBE: All barriers"
