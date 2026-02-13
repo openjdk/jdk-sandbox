@@ -30,6 +30,7 @@ import com.sun.tools.attach.spi.AttachProvider;
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -48,7 +49,7 @@ import java.util.Map;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /*
- * Core dump implementation of HotSpotVirtualMachine
+ * Implementation of HotSpotVirtualMachine for a core dump or MiniDump.
  */
 @SuppressWarnings("restricted")
 public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
@@ -84,9 +85,48 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
     }
 
     protected void attach() throws IOException {
-        // Process revival from a core or minidump to enable executing diagnostic commands.
-        // This happens in a new process.
+        checkCoreFile(filename);
         attached = true;
+    }
+
+    private static void checkCoreFile(String filename) throws IOException {
+        if (!new File(filename).exists()) {
+            throw new IOException("No such file '" + filename + "'");
+        }
+        // Verify header of an ELF core file (Linux) or MiniDump (Windows).
+        try (InputStream is = new FileInputStream(filename)) {
+            int length = 24;
+            byte[] bytes = new byte[length];
+            int e = is.read(bytes);
+            if (e < length) {
+                throw new IOException("Truncated file '" + filename + "'");
+            }
+            // Verify
+            if (System.getProperty("os.name").startsWith("Windows")) {
+                if (bytes[0] == 'M'
+                    && bytes[1] == 'D'
+                    && bytes[2] == 'M'
+                    && bytes[3] == 'P') {
+                    // OK, signature matches.
+                } else {
+                    throw new IOException("Not a MiniDump: '" + filename + "'");
+                }
+            } else if (System.getProperty("os.name").startsWith("Linux")) {
+                if (bytes[0] == 0x7f
+                    && bytes[1] == 'E'
+                    && bytes[2] == 'L'
+                    && bytes[3] == 'F'
+                    && bytes[16] == 4 /* ET_CORE */
+                    ) {
+                    // OK, signature matches.
+                } else {
+                    throw new IOException("Not a core file: '" + filename + "'");
+                }
+            } else {
+                // Should not reach here.
+                throw new IOException("Unimplemented OS");
+            }
+        }
     }
 
     /**

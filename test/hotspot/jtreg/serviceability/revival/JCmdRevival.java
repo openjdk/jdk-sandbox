@@ -81,12 +81,9 @@ import jtreg.SkippedException;
 
 public class JCmdRevival {
 
-    private static String MAJOR;
+    private static String MAJOR = System.getProperty("java.vm.version").substring(0, 2);
 
     public static void main(String[] args) throws Throwable {
-        //  '27-...'
-        MAJOR = System.getProperty("java.vm.version").substring(0, 2);
-
         if (args.length > 1) { 
             // We are the initial test invocation.
             // Will re-invoke ourself to cause crash and core, wait for that process,
@@ -101,17 +98,20 @@ public class JCmdRevival {
     }
 
     public static void testAndCrash(String[] args) {
-        // Type of run (cicrash, oom) is passed as arg.
-        // Do the thing that will cause a crash, or if cicrash, then any activity will trigger crash.
+        // Type of run (abortvmonexception, oom, cicrash) is passed as arg.
+        // Do the thing that will cause a crash (if cicrash, then any activity will trigger crash).
         System.out.println("JCmdRevival in main for test type '" + args[0] + "'");
         if (args[0].equals("abortvmonexception")) {
             throw new NullPointerException("testing NPE");
+        } else if (args[0].equals("oom")) {
+            Object[] oa = new Object[Integer.MAX_VALUE / 2];
+            for(int i = 0; i < oa.length; i++) {
+                oa[i] = new Object[Integer.MAX_VALUE / 2];
+            }
+        } else {
+            throw new RuntimeException("Unknown argument for test: " + args[0]);
         }
-        Object[] oa = new Object[Integer.MAX_VALUE / 2];
-        for(int i = 0; i < oa.length; i++) {
-            oa[i] = new Object[Integer.MAX_VALUE / 2];
-        }
-        System.out.println("JCmdRevival: finishing, should not reach here.");
+        System.out.println("JCmdRevival: should not reach here.");
         System.exit(1); // Should not reach here.
     }
 

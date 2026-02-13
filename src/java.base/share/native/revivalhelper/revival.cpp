@@ -153,6 +153,7 @@ void logd(const char* format, ...) {
         log0(buffer);
     }
 }
+
 void warn(const char* format, ...) {
     char buffer[BUFLEN];
     memset(buffer, 0, BUFLEN);

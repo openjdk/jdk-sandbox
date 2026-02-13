@@ -93,9 +93,6 @@ public class JCmd {
             try {
                 executeCommandForCrashDump(arg.getProcessString(), arg.getLibDirs(), arg.getRevivalCachePath(), arg.getCommand());
                 System.exit(0);
-            } catch (IOException ioe) {
-                // IOException is used to signal that something went wrong, and error detail is already printed.
-                System.exit(1);
             } catch (Throwable thr) {
                 thr.printStackTrace();
                 System.exit(1);
