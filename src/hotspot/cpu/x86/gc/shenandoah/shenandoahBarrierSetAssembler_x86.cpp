@@ -1007,6 +1007,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   __ bind(*entry());
   if (ShenandoahHollowBarrierStubs) {
+    __ jmp(*continuation());
     return;
   }
 
@@ -1185,6 +1186,7 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   __ bind(*entry());
   if (ShenandoahHollowBarrierStubs) {
+    __ jmp(*continuation());
     return;
   }
  
@@ -1266,6 +1268,7 @@ void ShenandoahLoadRefBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   __ bind(*entry());
   if (ShenandoahHollowBarrierStubs) {
+    __ jmp(*continuation());
     return;
   }
 
@@ -1333,6 +1336,7 @@ void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   __ bind(*entry());
   if (ShenandoahHollowBarrierStubs) {
+    __ jmp(*continuation());
     return;
   }
 
@@ -1383,6 +1387,7 @@ void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
 
   __ bind(*entry());
   if (ShenandoahHollowBarrierStubs) {
+    __ jmp(*continuation());
     return;
   }
 
