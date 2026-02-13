@@ -47,12 +47,6 @@
 
 #define __ masm->
 
-#ifdef PRODUCT
-#define BLOCK_COMMENT(str) /* nothing */
-#else
-#define BLOCK_COMMENT(str) __ block_comment(str)
-#endif
-
 void ShenandoahBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, bool is_oop,
                                                        Register src, Register dst, Register count, RegSet saved_regs) {
   if (is_oop) {
@@ -614,7 +608,6 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop(MacroAssembler* masm,
 #ifdef COMPILER2
 void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, MacroAssembler* masm, Register obj, Register addr, bool narrow, bool maybe_null, Register gc_state) {
   assert_different_registers(obj, addr);
-  BLOCK_COMMENT("load_ref_barrier_c2 {");
   if (!ShenandoahLoadRefBarrierStubC2::needs_barrier(node)) {
     return;
   }
@@ -643,7 +636,6 @@ void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, Ma
   }
 
   __ bind(*stub->continuation());
-  BLOCK_COMMENT("} load_ref_barrier_c2");
 }
 
 /**
@@ -701,12 +693,41 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
   // Skip Card Table dirtying if CAS failed.
   __ bind(short_branch);
   __ cbz(exchange ? tmp2 : res, *cmpx->continuation());
-  card_barrier_c2(node, masm, addr, tmp1);
+  card_barrier_c2(node, masm, addr);
 
   __ bind(*cmpx->continuation());
 }
 
+void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr, bool maybe_null, bool narrow, bool acquire) {
+  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
+  if (narrow) {
+    if (acquire) {
+      __ atomic_xchgalw(preval, newval, addr);
+    } else {
+      __ atomic_xchgw(preval, newval, addr);
+    }
+  } else {
+    if (acquire) {
+      __ atomic_xchgal(preval, newval, addr);
+    } else {
+      __ atomic_xchg(preval, newval, addr);
+    }
+  }
+
+  Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+  __ ldrb(rscratch1, gcs_addr);
+
+  ShenandoahSATBAndLRBBarrierSlowStubC2* const stub = ShenandoahSATBAndLRBBarrierSlowStubC2::create(node, preval, addr, narrow, maybe_null);
+
+  // rscratch1[0] = gc_state[ShenandoahHeap::HAS_FORWARDED_BITPOS] | gc_state[ShenandoahHeap::MARKING_BITPOS]
+  __ orr(rscratch1, rscratch1, rscratch1, Assembler::LSR, ShenandoahHeap::MARKING_BITPOS);
+  __ tbz(rscratch1, 0x0, *stub->continuation());
+  __ b(*stub->entry());
+  __ bind(*stub->continuation());
+
+  card_barrier_c2(node, masm, addr);
+}
 
 void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm,
                                              Register dst, bool dst_narrow,
@@ -719,7 +740,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
 
   satb_barrier_c2(node, masm, dst, pre_val, tmp, src_narrow);
 
-  card_barrier_c2(node, masm, dst, tmp);
+  card_barrier_c2(node, masm, dst);
 
   // Need to encode into tmp, because we cannot clobber src.
   // TODO: Maybe there is a matcher way to test that src is unused after this?
@@ -751,7 +772,6 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
 
 void ShenandoahBarrierSetAssembler::satb_barrier_c2(const MachNode* node, MacroAssembler* masm, Register addr, Register pre_val,
                                                     Register gc_state, bool encoded_preval) {
-  BLOCK_COMMENT("satb_barrier_c2 {");
   assert_different_registers(addr, pre_val, rscratch1, rscratch2);
   if (!ShenandoahSATBBarrierStubC2::needs_barrier(node)) {
     return;
@@ -764,38 +784,41 @@ void ShenandoahBarrierSetAssembler::satb_barrier_c2(const MachNode* node, MacroA
   __ tstw(gc_state, ShenandoahHeap::MARKING);
   __ br(Assembler::NE, *stub->entry());
   __ bind(*stub->continuation());
-  BLOCK_COMMENT("} satb_barrier_c2");
 }
 
-void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroAssembler* masm, Register addr, Register tmp) {
+void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroAssembler* masm, Register addr) {
   if (!ShenandoahCardBarrier ||
       (node->barrier_data() & ShenandoahBarrierCardMark) == 0) {
     return;
   }
 
-  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
-  __ lsr(tmp, addr, CardTable::card_shift());
-
   assert(CardTable::dirty_card_val() == 0, "must be");
+  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
+  // rscratch2 = addr >> CardTable::card_shift()
+  __ lsr(rscratch2, addr, CardTable::card_shift());
+
+  // rscratch1 = card table base (holder)
   Address curr_ct_holder_addr(rthread, in_bytes(ShenandoahThreadLocalData::card_table_offset()));
   __ ldr(rscratch1, curr_ct_holder_addr);
 
+  // rscratch2 = &card_table[card_index]
+  __ add(rscratch2, rscratch1, rscratch2);
+
   if (UseCondCardMark) {
     Label L_already_dirty;
-    __ ldrb(rscratch2, Address(tmp, rscratch1));
-    __ cbz(rscratch2, L_already_dirty);
-    __ strb(zr, Address(tmp, rscratch1));
+    __ ldrb(rscratch1, Address(rscratch2));
+    __ cbz(rscratch1, L_already_dirty);
+    __ strb(zr, Address(rscratch2));
     __ bind(L_already_dirty);
   } else {
-    __ strb(zr, Address(tmp, rscratch1));
+    __ strb(zr, Address(rscratch2));
   }
 }
 #undef __
 #define __ masm.
 
 void ShenandoahLoadRefBarrierStubC2::emit_code(MacroAssembler& masm) {
-  BLOCK_COMMENT("ShenandoahLoadRefBarrierStubC2::emit_code {");
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
   __ bind(*entry());
   Register obj = _obj;
@@ -846,11 +869,9 @@ void ShenandoahLoadRefBarrierStubC2::emit_code(MacroAssembler& masm) {
     __ encode_heap_oop(_obj);
   }
   __ b(*continuation());
-  BLOCK_COMMENT("} ShenandoahLoadRefBarrierStubC2::emit_code");
 }
 
 void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
-  BLOCK_COMMENT("ShenandoahSATBBarrierStubC2::emit_code {");
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
   __ bind(*entry());
 
@@ -896,7 +917,6 @@ void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
   __ pop(saved, sp);
   __ b(*continuation());
-  BLOCK_COMMENT("} ShenandoahSATBBarrierStubC2::emit_code");
 }
 
 void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
@@ -905,6 +925,114 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 
 void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
   Unimplemented();
+}
+
+void ShenandoahSATBAndLRBBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
+  __ bind(*entry());
+
+  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
+  Label satb;
+
+  if (_narrow) {
+    if (_maybe_null) {
+      __ decode_heap_oop(_obj);
+    } else {
+      __ decode_heap_oop_not_null(_obj);
+    }
+  }
+
+  { // LRB
+    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+    __ ldrb(rscratch1, gcs_addr);
+    __ tbz(rscratch1, ShenandoahHeap::HAS_FORWARDED_BITPOS, satb);
+
+    // Weak/phantom loads always need to go to runtime, otherwise check for
+    // object in cset.
+    if ((_node->barrier_data() & ShenandoahBarrierStrong) != 0) {
+      __ mov(rscratch2, ShenandoahHeap::in_cset_fast_test_addr());
+      __ lsr(rscratch1, _obj, ShenandoahHeapRegion::region_size_bytes_shift_jint());
+      __ ldrb(rscratch2, Address(rscratch2, rscratch1));
+      __ cbz(rscratch2, satb);
+    }
+
+    {
+      SaveLiveRegisters save_registers(&masm, this);
+      if (c_rarg0 != _obj) {
+        if (c_rarg0 == _addr) {
+          __ mov(rscratch1, _addr);
+          _addr = rscratch1;
+        }
+        __ mov(c_rarg0, _obj);
+      }
+      __ mov(c_rarg1, _addr);
+
+      if (_narrow) {
+        if ((_node->barrier_data() & ShenandoahBarrierStrong) != 0) {
+          __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow));
+        } else if ((_node->barrier_data() & ShenandoahBarrierWeak) != 0) {
+          __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow));
+        } else if ((_node->barrier_data() & ShenandoahBarrierPhantom) != 0) {
+          __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow));
+        }
+      } else {
+        if ((_node->barrier_data() & ShenandoahBarrierStrong) != 0) {
+          __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong));
+        } else if ((_node->barrier_data() & ShenandoahBarrierWeak) != 0) {
+          __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak));
+        } else if ((_node->barrier_data() & ShenandoahBarrierPhantom) != 0) {
+          __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom));
+        }
+      }
+      __ blr(rscratch1);
+      __ mov(_obj, r0);
+    }
+  }
+
+  __ bind(satb); {
+    Label satb_end;
+
+    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+    __ ldrb(rscratch1, gcs_addr);
+    __ tbz(rscratch1, ShenandoahHeap::MARKING_BITPOS, satb_end);
+
+    Address index(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
+    Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
+    Label runtime;
+
+    __ ldr(rscratch1, index);
+
+    // If buffer is full, call into runtime.
+    __ cbz(rscratch1, runtime);
+
+    // The buffer is not full, store value into it.
+    __ sub(rscratch1, rscratch1, wordSize);
+    __ str(rscratch1, index);
+    __ ldr(rscratch2, buffer);
+    __ str(_obj, Address(rscratch2, rscratch1));
+    __ b(*continuation());
+
+    // Runtime call
+    __ bind(runtime);
+
+    {
+      SaveLiveRegisters save_registers(&masm, this);
+      __ mov(c_rarg0, _obj);
+      __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre_c2));
+      __ blr(rscratch1);
+    }
+
+    __ bind(satb_end);
+  }
+
+  if (_narrow) {
+    if (_maybe_null) {
+      __ encode_heap_oop(_obj);
+    } else {
+      __ encode_heap_oop_not_null(_obj);
+    }
+  }
+
+  __ b(*continuation());
 }
 
 void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {

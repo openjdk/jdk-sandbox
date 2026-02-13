@@ -89,9 +89,11 @@ public:
   void store_c2(const MachNode* node, MacroAssembler* masm, Register dst, bool dst_narrow, Register src, bool src_narrow, Register tmp, Register pre_val, bool is_volatile);
   void cae_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval, Register newval, Register tmp1, Register tmp2, bool exchange, bool maybe_null, bool narrow, bool acquire, bool release, bool weak);
 
+  void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr, bool maybe_null, bool narrow, bool acquire);
+
   void load_ref_barrier_c2(const MachNode* node, MacroAssembler* masm, Register obj, Register addr, bool narrow, bool maybe_null, Register gc_state);
   void satb_barrier_c2(const MachNode* node, MacroAssembler* masm, Register obj, Register pre_val, Register gc_state, bool encoded_preval);
-  void card_barrier_c2(const MachNode* node, MacroAssembler* masm, Register addr, Register tmp);
+  void card_barrier_c2(const MachNode* node, MacroAssembler* masm, Register addr);
 #endif
 };
 

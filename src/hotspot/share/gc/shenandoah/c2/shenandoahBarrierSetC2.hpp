@@ -220,6 +220,18 @@ public:
   void emit_code(MacroAssembler& masm) override;
 };
 
+class ShenandoahSATBAndLRBBarrierSlowStubC2 : public ShenandoahBarrierStubC2 {
+  Register _obj;
+  Register _addr;
+  bool _narrow;
+  bool _maybe_null;
+  ShenandoahSATBAndLRBBarrierSlowStubC2(const MachNode* node, Register obj, Register addr, bool narrow, bool maybe_null) :
+    ShenandoahBarrierStubC2(node), _obj(obj), _addr(addr), _narrow(narrow), _maybe_null(maybe_null) {}
+public:
+  static ShenandoahSATBAndLRBBarrierSlowStubC2* create(const MachNode* node, Register obj, Register addr, bool narrow, bool maybe_null);
+  void emit_code(MacroAssembler& masm) override;
+};
+
 class ShenandoahSATBBarrierStubC2 : public ShenandoahBarrierStubC2 {
   Register _addr;
   Register _preval;
