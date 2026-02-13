@@ -123,6 +123,8 @@ public:
     compute_liveness_at_stubs();
   }
 
+  virtual uint estimated_barrier_size(const Node* node) const;
+
   static void print_barrier_data(outputStream* os, uint8_t data);
 };
 

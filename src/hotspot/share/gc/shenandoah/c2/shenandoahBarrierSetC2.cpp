@@ -505,6 +505,16 @@ bool ShenandoahBarrierSetC2::expand_barriers(Compile* C, PhaseIterGVN& igvn) con
   return false;
 }
 
+uint ShenandoahBarrierSetC2::estimated_barrier_size(const Node* node) const {
+  uint8_t bd = MemNode::barrier_data(node);
+  assert(bd != 0, "Checked by caller");
+  if ((bd & ShenandoahBarrierElided) != 0) {
+    return 0;
+  }
+  // GC state check is ~4 fast-path nodes: Cmp, Bool, If, If-Proj.
+  return 4;
+}
+
 bool ShenandoahBarrierSetC2::array_copy_requires_gc_barriers(bool tightly_coupled_alloc, BasicType type, bool is_clone, bool is_clone_instance, ArrayCopyPhase phase) const {
   bool is_oop = is_reference_type(type);
   if (!is_oop) {
