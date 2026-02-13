@@ -772,28 +772,15 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop(MacroAssembler* masm,
 
 #ifdef COMPILER2
 void ShenandoahBarrierSetAssembler::gc_state_check_c2(MacroAssembler* masm, const char test_state, BarrierStubC2* slow_stub) {
-  const int size = 11;
-  address start = __ pc();
-
   if (ShenandoahNopGCState) {
-    // x86 performance quirk: make sure multi-byte nops do not straggle the fetch line
-    address mid = align_up(start, 16);
-    int first = MIN2(size, (int)(mid - start));
-    int second = MAX2(0, size - first);
-    if (first > 0) {
-      __ nop(first);
-    }
-    if (second > 0) {
-      __ nop(second);
-    }
+    // In the ideal world, we would hot-patch the branch to slow stub with a single
+    // (unconditional) long jump or nop, based on our current GC state.
+    __ nop(6);
   } else {
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ testb(gc_state, test_state);
     __ jcc(Assembler::notZero, *slow_stub->entry());
   }
-
-  int actual_size = __ pc() - start;
-  assert(actual_size == size, "Should be: %d == %d", actual_size, size);
 }
 
 void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, MacroAssembler* masm, Register obj, Register addr, Register tmp1, Register tmp2, Register tmp3, bool narrow) {
