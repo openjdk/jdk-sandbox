@@ -1037,10 +1037,13 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   // shorter branches, where possible.
 
   if (_needs_satb_barrier) {
-    // Runtime check for SATB
-    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ testb(gc_state, ShenandoahHeap::MARKING);
-    __ jccb(Assembler::zero, L_satb_done);
+    // Runtime check for SATB, in case the other barrier is enabled.
+    // Otherwise the fastpath check already checked it.
+    if (_needs_load_ref_barrier) {
+      Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+      __ testb(gc_state, ShenandoahHeap::MARKING);
+      __ jccb(Assembler::zero, L_satb_done);
+    }
 
     // If object is narrow, we need to decode it first.
     if (_narrow) {
@@ -1071,12 +1074,16 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   if (_needs_load_ref_barrier) {
     bool is_weak = (_node->barrier_data() & ShenandoahBarrierStrong) == 0;
 
-    // Runtime check for LRB
-    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED | (is_weak ? ShenandoahHeap::WEAK_ROOTS : 0));
-    __ jccb(Assembler::zero, L_lrb_done);
+    // Runtime check for SATB, in case the other barrier is enabled.
+    // Otherwise the fastpath check already checked it.
+    if (_needs_satb_barrier) {
+      Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+      __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED | (is_weak ? ShenandoahHeap::WEAK_ROOTS : 0));
+      __ jccb(Assembler::zero, L_lrb_done);
+    }
 
-    // Weak/phantom loads always need to go to runtime.
+    // Collection set check. Only really applies to strong loads, as weak/phantom loads
+    // are handled in runtime.
     if (!is_weak) {
       if (_narrow) {
         __ decode_heap_oop_not_null(_tmp, _dst);
@@ -1084,8 +1091,17 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
         __ movptr(_tmp, _dst);
       }
       __ shrptr(_tmp, ShenandoahHeapRegion::region_size_bytes_shift_jint());
-      __ addptr(_tmp, (intptr_t) ShenandoahHeap::in_cset_fast_test_addr());
-      __ testb(Address(_tmp, 0), 0xFF);
+      // Check if cset address is in good spot to just use it as offset. It almost always is.
+      Address cset_addr_arg;
+      intptr_t cset_addr = (intptr_t) ShenandoahHeap::in_cset_fast_test_addr();
+      if ((cset_addr >> 3) < INT32_MAX) {
+        assert(is_aligned(cset_addr, 8), "Sanity");
+        cset_addr_arg = Address(_tmp, checked_cast<int>(cset_addr >> 3), Address::times_8);
+      } else {
+        __ addptr(_tmp, cset_addr);
+        cset_addr_arg = Address(_tmp, 0);
+      }
+      __ testb(cset_addr_arg, 0xFF);
       __ jccb(Assembler::notZero, L_lrb_slow);
     } else {
       __ jmpb(L_lrb_slow);
