@@ -29,7 +29,7 @@
  * @modules jdk.attach/sun.tools.attach
  *          jdk.jcmd/sun.tools.common
  *
- * @run main/othervm -Djdk.attach.core.verbose=true AttachRevival oom attach
+ * @run main/othervm AttachRevival oom attach
  */
 
 import com.sun.tools.attach.*;
@@ -58,12 +58,9 @@ import jtreg.SkippedException;
 
 public class AttachRevival {
 
-    private static String MAJOR;
+    private static String MAJOR = System.getProperty("java.vm.version").substring(0, 2);
 
     public static void main(String[] args) throws Throwable {
-        //  '26-internal-2025-06-12-1811022.kwalls...'
-        MAJOR = System.getProperty("java.vm.version").substring(0, 2);
-
         if (args.length > 1) { 
             // We are the initial test invocation.
             // Will re-invoke ourself to cause crash and core, wait for that process,
@@ -78,17 +75,22 @@ public class AttachRevival {
     }
 
     public static void testAndCrash(String[] args) {
-        // Type of run (cicrash, oom) is passed as arg.
-        // Do the thing that will cause a crash, or if cicrash, then any activity will trigger crash.
+        // Type of run (abortvmonexception, oom, cicrash) is passed as arg.
+        // Do the thing that will cause a crash (if cicrash, then any activity will trigger crash).
         System.out.println("AttachRevival in main for test type '" + args[0] + "'");
+
         if (args[0].equals("abortvmonexception")) {
             throw new NullPointerException("testing NPE");
+        } else if (args[0].equals("oom")) {
+            // Cause OOM:
+            Object[] oa = new Object[Integer.MAX_VALUE / 2];
+            for(int i = 0; i < oa.length; i++) {
+                oa[i] = new Object[Integer.MAX_VALUE / 2];
+            }
+        } else {
+            throw new RuntimeException("Unknown argument for test: " + args[0]);
         }
-        Object[] oa = new Object[Integer.MAX_VALUE / 2];
-        for(int i = 0; i < oa.length; i++) {
-            oa[i] = new Object[Integer.MAX_VALUE / 2];
-        }
-        System.out.println("AttachRevival: finishing, should not reach here.");
+        System.out.println("AttachRevival: should not reach here.");
         System.exit(1); // Should not reach here.
     }
 
