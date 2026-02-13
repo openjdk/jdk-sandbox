@@ -812,25 +812,17 @@ static ShenandoahBarrierSetC2State* barrier_set_state() {
 }
 
 int ShenandoahBarrierSetC2::estimate_stub_size() const {
-  Compile* const C = Compile::current();
-  BufferBlob* const blob = C->output()->scratch_buffer_blob();
   GrowableArray<ShenandoahBarrierStubC2*>* const stubs = barrier_set_state()->stubs();
-  int size = 0;
-
-  for (int i = 0; i < stubs->length(); i++) {
-    CodeBuffer cb(blob->content_begin(), checked_cast<CodeBuffer::csize_t>((address)C->output()->scratch_locs_memory() - blob->content_begin()));
-    MacroAssembler masm(&cb);
-    stubs->at(i)->emit_code(masm);
-    size += cb.insts_size();
-  }
-
-  return size;
+  assert(stubs->is_empty(), "Lifecycle: no stubs were yet created");
+  return 0;
 }
 
 void ShenandoahBarrierSetC2::emit_stubs(CodeBuffer& cb) const {
   MacroAssembler masm(&cb);
   GrowableArray<ShenandoahBarrierStubC2*>* const stubs = barrier_set_state()->stubs();
   barrier_set_state()->set_stubs_start_offset(masm.offset());
+
+  int slack_before = cb.insts_capacity() - cb.insts_size();
 
   for (int i = 0; i < stubs->length(); i++) {
     // Make sure there is enough space in the code buffer
@@ -840,6 +832,14 @@ void ShenandoahBarrierSetC2::emit_stubs(CodeBuffer& cb) const {
     }
 
     stubs->at(i)->emit_code(masm);
+  }
+
+  // Extra slack due to MAX_inst_size resize should be skipped for inlining decisions.
+  // We fix it here to simplify performance comparisons with mainline.
+  // FIXME: (Upstream) This should be fixed in PhaseOutput::fill_buffer, see FIXME there.
+  int slack_after = cb.insts_capacity() - cb.insts_size();
+  if (slack_after > slack_before) {
+    masm.register_skipped(slack_after - slack_before);
   }
 
   masm.flush();
