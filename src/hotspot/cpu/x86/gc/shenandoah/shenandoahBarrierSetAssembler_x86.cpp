@@ -1467,6 +1467,10 @@ void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
   __ jmp(*continuation());
 }
 
+void ShenandoahSATBAndLRBBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
+  Unimplemented();
+}
+
 #undef __
 #define __ masm->
 #endif
