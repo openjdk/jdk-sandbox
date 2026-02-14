@@ -48,6 +48,7 @@ import com.sun.org.apache.xerces.internal.xni.parser.XMLConfigurationException;
 import javax.xml.catalog.CatalogFeatures;
 import jdk.xml.internal.FeaturePropertyBase;
 import jdk.xml.internal.JdkConstants;
+import jdk.xml.internal.JdkProperty;
 import jdk.xml.internal.JdkXmlConfig;
 import jdk.xml.internal.JdkXmlUtils;
 import jdk.xml.internal.XMLSecurityManager;
@@ -378,9 +379,9 @@ final class XMLSchemaValidatorComponentManager extends ParserConfigurationSettin
 
             if (value) {
                 fSecurityPropertyMgr.setValue(XMLSecurityPropertyManager.Property.ACCESS_EXTERNAL_DTD,
-                        FeaturePropertyBase.State.FSP, JdkConstants.EXTERNAL_ACCESS_DEFAULT_FSP);
+                    JdkProperty.State.FSP, JdkConstants.EXTERNAL_ACCESS_DEFAULT_FSP);
                 fSecurityPropertyMgr.setValue(XMLSecurityPropertyManager.Property.ACCESS_EXTERNAL_SCHEMA,
-                        FeaturePropertyBase.State.FSP, JdkConstants.EXTERNAL_ACCESS_DEFAULT_FSP);
+                    JdkProperty.State.FSP, JdkConstants.EXTERNAL_ACCESS_DEFAULT_FSP);
                 setProperty(XML_SECURITY_PROPERTY_MANAGER, fSecurityPropertyMgr);
             }
 

@@ -1368,13 +1368,23 @@ public class XMLEntityManager implements XMLComponent, XMLEntityResolver {
              */
             xmlInputSource = staxInputSource.getXMLInputSource() ;
             if (!fISCreatedByResolver) {
-                String accessError = SecuritySupport.checkAccess(expandedSystemId,
-                        fAccessExternalDTD, JdkConstants.ACCESS_EXTERNAL_ALL);
-                if (accessError != null) {
-                    fErrorReporter.reportError(this.getEntityScanner(),XMLMessageFormatter.XML_DOMAIN,
-                            "AccessExternalEntity",
-                            new Object[] { SecuritySupport.sanitizePath(expandedSystemId), accessError },
+                if (fSecurityManager.hasPriority(fSecurityPropertyMgr,
+                    XMLSecurityPropertyManager.Property.ACCESS_EXTERNAL_DTD)) {
+                    if (!fSecurityManager.isAccessAllowed(expandedSystemId)) {
+                        fErrorReporter.reportError(this.getEntityScanner(), XMLMessageFormatter.XML_DOMAIN,
+                            "ResourceAccess",
+                            new Object[]{SecuritySupport.sanitizePath(expandedSystemId), "Resource.Access"},
                             XMLErrorReporter.SEVERITY_FATAL_ERROR);
+                    }
+                } else {
+                    String accessError = SecuritySupport.checkAccess(expandedSystemId,
+                        fAccessExternalDTD, JdkConstants.ACCESS_EXTERNAL_ALL);
+                    if (accessError != null) {
+                        fErrorReporter.reportError(this.getEntityScanner(), XMLMessageFormatter.XML_DOMAIN,
+                            "AccessExternalEntity",
+                            new Object[]{SecuritySupport.sanitizePath(expandedSystemId), accessError},
+                            XMLErrorReporter.SEVERITY_FATAL_ERROR);
+                    }
                 }
             }
         }

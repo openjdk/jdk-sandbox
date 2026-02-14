@@ -57,6 +57,10 @@ import org.w3c.dom.Document;
 import org.xml.sax.InputSource;
 import org.xml.sax.helpers.DefaultHandler;
 
+import static common.util.JdkConstants.ACCESS_EXTERNAL_ALL;
+import static common.util.JdkConstants.ACCESS_EXTERNAL_NONE;
+import static common.util.JdkConstants.SP_ACCESS_EXTERNAL_DTD;
+
 /**
  * Test base for common/dtd
  */
@@ -73,6 +77,7 @@ public class TestBase {
 
     static {
         String srcDir = System.getProperty("test.src", ".");
+        System.out.println("srcDir=" + srcDir);
         if (IS_WINDOWS) {
             srcDir = srcDir.replace('\\', '/');
         }
@@ -90,8 +95,8 @@ public class TestBase {
     private static final String CONFIG_FILE = "java.xml.config.file";
 
     // CATALOG Abbreviation: C
-    static final String C_FILE = CatalogFeatures.Feature.FILES.getPropertyName();
-    static final String C_RESOLVE = CatalogFeatures.Feature.RESOLVE.getPropertyName();
+    public static final String C_FILE = CatalogFeatures.Feature.FILES.getPropertyName();
+    public static final String C_RESOLVE = CatalogFeatures.Feature.RESOLVE.getPropertyName();
 
     // Xerces Property
     public static final String DISALLOW_DTD = "http://apache.org/xml/features/disallow-doctype-decl";
@@ -105,15 +110,22 @@ public class TestBase {
     public static final String SP_DTD = "jdk.xml.dtd.support";
     public static final String SP_CATALOG = "jdk.xml.jdkcatalog.resolve";
     public static final String OVERRIDE_PARSER = "jdk.xml.overrideDefaultParser";
+    // JDK 27
+    public static final String SP_ACCESS = "jdk.xml.resource.access";
 
     // DTD/CATALOG constants
     public static final String RESOLVE_CONTINUE = "continue";
     public static final String RESOLVE_IGNORE = "ignore";
     public static final String RESOLVE_STRICT = "strict";
+    public static final String RESOLVE_STRICT_NONLOCAL = "strict:non-local";
 
     public static final String DTD_ALLOW = "allow";
     public static final String DTD_IGNORE = "ignore";
     public static final String DTD_DENY = "deny";
+
+    // resource access constants
+    public static final String ACCESS_ALLOW = "*";
+    public static final String ACCESS_DENY = "";
 
     // JAXP Configuration File(JCF) location
     // DTD = deny
@@ -126,6 +138,8 @@ public class TestBase {
     public static final String CONFIG_DEFAULT = "jaxp.properties";
     public static final String CONFIG_STRICT = "jaxp-strict.properties";
     public static final String CONFIG_TEMPLATE_STRICT = "jaxp-strict.properties.template";
+    public static final String CONFIG_COMPAT = "jaxp-compat.properties";
+    public static final String CONFIG_TEMPLATE_COMPAT = "jaxp-compat.properties.template";
 
     public static final String UNKNOWN_HOST = "invalid.site.com";
 
@@ -150,6 +164,12 @@ public class TestBase {
         CATALOG0(SP_CATALOG, "ditto", Type.PROPERTY, RESOLVE_CONTINUE),
         CATALOG1(SP_CATALOG, "ditto", Type.PROPERTY, RESOLVE_IGNORE),
         CATALOG2(SP_CATALOG, "ditto", Type.PROPERTY, RESOLVE_STRICT),
+        CATALOG_NONLOCAL(SP_CATALOG, "ditto", Type.PROPERTY, RESOLVE_STRICT_NONLOCAL),
+        AED0(XMLConstants.ACCESS_EXTERNAL_DTD, SP_ACCESS_EXTERNAL_DTD, Type.PROPERTY, ACCESS_EXTERNAL_ALL),
+        AED2(XMLConstants.ACCESS_EXTERNAL_DTD, SP_ACCESS_EXTERNAL_DTD, Type.PROPERTY, ACCESS_EXTERNAL_NONE),
+
+        ACCESS0(SP_ACCESS, "ditto", Type.PROPERTY, ACCESS_ALLOW),
+        ACCESS1(SP_ACCESS, "ditto", Type.PROPERTY, ACCESS_DENY),
 
         // StAX properties
         SUPPORT_DTD(XMLInputFactory.SUPPORT_DTD, null, Type.FEATURE, "true"),
@@ -243,6 +263,17 @@ public class TestBase {
             String error) throws Exception {
         //dbf.setAttribute(CatalogFeatures.Feature.RESOLVE.getPropertyName(), "continue");
         DocumentBuilder builder = dbf.newDocumentBuilder();
+        builder.setEntityResolver((String publicId, String systemId) -> {
+            InputSource dtd = null;
+            InputStream is = null;
+            if ("http://foo.bar/dtd/test.dtd".equals(systemId)) {
+                is = getClass().getResourceAsStream("/local/store/path/test.dtd");
+            }
+            if (is != null) {
+                dtd =  new InputSource(is);
+            }
+            return dtd;
+        });
         File file = new File(getPath(TEST_SOURCE_DIR, filename));
         try {
             Document document = builder.parse(file);
@@ -714,7 +745,7 @@ public class TestBase {
         }
     }
 
-    static String getPath(String base, String file) {
+    public static String getPath(String base, String file) {
         String temp = base + file;
         if (IS_WINDOWS) {
             temp = "/" + temp;

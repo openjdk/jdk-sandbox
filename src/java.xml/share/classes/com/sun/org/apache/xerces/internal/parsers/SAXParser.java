@@ -169,7 +169,7 @@ public class SAXParser
              * internally the support of this property is done through
              * XMLSecurityPropertyManager
              */
-            securityPropertyManager.setValue(index, FeaturePropertyBase.State.APIPROPERTY, (String)value);
+            securityPropertyManager.setValue(index, JdkProperty.State.APIPROPERTY, (String)value);
         } else {
             //check if the property is managed by security manager
             if (!securityManager.setLimit(name, JdkProperty.State.APIPROPERTY, value)) {

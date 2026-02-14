@@ -26,6 +26,8 @@
 package jdk.xml.internal;
 
 import java.lang.reflect.Array;
+import java.net.URI;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -133,5 +135,31 @@ public class Utils {
      */
     public static boolean isEmpty(final CharSequence cs) {
         return cs == null || cs.length() == 0;
+    }
+
+    /**
+     * Creates a {@link URI} instance from a systemId.
+     * This method handles strings that are either absolute URIs or local file
+     * system paths.
+     *
+     * @param systemId the systemId
+     * @return a {@link URI} instance corresponding to the systemId
+     */
+    public static URI createURI(String systemId) {
+        if (systemId == null) {
+            return null;
+        }
+
+        try {
+            URI uri = new URI(systemId);
+
+            if (uri.getScheme() == null) {
+                return Path.of(systemId).toUri();
+            }
+            return uri;
+        } catch (Exception e) {
+            // fallback for paths with illegal characters (e.g. spaces)
+            return Path.of(systemId).toUri();
+        }
     }
 }

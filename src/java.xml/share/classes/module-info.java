@@ -23,6 +23,8 @@
  * questions.
  */
 
+import java.net.URI;
+
 /**
  * Defines the Java APIs for XML Processing (JAXP).
  *
@@ -403,10 +405,7 @@
  *
  * <ul>
  * <li><a href="#JDKCATALOG">JDK built-in Catalog</a>
- *      <ul>
- *      <li><a href="#JC_PROCESS">External Resource Resolution Process with the built-in Catalog</a></li>
- *      </ul>
- * </li>
+ * <li><a href="#JC_PROCESS">External Resource Resolution Process</a></li>
  * <li><a href="#IN_ISFP">Implementation Specific Properties</a>
  *      <ul>
  *      <li><a href="#Processor">Processor Support</a></li>
@@ -511,23 +510,56 @@
  * <p>
  * The catalog is loaded once when the first JAXP processor factory is created.
  *
- * <h3 id="JC_PROCESS">External Resource Resolution Process with the built-in Catalog</h3>
- * The JDK creates a {@link javax.xml.catalog.CatalogResolver CatalogResolver}
- * with the built-in catalog when needed. This CatalogResolver is used as the
- * default external resource resolver.
+ * <h2 id="JC_PROCESS">External Resource Resolution Process</h2>
  * <p>
- * XML processors may use resolvers (such as {@link org.xml.sax.EntityResolver EntityResolver},
- * {@link javax.xml.stream.XMLResolver XMLResolver}, and {@link javax.xml.catalog.CatalogResolver CatalogResolver})
- * to handle external references. In the absence of the user-defined resolvers,
- * the JDK XML processors fall back to the default CatalogResolver to attempt to
- * find a resolution before making a connection to fetch the resources. The fall-back
- * also takes place if a user-defined resolver exists but allows the process to
- * continue when unable to resolve the resource.
+ * The XML processor resolves external resources using the following steps:
+ * <ul>
+ *   <li><b>User-defined resolver</b>, such as {@link org.xml.sax.EntityResolver EntityResolver},
+ *       {@link javax.xml.stream.XMLResolver XMLResolver}, if registered on the XML factory</li>
+ *   <li><b>{@link javax.xml.catalog.CatalogResolver CatalogResolver}</b> if registered or
+ *       if a catalog file is provided</li>
+ *   <li><b>The JDK Built-in Catalog</b></li>
+ *   <li><b>Direct fetch</b></li>
+ * </ul>
+ *
  * <p>
- * If the default CatalogResolver is unable to locate a resource, it may signal
- * the XML processors to continue processing, or skip the resource, or
- * throw a CatalogException. The behavior is configured with the
- * <a href="#JDKCATALOG_RESOLVE">{@code jdk.xml.jdkcatalog.resolve}</a> property.
+ * If a resolver or catalog successfully resolves the resource, the process ends.
+ * Otherwise, the XML processor evaluates the signal returned to decide whether
+ * to continue, ignore, or reject the resource.
+ * <p>
+ * It continues to the next step if:
+ * <ul>
+ *   <li><b>User-defined resolver</b> returns {@code null}</li>
+ *   <li><b>{@link javax.xml.catalog.CatalogResolver CatalogResolver}</b> returns {@code null}
+ *   and the {@link javax.xml.catalog.CatalogFeatures.Feature#RESOLVE RESOLVE} feature
+ *   is set to {@code continue}
+ *   </li>
+ *   <li><b>The JDK Built-in Catalog</b> returns {@code null}</li>
+ * </ul>
+ * <div style="padding-left: 1.5em;">
+ * The XML processor then will attempt a direct fetch if the resource is allowed
+ * by <a href="#RES_ACCESS">{@code jdk.xml.resource.access}</a>.
+ * </div>
+ * <p>
+ * It ignores the resource and returns if:
+ * <ul>
+ *   <li><b>User-defined resolver</b> returns an empty source</li>
+ *   <li><b>{@link javax.xml.catalog.CatalogResolver CatalogResolver}</b> returns {@code null}
+ *   and the {@link javax.xml.catalog.CatalogFeatures.Feature#RESOLVE RESOLVE} feature
+ *   is set to {@code ignore}
+ *   </li>
+ * </ul>
+ *
+ * It terminates and throws an exception if:
+ * <ul>
+ *   <li><b>User-defined resolver</b> throws an exception</li>
+ *   <li><b>{@link javax.xml.catalog.CatalogResolver CatalogResolver}</b> returns {@code null},
+ *   the {@link javax.xml.catalog.CatalogFeatures.Feature#RESOLVE RESOLVE} feature
+ *   is {@code reject}
+ *   </li>
+ *   <li>The resource is not allowed by <a href="#RES_ACCESS">{@code jdk.xml.resource.access}</a>
+ *   </li>
+ * </ul>
  *
  * <h2 id="IN_ISFP">Implementation Specific Properties</h2>
  * In addition to the standard <a href="#Conf_Properties">JAXP Properties</a>,
@@ -871,7 +903,7 @@
  * <td>Determines whether extension functions in the Transform API are to be allowed.
  * The extension functions in the XPath API are not affected by this property.
  * </td>
- * <td style="text-align:center" rowspan="5">yes</td>
+ * <td style="text-align:center" rowspan="6">yes</td>
  * <td style="text-align:center" rowspan="3">Boolean</td>
  * <td>
  * true or false. True indicates that extension functions are allowed; False otherwise.
@@ -961,7 +993,16 @@
  * <td style="text-align:center">22</td>
  * </tr>
  * <tr>
- * <td id="JDKCATALOG_RESOLVE">{@systemProperty jdk.xml.jdkcatalog.resolve}</td>
+ * <td id="JDKCATALOG_RESOLVE">{@systemProperty jdk.xml.jdkcatalog.resolve}
+ * <div class="col-last even-row-color">
+ * <div class="block">(<span class="deprecated-label">Deprecated, for removal:
+ * This property is subject to removal in a future version.</span>
+ * <div class="deprecation-comment">
+ *     Replaced by <a href="#RES_ACCESS">{@code jdk.xml.resource.access}</a>)
+ *  </div>
+ *  </div>
+ *  </div>
+ * </td>
  * <td>Instructs the JDK default CatalogResolver to act in accordance with the setting
  * of this property when unable to resolve an external reference with the built-in Catalog.
  * The options are:
@@ -993,6 +1034,55 @@
  * </td>
  * <td style="text-align:center"><a href="#Processor">Method 1</a></td>
  * <td style="text-align:center">22</td>
+ * </tr>
+ * <tr>
+ * <td id="RES_ACCESS">{@systemProperty jdk.xml.resource.access}</td>
+ * <td>Defines allowed network access to external resources by specifying a list
+ * of URL patterns, each following the syntax: <br><br>
+ * {@coce scheme:/{0,3}host[:port]}
+ * <ul>
+ *     <li><b>scheme</b>: The URI scheme, as supported by the Java URL class
+ *     (e.g., http, https, ftp, file, jar, jrt).
+ *     </li>
+ *     <li><b>/ (slash)</b>: Separator between scheme and host. Can be zero to three slashes,
+ *     such as {@code file:*, file:/foo, file:///*, or http://sun.com}. </li>
+ *     <li><b>host</b>: A domain name, IPv4 or IPv6 address, or {@code *}. The wildcard {@code *}
+ *     denotes any domain or host. The entire pattern {@code *} allows any domain or
+ *     unrestricted access. A wildcard {@code *} followed by a domain, such as {@code *.sun.com},
+ *     permits all subdomains of the domain {@code sun.com}. If not specified,
+ *     or the entire pattern is an empty string "", no access is permitted.
+ *     </li>
+ *     <li><b>port</b>: Optional. A decimal port number, as per the URI standard,
+ *     to indicate only the specified port is permitted. </li>
+ * </ul>
+ * Example:
+ * {@snippet :
+ *     jdk.xml.resource.access = https://*.sun.com, http://www.w3.org, https://127.0.0.1, https://127.0.0.1:80, https://[fe80::1%lo0], https://[fe80::1%lo0]:80, file:*, jrt:*
+ * }
+ * This configuration permits access to:
+ * <ul>
+ *     <li>https access to any subdomain of sun.com, e.g. java.sun.com</li>
+ *     <li>Resources from specific domain as listed in the example, w3.org, 127.0.0.1 and [fe80::1%lo0]</li>
+ *     <li>All local file resources</li>
+ *     <li>Resources from the Java runtime image</li>
+ * </ul>
+ * </td>
+ * <td style="text-align:center">String</td>
+ * <td>
+ * A comma-separated list of URL patterns, * (wildcard), or "" (empty string).
+ * </td>
+ * <td style="text-align:center">{@code *}</td>
+ * <td style="text-align:center">""</td>
+ * <td style="text-align:center">Yes</td>
+ * <td style="text-align:center">
+ *     <a href="#DOM">DOM</a><br>
+ *     <a href="#SAX">SAX</a><br>
+ *     <a href="#StAX">StAX</a><br>
+ *     <a href="#Validation">Validation</a><br>
+ *     <a href="#Transform">Transform</a>
+ * </td>
+ * <td style="text-align:center"><a href="#Processor">Method 1</a></td>
+ * <td style="text-align:center">25</td>
  * </tr>
  * </tbody>
  * </table>

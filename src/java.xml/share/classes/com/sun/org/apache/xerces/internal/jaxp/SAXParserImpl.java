@@ -43,6 +43,7 @@ import javax.xml.XMLConstants;
 import javax.xml.validation.Schema;
 import jdk.xml.internal.FeaturePropertyBase;
 import jdk.xml.internal.JdkConstants;
+import jdk.xml.internal.JdkProperty;
 import jdk.xml.internal.JdkXmlConfig;
 import jdk.xml.internal.JdkXmlUtils;
 import jdk.xml.internal.XMLSecurityManager;
@@ -171,9 +172,9 @@ public class SAXParserImpl extends javax.xml.parsers.SAXParser
                 Boolean temp = features.get(XMLConstants.FEATURE_SECURE_PROCESSING);
                 if (temp != null && temp) {
                     fSecurityPropertyMgr.setValue(XMLSecurityPropertyManager.Property.ACCESS_EXTERNAL_DTD,
-                            FeaturePropertyBase.State.FSP, JdkConstants.EXTERNAL_ACCESS_DEFAULT_FSP);
+                        JdkProperty.State.FSP, JdkConstants.EXTERNAL_ACCESS_DEFAULT_FSP);
                     fSecurityPropertyMgr.setValue(XMLSecurityPropertyManager.Property.ACCESS_EXTERNAL_SCHEMA,
-                            FeaturePropertyBase.State.FSP, JdkConstants.EXTERNAL_ACCESS_DEFAULT_FSP);
+                        JdkProperty.State.FSP, JdkConstants.EXTERNAL_ACCESS_DEFAULT_FSP);
                 }
             }
         }

@@ -24,6 +24,7 @@
  */
 
 package jdk.xml.internal;
+import jdk.xml.internal.JdkProperty.State;
 
 /**
  * This is the base class for features and properties
@@ -35,10 +36,10 @@ public abstract class FeaturePropertyBase {
      * set by FEATURE_SECURE_PROCESSING, jaxp.properties file, jaxp system
      * properties, and jaxp api properties
      */
-    public static enum State {
-        //this order reflects the overriding order
-        DEFAULT, FSP, JAXPDOTPROPERTIES, SYSTEMPROPERTY, APIPROPERTY
-    }
+//    public static enum State {
+//        //this order reflects the overriding order
+//        DEFAULT, FSP, JAXPDOTPROPERTIES, SYSTEMPROPERTY, APIPROPERTY
+//    }
 
 
     /**

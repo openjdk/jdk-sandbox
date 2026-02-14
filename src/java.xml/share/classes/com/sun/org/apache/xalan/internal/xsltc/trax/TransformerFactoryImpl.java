@@ -515,7 +515,7 @@ public class TransformerFactoryImpl
         }
 
         if (_xmlSecurityPropertyMgr != null &&
-            _xmlSecurityPropertyMgr.setValue(name, FeaturePropertyBase.State.APIPROPERTY, value)) {
+            _xmlSecurityPropertyMgr.setValue(name, JdkProperty.State.APIPROPERTY, value)) {
             _accessExternalDTD = _xmlSecurityPropertyMgr.getValue(
                     Property.ACCESS_EXTERNAL_DTD);
             _accessExternalStylesheet = _xmlSecurityPropertyMgr.getValue(
@@ -572,9 +572,9 @@ public class TransformerFactoryImpl
             // set external access restriction when FSP is explicitly set
             if (value) {
                 _xmlSecurityPropertyMgr.setValue(Property.ACCESS_EXTERNAL_DTD,
-                        FeaturePropertyBase.State.FSP, JdkConstants.EXTERNAL_ACCESS_DEFAULT_FSP);
+                    JdkProperty.State.FSP, JdkConstants.EXTERNAL_ACCESS_DEFAULT_FSP);
                 _xmlSecurityPropertyMgr.setValue(Property.ACCESS_EXTERNAL_STYLESHEET,
-                        FeaturePropertyBase.State.FSP, JdkConstants.EXTERNAL_ACCESS_DEFAULT_FSP);
+                    JdkProperty.State.FSP, JdkConstants.EXTERNAL_ACCESS_DEFAULT_FSP);
                 _accessExternalDTD = _xmlSecurityPropertyMgr.getValue(
                         Property.ACCESS_EXTERNAL_DTD);
                 _accessExternalStylesheet = _xmlSecurityPropertyMgr.getValue(

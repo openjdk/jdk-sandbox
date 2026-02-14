@@ -312,6 +312,17 @@ public final class JdkConstants {
     public static final int STRICT = 2;
 
     /**
+     * System Property for the Resource Access property
+     * @since 26
+     */
+    public static final String RESOURCE_ACCESS = "jdk.xml.resource.access";
+
+    // Integer Values that maps to broad access settings such as *, remote
+    public static final int ACCESS_NONE = 0;
+    public static final int ACCESS_ALL = 1; // same as that of DTD
+    public static final int ACCESS_REMOTE = 2;
+
+    /**
      * Values for a feature
      */
     public static final String FEATURE_TRUE = "true";

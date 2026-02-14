@@ -113,7 +113,7 @@ public class JdkXmlUtils {
             return xsm.setLimit(property, JdkProperty.State.APIPROPERTY, value);
 
         } else if (xspm != null && xspm.find(property) != null) {
-            return xspm.setValue(property, FeaturePropertyBase.State.APIPROPERTY, value);
+            return xspm.setValue(property, JdkProperty.State.APIPROPERTY, value);
         }
         return false;
     }

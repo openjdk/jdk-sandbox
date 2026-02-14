@@ -26,6 +26,8 @@ package jdk.xml.internal;
 
 
 import com.sun.org.apache.xerces.internal.util.SecurityManager;
+
+import java.net.URI;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -82,6 +84,17 @@ public final class XMLSecurityManager implements Cloneable {
         CR_MAP = Collections.unmodifiableMap(map);
     }
 
+    // Valid values for Resource Access, and mappings between the string and
+    // integer values
+    static final Map<String, Integer> RA_MAP;
+    // Source Level JDK 8
+    static {
+        Map<String, Integer> map = new HashMap<>();
+        map.put("*", 0);
+        map.put("", 2);
+        RA_MAP = Collections.unmodifiableMap(map);
+    }
+
     // Value converter for properties of type Boolean
     private static final BooleanMapper BOOLMAPPER = new BooleanMapper();
 
@@ -93,6 +106,9 @@ public final class XMLSecurityManager implements Cloneable {
 
     // Catalog Resolve value mapper
     private static final StringMapper CRMAPPER = new StringMapper(CR_MAP);
+
+    // Resource Access value mapper
+    private static final StringMapper RAMAPPER = new StringMapper(RA_MAP);
 
     /**
      * Limits managed by the security manager
@@ -129,6 +145,8 @@ public final class XMLSecurityManager implements Cloneable {
         STAX_SUPPORT_DTD("supportDTD", XMLInputFactory.SUPPORT_DTD, null, null, 1, 1, Processor.PARSER, BOOLMAPPER),
         JDKCATALOG_RESOLVE("JDKCatalogResolve", JdkConstants.JDKCATALOG_RESOLVE, JdkConstants.JDKCATALOG_RESOLVE, null,
                 JdkConstants.CONTINUE, JdkConstants.CONTINUE, Processor.PARSER, CRMAPPER),
+        RESOURCE_ACCESS("ResourceAccess", JdkConstants.RESOURCE_ACCESS, JdkConstants.RESOURCE_ACCESS, null,
+                JdkConstants.ALLOW, JdkConstants.ALLOW, Processor.PARSER, RAMAPPER),
         ;
 
         final String key;
@@ -263,6 +281,12 @@ public final class XMLSecurityManager implements Cloneable {
     private String printEntityCountInfo = "";
 
     /**
+     * Index of the AccessRule property
+     */
+    private final int indexAccess = 10001;
+    private AccessRule accessRule = null;
+
+    /**
      * Default constructor. Establishes default values for known security
      * vulnerabilities.
      */
@@ -288,6 +312,11 @@ public final class XMLSecurityManager implements Cloneable {
                 values[limit.ordinal()] = limit.defaultValue();
                 states[limit.ordinal()] = State.DEFAULT;
             }
+        }
+        if (secureProcessing) {
+            accessRule = new AccessRule(RAMAPPER.toString(Limit.RESOURCE_ACCESS.secureValue));
+        } else {
+            accessRule = new AccessRule(RAMAPPER.toString(Limit.RESOURCE_ACCESS.defaultValue()));
         }
     }
 
@@ -327,6 +356,13 @@ public final class XMLSecurityManager implements Cloneable {
      */
     public CatalogResolver getJDKCatalogResolver() {
         String resolve = getLimitValueAsString(Limit.JDKCATALOG_RESOLVE);
+        if (states[Limit.RESOURCE_ACCESS.ordinal()].compareTo(
+            states[Limit.JDKCATALOG_RESOLVE.ordinal()]) >= 0)
+        {
+            //RESOURCE_ACCESS has higher preference over JDKCATALOG_RESOLVE
+            resolve = CRMAPPER.toObject(JdkConstants.CONTINUE);
+        }
+
         return CatalogManager.catalogResolver(
                 JdkXmlConfig.getInstance(false).getJdkCatalog(), toActionType(resolve));
     }
@@ -380,6 +416,15 @@ public final class XMLSecurityManager implements Cloneable {
      * @return the limit's new name if found, null otherwise
      */
     public String find(String propertyName) {
+        /*
+         * Access property is unique in its value type. Using the SecurityManager
+         * infrastructure, but handles differently than other limits
+         */
+        if (Limit.RESOURCE_ACCESS.is(propertyName)) {
+            return (Limit.RESOURCE_ACCESS.systemProperty != null)
+                ? Limit.RESOURCE_ACCESS.systemProperty
+                : Limit.RESOURCE_ACCESS.apiProperty;
+        }
         for (Limit limit : Limit.values()) {
             if (limit.is(propertyName)) {
                 // current spec: new property name == systemProperty
@@ -440,6 +485,16 @@ public final class XMLSecurityManager implements Cloneable {
      * @param value the value of the property
      */
     public void setLimit(Limit limit, State state, Object value) {
+        /*
+         * Access property is unique in its value type. Using the SecurityManager
+         * infrastructure, but handles differently than other limits
+         */
+        if (limit == Limit.RESOURCE_ACCESS) {
+            accessRule = new AccessRule((String)value);
+            states[limit.ordinal()] = state;
+            return;
+        }
+
         int intValue = limit.mapper().toInt(value);
         if (intValue < 0) {
             intValue = 0;
@@ -469,6 +524,41 @@ public final class XMLSecurityManager implements Cloneable {
         }
     }
 
+    public AccessRule getAccessRule() {
+        return accessRule;
+    }
+
+    public boolean isAccessAllowed(String systemId) {
+        URI uri = Utils.createURI(systemId);
+        if (uri == null) return true;
+        return isAccessAllowed(uri);
+    }
+
+    /**
+     * Checks the RESOURCE_ACCESS property to see if access to the specified
+     * uri is allowed.
+     *
+     * @param uri the specified uri
+     * @return true if the RESOURCE_ACCESS property is set to allow access to the
+     * specified uri, false otherwise
+     */
+    public boolean isAccessAllowed(URI uri) {
+        return accessRule.allows(uri);
+    }
+
+    public boolean hasPriority(XMLSecurityPropertyManager spm, XMLSecurityPropertyManager.Property property) {
+        if ((states[Limit.RESOURCE_ACCESS.ordinal()].compareTo(
+            states[Limit.JDKCATALOG_RESOLVE.ordinal()]) >= 0) &&
+            (states[Limit.RESOURCE_ACCESS.ordinal()].compareTo(
+            spm.getState(property)) >= 0)
+        )
+        {
+            //RESOURCE_ACCESS is set and has priority
+            return true;
+        }
+        return false;
+    }
+
     /**
      * Return the value of the specified property
      *
@@ -477,6 +567,10 @@ public final class XMLSecurityManager implements Cloneable {
      * by this manager, its value shall not be null.
      */
     public String getLimitAsString(String propertyName) {
+        if (Limit.RESOURCE_ACCESS.is(propertyName)) {
+            return accessRule.toString();
+        }
+
         int index = getIndex(propertyName);
         if (index > -1) {
             return getLimitValueByIndex(index);
@@ -673,6 +767,13 @@ public final class XMLSecurityManager implements Cloneable {
      * @return true if the {@code Limit} is set and the values match
      */
     public boolean is(Limit limit, int value) {
+        if (limit == Limit.JDKCATALOG_RESOLVE && value == JdkConstants.CONTINUE
+            && (states[Limit.RESOURCE_ACCESS.ordinal()].compareTo(
+            states[Limit.JDKCATALOG_RESOLVE.ordinal()]) >= 0))
+        {
+            //RESOURCE_ACCESS specified while the check is on catalog resolve continue
+            return true;
+        }
         return getLimit(limit) == value;
     }
 
