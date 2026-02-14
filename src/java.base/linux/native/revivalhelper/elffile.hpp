@@ -28,24 +28,25 @@
 
 #include "revival.hpp"
 
-
 /**
- * An ELF file.  Core files and binary/shared library.
+ * An ELF file.
  *
- * Provide operations such as file inspection, but also a destructive operation 
- * to relocate the file to a new base virtual address.
+ * Provide operations such as file inspection to read memory segments, and also
+ * a destructive operation to relocate the file to a new base virtual address.
  *
  * To mmap the file and update in-memory proves faster than lseek and read/write,
  * particularly for relocation.
- * Currently we only mmmap, may need to change that above some file size, to
- * deal with huge core files.
  */
 class ELFFile {
   public:
     ELFFile(const char* filename, const char* libdir);
     ~ELFFile();
 
-    bool is_core() { return hdr->e_type == ET_CORE; }
+    bool is_valid();
+    bool is_core();
+
+    // Static check if named file is ELF
+    static bool is_elf(const char* filename);
 
     uint64_t file_offset_for_vaddr(uint64_t addr);
     char* readstring_at_address(uint64_t addr);
@@ -57,19 +58,13 @@ class ELFFile {
     // Relocate actual file by some amount.
     void relocate(long displacement);
 
-    // Write the list of shared library mappings in the core, to be used in the revived process.
-    //void write_sharedlib_mappings(int mappings_fd);
-
-    // Write the list of memory mappings in the core, to be used in the revived process.
+    // Write the list of memory mappings in the core.
     void write_mem_mappings(int mappings_fd, const char* exec_name);
 
     // Write symbol list for revived process.
     void write_symbols(int symbols_fd, const char* symbols[], int count);
 
     void print(); // Diagnostic, show PHs and Sections
-
-    // Static check if named file is ELF
-    static bool is_elf(const char* filename);
 
   private:
     const char* filename;
@@ -84,7 +79,7 @@ class ELFFile {
 
     std::list<Segment> libs;
 
-    void verify();
+    bool verify();
 
     char* find_note_data(Elf64_Phdr* notes_ph, Elf64_Word type);
     void read_sharedlibs();
@@ -117,275 +112,50 @@ class ELFFile {
         }
     } */
 
-
     // Section header actual address in mmapped file.
-    Elf64_Shdr* section_header(unsigned long i) {
-        return (Elf64_Shdr*) ((char*) sh + (i * hdr->e_shentsize));
-    }
+    Elf64_Shdr* section_header(unsigned long i);
 
     // Program header actual address in mmapped file.
-    Elf64_Phdr* program_header(unsigned long i) {
-        return (Elf64_Phdr*) ((char*) ph + (i * hdr->e_phentsize));
-    }
+    Elf64_Phdr* program_header(unsigned long i);
 
-    bool section_name_is(Elf64_Shdr* shdr, const char* name) {
-        return (strcmp(name, shdr_strings + shdr->sh_name) == 0);
-    }
+    bool section_name_is(Elf64_Shdr* shdr, const char* name);
 
-    Elf64_Shdr* next_sh(Elf64_Shdr* s) {
-        return (Elf64_Shdr*) ((char *) s + hdr->e_shentsize);
-    }
+    Elf64_Shdr* next_sh(Elf64_Shdr* s);
 
-    Elf64_Phdr* next_ph(Elf64_Phdr* p) {
-        return (Elf64_Phdr*) ((char *) p + hdr->e_phentsize);
-    }
+    Elf64_Phdr* next_ph(Elf64_Phdr* p);
 
-    Elf64_Shdr* section_by_name(const char* name) {
-        Elf64_Shdr* s = sh;
-        for (int i = 0; i < hdr->e_shnum; i++) {
-            if (section_name_is(s, name)) {
-                return s;
-            }
-            s = next_sh(s);
-        }
-        warn("Section not found: %s", name);
-        return nullptr;
-    }
+    Elf64_Shdr* section_by_name(const char* name);
 
-    Elf64_Shdr* section_by_index(unsigned long index) {
-        return (Elf64_Shdr*) ((char*) sh + (index * hdr->e_shentsize));
-    }
+    Elf64_Shdr* section_by_index(unsigned long index);
 
     // Returns the first phdr where predicate returns true.
-    Elf64_Phdr* program_header_by_predicate(bool (*predptr)(Elf64_Phdr*)) {
-        Elf64_Phdr* phdr = ph;
-        for (int i = 0; i < hdr->e_phnum; i++) {
-            if (predptr(phdr)) {
-                return phdr;
-            }
-            phdr = next_ph(phdr);
-        }
-        return nullptr;
-    }
+    Elf64_Phdr* program_header_by_predicate(bool (*predptr)(Elf64_Phdr*));
 
-    Elf64_Phdr* program_header_by_type(Elf32_Word type) {
-        Elf64_Phdr* phdr = ph;
-        for (int i = 0; i < hdr->e_phnum; i++) {
-            if (phdr->p_type == type) {
-                return phdr;
-            }
-            phdr = next_ph(phdr);
-        }
-        return nullptr;
-    }
+    Elf64_Phdr* program_header_by_type(Elf32_Word type);
 
+    // Relocation methods
+    void relocate_execution_header(long displacement);
 
-    // Relocation methos
+    void relocate_program_headers(long displacement);
 
-    bool should_relocate_addend(Elf64_Rela* rela) {
-        switch (ELF64_R_TYPE(rela->r_info)) {
-#if defined(__aarch64__)
-            case R_AARCH64_RELATIVE:
-#else
-            case R_X86_64_RELATIVE:
-#endif
-                return true;
-            default:
-                return false;
-        }
-    }
+    bool should_relocate_section_header(Elf64_Shdr* shdr);
 
-    void relocate_execution_header(long displacement) {
-        if (hdr->e_entry != 0) {
-            hdr->e_entry += displacement;
-        }
-    }
+    void relocate_section_headers(long displacement);
 
-    bool should_relocate_program_header(Elf64_Phdr* phdr) {
-        return phdr->p_type != PT_GNU_STACK;
-    }
+    void relocate_relocation_table(long displacement, const char* name);
 
-    void relocate_program_headers(long displacement) {
-        Elf64_Phdr* p = ph;
-        for (int i = 0; i < hdr->e_phnum; i++) {
-            logd("relocate_program_headers %3d %p", i, p);
-            if (should_relocate_program_header(p)) {
-                p->p_vaddr += displacement;
-                p->p_paddr += displacement;
-#ifdef __aarch64__
-                p->p_align = 0x1000;
-#endif
-            }
-            p = next_ph(p);
-        }
-    }
+    uint64_t find_dynamic_value(Elf64_Shdr* s, int tag);
 
-    bool should_relocate_section_header(Elf64_Shdr* shdr) {
-        if (section_name_is(shdr, ".comment")) return false;
-        if (section_name_is(shdr, ".note.stapsdt")) return false;
-        if (section_name_is(shdr, ".note.gnu.gold-version")) return false;
-        if (section_name_is(shdr, ".gnu_debuglink")) return false;
-        if (section_name_is(shdr, ".symtab")) return false;
-        if (section_name_is(shdr, ".shstrtab")) return false;
-        if (section_name_is(shdr, ".strtab")) return false;
-        if (shdr->sh_type == SHT_NULL) return false;
-        return true;
-    }
+    // Relocate e.g. INIT_ARRAY contents.
+    void relocate_dyn_array(long displacement, Elf64_Dyn* dyn, int count);
 
-    void relocate_section_headers(long displacement) {
-        Elf64_Shdr* s = sh;
-        for (int i = 0; i < hdr->e_shnum; i++) {
-            logd("relocate_section_headers %3d %p", i, s);
-            if (should_relocate_section_header(s)) {
-                s->sh_addr += displacement;
-            }
-            s = next_sh(s);
-        }
-    }
+    void relocate_dynamic_table(long displacement);
 
-    void relocate_relocation_table(long displacement, const char* name) {
-        Elf64_Shdr* sh_reladyn = section_by_name(name);
-        if (sh_reladyn == nullptr) {
-            return;
-        }
-        for (unsigned long o = sh_reladyn->sh_offset; o < (sh_reladyn->sh_offset + sh_reladyn->sh_size); o += sh_reladyn->sh_entsize) {
-            Elf64_Rela* rela = (Elf64_Rela*) ((uint64_t) m + o);
-            rela->r_offset += displacement;
-            if (should_relocate_addend(rela)) {
-                rela->r_addend += displacement;
-            }
-        }
-    }
+    bool should_relocate_symbol(Elf64_Sym* sym);
 
-    bool should_relocate_dynamic_tag(Elf64_Dyn* dyn) {
-        // Dynamic entries that use the d_ptr union member should stay relative to base address?
-        // Or does that not apply to us, as will have a set load address...
-        // https://docs.oracle.com/cd/E19455-01/816-0559/chapter6-35405/index.html
-        switch (dyn->d_tag) {
-            case DT_INIT:
-            case DT_FINI:
-            case DT_HASH:
-            case DT_GNU_HASH:
-            case DT_STRTAB:
-            case DT_SYMTAB:
-            case DT_PLTGOT:
-            case DT_JMPREL:
-            case DT_RELA:
-            case DT_VERDEF:
-            case DT_VERNEED:
-            case DT_VERSYM:
-                return true;
-            default:
-                return false;
-        }
-    }
+    void relocate_symbol_table(long displacement, const char* name);
 
-    uint64_t find_dynamic_value(Elf64_Shdr* s, int tag) {
-        for (unsigned long o = s->sh_offset; o < s->sh_offset + s->sh_size; o += s->sh_entsize) {
-            Elf64_Dyn* dyn = (Elf64_Dyn*) ((uint64_t) m + o);
-            if (dyn->d_tag == DT_NULL) {
-                break;
-            }
-            if (dyn->d_tag == tag) {
-                return dyn->d_un.d_val;
-            }
-        }
-        return 0;
-    }
+    void read_bytes_at(unsigned long at, ssize_t bytes, char* buffer);
 
-    /**
-     * Relocate e.g. INIT_ARRAY contents.
-     */
-    void relocate_dyn_array(long displacement, Elf64_Dyn* dyn, int count) {
-        logd("relocate_dyn_array: updating %d", count);
-        // Get our mmapped address of the array:
-        uint64_t *p = (uint64_t*) ((uint64_t) m + dyn->d_un.d_ptr);
-        // Relocate contents:
-        for (int i = 0; i < count; i++) {
-            if (*p != 0) {
-                uint64_t contents = *(uint64_t*) p;
-                uint64_t newval = contents + displacement;
-                *p = newval;
-            }
-            p++;
-        }
-        // Adjust dynamic table entry:
-        dyn->d_un.d_ptr += displacement;
-    }
-
-    void relocate_dynamic_table(long displacement) {
-        Elf64_Shdr* s = section_by_name(".dynamic");
-        if (s == nullptr) {
-            return;
-        }
-        for (unsigned long o = s->sh_offset; o < s->sh_offset + s->sh_size; o += s->sh_entsize) {
-            Elf64_Dyn* dyn = (Elf64_Dyn*) ((uint64_t) m + o);
-            if (dyn->d_tag == DT_NULL) {
-                break;
-            }
-            // Special-case for the .init array contents:
-            if (dyn->d_tag == DT_INIT_ARRAY) {
-                int count = find_dynamic_value(s, DT_INIT_ARRAYSZ) / sizeof(uint64_t);
-                relocate_dyn_array(displacement, dyn, count);
-            } else if (dyn->d_tag == DT_FINI_ARRAY) {
-                int count = find_dynamic_value(s, DT_FINI_ARRAYSZ) / sizeof(uint64_t);
-                relocate_dyn_array(displacement, dyn, count);
-            } else if (should_relocate_dynamic_tag(dyn)) {
-               dyn->d_un.d_ptr += displacement;
-            }
-        }
-    }
-
-    bool should_relocate_symbol(Elf64_Sym* sym) {
-        if (ELF64_ST_TYPE(sym->st_info) == STT_TLS) return false;
-        if (sym->st_shndx == 0) return false;
-        if (sym->st_shndx == SHN_ABS) return false;
-        return true;
-    }
-
-    void relocate_symbol_table(long displacement, const char* name) {
-        Elf64_Shdr* s = section_by_name(name);
-        if (s == nullptr) {
-            return;
-        }
-        for (unsigned long o = s->sh_offset; o < s->sh_offset + s->sh_size; o += s->sh_entsize) {
-            Elf64_Sym* s = (Elf64_Sym*) ((uint64_t) m + o);
-            if (should_relocate_symbol(s)) {
-                s->st_value += displacement;
-            }
-        }
-    }
-
-    void read_bytes_at(unsigned long at, ssize_t bytes, char* buffer) {
-        if (lseek(fd, at, SEEK_SET) == -1) {
-            error("read_bytes_at: %s", strerror(errno));
-        }
-        if (read(fd, buffer, bytes) != bytes) {
-            error("read_bytes_at: %s", strerror(errno));
-        }
-    }
-
-    void read_bytes(ssize_t bytes, char* buffer) {
-        if (read(fd, buffer, bytes) != bytes) {
-            error("read_bytes: %s", strerror(errno));
-        }
-    }
-
-    /**
-     * Return bool for whether a Program Header is obviously unnecessary.
-     * We have Segment::is_relevant() but can avoid getting as far as creating a Segment.
-     */
-    bool is_unwanted_phdr(Elf64_Phdr* phdr) {
-        return (phdr->p_memsz == 0 || phdr->p_filesz == 0);
-    }
-
-    bool is_inside(Elf64_Addr from, Elf64_Addr x, Elf64_Addr to) {
-        return from <= x && x < to;
-    }
-
-    bool is_inside(Elf64_Phdr* phdr, Elf64_Addr start, Elf64_Addr end) {
-        return is_inside(start, phdr->p_vaddr, end)
-               || is_inside(start, phdr->p_vaddr + phdr->p_memsz, end);
-    }
+    void read_bytes(ssize_t bytes, char* buffer);
 };
-

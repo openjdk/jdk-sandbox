@@ -151,7 +151,6 @@ bool file_exists_indir_pd(const char* dirname, const char* filename) {
     return file_exists_pd(path);
 }
 
-
 char* readstring_at_offset_pd(const char* filename, uint64_t offset) {
     int fd = open(filename, O_RDONLY);
     if (fd < 0) {
@@ -171,14 +170,17 @@ char* readstring_at_offset_pd(const char* filename, uint64_t offset) {
 
 char* readstring_from_core_at_vaddr_pd(const char* filename, uint64_t addr) {
     ELFFile elf(filename, nullptr);
-    return elf.readstring_at_address(addr);
+    if (!elf.is_valid()) {
+        error("readstring_from_core_at_vaddr_pd: %s invalid", filename);
+        return nullptr;
+    } else {
+        return elf.readstring_at_address(addr);
+    }
 }
-
 
 bool mem_canwrite_pd(void *vaddr, size_t length) {
     return true;
 }
-
 
 void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offset) {
     int flags = MAP_SHARED | MAP_PRIVATE | MAP_FIXED;
@@ -421,7 +423,6 @@ void handler(int sig, siginfo_t *info, void *ucontext) {
         }
     }
     warn("handler: si_addr = %p : not handled.", addr);
-//    exitForRetry();
     abort();
 }
 
@@ -610,9 +611,16 @@ void copy_file_pd(const char *srcfile, const char *destfile) {
 
 void relocate_sharedlib_pd(const char *filename, const uint64_t address) {
     ELFFile lib(filename, nullptr);
-    logv("Relocate %s to 0x%lx", filename, address);
-    lib.relocate(address /* assume library currently has zero base address */);
-    logv("Relocate done");
+    if (lib.is_valid()) {
+        logv("Relocate %s to 0x%lx", filename, address);
+        lib.relocate(address /* assume library currently has zero base address */);
+        logv("Relocate done");
+    }
+}
+
+
+void write_mem_mappings(ELFFile& core, int mappings_fd, const char* binary) {
+    core.write_mem_mappings(mappings_fd, binary);
 }
 
 
@@ -663,14 +671,14 @@ void write_sharedlib_mapping(int mappings_fd, char* filename, void* address) {
         write0(mappings_fd, buf);
 }
 
-void write_sharedlib_mappings(int mappings_fd, ELFFile* core) {
+void write_sharedlib_mappings(ELFFile& core, int mappings_fd) {
     logv("write_sharedlib_mappings");
 
     if (!allLibraries) {
-        Segment* jvm_mapping = core->get_library_mapping(JVM_FILENAME);
+        Segment* jvm_mapping = core.get_library_mapping(JVM_FILENAME);
         write_sharedlib_mapping(mappings_fd, jvm_mapping->name, jvm_mapping->vaddr);
     } else {
-        std::list<Segment> libs = core->get_library_mappings();
+        std::list<Segment> libs = core.get_library_mappings();
         std::list<Segment>::iterator iter;
         for (iter = libs.begin(); iter != libs.end(); iter++) {
             write_sharedlib_mapping(mappings_fd, iter->name, iter->vaddr);
@@ -757,8 +765,8 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
         error("Failed to create mappings file.");
     }
     // Write mappings file:
-    write_sharedlib_mappings(mappings_fd, &core);
-    core.write_mem_mappings(mappings_fd, "bin/java");
+    write_sharedlib_mappings(core, mappings_fd);
+    write_mem_mappings(core, mappings_fd, "bin/java");
     close(mappings_fd);
 
     // Copy jvm/libraries into core.revival dir

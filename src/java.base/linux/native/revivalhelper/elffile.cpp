@@ -33,27 +33,154 @@
 #include "revival.hpp"
 #include "elffile.hpp"
 
+/**
+ * Return bool for whether a Program Header is obviously unnecessary.
+ * We have Segment::is_relevant() but can avoid getting as far as creating a Segment.
+ */
+bool is_unwanted_phdr(Elf64_Phdr* phdr) {
+    return (phdr->p_memsz == 0 || phdr->p_filesz == 0);
+}
+
+bool is_inside(Elf64_Addr from, Elf64_Addr x, Elf64_Addr to) {
+    return from <= x && x < to;
+}
+
+bool is_inside(Elf64_Phdr* phdr, Elf64_Addr start, Elf64_Addr end) {
+    return is_inside(start, phdr->p_vaddr, end)
+           || is_inside(start, phdr->p_vaddr + phdr->p_memsz, end);
+}
+
+bool should_relocate_addend(Elf64_Rela* rela) {
+    switch (ELF64_R_TYPE(rela->r_info)) {
+#if defined(__aarch64__)
+        case R_AARCH64_RELATIVE:
+#else
+        case R_X86_64_RELATIVE:
+#endif
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool should_relocate_program_header(Elf64_Phdr* phdr) {
+    return phdr->p_type != PT_GNU_STACK;
+}
+
+bool should_relocate_dynamic_tag(Elf64_Dyn* dyn) {
+    // Dynamic entries that use the d_ptr union member should stay relative to base address?
+    // Or does that not apply to us, as will have a set load address...
+    // https://docs.oracle.com/cd/E19455-01/816-0559/chapter6-35405/index.html
+    switch (dyn->d_tag) {
+        case DT_INIT:
+        case DT_FINI:
+        case DT_HASH:
+        case DT_GNU_HASH:
+        case DT_STRTAB:
+        case DT_SYMTAB:
+        case DT_PLTGOT:
+        case DT_JMPREL:
+        case DT_RELA:
+        case DT_VERDEF:
+        case DT_VERNEED:
+        case DT_VERSYM:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool verify_header(Elf64_Ehdr* hdr) {
+    if (hdr->e_ident[0] == 0x7f
+        && hdr->e_ident[1] == 'E'
+        && hdr->e_ident[2] == 'L'
+        && hdr->e_ident[3] == 'F'
+    ) {
+        return true;
+    }
+    warn("ELF signature not recognised.");
+    return false;
+}
+
+bool verify_file(int fd) {
+    Elf64_Ehdr hdr;
+    int e = read(fd, &hdr, sizeof(Elf64_Ehdr));
+    if (e == sizeof(Elf64_Ehdr)) {
+        return verify_header(&hdr);
+    } else {
+        return false;
+    }
+}
+
+
+bool ELFFile::verify() {
+    verify_header(hdr);
+#if defined(__aarch64__)
+    if (hdr->e_machine != EM_AARCH64) {
+        warn("%s: not an AARCH64 ELF file.", filename);
+        return false;
+    }
+#else
+    if (hdr->e_machine != EM_X86_64) {
+        warn("%s: not an X86_64 ELF file.", filename);
+        return false;
+    }
+#endif
+    if (hdr->e_phnum == PN_XNUM) {
+        warn("%s: Too many program headers, handling not implemented (%x)", filename, hdr->e_phnum);
+        return false;
+    }
+    if (hdr->e_type == ET_DYN && hdr->e_shnum == 0) {
+        warn("%s: No section headers in shared library.", filename);
+        return false;
+    }
+/*
+        // Sanity check the pointer arithmetic:
+        Elf64_Phdr* p0 = program_header(0);
+        Elf64_Phdr* p1 = program_header(1);
+        long diff = (long) ((uint64_t) p1 - (uint64_t) p0);
+        Elf64_Phdr* p1a = next_ph(p0);
+        assert(p1 == p1a);
+        assert(diff == hdr->e_phentsize);
+
+        Elf64_Shdr* s0 = section_header(0);
+        Elf64_Shdr* s1 = section_header(1);
+        diff = (long) ((uint64_t) s1 - (uint64_t) s0);
+        Elf64_Shdr* s1a = next_sh(s0);
+        assert(s1 == s1a);
+        assert(diff == hdr->e_shentsize);
+ */
+    return true;
+}
 
 ELFFile::ELFFile(const char* filename, const char* libdir) {
-    logv("ELFFile:: %s", filename);
+    logv("ELFFile: %s", filename);
     this->filename = filename;
     this->libdir = libdir;
     fd = -1;
     length = 0;
     m = nullptr;
+    hdr = nullptr;
 
     fd = open(filename, O_RDWR);
     if (fd < 0) {
-        error("cannot open '%s': %s", filename, strerror(errno));
+        error("Cannot open '%s': %s", filename, strerror(errno));
     }
     length = file_size(filename);
+
     // Open for writing as we may be relocating:
     m = mmap(0, length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (m == (void *) -1) {
-        error("ELFFile: mmap of ELF file '%s' failed: %s", filename, strerror(errno));
+        warn("ELFFile: mmap of ELF file '%s' failed: %s", filename, strerror(errno));
+        m = nullptr;
+        return; // invalid ELF file
     }
     hdr = (Elf64_Ehdr*) m;
-    verify();
+    if (!verify()) {
+        warn("Not an ELF file: %s", filename);
+        m = nullptr;
+        return; // invalid ELF file
+    }
 
     // Set absolute ph and sh pointers for ease.
     // Careful with ptr arithmetic, do NOT use:
@@ -74,56 +201,245 @@ ELFFile::ELFFile(const char* filename, const char* libdir) {
          filename, hdr, hdr->e_phoff, hdr->e_shoff, ph, sh);
 }
 
-void ELFFile::verify() {
-
-//        assert(hdr->e_ident[4] == ELFCLASS64);
-//        assert(hdr->e_ident[5] == ELFDATA2LSB);
-//        assert(hdr->e_ident[6] == EV_CURRENT);
-//        assert(hdr->e_ident[7] == ELFOSABI_SYSV); // or UNIX - GNU
-//        assert(hdr->e_version == EV_CURRENT);
-
-#if defined(__aarch64__)
-        if (hdr->e_machine != EM_AARCH64) {
-            error("%s: not an AARCH64 ELF file.", filename);
+// static
+bool ELFFile::is_elf(const char* filename) {
+    bool result = false;
+    if (file_exists_pd(filename)) {
+        int fd = open(filename, O_RDONLY);
+        if (fd >= 0) {
+            result = verify_file(fd);
+            close(fd);
         }
-#else
-        if (hdr->e_machine != EM_X86_64) {
-            error("%s: not an X86_64 ELF file.", filename);
-        }
-#endif
-        if (hdr->e_phnum == PN_XNUM) {
-            error("Too many program headers, handling not implemented (%x)", hdr->e_phnum);
-        }
-        if (hdr->e_type == ET_DYN && hdr->e_shnum == 0) {
-            error("No section headers in shared library.");
-        }
-/*
-        assert(hdr->e_phentsize == sizeof(Elf64_Phdr));
-        assert(hdr->e_shentsize == 0 || hdr->e_shentsize == sizeof(Elf64_Shdr));
+    }
+    return result;
+}
 
-        // Sanity check the pointer arithmetic:
-        Elf64_Phdr* p0 = program_header(0);
-        Elf64_Phdr* p1 = program_header(1);
-        long diff = (long) ((uint64_t) p1 - (uint64_t) p0);
-        Elf64_Phdr* p1a = next_ph(p0);
-        assert(p1 == p1a);
-        assert(diff == hdr->e_phentsize);
+bool ELFFile::is_valid() {
+    return m != nullptr;
+}
 
-        Elf64_Shdr* s0 = section_header(0);
-        Elf64_Shdr* s1 = section_header(1);
-        diff = (long) ((uint64_t) s1 - (uint64_t) s0);
-        Elf64_Shdr* s1a = next_sh(s0);
-        assert(s1 == s1a);
-        assert(diff == hdr->e_shentsize);
- */
+bool ELFFile::is_core() {
+    return is_valid() && hdr != nullptr && hdr->e_type == ET_CORE;
 }
 
 ELFFile::~ELFFile() {
     if (fd >= 0) {
         ::close(fd);
     }
-    if (m != 0) {
+    if (m != nullptr) {
         do_munmap_pd(m, length);
+        m = nullptr;
+    }
+    hdr = nullptr;
+}
+
+// Section header actual address in mmapped file.
+Elf64_Shdr* ELFFile::section_header(unsigned long i) {
+    return (Elf64_Shdr*) ((char*) sh + (i * hdr->e_shentsize));
+}
+
+// Program header actual address in mmapped file.
+Elf64_Phdr* ELFFile::program_header(unsigned long i) {
+    return (Elf64_Phdr*) ((char*) ph + (i * hdr->e_phentsize));
+}
+
+bool ELFFile::section_name_is(Elf64_Shdr* shdr, const char* name) {
+    return (strcmp(name, shdr_strings + shdr->sh_name) == 0);
+}
+
+Elf64_Shdr* ELFFile::next_sh(Elf64_Shdr* s) {
+    return (Elf64_Shdr*) ((char *) s + hdr->e_shentsize);
+}
+
+Elf64_Phdr* ELFFile::next_ph(Elf64_Phdr* p) {
+   return (Elf64_Phdr*) ((char *) p + hdr->e_phentsize);
+}
+
+Elf64_Shdr* ELFFile::section_by_name(const char* name) {
+    Elf64_Shdr* s = sh;
+    for (int i = 0; i < hdr->e_shnum; i++) {
+        if (section_name_is(s, name)) {
+            return s;
+        }
+        s = next_sh(s);
+    }
+    warn("Section not found: %s", name);
+    return nullptr;
+}
+
+Elf64_Shdr* ELFFile::section_by_index(unsigned long index) {
+    return (Elf64_Shdr*) ((char*) sh + (index * hdr->e_shentsize));
+}
+
+// Returns the first phdr where predicate returns true.
+/*Elf64_Phdr* ELFFile::program_header_by_predicate(bool (*predptr)(Elf64_Phdr*)) {
+    Elf64_Phdr* phdr = ph;
+    for (int i = 0; i < hdr->e_phnum; i++) {
+        if (predptr(phdr)) {
+            return phdr;
+        }
+        phdr = next_ph(phdr);
+    }
+    return nullptr;
+} */
+
+Elf64_Phdr* ELFFile::program_header_by_type(Elf32_Word type) {
+    Elf64_Phdr* phdr = ph;
+    for (int i = 0; i < hdr->e_phnum; i++) {
+        if (phdr->p_type == type) {
+            return phdr;
+        }
+        phdr = next_ph(phdr);
+    }
+    return nullptr;
+}
+
+void ELFFile::relocate_execution_header(long displacement) {
+    if (hdr->e_entry != 0) {
+        hdr->e_entry += displacement;
+    }
+}
+
+void ELFFile::relocate_program_headers(long displacement) {
+    Elf64_Phdr* p = ph;
+    for (int i = 0; i < hdr->e_phnum; i++) {
+        logd("relocate_program_headers %3d %p", i, p);
+        if (should_relocate_program_header(p)) {
+            p->p_vaddr += displacement;
+            p->p_paddr += displacement;
+#ifdef __aarch64__
+            p->p_align = 0x1000;
+#endif
+        }
+        p = next_ph(p);
+    }
+}
+
+bool ELFFile::should_relocate_section_header(Elf64_Shdr* shdr) {
+    if (section_name_is(shdr, ".comment")) return false;
+    if (section_name_is(shdr, ".note.stapsdt")) return false;
+    if (section_name_is(shdr, ".note.gnu.gold-version")) return false;
+    if (section_name_is(shdr, ".gnu_debuglink")) return false;
+    if (section_name_is(shdr, ".symtab")) return false;
+    if (section_name_is(shdr, ".shstrtab")) return false;
+    if (section_name_is(shdr, ".strtab")) return false;
+    if (shdr->sh_type == SHT_NULL) return false;
+    return true;
+}
+
+void ELFFile::relocate_section_headers(long displacement) {
+    Elf64_Shdr* s = sh;
+    for (int i = 0; i < hdr->e_shnum; i++) {
+        logd("relocate_section_headers %3d %p", i, s);
+        if (should_relocate_section_header(s)) {
+            s->sh_addr += displacement;
+        }
+        s = next_sh(s);
+    }
+}
+
+void ELFFile::relocate_relocation_table(long displacement, const char* name) {
+    Elf64_Shdr* sh_reladyn = section_by_name(name);
+    if (sh_reladyn == nullptr) {
+        return;
+    }
+    for (unsigned long o = sh_reladyn->sh_offset; o < (sh_reladyn->sh_offset + sh_reladyn->sh_size); o += sh_reladyn->sh_entsize) {
+        Elf64_Rela* rela = (Elf64_Rela*) ((uint64_t) m + o);
+        rela->r_offset += displacement;
+        if (should_relocate_addend(rela)) {
+            rela->r_addend += displacement;
+        }
+    }
+}
+
+uint64_t ELFFile::find_dynamic_value(Elf64_Shdr* s, int tag) {
+    for (unsigned long o = s->sh_offset; o < s->sh_offset + s->sh_size; o += s->sh_entsize) {
+        Elf64_Dyn* dyn = (Elf64_Dyn*) ((uint64_t) m + o);
+        if (dyn->d_tag == DT_NULL) {
+            break;
+        }
+        if (dyn->d_tag == tag) {
+            return dyn->d_un.d_val;
+        }
+    }
+    return 0;
+}
+
+/**
+ * Relocate e.g. INIT_ARRAY contents.
+ */
+void ELFFile::relocate_dyn_array(long displacement, Elf64_Dyn* dyn, int count) {
+    logd("relocate_dyn_array: updating %d", count);
+    // Get our mmapped address of the array:
+    uint64_t *p = (uint64_t*) ((uint64_t) m + dyn->d_un.d_ptr);
+    // Relocate contents:
+    for (int i = 0; i < count; i++) {
+        if (*p != 0) {
+            uint64_t contents = *(uint64_t*) p;
+            uint64_t newval = contents + displacement;
+            *p = newval;
+        }
+        p++;
+    }
+    // Adjust dynamic table entry:
+    dyn->d_un.d_ptr += displacement;
+}
+
+void ELFFile::relocate_dynamic_table(long displacement) {
+    Elf64_Shdr* s = section_by_name(".dynamic");
+    if (s == nullptr) {
+        return;
+    }
+    for (unsigned long o = s->sh_offset; o < s->sh_offset + s->sh_size; o += s->sh_entsize) {
+        Elf64_Dyn* dyn = (Elf64_Dyn*) ((uint64_t) m + o);
+        if (dyn->d_tag == DT_NULL) {
+            break;
+        }
+        // Special-case for the .init array contents:
+        if (dyn->d_tag == DT_INIT_ARRAY) {
+            int count = find_dynamic_value(s, DT_INIT_ARRAYSZ) / sizeof(uint64_t);
+            relocate_dyn_array(displacement, dyn, count);
+        } else if (dyn->d_tag == DT_FINI_ARRAY) {
+            int count = find_dynamic_value(s, DT_FINI_ARRAYSZ) / sizeof(uint64_t);
+            relocate_dyn_array(displacement, dyn, count);
+        } else if (should_relocate_dynamic_tag(dyn)) {
+           dyn->d_un.d_ptr += displacement;
+        }
+    }
+}
+
+bool ELFFile::should_relocate_symbol(Elf64_Sym* sym) {
+    if (ELF64_ST_TYPE(sym->st_info) == STT_TLS) return false;
+    if (sym->st_shndx == 0) return false;
+    if (sym->st_shndx == SHN_ABS) return false;
+    return true;
+}
+
+void ELFFile::relocate_symbol_table(long displacement, const char* name) {
+    Elf64_Shdr* s = section_by_name(name);
+    if (s == nullptr) {
+        return;
+    }
+    for (unsigned long o = s->sh_offset; o < s->sh_offset + s->sh_size; o += s->sh_entsize) {
+        Elf64_Sym* s = (Elf64_Sym*) ((uint64_t) m + o);
+        if (should_relocate_symbol(s)) {
+            s->st_value += displacement;
+        }
+    }
+}
+
+void ELFFile::read_bytes_at(unsigned long at, ssize_t bytes, char* buffer) {
+    if (lseek(fd, at, SEEK_SET) == -1) {
+        error("read_bytes_at: %s", strerror(errno));
+    }
+    if (read(fd, buffer, bytes) != bytes) {
+        error("read_bytes_at: %s", strerror(errno));
+    }
+}
+
+void ELFFile::read_bytes(ssize_t bytes, char* buffer) {
+    if (read(fd, buffer, bytes) != bytes) {
+        error("read_bytes: %s", strerror(errno));
     }
 }
 
@@ -153,23 +469,6 @@ char* ELFFile::find_note_data(Elf64_Phdr* notes_ph, Elf64_Word type) {
         nhdr = (Elf64_Nhdr*) pos;
     }
     return nullptr;
-}
-
-bool ELFFile::is_elf(const char* filename) {
-    if (file_exists_pd(filename)) {
-        int fd = open(filename, O_RDONLY);
-        if (fd >= 0) {
-            Elf64_Ehdr hdr;
-            int e = read(fd, &hdr, sizeof(Elf64_Ehdr));
-            close(fd);
-            if (e == sizeof(Elf64_Ehdr)) {
-                if (hdr.e_ident[0] == 0x7f) {
-                    return true;
-                }
-            }
-        }
-    }
-    return false;
 }
 
 /*
@@ -366,11 +665,11 @@ void ELFFile::write_mem_mappings(int mappings_fd, const char* exec_name) {
     *
     *   Create a Segment, call Segment::write_mapping(int fd) to write an "M" entry.
     */
+    logv("write_mem_mappings");
     if (!is_core()) {
         warn("write_mem_mappings: Not writing mappings for non-core file: %s", filename);
         return;
     }
-    logv("write_mem_mappings");
     read_sharedlibs();
 
     int n_skipped = 0;
