@@ -51,7 +51,6 @@ PEFile::PEFile(const char* filename) {
     fd = -1;
 }
 
-
 void PEFile::close() {
     if (fd >= 0) {
         ::close(fd);

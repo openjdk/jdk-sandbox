@@ -98,7 +98,6 @@ char* basename_pd(char* s) {
             return p;
         }
     }
-    // consider checking for forward slashes if no backslashes found?
     return s;
 }
 
@@ -120,16 +119,12 @@ unsigned long long max_user_vaddr_pd() {
 
 void init_pd() {
     int x;
-
-    openCoreWrite = true;
-
     _SYSTEM_INFO systemInfo;
     GetSystemInfo(&systemInfo);
     vaddr_align = systemInfo.dwAllocationGranularity - 1;
 
     // Report pagesize in verbose log for reference, but not used.
     uint64_t pagesize = systemInfo.dwPageSize;
-
     logv("revival: init_pd: dwAllocationGranularity = %d  vaddr_alignment_pd() = 0x%lx  approx sp = 0x%llx dwPageSize = %d",
           systemInfo.dwAllocationGranularity, vaddr_alignment_pd(), &x, pagesize);
 
@@ -373,10 +368,6 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offse
     DWORD createFileDesiredAccess = GENERIC_READ | GENERIC_EXECUTE;
     DWORD mappingProt = PAGE_EXECUTE_READ;
     DWORD mapViewAccess = FILE_MAP_READ | FILE_MAP_EXECUTE;
-    if (openCoreWrite) {
-        createFileDesiredAccess |= GENERIC_WRITE;
-        mappingProt |= PAGE_READWRITE;
-    }
     h = CreateFile(filename, createFileDesiredAccess, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (h == nullptr) {
         logv("    do_mmap_pd: CreateFile failed: %s: 0x%lx", filename, GetLastError());
@@ -799,7 +790,6 @@ void write_mem_mappings(MiniDump* dump, int fd, const char *corename,
     } else {
         warn("TEB not resolved");
     }
-
     writef(fd, "\n");
 }
 
@@ -868,7 +858,6 @@ void write_sharedlib_mapping(int mappings_fd, char* filename, void* address) {
         snprintf(buf, BUFLEN, "L %s %llx %s\n", basename_pd(filename), (unsigned long long) address, checksum);
         write0(mappings_fd, buf);
 }
-
 
 void write_sharedlib_mappings(int mappings_fd, MiniDump* dump) {
     logv("write_sharedlib_mappings");

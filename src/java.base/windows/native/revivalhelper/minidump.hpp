@@ -60,9 +60,6 @@ class MiniDump {
     Segment* get_library_mapping(const char* filename);
     std::list<Segment> get_library_mappings();
 
-    // Write the list of shared library mappings in the core, to be used in the revived process.
-    void write_sharedlibrary_mappings(int mappings_fd);
-
     // Write the list of memory mappings in the core, to be used in the revived process.
     void write_mem_mappings(int mappings_fd, const char* exec_name);
 

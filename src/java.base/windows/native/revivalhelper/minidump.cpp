@@ -281,15 +281,9 @@ std::list<Segment> MiniDump::get_library_mappings() {
     return libs;
 }
 
-void write_sharedlib_mappings(int mappings_fd) {
-
-
-}
-
 void write_mem_mappings(int mappings_fd, const char* exec_name) {
     // Currently implemented in revival_windows.cpp directly, fetching data from MinDump.
 }
-
 
 /**
  * Prepare for caller to read memory ranges.

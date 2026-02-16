@@ -33,8 +33,6 @@ int debugPause = false;
 
 int versionCheckEnabled = true; // May be disabled in environment
 
-int openCoreWrite = false;
-
 // Revival prep state:
 char* core_filename;
 int core_fd;
@@ -452,7 +450,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
     // Linux needs an fd to pass to mmap.  Windows will pass a filename.
     int core_fd = -1;
 #ifdef LINUX
-    core_fd = open(core_filename, (openCoreWrite ? O_RDWR : O_RDONLY));
+    core_fd = open(core_filename, O_RDONLY);
     if (core_fd < 0) {
         warn("%s: %s", core_filename, strerror(errno));
         return -1;
@@ -912,9 +910,7 @@ int revive_image_cooperative() {
  * create_revival_cache
  *
  * Create and populate the revival data directory.
- *
  * Only called when the directory (core.revival) does not exist.
- *
  * Return zero on success.
  */
 int create_revival_cache(const char* corename, const char* javahome, const char* dirname, const char* libdir) {

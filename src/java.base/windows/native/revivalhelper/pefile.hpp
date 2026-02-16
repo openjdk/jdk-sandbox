@@ -53,7 +53,6 @@
 class PEFile {
   public:
     PEFile(const char* filename);
-    bool is_valid() { return fd >= 0; }
     void close();
     ~PEFile();
 

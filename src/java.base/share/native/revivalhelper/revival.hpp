@@ -179,11 +179,6 @@ extern int logLevel;            // set from env: REVIVAL_LOG
 
 extern int versionCheckEnabled; // set from env: REVIVAL_SKIPVERSIONCHECK
 
-// Optionally map core files with write permission:
-// On Linux, map core files read only, signal handler remaps to handle writes.
-// If true, core file is actually changed by writes.
-extern int openCoreWrite;
-
 // Revival prep state:
 extern char *core_filename;
 extern int core_fd;

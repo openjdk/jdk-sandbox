@@ -185,9 +185,6 @@ bool mem_canwrite_pd(void *vaddr, size_t length) {
 void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offset) {
     int flags = MAP_SHARED | MAP_PRIVATE | MAP_FIXED;
     int prot = PROT_READ | PROT_EXEC;
-    if (openCoreWrite) {
-        prot |= PROT_WRITE;
-    }
     // Try with literal values.  Should work for a regular Linux core file.
     void *e = mmap(addr, length, prot, flags, fd, offset);
     if (e == (void*) -1L) {
