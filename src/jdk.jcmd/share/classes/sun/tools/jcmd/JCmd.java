@@ -69,13 +69,13 @@ public class JCmd {
         }
 
         ProcessArgumentMatcher ap = null;
-
         try {
             ap = new ProcessArgumentMatcher(arg.getProcessString());
         } catch (IllegalArgumentException iae) {
             System.err.println("Invalid pid '" + arg.getProcessString()  + "' specified");
             System.exit(1);
         }
+
         if (arg.isListProcesses()) {
             for (VirtualMachineDescriptor vmd : ap.getVirtualMachineDescriptors(/* include jcmd in listing */)) {
                 System.out.println(vmd.id() + " " + vmd.displayName());
@@ -165,7 +165,6 @@ public class JCmd {
                 System.out.println("Command executed successfully");
             }
         }
-
     }
 
     private static void listCounters(String pid) {

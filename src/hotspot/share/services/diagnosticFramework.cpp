@@ -412,7 +412,6 @@ void DCmd::Executor::parse_and_execute(const char* cmdline, char delim, TRAPS) {
       }
 
       DCmd* command = DCmdFactory::create_local_DCmd(_source, line, _out, CHECK);
-
       assert(command != nullptr, "command error must be handled before this line");
       DCmdMark mark(command);
       command->parse(&line, delim, CHECK);

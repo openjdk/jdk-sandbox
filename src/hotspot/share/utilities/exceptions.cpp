@@ -224,7 +224,6 @@ void Exceptions::_throw(JavaThread* thread, const char* file, int line, Handle h
 
 void Exceptions::_throw_msg(JavaThread* thread, const char* file, int line, Symbol* name, const char* message,
                             Handle h_loader) {
-
   // Check for special boot-strapping/compiler-thread handling
   if (special_exception(thread, file, line, Handle(), name, message)) return;
   // Create and throw exception
