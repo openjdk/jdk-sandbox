@@ -177,19 +177,19 @@ LPTOP_LEVEL_EXCEPTION_FILTER previousUnhandledExceptionFilter = nullptr;
 LONG WINAPI topLevelUnhandledExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo) {
 
 #if defined(_M_AMD64)
-    address pc = (address) exceptionInfo->ContextRecord->Rip;
+    uint64_t pc = (uint64_t) exceptionInfo->ContextRecord->Rip;
 #else
-    // _M_ARM64 would be: address pc = (address) exceptionInfo->ContextRecord->Pc;
+    // _M_ARM64 would be: pc = exceptionInfo->ContextRecord->Pc;
     error("revival: handler: unsupported platform");
 #endif
 
-    address addr = (address) exceptionInfo->ExceptionRecord->ExceptionInformation[1];
+    uint64_t addr = (uint64_t) exceptionInfo->ExceptionRecord->ExceptionInformation[1];
     warn("revival: handler: pc 0x%llx address 0x%llx", pc, addr);
 
     // Catch access to areas we failed to map:
     std::list<Segment>::iterator iter;
     for (iter = failedSegments.begin(); iter != failedSegments.end(); iter++) {
-        if (addr >= (address) iter->vaddr &&
+        if (addr >= (uint64_t) iter->vaddr &&
                 (unsigned long long) addr < (unsigned long long) (iter->vaddr) + (unsigned long long)(iter->length) ) {
             warn("Access to segment that failed to revive: si_addr = %p in failed segment %p", addr, iter->vaddr);
             exitForRetry();
@@ -379,10 +379,10 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offse
         }
     }
     // Align virtual address:
-    address addr_aligned = align_down((uint64_t) addr, vaddr_alignment_pd());
+    uint64_t addr_aligned = align_down((uint64_t) addr, vaddr_alignment_pd());
     // If vaddr changed, update offset:
-    if (addr_aligned != (address) addr) {
-        offset -= (size_t) ((address) addr - addr_aligned);
+    if (addr_aligned != (uint64_t) addr) {
+        offset -= (size_t) ((uint64_t) addr - addr_aligned);
         // But offset must be multiple of allocation granularity
         if (offset != align_down(offset, vaddr_alignment_pd())) {
             logv("    do_mmap_pd: file offset becomes unalinged.");
@@ -395,7 +395,7 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offse
     DWORD prot = PAGE_EXECUTE_READ;
     //DWORD prot = PAGE_EXECUTE_READWRITE;
     p = pMapViewOfFile3(h2, hProc, (PVOID) addr, offset, length, MEM_REPLACE_PLACEHOLDER, prot, nullptr, 0);
-    if ((address) p != (address) addr) {
+    if ((uint64_t) p != (uint64_t) addr) {
         logv("    do_mmap_pd: MapViewOfFile3 0x%p failed, ret=0x%p error=0x%lx", addr, p, GetLastError());
         p = (void *) -1;
         waitHitRet();
@@ -549,16 +549,16 @@ void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length) {
 void *do_map_allocate_pd(void *vaddr, size_t length) {
     // mappings file is created with minidump addresses, not necessarily 64k aligned.
 
-    address vaddr_aligned = align_down((uint64_t) vaddr, vaddr_alignment_pd());
+    uint64_t vaddr_aligned = align_down((uint64_t) vaddr, vaddr_alignment_pd());
     uint64_t diff = (uint64_t) vaddr -  (uint64_t) vaddr_aligned;
     size_t length_aligned = length + diff;
     length_aligned = align_up(length_aligned, vaddr_alignment_pd());
 
-    if (vaddr_aligned != (address) vaddr) {
+    if (vaddr_aligned != (uint64_t) vaddr) {
         logv("    do_map_allocate_pd: vaddr 0x%p aligns -> 0x%p  len 0x%p adjusts -> 0x%p",
             (void*) vaddr, (void*) vaddr_aligned, length, length_aligned);
     }
-    address r = (address) do_map_allocate_pd_VirtualAlloc2((void*) vaddr_aligned, length_aligned);
+    uint64_t r = (uint64_t) do_map_allocate_pd_VirtualAlloc2((void*) vaddr_aligned, length_aligned);
 
     // Accept the aligned down address and return as if the requested vaddr was honoured.
     if (r == vaddr_aligned) {
@@ -774,7 +774,7 @@ const char *JVM_SYMS[N_JVM_SYMS] = {
 };
 
 void write_symbols(int symbols_fd, const char* symbols[], int count, const char *revival_dirname) {
-    // Using SymFromName() on jvm.dll after relocation will give final absoulute addresses.
+    // Using SymFromName() on jvm.dll after relocation will give final absolute addresses.
     PLOADED_IMAGE image = ImageLoad(JVM_FILENAME, revival_dirname);
     if (image == nullptr) {
         error("write_symbols: ImageLoad error '%s': %d", GetLastError());

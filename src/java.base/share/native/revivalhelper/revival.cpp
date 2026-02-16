@@ -52,11 +52,11 @@ void exitForRetry() {
     _exit(EXIT_SUGGEST_RETRY);
 }
 
-address align_down(address ptr, uint64_t mask) {
+uint64_t align_down(uint64_t ptr, uint64_t mask) {
     return ptr & ~mask;
 }
 
-address align_up(address ptr, uint64_t mask) {
+uint64_t align_up(uint64_t ptr, uint64_t mask) {
     return (ptr & ~mask) + mask + 1;
 }
 
@@ -213,7 +213,7 @@ unsigned long long file_time(const char* filename) {
  * Return true if vaddr range v1, v2 looks dangerous to map/unmap,
  * given t1, t2 describe an address range in use.
  */
-int clash(address v1, address v2, address t1, address t2) {
+int clash(uint64_t v1, uint64_t v2, uint64_t t1, uint64_t t2) {
     // Region v1, v2 surrounds region t1,t2:
     if (v1 <= t1 && v2 >= t2) {
         return true;
@@ -227,11 +227,11 @@ int clash(address v1, address v2, address t1, address t2) {
     return false;
 }
 
-int dangerous0(void* vaddr, unsigned long long length, address xaddr) {
-    address v1 = (address) vaddr;
-    address v2 = v1 + length;
-    address t1 = align_down(xaddr, 0xffffff);
-    address t2 = align_up(xaddr, 0xffffff);
+int dangerous0(void* vaddr, unsigned long long length, uint64_t xaddr) {
+    uint64_t v1 = (uint64_t) vaddr;
+    uint64_t v2 = v1 + length;
+    uint64_t t1 = align_down(xaddr, 0xffffff);
+    uint64_t t2 = align_up(xaddr, 0xffffff);
     if (clash(v1, v2, t1, t2)) {
         return true;
     }
@@ -287,7 +287,7 @@ int revival_mapping_mmap(void* vaddr, size_t length, size_t offset, int lines, c
     void* mapped_addr = do_mmap_pd(vaddr, length, filename, fd, offset);
 
     // Accept the wanted address, or if it was aligned-down:
-    if (mapped_addr != vaddr && mapped_addr != (void*) align_down((address) vaddr, vaddr_alignment_pd())) {
+    if (mapped_addr != vaddr && mapped_addr != (void*) align_down((uint64_t) vaddr, vaddr_alignment_pd())) {
         logv("  revival_mapping_mmap: line %d: mapping failed: wanted vaddr: %p returned: %p", lines, vaddr, mapped_addr);
         e = -1;
     } else {
@@ -327,7 +327,7 @@ int revival_mapping_allocate(void* vaddr, size_t length) {
 int revival_mapping_copy(void* vaddr, size_t length, size_t offset, bool allocate, char* filename, int fd) {
     int e = 0;
     logd("  revival_mapping_copy: alloc=%d vaddr " PTR_FORMAT " - " PTR_FORMAT " len=" SIZE_FORMAT_X_0 " from file offset 0x%llx",
-         allocate, (uintptr_t) vaddr, (uintptr_t) ((address) vaddr + length), length, (long long) offset);
+         allocate, (uintptr_t) vaddr, (uintptr_t) ((uint64_t) vaddr + length), length, (long long) offset);
 
     if (allocate) {
         // Need to create a mapping: (not normally true)

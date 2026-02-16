@@ -43,10 +43,6 @@
 #include <new>
 #include <set>
 
-
-// More types
-typedef uint64_t address;
-
 #include "segment.hpp"
 
 
@@ -228,8 +224,8 @@ void *symbol_call3(const char *sym, void *arg1, void *arg2, void *arg3);
 void *symbol_call4(const char *sym, void *arg1, void *arg2, void *arg3, void *arg4);
 void *symbol_call5(const char *sym, void *arg1, void *arg2, void *arg3, void *arg4, void *arg5);
 
-address align_down(address ptr, uint64_t mask);
-address align_up(address ptr, uint64_t mask);
+uint64_t align_down(uint64_t ptr, uint64_t mask);
+uint64_t align_up(uint64_t ptr, uint64_t mask);
 
 uint64_t vaddr_alignment_pd(); // return a mask, e.g. 0xfff
 uint64_t offset_alignment_pd();
@@ -306,7 +302,7 @@ int unload_sharedobject_pd(void *h);
 bool mem_canwrite_pd(void *vaddr, size_t length);
 
 int revival_checks_pd(const char *dirname);
-int dangerous0(void *vaddr, unsigned long long length, address xaddr);
+int dangerous0(void *vaddr, unsigned long long length, uint64_t xaddr);
 const char *dangerous( void *vaddr, unsigned long long length);
 
 /**
