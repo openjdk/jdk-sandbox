@@ -703,33 +703,6 @@ void write_mem_mappings(MiniDump* dump, int fd, const char *corename,
         // Consider the next region also:
         segNext = dump->readSegment(&d, &currentRVA, true);
 
-        // Considering joining touching regions, if the file offsets work, to reduce number of mappings (there are likely >600).
-        // This may just complicate things, skip for now.
-/*      bool coalesce = false;
-        if (coalesce) {
-            Segment *joinedSeg = nullptr;
-            while (segNext != nullptr && seg->end() == segNext->start()
-                && (seg->file_offset + seg->file_length == segNext->file_offset)) {
-
-                logv("create_mappings_pd: join 0x%llx - 0x%llx and 0x%llx - 0x%llx", seg->start(), seg->end(), segNext->start(), segNext->end());
-                if (joinedSeg == nullptr) {
-                    joinedSeg = new Segment(seg);
-                }
-                joinedSeg->set_length(seg->length + segNext->length);
-                if (verbose) {
-                    char *b = joinedSeg->toString();
-                    warn("JOINED seg expanded: %s", b);
-                    free(b);
-                }
-                seg = joinedSeg;
-                segNext = dump->readSegment(&d, &currentRVA, true);
-            }
-            if (joinedSeg != nullptr) {
-                seg = joinedSeg;  // Which may yet be relevant in loop below.
-                // segNext may still be set, but seg is not joined to it.
-            }
-        } */
-
         // Is next region too close for vaddralignment to work?
         // Grow a bigger segment to map, that will have these neighbouring segments' data copied in.
         Segment *biggerSeg = nullptr;
