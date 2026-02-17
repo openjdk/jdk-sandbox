@@ -28,6 +28,12 @@ package sun.swing.calendarpanel;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Rectangle2D;
+import java.awt.image.ColorModel;
 import java.beans.PropertyChangeEvent;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -40,7 +46,9 @@ import javax.swing.JCalendarPanel;
 import javax.swing.JLabel;
 import javax.swing.JTable;
 import javax.swing.UIManager;
+import javax.swing.border.StrokeBorder;
 import javax.swing.table.DefaultTableCellRenderer;
+import sun.swing.calendarpanel.CalendarUtilities;
 
 /**
  * A cell renderer for the {@code JCalendarPanel} Month view.
@@ -53,6 +61,8 @@ class CalendarCellRenderer extends DefaultTableCellRenderer {
     private final JCalendarPanel calendarPanel;
     private Calendar calendar;
     private String weekNo;
+    private boolean isCurrentDateCell = false;
+    private Color currentCellBGColor;
 
     /**
      * Creates an instance of {@code CalendarCellRenderer}
@@ -88,6 +98,7 @@ class CalendarCellRenderer extends DefaultTableCellRenderer {
                 isSelected, hasFocus, row, column);
         LocalDate localDate;
         label.setHorizontalAlignment(JLabel.CENTER);
+        isCurrentDateCell = false;
 
         setCalendar(calendarPanel.getDateSelectionModel().getCalendar());
         Calendar currentCalendar = Calendar.getInstance();
@@ -104,7 +115,7 @@ class CalendarCellRenderer extends DefaultTableCellRenderer {
         } else {
             localDate = prepareLabelForCurrentMonth(label, currentCalendar, day, isSelected, isWeekNumber);
         }
-        label.setFont(calendarPanel.getTableFont());
+        label.setFont(calendarPanel.getGridFont());
         label.setLocale(calendarPanel.getDateSelectionModel().getLocale());
         DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).
                 withLocale(calendarPanel.getLocale());
@@ -119,6 +130,10 @@ class CalendarCellRenderer extends DefaultTableCellRenderer {
         } else {
             label.getAccessibleContext().setAccessibleName(localDate.format(formatter));
         }
+        if (localDate.getYear() < calendarPanel.getYearSelectionLimit().first() ||
+                (localDate.getYear() > calendarPanel.getYearSelectionLimit().last())) {
+            return null;
+        }
         return label;
     }
 
@@ -130,19 +145,20 @@ class CalendarCellRenderer extends DefaultTableCellRenderer {
         LocalDate localDate = LocalDate.of(calendar.get(Calendar.YEAR),
                 calendar.get(Calendar.MONTH) + 1, selectedDay);
         if (isWeekNumber) {
-            label.setBackground(calendarPanel.getTableBackground());
+            label.setBackground(calendarPanel.getGridBackground());
             label.setForeground(calendarPanel.getWeekNumberForeground());
         } else if (calendarPanel.getDateSelectionModel().getSelectedDates().contains(localDate)) {
-            label.setBackground(calendarPanel.getTableSelectionBackground());
-            label.setForeground(calendarPanel.getTableSelectionForeground().brighter());
+            label.setBackground(calendarPanel.getGridSelectionBackground());
+            label.setForeground(calendarPanel.getGridSelectionForeground().brighter());
         } else if (!isWeekNumber && currentCalendar.get(Calendar.DATE) == selectedDay
                 && currentCalendar.get(Calendar.MONTH) == calendar.get(Calendar.MONTH)
                 && currentCalendar.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)) {
-            label.setForeground(calendarPanel.getTableCurrentDateForeground());
-            label.setBackground(calendarPanel.getTableCurrentDateBackground().darker());
+            currentCellBGColor = CalendarUtilities.getLighterColor(calendarPanel.getGridCurrentDateBackground(), 0.6);
+            isCurrentDateCell = true;
+            label.setForeground(calendarPanel.getGridCurrentDateForeground());
         } else {
-            label.setBackground(calendarPanel.getTableBackground());
-            label.setForeground(calendarPanel.getTableForeground());
+            label.setBackground(calendarPanel.getGridBackground());
+            label.setForeground(calendarPanel.getGridForeground());
         }
         return localDate;
     }
@@ -173,14 +189,14 @@ class CalendarCellRenderer extends DefaultTableCellRenderer {
         }
 
         if (isWeekNumber) {
-            label.setBackground(calendarPanel.getTableBackground());
+            label.setBackground(calendarPanel.getGridBackground());
             label.setForeground(calendarPanel.getWeekNumberForeground());
         } else if (calendarPanel.getDateSelectionModel().getSelectedDates().contains(localDate)) {
-            label.setBackground(calendarPanel.getTableSelectionBackground());
-            label.setForeground(getLighterColor(calendarPanel.getTableSelectionForeground(), 0.5));
+            label.setBackground(calendarPanel.getGridSelectionBackground());
+            label.setForeground(CalendarUtilities.getLighterColor(calendarPanel.getGridSelectionForeground(), 0.5));
         } else {
-            label.setBackground(calendarPanel.getTableBackground());
-            label.setForeground(getLighterColor(calendarPanel.getTableForeground(), 0.5));
+            label.setBackground(calendarPanel.getGridBackground());
+            label.setForeground(CalendarUtilities.getLighterColor(calendarPanel.getGridForeground(), 0.5));
         }
         return localDate;
     }
@@ -207,10 +223,18 @@ class CalendarCellRenderer extends DefaultTableCellRenderer {
         return localDate;
     }
 
-    private Color getLighterColor(Color color, double factor) {
-        int red = (int) Math.min(255, color.getRed() + (255 - color.getRed()) * factor);
-        int green = (int) Math.min(255, color.getGreen() + (255 - color.getGreen()) * factor);
-        int blue = (int) Math.min(255, color.getBlue() + (255 - color.getBlue()) * factor);
-        return new Color(red, green, blue, color.getAlpha());
+    @Override
+    protected void paintComponent(Graphics g) {
+        if (isCurrentDateCell) {
+            Graphics2D graphics2D = (Graphics2D) g.create();
+            graphics2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                    RenderingHints.VALUE_ANTIALIAS_ON);
+            graphics2D.setColor(currentCellBGColor);
+            graphics2D.fillOval(2, 2, getWidth() - 4, getHeight() - 4);
+            graphics2D.dispose();
+        }
+        isCurrentDateCell = false;
+        super.paintComponent(g);
+
     }
 }

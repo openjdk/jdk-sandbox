@@ -27,6 +27,7 @@ package sun.swing.calendarpanel;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.SortedSet;
 import javax.swing.table.AbstractTableModel;
 
 /**
@@ -39,17 +40,17 @@ import javax.swing.table.AbstractTableModel;
 @SuppressWarnings("serial")
 class YearTableViewModel extends AbstractTableModel {
     private final List<List<Integer>> yearData = new ArrayList<>();
-    private final int yearViewLimit;
+    private SortedSet<Integer> yearViewLimit;
+    private int noOfColumns = 4;
 
     /**
      * Creates an instance of {@code YearTableViewModel}
      *
-     * @param currentYear selected year
-     * @param yearViewLimit Offset used to limit the year selection
+     * @param yearViewLimit Range used to limit the year selection
      */
-    public YearTableViewModel(int currentYear, int yearViewLimit) {
+    public YearTableViewModel(SortedSet<Integer> yearViewLimit) {
         this.yearViewLimit = yearViewLimit;
-        updateYearsData(currentYear);
+        updateYearViewLimit(yearViewLimit);
     }
 
     @Override
@@ -59,7 +60,7 @@ class YearTableViewModel extends AbstractTableModel {
 
     @Override
     public int getColumnCount() {
-        return 4;
+        return noOfColumns;
     }
 
     @Override
@@ -69,23 +70,34 @@ class YearTableViewModel extends AbstractTableModel {
 
     /**
      * Updates year data on start year value.
-     * @param currentYear current year
+     * @param yearLimit year limit range
      */
-    public void updateYearsData(int currentYear) {
+    public void updateYearViewLimit(SortedSet<Integer> yearLimit) {
+        yearViewLimit = yearLimit;
         yearData.clear();
-        int yearMin = currentYear - yearViewLimit;
-        int yearMax = currentYear + yearViewLimit;
-        for (int row = yearMin; row < yearMax; row = row + 4) {
+        int yearMin = yearViewLimit.first();
+        int yearMax = yearViewLimit.last();
+        int year = yearMin;
+        int totalYears = yearMax - yearMin + 1;
+
+        int maxRows = (int) Math.ceil((double) totalYears / noOfColumns);
+        for (int row = 0; row < maxRows; row++) {
             List<Integer> rowData = new ArrayList<>();
-            for (int col = row; col < row + 4; col++) {
-                rowData.add(col);
+            for (int col = 0; col < noOfColumns; col++) {
+                if (year <= yearMax) {
+                    rowData.add(year);
+                    year++;
+                } else {
+                    rowData.add(null);
+                }
             }
             yearData.add(rowData);
         }
-        fireTableDataChanged();
-    }
 
-    @Override
+            fireTableDataChanged();
+        }
+
+        @Override
     public Class<?> getColumnClass(int columnIndex) {
         return (columnIndex == 0 && getValueAt(0, columnIndex) != null)
                 ? String.class : Object.class;

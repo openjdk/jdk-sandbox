@@ -1534,26 +1534,21 @@ public class MetalLookAndFeel extends BasicLookAndFeel
                "ctrl released ENTER", "release"
               },
                 // *** DatePicker
-                "DatePicker.tableFont", userTextValue,
-                "DatePicker.tableForeground", getBlack(),  // cell text color
-                "DatePicker.tableBackground", getWindowBackground(),  // cell background color
-                "DatePicker.tableHeaderCellFont", windowTitleValue,
-                "DatePicker.tableHeaderForeground", getBlack(),   // header text color
-                "DatePicker.tableHeaderBackground", getWindowBackground(),  // header background
-                "DatePicker.tableSelectionForeground", getMenuSelectedForeground(),
-                "DatePicker.tableSelectionBackground", getMenuSelectedBackground(),
-                "DatePicker.tableCurrentDateForeground", getWhite(),
-                "DatePicker.tableCurrentDateBackground", getMenuSelectedBackground(),
+                "DatePicker.gridFont", userTextValue,
+                "DatePicker.gridForeground", getBlack(),  // cell text color
+                "DatePicker.gridBackground", getWindowBackground(),  // cell background color
+                "DatePicker.gridHeaderCellFont", windowTitleValue,
+                "DatePicker.gridHeaderForeground", getBlack(),   // header text color
+                "DatePicker.gridHeaderBackground", getWindowBackground(),  // header background
+                "DatePicker.gridSelectionForeground", getMenuSelectedForeground(),
+                "DatePicker.gridSelectionBackground", getMenuSelectedBackground(),
+                "DatePicker.gridCurrentDateForeground", getWhite(),
+                "DatePicker.gridCurrentDateBackground", Color.blue,
                 "DatePicker.weekNumberForeground", Color.blue,
-                "DatePicker.tableGridColor", Color.GRAY,  // grid line color
-                "DatePicker.tableShowGrid", false,  // show grid
+                "DatePicker.gridColor", Color.GRAY,  // grid line color
+                "DatePicker.showGridLines", false,  // show grid
                 "DatePicker.calendarIcon", (LazyValue) t ->
                 new CalendarIcon(Color.GRAY),
-                "DatePicker.ancestorInputMap",
-                new UIDefaults.LazyInputMap(new Object[] {
-                        "ENTER", "acceptSelection",
-                        "ESCAPE", "cancelSelection",
-                }),
                 "DatePicker.ancestorInputMap.calendarPanel",
                 new UIDefaults.LazyInputMap(new Object[] {
                         "ENTER", "acceptSelection",

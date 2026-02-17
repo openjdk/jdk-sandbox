@@ -25,6 +25,7 @@
 
 package sun.swing.calendarpanel;
 
+import java.awt.Color;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Date;
@@ -57,5 +58,18 @@ public class CalendarUtilities {
      */
     public static Date getDateFromLocalDate(LocalDate localDate) {
         return Date.from(localDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
+    }
+
+    /**
+     * Returns Lighter color
+     * @param color color
+     * @param factor factor of lightness
+     * @return color
+     */
+    public static Color getLighterColor(Color color, double factor) {
+        int red = (int) Math.min(255, color.getRed() + (255 - color.getRed()) * factor);
+        int green = (int) Math.min(255, color.getGreen() + (255 - color.getGreen()) * factor);
+        int blue = (int) Math.min(255, color.getBlue() + (255 - color.getBlue()) * factor);
+        return new Color(red, green, blue, color.getAlpha());
     }
 }

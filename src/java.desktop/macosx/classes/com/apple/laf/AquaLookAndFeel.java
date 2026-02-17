@@ -1025,26 +1025,21 @@ public final class AquaLookAndFeel extends BasicLookAndFeel {
             "Tree.focusInputMap.RightToLeft", aquaKeyBindings.getTreeRightToLeftInputMap(),
             "Tree.ancestorInputMap", new UIDefaults.LazyInputMap(new Object[]{"ESCAPE", "cancel"}),
             // *** DatePicker
-            "DatePicker.tableFont", viewFont,
-            "DatePicker.tableForeground", black,  // cell text color
-            "DatePicker.tableBackground", white,  // cell background color
-            "DatePicker.tableHeaderCellFont", alertHeaderFont,
-            "DatePicker.tableHeaderForeground", black,   // header text color
-            "DatePicker.tableHeaderBackground", white,  // header background
-            "DatePicker.tableSelectionForeground", textHighlightText,
-            "DatePicker.tableSelectionBackground", textHighlight,
-            "DatePicker.tableCurrentDateForeground", white,
-            "DatePicker.tableCurrentDateBackground", textHighlight,
+            "DatePicker.gridFont", viewFont,
+            "DatePicker.gridForeground", black,  // cell text color
+            "DatePicker.gridBackground", white,  // cell background color
+            "DatePicker.gridHeaderCellFont", alertHeaderFont,
+            "DatePicker.gridHeaderForeground", black,   // header text color
+            "DatePicker.gridHeaderBackground", white,  // header background
+            "DatePicker.gridSelectionForeground", textHighlightText,
+            "DatePicker.gridSelectionBackground", textHighlight,
+            "DatePicker.gridCurrentDateForeground", white,
+            "DatePicker.gridCurrentDateBackground", Color.blue,
             "DatePicker.weekNumberForeground", Color.blue,
-            "DatePicker.tableGridColor", white,  // grid line color
-            "DatePicker.tableShowGrid", false,  // show grid
+            "DatePicker.gridColor", white,  // grid line color
+            "DatePicker.showGridLines", false,  // show grid
             "DatePicker.calendarIcon", (LazyValue) t ->
             new CalendarIcon(Color.GRAY),
-            "DatePicker.ancestorInputMap",
-            new UIDefaults.LazyInputMap(new Object[]{
-                    "ENTER", "acceptSelection",
-                    "ESCAPE", "cancelSelection",
-            }),
             "DatePicker.ancestorInputMap.calendarPanel",
             new UIDefaults.LazyInputMap(new Object[]{
                     "ENTER", "acceptSelection",

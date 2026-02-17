@@ -31,6 +31,8 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.event.FocusEvent;
 import java.awt.event.MouseAdapter;
@@ -62,6 +64,7 @@ import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
 import javax.swing.table.DefaultTableCellRenderer;
+import sun.swing.calendarpanel.CalendarUtilities;
 
 /**
  * DefaultMonthSelectionPanel creates a panel for Month selection.
@@ -143,9 +146,9 @@ public final class DefaultMonthSelectionPanel extends AbstractCalendarPanel {
     private void setupMonthSelection() {
         setLabelAttributes();
         calendarTable.setRowHeight((int) (getCellDimension().getHeight()));
-        if (calendarPanel.getTableShowGridStatus()) {
+        if (calendarPanel.isGridLinesVisible()) {
             calendarTable.setShowGrid(true);
-            calendarTable.setGridColor(calendarPanel.getTableGridColor());
+            calendarTable.setGridColor(calendarPanel.getGridColor());
         } else {
             calendarTable.setShowGrid(false);
         }
@@ -156,11 +159,13 @@ public final class DefaultMonthSelectionPanel extends AbstractCalendarPanel {
             calendarTable.getColumnModel().getColumn(i).setCellRenderer(tableCellRenderer);
         }
     }
-    
+
     private void setLabelAttributes() {
-        selectMonthLabel.setForeground(calendarPanel.getTableForeground());
-        selectMonthLabel.setFont(calendarPanel.getTableFont());
-        selectMonthLabel.setLocale(calendarPanel.getDateSelectionModel().getLocale());
+        selectMonthLabel.setForeground(calendarPanel.getGridForeground());
+        selectMonthLabel.setFont(calendarPanel.getGridFont());
+        selectMonthLabel.setLocale(calendarPanel.getDateSelectionModel().getLocale(
+
+        ));
     }
 
     /**
@@ -251,6 +256,8 @@ public final class DefaultMonthSelectionPanel extends AbstractCalendarPanel {
     }
 
     private class CalendarMonthCellRenderer extends DefaultTableCellRenderer {
+        private boolean isCurrentDateCell = false;
+        private Color currentCellBGColor;
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value,
                                                        boolean isSelected, boolean hasFocus,
@@ -263,22 +270,38 @@ public final class DefaultMonthSelectionPanel extends AbstractCalendarPanel {
             JLabel label = (JLabel) super.getTableCellRendererComponent(table, value,
                     isSelected, hasFocus, row, column);
             label.setHorizontalAlignment(JLabel.CENTER);
-            label.setFont(calendarPanel.getTableFont());
+            label.setFont(calendarPanel.getGridFont());
+            isCurrentDateCell = false;
 
             if ((label.getText().compareToIgnoreCase(getCurrentMonth()) == 0) && isSelected) {
-                label.setForeground(calendarPanel.getTableSelectionForeground());
-                label.setBackground(calendarPanel.getTableSelectionBackground());
+                label.setForeground(calendarPanel.getGridSelectionForeground());
+                label.setBackground(calendarPanel.getGridSelectionBackground());
             } else if (label.getText().compareToIgnoreCase(getCurrentMonth()) == 0) {
-                label.setForeground(calendarPanel.getTableCurrentDateForeground());
-                label.setBackground(calendarPanel.getTableCurrentDateBackground().darker());
+                isCurrentDateCell = true;
+                currentCellBGColor = CalendarUtilities.getLighterColor(calendarPanel.getGridCurrentDateBackground(), 0.6);
+                label.setForeground(calendarPanel.getGridCurrentDateForeground());
             } else if (isSelected) {
-                label.setBackground(calendarPanel.getTableSelectionBackground());
-                label.setForeground(calendarPanel.getTableSelectionForeground());
+                label.setBackground(calendarPanel.getGridSelectionBackground());
+                label.setForeground(calendarPanel.getGridSelectionForeground());
             } else {
-                label.setBackground(calendarPanel.getTableBackground());
-                label.setForeground(calendarPanel.getTableForeground());
+                label.setBackground(calendarPanel.getGridBackground());
+                label.setForeground(calendarPanel.getGridForeground());
             }
             return label;
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            if (isCurrentDateCell) {
+                Graphics2D graphics2D = (Graphics2D) g.create();
+                graphics2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                        RenderingHints.VALUE_ANTIALIAS_ON);
+                graphics2D.setColor(currentCellBGColor);
+                graphics2D.fillOval(2, 2, getWidth() - 5, getHeight() - 4);
+                graphics2D.dispose();
+            }
+            super.paintComponent(g);
+
         }
     }
 

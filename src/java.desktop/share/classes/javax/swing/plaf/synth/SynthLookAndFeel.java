@@ -713,25 +713,19 @@ public class SynthLookAndFeel extends BasicLookAndFeel {
         table.put("DatePicker.calendarIcon", (UIDefaults.LazyValue) t ->
                 new CalendarIcon(Color.GRAY));
         // *** DatePicker
-        table.put("DatePicker.tableFont", new Font(Font.SANS_SERIF, Font.PLAIN, 12));
-        table.put("DatePicker.tableForeground", Color.black);  // cell text color
-        table.put("DatePicker.tableBackground", Color.white);  // cell background color
-        table.put("DatePicker.tableHeaderCellFont", new Font(Font.SANS_SERIF, Font.BOLD, 12));
-        table.put("DatePicker.tableHeaderForeground", Color.black);   // header text color
-        table.put("DatePicker.tableHeaderBackground", Color.white);  // header background
-        table.put("DatePicker.tableSelectionForeground", Color.black);
-        table.put("DatePicker.tableSelectionBackground", Color.lightGray);
-        table.put("DatePicker.tableCurrentDateForeground", Color.white);
-        table.put("DatePicker.tableCurrentDateBackground", Color.gray);
+        table.put("DatePicker.gridFont", new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+        table.put("DatePicker.gridForeground", Color.black);  // cell text color
+        table.put("DatePicker.gridBackground", Color.white);  // cell background color
+        table.put("DatePicker.gridHeaderCellFont", new Font(Font.SANS_SERIF, Font.BOLD, 12));
+        table.put("DatePicker.gridHeaderForeground", Color.black);   // header text color
+        table.put("DatePicker.gridHeaderBackground", Color.white);  // header background
+        table.put("DatePicker.gridSelectionForeground", Color.black);
+        table.put("DatePicker.gridSelectionBackground", Color.lightGray);
+        table.put("DatePicker.gridCurrentDateForeground", Color.white);
+        table.put("DatePicker.gridCurrentDateBackground", Color.blue);
         table.put("DatePicker.weekNumberForeground", Color.blue);
-        table.put("DatePicker.tableGridColor", Color.white);  // grid line color
-        table.put("DatePicker.tableShowGrid", false);  // show grid
-
-        table.put("DatePicker.ancestorInputMap",
-                new UIDefaults.LazyInputMap(new Object[]{
-                        "ENTER", "acceptSelection",
-                        "ESCAPE", "cancelSelection",
-                }));
+        table.put("DatePicker.gridColor", Color.white);  // grid line color
+        table.put("DatePicker.showGridLines", false);  // show grid
         table.put("DatePicker.ancestorInputMap.calendarPanel",
                 new UIDefaults.LazyInputMap(new Object[]{
                         "ENTER", "acceptSelection",

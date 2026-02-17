@@ -1587,26 +1587,21 @@ public class WindowsLookAndFeel extends BasicLookAndFeel
             "Viewport.background", ControlBackgroundColor,
             "Viewport.foreground", WindowTextColor,
                 // *** DatePicker
-                "DatePicker.tableFont", ControlFont,
-                "DatePicker.tableForeground", ControlTextColor,  // cell text color
-                "DatePicker.tableBackground", WindowBackgroundColor,  // cell background color
-                "DatePicker.tableHeaderCellFont", ControlFont,
-                "DatePicker.tableHeaderForeground", ControlTextColor,   // header text color
-                "DatePicker.tableHeaderBackground", ControlBackgroundColor,  // header background
-                "DatePicker.tableSelectionForeground", SelectionTextColor,
-                "DatePicker.tableSelectionBackground", SelectionBackgroundColor,
-                "DatePicker.tableCurrentDateForeground", ControlTextColor,
-                "DatePicker.tableCurrentDateBackground", WindowBackgroundColor,
+                "DatePicker.gridFont", ControlFont,
+                "DatePicker.gridForeground", ControlTextColor,  // cell text color
+                "DatePicker.gridBackground", WindowBackgroundColor,  // cell background color
+                "DatePicker.gridHeaderCellFont", ControlFont,
+                "DatePicker.gridHeaderForeground", ControlTextColor,   // header text color
+                "DatePicker.gridHeaderBackground", ControlBackgroundColor,  // header background
+                "DatePicker.gridSelectionForeground", SelectionTextColor,
+                "DatePicker.gridSelectionBackground", SelectionBackgroundColor,
+                "DatePicker.gridCurrentDateForeground", ControlTextColor,
+                "DatePicker.gridCurrentDateBackground", Color.blue,
                 "DatePicker.weekNumberForeground", Color.blue,
-                "DatePicker.tableGridColor", gray,  // grid line color
-                "DatePicker.tableShowGrid", false,  // show grid
+                "DatePicker.gridColor", gray,  // grid line color
+                "DatePicker.showGridLines", false,  // show grid
                 "DatePicker.calendarIcon", (LazyValue) t ->
                 new CalendarIcon(Color.GRAY),
-                "DatePicker.ancestorInputMap",
-                new UIDefaults.LazyInputMap(new Object[] {
-                        "ENTER", "acceptSelection",
-                        "ESCAPE", "cancelSelection",
-                }),
                 "DatePicker.ancestorInputMap.calendarPanel",
                 new UIDefaults.LazyInputMap(new Object[] {
                         "ENTER", "acceptSelection",

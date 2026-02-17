@@ -38,11 +38,14 @@ import java.awt.event.MouseListener;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.time.LocalDate;
+import java.time.Month;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.format.FormatStyle;
 import java.util.Calendar;
+import java.util.Locale;
 import java.util.Objects;
+import java.util.SortedSet;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
@@ -60,6 +63,7 @@ import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
+import javax.swing.KeyStroke;
 import javax.swing.LookAndFeel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
@@ -273,14 +277,14 @@ public class BasicDatePickerUI extends DatePickerUI {
      * installKeyboardActions
      */
     protected void installKeyboardActions() {
-        InputMap inputMap = getInputMap(JComponent.WHEN_FOCUSED);
-        SwingUtilities.replaceUIInputMap(formattedTextField, JComponent.
-                WHEN_FOCUSED, inputMap);
-        SwingUtilities.replaceUIInputMap(popupButton, JComponent.
-                WHEN_FOCUSED, inputMap);
+        InputMap textFieldInputMap = formattedTextField.getInputMap(JComponent.WHEN_FOCUSED);
+        InputMap popupButtonInputMap = popupButton.getInputMap(JComponent.WHEN_FOCUSED);
+        textFieldInputMap.put(KeyStroke.getKeyStroke("ENTER"), "acceptSelection");
+        popupButtonInputMap.put(KeyStroke.getKeyStroke("ENTER"), "acceptSelection");
 
         ActionMap formattedTextFieldActionMap = formattedTextField.getActionMap();
         formattedTextFieldActionMap.put("acceptSelection", new ApproveDateAction());
+
         ActionMap popupButtonFieldActionMap = popupButton.getActionMap();
         popupButtonFieldActionMap.put("acceptSelection", new ApprovePopupAction());
     }
@@ -369,8 +373,6 @@ public class BasicDatePickerUI extends DatePickerUI {
                 }
             } else if (Objects.equals(prop, JDatePicker.POPUP_ICON_ATTRIBUTES_PROPERTY)) {
                 popupButton.setIcon(datePicker.getCalendarIcon());
-            } else if (Objects.equals(prop, JDatePicker.DATETIME_FORMATTER_ATTRIBUTES_PROPERTY)) {
-                validateAndSetDateToTextField();
             }
         }
     }
@@ -427,39 +429,40 @@ public class BasicDatePickerUI extends DatePickerUI {
     }
 
     private void validateAndSetDateToTextField() {
-        if (datePicker.getDateSelectionMode().equals(
-                DateSelectionModel.SelectionMode.SINGLE_SELECTION)) {
-            LocalDate localDate = datePicker.getCalendarPanel().
-                    getDateSelectionModel().getSelectedDates().getFirst();
-            if (localDate == null) {
-                return;
-            }
-            formattedTextField.setText(localDate.format(
-                    datePicker.getTextFieldFormatter().withLocale(
-                            datePicker.getLocale())));
-        } else if (datePicker.getDateSelectionMode().equals(
-                DateSelectionModel.SelectionMode.RANGE_SELECTION)) {
-            LocalDate startDate = datePicker.getCalendarPanel().
-                    getDateSelectionModel().getSelectedDates().
-                    getFirst();
-            LocalDate endDate = datePicker.getCalendarPanel().
-                            getDateSelectionModel().getSelectedDates().
-                            getLast();
-            if (startDate == null || endDate == null) {
-                return;
-            }
-            if (startDate.isEqual(endDate)) {
-                formattedTextField.setText(startDate.format(
+        switch (datePicker.getDateSelectionMode()) {
+            case SINGLE_SELECTION -> {
+                LocalDate localDate = datePicker.getCalendarPanel().
+                        getDateSelectionModel().getSelectedDates().getFirst();
+                if (localDate == null) {
+                    return;
+                }
+                formattedTextField.setText(localDate.format(
                         datePicker.getTextFieldFormatter().withLocale(
                                 datePicker.getLocale())));
-                return;
             }
-            formattedTextField.setText(startDate.format(
-                    datePicker.getTextFieldFormatter().withLocale(
-                            datePicker.getLocale()))
-                    + " -- " +
-                    endDate.format(datePicker.getTextFieldFormatter().withLocale(
-                            datePicker.getLocale())));
+            case RANGE_SELECTION -> {
+                LocalDate startDate = datePicker.getCalendarPanel().
+                        getDateSelectionModel().getSelectedDates().
+                        getFirst();
+                LocalDate endDate = datePicker.getCalendarPanel().
+                        getDateSelectionModel().getSelectedDates().
+                        getLast();
+                if (startDate == null || endDate == null) {
+                    return;
+                }
+                if (startDate.isEqual(endDate)) {
+                    formattedTextField.setText(startDate.format(
+                            datePicker.getTextFieldFormatter().withLocale(
+                                    datePicker.getLocale())));
+                    return;
+                }
+                formattedTextField.setText(startDate.format(
+                        datePicker.getTextFieldFormatter().withLocale(
+                                datePicker.getLocale()))
+                        + " -- " +
+                        endDate.format(datePicker.getTextFieldFormatter().withLocale(
+                                datePicker.getLocale())));
+            }
         }
     }
 
@@ -496,14 +499,6 @@ public class BasicDatePickerUI extends DatePickerUI {
         return actionMap;
     }
 
-    InputMap getInputMap(int condition) {
-        if (condition == JComponent.WHEN_FOCUSED) {
-            return (InputMap) DefaultLookup.get(datePicker, this,
-                    "DatePicker.ancestorInputMap");
-        }
-        return null;
-    }
-
     /**
      * Approve Date action class
      */
@@ -519,82 +514,112 @@ public class BasicDatePickerUI extends DatePickerUI {
          * {@inheritDoc}
          */
         public void actionPerformed(ActionEvent e) {
-            if (datePicker.getDateSelectionMode().equals(
-                    DateSelectionModel.SelectionMode.SINGLE_SELECTION)) {
-                try {
-                    validateAndSetSingleDate();
-                } catch (DateTimeParseException exception) {
-                    handleDateTimeParseException();
-                }
-            } else if (datePicker.getDateSelectionMode().equals(
-                    DateSelectionModel.SelectionMode.RANGE_SELECTION)) {
-                try {
-                    String[] values = formattedTextField.getText().split("--");
-                    if (values.length == 2) {
-                        validateAndSetMultiDates(values);
-                    } else if (values.length == 1) {
-                        validateAndSetSingleDate();
+            switch (datePicker.getDateSelectionMode()) {
+                case DateSelectionModel.SelectionMode.SINGLE_SELECTION -> {
+                    try {
+                        String value = formattedTextField.getText();
+                        LocalDate localDate = LocalDate.parse(value,
+                                datePicker.getTextFieldFormatter().withLocale(
+                                        datePicker.getLocale()));
+                        validateAndSetSingleDate(localDate);
+                    } catch (DateTimeParseException exception) {
+                        LocalDate localDate = datePicker.getDate();
+                        validateAndSetSingleDate(localDate);
                     }
-                } catch (DateTimeParseException exception) {
-                    handleDateTimeParseException();
+                }
+
+                case DateSelectionModel.SelectionMode.RANGE_SELECTION -> {
+                    try {
+                        String[] values = formattedTextField.getText().split("--");
+                        if (values.length == 2) {
+                            LocalDate startDate = LocalDate.parse(values[0].trim(),
+                                    datePicker.getTextFieldFormatter().withLocale(
+                                            datePicker.getLocale()));
+                            LocalDate endDate = LocalDate.parse(values[1].trim(),
+                                    datePicker.getTextFieldFormatter().withLocale(
+                                            datePicker.getLocale()));
+                            validateAndSetDateRange(startDate, endDate);
+                        } else if (values.length == 1) {
+                            String value = formattedTextField.getText();
+                            LocalDate localDate = LocalDate.parse(value,
+                                    datePicker.getTextFieldFormatter().withLocale(
+                                            datePicker.getLocale()));
+                            validateAndSetDateRange(localDate, localDate);
+                        }
+                    } catch (DateTimeParseException exception) {
+                        LocalDate startDate = datePicker.getDates().first();
+                        LocalDate endDate = datePicker.getDates().last();
+                        validateAndSetDateRange(startDate, endDate);
+                    }
                 }
             }
         }
 
         private boolean isValidDate(LocalDate localDate) {
-            int minYear = Calendar.getInstance().get(Calendar.YEAR) -
-                    datePicker.getCalendarPanel().getYearSelectionLimit() - 1;
-            LocalDate minDate = LocalDate.of(minYear,
-                    Calendar.DECEMBER + 1, 31);
-            int maxYear = Calendar.getInstance().get(Calendar.YEAR) +
-                    datePicker.getCalendarPanel().getYearSelectionLimit();
+            if (localDate == null) {
+                return false;
+            }
+            int minYear = datePicker.getCalendarPanel().getYearSelectionLimit().getFirst();
+            LocalDate minDate;
+            if (minYear == LocalDate.MIN.getYear()) {
+                minDate = LocalDate.of(minYear, Month.JANUARY, 1);
+            } else {
+                minDate = LocalDate.of(minYear - 1, Month.DECEMBER, 31);
+            }
+            int maxYear = datePicker.getCalendarPanel().getYearSelectionLimit().getLast();
             LocalDate maxDate = LocalDate.of(maxYear,
-                    Calendar.JANUARY + 1, 1);
-            return localDate.isAfter(minDate) && localDate.isBefore(maxDate);
+                    Month.DECEMBER, 31);
+            SortedSet<LocalDate> selectableRange = datePicker.getCalendarPanel().getSelectableDateRange();
+
+            return (localDate.isAfter(minDate) && localDate.isBefore(maxDate))
+                    && (selectableRange.isEmpty() || (localDate.isAfter(selectableRange.getFirst())
+                    && localDate.isBefore(selectableRange.getLast())));
         }
 
         private void handleDateTimeParseException() {
-            datePicker.setDate(LocalDate.now());
+            switch (datePicker.getDateSelectionMode()) {
+                case SINGLE_SELECTION ->  datePicker.setDate(datePicker.getDate());
+                case RANGE_SELECTION -> {
+                    if (datePicker.getDates().first().equals(datePicker.getDates().last())) {
+                        datePicker.setDate(datePicker.getDates().first());
+                    } else {
+
+                    }
+                }
+            }
         }
 
-        private void validateAndSetSingleDate() {
-            String value = formattedTextField.getText();
-            LocalDate localDate = LocalDate.parse(value,
-                    datePicker.getTextFieldFormatter().withLocale(
-                            datePicker.getLocale()));
+        private void validateAndSetSingleDate(LocalDate localDate) {
             if (isValidDate(localDate)) {
                 datePicker.setDate(localDate);
             } else {
                 if (datePicker.getDate() != null) {
-                    datePicker.setDate(datePicker.getDate());
+                    LocalDate setDate = datePicker.getDate();
+                    datePicker.setDate(setDate);
                 } else {
                     datePicker.setDate(LocalDate.now());
                 }
             }
         }
 
-        private void validateAndSetMultiDates(String[] values) {
-            LocalDate startDate = LocalDate.parse(values[0].trim(),
-                    datePicker.getTextFieldFormatter().withLocale(
-                            datePicker.getLocale()));
-            LocalDate endDate = LocalDate.parse(values[1].trim(),
-                    datePicker.getTextFieldFormatter().withLocale(
-                            datePicker.getLocale()));
-            if (endDate.isBefore(startDate)) {
-                JOptionPane.showMessageDialog(new JFrame(),
-                        "End date should be greater/equal to start date");
-                datePicker.setDates(LocalDate.now(), LocalDate.now().plusDays(1));
-            }
+        private void validateAndSetDateRange(LocalDate startDate, LocalDate endDate) {
             if (isValidDate(startDate) && isValidDate(endDate)) {
-                datePicker.setDates(startDate, endDate);
-            } else {
-                if (datePicker.getDates() != null && datePicker.getDates().size() >= 2) {
-                    datePicker.setDates(datePicker.getDates().first(),
-                            datePicker.getDates().last());
+                if (endDate.isBefore(startDate)) {
+                    JOptionPane.showMessageDialog(new JFrame(),
+                            "End date should be greater/equal to start date");
+                    datePicker.setDates(LocalDate.now(), LocalDate.now().plusDays(1));
                 } else {
-                    datePicker.setDates(LocalDate.now(),
-                            LocalDate.now().plusDays(1));
+                    datePicker.setDates(startDate, endDate);
                 }
+            } else if (isValidDate(startDate)) {
+                datePicker.setDates(startDate, startDate);
+            } else if (datePicker.getDates() != null && datePicker.getDates().size() >= 2) {
+                LocalDate setStartDate = datePicker.getDates().first();
+                LocalDate setEndDate = datePicker.getDates().last();
+                datePicker.setDates(setStartDate, setEndDate);
+            } else {
+                datePicker.setDates(LocalDate.now(),
+                        LocalDate.now().plusDays(1));
             }
         }
     }

@@ -165,6 +165,8 @@ public class DefaultDateSelectionModel implements DateSelectionModel {
             selectionDateRange.add(date);
         }
         if (commit) {
+            selectionDateRange.clear();
+            selectionDateRange.add(date);
             calendar.set(selectionDateRange.first().getYear(),
                     selectionDateRange.first().getMonthValue() - 1,
                     selectionDateRange.first().getDayOfMonth());

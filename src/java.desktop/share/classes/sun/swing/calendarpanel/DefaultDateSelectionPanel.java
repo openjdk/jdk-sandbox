@@ -39,6 +39,7 @@ import java.beans.PropertyChangeEvent;
 import java.io.Serializable;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.Calendar;
 import java.util.Locale;
 import java.util.Objects;
@@ -322,14 +323,14 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
 
     private void setupCalendarTable() {
         DefaultTableCellRenderer tableCellHeaderRenderer = getDefaultTableHeaderRenderer();
-        monthLabel.setForeground(calendarPanel.getTableForeground());
-        yearLabel.setForeground(calendarPanel.getTableForeground());
-        monthLabel.setFont(calendarPanel.getTableFont());
-        yearLabel.setFont(calendarPanel.getTableFont());
+        monthLabel.setForeground(calendarPanel.getGridForeground());
+        yearLabel.setForeground(calendarPanel.getGridForeground());
+        monthLabel.setFont(calendarPanel.getGridFont());
+        yearLabel.setFont(calendarPanel.getGridFont());
         calendarTable.setRowHeight((int) getCellDimension().getHeight());
-        if (calendarPanel.getTableShowGridStatus()) {
+        if (calendarPanel.isGridLinesVisible()) {
             calendarTable.setShowGrid(true);
-            calendarTable.setGridColor(calendarPanel.getTableGridColor());
+            calendarTable.setGridColor(calendarPanel.getGridColor());
         } else {
             calendarTable.setShowGrid(false);
         }
@@ -374,6 +375,10 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
                 LocalDate selectedDate;
                 Integer day = (Integer) value;
                 selectedDate = getLocalDateFromValue(day, cal);
+                if (selectedDate.getYear() < calendarPanel.getYearSelectionLimit().getFirst() ||
+                        selectedDate.getYear() > calendarPanel.getYearSelectionLimit().getLast() ) {
+                    return;
+                }
                 if (calendarPanel.isWithinSelectableDateRange(selectedDate)) {
                     firstSelectedDate = selectedDate;
                 }
@@ -402,6 +407,11 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
                     LocalDate lastSelectedDate;
                     Integer day = (Integer) value;
                     lastSelectedDate = getLocalDateFromValue(day, cal);
+                    if (lastSelectedDate.getYear() < calendarPanel.getYearSelectionLimit().getFirst() ||
+                            lastSelectedDate.getYear() > calendarPanel.getYearSelectionLimit().getLast() ) {
+                        System.out.println("return");
+                        return;
+                    }
                     if (calendarPanel.isWithinSelectableDateRange(lastSelectedDate)) {
                         calendar.set(firstSelectedDate.getYear(),
                                 firstSelectedDate.getMonthValue() - 1,
@@ -434,6 +444,10 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
                     Integer day = (Integer) value;
 
                     lastSelectedDate = getLocalDateFromValue(day, cal);
+                    if (lastSelectedDate.getYear() < calendarPanel.getYearSelectionLimit().getFirst() ||
+                            lastSelectedDate.getYear() > calendarPanel.getYearSelectionLimit().getLast() ) {
+                        return;
+                    }
                     if (calendarPanel.isWithinSelectableDateRange(lastSelectedDate)) {
                         calendarPanel.getDateSelectionModel().setSelectedDates(firstSelectedDate,
                                 lastSelectedDate, false);
@@ -497,17 +511,22 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
 
     private boolean validateNavigation(DateSelectionModel.EventType eventType,
                                        DateSelectionModel.NavigationType navigationType) {
-        int minYear = Calendar.getInstance().get(Calendar.YEAR) - calendarPanel.getYearSelectionLimit() - 1;
-        LocalDate minDate = LocalDate.of(minYear, Calendar.DECEMBER + 1, 31);
-        int maxYear = Calendar.getInstance().get(Calendar.YEAR) + calendarPanel.getYearSelectionLimit();
-        LocalDate maxDate = LocalDate.of(maxYear, Calendar.JANUARY + 1, 1);
+        int minYear = calendarPanel.getYearSelectionLimit().getFirst();
+        LocalDate minDate;
+        if (minYear == LocalDate.MIN.getYear()) {
+            minDate = LocalDate.of(minYear, Month.JANUARY, 1);
+        } else {
+            minDate = LocalDate.of(minYear - 1, Month.DECEMBER, 31);
+        }
+        int maxYear = calendarPanel.getYearSelectionLimit().getLast();
+        LocalDate maxDate = LocalDate.of(maxYear, Month.DECEMBER, 31);
         LocalDate updatedDate = LocalDate.now();
         switch (eventType) {
             case MONTH_NAVIGATION -> {
                 if (navigationType.equals(DateSelectionModel.NavigationType.FORWARD)) {
                     if (calendar.get(Calendar.MONTH) == Calendar.DECEMBER) {
                         updatedDate = LocalDate.of(calendar.get(Calendar.YEAR) + 1,
-                                Calendar.JANUARY + 1, 1);
+                                Month.JANUARY, 1);
                     } else {
                         updatedDate = LocalDate.of(calendar.get(Calendar.YEAR),
                                 calendar.get(Calendar.MONTH) + 2, 1);
@@ -515,7 +534,7 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
                 } else {
                     if (calendar.get(Calendar.MONTH) == Calendar.JANUARY) {
                         updatedDate = LocalDate.of(calendar.get(Calendar.YEAR) - 1,
-                                Calendar.DECEMBER + 1, 31);
+                                Month.DECEMBER, 31);
                     } else {
                         updatedDate = LocalDate.of(calendar.get(Calendar.YEAR),
                                 calendar.get(Calendar.MONTH), calendar.get(Calendar.DATE));
@@ -525,10 +544,10 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
             case YEAR_NAVIGATION -> {
                 if (navigationType.equals(DateSelectionModel.NavigationType.BACKWARD)) {
                     updatedDate = LocalDate.of(calendar.get(Calendar.YEAR) - 1,
-                            Calendar.DECEMBER + 1, 31);
+                            Month.DECEMBER, 31);
                 } else {
                     updatedDate = LocalDate.of(calendar.get(Calendar.YEAR) + 1,
-                            Calendar.JANUARY + 1, 1);
+                            Month.JANUARY, 1);
                 }
             }
         }
@@ -639,10 +658,15 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
                     return;
                 }
                 Object value = calendarTable.getValueAt(row, col);
+
                 Calendar cal = (Calendar) calendar.clone();
                 LocalDate selectedDate;
                 Integer day = (Integer) value;
                 selectedDate = getLocalDateFromValue(day, cal);
+                if (selectedDate.getYear() < calendarPanel.getYearSelectionLimit().getFirst() ||
+                        selectedDate.getYear() > calendarPanel.getYearSelectionLimit().getLast() ) {
+                    return;
+                }
                 if (calendarPanel.isWithinSelectableDateRange(selectedDate)) {
                     startDateSelected = selectedDate;
                     calendarPanel.getDateSelectionModel().setSelectedDate(startDateSelected,
@@ -666,6 +690,10 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
                     Integer day = (Integer) value;
 
                     curSelectedDate = getLocalDateFromValue(day, cal);
+                    if (curSelectedDate.getYear() < calendarPanel.getYearSelectionLimit().getFirst() ||
+                            curSelectedDate.getYear() > calendarPanel.getYearSelectionLimit().getLast() ) {
+                        return;
+                    }
                     if (calendarPanel.isWithinSelectableDateRange(curSelectedDate)
                             && (startDateSelected.isBefore(curSelectedDate)
                             || startDateSelected.isEqual(curSelectedDate))) {
@@ -701,6 +729,10 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
                     LocalDate lastSelectedDate;
                     Integer day = (Integer) value;
                     lastSelectedDate = getLocalDateFromValue(day, cal);
+                    if (lastSelectedDate.getYear() < calendarPanel.getYearSelectionLimit().getFirst() ||
+                            lastSelectedDate.getYear() > calendarPanel.getYearSelectionLimit().getLast() ) {
+                        return;
+                    }
                     if (calendarPanel.isWithinSelectableDateRange(lastSelectedDate)) {
                         calendar.set(startDateSelected.getYear(),
                                 startDateSelected.getMonthValue() - 1,

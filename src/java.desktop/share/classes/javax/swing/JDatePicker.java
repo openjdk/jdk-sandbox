@@ -37,6 +37,7 @@ import java.util.SortedSet;
 import javax.accessibility.Accessible;
 import javax.accessibility.AccessibleContext;
 import javax.accessibility.AccessibleRole;
+import javax.swing.event.ChangeListener;
 import javax.swing.plaf.DatePickerUI;
 
 /**
@@ -311,12 +312,33 @@ public class JDatePicker extends JComponent implements Accessible {
         return calendarIcon;
     }
 
-/******************Accessibility support******************/
+    /**
+     * Adds a listener to the list that is notified each time a change
+     * to the model occurs. The source of <code>ChangeEvents</code>
+     * delivered to <code>ChangeListeners</code> will be
+     * <code>DefaultDateSelectionModel</code>.
+     * Applications can add listeners to  the model directly.
+     * The source of the event would be the
+     * <code>DefaultDateSelectionModel</code>.
+     *
+     * @param listener the <code>ChangeListener</code> to add
+     * @see #removeChangeListener
+     */
+    public void addChangeListener(ChangeListener listener) {
+        calendarPanel.getDateSelectionModel().addChangeListener(listener);
+    }
 
     /**
-     * The accessible context.
+     * Removes a <code>ChangeListener</code> from <code>DefaultDateSelectionModel</code>
+     * model.
+     *
+     * @param listener the <code>ChangeListener</code> to remove
+     * @see #addChangeListener
      */
-    protected AccessibleContext accessibleContext = null;
+    public void removeChangeListener(ChangeListener listener) {
+        calendarPanel.getDateSelectionModel().removeChangeListener(listener);
+    }
+/******************Accessibility support******************/
 
     /**
      * Gets the AccessibleContext associated with this JDataPicker.
