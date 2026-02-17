@@ -21,7 +21,7 @@
  * questions.
  */
 
-/**
+/*
  * @test id=OOM
  * @summary Test process revival for serviceability: jcmd on a core file (OOM crash).
  * @requires os.family == "linux" | os.family == "windows"

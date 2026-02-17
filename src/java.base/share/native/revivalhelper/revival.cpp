@@ -801,7 +801,7 @@ char* find_filename_in_libdir(const char* libdir, const char* filename) {
     char* end = strstr(start, PATH_SEPARATOR);
     while (end != nullptr) {
         // Separator found, check that directory.  Skip if zero length.
-        int len = (end - start);
+        int len = (int) (end - start);
         if (len > 0) {
             strncpy(dir, start, len);
             dir[len] = 0;

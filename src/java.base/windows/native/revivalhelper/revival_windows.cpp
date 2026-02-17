@@ -823,8 +823,6 @@ bool create_directory_pd(char* dirname) {
 }
 
 
-bool allLibraries = false;
-
 void write_sharedlib_mapping(int mappings_fd, char* filename, void* address) {
         char buf[BUFLEN];
         const char *checksum = "0";
@@ -925,7 +923,7 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
     // Find JVM and its load address from dump.
     Segment* jvm_mapping = dump.get_library_mapping(JVM_FILENAME);
     if (jvm_mapping == nullptr) {
-        warn("JVM library required in core not found.");
+        warn("JVM library not found in MiniDump.");
         error("For cores from other systems, or if JDK at path in core has changed, use -L to specify JVM location.");
     }
     logv("JVM = '%s'", jvm_mapping->name);

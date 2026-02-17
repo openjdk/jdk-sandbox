@@ -132,9 +132,9 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
     InputStream execute(String cmd, Object ... args) throws IOException {
         checkNulls(args);
         checkAttached();
-        // Only 'jcmd' the command operation is implemented on a core/minidump.
+        // Only the 'jcmd' operation is implemented on a core/minidump.
         if (!cmd.equals("jcmd")) {
-            throw new IOException("command '" + cmd + "' not implemented");
+            throw new IOException("Command '" + cmd + "' not implemented");
         }
 
         // Invoke "JDK/lib/revivalhelper corefilename jcmd command..."
@@ -192,7 +192,7 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
         //
         // This method returns an InputStream, although until recently there was no streaming from jcmd,
         // the full output was written to a buffer and then printed.
-        // For core files, for now, we read the whole output, and only return it if it is a successful run.
+        // Read the whole output, and only return it if it is a successful run.
         int tries = Integer.getInteger("jdk.attach.core.tries", HELPER_TRIES);
         String out = null;
 
