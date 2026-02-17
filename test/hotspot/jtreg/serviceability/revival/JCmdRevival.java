@@ -21,16 +21,6 @@
  * questions.
  */
 
-/*
- * @test id=Simple
- * @summary Simplified variant with just VM.version
- * @requires os.family == "linux" | os.family == "windows"
- * @library /test/lib
- * @requires vm.debug == true
- *
- * @run main/othervm JCmdRevival cicrash VM.version
- */
-
 /**
  * @test id=OOM
  * @summary Test process revival for serviceability: jcmd on a core file (OOM crash).

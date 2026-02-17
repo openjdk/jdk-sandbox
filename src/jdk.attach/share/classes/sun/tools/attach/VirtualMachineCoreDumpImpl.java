@@ -56,7 +56,7 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
 
     protected boolean attached;
     protected String filename;
-    protected List<String> libDirs;
+    protected String libDirs;
     protected String revivalCachePath;
 
     /**
@@ -70,16 +70,8 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
 
         filename = vmid;
         if (env != null) {
-            if (env.containsKey("libDirs")) {
-                String x = (String) env.get("libDirs");
-                libDirs = List.of(x.split(File.pathSeparator));
-            }  else {
-                libDirs = null;
-            }
+            libDirs = (String) env.get("libDirs"); // May be a list using File.pathSeparator
             revivalCachePath = (String) env.get("revivalCachePath");
-        } else {
-            libDirs = null;
-            revivalCachePath = null;
         }
         attach();
     }
@@ -101,25 +93,13 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
             if (e < length) {
                 throw new IOException("Truncated file '" + filename + "'");
             }
-            // Verify
             if (System.getProperty("os.name").startsWith("Windows")) {
-                if (bytes[0] == 'M'
-                    && bytes[1] == 'D'
-                    && bytes[2] == 'M'
-                    && bytes[3] == 'P') {
-                    // OK, signature matches.
-                } else {
+                if (bytes[0] != 'M' || bytes[1] != 'D' || bytes[2] != 'M' || bytes[3] != 'P') {
                     throw new IOException("Not a MiniDump: '" + filename + "'");
                 }
             } else if (System.getProperty("os.name").startsWith("Linux")) {
-                if (bytes[0] == 0x7f
-                    && bytes[1] == 'E'
-                    && bytes[2] == 'L'
-                    && bytes[3] == 'F'
-                    && bytes[16] == 4 /* ET_CORE */
-                    ) {
-                    // OK, signature matches.
-                } else {
+                if (bytes[0] != 0x7f || bytes[1] != 'E' || bytes[2] != 'L' || bytes[3] != 'F'
+                    || bytes[16] != 4 /* ET_CORE */) {
                     throw new IOException("Not a core file: '" + filename + "'");
                 }
             } else {
@@ -151,18 +131,13 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
     @SuppressWarnings("deprecation")
     InputStream execute(String cmd, Object ... args) throws IOException {
         checkNulls(args);
-
+        checkAttached();
         // Only 'jcmd' the command operation is implemented on a core/minidump.
         if (!cmd.equals("jcmd")) {
             throw new IOException("command '" + cmd + "' not implemented");
         }
-        // An IOException thrown above for any command other than jcmd would be correct
-        // behavior when not attached.  The "not implemented" message is more informative.
-        checkAttached();
 
         // Invoke "JDK/lib/revivalhelper corefilename jcmd command..."
-        // (Putting revivalhelper in JDK/lib works as jlink is updated also,
-        // see DefaultImageBuilder.java and its jspawnhelper/jexec special case).
         String jdkLibDir = System.getProperty("java.home") + File.separator + "lib";
         String helper = jdkLibDir + File.separator + "revivalhelper"
                         + (System.getProperty("os.name").startsWith("Windows") ? ".exe" : "");
@@ -173,12 +148,10 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
         pargs.add(helper);
 
         if (libDirs != null) {
-            for (String s : libDirs) {
-                pargs.add("-L" + s); // Pass library directory as -L/path
-            }
+            pargs.add("-L" + libDirs); // Pass library directory list as -Lpath
         }
         if (revivalCachePath != null) {
-            pargs.add("-R" + revivalCachePath);
+            pargs.add("-R" + revivalCachePath); // Set alternate cache location with -Rpath
         }
 
         pargs.add(filename);
@@ -192,16 +165,9 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
 
         // Some System Properties are passed on to the native revival helper tool in the environment:
         Map<String, String> newEnv = pb.environment();
-
-        String path = System.getenv("PATH");
-        newEnv.put("PATH", System.getProperty("java.home") + File.separator + "bin" + File.pathSeparator + path);
-
-        // "verbose" is a log level, VERBOSE or DEBUG are recognised by the native helper, but do not want to
-        // confuse with a Java Logger.
         String logString = System.getProperty("jdk.attach.core.log");
         boolean verbose = false; // Used in this method as well as native helper
         if (logString != null) {
-            // Pass on 
             logString = logString.toLowerCase();
             newEnv.put("REVIVAL_LOG", logString);
             verbose = logString.equals("verbose") || logString.equals("debug");
@@ -278,6 +244,6 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
                 sb.append(line).append(System.lineSeparator());
             }
         }
-        return sb.toString().trim();
+        return sb.toString();
     }
 }

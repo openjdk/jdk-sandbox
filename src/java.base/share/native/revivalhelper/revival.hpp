@@ -84,6 +84,7 @@ void install_handler();
 
 #define JVM_FILENAME "libjvm.so"
 #define FILE_SEPARATOR  "/"
+#define PATH_SEPARATOR  ":"
 
 #define SYM_VM_RELEASE "_ZN19Abstract_VM_Version13_s_vm_releaseE"
 
@@ -102,8 +103,8 @@ void normalize_path_pd(char *s);
 
 #define JVM_FILENAME "jvm.dll"
 #define FILE_SEPARATOR  "\\"
+#define PATH_SEPARATOR  ";"
 
-// #define SYM_VM_RELEASE "?_s_vm_release@Abstract_VM_Version@@1PEBDEB"
 #define SYM_VM_RELEASE "_s_vm_release_global"
 
 #define _exit _Exit
@@ -179,6 +180,7 @@ extern int versionCheckEnabled; // set from env: REVIVAL_SKIPVERSIONCHECK
 extern char *core_filename;
 extern int core_fd;
 extern const char *revivaldir;
+extern bool allLibraries;
 
 // Set during actual revival:
 extern char *jvm_filename;
@@ -275,8 +277,8 @@ int relocate_sharedlib_pd(const char* filename, const void *addr);
 int create_revival_cache_pd(const char* corename, const char* javahome, const char* dirname, const char *libdir);
 
 /**
- * Create the named "core.mappings" file and write the header lines.
- * Return the fd so other code can write the memory mapping lines.
+ * Create the named "core.mappings" file and write the header.
+ * Return the fd so other code can write the library and memory mapping lines.
  * Return a negative value on error.
  */
 int mappings_file_create(const char *filename, const char *corename);

@@ -521,10 +521,10 @@ void ELFFile::read_sharedlibs() {
     // Reread that info to build final library list.
     // Use libdir if set, to rewrite paths.
     //
-    // Considered skipping duplicate names, but would need to coalesce entires for same filename.
-    // The fetches get first match and want to find base address, so all good.
+    // Considered skipping duplicate names, but would need to coalesce entries/ranges for same filename.
+    // Queries get first match and want to find base address, so all good.
     for (int i = 0; i < sharedlibs_count; i++) {
-        logd("NT_FILE: 0x%lx - 0x%lx %s\n", (uint64_t) sharedlibs[i].vaddr, (uint64_t) sharedlibs[i].end(), sharedlibs[i].name);
+        logd("NT_FILE: 0x%lx - 0x%lx %s", (uint64_t) sharedlibs[i].vaddr, (uint64_t) sharedlibs[i].end(), sharedlibs[i].name);
         Segment lib = sharedlibs[i];
         char* name = lib.name;
         if (libdir != nullptr) {

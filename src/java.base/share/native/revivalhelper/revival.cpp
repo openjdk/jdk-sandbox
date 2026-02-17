@@ -30,8 +30,8 @@
 // Diagnostics
 int logLevel = 0;
 int debugPause = false;
-
 int versionCheckEnabled = true; // May be disabled in environment
+bool allLibraries = false;
 
 // Revival prep state:
 char* core_filename;
@@ -753,24 +753,24 @@ int symbol_set(const char* sym, int value) {
 
 
 /**
- * Attempt to find in the the given directory (libdir), the given filename/path.
+ * Attempt to find the given filename/path in the given directory.
  *
- * Given a path such as /some/dir/jdk/lib/server/libjvm.so
- * attempt to find it within the given directory, libdir.
+ * The filename may be a path such as /some/dir/jdk/lib/server/libjvm.so
+ *
  * Remove leading directory elements from the filename path, until
- * a file exists or the end of filename is reached.
+ * a file exists in the directory or the end of filename is reached.
  *
  * If found, return the path that exists, as a new C heap allocation
  * (strdup) that the caller must free.
  * Return nullptr if not found.
  */
-char* find_filename_in_libdir(const char* libdir, const char* filename) {
+char* find_filename_in_one_dir(const char* dir, const char* filename) {
     char path[BUFLEN];
     char* p = (char*) filename; // Pointer to traverse the given filename/path
 
     while (true) {
-        snprintf(path, BUFLEN - 1, "%s%s%s", libdir, FILE_SEPARATOR, p);
-        logv("find_filename_in_libdir: checking %s", path);
+        snprintf(path, BUFLEN - 1, "%s%s%s", dir, FILE_SEPARATOR, p);
+        logv("find_filename_in_one_dir: checking %s", path);
         if (file_exists_pd(path)) {
            return strdup(path);
         }
@@ -783,8 +783,38 @@ char* find_filename_in_libdir(const char* libdir, const char* filename) {
             break;
         }
     }
-    warn("Could not find %s in %s", filename, libdir);
+    warn("Could not find %s in %s", filename, dir);
     return nullptr;
+}
+
+/**
+ * Attempt to find the given filename/path in the the given directory list,
+ * which is a single string that may contain multiple directories separated by
+ * PATH_SEPARATOR characters.
+ */
+char* find_filename_in_libdir(const char* libdir, const char* filename) {
+    char dir[BUFLEN];
+    char* result = nullptr;
+
+    logv("find_filename_in_libdir: checking libdir %s", libdir);
+    char* start = (char*) libdir;
+    char* end = strstr(start, PATH_SEPARATOR);
+    while (end != nullptr) {
+        // Separator found, check that directory.  Skip if zero length.
+        int len = (end - start);
+        if (len > 0) {
+            strncpy(dir, start, len);
+            dir[len] = 0;
+            result = find_filename_in_one_dir(dir, filename);
+            if (result != nullptr) {
+                return result;
+            }
+        }
+        start = end + 1; // Start of next item
+        end = strstr(start, PATH_SEPARATOR);
+    }
+    // No separator, or no further separator:
+    return find_filename_in_one_dir(start, filename);
 }
 
 
@@ -793,11 +823,8 @@ int mappings_file_create(const char* dirname, const char* corename) {
 // core FILENAME size
 // time 123213123
 // 
-// Share libraries written later:
+// Shared libraries written later:
 // L jvm addresshex 0   (0 is placeholder for possible checksum)
-// 
-// Memory mappings also to be written separately.
-//
     char buf[BUFLEN];
     snprintf(buf, BUFLEN, "%s%s", dirname, "/" MAPPINGS_FILENAME);
     logv("mappings_file_create: %s", buf);

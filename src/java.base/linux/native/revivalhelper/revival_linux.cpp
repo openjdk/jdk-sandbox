@@ -136,7 +136,7 @@ bool file_exists_pd(const char *filename) {
     int fd = open(filename, O_RDONLY);
     if (fd < 0) {
         if (errno != ENOENT) {
-            warn("checking file'%s': %d: %s", filename, errno, strerror(errno));
+            warn("Checking if file exists '%s': %d: %s", filename, errno, strerror(errno));
         }
     } else {
         close(fd);
@@ -659,8 +659,6 @@ bool create_directory_pd(char* dirname) {
 }
 
 
-bool allLibraries = false;
-
 void write_sharedlib_mapping(int mappings_fd, char* filename, void* address) {
         char buf[BUFLEN];
         const char *checksum = "0"; // possible enhancement
@@ -747,7 +745,7 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
     // Find JVM and its load address from core.
     Segment* jvm_mapping = core.get_library_mapping(JVM_FILENAME);
     if (jvm_mapping == nullptr) {
-        warn("JVM library required in core not found.");
+        warn("JVM library not found in core.");
         error("For cores from other systems, or if JDK at path in core has changed, use -L to specify JVM location.");
     }
     logv("JVM = '%s'", jvm_mapping->name);

@@ -178,13 +178,17 @@ public abstract class AttachProvider {
      *   <td>null/unset</td>
      *   <td>Directory path of where to search for shared libraries when initially reading a core file.
      *       This may be a list of multiple directories, separated by File.pathSeparator.
+     *       Required when files are transported between machines, or libraries at locations in the dump
+     *       have changed.
      *   </td>
      * </tr>
      * <tr>
      *   <th scope="row">revivalCachePath</th>
      *   <td>{@link java.lang.String}</td>
      *   <td>null/unset</td>
-     *   <td>Directory path of where to create temporary data needed.</td>
+     *   <td>Directory path of where to create cache directory when initially opening core.
+     *       Used when core file is in a location without write access.
+     *   </td>
      * </tr>
      * </tbody>
      * </table>
