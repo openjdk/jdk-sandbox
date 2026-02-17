@@ -855,32 +855,22 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
     }
 
     if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
-      // Card table barrier is not conditional on GC state.
-      // You might think this needs to be a post-barrier. But I don't think it does: the card table updates
-      // and stores are not expected to be ordered. As long as there is no safepoint between these stores, we are
-      // free to do them in any order.
-
-      // So it is convenient to pull card table update here. It also follows the stencil we want:
-      // there should be a single gc-state check for every possible fast path. If card table barrier needed
-      // a gc state check, we would have commoned it with gc state check for SATB barrier above, and _then_
-      // called to the slowpath.
-
-      // Using this address compute sequence allows us to use only one temp register.
-      // TODO: Upstream this separately, mainline Shenandoah might benefit from this already?
       __ lea(tmp, dst);
       __ shrptr(tmp, CardTable::card_shift());
       __ addptr(tmp, Address(r15_thread, in_bytes(ShenandoahThreadLocalData::card_table_offset())));
 
-      int dirty = CardTable::dirty_card_val();
+      assert(CardTable::dirty_card_val() == 0, "Encoding assumption");
+      Label L_card_done;
       if (UseCondCardMark) {
-        Label L_already_dirty;
-        __ cmpb(Address(tmp, 0), dirty);
-        __ jccb(Assembler::equal, L_already_dirty);
-        __ movb(Address(tmp, 0), dirty);
-        __ bind(L_already_dirty);
-      } else {
-        __ movb(Address(tmp, 0), dirty);
+        __ testb(Address(tmp, 0), 0xFF);
+        __ jccb(Assembler::zero, L_card_done);
       }
+      if (UseCompressedOops && CompressedOops::base() == nullptr) {
+        __ movb(Address(tmp, 0), r12);
+      } else {
+        __ movb(Address(tmp, 0), 0);
+      }
+      __ bind(L_card_done);
     }
   }
 
