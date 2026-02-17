@@ -1305,19 +1305,19 @@ public class GTKLookAndFeel extends SynthLookAndFeel {
 
             "Viewport.font", new FontLazyValue(Region.VIEWPORT),
                 // *** DatePicker
-                "DatePicker.gridFont", new FontLazyValue(Region.TABLE),
-                "DatePicker.gridForeground", tableFg,  // cell text color
-                "DatePicker.gridBackground", tableBg,  // cell background color
-                "DatePicker.gridHeaderCellFont", new FontLazyValue(Region.TABLE_HEADER),
-                "DatePicker.gridHeaderForeground", tableFg,   // header text color
-                "DatePicker.gridHeaderBackground", tableBg,  // header background
-                "DatePicker.gridSelectionForeground", tableFocusCellFg,
-                "DatePicker.gridSelectionBackground", Color.GRAY,
-                "DatePicker.gridCurrentDateForeground", tableFocusCellFg,
-                "DatePicker.gridCurrentDateBackground", tableFocusCellBg,
+                "DatePicker.tableFont", new FontLazyValue(Region.TABLE),
+                "DatePicker.tableForeground", tableFg,  // cell text color
+                "DatePicker.tableBackground", tableBg,  // cell background color
+                "DatePicker.tableHeaderCellFont", new FontLazyValue(Region.TABLE_HEADER),
+                "DatePicker.tableHeaderForeground", tableFg,   // header text color
+                "DatePicker.tableHeaderBackground", tableBg,  // header background
+                "DatePicker.tableSelectionForeground", tableFocusCellFg,
+                "DatePicker.tableSelectionBackground", Color.GRAY,
+                "DatePicker.tableCurrentDateForeground", tableFocusCellFg,
+                "DatePicker.tableCurrentDateBackground", tableFocusCellBg,
                 "DatePicker.weekNumberForeground", Color.blue,
-                "DatePicker.gridGridColor", Color.white,  // grid line color
-                "DatePicker.showGridLines", false,  // show grid
+                "DatePicker.tableGridColor", Color.white,  // grid line color
+                "DatePicker.tableShowGrid", false,  // show grid
                 "DatePicker.calendarIcon", (UIDefaults.LazyValue) t ->
                 new CalendarIcon(Color.GRAY),
                 "DatePicker.ancestorInputMap",

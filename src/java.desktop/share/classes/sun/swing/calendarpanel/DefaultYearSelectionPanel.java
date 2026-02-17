@@ -163,9 +163,9 @@ public final class DefaultYearSelectionPanel extends AbstractCalendarPanel {
         calendarTable.setModel(new YearTableViewModel(Calendar.getInstance().get(Calendar.YEAR), selectionLimitValue));
         calendarTable.setRowHeight((int) getCellDimension().getHeight());
         setLabelAttributes();
-        if (calendarPanel.isGridLinesVisible()) {
+        if (calendarPanel.getTableShowGridStatus()) {
             calendarTable.setShowGrid(true);
-            calendarTable.setGridColor(calendarPanel.getGridColor());
+            calendarTable.setGridColor(calendarPanel.getTableGridColor());
         } else {
             calendarTable.setShowGrid(false);
         }
@@ -178,8 +178,8 @@ public final class DefaultYearSelectionPanel extends AbstractCalendarPanel {
     }
 
     private void  setLabelAttributes() {
-        selectYearLabel.setForeground(calendarPanel.getGridForeground());
-        selectYearLabel.setFont(calendarPanel.getGridFont());
+        selectYearLabel.setForeground(calendarPanel.getTableForeground());
+        selectYearLabel.setFont(calendarPanel.getTableFont());
         selectYearLabel.setLocale(calendarPanel.getDateSelectionModel().getLocale());
     }
 
@@ -287,20 +287,20 @@ public final class DefaultYearSelectionPanel extends AbstractCalendarPanel {
             JLabel label = (JLabel) super.getTableCellRendererComponent(table,
                     value, isSelected, hasFocus, row, column);
             label.setHorizontalAlignment(JLabel.CENTER);
-            label.setFont(calendarPanel.getGridFont());
+            label.setFont(calendarPanel.getTableFont());
 
             if (label.getText().equals(String.valueOf(getCurrentYear())) && isSelected) {
-                label.setForeground(calendarPanel.getGridSelectionForeground());
-                label.setBackground(calendarPanel.getGridSelectionBackground());
+                label.setForeground(calendarPanel.getTableSelectionForeground());
+                label.setBackground(calendarPanel.getTableSelectionBackground());
             } else if (label.getText().equals(String.valueOf(getCurrentYear()))) {
-                label.setForeground(calendarPanel.getGridCurrentDateForeground());
-                label.setBackground(calendarPanel.getGridCurrentDateBackground().darker());
+                label.setForeground(calendarPanel.getTableCurrentDateForeground());
+                label.setBackground(calendarPanel.getTableCurrentDateBackground().darker());
             } else if (isSelected) {
-                label.setBackground(calendarPanel.getGridSelectionBackground());
-                label.setForeground(calendarPanel.getGridSelectionForeground());
+                label.setBackground(calendarPanel.getTableSelectionBackground());
+                label.setForeground(calendarPanel.getTableSelectionForeground());
             } else {
-                label.setBackground(calendarPanel.getGridBackground());
-                label.setForeground(calendarPanel.getGridForeground());
+                label.setBackground(calendarPanel.getTableBackground());
+                label.setForeground(calendarPanel.getTableForeground());
             }
             return label;
         }

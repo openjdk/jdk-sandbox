@@ -189,19 +189,19 @@ public class BasicCalendarPanelUI extends CalendarPanelUI {
                 "DatePicker.tableForeground",
                 "DatePicker.tableFont");
         LookAndFeel.installProperty(calendarPanel, "opaque", Boolean.TRUE);
-        calendarPanel.setGridColor(UIManager.getColor("DatePicker.gridColor"));
-        calendarPanel.showGridLines(UIManager.getBoolean("DatePicker.showGridLines"));
-        calendarPanel.setGridFont(UIManager.getFont("DatePicker.gridFont"));
-        calendarPanel.setGridForeground(UIManager.getColor("DatePicker.gridForeground"));
-        calendarPanel.setGridBackground(UIManager.getColor("DatePicker.gridBackground"));
-        calendarPanel.setGridSelectionForeground(UIManager.getColor("DatePicker.gridSelectionForeground"));
-        calendarPanel.setGridSelectionBackground(UIManager.getColor("DatePicker.gridSelectionBackground"));
-        calendarPanel.setGridCurrentDateForeground(UIManager.getColor("DatePicker.gridCurrentDateForeground"));
-        calendarPanel.setGridCurrentDateBackground(UIManager.getColor("DatePicker.gridCurrentDateBackground"));
-        calendarPanel.setGridHeaderCellFont(UIManager.getFont("DatePicker.gridHeaderCellFont"));
-        calendarPanel.setGridHeaderForeground(UIManager.getColor("DatePicker.gridHeaderForeground"));
-        calendarPanel.setGridHeaderBackground(UIManager.getColor("DatePicker.gridHeaderBackground"));
-        calendarPanel.setGridWeekNumberForeground(UIManager.getColor("DatePicker.weekNumberForeground"));
+        calendarPanel.setTableGridColor(UIManager.getColor("DatePicker.tableGridColor"));
+        calendarPanel.setTableShowGridStatus(UIManager.getBoolean("DatePicker.tableShowGrid"));
+        calendarPanel.setTableFont(UIManager.getFont("DatePicker.tableFont"));
+        calendarPanel.setTableForeground(UIManager.getColor("DatePicker.tableForeground"));
+        calendarPanel.setTableBackground(UIManager.getColor("DatePicker.tableBackground"));
+        calendarPanel.setTableSelectionForeground(UIManager.getColor("DatePicker.tableSelectionForeground"));
+        calendarPanel.setTableSelectionBackground(UIManager.getColor("DatePicker.tableSelectionBackground"));
+        calendarPanel.setTableCurrentDateForeground(UIManager.getColor("DatePicker.tableCurrentDateForeground"));
+        calendarPanel.setTableCurrentDateBackground(UIManager.getColor("DatePicker.tableCurrentDateBackground"));
+        calendarPanel.setTableHeaderCellFont(UIManager.getFont("DatePicker.tableHeaderCellFont"));
+        calendarPanel.setTableHeaderForeground(UIManager.getColor("DatePicker.tableHeaderForeground"));
+        calendarPanel.setTableHeaderBackground(UIManager.getColor("DatePicker.tableHeaderBackground"));
+        calendarPanel.setTableWeekNumberForeground(UIManager.getColor("DatePicker.weekNumberForeground"));
     }
 
     /**
