@@ -24,17 +24,10 @@
  */
 package jdk.incubator.json;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 import jdk.incubator.json.impl.JsonParser;
-import jdk.incubator.json.impl.Utils;
 
 /**
  * This class provides static methods for parsing and generating JSON documents
