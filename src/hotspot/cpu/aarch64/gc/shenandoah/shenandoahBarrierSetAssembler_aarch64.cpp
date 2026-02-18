@@ -717,26 +717,21 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
                                              Register tmp, Register pre_val,
                                              bool is_volatile) {
 
-  if (ShenandoahStoreBarrierStubC2::needs_barrier(node)) {
+  if (ShenandoahSATBBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+    __ ldrb(tmp, gcs_addr);
 
-    if (ShenandoahStoreBarrierStubC2::needs_satb_barrier(node)) {
-      Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-      __ ldrb(tmp, gcs_addr);
+    ShenandoahSATBBarrierStubC2* const stub = ShenandoahSATBBarrierStubC2::create(node, addr, pre_val, tmp, dst_narrow);
 
-      ShenandoahSATBBarrierStubC2* const stub = ShenandoahSATBBarrierStubC2::create(node, addr, pre_val, tmp, dst_narrow);
-
-      // Check if GC marking is in progress, otherwise we don't have to do
-      // anything.
-      __ tbz(tmp, ShenandoahHeap::MARKING_BITPOS, *stub->continuation());
-      __ b(*stub->entry());
-      __ bind(*stub->continuation());
-    }
-
-    if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
-      card_barrier_c2(node, masm, addr);
-    }
+    // Check if GC marking is in progress, otherwise we don't have to do
+    // anything.
+    __ tbz(tmp, ShenandoahHeap::MARKING_BITPOS, *stub->continuation());
+    __ b(*stub->entry());
+    __ bind(*stub->continuation());
   }
+
+  card_barrier_c2(node, masm, addr);
 
   // Need to encode into tmp, because we cannot clobber src.
   // TODO: Maybe there is a matcher way to test that src is unused after this?
@@ -787,7 +782,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
   Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
   __ ldrb(rscratch1, gcs_addr);
 
-  if (ShenandoahSATBBarrierStubC2::needs_barrier(node)) {
+  if (ShenandoahSATBAndLRBBarrierSlowStubC2::needs_barrier(node)) {
     ShenandoahSATBAndLRBBarrierSlowStubC2* const stub = ShenandoahSATBAndLRBBarrierSlowStubC2::create(node, dst, addr, is_narrow, maybe_null);
 
     stub->preserve(addr);
@@ -802,7 +797,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
     __ tbz(rscratch1, 0x0, *stub->continuation());
     __ b(*stub->entry());
     __ bind(*stub->continuation());
-  } else {
+  } else if (ShenandoahLoadRefBarrierStubC2::needs_barrier(node)) {
     ShenandoahLoadRefBarrierStubC2* const stub = ShenandoahLoadRefBarrierStubC2::create(node, dst, addr, noreg, noreg, noreg, is_narrow);
 
     // Don't preserve the obj across the runtime call, we override it from the
