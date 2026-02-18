@@ -567,7 +567,7 @@ void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
 
         // Dominating stores have recorded the old value in SATB, and made the
         // card table update for a location. Subsequent barriers are no longer
-        // required. 
+        // required.
         case Op_StoreP:
         case Op_StoreN: {
           if (mach->barrier_data() != 0) {
@@ -973,14 +973,14 @@ ShenandoahSATBBarrierStubC2* ShenandoahSATBBarrierStubC2::create(const MachNode*
   return stub;
 }
 
-ShenandoahCASBarrierSlowStubC2* ShenandoahCASBarrierSlowStubC2::create(const MachNode* node, Register addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae, bool acquire, bool release, bool weak) {
-  auto* stub = new (Compile::current()->comp_arena()) ShenandoahCASBarrierSlowStubC2(node, addr, Address(), expected, new_val, result, tmp1, tmp2, narrow, cae, acquire, release, weak);
+ShenandoahCASBarrierSlowStubC2* ShenandoahCASBarrierSlowStubC2::create(const MachNode* node, Register addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae, bool maybe_null, bool acquire, bool release, bool weak) {
+  auto* stub = new (Compile::current()->comp_arena()) ShenandoahCASBarrierSlowStubC2(node, addr, Address(), expected, new_val, result, tmp1, tmp2, narrow, cae, maybe_null, acquire, release, weak);
   stub->register_stub();
   return stub;
 }
 
 ShenandoahCASBarrierSlowStubC2* ShenandoahCASBarrierSlowStubC2::create(const MachNode* node, Address addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae) {
-  auto* stub = new (Compile::current()->comp_arena()) ShenandoahCASBarrierSlowStubC2(node, noreg, addr, expected, new_val, result, tmp1, tmp2, narrow, cae, false, false, false);
+  auto* stub = new (Compile::current()->comp_arena()) ShenandoahCASBarrierSlowStubC2(node, noreg, addr, expected, new_val, result, tmp1, tmp2, narrow, cae, true, false, false, false);
   stub->register_stub();
   return stub;
 }

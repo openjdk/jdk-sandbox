@@ -266,20 +266,21 @@ class ShenandoahCASBarrierSlowStubC2 : public ShenandoahBarrierStubC2 {
   Register _tmp2;
   bool     const _narrow;
   bool     const _cae;
+  bool     const _maybe_null;
   bool     const _acquire;
   bool     const _release;
   bool     const _weak;
 
-  explicit ShenandoahCASBarrierSlowStubC2(const MachNode* node, Register addr_reg, Address addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae, bool acquire, bool release, bool weak) :
+  explicit ShenandoahCASBarrierSlowStubC2(const MachNode* node, Register addr_reg, Address addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae, bool maybe_null, bool acquire, bool release, bool weak) :
     ShenandoahBarrierStubC2(node),
-    _addr_reg(addr_reg), _addr(addr), _expected(expected), _new_val(new_val), _result(result), _tmp1(tmp1), _tmp2(tmp2), _narrow(narrow), _cae(cae), _acquire(acquire), _release(release),  _weak(weak) {}
+    _addr_reg(addr_reg), _addr(addr), _expected(expected), _new_val(new_val), _result(result), _tmp1(tmp1), _tmp2(tmp2), _narrow(narrow), _cae(cae), _maybe_null(maybe_null), _acquire(acquire), _release(release),  _weak(weak) {}
 
 public:
   static bool needs_barrier(const MachNode* node) {
     return (node->barrier_data() & ShenandoahBarrierStrong) != 0;
   }
 
-  static ShenandoahCASBarrierSlowStubC2* create(const MachNode* node, Register addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae, bool acquire, bool release, bool weak);
+  static ShenandoahCASBarrierSlowStubC2* create(const MachNode* node, Register addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae, bool maybe_null, bool acquire, bool release, bool weak);
   static ShenandoahCASBarrierSlowStubC2* create(const MachNode* node, Address addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae);
   void emit_code(MacroAssembler& masm) override;
 };

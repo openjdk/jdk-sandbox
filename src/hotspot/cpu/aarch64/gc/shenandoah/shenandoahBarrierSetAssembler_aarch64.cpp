@@ -635,32 +635,36 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
   // EQ flag set iff success.
   __ cset(exchange? tmp2 : res, Assembler::EQ);
 
-  if (!ShenandoahSkipBarrierStubs && ShenandoahCASBarrierSlowStubC2::needs_barrier(node)) {
+  if (!ShenandoahSkipBarrierStubs && (ShenandoahCASBarrierSlowStubC2::needs_barrier(node) || ShenandoahStoreBarrierStubC2::needs_card_barrier(node))) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
-    // Load GC state in tmp1
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb(tmp1, gcs_addr);
+    if (ShenandoahCASBarrierSlowStubC2::needs_barrier(node)) {
+      // Load GC state in tmp1
+      Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+      __ ldrb(tmp1, gcs_addr);
 
-    // Shift GCState right according to result of previous CAS. Luckily, the
-    // boolean result of the CAS also matches the index of the bit that we need
-    // to test later on.
-    __ lsrv(tmp1, tmp1, exchange ? tmp2 : res);
+      // Shift GCState right according to result of previous CAS. Luckily, the
+      // boolean result of the CAS also matches the index of the bit that we need
+      // to test later on.
+      __ lsrv(tmp1, tmp1, exchange ? tmp2 : res);
 
-    // Assuming just for now that we need both barriers
-    ShenandoahCASBarrierSlowStubC2* cmpx = ShenandoahCASBarrierSlowStubC2::create(node, addr, oldval, newval, res, tmp1, tmp2, narrow, exchange, acquire, release, weak);
+      // Assuming just for now that we need both barriers
+      ShenandoahCASBarrierSlowStubC2* cmpx = ShenandoahCASBarrierSlowStubC2::create(node, addr, oldval, newval, res, tmp1, tmp2, narrow, exchange, maybe_null, acquire, release, weak);
 
-    // Test bit '0' of tmp1, which at this point will be FORWARDING bit if CAS
-    // failed, or SATB bit if CAS succeded.
-    __ tbz(tmp1, 0x0, *cmpx->continuation());
-    __ b(*cmpx->entry());
-    __ bind(*cmpx->continuation());
-
-    if (exchange) {
-      __ cmp(res, newval);
-      __ cset(tmp2, Assembler::EQ);
+      // Test bit '0' of tmp1, which at this point will be FORWARDING bit if CAS
+      // failed, or SATB bit if CAS succeded.
+      __ tbz(tmp1, 0x0, *cmpx->continuation());
+      __ b(*cmpx->entry());
+      __ bind(*cmpx->continuation());
     }
-    card_barrier_c2(node, masm, addr, exchange ? tmp2 : res);
+
+    if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
+      if (exchange) {
+        __ cmp(res, newval);
+        __ cset(tmp2, Assembler::EQ);
+      }
+      card_barrier_c2(node, masm, addr, exchange ? tmp2 : res);
+    }
   }
 }
 
@@ -679,27 +683,33 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     }
   }
 
-  if (!ShenandoahSkipBarrierStubs && ShenandoahSATBAndLRBBarrierSlowStubC2::needs_barrier(node)) {
+  if (!ShenandoahSkipBarrierStubs && (ShenandoahSATBAndLRBBarrierSlowStubC2::needs_barrier(node) || ShenandoahStoreBarrierStubC2::needs_card_barrier(node))) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb(rscratch1, gcs_addr);
+    if (ShenandoahSATBAndLRBBarrierSlowStubC2::needs_barrier(node)) {
+      Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+      __ ldrb(rscratch1, gcs_addr);
 
-    ShenandoahSATBAndLRBBarrierSlowStubC2* const stub = ShenandoahSATBAndLRBBarrierSlowStubC2::create(node, preval, addr, narrow, maybe_null);
+      ShenandoahSATBAndLRBBarrierSlowStubC2* const stub = ShenandoahSATBAndLRBBarrierSlowStubC2::create(node, preval, addr, narrow, maybe_null);
 
-    // rscratch1[0] = gc_state[ShenandoahHeap::HAS_FORWARDED_BITPOS] | gc_state[ShenandoahHeap::MARKING_BITPOS]
-    __ orr(rscratch1, rscratch1, rscratch1, Assembler::LSR, ShenandoahHeap::MARKING_BITPOS);
+      // rscratch1[0] = gc_state[ShenandoahHeap::HAS_FORWARDED_BITPOS] | gc_state[ShenandoahHeap::MARKING_BITPOS]
+      __ orr(rscratch1, rscratch1, rscratch1, Assembler::LSR, ShenandoahHeap::MARKING_BITPOS);
 
-    // rscratch1[0] = rscratch1[0] | gc_state[ShenandoahHeap::WEAK_ROOTS_BITPOS]
-    __ orr(rscratch1, rscratch1, rscratch1, Assembler::LSR, ShenandoahHeap::WEAK_ROOTS_BITPOS - ShenandoahHeap::MARKING_BITPOS);
+      bool is_strong = (node->barrier_data() & ShenandoahBarrierStrong) != 0;
+      if (!is_strong) {
+        // rscratch1[0] = rscratch1[0] | gc_state[ShenandoahHeap::WEAK_ROOTS_BITPOS]
+        __ orr(rscratch1, rscratch1, rscratch1, Assembler::LSR, ShenandoahHeap::WEAK_ROOTS_BITPOS - ShenandoahHeap::MARKING_BITPOS);
+      }
 
-    __ tbz(rscratch1, 0x0, *stub->continuation());
-    __ b(*stub->entry());
-    __ bind(*stub->continuation());
+      __ tbz(rscratch1, 0x0, *stub->continuation());
+      __ b(*stub->entry());
+      __ bind(*stub->continuation());
+    }
+
+    if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
+      card_barrier_c2(node, masm, addr, noreg);
+    }
   }
-
-  // fixed? FIXME: Should be under needs_barrier check, so it is also covered by InlineSkippedInstructionsCounter
-  card_barrier_c2(node, masm, addr, noreg);
 }
 
 void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm,
@@ -839,62 +849,7 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroA
 #define __ masm.
 
 void ShenandoahLoadRefBarrierStubC2::emit_code(MacroAssembler& masm) {
-  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
-  Label lrb_end;
-  __ bind(*entry());
-  if (_narrow) {
-    __ decode_heap_oop(_obj);
-  }
-  // Weak/phantom loads always need to go to runtime.
-  if ((_node->barrier_data() & ShenandoahBarrierStrong) != 0) {
-    // Check for object in cset.
-    __ mov(rscratch2, ShenandoahHeap::in_cset_fast_test_addr());
-    __ lsr(rscratch1, _obj, ShenandoahHeapRegion::region_size_bytes_shift_jint());
-    __ ldrb(rscratch2, Address(rscratch2, rscratch1));
-    __ cbz(rscratch2, lrb_end);
-  }
-
-  dont_preserve(_obj);
-  {
-    SaveLiveRegisters save_registers(&masm, this);
-    if (c_rarg0 != _obj) {
-      if (c_rarg0 == _addr) {
-        __ mov(rscratch1, _addr);
-        _addr = rscratch1;
-      }
-      __ mov(c_rarg0, _obj);
-    }
-    __ mov(c_rarg1, _addr);
-
-    if (_narrow) {
-      if ((_node->barrier_data() & ShenandoahBarrierStrong) != 0) {
-        __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow));
-      } else if ((_node->barrier_data() & ShenandoahBarrierWeak) != 0) {
-        __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow));
-      } else if ((_node->barrier_data() & ShenandoahBarrierPhantom) != 0) {
-        __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow));
-      } else {
-        assert(false, "what?!");
-      }
-    } else {
-      if ((_node->barrier_data() & ShenandoahBarrierStrong) != 0) {
-        __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong));
-      } else if ((_node->barrier_data() & ShenandoahBarrierWeak) != 0) {
-        __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak));
-      } else if ((_node->barrier_data() & ShenandoahBarrierPhantom) != 0) {
-        __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom));
-      } else {
-        assert(false, "what?!");
-      }
-    }
-    __ blr(rscratch1);
-    __ mov(_obj, r0);
-  }
-  __ bind(lrb_end);
-  if (_narrow) {
-    __ encode_heap_oop(_obj);
-  }
-  __ b(*continuation());
+  Unimplemented();
 }
 
 void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
@@ -959,6 +914,8 @@ void ShenandoahSATBAndLRBBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
   if (_narrow) {
     if (_maybe_null) {
       __ decode_heap_oop(_obj);
+      // FIXME: See if it is possible to merge this null-check with decoding
+      __ cbz(_obj, lrb);
     } else {
       __ decode_heap_oop_not_null(_obj);
     }
@@ -969,9 +926,6 @@ void ShenandoahSATBAndLRBBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
     Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ ldrb(rscratch1, gcs_addr);
     __ tbz(rscratch1, ShenandoahHeap::MARKING_BITPOS, lrb);
-
-    // FIXME: See if it is possible to merge this null-check with decoding
-    __ cbz(_obj, lrb);
 
     Address index(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
     Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
@@ -1080,14 +1034,15 @@ void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
   // check if first CAS succeded, if it did we just need to write to SATB
   __ cbnz(_cae ? _tmp2 : _result, L_succeded);
 
+
+  // LRB + CAS Retry
           // First CAS attempt did not succeed. Execute LRB on 'addr' and retry CAS.
           if (!_cae) {
             __ mov(_result, _tmp2);
           }
 
-          // (Compressed) failure witness is in _result.
-          // Unpack it and check if it is in collection set.
-          // We need to backup the compressed version to use in the LRB.
+          // [Compressed] failure witness is in _result. Decode it and check
+          // if it is in collection set.
           if (_narrow) {
             __ decode_heap_oop(_result);
           }
@@ -1099,7 +1054,7 @@ void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
 
           {
             SaveLiveRegisters save_registers(&masm, this);
-            // Load up failure witness again.
+
             __ mov(c_rarg0, _result);
             __ mov(c_rarg1, _addr_reg);
 
@@ -1108,6 +1063,7 @@ void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
             } else {
               __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong), 2);
             }
+
             // We have called LRB to fix up the heap location. We do not care about its
             // result, as we will just try to CAS the location again.
           }
@@ -1126,6 +1082,7 @@ void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
 
 
 
+    // SATB
     __ bind(L_succeded);
               Label short_branch;
 
