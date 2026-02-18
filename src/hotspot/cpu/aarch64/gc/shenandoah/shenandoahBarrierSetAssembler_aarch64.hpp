@@ -91,8 +91,6 @@ public:
   void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr, bool maybe_null, bool narrow, bool acquire);
   void load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Register addr, bool maybe_null, bool narrow, bool acquire);
 
-  void load_ref_barrier_c2(const MachNode* node, MacroAssembler* masm, Register obj, Register addr, bool narrow, bool maybe_null, Register gc_state);
-  void satb_barrier_c2(const MachNode* node, MacroAssembler* masm, Register obj, Register pre_val, Register gc_state, bool encoded_preval);
   void card_barrier_c2(const MachNode* node, MacroAssembler* masm, Register addr);
 #endif
 };

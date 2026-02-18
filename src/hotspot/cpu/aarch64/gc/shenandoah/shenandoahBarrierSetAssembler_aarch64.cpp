@@ -606,38 +606,6 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop(MacroAssembler* masm,
 }
 
 #ifdef COMPILER2
-void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, MacroAssembler* masm, Register obj, Register addr, bool narrow, bool maybe_null, Register gc_state) {
-  assert_different_registers(obj, addr);
-  if (!ShenandoahLoadRefBarrierStubC2::needs_barrier(node)) {
-    return;
-  }
-  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
-  ShenandoahLoadRefBarrierStubC2* const stub = ShenandoahLoadRefBarrierStubC2::create(node, obj, addr, gc_state, noreg, noreg, narrow);
-
-  // Don't preserve the obj across the runtime call, we override it from the
-  // return value anyway.
-  stub->dont_preserve(obj);
-  stub->dont_preserve(gc_state);
-
-  // Check if GC marking is in progress or we are handling a weak reference,
-  // otherwise we don't have to do anything. The code below was optimized to
-  // use less registers and instructions as possible at the expense of always
-  // having a branch instruction. The reason why we use this particular branch
-  // scheme is because the stub entry may be too far for the tbnz to jump to.
-  bool is_strong = (node->barrier_data() & ShenandoahBarrierStrong) != 0;
-  if (is_strong) {
-    __ tbz(gc_state, ShenandoahHeap::HAS_FORWARDED_BITPOS, *stub->continuation());
-    __ b(*stub->entry());
-  } else {
-    static_assert(ShenandoahHeap::HAS_FORWARDED_BITPOS == 0, "Relied on in LRB check below.");
-    __ orr(gc_state, gc_state, gc_state, Assembler::LSR, ShenandoahHeap::WEAK_ROOTS_BITPOS);
-    __ tbz(gc_state, ShenandoahHeap::HAS_FORWARDED_BITPOS, *stub->continuation());
-    __ b(*stub->entry());
-  }
-
-  __ bind(*stub->continuation());
-}
-
 /**
  * The logic implemented here relies on certain flags being on specific
  * positions of the GCState. Also note that all pointer values in register are
@@ -739,10 +707,17 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
                                              Register tmp, Register pre_val,
                                              bool is_volatile) {
 
+  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
   Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
   __ ldrb(tmp, gcs_addr);
 
-  satb_barrier_c2(node, masm, addr, noreg, tmp, dst_narrow);
+  ShenandoahSATBBarrierStubC2* const stub = ShenandoahSATBBarrierStubC2::create(node, addr, pre_val, tmp, dst_narrow);
+
+  // Check if GC marking is in progress, otherwise we don't have to do
+  // anything.
+  __ tbz(tmp, ShenandoahHeap::MARKING_BITPOS, *stub->continuation());
+  __ b(*stub->entry());
+  __ bind(*stub->continuation());
 
   card_barrier_c2(node, masm, addr);
 
@@ -811,7 +786,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
     __ b(*stub->entry());
     __ bind(*stub->continuation());
   } else {
-    ShenandoahLoadRefBarrierStubC2* const stub = ShenandoahLoadRefBarrierStubC2::create(node, dst, addr, rscratch1, noreg, noreg, is_narrow);
+    ShenandoahLoadRefBarrierStubC2* const stub = ShenandoahLoadRefBarrierStubC2::create(node, dst, addr, noreg, noreg, noreg, is_narrow);
 
     // Don't preserve the obj across the runtime call, we override it from the
     // return value anyway.
@@ -836,22 +811,6 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
 
     __ bind(*stub->continuation());
   }
-}
-
-void ShenandoahBarrierSetAssembler::satb_barrier_c2(const MachNode* node, MacroAssembler* masm, Register addr, Register pre_val,
-                                                    Register gc_state, bool encoded_preval) {
-  assert_different_registers(addr, pre_val, rscratch1, rscratch2);
-  if (!ShenandoahSATBBarrierStubC2::needs_barrier(node)) {
-    return;
-  }
-  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
-  ShenandoahSATBBarrierStubC2* const stub = ShenandoahSATBBarrierStubC2::create(node, addr, pre_val, gc_state, encoded_preval);
-
-  // Check if GC marking is in progress, otherwise we don't have to do
-  // anything.
-  __ tstw(gc_state, ShenandoahHeap::MARKING);
-  __ br(Assembler::NE, *stub->entry());
-  __ bind(*stub->continuation());
 }
 
 void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroAssembler* masm, Register addr) {
@@ -949,12 +908,6 @@ void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
   __ bind(*entry());
 
-  // The tmp register that we receive is usually a register holding the
-  // "gc_state" which may be required by subsequent memory operations in their
-  // fastpath.
-  RegSet saved = RegSet::of(_tmp);
-  __ push(saved, sp);
-
   // Do we need to load the previous value?
   if (_addr != noreg) {
     assert(_preval == noreg, "should be");
@@ -980,7 +933,6 @@ void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ str(rscratch1, index);
   __ ldr(rscratch2, buffer);
   __ str(_tmp, Address(rscratch2, rscratch1));
-  __ pop(saved, sp);
   __ b(*continuation());
 
   // Runtime call
@@ -988,11 +940,9 @@ void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
   {
     SaveLiveRegisters save_registers(&masm, this);
     __ mov(c_rarg0, _tmp);
-    __ mov(c_rarg0, _tmp);
     __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre_c2));
     __ blr(rscratch1);
   }
-  __ pop(saved, sp);
   __ b(*continuation());
 }
 
@@ -1047,8 +997,6 @@ void ShenandoahSATBAndLRBBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
     preserve(_obj);
     {
       SaveLiveRegisters save_registers(&masm, this);
-      __ mov(c_rarg0, _obj);
-      __ mov(c_rarg0, _obj);
       __ mov(c_rarg0, _obj);
       __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre_c2));
       __ blr(rscratch1);
@@ -1210,9 +1158,6 @@ void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
               __ bind(runtime);
               {
                 SaveLiveRegisters save_registers(&masm, this);
-                __ mov(c_rarg0, _tmp1);
-                __ mov(c_rarg0, _tmp1);
-                __ mov(c_rarg0, _tmp1);
                 __ mov(c_rarg0, _tmp1);
                 __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre_c2));
                 __ blr(rscratch1);
