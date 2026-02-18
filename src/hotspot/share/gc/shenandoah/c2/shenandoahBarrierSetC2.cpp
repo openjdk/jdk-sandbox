@@ -992,8 +992,13 @@ ShenandoahSATBAndLRBBarrierSlowStubC2* ShenandoahSATBAndLRBBarrierSlowStubC2::cr
 }
 
 bool ShenandoahBarrierSetC2State::needs_liveness_data(const MachNode* mach) const {
-  return ShenandoahSATBBarrierStubC2::needs_barrier(mach) ||
-         ShenandoahLoadRefBarrierStubC2::needs_barrier(mach);
+  // Must ask all stubs!
+  return ShenandoahLoadBarrierStubC2::needs_barrier(mach) ||
+         ShenandoahStoreBarrierStubC2::needs_barrier(mach) ||
+         ShenandoahLoadRefBarrierStubC2::needs_barrier(mach) ||
+         ShenandoahSATBBarrierStubC2::needs_barrier(mach) ||
+         ShenandoahCASBarrierSlowStubC2::needs_barrier(mach) ||
+         ShenandoahSATBAndLRBBarrierSlowStubC2::needs_barrier(mach);
 }
 
 bool ShenandoahBarrierSetC2State::needs_livein_data() const {

@@ -232,6 +232,9 @@ class ShenandoahSATBAndLRBBarrierSlowStubC2 : public ShenandoahBarrierStubC2 {
   ShenandoahSATBAndLRBBarrierSlowStubC2(const MachNode* node, Register obj, Register addr, bool narrow, bool maybe_null) :
     ShenandoahBarrierStubC2(node), _obj(obj), _addr(addr), _narrow(narrow), _maybe_null(maybe_null) {}
 public:
+  static bool needs_barrier(const MachNode* node) {
+    return (node->barrier_data() & (ShenandoahBarrierSATB | ShenandoahBarrierStrong | ShenandoahBarrierWeak | ShenandoahBarrierPhantom | ShenandoahBarrierNative)) != 0;
+  }
   static ShenandoahSATBAndLRBBarrierSlowStubC2* create(const MachNode* node, Register obj, Register addr, bool narrow, bool maybe_null);
   void emit_code(MacroAssembler& masm) override;
 };
@@ -272,6 +275,10 @@ class ShenandoahCASBarrierSlowStubC2 : public ShenandoahBarrierStubC2 {
     _addr_reg(addr_reg), _addr(addr), _expected(expected), _new_val(new_val), _result(result), _tmp1(tmp1), _tmp2(tmp2), _narrow(narrow), _cae(cae), _acquire(acquire), _release(release),  _weak(weak) {}
 
 public:
+  static bool needs_barrier(const MachNode* node) {
+    return (node->barrier_data() & ShenandoahBarrierStrong) != 0;
+  }
+
   static ShenandoahCASBarrierSlowStubC2* create(const MachNode* node, Register addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae, bool acquire, bool release, bool weak);
   static ShenandoahCASBarrierSlowStubC2* create(const MachNode* node, Address addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae);
   void emit_code(MacroAssembler& masm) override;
