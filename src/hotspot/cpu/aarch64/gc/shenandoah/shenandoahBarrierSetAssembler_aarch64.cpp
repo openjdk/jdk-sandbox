@@ -633,9 +633,6 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
   // may be too far to jump directly to.
   Label short_branch;
 
-  // Assuming just for now that we need both barriers
-  ShenandoahCASBarrierSlowStubC2* const cmpx = ShenandoahCASBarrierSlowStubC2::create(node, addr, oldval, newval, res, tmp1, tmp2, narrow, exchange, acquire, release, weak);
-
   // Issue cmpxchg first, res will have the failure witness if CAS fails
   __ cmpxchg(addr, oldval, newval, op_size, acquire, release, weak, exchange ? res : tmp2);
 
@@ -647,23 +644,34 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
   // EQ flag set iff success.
   __ cset(exchange? tmp2 : res, Assembler::EQ);
 
-  // Shift GCState right according to result of previous CAS. Luckily, the
-  // boolean result of the CAS also matches the index of the bit that we need
-  // to test later on.
-  __ lsrv(tmp1, tmp1, exchange ? tmp2 : res);
+  ShenandoahCASBarrierSlowStubC2* cmpx = nullptr;
+  if (ShenandoahCASBarrierSlowStubC2::needs_barrier(node)) {
+    // Shift GCState right according to result of previous CAS. Luckily, the
+    // boolean result of the CAS also matches the index of the bit that we need
+    // to test later on.
+    __ lsrv(tmp1, tmp1, exchange ? tmp2 : res);
 
-  // Test bit '0' of tmp1, which at this point will be FORWARDING bit if CAS
-  // failed, or SATB bit if CAS succeded.
-  __ tbz(tmp1, 0x0, short_branch);
-  __ b(*cmpx->entry());
+    // Assuming just for now that we need both barriers
+    cmpx = ShenandoahCASBarrierSlowStubC2::create(node, addr, oldval, newval, res, tmp1, tmp2, narrow, exchange, acquire, release, weak);
+
+    // Test bit '0' of tmp1, which at this point will be FORWARDING bit if CAS
+    // failed, or SATB bit if CAS succeded.
+    __ tbz(tmp1, 0x0, short_branch);
+    __ b(*cmpx->entry());
+  }
 
   // Would be nice to fold this in the comparison above, but how?
   // Skip Card Table dirtying if CAS failed.
+  Label L_done;
   __ bind(short_branch);
-  __ cbz(exchange ? tmp2 : res, *cmpx->continuation());
+  __ cbz(exchange ? tmp2 : res, L_done);
   card_barrier_c2(node, masm, addr);
+  __ bind(L_done);
 
-  __ bind(*cmpx->continuation());
+  // FIXME: This is questionable, why are we bypassing card table barrier when re-entering from slow stub?
+  if (cmpx != nullptr) {
+    __ bind(*cmpx->continuation());
+  }
 }
 
 void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr, bool maybe_null, bool narrow, bool acquire) {
@@ -683,20 +691,22 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     }
   }
 
-  Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-  __ ldrb(rscratch1, gcs_addr);
+  if (ShenandoahSATBAndLRBBarrierSlowStubC2::needs_barrier(node)) {
+    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+    __ ldrb(rscratch1, gcs_addr);
 
-  ShenandoahSATBAndLRBBarrierSlowStubC2* const stub = ShenandoahSATBAndLRBBarrierSlowStubC2::create(node, preval, addr, narrow, maybe_null);
+    ShenandoahSATBAndLRBBarrierSlowStubC2* const stub = ShenandoahSATBAndLRBBarrierSlowStubC2::create(node, preval, addr, narrow, maybe_null);
 
-  // rscratch1[0] = gc_state[ShenandoahHeap::HAS_FORWARDED_BITPOS] | gc_state[ShenandoahHeap::MARKING_BITPOS]
-  __ orr(rscratch1, rscratch1, rscratch1, Assembler::LSR, ShenandoahHeap::MARKING_BITPOS);
+    // rscratch1[0] = gc_state[ShenandoahHeap::HAS_FORWARDED_BITPOS] | gc_state[ShenandoahHeap::MARKING_BITPOS]
+    __ orr(rscratch1, rscratch1, rscratch1, Assembler::LSR, ShenandoahHeap::MARKING_BITPOS);
 
-  // rscratch1[0] = rscratch1[0] | gc_state[ShenandoahHeap::WEAK_ROOTS_BITPOS]
-  __ orr(rscratch1, rscratch1, rscratch1, Assembler::LSR, ShenandoahHeap::WEAK_ROOTS_BITPOS - ShenandoahHeap::MARKING_BITPOS);
+    // rscratch1[0] = rscratch1[0] | gc_state[ShenandoahHeap::WEAK_ROOTS_BITPOS]
+    __ orr(rscratch1, rscratch1, rscratch1, Assembler::LSR, ShenandoahHeap::WEAK_ROOTS_BITPOS - ShenandoahHeap::MARKING_BITPOS);
 
-  __ tbz(rscratch1, 0x0, *stub->continuation());
-  __ b(*stub->entry());
-  __ bind(*stub->continuation());
+    __ tbz(rscratch1, 0x0, *stub->continuation());
+    __ b(*stub->entry());
+    __ bind(*stub->continuation());
+  }
 
   card_barrier_c2(node, masm, addr);
 }
@@ -707,19 +717,26 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
                                              Register tmp, Register pre_val,
                                              bool is_volatile) {
 
-  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
-  Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-  __ ldrb(tmp, gcs_addr);
+  if (ShenandoahStoreBarrierStubC2::needs_barrier(node)) {
+    Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
-  ShenandoahSATBBarrierStubC2* const stub = ShenandoahSATBBarrierStubC2::create(node, addr, pre_val, tmp, dst_narrow);
+    if (ShenandoahStoreBarrierStubC2::needs_satb_barrier(node)) {
+      Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+      __ ldrb(tmp, gcs_addr);
 
-  // Check if GC marking is in progress, otherwise we don't have to do
-  // anything.
-  __ tbz(tmp, ShenandoahHeap::MARKING_BITPOS, *stub->continuation());
-  __ b(*stub->entry());
-  __ bind(*stub->continuation());
+      ShenandoahSATBBarrierStubC2* const stub = ShenandoahSATBBarrierStubC2::create(node, addr, pre_val, tmp, dst_narrow);
 
-  card_barrier_c2(node, masm, addr);
+      // Check if GC marking is in progress, otherwise we don't have to do
+      // anything.
+      __ tbz(tmp, ShenandoahHeap::MARKING_BITPOS, *stub->continuation());
+      __ b(*stub->entry());
+      __ bind(*stub->continuation());
+    }
+
+    if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
+      card_barrier_c2(node, masm, addr);
+    }
+  }
 
   // Need to encode into tmp, because we cannot clobber src.
   // TODO: Maybe there is a matcher way to test that src is unused after this?
@@ -814,8 +831,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
 }
 
 void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroAssembler* masm, Register addr) {
-  if (!ShenandoahCardBarrier ||
-      (node->barrier_data() & ShenandoahBarrierCardMark) == 0) {
+  if ((node->barrier_data() & ShenandoahBarrierCardMark) == 0) {
     return;
   }
 
