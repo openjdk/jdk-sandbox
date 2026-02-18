@@ -626,7 +626,7 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop(MacroAssembler* masm,
  *    - If FORWARDING bit is clear there is nothing else to do.
  */
 void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval, Register newval, Register tmp1, Register tmp2, bool exchange, bool maybe_null, bool narrow, bool acquire, bool release, bool weak) {
-  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+  Assembler::InlineSkippedInstructionsCounter skip_counter(masm); // FIXME: Should cover only the fast-path barrier checks, not the load-bearing CAS itself.
   Assembler::operand_size op_size = narrow ? Assembler::word : Assembler::xword;
 
   // We need to do a combination of short and long jump because the stub entry
@@ -637,6 +637,7 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
   __ cmpxchg(addr, oldval, newval, op_size, acquire, release, weak, exchange ? res : tmp2);
 
   // Load GC state in tmp1
+  // FIXME: Should be moved under needs_barrier check, so that elided barrier would not have this cruft
   Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
   __ ldrb(tmp1, gcs_addr);
 
@@ -662,6 +663,7 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
 
   // Would be nice to fold this in the comparison above, but how?
   // Skip Card Table dirtying if CAS failed.
+  // FIXME: Should be moved under needs_barrier check, so that elided/disabled barrier would not have this cruft
   Label L_done;
   __ bind(short_branch);
   __ cbz(exchange ? tmp2 : res, L_done);
@@ -675,7 +677,7 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
 }
 
 void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr, bool maybe_null, bool narrow, bool acquire) {
-  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+  Assembler::InlineSkippedInstructionsCounter skip_counter(masm); // FIXME: Should cover only the fast-path barrier checks, not the load-bearing CAS itself.
 
   if (narrow) {
     if (acquire) {
@@ -708,6 +710,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     __ bind(*stub->continuation());
   }
 
+  // FIXME: Should be under needs_barrier check, so it is also covered by InlineSkippedInstructionsCounter
   card_barrier_c2(node, masm, addr);
 }
 
@@ -731,6 +734,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
     __ bind(*stub->continuation());
   }
 
+  // FIXME: Should be under needs_barrier check, so it is also covered by InlineSkippedInstructionsCounter
   card_barrier_c2(node, masm, addr);
 
   // Need to encode into tmp, because we cannot clobber src.
@@ -763,7 +767,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
 
 void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm,
                                             Register dst, Register addr, bool maybe_null, bool is_narrow, bool acquire) {
-  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+  Assembler::InlineSkippedInstructionsCounter skip_counter(masm); // FIXME: Should cover only the fast-path barrier checks, not the load-bearing CAS itself.
 
   if (is_narrow) {
     if (acquire) {
@@ -779,9 +783,11 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
     }
   }
 
+  // FIXME: Should be under needs_barrier check, so it is not here when barrier is elided
   Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
   __ ldrb(rscratch1, gcs_addr);
 
+  // FIXME: Maybe match the name with x86? There is ShenandoahLoadBarrierStubC2.
   if (ShenandoahSATBAndLRBBarrierSlowStubC2::needs_barrier(node)) {
     ShenandoahSATBAndLRBBarrierSlowStubC2* const stub = ShenandoahSATBAndLRBBarrierSlowStubC2::create(node, dst, addr, is_narrow, maybe_null);
 
@@ -798,6 +804,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
     __ b(*stub->entry());
     __ bind(*stub->continuation());
   } else if (ShenandoahLoadRefBarrierStubC2::needs_barrier(node)) {
+    // FIXME: Do we even take this branch? ShenandoahSATBAndLRBBarrierSlowStubC2 handles both?
     ShenandoahLoadRefBarrierStubC2* const stub = ShenandoahLoadRefBarrierStubC2::create(node, dst, addr, noreg, noreg, noreg, is_narrow);
 
     // Don't preserve the obj across the runtime call, we override it from the
@@ -1079,6 +1086,8 @@ void ShenandoahSATBAndLRBBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
 
 void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
   __ bind(*entry());
+
+  // FIXME: InlineSkippedInstructionsCounter is missing
 
   // Non-strong references should always go to runtime. We do not expect
   // CASes over non-strong locations.
