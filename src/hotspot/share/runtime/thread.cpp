@@ -640,7 +640,7 @@ void* Thread::process_revival() {
   // VM options:
   DisplayVMOutput = 1;
   LogVMOutput = 0;
-  NativeMemoryTracking = 0;
+  NativeMemoryTracking = nullptr;
   UnlockDiagnosticVMOptions = true;
   DebuggingContext::force(); // Disable asserts
 
