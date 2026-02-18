@@ -946,7 +946,7 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop_c2(const MachNode* node, MacroAs
 
   // Remember oldval for retry logic in slow path. We need to do it here,
   // because it will be overwritten by the fast-path CAS.
-  if (ShenandoahCASBarrier) {
+  if (ShenandoahCASBarrierSlowStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
     __ movptr(tmp2, oldval);
   }
@@ -968,7 +968,7 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop_c2(const MachNode* node, MacroAs
     assert(res == noreg, "no result expected");
   }
 
-  if (!ShenandoahSkipBarrierStubs && ShenandoahCASBarrier) {
+  if (!ShenandoahSkipBarrierStubs && ShenandoahCASBarrierSlowStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
     ShenandoahCASBarrierSlowStubC2* const stub =
       ShenandoahCASBarrierSlowStubC2::create(node, addr, oldval, newval, res, tmp1, tmp2, UseCompressedOops, exchange);
