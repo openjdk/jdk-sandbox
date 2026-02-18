@@ -121,7 +121,11 @@ public:
   void emit_stubs(CodeBuffer& cb) const /* override */;
   void late_barrier_analysis() const /* override*/ {
     compute_liveness_at_stubs();
+    analyze_dominating_barriers();
   }
+
+  void elide_dominated_barrier(MachNode* mach) const;
+  void analyze_dominating_barriers() const;
 
   virtual uint estimated_barrier_size(const Node* node) const;
 

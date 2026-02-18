@@ -505,6 +505,108 @@ bool ShenandoahBarrierSetC2::expand_barriers(Compile* C, PhaseIterGVN& igvn) con
   return false;
 }
 
+// Support for macro expanded GC barriers
+void ShenandoahBarrierSetC2::eliminate_gc_barrier_data(Node* node) const {
+  if (node->is_LoadStore()) {
+    LoadStoreNode* loadstore = node->as_LoadStore();
+    loadstore->set_barrier_data(0);
+  } else if (node->is_Mem()) {
+    MemNode* mem = node->as_Mem();
+    mem->set_barrier_data(0);
+  }
+}
+
+void ShenandoahBarrierSetC2::eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) const {
+  eliminate_gc_barrier_data(node);
+}
+
+void ShenandoahBarrierSetC2::elide_dominated_barrier(MachNode* mach) const {
+  mach->set_barrier_data(0);
+}
+
+void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
+  ResourceMark rm;
+  Compile* const C = Compile::current();
+  PhaseCFG* const cfg = C->cfg();
+
+  Node_List loads, stores, atomics;
+  Node_List load_dominators, store_dominators, atomic_dominators;
+
+  for (uint i = 0; i < cfg->number_of_blocks(); ++i) {
+    const Block* const block = cfg->get_block(i);
+    for (uint j = 0; j < block->number_of_nodes(); ++j) {
+      Node* const node = block->get_node(j);
+
+      // Everything that happens in allocations does not need barriers.
+      if (node->is_Phi() && is_allocation(node)) {
+        load_dominators.push(node);
+        store_dominators.push(node);
+        atomic_dominators.push(node);
+        continue;
+      }
+
+      if (!node->is_Mach()) {
+        continue;
+      }
+
+      MachNode* const mach = node->as_Mach();
+      switch (mach->ideal_Opcode()) {
+
+        // Dominating loads have already passed through LRB and their load
+        // locations got fixed. Subsequent barriers are no longer required.
+        // The only exception are weak loads that have to go through LRB
+        // to deal with dying referents.
+        case Op_LoadP:
+        case Op_LoadN: {
+          if ((mach->barrier_data() & ShenandoahBarrierStrong) != 0) {
+            loads.push(mach);
+            load_dominators.push(mach);
+          }
+          break;
+        }
+
+        // Dominating stores have recorded the old value in SATB, and made the
+        // card table update for a location. Subsequent barriers are no longer
+        // required. 
+        case Op_StoreP:
+        case Op_StoreN: {
+          if (mach->barrier_data() != 0) {
+            stores.push(mach);
+            load_dominators.push(mach);
+            store_dominators.push(mach);
+            atomic_dominators.push(mach);
+          }
+          break;
+        }
+
+        // Dominating atomics have (conditionally) dealt with false positives,
+        // and made the card table updates for a location. Subsequent atomic barriers
+        // are no longer required. Since atomics do fixups only conditionally,
+        // they could not be used to eliminate barriers from other types of barriers.
+        case Op_CompareAndExchangeN:
+        case Op_CompareAndExchangeP:
+        case Op_CompareAndSwapN:
+        case Op_CompareAndSwapP:
+        case Op_GetAndSetP:
+        case Op_GetAndSetN: {
+          if (mach->barrier_data() != 0) {
+            atomics.push(mach);
+            atomic_dominators.push(mach);
+          }
+          break;
+        }
+
+      default:
+        break;
+      }
+    }
+  }
+
+  elide_dominated_barriers(loads, load_dominators);
+  elide_dominated_barriers(stores, store_dominators);
+  elide_dominated_barriers(atomics, atomic_dominators);
+}
+
 uint ShenandoahBarrierSetC2::estimated_barrier_size(const Node* node) const {
   uint8_t bd = MemNode::barrier_data(node);
   assert(bd != 0, "Checked by caller");
@@ -645,21 +747,6 @@ void ShenandoahBarrierSetC2::clone_at_expansion(PhaseMacroExpand* phase, ArrayCo
   phase->transform_later(call);
 
   phase->igvn().replace_node(ac, call);
-}
-
-// Support for macro expanded GC barriers
-void ShenandoahBarrierSetC2::eliminate_gc_barrier_data(Node* node) const {
-  if (node->is_LoadStore()) {
-    LoadStoreNode* loadstore = node->as_LoadStore();
-    loadstore->set_barrier_data(0);
-  } else if (node->is_Mem()) {
-    MemNode* mem = node->as_Mem();
-    mem->set_barrier_data(0);
-  }
-}
-
-void ShenandoahBarrierSetC2::eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) const {
-  eliminate_gc_barrier_data(node);
 }
 
 void* ShenandoahBarrierSetC2::create_barrier_state(Arena* comp_arena) const {
