@@ -214,8 +214,8 @@ public:
 
   RegMask* live(const Node* node) {
     if (!node->is_Mach() || !needs_liveness_data(node->as_Mach())) {
-     // Don't need liveness for non-MachNodes or if the GC doesn't request it
-     return nullptr;
+      // Don't need liveness for non-MachNodes or if the GC doesn't request it
+      return nullptr;
     }
     RegMask* live = (RegMask*)_live[node->_idx];
     if (live == nullptr) {

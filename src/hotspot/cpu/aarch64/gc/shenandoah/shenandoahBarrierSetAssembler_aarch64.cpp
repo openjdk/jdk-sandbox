@@ -958,7 +958,7 @@ void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
   {
     SaveLiveRegisters save_registers(&masm, this);
     __ mov(c_rarg0, _tmp);
-    __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre_c2));
+    __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre));
     __ blr(rscratch1);
   }
   __ b(*continuation());
@@ -1016,7 +1016,7 @@ void ShenandoahSATBAndLRBBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
     {
       SaveLiveRegisters save_registers(&masm, this);
       __ mov(c_rarg0, _obj);
-      __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre_c2));
+      __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre));
       __ blr(rscratch1);
     }
   }
@@ -1179,7 +1179,7 @@ void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
               {
                 SaveLiveRegisters save_registers(&masm, this);
                 __ mov(c_rarg0, _tmp1);
-                __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre_c2));
+                __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre));
                 __ blr(rscratch1);
               }
 

@@ -5270,12 +5270,13 @@ void  MacroAssembler::decode_heap_oop(Register d, Register s) {
   if (CompressedOops::base() == nullptr) {
     if (CompressedOops::shift() != 0) {
       lsl(d, s, CompressedOops::shift());
-    } else {
+    } else if (d != s) {
       mov(d, s);
     }
   } else {
     Label done;
-    mov(d, s);
+    if (d != s)
+      mov(d, s);
     cbz(s, done);
     add(d, rheapbase, s, Assembler::LSL, LogMinObjAlignmentInBytes);
     bind(done);
@@ -5316,7 +5317,9 @@ void  MacroAssembler::decode_heap_oop_not_null(Register dst, Register src) {
     }
   } else {
     assert (CompressedOops::base() == nullptr, "sanity");
-    mov(dst, src);
+    if (dst != src) {
+      mov(dst, src);
+    }
   }
 }
 

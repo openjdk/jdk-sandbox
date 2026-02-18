@@ -664,11 +664,7 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop(MacroAssembler* masm,
   // with filters.
 
   // Filter: when offending in-memory value is null, the failure is definitely legitimate
-  if (UseCompressedOops) {
-    __ testl(oldval, oldval);
-  } else {
-    __ testptr(oldval, oldval);
-  }
+  __ testptr(oldval, oldval);
   __ jcc(Assembler::zero, L_failure);
 
   // Filter: when heap is stable, the failure is definitely legitimate
@@ -1165,7 +1161,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
       if (c_rarg0 != _dst) {
         __ mov(c_rarg0, _dst);
       }
-      __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre_c2)), rax);
+      __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre)), rax);
     }
     __ jmp(L_satb_pack_and_done);
   }
@@ -1248,7 +1244,7 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
     // entering this stub, it is saved at this point, and restored after the
     // call. If it did not contain any live value, it is free to be used. In
     // either case, it is safe to use it here as a call scratch register.
-    __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre_c2)), rax);
+    __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre)), rax);
   }
   __ jmp(*continuation());
 }
@@ -1367,7 +1363,7 @@ void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
     // entering this stub, it is saved at this point, and restored after the
     // call. If it did not contain any live value, it is free to be used. In
     // either case, it is safe to use it here as a call scratch register.
-    __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre_c2)), rax);
+    __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre)), rax);
   }
   __ jmp(*continuation());
 }
