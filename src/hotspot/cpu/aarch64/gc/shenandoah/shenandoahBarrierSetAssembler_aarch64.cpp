@@ -646,7 +646,7 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
   __ cset(exchange? tmp2 : res, Assembler::EQ);
 
   ShenandoahCASBarrierSlowStubC2* cmpx = nullptr;
-  if (ShenandoahCASBarrierSlowStubC2::needs_barrier(node)) {
+  if (!ShenandoahSkipBarrierStubs && ShenandoahCASBarrierSlowStubC2::needs_barrier(node)) {
     // Shift GCState right according to result of previous CAS. Luckily, the
     // boolean result of the CAS also matches the index of the bit that we need
     // to test later on.
@@ -693,7 +693,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     }
   }
 
-  if (ShenandoahSATBAndLRBBarrierSlowStubC2::needs_barrier(node)) {
+  if (!ShenandoahSkipBarrierStubs && ShenandoahSATBAndLRBBarrierSlowStubC2::needs_barrier(node)) {
     Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ ldrb(rscratch1, gcs_addr);
 
@@ -720,7 +720,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
                                              Register tmp, Register pre_val,
                                              bool is_volatile) {
 
-  if (ShenandoahSATBBarrierStubC2::needs_barrier(node)) {
+  if (!ShenandoahSkipBarrierStubs && ShenandoahSATBBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
     Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ ldrb(tmp, gcs_addr);
@@ -788,7 +788,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
   __ ldrb(rscratch1, gcs_addr);
 
   // FIXME: Maybe match the name with x86? There is ShenandoahLoadBarrierStubC2.
-  if (ShenandoahSATBAndLRBBarrierSlowStubC2::needs_barrier(node)) {
+  if (!ShenandoahSkipBarrierStubs && ShenandoahSATBAndLRBBarrierSlowStubC2::needs_barrier(node)) {
     ShenandoahSATBAndLRBBarrierSlowStubC2* const stub = ShenandoahSATBAndLRBBarrierSlowStubC2::create(node, dst, addr, is_narrow, maybe_null);
 
     stub->preserve(addr);
@@ -803,7 +803,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
     __ tbz(rscratch1, 0x0, *stub->continuation());
     __ b(*stub->entry());
     __ bind(*stub->continuation());
-  } else if (ShenandoahLoadRefBarrierStubC2::needs_barrier(node)) {
+  } else if (!ShenandoahSkipBarrierStubs && ShenandoahLoadRefBarrierStubC2::needs_barrier(node)) {
     // FIXME: Do we even take this branch? ShenandoahSATBAndLRBBarrierSlowStubC2 handles both?
     ShenandoahLoadRefBarrierStubC2* const stub = ShenandoahLoadRefBarrierStubC2::create(node, dst, addr, noreg, noreg, noreg, is_narrow);
 

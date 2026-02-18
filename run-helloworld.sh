@@ -47,11 +47,11 @@ run_with() {
 if [ "x" != "x$J_ML" ]; then
 	echo
 	echo "Mainline: No barriers"
-#	run_with $J_ML $OPTS
+	run_with $J_ML $OPTS
 
 	echo
 	echo "Mainline: All barriers"
-#	run_with $J_ML $OPTS_ALL
+	run_with $J_ML $OPTS_ALL
 fi
 
 echo
@@ -67,14 +67,6 @@ exit
 echo
 echo "LBE: All barriers, nop GC state checks"
 run_with $J_LBE $OPTS_ALL -XX:+ShenandoahNopGCState
-
-echo
-echo "LBE: All barriers, hollow barrier stubs"
-run_with $J_LBE $OPTS_ALL -XX:+ShenandoahHollowBarrierStubs
-
-echo
-echo "LBE: All barriers, hollow barrier stubs and nop GC state checks"
-run_with $J_LBE $OPTS_ALL -XX:+ShenandoahHollowBarrierStubs -XX:+ShenandoahNopGCState
 
 echo
 echo "LBE: All barriers, skip barrier stubs altogether"

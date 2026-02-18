@@ -520,9 +520,6 @@
   product(bool, ShenandoahNopGCState, false, EXPERIMENTAL,                  \
           "DANGEROUS, ONLY WITH PASSIVE MODE: NOP out GC state checks.")    \
                                                                             \
-  product(bool, ShenandoahHollowBarrierStubs, false, EXPERIMENTAL,          \
-          "DANGEROUS, ONLY WITH PASSIVE MODE: hollow slow barrier stubs.")  \
-                                                                            \
   product(bool, ShenandoahSkipBarrierStubs, false, EXPERIMENTAL,            \
           "DANGEROUS, ONLY WITH PASSIVE MODE: skip slow barrier stubs.")    \
                                                                             \

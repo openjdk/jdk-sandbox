@@ -69,14 +69,6 @@ echo "LBE: All barriers, nop GC state checks"
 run_with $J_LBE $OPTS_ALL -XX:+ShenandoahNopGCState
 
 echo
-echo "LBE: All barriers, hollow barrier stubs"
-run_with $J_LBE $OPTS_ALL -XX:+ShenandoahHollowBarrierStubs
-
-echo
-echo "LBE: All barriers, hollow barrier stubs and nop GC state checks"
-run_with $J_LBE $OPTS_ALL -XX:+ShenandoahNopGCState -XX:+ShenandoahHollowBarrierStubs
-
-echo
 echo "LBE: All barriers, skip barrier stubs altogether"
 run_with $J_LBE $OPTS_ALL -XX:+ShenandoahSkipBarrierStubs
 

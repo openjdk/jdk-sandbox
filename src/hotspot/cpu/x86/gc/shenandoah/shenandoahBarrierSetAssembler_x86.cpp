@@ -992,10 +992,6 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
   __ bind(*entry());
-  if (ShenandoahHollowBarrierStubs) {
-    __ jmp(*continuation());
-    return;
-  }
 
   assert_different_registers(_tmp, _dst);
 
@@ -1171,10 +1167,6 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
   __ bind(*entry());
-  if (ShenandoahHollowBarrierStubs) {
-    __ jmp(*continuation());
-    return;
-  }
  
   Label L_runtime, L_preval_null;
 
@@ -1253,10 +1245,6 @@ void ShenandoahLoadRefBarrierStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
   __ bind(*entry());
-  if (ShenandoahHollowBarrierStubs) {
-    __ jmp(*continuation());
-    return;
-  }
 
   Register obj = _obj;
   if (_narrow) {
@@ -1321,10 +1309,6 @@ void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
   __ bind(*entry());
-  if (ShenandoahHollowBarrierStubs) {
-    __ jmp(*continuation());
-    return;
-  }
 
   Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
@@ -1372,10 +1356,6 @@ void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
   __ bind(*entry());
-  if (ShenandoahHollowBarrierStubs) {
-    __ jmp(*continuation());
-    return;
-  }
 
   // CAS has failed because the value held at addr does not match expected.
   // This may be a false negative because the version in memory might be
