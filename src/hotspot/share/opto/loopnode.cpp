@@ -221,7 +221,8 @@ Node *PhaseIdealLoop::get_early_ctrl_for_expensive(Node *n, Node* earliest) {
         if (nb_ctl_proj > 1) {
           break;
         }
-        assert(parent_ctl->is_Start() || parent_ctl->is_MemBar() || parent_ctl->is_Call(), "unexpected node");
+        assert(parent_ctl->is_Start() || parent_ctl->is_MemBar() || parent_ctl->is_Call() ||
+               BarrierSet::barrier_set()->barrier_set_c2()->is_gc_barrier_node(parent_ctl), "unexpected node");
         assert(idom(ctl) == parent_ctl, "strange");
         next = idom(parent_ctl);
       }
@@ -5064,10 +5065,12 @@ void PhaseIdealLoop::build_and_optimize() {
     return;
   }
 
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   // Nothing to do, so get out
   bool stop_early = !C->has_loops() && !skip_loop_opts && !do_split_ifs && !do_max_unroll && !_verify_me &&
-          !_verify_only;
+          !_verify_only && !bs->is_gc_specific_loop_opts_pass(_mode);
   bool do_expensive_nodes = C->should_optimize_expensive_nodes(_igvn);
+  bool strip_mined_loops_expanded = bs->strip_mined_loops_expanded(_mode);
   if (stop_early && !do_expensive_nodes) {
     return;
   }
@@ -5144,7 +5147,7 @@ void PhaseIdealLoop::build_and_optimize() {
 
   // Given early legal placement, try finding counted loops.  This placement
   // is good enough to discover most loop invariants.
-  if (!_verify_me && !_verify_only) {
+  if (!_verify_me && !_verify_only && !strip_mined_loops_expanded) {
     _ltree_root->counted_loop( this );
   }
 
@@ -5226,6 +5229,10 @@ void PhaseIdealLoop::build_and_optimize() {
     }
 
     C->restore_major_progress(old_progress);
+    return;
+  }
+
+  if (bs->optimize_loops(this, _mode, visited, nstack, worklist)) {
     return;
   }
 
@@ -6915,7 +6922,7 @@ void PhaseIdealLoop::build_loop_late_post_work(Node *n, bool pinned) {
   }
   // Try not to place code on a loop entry projection
   // which can inhibit range check elimination.
-  if (least != early) {
+  if (least != early && !BarrierSet::barrier_set()->barrier_set_c2()->is_gc_specific_loop_opts_pass(_mode)) {
     Node* ctrl_out = least->unique_ctrl_out_or_null();
     if (ctrl_out != nullptr && ctrl_out->is_Loop() &&
         least == ctrl_out->in(LoopNode::EntryControl) &&
