@@ -585,7 +585,7 @@ instruct getAndSet_P_Normal_shenandoah(indirect mem, iRegP newval, iRegPNoSp pre
   ins_encode %{
     ShenandoahBarrierSet::assembler()->get_and_set_c2(this, masm,
       $preval$$Register,
-      $newval$$base$$Register,
+      $newval$$Register,
       $mem$$Register,
       /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
       /* is_narrow */ false,
@@ -606,7 +606,7 @@ instruct getAndSet_P_Volatile_shenandoah(indirect mem, iRegP newval, iRegPNoSp p
   ins_encode %{
     ShenandoahBarrierSet::assembler()->get_and_set_c2(this, masm,
       $preval$$Register,
-      $newval$$base$$Register,
+      $newval$$Register,
       $mem$$Register,
       /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
       /* is_narrow */ false,
@@ -627,7 +627,7 @@ instruct getAndSet_N_Normal_shenandoah(indirect mem, iRegN newval, iRegNNoSp pre
   ins_encode %{
     ShenandoahBarrierSet::assembler()->get_and_set_c2(this, masm,
       $preval$$Register,
-      $newval$$base$$Register,
+      $newval$$Register,
       $mem$$Register,
       /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
       /* is_narrow */ true,
@@ -648,7 +648,7 @@ instruct getAndSet_N_Volatile_shenandoah(indirect mem, iRegN newval, iRegNNoSp p
   ins_encode %{
     ShenandoahBarrierSet::assembler()->get_and_set_c2(this, masm,
       $preval$$Register,
-      $newval$$base$$Register,
+      $newval$$Register,
       $mem$$Register,
       /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
       /* is_narrow */ true,
@@ -660,132 +660,80 @@ instruct getAndSet_N_Volatile_shenandoah(indirect mem, iRegN newval, iRegNNoSp p
 
 // This pattern is generated automatically from shenandoah_aarch64.m4.
 // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct load_P_Normal_shenandoah(iRegPNoSp dst, indirect mem, iRegPNoSp tmp, rFlagsReg cr)
+instruct load_P_Normal_shenandoah(iRegPNoSp dst, indirect mem, rFlagsReg cr)
 %{
   match(Set dst (LoadP mem));
   predicate(UseShenandoahGC && !needs_acquiring_load(n) && n->as_Load()->barrier_data() != 0);
-  effect(TEMP_DEF dst, TEMP tmp, KILL cr);
+  effect(TEMP_DEF dst, KILL cr);
   ins_cost(3*INSN_COST);
   format %{ "ldr  $dst, $mem\t# ptr" %}
   ins_encode %{
-    __ ldr($dst$$Register, $mem$$Register);
-
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb($tmp$$Register, gcs_addr);
-
-    bool is_narrow = false;
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                        noreg            /* obj */,
-                                                        $dst$$Register   /* pre_val, in this case it will be only used in the slowpath as tmp. */,
-                                                        $tmp$$Register   /* gc_state */,
-                                                        is_narrow        /* encoded_preval */);
-
-    bool maybe_null = (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull);
-    ShenandoahBarrierSet::assembler()->load_ref_barrier_c2(this, masm,
-                                                        $dst$$Register /* obj */,
-                                                        $mem$$Register /* addr */,
-                                                        is_narrow      /* narrow */,
-                                                        maybe_null,
-                                                        $tmp$$Register /* gc_state */);
+    ShenandoahBarrierSet::assembler()->load_c2(this, masm,
+      $dst$$Register,
+      $mem$$Register,
+      /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
+      /* is_narrow */ false,
+      /* acquire */ false);
   %}
   ins_pipe(pipe_class_memory);
 %}
 
 // This pattern is generated automatically from shenandoah_aarch64.m4.
 // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct load_P_Volatile_shenandoah(iRegPNoSp dst, indirect mem, iRegPNoSp tmp, rFlagsReg cr)
+instruct load_P_Volatile_shenandoah(iRegPNoSp dst, indirect mem, rFlagsReg cr)
 %{
   match(Set dst (LoadP mem));
   predicate(UseShenandoahGC && needs_acquiring_load(n) && n->as_Load()->barrier_data() != 0);
-  effect(TEMP_DEF dst, TEMP tmp, KILL cr);
+  effect(TEMP_DEF dst, KILL cr);
   ins_cost(VOLATILE_REF_COST);
   format %{ "ldar  $dst, $mem\t# ptr" %}
   ins_encode %{
-    __ ldar($dst$$Register, $mem$$Register);
-
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb($tmp$$Register, gcs_addr);
-
-    bool is_narrow = false;
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                        noreg            /* obj */,
-                                                        $dst$$Register   /* pre_val, in this case it will be only used in the slowpath as tmp. */,
-                                                        $tmp$$Register   /* gc_state */,
-                                                        is_narrow        /* encoded_preval */);
-
-    bool maybe_null = (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull);
-    ShenandoahBarrierSet::assembler()->load_ref_barrier_c2(this, masm,
-                                                        $dst$$Register /* obj */,
-                                                        $mem$$Register /* addr */,
-                                                        is_narrow      /* narrow */,
-                                                        maybe_null,
-                                                        $tmp$$Register /* gc_state */);
+    ShenandoahBarrierSet::assembler()->load_c2(this, masm,
+      $dst$$Register,
+      $mem$$Register,
+      /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
+      /* is_narrow */ false,
+      /* acquire */ true);
   %}
   ins_pipe(pipe_class_memory);
 %}
 
 // This pattern is generated automatically from shenandoah_aarch64.m4.
 // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct load_N_Normal_shenandoah(iRegNNoSp dst, indirect mem, iRegPNoSp tmp, rFlagsReg cr)
+instruct load_N_Normal_shenandoah(iRegNNoSp dst, indirect mem, rFlagsReg cr)
 %{
   match(Set dst (LoadN mem));
   predicate(UseShenandoahGC && !needs_acquiring_load(n) && n->as_Load()->barrier_data() != 0);
-  effect(TEMP_DEF dst, TEMP tmp, KILL cr);
+  effect(TEMP_DEF dst, KILL cr);
   ins_cost(3*INSN_COST);
   format %{ "ldrw  $dst, $mem\t# ptr" %}
   ins_encode %{
-    __ ldrw($dst$$Register, $mem$$Register);
-
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb($tmp$$Register, gcs_addr);
-
-    bool is_narrow = true;
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                        noreg            /* obj */,
-                                                        $dst$$Register   /* pre_val, in this case it will be only used in the slowpath as tmp. */,
-                                                        $tmp$$Register   /* gc_state */,
-                                                        is_narrow        /* encoded_preval */);
-
-    bool maybe_null = (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull);
-    ShenandoahBarrierSet::assembler()->load_ref_barrier_c2(this, masm,
-                                                        $dst$$Register /* obj */,
-                                                        $mem$$Register /* addr */,
-                                                        is_narrow      /* narrow */,
-                                                        maybe_null,
-                                                        $tmp$$Register /* gc_state */);
+    ShenandoahBarrierSet::assembler()->load_c2(this, masm,
+      $dst$$Register,
+      $mem$$Register,
+      /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
+      /* is_narrow */ true,
+      /* acquire */ false);
   %}
   ins_pipe(pipe_class_memory);
 %}
 
 // This pattern is generated automatically from shenandoah_aarch64.m4.
 // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct load_N_Volatile_shenandoah(iRegNNoSp dst, indirect mem, iRegPNoSp tmp, rFlagsReg cr)
+instruct load_N_Volatile_shenandoah(iRegNNoSp dst, indirect mem, rFlagsReg cr)
 %{
   match(Set dst (LoadN mem));
   predicate(UseShenandoahGC && needs_acquiring_load(n) && n->as_Load()->barrier_data() != 0);
-  effect(TEMP_DEF dst, TEMP tmp, KILL cr);
+  effect(TEMP_DEF dst, KILL cr);
   ins_cost(VOLATILE_REF_COST);
   format %{ "ldarw  $dst, $mem\t# ptr" %}
   ins_encode %{
-    __ ldarw($dst$$Register, $mem$$Register);
-
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb($tmp$$Register, gcs_addr);
-
-    bool is_narrow = true;
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                        noreg            /* obj */,
-                                                        $dst$$Register   /* pre_val, in this case it will be only used in the slowpath as tmp. */,
-                                                        $tmp$$Register   /* gc_state */,
-                                                        is_narrow        /* encoded_preval */);
-
-    bool maybe_null = (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull);
-    ShenandoahBarrierSet::assembler()->load_ref_barrier_c2(this, masm,
-                                                        $dst$$Register /* obj */,
-                                                        $mem$$Register /* addr */,
-                                                        is_narrow      /* narrow */,
-                                                        maybe_null,
-                                                        $tmp$$Register /* gc_state */);
+    ShenandoahBarrierSet::assembler()->load_c2(this, masm,
+      $dst$$Register,
+      $mem$$Register,
+      /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
+      /* is_narrow */ true,
+      /* acquire */ true);
   %}
   ins_pipe(pipe_class_memory);
 %}

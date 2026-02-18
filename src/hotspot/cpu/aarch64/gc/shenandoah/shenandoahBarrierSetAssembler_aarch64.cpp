@@ -659,7 +659,7 @@ void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, Ma
  */
 void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval, Register newval, Register tmp1, Register tmp2, bool exchange, bool maybe_null, bool narrow, bool acquire, bool release, bool weak) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
-  Assembler::operand_size op_size = UseCompressedOops ? Assembler::word : Assembler::xword;
+  Assembler::operand_size op_size = narrow ? Assembler::word : Assembler::xword;
 
   // We need to do a combination of short and long jump because the stub entry
   // may be too far to jump directly to.
@@ -722,6 +722,10 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
 
   // rscratch1[0] = gc_state[ShenandoahHeap::HAS_FORWARDED_BITPOS] | gc_state[ShenandoahHeap::MARKING_BITPOS]
   __ orr(rscratch1, rscratch1, rscratch1, Assembler::LSR, ShenandoahHeap::MARKING_BITPOS);
+
+  // rscratch1[0] = rscratch1[0] | gc_state[ShenandoahHeap::WEAK_ROOTS_BITPOS]
+  __ orr(rscratch1, rscratch1, rscratch1, Assembler::LSR, ShenandoahHeap::WEAK_ROOTS_BITPOS - ShenandoahHeap::MARKING_BITPOS);
+
   __ tbz(rscratch1, 0x0, *stub->continuation());
   __ b(*stub->entry());
   __ bind(*stub->continuation());
@@ -730,7 +734,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
 }
 
 void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm,
-                                             Register dst, bool dst_narrow,
+                                             Register addr, bool dst_narrow,
                                              Register src, bool src_narrow,
                                              Register tmp, Register pre_val,
                                              bool is_volatile) {
@@ -738,9 +742,9 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
   __ ldrb(tmp, gcs_addr);
 
-  satb_barrier_c2(node, masm, dst, pre_val, tmp, src_narrow);
+  satb_barrier_c2(node, masm, addr, noreg, tmp, dst_narrow);
 
-  card_barrier_c2(node, masm, dst);
+  card_barrier_c2(node, masm, addr);
 
   // Need to encode into tmp, because we cannot clobber src.
   // TODO: Maybe there is a matcher way to test that src is unused after this?
@@ -757,16 +761,80 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   // Do the actual store
   if (dst_narrow) {
     if (is_volatile) {
-      __ stlrw(src, dst);
+      __ stlrw(src, addr);
     } else {
-      __ strw(src, dst);
+      __ strw(src, addr);
     }
   } else {
     if (is_volatile) {
-      __ stlr(src, dst);
+      __ stlr(src, addr);
     } else {
-      __ str(src, dst);
+      __ str(src, addr);
     }
+  }
+}
+
+void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm,
+                                            Register dst, Register addr, bool maybe_null, bool is_narrow, bool acquire) {
+  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+
+  if (is_narrow) {
+    if (acquire) {
+      __ ldarw(dst, addr);
+    } else {
+      __ ldrw(dst, addr);
+    }
+  } else {
+    if (acquire) {
+      __ ldar(dst, addr);
+    } else {
+      __ ldr(dst, addr);
+    }
+  }
+
+  Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+  __ ldrb(rscratch1, gcs_addr);
+
+  if (ShenandoahSATBBarrierStubC2::needs_barrier(node)) {
+    ShenandoahSATBAndLRBBarrierSlowStubC2* const stub = ShenandoahSATBAndLRBBarrierSlowStubC2::create(node, dst, addr, is_narrow, maybe_null);
+
+    stub->preserve(addr);
+    stub->dont_preserve(dst);
+
+    // rscratch1[0] = gc_state[ShenandoahHeap::HAS_FORWARDED_BITPOS] | gc_state[ShenandoahHeap::MARKING_BITPOS]
+    __ orr(rscratch1, rscratch1, rscratch1, Assembler::LSR, ShenandoahHeap::MARKING_BITPOS);
+
+    // rscratch1[0] = rscratch1[0] | gc_state[ShenandoahHeap::WEAK_ROOTS_BITPOS]
+    __ orr(rscratch1, rscratch1, rscratch1, Assembler::LSR, ShenandoahHeap::WEAK_ROOTS_BITPOS - ShenandoahHeap::MARKING_BITPOS);
+
+    __ tbz(rscratch1, 0x0, *stub->continuation());
+    __ b(*stub->entry());
+    __ bind(*stub->continuation());
+  } else {
+    ShenandoahLoadRefBarrierStubC2* const stub = ShenandoahLoadRefBarrierStubC2::create(node, dst, addr, rscratch1, noreg, noreg, is_narrow);
+
+    // Don't preserve the obj across the runtime call, we override it from the
+    // return value anyway.
+    stub->preserve(addr);
+    stub->dont_preserve(dst);
+
+    // Check if GC marking is in progress or we are handling a weak reference,
+    // otherwise we don't have to do anything. The code below was optimized to
+    // use less registers and instructions as possible at the expense of always
+    // having a branch instruction. The reason why we use this particular branch
+    // scheme is because the stub entry may be too far for the tbnz to jump to.
+    bool is_strong = (node->barrier_data() & ShenandoahBarrierStrong) != 0;
+    if (is_strong) {
+      __ tbz(rscratch1, ShenandoahHeap::HAS_FORWARDED_BITPOS, *stub->continuation());
+      __ b(*stub->entry());
+    } else {
+      static_assert(ShenandoahHeap::HAS_FORWARDED_BITPOS == 0, "Relied on in LRB check below.");
+      __ orr(rscratch1, rscratch1, rscratch1, Assembler::LSR, ShenandoahHeap::WEAK_ROOTS_BITPOS);
+      __ tbz(rscratch1, ShenandoahHeap::HAS_FORWARDED_BITPOS, *stub->continuation());
+      __ b(*stub->entry());
+    }
+
+    __ bind(*stub->continuation());
   }
 }
 
@@ -820,28 +888,29 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroA
 
 void ShenandoahLoadRefBarrierStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
+  Label lrb_end;
   __ bind(*entry());
-  Register obj = _obj;
   if (_narrow) {
-    __ decode_heap_oop(_tmp1, _obj);
-    obj = _tmp1;
+    __ decode_heap_oop(_obj);
   }
   // Weak/phantom loads always need to go to runtime.
   if ((_node->barrier_data() & ShenandoahBarrierStrong) != 0) {
     // Check for object in cset.
     __ mov(rscratch2, ShenandoahHeap::in_cset_fast_test_addr());
-    __ lsr(rscratch1, obj, ShenandoahHeapRegion::region_size_bytes_shift_jint());
+    __ lsr(rscratch1, _obj, ShenandoahHeapRegion::region_size_bytes_shift_jint());
     __ ldrb(rscratch2, Address(rscratch2, rscratch1));
-    __ cbz(rscratch2, *continuation());
+    __ cbz(rscratch2, lrb_end);
   }
+
+  dont_preserve(_obj);
   {
     SaveLiveRegisters save_registers(&masm, this);
-    if (c_rarg0 != obj) {
+    if (c_rarg0 != _obj) {
       if (c_rarg0 == _addr) {
         __ mov(rscratch1, _addr);
         _addr = rscratch1;
       }
-      __ mov(c_rarg0, obj);
+      __ mov(c_rarg0, _obj);
     }
     __ mov(c_rarg1, _addr);
 
@@ -852,6 +921,8 @@ void ShenandoahLoadRefBarrierStubC2::emit_code(MacroAssembler& masm) {
         __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow));
       } else if ((_node->barrier_data() & ShenandoahBarrierPhantom) != 0) {
         __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow));
+      } else {
+        assert(false, "what?!");
       }
     } else {
       if ((_node->barrier_data() & ShenandoahBarrierStrong) != 0) {
@@ -860,11 +931,14 @@ void ShenandoahLoadRefBarrierStubC2::emit_code(MacroAssembler& masm) {
         __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak));
       } else if ((_node->barrier_data() & ShenandoahBarrierPhantom) != 0) {
         __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom));
+      } else {
+        assert(false, "what?!");
       }
     }
     __ blr(rscratch1);
     __ mov(_obj, r0);
   }
+  __ bind(lrb_end);
   if (_narrow) {
     __ encode_heap_oop(_obj);
   }
@@ -883,8 +957,10 @@ void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   // Do we need to load the previous value?
   if (_addr != noreg) {
+    assert(_preval == noreg, "should be");
     __ load_heap_oop(_tmp, Address(_addr, 0), noreg, noreg, AS_RAW);
   } else {
+    assert(_preval != noreg, "should be");
     if (_encoded_preval) {
       __ decode_heap_oop(_tmp, _preval);
     } else {
@@ -912,6 +988,7 @@ void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
   {
     SaveLiveRegisters save_registers(&masm, this);
     __ mov(c_rarg0, _tmp);
+    __ mov(c_rarg0, _tmp);
     __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre_c2));
     __ blr(rscratch1);
   }
@@ -931,7 +1008,7 @@ void ShenandoahSATBAndLRBBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
   __ bind(*entry());
 
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
-  Label satb;
+  Label lrb;
 
   if (_narrow) {
     if (_maybe_null) {
@@ -941,10 +1018,45 @@ void ShenandoahSATBAndLRBBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
     }
   }
 
-  { // LRB
+  { // SATB
+
     Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ ldrb(rscratch1, gcs_addr);
-    __ tbz(rscratch1, ShenandoahHeap::HAS_FORWARDED_BITPOS, satb);
+    __ tbz(rscratch1, ShenandoahHeap::MARKING_BITPOS, lrb);
+
+    Address index(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
+    Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
+    Label runtime;
+
+    // Load current buffer's index
+    __ ldr(rscratch1, index);
+
+    // If buffer is full, call into runtime.
+    __ cbz(rscratch1, runtime);
+
+    // The buffer is not full, store value into it.
+    __ sub(rscratch1, rscratch1, wordSize);
+    __ str(rscratch1, index);
+    __ ldr(rscratch2, buffer);
+    __ str(_obj, Address(rscratch2, rscratch1));
+    __ b(lrb);
+
+    // Runtime call
+    __ bind(runtime);
+
+    preserve(_obj);
+    {
+      SaveLiveRegisters save_registers(&masm, this);
+      __ mov(c_rarg0, _obj);
+      __ mov(c_rarg0, _obj);
+      __ mov(c_rarg0, _obj);
+      __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre_c2));
+      __ blr(rscratch1);
+    }
+  }
+
+  __ bind(lrb); { // LRB
+    Label lrb_end;
 
     // Weak/phantom loads always need to go to runtime, otherwise check for
     // object in cset.
@@ -952,9 +1064,14 @@ void ShenandoahSATBAndLRBBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
       __ mov(rscratch2, ShenandoahHeap::in_cset_fast_test_addr());
       __ lsr(rscratch1, _obj, ShenandoahHeapRegion::region_size_bytes_shift_jint());
       __ ldrb(rscratch2, Address(rscratch2, rscratch1));
-      __ cbz(rscratch2, satb);
+      __ cbz(rscratch2, lrb_end);
+
+      Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+      __ ldrb(rscratch1, gcs_addr);
+      __ tbz(rscratch1, ShenandoahHeap::HAS_FORWARDED_BITPOS, lrb_end);
     }
 
+    dont_preserve(_obj);
     {
       SaveLiveRegisters save_registers(&masm, this);
       if (c_rarg0 != _obj) {
@@ -986,42 +1103,8 @@ void ShenandoahSATBAndLRBBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
       __ blr(rscratch1);
       __ mov(_obj, r0);
     }
-  }
 
-  __ bind(satb); {
-    Label satb_end;
-
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb(rscratch1, gcs_addr);
-    __ tbz(rscratch1, ShenandoahHeap::MARKING_BITPOS, satb_end);
-
-    Address index(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
-    Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
-    Label runtime;
-
-    __ ldr(rscratch1, index);
-
-    // If buffer is full, call into runtime.
-    __ cbz(rscratch1, runtime);
-
-    // The buffer is not full, store value into it.
-    __ sub(rscratch1, rscratch1, wordSize);
-    __ str(rscratch1, index);
-    __ ldr(rscratch2, buffer);
-    __ str(_obj, Address(rscratch2, rscratch1));
-    __ b(*continuation());
-
-    // Runtime call
-    __ bind(runtime);
-
-    {
-      SaveLiveRegisters save_registers(&masm, this);
-      __ mov(c_rarg0, _obj);
-      __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre_c2));
-      __ blr(rscratch1);
-    }
-
-    __ bind(satb_end);
+    __ bind(lrb_end);
   }
 
   if (_narrow) {
@@ -1048,7 +1131,7 @@ void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
   // check if first CAS succeded, if it did we just need to write to SATB
   __ cbnz(_cae ? _tmp2 : _result, L_succeded);
 
-          // First CAS attempt did not succed. Execute LRB on 'addr' and retry CAS.
+          // First CAS attempt did not succeed. Execute LRB on 'addr' and retry CAS.
           if (!_cae) {
             __ mov(_result, _tmp2);
           }
@@ -1056,7 +1139,7 @@ void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
           // (Compressed) failure witness is in _result.
           // Unpack it and check if it is in collection set.
           // We need to backup the compressed version to use in the LRB.
-          if (UseCompressedOops) {
+          if (_narrow) {
             __ decode_heap_oop(_result);
           }
 
@@ -1071,7 +1154,7 @@ void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
             __ mov(c_rarg0, _result);
             __ mov(c_rarg1, _addr_reg);
 
-            if (UseCompressedOops) {
+            if (_narrow) {
               __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow), 2);
             } else {
               __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong), 2);
@@ -1082,7 +1165,7 @@ void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
 
           __ bind(L_final);
 
-          Assembler::operand_size size = UseCompressedOops ? Assembler::word : Assembler::xword;
+          Assembler::operand_size size = _narrow ? Assembler::word : Assembler::xword;
           __ cmpxchg(_addr_reg, _expected, _new_val, size, _acquire, _release, _weak, _result);
 
           if (!_cae) {
@@ -1095,6 +1178,14 @@ void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
 
 
     __ bind(L_succeded);
+              Label short_branch;
+
+              Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+              __ ldrb(rscratch1, gcs_addr);
+              __ tbnz(rscratch1, ShenandoahHeap::MARKING_BITPOS, short_branch);
+              __ b(*continuation());
+              __ bind(short_branch);
+
               if (_narrow) {
                 __ decode_heap_oop(_tmp1, _expected);
               } else {
@@ -1119,6 +1210,9 @@ void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
               __ bind(runtime);
               {
                 SaveLiveRegisters save_registers(&masm, this);
+                __ mov(c_rarg0, _tmp1);
+                __ mov(c_rarg0, _tmp1);
+                __ mov(c_rarg0, _tmp1);
                 __ mov(c_rarg0, _tmp1);
                 __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre_c2));
                 __ blr(rscratch1);
