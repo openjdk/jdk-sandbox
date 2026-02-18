@@ -939,6 +939,9 @@ void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
     }
   }
 
+  // FIXME: See if it is possible to merge this null-check with decoding
+  __ cbz(_tmp, *continuation());
+
   Address index(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
   Label runtime;
@@ -991,6 +994,9 @@ void ShenandoahSATBAndLRBBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
     Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ ldrb(rscratch1, gcs_addr);
     __ tbz(rscratch1, ShenandoahHeap::MARKING_BITPOS, lrb);
+
+    // FIXME: See if it is possible to merge this null-check with decoding
+    __ cbz(_obj, lrb);
 
     Address index(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
     Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
@@ -1159,6 +1165,9 @@ void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
               } else {
                 _tmp1 = _expected;
               }
+
+                // FIXME: See if it is possible to merge this null-check with decoding
+              __ cbz(_tmp1, *continuation());
 
               Address index(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
               Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
