@@ -919,6 +919,8 @@ void ShenandoahSATBAndLRBBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
     } else {
       __ decode_heap_oop_not_null(_obj);
     }
+  } else {
+    __ cbz(_obj, lrb);
   }
 
   { // SATB
