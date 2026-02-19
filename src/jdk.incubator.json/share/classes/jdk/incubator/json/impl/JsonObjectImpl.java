@@ -27,6 +27,7 @@ package jdk.incubator.json.impl;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.SequencedMap;
 
 import jdk.incubator.json.JsonObject;
 import jdk.incubator.json.JsonValue;
@@ -38,23 +39,23 @@ import jdk.internal.ValueBased;
 @ValueBased
 public final class JsonObjectImpl implements JsonObject, JsonValueImpl {
 
-    private final Map<String, JsonValue> theMembers;
+    private final SequencedMap<String, JsonValue> theMembers;
     private final int offset;
     private final char[] doc;
 
-    public JsonObjectImpl(Map<String, JsonValue> map) {
+    public JsonObjectImpl(SequencedMap<String, JsonValue> map) {
         this(map, -1, null);
     }
 
-    public JsonObjectImpl(Map<String, JsonValue> map, int o, char[] d) {
+    public JsonObjectImpl(SequencedMap<String, JsonValue> map, int o, char[] d) {
         theMembers = map;
         offset = o;
         doc = d;
     }
 
     @Override
-    public Map<String, JsonValue> members() {
-        return Collections.unmodifiableMap(theMembers);
+    public SequencedMap<String, JsonValue> members() {
+        return Collections.unmodifiableSequencedMap(theMembers);
     }
 
     @Override

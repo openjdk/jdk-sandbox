@@ -27,6 +27,7 @@ package jdk.incubator.json;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.SequencedMap;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -41,6 +42,11 @@ import jdk.incubator.json.impl.JsonObjectImpl;
  * Implementations of {@code JsonObject} cannot be created from sources that
  * contain duplicate member names. If duplicate names appear during
  * a {@link Json#parse(String)}, a {@code JsonParseException} is thrown.
+ * <h2><a id="member_order">The order of members</a></h2>
+ * The order of members in {@code JsonObject} follows the order in the source
+ * JSON document when the {@code JsonObject} is created by parsing. When created
+ * via the {@link #of(Map)} factory method, the order follows the encounter
+ * order of the provided map.
  *
  * @spec https://datatracker.ietf.org/doc/html/rfc8259#section-4 RFC 8259:
  *      The JavaScript Object Notation (JSON) Data Interchange Format - Objects
@@ -49,10 +55,13 @@ import jdk.incubator.json.impl.JsonObjectImpl;
 public non-sealed interface JsonObject extends JsonValue {
 
     /**
-     * {@return an unmodifiable map of {@code String} to {@code JsonValue}}
+     * {@return an unmodifiable {@code SequencedMap} of {@code String} to
+     * {@code JsonValue}}
+     * The encounter order of members in the returned map is guaranteed
+     * to be stable. See {@link ##member_order the member order} for details.
      */
     @Override
-    Map<String, JsonValue> members();
+    SequencedMap<String, JsonValue> members();
 
     /**
      * {@return the {@code JsonValue} associated with the given member name}
@@ -84,12 +93,11 @@ public non-sealed interface JsonObject extends JsonValue {
 
     /**
      * {@return the {@code JsonObject} created from the given
-     * map of {@code String} to {@code JsonValue}s}
+     * {@code Map} of {@code String} to {@code JsonValue}s}
+     * The encounter order of members in the returned map is guaranteed
+     * to be stable. See {@link ##member_order the member order} for details.
      *
-     * The {@code JsonObject}'s members occur in the same order as the given
-     * map's entries.
-     *
-     * @param map the map of {@code JsonValue}s. Non-null.
+     * @param map the sequenced map of {@code String} to {@code JsonValue}s. Non-null.
      * @throws NullPointerException if {@code map} is {@code null}, contains
      *      any keys that are {@code null}, or contains any values that are {@code null}.
      */
