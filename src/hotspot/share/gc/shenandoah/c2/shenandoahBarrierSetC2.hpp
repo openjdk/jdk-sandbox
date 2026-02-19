@@ -29,22 +29,22 @@
 #include "gc/shared/gc_globals.hpp"
 #include "utilities/growableArray.hpp"
 
-static const uint8_t ShenandoahBarrierStrong          = 1 << 0;
-static const uint8_t ShenandoahBarrierWeak            = 1 << 1;
-static const uint8_t ShenandoahBarrierPhantom         = 1 << 2;
-static const uint8_t ShenandoahBarrierNative          = 1 << 3;
-static const uint8_t ShenandoahBarrierElided          = 1 << 4;
-static const uint8_t ShenandoahBarrierSATB            = 1 << 5;
-static const uint8_t ShenandoahBarrierCardMark        = 1 << 6;
-static const uint8_t ShenandoahBarrierNotNull         = 1 << 7;
+static const uint8_t ShenandoahBitStrong          = 1 << 0;
+static const uint8_t ShenandoahBitWeak            = 1 << 1;
+static const uint8_t ShenandoahBitPhantom         = 1 << 2;
+static const uint8_t ShenandoahBitNative          = 1 << 3;
+static const uint8_t ShenandoahBitElided          = 1 << 4;
+static const uint8_t ShenandoahBitSATB            = 1 << 5;
+static const uint8_t ShenandoahBitCardMark        = 1 << 6;
+static const uint8_t ShenandoahBitNotNull         = 1 << 7;
 
 // Barrier data that implies real barriers, not additional metadata.
-static const uint8_t ShenandoahBarriersReal =
-  ShenandoahBarrierStrong   | // LRB strong
-  ShenandoahBarrierWeak     | // LRB weak
-  ShenandoahBarrierPhantom  | // LRB phantom
-  ShenandoahBarrierSATB     | // SATB
-  ShenandoahBarrierCardMark;  // Card Mark
+static const uint8_t ShenandoahBitsReal =
+  ShenandoahBitStrong   | // LRB strong
+  ShenandoahBitWeak     | // LRB weak
+  ShenandoahBitPhantom  | // LRB phantom
+  ShenandoahBitSATB     | // SATB
+  ShenandoahBitCardMark;  // Card Mark
 
 class ShenandoahBarrierStubC2;
 
@@ -159,16 +159,16 @@ public:
     return needs_load_ref_barrier(node) || needs_satb_barrier(node);
   }
   static bool needs_satb_barrier(const MachNode* node) {
-    return (node->barrier_data() & ShenandoahBarrierSATB) != 0;
+    return (node->barrier_data() & ShenandoahBitSATB) != 0;
   }
   static bool needs_load_ref_barrier(const MachNode* node) {
-    return (node->barrier_data() & (ShenandoahBarrierStrong | ShenandoahBarrierWeak | ShenandoahBarrierPhantom)) != 0;
+    return (node->barrier_data() & (ShenandoahBitStrong | ShenandoahBitWeak | ShenandoahBitPhantom)) != 0;
   }
   static bool needs_load_ref_barrier_weak(const MachNode* node) {
-    return (node->barrier_data() & (ShenandoahBarrierWeak | ShenandoahBarrierPhantom)) != 0;
+    return (node->barrier_data() & (ShenandoahBitWeak | ShenandoahBitPhantom)) != 0;
   }
   static bool src_not_null(const MachNode* node) {
-    return (node->barrier_data() & ShenandoahBarrierNotNull) != 0;
+    return (node->barrier_data() & ShenandoahBitNotNull) != 0;
   }
 
   static ShenandoahLoadBarrierStubC2* create(const MachNode* node, Register dst, Address src, bool narrow, Register tmp);
@@ -192,13 +192,13 @@ public:
     return needs_card_barrier(node) || needs_satb_barrier(node);
   }
   static bool needs_satb_barrier(const MachNode* node) {
-    return (node->barrier_data() & ShenandoahBarrierSATB) != 0;
+    return (node->barrier_data() & ShenandoahBitSATB) != 0;
   }
   static bool needs_card_barrier(const MachNode* node) {
-    return (node->barrier_data() & ShenandoahBarrierCardMark) != 0;
+    return (node->barrier_data() & ShenandoahBitCardMark) != 0;
   }
   static bool src_not_null(const MachNode* node) {
-    return (node->barrier_data() & ShenandoahBarrierNotNull) != 0;
+    return (node->barrier_data() & ShenandoahBitNotNull) != 0;
   }
 
   static ShenandoahStoreBarrierStubC2* create(const MachNode* node, Address dst, bool dst_narrow, Register src, bool src_narrow, Register tmp);
@@ -218,7 +218,7 @@ class ShenandoahLoadRefBarrierStubC2 : public ShenandoahBarrierStubC2 {
     ShenandoahBarrierStubC2(node), _obj(obj), _addr(addr), _tmp1(tmp1), _tmp2(tmp2), _tmp3(tmp3), _narrow(narrow) {}
 public:
   static bool needs_barrier(const MachNode* node) {
-    return (node->barrier_data() & (ShenandoahBarrierStrong | ShenandoahBarrierWeak | ShenandoahBarrierPhantom | ShenandoahBarrierNative)) != 0;
+    return (node->barrier_data() & (ShenandoahBitStrong | ShenandoahBitWeak | ShenandoahBitPhantom | ShenandoahBitNative)) != 0;
   }
   static ShenandoahLoadRefBarrierStubC2* create(const MachNode* node, Register obj, Register addr, Register tmp1, Register tmp2, Register tmp3, bool narrow);
   void emit_code(MacroAssembler& masm) override;
@@ -233,7 +233,7 @@ class ShenandoahSATBAndLRBBarrierSlowStubC2 : public ShenandoahBarrierStubC2 {
     ShenandoahBarrierStubC2(node), _obj(obj), _addr(addr), _narrow(narrow), _maybe_null(maybe_null) {}
 public:
   static bool needs_barrier(const MachNode* node) {
-    return (node->barrier_data() & (ShenandoahBarrierSATB | ShenandoahBarrierStrong | ShenandoahBarrierWeak | ShenandoahBarrierPhantom | ShenandoahBarrierNative)) != 0;
+    return (node->barrier_data() & (ShenandoahBitSATB | ShenandoahBitStrong | ShenandoahBitWeak | ShenandoahBitPhantom | ShenandoahBitNative)) != 0;
   }
   static ShenandoahSATBAndLRBBarrierSlowStubC2* create(const MachNode* node, Register obj, Register addr, bool narrow, bool maybe_null);
   void emit_code(MacroAssembler& masm) override;
@@ -249,7 +249,7 @@ class ShenandoahSATBBarrierStubC2 : public ShenandoahBarrierStubC2 {
 
 public:
   static bool needs_barrier(const MachNode* node) {
-    return (node->barrier_data() & ShenandoahBarrierSATB) != 0;
+    return (node->barrier_data() & ShenandoahBitSATB) != 0;
   }
   static ShenandoahSATBBarrierStubC2* create(const MachNode* node, Register addr, Register preval, Register tmp, bool encoded_preval);
 
@@ -277,7 +277,7 @@ class ShenandoahCASBarrierSlowStubC2 : public ShenandoahBarrierStubC2 {
 
 public:
   static bool needs_barrier(const MachNode* node) {
-    return (node->barrier_data() & ShenandoahBarrierStrong) != 0;
+    return (node->barrier_data() & ShenandoahBitStrong) != 0;
   }
 
   static ShenandoahCASBarrierSlowStubC2* create(const MachNode* node, Register addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae, bool maybe_null, bool acquire, bool release, bool weak);

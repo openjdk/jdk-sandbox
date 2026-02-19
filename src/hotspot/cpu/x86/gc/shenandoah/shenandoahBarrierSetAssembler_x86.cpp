@@ -1031,7 +1031,7 @@ void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, Ma
   }
 
   int flags = ShenandoahHeap::HAS_FORWARDED;
-  if ((node->barrier_data() & ShenandoahBarrierStrong) == 0) {
+  if ((node->barrier_data() & ShenandoahBitStrong) == 0) {
     flags |= ShenandoahHeap::WEAK_ROOTS;
   }
   gc_state_check_c2(masm, flags, stub);
@@ -1138,7 +1138,7 @@ void ShenandoahBarrierSetAssembler::satb_barrier_c2(const MachNode* node, MacroA
 
 void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroAssembler* masm,
                                                     Register addr, Register addr_tmp, Register tmp) {
-  if (ShenandoahSkipBarrierStubs || (node->barrier_data() & ShenandoahBarrierCardMark) == 0) {
+  if (ShenandoahSkipBarrierStubs || (node->barrier_data() & ShenandoahBitCardMark) == 0) {
     return;
   }
 
@@ -1283,7 +1283,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
 
   if (_needs_load_ref_barrier) {
-    bool is_weak = (_node->barrier_data() & ShenandoahBarrierStrong) == 0;
+    bool is_weak = (_node->barrier_data() & ShenandoahBitStrong) == 0;
 
     // Runtime check for SATB, in case the other barrier is enabled.
     // Otherwise the fastpath check already checked it.
@@ -1355,19 +1355,19 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 
       address entry;
       if (_narrow) {
-        if ((_node->barrier_data() & ShenandoahBarrierStrong) != 0) {
+        if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
           entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow);
-        } else if ((_node->barrier_data() & ShenandoahBarrierWeak) != 0) {
+        } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
           entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow);
-        } else if ((_node->barrier_data() & ShenandoahBarrierPhantom) != 0) {
+        } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
           entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow);
         }
       } else {
-        if ((_node->barrier_data() & ShenandoahBarrierStrong) != 0) {
+        if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
           entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong);
-        } else if ((_node->barrier_data() & ShenandoahBarrierWeak) != 0) {
+        } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
           entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak);
-        } else if ((_node->barrier_data() & ShenandoahBarrierPhantom) != 0) {
+        } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
           entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom);
         }
       }
@@ -1486,7 +1486,7 @@ void ShenandoahLoadRefBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
 
   // Weak/phantom loads always need to go to runtime.
-  if ((_node->barrier_data() & ShenandoahBarrierStrong) != 0) {
+  if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
     __ movptr(_tmp2, obj);
     __ shrptr(_tmp2, ShenandoahHeapRegion::region_size_bytes_shift_jint());
     __ movptr(_tmp3, (intptr_t) ShenandoahHeap::in_cset_fast_test_addr());
@@ -1510,19 +1510,19 @@ void ShenandoahLoadRefBarrierStubC2::emit_code(MacroAssembler& masm) {
 
     address entry;
     if (_narrow) {
-      if ((_node->barrier_data() & ShenandoahBarrierStrong) != 0) {
+      if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
         entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow);
-      } else if ((_node->barrier_data() & ShenandoahBarrierWeak) != 0) {
+      } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
         entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow);
-      } else if ((_node->barrier_data() & ShenandoahBarrierPhantom) != 0) {
+      } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
         entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow);
       }
     } else {
-      if ((_node->barrier_data() & ShenandoahBarrierStrong) != 0) {
+      if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
         entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong);
-      } else if ((_node->barrier_data() & ShenandoahBarrierWeak) != 0) {
+      } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
         entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak);
-      } else if ((_node->barrier_data() & ShenandoahBarrierPhantom) != 0) {
+      } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
         entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom);
       }
     }
@@ -1605,7 +1605,7 @@ void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
 
   // Non-strong references should always go to runtime. We do not expect
   // CASes over non-strong locations.
-  assert((_node->barrier_data() & ShenandoahBarrierStrong) != 0, "Only strong references for CASes");
+  assert((_node->barrier_data() & ShenandoahBitStrong) != 0, "Only strong references for CASes");
 
   Label L_final;
 
