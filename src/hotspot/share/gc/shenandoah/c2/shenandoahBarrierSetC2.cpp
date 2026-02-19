@@ -254,7 +254,7 @@ static void set_barrier_data(C2Access& access, bool rmw) {
       barrier_data |= ShenandoahBarrierSATB;
     }
     if (ShenandoahCardBarrier) {
-      barrier_data |= ShenandoahCardBarrier;
+      barrier_data |= ShenandoahBarrierCardMark;
     }
   }
 
