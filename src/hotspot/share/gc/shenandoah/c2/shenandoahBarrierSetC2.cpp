@@ -421,10 +421,10 @@ void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
           break;
         }
 
-        // Dominating atomics have (conditionally) dealt with false positives,
-        // and made the card table updates for a location. Subsequent atomic barriers
-        // are no longer required. Since atomics do fixups only conditionally,
-        // they could not be used to eliminate barriers from other types of barriers.
+        // Dominating atomics have dealt with false positives, and made the card
+        // table updates for a location. Even though CAS barriers are conditional,
+        // they perform all needed barriers when memory access is successful.
+        // Therefore, subsequent barriers are no longer required.
         case Op_CompareAndExchangeN:
         case Op_CompareAndExchangeP:
         case Op_CompareAndSwapN:
@@ -433,6 +433,8 @@ void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
         case Op_GetAndSetN: {
           if (mach->barrier_data() != 0) {
             atomics.push(mach);
+            load_dominators.push(mach);
+            store_dominators.push(mach);
             atomic_dominators.push(mach);
           }
           break;
