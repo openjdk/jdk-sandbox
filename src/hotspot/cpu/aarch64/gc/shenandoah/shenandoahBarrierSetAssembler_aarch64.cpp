@@ -660,7 +660,7 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
 
     if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
       if (exchange) {
-        __ cmp(res, newval);
+        __ cmp(res, oldval);
         __ cset(tmp2, Assembler::EQ);
       }
       card_barrier_c2(node, masm, addr, exchange ? tmp2 : res);
