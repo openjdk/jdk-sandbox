@@ -51,183 +51,7 @@ ShenandoahBarrierSetC2State::ShenandoahBarrierSetC2State(Arena* comp_arena) :
     _stubs_start_offset(0) {
 }
 
-#define __ kit->
-
-static bool satb_can_remove_pre_barrier(GraphKit* kit, PhaseValues* phase, Node* adr,
-                                        BasicType bt, uint adr_idx) {
-  intptr_t offset = 0;
-  Node* base = AddPNode::Ideal_base_and_offset(adr, phase, offset);
-  AllocateNode* alloc = AllocateNode::Ideal_allocation(base);
-
-  if (offset == Type::OffsetBot) {
-    return false; // cannot unalias unless there are precise offsets
-  }
-
-  if (alloc == nullptr) {
-    return false; // No allocation found
-  }
-
-  intptr_t size_in_bytes = type2aelembytes(bt);
-
-  Node* mem = __ memory(adr_idx); // start searching here...
-
-  for (int cnt = 0; cnt < 50; cnt++) {
-
-    if (mem->is_Store()) {
-
-      Node* st_adr = mem->in(MemNode::Address);
-      intptr_t st_offset = 0;
-      Node* st_base = AddPNode::Ideal_base_and_offset(st_adr, phase, st_offset);
-
-      if (st_base == nullptr) {
-        break; // inscrutable pointer
-      }
-
-      // Break we have found a store with same base and offset as ours so break
-      if (st_base == base && st_offset == offset) {
-        break;
-      }
-
-      if (st_offset != offset && st_offset != Type::OffsetBot) {
-        const int MAX_STORE = BytesPerLong;
-        if (st_offset >= offset + size_in_bytes ||
-            st_offset <= offset - MAX_STORE ||
-            st_offset <= offset - mem->as_Store()->memory_size()) {
-          // Success:  The offsets are provably independent.
-          // (You may ask, why not just test st_offset != offset and be done?
-          // The answer is that stores of different sizes can co-exist
-          // in the same sequence of RawMem effects.  We sometimes initialize
-          // a whole 'tile' of array elements with a single jint or jlong.)
-          mem = mem->in(MemNode::Memory);
-          continue; // advance through independent store memory
-        }
-      }
-
-      if (st_base != base
-          && MemNode::detect_ptr_independence(base, alloc, st_base,
-                                              AllocateNode::Ideal_allocation(st_base),
-                                              phase)) {
-        // Success:  The bases are provably independent.
-        mem = mem->in(MemNode::Memory);
-        continue; // advance through independent store memory
-      }
-    } else if (mem->is_Proj() && mem->in(0)->is_Initialize()) {
-
-      InitializeNode* st_init = mem->in(0)->as_Initialize();
-      AllocateNode* st_alloc = st_init->allocation();
-
-      // Make sure that we are looking at the same allocation site.
-      // The alloc variable is guaranteed to not be null here from earlier check.
-      if (alloc == st_alloc) {
-        // Check that the initialization is storing null so that no previous store
-        // has been moved up and directly write a reference
-        Node* captured_store = st_init->find_captured_store(offset,
-                                                            type2aelembytes(T_OBJECT),
-                                                            phase);
-        if (captured_store == nullptr || captured_store == st_init->zero_memory()) {
-          return true;
-        }
-      }
-    }
-
-    // Unless there is an explicit 'continue', we must bail out here,
-    // because 'mem' is an inscrutable memory state (e.g., a call).
-    break;
-  }
-
-  return false;
-}
-
-static bool shenandoah_can_remove_post_barrier(GraphKit* kit, PhaseValues* phase, Node* store_ctrl, Node* adr) {
-  intptr_t      offset = 0;
-  Node*         base   = AddPNode::Ideal_base_and_offset(adr, phase, offset);
-  AllocateNode* alloc  = AllocateNode::Ideal_allocation(base);
-
-  if (offset == Type::OffsetBot) {
-    return false; // Cannot unalias unless there are precise offsets.
-  }
-  if (alloc == nullptr) {
-    return false; // No allocation found.
-  }
-
-  Node* mem = store_ctrl;   // Start search from Store node.
-  if (mem->is_Proj() && mem->in(0)->is_Initialize()) {
-    InitializeNode* st_init = mem->in(0)->as_Initialize();
-    AllocateNode*  st_alloc = st_init->allocation();
-    // Make sure we are looking at the same allocation
-    if (alloc == st_alloc) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-static uint8_t get_store_barrier(C2Access& access) {
-  if (!access.is_parse_access()) {
-    // Only support for eliding barriers at parse time for now.
-    return (ShenandoahSATBBarrier ? ShenandoahBitSATB : 0) | (ShenandoahCardBarrier ? ShenandoahBitCardMark : 0);
-  }
-  GraphKit* kit = (static_cast<C2ParseAccess&>(access)).kit();
-  Node* ctl = kit->control();
-  Node* adr = access.addr().node();
-  uint adr_idx = kit->C->get_alias_index(access.addr().type());
-  assert(adr_idx != Compile::AliasIdxTop, "use other store_to_memory factory");
-
-  bool can_remove_pre_barrier = satb_can_remove_pre_barrier(kit, &kit->gvn(), adr, access.type(), adr_idx);
-
-  // We can skip marks on a freshly-allocated object in Eden. Keep this code in
-  // sync with CardTableBarrierSet::on_slowpath_allocation_exit. That routine
-  // informs GC to take appropriate compensating steps, upon a slow-path
-  // allocation, so as to make this card-mark elision safe.
-  // The post-barrier can also be removed if null is written. This case is
-  // handled by ShenandoahBarrierSetC2::expand_barriers, which runs at the end of C2's
-  // platform-independent optimizations to exploit stronger type information.
-  bool can_remove_post_barrier = ReduceInitialCardMarks &&
-    ((access.base() == kit->just_allocated_object(ctl)) ||
-     shenandoah_can_remove_post_barrier(kit, &kit->gvn(), ctl, adr));
-
-  int barriers = 0;
-  if (!can_remove_pre_barrier) {
-    barriers |= (ShenandoahSATBBarrier ? ShenandoahBitSATB : 0);
-  } else {
-    barriers |= ShenandoahBitElided;
-  }
-
-  if (!can_remove_post_barrier) {
-    barriers |= (ShenandoahCardBarrier ? ShenandoahBitCardMark : 0);
-  } else {
-    barriers |= ShenandoahBitElided;
-  }
-
-  return barriers;
-}
-
-Node* ShenandoahBarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& val) const {
-  DecoratorSet decorators = access.decorators();
-  bool anonymous = (decorators & ON_UNKNOWN_OOP_REF) != 0;
-  bool in_heap = (decorators & IN_HEAP) != 0;
-  bool tightly_coupled_alloc = (decorators & C2_TIGHTLY_COUPLED_ALLOC) != 0;
-  bool needs_pre_barrier = access.is_oop() && (in_heap || anonymous);
-  // Pre-barriers are unnecessary for tightly-coupled initialization stores.
-  bool can_be_elided = needs_pre_barrier && tightly_coupled_alloc && ReduceInitialCardMarks;
-  bool no_keepalive = (decorators & AS_NO_KEEPALIVE) != 0;
-  if (needs_pre_barrier) {
-    if (can_be_elided) {
-      access.set_barrier_data(access.barrier_data() & ~ShenandoahBitSATB);
-      access.set_barrier_data(access.barrier_data() | ShenandoahBitElided);
-    } else {
-      access.set_barrier_data(get_store_barrier(access));
-    }
-  }
-  if (no_keepalive) {
-    // No keep-alive means no need for the pre-barrier.
-    access.set_barrier_data(access.barrier_data() & ~ShenandoahBitSATB);
-  }
-  return BarrierSetC2::store_at_resolved(access, val);
-}
-
-static void set_barrier_data(C2Access& access, bool rmw) {
+static void set_barrier_data(C2Access& access, bool load, bool store) {
   if (!access.is_oop()) {
     return;
   }
@@ -239,17 +63,19 @@ static void set_barrier_data(C2Access& access, bool rmw) {
 
   uint8_t barrier_data = 0;
 
-  if (ShenandoahLoadRefBarrier) {
-    if (access.decorators() & ON_PHANTOM_OOP_REF) {
-      barrier_data |= ShenandoahBitPhantom;
-    } else if (access.decorators() & ON_WEAK_OOP_REF) {
-      barrier_data |= ShenandoahBitWeak;
-    } else {
-      barrier_data |= ShenandoahBitStrong;
+  if (load) {
+    if (ShenandoahLoadRefBarrier) {
+      if (access.decorators() & ON_PHANTOM_OOP_REF) {
+        barrier_data |= ShenandoahBitPhantom;
+      } else if (access.decorators() & ON_WEAK_OOP_REF) {
+        barrier_data |= ShenandoahBitWeak;
+      } else {
+        barrier_data |= ShenandoahBitStrong;
+      }
     }
   }
 
-  if (rmw) {
+  if (store) {
     if (ShenandoahSATBBarrier) {
       barrier_data |= ShenandoahBitSATB;
     }
@@ -266,23 +92,23 @@ static void set_barrier_data(C2Access& access, bool rmw) {
 }
 
 Node* ShenandoahBarrierSetC2::load_at_resolved(C2Access& access, const Type* val_type) const {
-  // 1: non-reference load, no additional barrier is needed
+  // 1: Non-reference load, no additional barrier is needed
   if (!access.is_oop()) {
     return BarrierSetC2::load_at_resolved(access, val_type);
   }
 
-  // 2. Set barrier data for LRB.
-  set_barrier_data(access, /* rmw = */ false);
+  // 2. Set barrier data for load
+  set_barrier_data(access, /* load = */ true, /* store = */ false);
 
-  // 3. If we are reading the value of the referent field of a Reference object, we
-  // need to record the referent in an SATB log buffer using the pre-barrier
-  // mechanism.
+  // 3. Correction: If we are reading the value of the referent field of
+  // a Reference object, we need to record the referent resurrection
+  // through SATB.
   DecoratorSet decorators = access.decorators();
   bool on_weak = (decorators & ON_WEAK_OOP_REF) != 0;
   bool on_phantom = (decorators & ON_PHANTOM_OOP_REF) != 0;
   bool no_keepalive = (decorators & AS_NO_KEEPALIVE) != 0;
-  bool needs_read_barrier = ((on_weak || on_phantom) && !no_keepalive);
-  if (needs_read_barrier) {
+  bool needs_satb = ((on_weak || on_phantom) && !no_keepalive);
+  if (needs_satb) {
     uint8_t barriers = access.barrier_data() | (ShenandoahSATBBarrier ? ShenandoahBitSATB : 0);
     access.set_barrier_data(barriers);
   }
@@ -290,20 +116,40 @@ Node* ShenandoahBarrierSetC2::load_at_resolved(C2Access& access, const Type* val
   return BarrierSetC2::load_at_resolved(access, val_type);
 }
 
+Node* ShenandoahBarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& val) const {
+  // 1: Non-reference store, no additional barrier is needed
+  if (!access.is_oop()) {
+    return BarrierSetC2::store_at_resolved(access, val);
+  }
+
+  // 2. Set barrier data for store
+  set_barrier_data(access, /* load = */ false, /* store = */ true);
+
+  // 3. Correction: SATB cannot be applied to no-keepalive accesses,
+  // otherwise it will resurrect the object.
+  DecoratorSet decorators = access.decorators();
+  bool no_keepalive = (decorators & AS_NO_KEEPALIVE) != 0;
+  if (no_keepalive) { 
+    access.set_barrier_data(access.barrier_data() & ~ShenandoahBitSATB);
+  }
+
+  return BarrierSetC2::store_at_resolved(access, val);
+}
+
 Node* ShenandoahBarrierSetC2::atomic_cmpxchg_val_at_resolved(C2AtomicParseAccess& access, Node* expected_val,
                                                              Node* new_val, const Type* value_type) const {
-  set_barrier_data(access, /* rmw = */ true);
+  set_barrier_data(access, /* load = */ true, /* store = */ true);
   return BarrierSetC2::atomic_cmpxchg_val_at_resolved(access, expected_val, new_val, value_type);
 }
 
 Node* ShenandoahBarrierSetC2::atomic_cmpxchg_bool_at_resolved(C2AtomicParseAccess& access, Node* expected_val,
                                                               Node* new_val, const Type* value_type) const {
-  set_barrier_data(access, /* rmw = */ true);
+  set_barrier_data(access, /* load = */ true, /* store = */ true);
   return BarrierSetC2::atomic_cmpxchg_bool_at_resolved(access, expected_val, new_val, value_type);
 }
 
 Node* ShenandoahBarrierSetC2::atomic_xchg_at_resolved(C2AtomicParseAccess& access, Node* val, const Type* value_type) const {
-  set_barrier_data(access, /* rmw = */ true);
+  set_barrier_data(access, /* load = */ true, /* store = */ true);
   return BarrierSetC2::atomic_xchg_at_resolved(access, val, value_type);
 }
 
