@@ -84,10 +84,6 @@ static void set_barrier_data(C2Access& access, bool load, bool store) {
     }
   }
 
-  if (access.decorators() & IN_NATIVE) {
-    barrier_data |= ShenandoahBitNative;
-  }
-
   access.set_barrier_data(barrier_data);
 }
 
@@ -618,11 +614,6 @@ void ShenandoahBarrierSetC2::print_barrier_data(outputStream* os, uint8_t data) 
   if ((data & ShenandoahBitPhantom) != 0) {
     data &= ~ShenandoahBitPhantom;
     os->print("phantom ");
-  }
-
-  if ((data & ShenandoahBitNative) != 0) {
-    data &= ~ShenandoahBitNative;
-    os->print("native ");
   }
 
   if ((data & ShenandoahBitElided) != 0) {

@@ -32,11 +32,10 @@
 static const uint8_t ShenandoahBitStrong          = 1 << 0;
 static const uint8_t ShenandoahBitWeak            = 1 << 1;
 static const uint8_t ShenandoahBitPhantom         = 1 << 2;
-static const uint8_t ShenandoahBitNative          = 1 << 3;
-static const uint8_t ShenandoahBitElided          = 1 << 4;
-static const uint8_t ShenandoahBitSATB            = 1 << 5;
-static const uint8_t ShenandoahBitCardMark        = 1 << 6;
-static const uint8_t ShenandoahBitNotNull         = 1 << 7;
+static const uint8_t ShenandoahBitElided          = 1 << 3;
+static const uint8_t ShenandoahBitSATB            = 1 << 4;
+static const uint8_t ShenandoahBitCardMark        = 1 << 5;
+static const uint8_t ShenandoahBitNotNull         = 1 << 6;
 
 // Barrier data that implies real barriers, not additional metadata.
 static const uint8_t ShenandoahBitsReal =
@@ -218,7 +217,7 @@ class ShenandoahLoadRefBarrierStubC2 : public ShenandoahBarrierStubC2 {
     ShenandoahBarrierStubC2(node), _obj(obj), _addr(addr), _tmp1(tmp1), _tmp2(tmp2), _tmp3(tmp3), _narrow(narrow) {}
 public:
   static bool needs_barrier(const MachNode* node) {
-    return (node->barrier_data() & (ShenandoahBitStrong | ShenandoahBitWeak | ShenandoahBitPhantom | ShenandoahBitNative)) != 0;
+    return (node->barrier_data() & (ShenandoahBitStrong | ShenandoahBitWeak | ShenandoahBitPhantom)) != 0;
   }
   static ShenandoahLoadRefBarrierStubC2* create(const MachNode* node, Register obj, Register addr, Register tmp1, Register tmp2, Register tmp3, bool narrow);
   void emit_code(MacroAssembler& masm) override;
@@ -233,7 +232,7 @@ class ShenandoahSATBAndLRBBarrierSlowStubC2 : public ShenandoahBarrierStubC2 {
     ShenandoahBarrierStubC2(node), _obj(obj), _addr(addr), _narrow(narrow), _maybe_null(maybe_null) {}
 public:
   static bool needs_barrier(const MachNode* node) {
-    return (node->barrier_data() & (ShenandoahBitSATB | ShenandoahBitStrong | ShenandoahBitWeak | ShenandoahBitPhantom | ShenandoahBitNative)) != 0;
+    return (node->barrier_data() & (ShenandoahBitSATB | ShenandoahBitStrong | ShenandoahBitWeak | ShenandoahBitPhantom)) != 0;
   }
   static ShenandoahSATBAndLRBBarrierSlowStubC2* create(const MachNode* node, Register obj, Register addr, bool narrow, bool maybe_null);
   void emit_code(MacroAssembler& masm) override;
