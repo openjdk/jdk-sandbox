@@ -56,7 +56,13 @@ static void set_barrier_data(C2Access& access, bool load, bool store) {
     return;
   }
 
-  if (access.decorators() & C2_TIGHTLY_COUPLED_ALLOC) {
+  DecoratorSet decorators = access.decorators();
+  bool tightly_coupled = (decorators & C2_TIGHTLY_COUPLED_ALLOC) != 0;
+  bool in_heap = (decorators & IN_HEAP) != 0;
+  bool on_weak = (decorators & ON_WEAK_OOP_REF) != 0;
+  bool on_phantom = (decorators & ON_PHANTOM_OOP_REF) != 0;
+
+  if (tightly_coupled) {
     access.set_barrier_data(ShenandoahBitElided);
     return;
   }
@@ -65,9 +71,9 @@ static void set_barrier_data(C2Access& access, bool load, bool store) {
 
   if (load) {
     if (ShenandoahLoadRefBarrier) {
-      if (access.decorators() & ON_PHANTOM_OOP_REF) {
+      if (on_phantom) {
         barrier_data |= ShenandoahBitPhantom;
-      } else if (access.decorators() & ON_WEAK_OOP_REF) {
+      } else if (on_weak) {
         barrier_data |= ShenandoahBitWeak;
       } else {
         barrier_data |= ShenandoahBitStrong;
@@ -79,9 +85,13 @@ static void set_barrier_data(C2Access& access, bool load, bool store) {
     if (ShenandoahSATBBarrier) {
       barrier_data |= ShenandoahBitSATB;
     }
-    if (ShenandoahCardBarrier) {
+    if (ShenandoahCardBarrier && in_heap) {
       barrier_data |= ShenandoahBitCardMark;
     }
+  }
+
+  if (!in_heap) {
+    barrier_data |= ShenandoahBitNative;
   }
 
   access.set_barrier_data(barrier_data);
