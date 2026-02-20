@@ -29,22 +29,19 @@
 #include "gc/shared/gc_globals.hpp"
 #include "utilities/growableArray.hpp"
 
-static const uint8_t ShenandoahBitStrong          = 1 << 0;
-static const uint8_t ShenandoahBitWeak            = 1 << 1;
-static const uint8_t ShenandoahBitPhantom         = 1 << 2;
-static const uint8_t ShenandoahBitElided          = 1 << 3;
-static const uint8_t ShenandoahBitSATB            = 1 << 4;
-static const uint8_t ShenandoahBitCardMark        = 1 << 5;
-static const uint8_t ShenandoahBitNotNull         = 1 << 6;
-static const uint8_t ShenandoahBitNative          = 1 << 7;
+static const uint8_t ShenandoahBitStrong   = 1 << 0; // Barrier: LRB, strong
+static const uint8_t ShenandoahBitWeak     = 1 << 1; // Barrier: LRB, weak
+static const uint8_t ShenandoahBitPhantom  = 1 << 2; // Barrier: LRB, phantom
+static const uint8_t ShenandoahBitSATB     = 1 << 3; // Barrier: SATB
+static const uint8_t ShenandoahBitCardMark = 1 << 4; // Barrier: CM
+static const uint8_t ShenandoahBitNotNull  = 1 << 5; // Metadata: src/dst is not null
+static const uint8_t ShenandoahBitNative   = 1 << 6; // Metadata: access is in native, not in heap
+static const uint8_t ShenandoahBitElided   = 1 << 7; // Metadata: barrier is elided
 
 // Barrier data that implies real barriers, not additional metadata.
-static const uint8_t ShenandoahBitsReal =
-  ShenandoahBitStrong   | // LRB strong
-  ShenandoahBitWeak     | // LRB weak
-  ShenandoahBitPhantom  | // LRB phantom
-  ShenandoahBitSATB     | // SATB
-  ShenandoahBitCardMark;  // Card Mark
+static const uint8_t ShenandoahBitsReal = ShenandoahBitStrong | ShenandoahBitWeak | ShenandoahBitPhantom |
+                                          ShenandoahBitSATB |
+                                          ShenandoahBitCardMark;
 
 class ShenandoahBarrierStubC2;
 
