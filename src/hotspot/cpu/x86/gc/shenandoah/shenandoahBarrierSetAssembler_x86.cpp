@@ -1510,6 +1510,7 @@ void ShenandoahLoadRefBarrierStubC2::emit_code(MacroAssembler& masm) {
 
     address entry;
     if (_narrow) {
+      assert((_node->barrier_data() & ShenandoahBitNative) == 0, "Native accesses are always non-narrow");
       if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
         entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow);
       } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {

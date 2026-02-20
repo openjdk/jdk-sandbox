@@ -36,6 +36,7 @@ static const uint8_t ShenandoahBitElided          = 1 << 3;
 static const uint8_t ShenandoahBitSATB            = 1 << 4;
 static const uint8_t ShenandoahBitCardMark        = 1 << 5;
 static const uint8_t ShenandoahBitNotNull         = 1 << 6;
+static const uint8_t ShenandoahBitNative          = 1 << 7;
 
 // Barrier data that implies real barriers, not additional metadata.
 static const uint8_t ShenandoahBitsReal =
@@ -151,7 +152,9 @@ class ShenandoahLoadBarrierStubC2 : public ShenandoahBarrierStubC2 {
 
   ShenandoahLoadBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow, Register tmp) :
     ShenandoahBarrierStubC2(node), _dst(dst), _src(src), _tmp(tmp), _narrow(narrow),
-    _needs_load_ref_barrier(needs_load_ref_barrier(node)), _needs_satb_barrier(needs_satb_barrier(node)) {}
+    _needs_load_ref_barrier(needs_load_ref_barrier(node)), _needs_satb_barrier(needs_satb_barrier(node)) {
+      assert(!_narrow || (node->barrier_data() & ShenandoahBitNative) == 0, "Native accesses should not be narrow");
+    }
 
 public:
   static bool needs_barrier(const MachNode* node) {
@@ -214,7 +217,9 @@ class ShenandoahLoadRefBarrierStubC2 : public ShenandoahBarrierStubC2 {
   Register _tmp3;
   bool _narrow;
   ShenandoahLoadRefBarrierStubC2(const MachNode* node, Register obj, Register addr, Register tmp1, Register tmp2, Register tmp3, bool narrow) :
-    ShenandoahBarrierStubC2(node), _obj(obj), _addr(addr), _tmp1(tmp1), _tmp2(tmp2), _tmp3(tmp3), _narrow(narrow) {}
+    ShenandoahBarrierStubC2(node), _obj(obj), _addr(addr), _tmp1(tmp1), _tmp2(tmp2), _tmp3(tmp3), _narrow(narrow) {
+      assert(!_narrow || (node->barrier_data() & ShenandoahBitNative) == 0, "Native accesses should not be narrow");
+    }
 public:
   static bool needs_barrier(const MachNode* node) {
     return (node->barrier_data() & (ShenandoahBitStrong | ShenandoahBitWeak | ShenandoahBitPhantom)) != 0;

@@ -90,6 +90,10 @@ static void set_barrier_data(C2Access& access, bool load, bool store) {
     }
   }
 
+  if (!in_heap) {
+    barrier_data |= ShenandoahBitNative;
+  }
+
   access.set_barrier_data(barrier_data);
 }
 
