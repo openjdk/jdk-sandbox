@@ -856,23 +856,24 @@ void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ bind(*entry());
 
   Label done;
+  Register rscratch3 = _addr;
 
-  assert(_addr != noreg || _preval != noreg, "should be");
-  Register tmp = _addr != noreg ? _addr : _preval;
-  RegSet saved = RegSet::of(tmp);
+  // We'll use "_addr" register as third scratch register
+  assert(_addr != noreg, "should be");
+  RegSet saved = RegSet::of(_addr);
   __ push(saved, sp);
 
   // Do we need to load the previous value?
   if (_addr != noreg) {
-    __ load_heap_oop(tmp, Address(tmp, 0), noreg, noreg, AS_RAW);
+    __ load_heap_oop(rscratch3, Address(rscratch3, 0), noreg, noreg, AS_RAW);
   } else {
     if (_encoded_preval) {
-      __ decode_heap_oop(tmp);
+      __ decode_heap_oop(rscratch3);
     }
   }
 
   // FIXME: See if it is possible to merge this null-check with decoding
-  __ cbz(tmp, done);
+  __ cbz(rscratch3, done);
 
   Address index(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
@@ -887,14 +888,14 @@ void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ str(rscratch1, index);
 
   __ ldr(rscratch2, buffer);
-  __ str(tmp, Address(rscratch2, rscratch1));
+  __ str(rscratch3, Address(rscratch2, rscratch1));
   __ b(done);
 
   // Runtime call
   __ bind(runtime);
   {
     SaveLiveRegisters save_registers(&masm, this);
-    __ mov(c_rarg0, tmp);
+    __ mov(c_rarg0, rscratch3);
     __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre));
     __ blr(rscratch1);
   }
