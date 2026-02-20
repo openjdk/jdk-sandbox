@@ -715,7 +715,6 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
 void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm,
                                              Register addr, bool dst_narrow,
                                              Register src, bool src_narrow,
-                                             Register tmp, Register pre_val,
                                              bool is_volatile) {
 
   // Emit barrier if needed
@@ -724,13 +723,13 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
 
     if (ShenandoahStoreBarrierStubC2::needs_satb_barrier(node)) {
       Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-      __ ldrb(tmp, gcs_addr);
+      __ ldrb(rscratch1, gcs_addr);
 
-      ShenandoahSATBBarrierStubC2* const stub = ShenandoahSATBBarrierStubC2::create(node, addr, pre_val, tmp, dst_narrow);
+      ShenandoahSATBBarrierStubC2* const stub = ShenandoahSATBBarrierStubC2::create(node, addr, noreg, noreg, dst_narrow);
 
       // Check if GC marking is in progress, otherwise we don't have to do
       // anything.
-      __ tbz(tmp, ShenandoahHeap::MARKING_BITPOS, *stub->continuation());
+      __ tbz(rscratch1, ShenandoahHeap::MARKING_BITPOS, *stub->continuation());
       __ b(*stub->entry());
       __ bind(*stub->continuation());
     }
@@ -740,20 +739,20 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
     }
   }
 
-  // Need to encode into tmp, because we cannot clobber src.
-  // TODO: Maybe there is a matcher way to test that src is unused after this?
-  if (dst_narrow && !src_narrow) {
-    __ mov(tmp, src);
-    if (ShenandoahStoreBarrierStubC2::src_not_null(node)) {
-      __ encode_heap_oop_not_null(tmp);
-    } else {
-      __ encode_heap_oop(tmp);
-    }
-    src = tmp;
-  }
-
   // Do the actual store
   if (dst_narrow) {
+    if (!src_narrow) {
+      // Need to encode into tmp, because we cannot clobber src.
+      // TODO: Maybe there is a matcher way to test that src is unused after this?
+      __ mov(rscratch1, src);
+      if (ShenandoahStoreBarrierStubC2::src_not_null(node)) {
+        __ encode_heap_oop_not_null(rscratch1);
+      } else {
+        __ encode_heap_oop(rscratch1);
+      }
+      src = rscratch1;
+    }
+
     if (is_volatile) {
       __ stlrw(src, addr);
     } else {
@@ -856,44 +855,52 @@ void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
   __ bind(*entry());
 
+  Label done;
+
+  assert(_addr != noreg || _preval != noreg, "should be");
+  Register tmp = _addr != noreg ? _addr : _preval;
+  RegSet saved = RegSet::of(tmp);
+  __ push(saved, sp);
+
   // Do we need to load the previous value?
   if (_addr != noreg) {
-    assert(_preval == noreg, "should be");
-    __ load_heap_oop(_tmp, Address(_addr, 0), noreg, noreg, AS_RAW);
+    __ load_heap_oop(tmp, Address(tmp, 0), noreg, noreg, AS_RAW);
   } else {
-    assert(_preval != noreg, "should be");
     if (_encoded_preval) {
-      __ decode_heap_oop(_tmp, _preval);
-    } else {
-      _tmp = _preval;
+      __ decode_heap_oop(tmp);
     }
   }
 
   // FIXME: See if it is possible to merge this null-check with decoding
-  __ cbz(_tmp, *continuation());
+  __ cbz(tmp, done);
 
   Address index(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
   Label runtime;
-  __ ldr(rscratch1, index);
+
   // If buffer is full, call into runtime.
+  __ ldr(rscratch1, index);
   __ cbz(rscratch1, runtime);
 
   // The buffer is not full, store value into it.
   __ sub(rscratch1, rscratch1, wordSize);
   __ str(rscratch1, index);
+
   __ ldr(rscratch2, buffer);
-  __ str(_tmp, Address(rscratch2, rscratch1));
-  __ b(*continuation());
+  __ str(tmp, Address(rscratch2, rscratch1));
+  __ b(done);
 
   // Runtime call
   __ bind(runtime);
   {
     SaveLiveRegisters save_registers(&masm, this);
-    __ mov(c_rarg0, _tmp);
+    __ mov(c_rarg0, tmp);
     __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre));
     __ blr(rscratch1);
   }
+
+  __ bind(done);
+  __ pop(saved, sp);
   __ b(*continuation());
 }
 

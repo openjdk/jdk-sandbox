@@ -135,7 +135,7 @@ Node* ShenandoahBarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue&
   // otherwise it will resurrect the object.
   DecoratorSet decorators = access.decorators();
   bool no_keepalive = (decorators & AS_NO_KEEPALIVE) != 0;
-  if (no_keepalive) { 
+  if (no_keepalive) {
     access.set_barrier_data(access.barrier_data() & ~ShenandoahBitSATB);
   }
 

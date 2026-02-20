@@ -35,76 +35,72 @@ source %{
 
 // This pattern is generated automatically from shenandoah_aarch64.m4.
 // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct store_P_Normal_shenandoah(indirect mem, iRegP src, iRegPNoSp tmp, rFlagsReg cr)
+instruct store_P_Normal_shenandoah(indirect mem, iRegP src, rFlagsReg cr)
 %{
   match(Set mem (StoreP mem src));
   predicate(UseShenandoahGC && !needs_releasing_store(n) && n->as_Store()->barrier_data() != 0);
-  effect(TEMP tmp, KILL cr);
+  effect(KILL cr);
   ins_cost(3*INSN_COST);
-  format %{ "str  $src, $mem" %}
+  format %{ "str $src, $mem" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
       $mem$$Register, /* dst_narrow  = */ false,
       $src$$Register, /* src_narrow  = */ false,
-      $tmp$$Register, /* pre_val     = */ noreg,
-                      /* is_volatile = */ false);
+      /* is_volatile = */ false);
   %}
   ins_pipe(pipe_class_memory);
 %}
 
 // This pattern is generated automatically from shenandoah_aarch64.m4.
 // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct store_P_Volatile_shenandoah(indirect mem, iRegP src, iRegPNoSp tmp, rFlagsReg cr)
+instruct store_P_Volatile_shenandoah(indirect mem, iRegP src, rFlagsReg cr)
 %{
   match(Set mem (StoreP mem src));
   predicate(UseShenandoahGC && needs_releasing_store(n) && n->as_Store()->barrier_data() != 0);
-  effect(TEMP tmp, KILL cr);
+  effect(KILL cr);
   ins_cost(VOLATILE_REF_COST);
-  format %{ "str  $src, $mem" %}
+  format %{ "str $src, $mem" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
       $mem$$Register, /* dst_narrow  = */ false,
       $src$$Register, /* src_narrow  = */ false,
-      $tmp$$Register, /* pre_val     = */ noreg,
-                      /* is_volatile = */ true);
+      /* is_volatile = */ true);
   %}
   ins_pipe(pipe_class_memory);
 %}
 
 // This pattern is generated automatically from shenandoah_aarch64.m4.
 // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct store_N_Normal_shenandoah(indirect mem, iRegN src, iRegPNoSp tmp, rFlagsReg cr)
+instruct store_N_Normal_shenandoah(indirect mem, iRegN src, rFlagsReg cr)
 %{
   match(Set mem (StoreN mem src));
   predicate(UseShenandoahGC && !needs_releasing_store(n) && n->as_Store()->barrier_data() != 0);
-  effect(TEMP tmp, KILL cr);
+  effect(KILL cr);
   ins_cost(3*INSN_COST);
-  format %{ "str  $src, $mem" %}
+  format %{ "str $src, $mem" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
       $mem$$Register, /* dst_narrow  = */ true,
       $src$$Register, /* src_narrow  = */ true,
-      $tmp$$Register, /* pre_val     = */ noreg,
-                      /* is_volatile = */ false);
+      /* is_volatile = */ false);
   %}
   ins_pipe(pipe_class_memory);
 %}
 
 // This pattern is generated automatically from shenandoah_aarch64.m4.
 // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct store_N_Volatile_shenandoah(indirect mem, iRegN src, iRegPNoSp tmp, rFlagsReg cr)
+instruct store_N_Volatile_shenandoah(indirect mem, iRegN src, rFlagsReg cr)
 %{
   match(Set mem (StoreN mem src));
   predicate(UseShenandoahGC && needs_releasing_store(n) && n->as_Store()->barrier_data() != 0);
-  effect(TEMP tmp, KILL cr);
+  effect(KILL cr);
   ins_cost(VOLATILE_REF_COST);
-  format %{ "str  $src, $mem" %}
+  format %{ "str $src, $mem" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
       $mem$$Register, /* dst_narrow  = */ true,
       $src$$Register, /* src_narrow  = */ true,
-      $tmp$$Register, /* pre_val     = */ noreg,
-                      /* is_volatile = */ true);
+      /* is_volatile = */ true);
   %}
   ins_pipe(pipe_class_memory);
 %}
@@ -120,40 +116,38 @@ instruct store_N_Volatile_shenandoah(indirect mem, iRegN src, iRegPNoSp tmp, rFl
 
 // This pattern is generated automatically from shenandoah_aarch64.m4.
 // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct encodePAndStoreN_Normal_shenandoah(indirect mem, iRegP src, iRegPNoSp tmp, rFlagsReg cr)
+instruct encodePAndStoreN_Normal_shenandoah(indirect mem, iRegP src, rFlagsReg cr)
 %{
   match(Set mem (StoreN mem (EncodeP src)));
   predicate(UseShenandoahGC && !needs_releasing_store(n) && n->as_Store()->barrier_data() != 0);
-  effect(TEMP tmp, KILL cr);
+  effect(KILL cr);
   ins_cost(4*INSN_COST);
-  format %{ "encode_heap_oop $tmp, $src\n\t"
-            "str  $tmp, $mem\t# compressed ptr" %}
+  format %{ "encode_heap_oop tmp, $src\n\t"
+            "str  tmp, $mem\t# compressed ptr" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
       $mem$$Register, /* dst_narrow  = */ true,
       $src$$Register, /* src_narrow  = */ false,
-      $tmp$$Register, /* pre_val     = */ noreg,
-                      /* is_volatile = */ false);
+      /* is_volatile = */ false);
   %}
   ins_pipe(pipe_class_memory);
 %}
 
 // This pattern is generated automatically from shenandoah_aarch64.m4.
 // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct encodePAndStoreN_Volatile_shenandoah(indirect mem, iRegP src, iRegPNoSp tmp, rFlagsReg cr)
+instruct encodePAndStoreN_Volatile_shenandoah(indirect mem, iRegP src, rFlagsReg cr)
 %{
   match(Set mem (StoreN mem (EncodeP src)));
   predicate(UseShenandoahGC && needs_releasing_store(n) && n->as_Store()->barrier_data() != 0);
-  effect(TEMP tmp, KILL cr);
+  effect(KILL cr);
   ins_cost(VOLATILE_REF_COST);
-  format %{ "encode_heap_oop $tmp, $src\n\t"
-            "str  $tmp, $mem\t# compressed ptr" %}
+  format %{ "encode_heap_oop tmp, $src\n\t"
+            "str  tmp, $mem\t# compressed ptr" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
       $mem$$Register, /* dst_narrow  = */ true,
       $src$$Register, /* src_narrow  = */ false,
-      $tmp$$Register, /* pre_val     = */ noreg,
-                      /* is_volatile = */ true);
+      /* is_volatile = */ true);
   %}
   ins_pipe(pipe_class_memory);
 %}
