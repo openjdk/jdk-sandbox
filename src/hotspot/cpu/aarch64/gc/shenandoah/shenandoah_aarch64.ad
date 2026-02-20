@@ -163,17 +163,16 @@ instruct encodePAndStoreN_Volatile_shenandoah(indirect mem, iRegP src, rFlagsReg
 
 // This pattern is generated automatically from shenandoah_aarch64.m4.
 // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct compareAndSwap_P_Normal_shenandoah(iRegINoSp res, indirect mem, iRegPNoSp oldval, iRegP newval, iRegPNoSp tmp1, iRegPNoSp tmp2, rFlagsReg cr)
+instruct compareAndSwap_P_Normal_shenandoah(iRegINoSp res, indirect mem, iRegPNoSp oldval, iRegP newval, rFlagsReg cr)
 %{
   match(Set res (CompareAndSwapP mem (Binary oldval newval)));
   predicate(UseShenandoahGC && !needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
   ins_cost(VOLATILE_REF_COST);
-  effect(TEMP_DEF res, TEMP tmp1, TEMP tmp2, KILL cr);
+  effect(TEMP_DEF res, KILL cr);
   format %{
     "cmpxchg_P_Normal_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
   %}
   ins_encode %{
-    assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
     ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
@@ -181,8 +180,6 @@ instruct compareAndSwap_P_Normal_shenandoah(iRegINoSp res, indirect mem, iRegPNo
       $mem$$base$$Register,
       $oldval$$Register,
       $newval$$Register,
-      $tmp1$$Register,
-      $tmp2$$Register,
       /* exchange */ false,
       /* maybe_null */ true,
       /* is_narrow */ false,
@@ -196,17 +193,16 @@ instruct compareAndSwap_P_Normal_shenandoah(iRegINoSp res, indirect mem, iRegPNo
 
 // This pattern is generated automatically from shenandoah_aarch64.m4.
 // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct compareAndSwap_N_Normal_shenandoah(iRegINoSp res, indirect mem, iRegNNoSp oldval, iRegN newval, iRegPNoSp tmp1, iRegPNoSp tmp2, rFlagsReg cr)
+instruct compareAndSwap_N_Normal_shenandoah(iRegINoSp res, indirect mem, iRegNNoSp oldval, iRegN newval, rFlagsReg cr)
 %{
   match(Set res (CompareAndSwapN mem (Binary oldval newval)));
   predicate(UseShenandoahGC && !needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
   ins_cost(VOLATILE_REF_COST);
-  effect(TEMP_DEF res, TEMP tmp1, TEMP tmp2, KILL cr);
+  effect(TEMP_DEF res, KILL cr);
   format %{
     "cmpxchg_N_Normal_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
   %}
   ins_encode %{
-    assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
     ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
@@ -214,8 +210,6 @@ instruct compareAndSwap_N_Normal_shenandoah(iRegINoSp res, indirect mem, iRegNNo
       $mem$$base$$Register,
       $oldval$$Register,
       $newval$$Register,
-      $tmp1$$Register,
-      $tmp2$$Register,
       /* exchange */ false,
       /* maybe_null */ true,
       /* is_narrow */ true,
@@ -229,17 +223,16 @@ instruct compareAndSwap_N_Normal_shenandoah(iRegINoSp res, indirect mem, iRegNNo
 
 // This pattern is generated automatically from shenandoah_aarch64.m4.
 // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct compareAndSwap_P_Volatile_shenandoah(iRegINoSp res, indirect mem, iRegPNoSp oldval, iRegP newval, iRegPNoSp tmp1, iRegPNoSp tmp2, rFlagsReg cr)
+instruct compareAndSwap_P_Volatile_shenandoah(iRegINoSp res, indirect mem, iRegPNoSp oldval, iRegP newval, rFlagsReg cr)
 %{
   match(Set res (CompareAndSwapP mem (Binary oldval newval)));
   predicate(UseShenandoahGC && needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
   ins_cost(VOLATILE_REF_COST + 3*INSN_COST);
-  effect(TEMP_DEF res, TEMP tmp1, TEMP tmp2, KILL cr);
+  effect(TEMP_DEF res, KILL cr);
   format %{
     "cmpxchg_P_Volatile_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
   %}
   ins_encode %{
-    assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
     ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
@@ -247,8 +240,6 @@ instruct compareAndSwap_P_Volatile_shenandoah(iRegINoSp res, indirect mem, iRegP
       $mem$$base$$Register,
       $oldval$$Register,
       $newval$$Register,
-      $tmp1$$Register,
-      $tmp2$$Register,
       /* exchange */ false,
       /* maybe_null */ true,
       /* is_narrow */ false,
@@ -262,17 +253,16 @@ instruct compareAndSwap_P_Volatile_shenandoah(iRegINoSp res, indirect mem, iRegP
 
 // This pattern is generated automatically from shenandoah_aarch64.m4.
 // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct compareAndSwap_N_Volatile_shenandoah(iRegINoSp res, indirect mem, iRegNNoSp oldval, iRegN newval, iRegPNoSp tmp1, iRegPNoSp tmp2, rFlagsReg cr)
+instruct compareAndSwap_N_Volatile_shenandoah(iRegINoSp res, indirect mem, iRegNNoSp oldval, iRegN newval, rFlagsReg cr)
 %{
   match(Set res (CompareAndSwapN mem (Binary oldval newval)));
   predicate(UseShenandoahGC && needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
   ins_cost(VOLATILE_REF_COST + 3*INSN_COST);
-  effect(TEMP_DEF res, TEMP tmp1, TEMP tmp2, KILL cr);
+  effect(TEMP_DEF res, KILL cr);
   format %{
     "cmpxchg_N_Volatile_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
   %}
   ins_encode %{
-    assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
     ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
@@ -280,8 +270,6 @@ instruct compareAndSwap_N_Volatile_shenandoah(iRegINoSp res, indirect mem, iRegN
       $mem$$base$$Register,
       $oldval$$Register,
       $newval$$Register,
-      $tmp1$$Register,
-      $tmp2$$Register,
       /* exchange */ false,
       /* maybe_null */ true,
       /* is_narrow */ true,
@@ -300,17 +288,16 @@ instruct compareAndSwap_N_Volatile_shenandoah(iRegINoSp res, indirect mem, iRegN
 
 // This pattern is generated automatically from shenandoah_aarch64.m4.
 // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct compareAndExchange_N_Normal_shenandoah(iRegNNoSp res, indirect mem, iRegN oldval, iRegN newval, iRegPNoSp tmp1, iRegPNoSp tmp2, rFlagsReg cr)
+instruct compareAndExchange_N_Normal_shenandoah(iRegNNoSp res, indirect mem, iRegN oldval, iRegN newval, rFlagsReg cr)
 %{
   match(Set res (CompareAndExchangeN mem (Binary oldval newval)));
   predicate(UseShenandoahGC && !needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
   ins_cost(2*VOLATILE_REF_COST);
-  effect(TEMP_DEF res, TEMP tmp1, TEMP tmp2, KILL cr);
+  effect(TEMP_DEF res, KILL cr);
   format %{
     "cae_N_Normal_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
   %}
   ins_encode %{
-    assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
     ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
@@ -318,8 +305,6 @@ instruct compareAndExchange_N_Normal_shenandoah(iRegNNoSp res, indirect mem, iRe
       $mem$$base$$Register,
       $oldval$$Register,
       $newval$$Register,
-      $tmp1$$Register,
-      $tmp2$$Register,
       /* exchange */ true,
       /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
       /* is_narrow */ true,
@@ -332,17 +317,16 @@ instruct compareAndExchange_N_Normal_shenandoah(iRegNNoSp res, indirect mem, iRe
 
 // This pattern is generated automatically from shenandoah_aarch64.m4.
 // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct compareAndExchange_P_Normal_shenandoah(iRegPNoSp res, indirect mem, iRegP oldval, iRegP newval, iRegPNoSp tmp1, iRegPNoSp tmp2, rFlagsReg cr)
+instruct compareAndExchange_P_Normal_shenandoah(iRegPNoSp res, indirect mem, iRegP oldval, iRegP newval, rFlagsReg cr)
 %{
   match(Set res (CompareAndExchangeP mem (Binary oldval newval)));
   predicate(UseShenandoahGC && !needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
   ins_cost(2*VOLATILE_REF_COST);
-  effect(TEMP_DEF res, TEMP tmp1, TEMP tmp2, KILL cr);
+  effect(TEMP_DEF res, KILL cr);
   format %{
     "cae_P_Normal_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
   %}
   ins_encode %{
-    assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
     ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
@@ -350,8 +334,6 @@ instruct compareAndExchange_P_Normal_shenandoah(iRegPNoSp res, indirect mem, iRe
       $mem$$base$$Register,
       $oldval$$Register,
       $newval$$Register,
-      $tmp1$$Register,
-      $tmp2$$Register,
       /* exchange */ true,
       /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
       /* is_narrow */ false,
@@ -364,17 +346,16 @@ instruct compareAndExchange_P_Normal_shenandoah(iRegPNoSp res, indirect mem, iRe
 
 // This pattern is generated automatically from shenandoah_aarch64.m4.
 // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct compareAndExchange_N_Volatile_shenandoah(iRegNNoSp res, indirect mem, iRegN oldval, iRegN newval, iRegPNoSp tmp1, iRegPNoSp tmp2, rFlagsReg cr)
+instruct compareAndExchange_N_Volatile_shenandoah(iRegNNoSp res, indirect mem, iRegN oldval, iRegN newval, rFlagsReg cr)
 %{
   match(Set res (CompareAndExchangeN mem (Binary oldval newval)));
   predicate(UseShenandoahGC && needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
   ins_cost(VOLATILE_REF_COST + 3*INSN_COST);
-  effect(TEMP_DEF res, TEMP tmp1, TEMP tmp2, KILL cr);
+  effect(TEMP_DEF res, KILL cr);
   format %{
     "cae_N_Volatile_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
   %}
   ins_encode %{
-    assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
     ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
@@ -382,8 +363,6 @@ instruct compareAndExchange_N_Volatile_shenandoah(iRegNNoSp res, indirect mem, i
       $mem$$base$$Register,
       $oldval$$Register,
       $newval$$Register,
-      $tmp1$$Register,
-      $tmp2$$Register,
       /* exchange */ true,
       /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
       /* is_narrow */ true,
@@ -396,17 +375,16 @@ instruct compareAndExchange_N_Volatile_shenandoah(iRegNNoSp res, indirect mem, i
 
 // This pattern is generated automatically from shenandoah_aarch64.m4.
 // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct compareAndExchange_P_Volatile_shenandoah(iRegPNoSp res, indirect mem, iRegP oldval, iRegP newval, iRegPNoSp tmp1, iRegPNoSp tmp2, rFlagsReg cr)
+instruct compareAndExchange_P_Volatile_shenandoah(iRegPNoSp res, indirect mem, iRegP oldval, iRegP newval, rFlagsReg cr)
 %{
   match(Set res (CompareAndExchangeP mem (Binary oldval newval)));
   predicate(UseShenandoahGC && needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
   ins_cost(VOLATILE_REF_COST + 3*INSN_COST);
-  effect(TEMP_DEF res, TEMP tmp1, TEMP tmp2, KILL cr);
+  effect(TEMP_DEF res, KILL cr);
   format %{
     "cae_P_Volatile_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
   %}
   ins_encode %{
-    assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
     ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
@@ -414,8 +392,6 @@ instruct compareAndExchange_P_Volatile_shenandoah(iRegPNoSp res, indirect mem, i
       $mem$$base$$Register,
       $oldval$$Register,
       $newval$$Register,
-      $tmp1$$Register,
-      $tmp2$$Register,
       /* exchange */ true,
       /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
       /* is_narrow */ false,
@@ -435,18 +411,17 @@ instruct compareAndExchange_P_Volatile_shenandoah(iRegPNoSp res, indirect mem, i
 
 // This pattern is generated automatically from shenandoah_aarch64.m4.
 // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct weakCompareAndSwap_N_Normal_shenandoah(iRegINoSp res, indirect mem, iRegNNoSp oldval, iRegN newval, iRegPNoSp tmp1, iRegPNoSp tmp2, rFlagsReg cr)
+instruct weakCompareAndSwap_N_Normal_shenandoah(iRegINoSp res, indirect mem, iRegNNoSp oldval, iRegN newval, rFlagsReg cr)
 %{
   match(Set res (WeakCompareAndSwapN mem (Binary oldval newval)));
   predicate(UseShenandoahGC && !needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
   ins_cost(VOLATILE_REF_COST);
-  effect(TEMP_DEF res, TEMP tmp1, TEMP tmp2, KILL cr);
+  effect(TEMP_DEF res, KILL cr);
   format %{
     "cae_N_Normal_weak_shenandoah $res = $mem, $oldval, $newval\t# (N, weak, Normal) if $mem == $oldval then $mem <-- $newval\n\t"
     "csetw $res, EQ\t# $res <-- (EQ ? 1 : 0)"
   %}
   ins_encode %{
-    assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
     ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
@@ -454,8 +429,6 @@ instruct weakCompareAndSwap_N_Normal_shenandoah(iRegINoSp res, indirect mem, iRe
       $mem$$base$$Register,
       $oldval$$Register,
       $newval$$Register,
-      $tmp1$$Register,
-      $tmp2$$Register,
       /* exchange */ false,
       /* maybe_null */ true,
       /* is_narrow */ true,
@@ -468,18 +441,17 @@ instruct weakCompareAndSwap_N_Normal_shenandoah(iRegINoSp res, indirect mem, iRe
 
 // This pattern is generated automatically from shenandoah_aarch64.m4.
 // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct weakCompareAndSwap_P_Normal_shenandoah(iRegINoSp res, indirect mem, iRegPNoSp oldval, iRegP newval, iRegPNoSp tmp1, iRegPNoSp tmp2, rFlagsReg cr)
+instruct weakCompareAndSwap_P_Normal_shenandoah(iRegINoSp res, indirect mem, iRegPNoSp oldval, iRegP newval, rFlagsReg cr)
 %{
   match(Set res (WeakCompareAndSwapP mem (Binary oldval newval)));
   predicate(UseShenandoahGC && !needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
   ins_cost(VOLATILE_REF_COST);
-  effect(TEMP_DEF res, TEMP tmp1, TEMP tmp2, KILL cr);
+  effect(TEMP_DEF res, KILL cr);
   format %{
     "cae_P_Normal_weak_shenandoah $res = $mem, $oldval, $newval\t# (P, weak, Normal) if $mem == $oldval then $mem <-- $newval\n\t"
     "csetw $res, EQ\t# $res <-- (EQ ? 1 : 0)"
   %}
   ins_encode %{
-    assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
     ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
@@ -487,8 +459,6 @@ instruct weakCompareAndSwap_P_Normal_shenandoah(iRegINoSp res, indirect mem, iRe
       $mem$$base$$Register,
       $oldval$$Register,
       $newval$$Register,
-      $tmp1$$Register,
-      $tmp2$$Register,
       /* exchange */ false,
       /* maybe_null */ true,
       /* is_narrow */ false,
@@ -501,18 +471,17 @@ instruct weakCompareAndSwap_P_Normal_shenandoah(iRegINoSp res, indirect mem, iRe
 
 // This pattern is generated automatically from shenandoah_aarch64.m4.
 // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct weakCompareAndSwap_N_Volatile_shenandoah(iRegINoSp res, indirect mem, iRegNNoSp oldval, iRegN newval, iRegPNoSp tmp1, iRegPNoSp tmp2, rFlagsReg cr)
+instruct weakCompareAndSwap_N_Volatile_shenandoah(iRegINoSp res, indirect mem, iRegNNoSp oldval, iRegN newval, rFlagsReg cr)
 %{
   match(Set res (WeakCompareAndSwapN mem (Binary oldval newval)));
   predicate(UseShenandoahGC && needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
   ins_cost(VOLATILE_REF_COST);
-  effect(TEMP_DEF res, TEMP tmp1, TEMP tmp2, KILL cr);
+  effect(TEMP_DEF res, KILL cr);
   format %{
     "cae_N_Volatile_weak_shenandoah $res = $mem, $oldval, $newval\t# (N, weak, Volatile) if $mem == $oldval then $mem <-- $newval\n\t"
     "csetw $res, EQ\t# $res <-- (EQ ? 1 : 0)"
   %}
   ins_encode %{
-    assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
     ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
@@ -520,8 +489,6 @@ instruct weakCompareAndSwap_N_Volatile_shenandoah(iRegINoSp res, indirect mem, i
       $mem$$base$$Register,
       $oldval$$Register,
       $newval$$Register,
-      $tmp1$$Register,
-      $tmp2$$Register,
       /* exchange */ false,
       /* maybe_null */ true,
       /* is_narrow */ true,
@@ -534,18 +501,17 @@ instruct weakCompareAndSwap_N_Volatile_shenandoah(iRegINoSp res, indirect mem, i
 
 // This pattern is generated automatically from shenandoah_aarch64.m4.
 // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct weakCompareAndSwap_P_Volatile_shenandoah(iRegINoSp res, indirect mem, iRegPNoSp oldval, iRegP newval, iRegPNoSp tmp1, iRegPNoSp tmp2, rFlagsReg cr)
+instruct weakCompareAndSwap_P_Volatile_shenandoah(iRegINoSp res, indirect mem, iRegPNoSp oldval, iRegP newval, rFlagsReg cr)
 %{
   match(Set res (WeakCompareAndSwapP mem (Binary oldval newval)));
   predicate(UseShenandoahGC && needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
   ins_cost(VOLATILE_REF_COST);
-  effect(TEMP_DEF res, TEMP tmp1, TEMP tmp2, KILL cr);
+  effect(TEMP_DEF res, KILL cr);
   format %{
     "cae_P_Volatile_weak_shenandoah $res = $mem, $oldval, $newval\t# (P, weak, Volatile) if $mem == $oldval then $mem <-- $newval\n\t"
     "csetw $res, EQ\t# $res <-- (EQ ? 1 : 0)"
   %}
   ins_encode %{
-    assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
     ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
@@ -553,8 +519,6 @@ instruct weakCompareAndSwap_P_Volatile_shenandoah(iRegINoSp res, indirect mem, i
       $mem$$base$$Register,
       $oldval$$Register,
       $newval$$Register,
-      $tmp1$$Register,
-      $tmp2$$Register,
       /* exchange */ false,
       /* maybe_null */ true,
       /* is_narrow */ false,

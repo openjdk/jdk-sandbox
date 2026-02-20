@@ -87,7 +87,7 @@ public:
                    bool acquire, bool release, bool is_cae, Register result);
 #ifdef COMPILER2
   void store_c2(const MachNode* node, MacroAssembler* masm, Register dst, bool dst_narrow, Register src, bool src_narrow, bool is_volatile);
-  void cae_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval, Register newval, Register tmp1, Register tmp2, bool exchange, bool maybe_null, bool narrow, bool acquire, bool release, bool weak);
+  void cae_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval, Register newval, bool exchange, bool maybe_null, bool narrow, bool acquire, bool release, bool weak);
   void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr, bool maybe_null, bool narrow, bool acquire);
   void load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Register addr, bool maybe_null, bool narrow, bool acquire);
 
