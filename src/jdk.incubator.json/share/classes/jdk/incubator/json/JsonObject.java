@@ -94,7 +94,7 @@ public non-sealed interface JsonObject extends JsonValue {
     /**
      * {@return the {@code JsonObject} created from the given
      * {@code Map} of {@code String} to {@code JsonValue}s}
-     * The encounter order of members in the returned map is guaranteed
+     * The encounter order of members in the returned {@code JsonObject} is guaranteed
      * to be stable. See {@link ##member_order the member order} for details.
      *
      * @param map the sequenced map of {@code String} to {@code JsonValue}s. Non-null.
