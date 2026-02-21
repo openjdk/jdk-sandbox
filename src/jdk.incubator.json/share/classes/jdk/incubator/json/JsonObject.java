@@ -92,9 +92,6 @@ public non-sealed interface JsonObject extends JsonValue {
      * {@return the {@code JsonObject} created from the given
      * map of {@code String} to {@code JsonValue}s}
      *
-     * The {@code JsonObject}'s members occur in the same order as the given
-     * map's entries.
-     *
      * @param map the map of {@code JsonValue}s. Non-null.
      * @throws NullPointerException if {@code map} is {@code null}, contains
      *      any keys that are {@code null}, or contains any values that are {@code null}.
