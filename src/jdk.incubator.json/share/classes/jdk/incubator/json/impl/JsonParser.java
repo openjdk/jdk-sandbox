@@ -29,7 +29,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.SequencedMap;
 import java.util.function.Supplier;
 
 import jdk.incubator.json.JsonArray;
@@ -107,7 +106,7 @@ public final class JsonParser {
         skipWhitespaces();
         // Check for empty case
         if (charEquals('}')) {
-            return new JsonObjectImpl(new LinkedHashMap<>(), startO, doc);
+            return new JsonObjectImpl(Map.of(), startO, doc);
         }
         var members = new LinkedHashMap<String, JsonValue>();
         while (hasInput()) {

@@ -28,9 +28,9 @@ package jdk.incubator.json;
 import jdk.incubator.json.impl.Utils;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.SequencedMap;
 
 /**
  * The interface that represents a JSON value. A {@code JsonValue} can be
@@ -76,10 +76,10 @@ import java.util.SequencedMap;
  *     </li>
  *     <li>{@code bool()} returns {@code true} or {@code false} for JSON
  *     boolean literals.</li>
- *     <li>{@code members()} returns an unmodifiable {@code SequencedMap} of
- *     {@code String} to {@code JsonValue} for JSON object, guaranteed to contain
- *     neither null keys nor null values. If the JSON object contains no members,
- *     an empty map is returned.
+ *     <li>{@code members()} returns an unmodifiable map of {@code String} to
+ *     {@code JsonValue} for JSON object, guaranteed to contain neither null
+ *     keys nor null values. If the JSON object contains no members, an empty
+ *     map is returned.
  *     </li>
  *     <li>{@code elements()} returns an unmodifiable list of {@code JsonValue}
  *     for JSON array, guaranteed to contain non-null values. If the JSON array
@@ -280,12 +280,9 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
     }
 
     /**
-     * {@return an unmodifiable {@code SequencedMap} of {@code String} to
-     * {@code JsonValue} if this {@code JsonValue} is an instance of
-     * {@link JsonObject}} Otherwise, throws an {@code JsonAssertionException}.
-     * The encounter order of members in the returned map is guaranteed
-     * to be stable. See {@link JsonObject##member_order the member order} for
-     * details.
+     * {@return an unmodifiable map of {@code String} to {@code JsonValue} if this
+     * {@code JsonValue} is an instance of {@link JsonObject}} Otherwise, throws an
+     * {@code JsonAssertionException}.
      *
      * @implSpec
      * The default implementation provided by {@code JsonValue} throws {@code
@@ -294,7 +291,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      *
      * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonObject}.
      */
-    default SequencedMap<String, JsonValue> members() {
+    default Map<String, JsonValue> members() {
         throw Utils.composeTypeError(this, "JsonObject");
     }
 
