@@ -64,8 +64,8 @@
 // This one is "C" and common to all platforms:
 #define SYM_REVIVE_VM "process_revival"
 
-
 void install_handler();
+void remove_handler();
 
 //
 // Platform specifics
@@ -98,8 +98,9 @@ void install_handler();
 
 #include "pefile.hpp"
 
-void tls_fixup_pd(void* tlsPtr);
 void normalize_path_pd(char *s);
+void tls_fixup_pd(void* tlsPtr);
+void tls_revert_pd();
 
 #define JVM_FILENAME "jvm.dll"
 #define FILE_SEPARATOR  "\\"
@@ -122,6 +123,7 @@ void normalize_path_pd(char *s);
 struct revival_data {
   uint64_t magic;
   uint64_t version;
+  uint64_t size_this;
   uint64_t status;
 
   const char *runtime_name;
@@ -129,6 +131,7 @@ struct revival_data {
   const char *runtime_vendor_version;
   const char *jdk_debug_level;
 
+  uint64_t tls_index;
   uint64_t initial_time_count; // Linux: clock_gettime MONOTONIC (since system boot)
   uint64_t initial_time_date;  // Linux: time_t since epoch
   double error_time;
@@ -164,12 +167,14 @@ int revive_image(const char* corefile, const char* javahome, const char* libdir,
  */
 int revival_dcmd(const char *command);
 
+/**
+ * Perform any cleanup after revival operation.
+ */
+int revival_done();
 
 //
 // Revival internals:
 //
-
-// Diagnostics
 extern int logLevel;            // set from env: REVIVAL_LOG
 #define LOG_VERBOSE 1
 #define LOG_DEBUG   2
@@ -188,8 +193,9 @@ extern void *jvm_address;
 extern void *h; // Opaque handle to libjvm
 extern std::list<Segment> writableSegments;
 extern std::list<Segment> failedSegments;
+extern struct revival_data* rdata;
 
-// Exit signalling e.g. address space clash, caller should retry.
+// Exit signalling caller should retry, e.g. address space clash.
 #define EXIT_SUGGEST_RETRY 7
 extern void exitForRetry(); // exit process using above exit code to signal a retry
 

@@ -138,8 +138,7 @@ bool PEFile::relocate(const char* filename, uint64_t address) {
 
 // static
 bool PEFile::remove_dynamicbase(const char* filename) {
-
-    // Set DYNAMICBASE:NO
+    // Set DYNAMICBASE:NO in DllCharacteristics of an existing binary.
     HANDLE h = CreateFile(filename, GENERIC_READ | GENERIC_WRITE, 0 /* not shared */, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
     if (h == INVALID_HANDLE_VALUE) { error("remove_dynamicbase: CreateFile failure: %d", GetLastError()); }
 

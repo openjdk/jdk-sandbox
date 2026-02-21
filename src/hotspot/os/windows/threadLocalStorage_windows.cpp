@@ -62,6 +62,7 @@ void ThreadLocalStorage::set_thread(Thread* current) {
   assert(res, "TlsSetValue failed with error code: %lu", GetLastError());
 }
 
-void ThreadLocalStorage::revive(Thread* thread) {
-  // no-op on Windows
+uint64_t ThreadLocalStorage::revive(Thread* thread) {
+  // no-op on Windows but gives access to _thread_key
+  return (uint64_t) _thread_key;
 }

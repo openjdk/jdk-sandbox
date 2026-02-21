@@ -118,7 +118,7 @@ int main(int argc, char **argv) {
     } else {
         e = revival_dcmd(command);
     }
-
+    revival_done();
     _exit(e);
 }
 

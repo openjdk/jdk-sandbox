@@ -27,6 +27,7 @@
 #include <intrin.h>
 #include <io.h>
 #include <memoryapi.h>
+#include <process.h>
 #include <processthreadsapi.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -49,6 +50,11 @@
 
 
 uint64_t vaddr_align; // set by init_pd
+
+uint64_t* cur_teb;
+uint64_t* cur_tls; // Pointer to TLS pointer in current process
+uint64_t saved_tls = 0; // Save a TLS pointer before we open JVM
+
 
 typedef PVOID (*VirtualAlloc2Fn)(HANDLE, PVOID, SIZE_T, ULONG, ULONG, MEM_EXTENDED_PARAMETER*, ULONG);
 typedef PVOID (*MapViewOfFile3Fn)(HANDLE, HANDLE, PVOID, ULONG64, SIZE_T, ULONG, ULONG, MEM_EXTENDED_PARAMETER*, ULONG);
@@ -114,11 +120,46 @@ uint64_t length_alignment_pd() {
 }
 
 unsigned long long max_user_vaddr_pd() {
-    return 0x7FFFFFFFFFFF;
+    return 0x7FFF00000000; // end of user space 0x7FFF_FFFFFFFF
+}
+
+void tls_initial_save_pd() {
+    warn("tls: PID %ld", _getpid());
+    cur_teb = (uint64_t*) NtCurrentTeb();           // TEB pointer on x64 in GS reg.
+    cur_tls = (uint64_t*) ((char*) cur_teb + 0x58); // Read TLS ptr at offset. Or: tls =  __readgsqword(0x58);
+    saved_tls = *cur_tls;
+    warn("tls: current teb = 0x%llx tls ptr at 0x%llx contains 0x%llx", cur_teb, cur_tls, saved_tls);
+    waitHitRet();
+}
+
+void tls_fixup_pd(void *core_teb) {
+    // Given we have revived memory, read core TEB address, to find old TLS pointer.
+    logv("tls_fixup: MiniDump TEB addr 0x%llx", core_teb);
+    uint64_t* core_tls = (uint64_t*) ((char*) core_teb + 0x58);
+    logv("tls_fixup: core _tls_array = 0x%llx contains 0x%llx", core_tls, *core_tls);
+
+    // Replace current TLS with that from MiniDump:
+    *cur_tls = *core_tls;
+    warn("tls_fixup: fixed, cur teb = 0x%llx new tls = 0x%llx contains 0x%llx", cur_teb, cur_tls, *cur_tls);
+    waitHitRet();
+}
+
+void tls_revert_pd() {
+    warn("tls: index  0x%llx", rdata->tls_index);
+    uint64_t* cur_teb_refetch = (uint64_t*) NtCurrentTeb();
+    if (cur_teb != cur_teb_refetch) {
+        warn("tls_fixup: cur teb = 0x%llx != refetched = 0x%llx", cur_teb, cur_teb_refetch);
+    }
+    warn("tls_fixup: revert: cur teb = 0x%llx tls ptr at 0x%llx contains 0x%llx", cur_teb, cur_tls, *cur_tls);
+    *cur_tls = 0; // saved_tls;
+    warn("tls_fixup: reverted, cur teb = 0x%llx tls ptr at 0x%llx contains 0x%llx", cur_teb, cur_tls, *cur_tls);
+    waitHitRet();
 }
 
 void init_pd() {
     int x;
+    tls_initial_save_pd(); // Save before JVM is loaded
+
     _SYSTEM_INFO systemInfo;
     GetSystemInfo(&systemInfo);
     vaddr_align = systemInfo.dwAllocationGranularity - 1;
@@ -175,6 +216,8 @@ int revival_checks_pd(const char *dirname) {
 LPTOP_LEVEL_EXCEPTION_FILTER previousUnhandledExceptionFilter = nullptr;
 
 LONG WINAPI topLevelUnhandledExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo) {
+        // This handler was checking the fault address was in the failedSegments.
+        // But it only ever calls exitForRetry() either way, so just do that.
 
 #if defined(_M_AMD64)
     uint64_t pc = (uint64_t) exceptionInfo->ContextRecord->Rip;
@@ -186,7 +229,7 @@ LONG WINAPI topLevelUnhandledExceptionFilter(struct _EXCEPTION_POINTERS* excepti
     uint64_t addr = (uint64_t) exceptionInfo->ExceptionRecord->ExceptionInformation[1];
     warn("revival: handler: pc 0x%llx address 0x%llx", pc, addr);
 
-    // Catch access to areas we failed to map:
+    // Note any access to areas we failed to map:
     std::list<Segment>::iterator iter;
     for (iter = failedSegments.begin(); iter != failedSegments.end(); iter++) {
         if (addr >= (uint64_t) iter->vaddr &&
@@ -196,7 +239,7 @@ LONG WINAPI topLevelUnhandledExceptionFilter(struct _EXCEPTION_POINTERS* excepti
         }
     }
     waitHitRet();
-    exitForRetry();
+    exitForRetry(); // Letting this process fail would send the wrong return code back to JCmd.
     abort(); // not reached
 }
 
@@ -204,26 +247,12 @@ void install_handler() {
     previousUnhandledExceptionFilter = SetUnhandledExceptionFilter(topLevelUnhandledExceptionFilter);
 }
 
-
-void tls_fixup_pd(void *old_teb) {
-    logv("tls_fixup: given old TEB addr 0x%llx", old_teb);
-
-    // Given we have revived memory, read old TEB address, to find old TLS pointer.
-    uint64_t* old_tls = (uint64_t*) ((char*) old_teb + 0x58);
-    logv("tls_fixup: old _tls_array = 0x%llx contains 0x%llx", old_tls, *old_tls);
-
-    // TEB pointer on x64 is: __readgsqword(0x30) + 0x58
-    uint64_t* new_teb = (uint64_t*) NtCurrentTeb();
-    uint64_t* new_tls = (uint64_t*) ((char*) new_teb + 0x58);
-    logv("tls_fixup: new teb = 0x%llx", new_teb);
-    logv("tls_fixup: new tls = 0x%llx contains 0x%llx", new_tls, *new_tls);
-
-    *new_tls = *old_tls;
-    logv("tls_fixup: fixed new tls = 0x%llx contains 0x%llx", new_tls, *new_tls);
+void remove_handler() {
+    LPTOP_LEVEL_EXCEPTION_FILTER prev = SetUnhandledExceptionFilter(nullptr);
+    if (prev != previousUnhandledExceptionFilter) {
+        warn("huh");
+    }
 }
-
-
-// Utils...
 
 void printMemBasicInfo(MEMORY_BASIC_INFORMATION meminfo) {
 
@@ -266,15 +295,7 @@ void *load_sharedobject_pd(const char *name, void *vaddr) {
         warn("load_sharedobject_pd: %s: load failed 0x%p != requested 0x%p. error=0x%lx", name, h, vaddr, GetLastError());
         if (h != nullptr) {
             // Loaded, wrong address.
-            exitForRetry(); // or just fatal
-            // Alterntatively:
-            int unloaded = FreeLibrary(h);
-            if (unloaded == 0) {
-                warn("load_sharedobject_pd: unload failed.");
-                break;
-            }
-            // If we want to try re-trying, should map some memory at the address we just saw.
-            // void* addr = do_map_allocate_pd((void*) h, 1024 * 1024);
+            exitForRetry();
         }
     }
     return (void *) -1;
@@ -297,7 +318,7 @@ void set_prot(void* addr, uint64_t length) {
 
     DWORD lpfOldProtect;
     if (!VirtualProtect((PVOID) addr, length, prot, &lpfOldProtect)) {
-        logv("    set_prot: failed setting rw (0x%lx) for: 0x%p, len 0x%lx: error 0x%x.",  prot, addr, length, GetLastError());
+        logv("    set_prot: failed (1) setting rw (0x%lx) for: 0x%p, len 0x%lx: error 0x%x.",  prot, addr, length, GetLastError());
         if (logLevel >= LOG_VERBOSE) {
             fprintf(stderr, "    ");
             printMemBasicInfo(addr);
@@ -310,8 +331,9 @@ void set_prot(void* addr, uint64_t length) {
             warn("set_prot: VirtualQueryEx failed: returned 0x%x, error 0x%x", q, GetLastError());
         } else {
             if (!VirtualProtect((PVOID) meminfo.AllocationBase, meminfo.RegionSize, prot, &lpfOldProtect)) {
-                warn("        set_prot: failed setting rw (0x%lx) for: 0x%p, len 0x%lx: error 0x%x.",
+                warn("        (2) set_prot: failed setting rw (0x%lx) for: 0x%p, len 0x%lx: error 0x%x.",
                     prot, meminfo.AllocationBase, meminfo.RegionSize, GetLastError());
+                waitHitRet();
             } else {
                 logd("        set_prot: OK setting rw (0x%lx) for: 0x%p, len 0x%lx",
                     prot, meminfo.AllocationBase, meminfo.RegionSize);
@@ -757,6 +779,7 @@ void write_mem_mappings(MiniDump* dump, int fd, const char *corename,
     }
 
     // Windows TEB: used to setup TLS on revival.
+    // Written after memory mappings, as acting on this requires revived memory.
     uint64_t tls = dump->resolve_teb();
     if (tls != 0) {
         writef(fd, "TEB %llx\n", tls);

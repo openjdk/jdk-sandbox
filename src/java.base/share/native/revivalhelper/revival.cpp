@@ -339,7 +339,7 @@ int revival_mapping_copy(void* vaddr, size_t length, size_t offset, bool allocat
     }
     // Check permission
     if (!mem_canwrite_pd(vaddr, length)) {
-        warn("  revival_mapping_copy: cannot write at vaddr 0x%p", vaddr);
+        warn("  revival_mapping_copy: cannot write at vaddr 0x%p length " SIZE_FORMAT_X_0, vaddr, length);
         return -1;
     }
 
@@ -493,8 +493,8 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
         e = fscanf(f, "TEB %32s\n", s1);
         if (e == 1) {
 #ifdef WINDOWS
-            void* teb_addr = (void*) strtoull(s1, nullptr, 16);
-            tls_fixup_pd(teb_addr);
+            void* core_teb_addr = (void*) strtoull(s1, nullptr, 16);
+            tls_fixup_pd(core_teb_addr);
 #else
             warn("TEB line invalid on non-Windows.");
 #endif
@@ -897,9 +897,13 @@ int revive_image_cooperative() {
     if (rdata == nullptr) {
         warn("revive_image: JVM helper failed");
         return -1;
-    } 
+    }
+    // Verify revival data
     if (rdata->version != 1) {
         error("revival data wrong version: %llx", (unsigned long long) rdata->version);
+    }
+    if (rdata->size_this != sizeof(struct revival_data)) {
+        warn("revival data size mismatch: this helper %d VM data claims %d", sizeof(struct revival_data), rdata->size_this);
     }
     logv("revive_image: revival_data 0x%llx 0x%llx", (unsigned long long) rdata->magic, (unsigned long long) rdata->version);
     logv("revive_image: revival_data %s / %s / %s / %s", rdata->runtime_name, rdata->runtime_version, rdata->runtime_vendor_version,
@@ -1053,7 +1057,7 @@ int revive_image(const char* corename, const char* javahome, const char* libdir,
         if (logLevelText != nullptr) {
             if (strcmp("debug", logLevelText) == 0) {
                 logLevel = LOG_DEBUG;
-            } else if (strcmp("debug", logLevelText) == 0) {
+            } else if (strcmp("verbose", logLevelText) == 0) {
                 logLevel = LOG_VERBOSE;
             }
         }
@@ -1181,3 +1185,9 @@ int revival_dcmd(const char* command) {
     return 0;
 }
 
+int revival_done() {
+#ifdef WINDOWS
+    tls_revert_pd();
+#endif
+    return 0;
+}

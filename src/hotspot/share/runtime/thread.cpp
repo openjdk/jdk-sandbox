@@ -582,6 +582,7 @@ jboolean Thread::_revived_vm = false;
 struct revival_data {
   uint64_t magic;
   uint64_t version;
+  uint64_t size_this;
   uint64_t status;
 
   const char *runtime_name;
@@ -589,6 +590,7 @@ struct revival_data {
   const char *runtime_vendor_version;
   const char *jdk_debug_level;
 
+  uint64_t tls_index;
   uint64_t initial_time_count; // e.g. clock_gettime MONOTONIC (since system boot), ns
   uint64_t initial_time_date;  // e.g. time_t since epoch, seconds
   double error_time; // os::elapsedTime() at first VM error
@@ -624,7 +626,7 @@ void* Thread::process_revival() {
   t->set_osthread(new OSThread());
 
   // Reset current thread:
-  ThreadLocalStorage::revive(t);
+  int tls_index = ThreadLocalStorage::revive(t);
   t->revive_thread_current();
 
   Thread *c = Thread::current_or_null(); // Verify TLS
@@ -648,22 +650,24 @@ void* Thread::process_revival() {
   memset(&vm_revival_data, 0, sizeof(struct revival_data));
   rdata->magic = 0x100000001;
   rdata->version = 0x1;
+  rdata->size_this = sizeof(vm_revival_data);
+  rdata->status = 1;
 
   rdata->runtime_name = JDK_Version::runtime_name();
   rdata->runtime_version = JDK_Version::runtime_version();
   rdata->runtime_vendor_version = JDK_Version::runtime_vendor_version();
   rdata->jdk_debug_level = VM_Version::printable_jdk_debug_level();
 
+  rdata->tls_index = tls_index;
+  rdata->initial_time_count = os::initial_time_count();
+  rdata->initial_time_date = os::initial_time_date();
+  rdata->error_time = VMError::error_time();
+
   rdata->vm_thread = t;
   rdata->tty = tty;
 
   rdata->parse_and_execute = (void*) &DCmd::parse_and_execute;
   rdata->throwable_print = (void*) &java_lang_Throwable::print;
-
-  rdata->initial_time_count = os::initial_time_count();
-  rdata->initial_time_date = os::initial_time_date();
-  rdata->error_time = VMError::error_time();
-
   return (void*) rdata;
 }
 
