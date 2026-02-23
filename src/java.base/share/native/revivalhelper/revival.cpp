@@ -903,7 +903,7 @@ int revive_image_cooperative() {
         error("revival data wrong version: %llx", (unsigned long long) rdata->version);
     }
     if (rdata->size_this != sizeof(struct revival_data)) {
-        warn("revival data size mismatch: this helper %d VM data claims %d", sizeof(struct revival_data), rdata->size_this);
+        warn("revival data size mismatch: this helper %ld VM data claims %ld", sizeof(struct revival_data), rdata->size_this);
     }
     logv("revive_image: revival_data 0x%llx 0x%llx", (unsigned long long) rdata->magic, (unsigned long long) rdata->version);
     logv("revive_image: revival_data %s / %s / %s / %s", rdata->runtime_name, rdata->runtime_version, rdata->runtime_vendor_version,
