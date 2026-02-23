@@ -145,13 +145,12 @@ public:
 class ShenandoahLoadBarrierStubC2 : public ShenandoahBarrierStubC2 {
   Register const _dst;
   Address  const _src;
-  Register const _tmp;
   const bool _narrow;
   const bool _needs_load_ref_barrier;
   const bool _needs_satb_barrier;
 
-  ShenandoahLoadBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow, Register tmp) :
-    ShenandoahBarrierStubC2(node), _dst(dst), _src(src), _tmp(tmp), _narrow(narrow),
+  ShenandoahLoadBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow) :
+    ShenandoahBarrierStubC2(node), _dst(dst), _src(src), _narrow(narrow),
     _needs_load_ref_barrier(needs_load_ref_barrier(node)), _needs_satb_barrier(needs_satb_barrier(node)) {
       assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
     }
@@ -173,7 +172,7 @@ public:
     return (node->barrier_data() & ShenandoahBitNotNull) != 0;
   }
 
-  static ShenandoahLoadBarrierStubC2* create(const MachNode* node, Register dst, Address src, bool narrow, Register tmp);
+  static ShenandoahLoadBarrierStubC2* create(const MachNode* node, Register dst, Address src, bool narrow);
 
   void emit_code(MacroAssembler& masm) override;
 };

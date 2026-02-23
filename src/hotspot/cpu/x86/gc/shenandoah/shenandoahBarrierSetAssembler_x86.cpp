@@ -1041,8 +1041,7 @@ void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, Ma
 void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm,
                                             Register dst,
                                             Address src,
-                                            bool narrow,
-                                            Register tmp) {
+                                            bool narrow) {
   // Do the actual load. This load is the candidate for implicit null check, and MUST come first.
   if (narrow) {
     __ movl(dst, src);
@@ -1054,8 +1053,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
   if (!ShenandoahSkipBarrierStubs && ShenandoahLoadBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
-    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, dst, src, narrow, tmp);
-    stub->dont_preserve(tmp); // temp, no need to save
+    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, dst, src, narrow);
 
     char check = 0;
     check |= ShenandoahLoadBarrierStubC2::needs_satb_barrier(node)          ? ShenandoahHeap::MARKING : 0;
@@ -1225,7 +1223,20 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   __ bind(*entry());
 
-  assert_different_registers(_tmp, _dst);
+  // Choose a temp register that does not clash with dst or any component in src.
+  Register tmp = noreg;
+  for (int i = 0; i < 8; i++) {
+    Register r = as_Register(i);
+    if (r != rsp && r != rbp && r != _dst && r != _src.base() && r != _src.index()) {
+      if (tmp == noreg) {
+        tmp = r;
+        break;
+      }
+    }
+  }
+
+  assert(tmp != noreg, "tmp allocated");
+  assert_different_registers(tmp, _dst, _src.base(), _src.index());
 
   Label L_lrb_done, L_lrb_slow;
   Label L_satb_done, L_satb_pack_and_done, L_satb_slow;
@@ -1266,14 +1277,16 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
     Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
     Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
 
-    __ movptr(_tmp, index);
-    __ testptr(_tmp, _tmp);
+    __ push(tmp);
+    __ movptr(tmp, index);
+    __ testptr(tmp, tmp);
     __ jcc(Assembler::zero, L_satb_slow);
     // The buffer is not full, store value into it.
-    __ subptr(_tmp, wordSize);
-    __ movptr(index, _tmp);
-    __ addptr(_tmp, buffer);
-    __ movptr(Address(_tmp, 0), _dst);
+    __ subptr(tmp, wordSize);
+    __ movptr(index, tmp);
+    __ addptr(tmp, buffer);
+    __ movptr(Address(tmp, 0), _dst);
+    __ pop(tmp);
 
     __ bind(L_satb_pack_and_done);
     if (_narrow) {
@@ -1295,25 +1308,27 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 
     // Collection set check. Only really applies to strong loads, as weak/phantom loads
     // are handled in runtime.
+    __ push(tmp);
     if (!is_weak) {
       if (_narrow) {
-        __ decode_heap_oop_not_null(_tmp, _dst);
+        __ decode_heap_oop_not_null(tmp, _dst);
       } else {
-        __ movptr(_tmp, _dst);
+        __ movptr(tmp, _dst);
       }
-      __ shrptr(_tmp, ShenandoahHeapRegion::region_size_bytes_shift_jint());
+      __ shrptr(tmp, ShenandoahHeapRegion::region_size_bytes_shift_jint());
       // Check if cset address is in good spot to just use it as offset. It almost always is.
       Address cset_addr_arg;
       intptr_t cset_addr = (intptr_t) ShenandoahHeap::in_cset_fast_test_addr();
       if ((cset_addr >> 3) < INT32_MAX) {
         assert(is_aligned(cset_addr, 8), "Sanity");
-        cset_addr_arg = Address(_tmp, checked_cast<int>(cset_addr >> 3), Address::times_8);
+        cset_addr_arg = Address(tmp, checked_cast<int>(cset_addr >> 3), Address::times_8);
       } else {
-        __ addptr(_tmp, cset_addr);
-        cset_addr_arg = Address(_tmp, 0);
+        __ addptr(tmp, cset_addr);
+        cset_addr_arg = Address(tmp, 0);
       }
       __ cmpb(cset_addr_arg, 0);
       __ jccb(Assembler::notEqual, L_lrb_slow);
+      __ pop(tmp); // Slow path had popped for us otherwise
     } else {
       __ jmpb(L_lrb_slow);
     }
@@ -1329,6 +1344,8 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   // the overwhelmingly major case.
   if (_needs_load_ref_barrier) {
     __ bind(L_lrb_slow);
+    __ pop(tmp); // Immediately pop tmp to make sure the stack is aligned.
+
       // If object is narrow, we need to decode it first.
     if (_narrow) {
       __ decode_heap_oop_not_null(_dst);
@@ -1383,6 +1400,8 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   if (_needs_satb_barrier) {
     __ bind(L_satb_slow);
+    __ pop(tmp); // Immediately pop to make sure the stack is aligned
+
     preserve(_dst); // For SATB we must preserve _dst
     {
       SaveLiveRegisters save_registers(&masm, this);

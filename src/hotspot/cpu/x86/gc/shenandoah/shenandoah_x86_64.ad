@@ -31,11 +31,11 @@ source %{
 // ---------------------------------- LOADS ---------------------------------------
 //
 
-instruct loadP_shenandoah(rRegP dst, memory mem, rRegP tmp, rFlagsReg cr)
+instruct loadP_shenandoah(rRegP dst, memory mem, rFlagsReg cr)
 %{
   match(Set dst (LoadP mem));
   predicate(UseShenandoahGC && n->as_Load()->barrier_data() != 0);
-  effect(TEMP_DEF dst, TEMP tmp, KILL cr);
+  effect(TEMP_DEF dst, KILL cr);
   // The main load is a candidate to implement implicit null checks.
   ins_is_late_expanded_null_check_candidate(true);
   format %{ "movq    $dst, $mem\t# ptr" %}
@@ -43,19 +43,18 @@ instruct loadP_shenandoah(rRegP dst, memory mem, rRegP tmp, rFlagsReg cr)
     ShenandoahBarrierSet::assembler()->load_c2(this, masm,
       $dst$$Register,
       $mem$$Address,
-      /* narrow = */ false,
-      $tmp$$Register
+      /* narrow = */ false
     );
   %}
   ins_cost(125);
   ins_pipe(ialu_cr_reg_mem);
 %}
 
-instruct loadN_shenandoah(rRegN dst, memory mem, rRegP tmp, rFlagsReg cr)
+instruct loadN_shenandoah(rRegN dst, memory mem, rFlagsReg cr)
 %{
   match(Set dst (LoadN mem));
   predicate(UseShenandoahGC && n->as_Load()->barrier_data() != 0);
-  effect(TEMP_DEF dst, TEMP tmp, KILL cr);
+  effect(TEMP_DEF dst, KILL cr);
   // The main load is a candidate to implement implicit null checks.
   ins_is_late_expanded_null_check_candidate(true);
   format %{ "movl    $dst, $mem\t# compressed ptr" %}
@@ -63,8 +62,7 @@ instruct loadN_shenandoah(rRegN dst, memory mem, rRegP tmp, rFlagsReg cr)
     ShenandoahBarrierSet::assembler()->load_c2(this, masm,
       $dst$$Register,
       $mem$$Address,
-      /* narrow = */ true,
-      $tmp$$Register
+      /* narrow = */ true
     );
   %}
   ins_cost(125);
