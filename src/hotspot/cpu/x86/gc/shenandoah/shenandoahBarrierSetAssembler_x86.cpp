@@ -1090,13 +1090,13 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
       assert(CardTable::dirty_card_val() == 0, "Encoding assumption");
       Label L_card_done;
       if (UseCondCardMark) {
-        __ testb(Address(tmp, 0), 0xFF);
-        __ jccb(Assembler::zero, L_card_done);
+        __ cmpb(Address(tmp, 0), CardTable::dirty_card_val());
+        __ jccb(Assembler::equal, L_card_done);
       }
       if (UseCompressedOops && CompressedOops::base() == nullptr) {
         __ movb(Address(tmp, 0), r12);
       } else {
-        __ movb(Address(tmp, 0), 0);
+        __ movb(Address(tmp, 0), CardTable::dirty_card_val());
       }
       __ bind(L_card_done);
     }
@@ -1312,8 +1312,8 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
         __ addptr(_tmp, cset_addr);
         cset_addr_arg = Address(_tmp, 0);
       }
-      __ testb(cset_addr_arg, 0xFF);
-      __ jccb(Assembler::notZero, L_lrb_slow);
+      __ cmpb(cset_addr_arg, 0);
+      __ jccb(Assembler::notEqual, L_lrb_slow);
     } else {
       __ jmpb(L_lrb_slow);
     }
