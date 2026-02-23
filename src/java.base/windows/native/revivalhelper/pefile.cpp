@@ -115,23 +115,36 @@ bool PEFile::relocate(const char* filename, uint64_t address) {
     ULONG64 NewImageBase;
     BOOL e = ReBaseImage64(filename, SymbolPath, FALSE /* fReBase */, TRUE /* system file */, FALSE /* rebase downwards */,
                            0 /* max size */, &OldImageSize, &OldImageBase, &NewImageSize, &NewImageBase, 0 /* TimeStamp */);
-    logv("ReBaseImage64 1: OldImageSize 0x%llx  OldImageBase 0x%llx  NewImageSize 0x%llx  NewImageBase 0x%llx",
+    warn("ReBaseImage64 (1): OldImageSize 0x%llx  OldImageBase 0x%llx  NewImageSize 0x%llx  NewImageBase 0x%llx",
           OldImageSize, OldImageBase, NewImageSize, NewImageBase);
     if (!e) {
-        error("ReBaseImage64 1 failed: %d", GetLastError());
+        error("ReBaseImage64 (1) failed: %d", GetLastError());
     }
     NewImageBase = address + NewImageSize;
-    e = ReBaseImage64(filename, SymbolPath, TRUE /* fReBase */, TRUE /* system file */, TRUE /* rebase downwards */,
-                           0 /* max size */, &OldImageSize, &OldImageBase, &NewImageSize, &NewImageBase, 0 /* TimeStamp */);
 
-    logv("ReBaseImage64 2: OldImageSize 0x%llx  OldImageBase 0x%llx  NewImageSize 0x%llx  NewImageBase 0x%llx",
-         OldImageSize, OldImageBase, NewImageSize, NewImageBase);
+    // ReBaseImage64 occasionally does not honour the request.
+    // Retrying in a loop here does not resolve it (suggesting it could be an address space clash).
+    e = ReBaseImage64(filename, SymbolPath, TRUE /* fReBase */, TRUE /* system file */, TRUE /* rebase downwards */,
+                        0 /* max size */, &OldImageSize, &OldImageBase, &NewImageSize, &NewImageBase, 0 /* TimeStamp */);
+
+    logv("ReBaseImage64 (2): OldImageSize 0x%llx  OldImageBase 0x%llx  NewImageSize 0x%llx  NewImageBase 0x%llx",
+        OldImageSize, OldImageBase, NewImageSize, NewImageBase);
     if (!e) {
-        error("ReBaseImage64 2 failed: %d", GetLastError());
+        error("ReBaseImage64 (2) failed: %d", GetLastError());
     }
     if (NewImageBase != address) {
         warn("Relocate failed: new base 0x%llx != required 0x%llx", NewImageBase, address);
-        exitForRetry();
+        e = ReBaseImage64(filename, SymbolPath, TRUE /* fReBase */, TRUE /* system file */, FALSE /* rebase downwards */,
+                        0 /* max size */, &OldImageSize, &OldImageBase, &NewImageSize, &NewImageBase, 0 /* TimeStamp */);
+        if (!e) {
+            error("ReBaseImage64 (2) retry failed: %d", GetLastError());
+        }
+        if (NewImageBase != address) {
+            warn("Relocate failed: (2) new base 0x%llx != required 0x%llx", NewImageBase, address);
+            // We are relocating the copy in the revival cache directory.  Our caller can delete the file so it can retry.
+            e = false;
+        }
+        waitHitRet();
     }
     return e;
 }
@@ -178,9 +191,6 @@ bool PEFile::remove_dynamicbase(const char* filename) {
 
     logv("&optional.DllCharacteristics =  0x%llx", &(optional->DllCharacteristics));
     *(WORD*)(&(optional->DllCharacteristics)) = dllCharacteristics;
-
-    // Checksum? Update does not appear to be needed.
-    // *(WORD*)(&(optional->CheckSum)) = 0;
 
     if (!UnmapViewOfFile(base)) {
         error("remove_dynamicbase: UnmapViewOfFile: %d", GetLastError());
