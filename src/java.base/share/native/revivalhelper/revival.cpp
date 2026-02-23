@@ -1029,7 +1029,7 @@ void doVersionCheck(const char* corename, const char* directory, const char* fil
     PEFile pefile(jvm_name);
     uint64_t vm_release_offset = pefile.file_offset_for_reladdr(vm_release_relative_vaddr);
 #else
-    // In ELF, the relative vaddr just is the file offset.
+    // In ELF, the relative vaddr is just the file offset.
     uint64_t vm_release_offset = vm_release_relative_vaddr;
 #endif
 
@@ -1043,14 +1043,44 @@ void doVersionCheck(const char* corename, const char* directory, const char* fil
 }
 
 
+/**
+ * Check presence of 'core.mappings' in revival directory, and copy of JVM.
+ * If either are missing, revival cache is rebuilt.
+ */
+bool revival_cache_exists(char* dirname, const char* mappings_filename) {
+    if (!file_exists_pd(mappings_filename)) {
+        return false;
+    }
+    char buf[BUFLEN];
+    snprintf(buf, BUFLEN - 1, "%s" FILE_SEPARATOR JVM_FILENAME, dirname);
+    if (!file_exists_pd(buf)) {
+        return false;
+    }
+    return true;
+}
+
+
 int revive_image(const char* corename, const char* javahome, const char* libdir, const char* revival_data_path) {
     int e;
     char* dirname;
 
-    // Environment settings: set to anything means "on".
+    if (!file_exists_pd(corename)) {
+        warn("revive_image: '%s' not found", corename);
+        return -1;
+    }
+    if (!file_exists_pd(javahome)) {
+        warn("revive_image: Java directory '%s' not found", javahome);
+        return -1;
+    }
+    if (rdata != nullptr && rdata->vm_thread) {
+        warn("revive_image: already called.");
+        return -1;
+    }
+
+    // Environment settings: set to anything means "on":
     debugPause = env_check((char*) "REVIVAL_WAIT");
     versionCheckEnabled = !env_check((char*) "REVIVAL_SKIPVERSIONCHECK");
-    // logLevel we actually read the env value:
+    // For logLevel we actually read the env value:
     logLevel = 0;
     if (env_check((char*) "REVIVAL_LOG")) {
         char* logLevelText = getenv("REVIVAL_LOG");
@@ -1065,32 +1095,18 @@ int revive_image(const char* corename, const char* javahome, const char* libdir,
 
     init_pd();
 
-    if (corename == nullptr) {
-        warn("revive_image: core file name required.");
-        return -1;
-    }
-    if (rdata != nullptr && rdata->vm_thread) {
-        warn("revive_image: already called.");
-        return -1;
-    }
     // Record our copy of core file name:
     core_filename = strdup(corename);
     if (core_filename == nullptr) {
         warn("revive: alloc copy of core_filename failed.");
         return -1;
     }
-
-    if (!file_exists_pd(core_filename)) {
-        warn("revive_image: '%s' not found", core_filename);
-        return -1;
-    }
-
     // Decide core.revival directory name:
     dirname = revival_dirname(corename, revival_data_path);
     mappings_filename = mappings_filename_set(dirname);
 
-    // Does revival data exist?  Check presence of 'core.mappings' in revival directory.
-    if (!file_exists_pd(mappings_filename)) {
+    // Does revival cache exist?
+    if (!revival_cache_exists(dirname, mappings_filename)) {
         // Create revival data:
         if (!dir_exists_pd(dirname)) {
             if (!create_directory_pd(dirname)) {

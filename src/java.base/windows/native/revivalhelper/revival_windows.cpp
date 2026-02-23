@@ -124,7 +124,7 @@ unsigned long long max_user_vaddr_pd() {
 }
 
 void tls_initial_save_pd() {
-    warn("tls: PID %ld", _getpid());
+    warn("tls: PID %ld thread: 0x%lx", _getpid(), GetCurrentThreadId());
     cur_teb = (uint64_t*) NtCurrentTeb();           // TEB pointer on x64 in GS reg.
     cur_tls = (uint64_t*) ((char*) cur_teb + 0x58); // Read TLS ptr at offset. Or: tls =  __readgsqword(0x58);
     saved_tls = *cur_tls;
@@ -227,7 +227,7 @@ LONG WINAPI topLevelUnhandledExceptionFilter(struct _EXCEPTION_POINTERS* excepti
 #endif
 
     uint64_t addr = (uint64_t) exceptionInfo->ExceptionRecord->ExceptionInformation[1];
-    warn("revival: handler: pc 0x%llx address 0x%llx", pc, addr);
+    warn("revival: handler: PID %ld thread: 0x%lx pc 0x%llx address 0x%llx ", _getpid(), GetCurrentThreadId(), pc, addr);
 
     // Note any access to areas we failed to map:
     std::list<Segment>::iterator iter;
@@ -292,7 +292,7 @@ void *load_sharedobject_pd(const char *name, void *vaddr) {
         if ((void*) h == vaddr) {
             return (void*) h; // success
         }
-        warn("load_sharedobject_pd: %s: load failed 0x%p != requested 0x%p. error=0x%lx", name, h, vaddr, GetLastError());
+        warn("load_sharedobject_pd: %s: load failed address 0x%p != requested 0x%p. error=0x%lx", name, h, vaddr, GetLastError());
         if (h != nullptr) {
             // Loaded, wrong address.
             exitForRetry();
@@ -668,7 +668,6 @@ int relocate_sharedlib_pd(const char *filename, const void *addr) {
         // EDITBIN.EXE /DYNAMICBASE:NO /REBASE:BASE=0xaddress filename
         char command[BUFLEN];
         memset(command, 0, BUFLEN);
-
         strncat(command, editbin, BUFLEN - 1);
         strncat(command, " /DYNAMICBASE:NO /REBASE:BASE=0x", BUFLEN - 1);
         char address[32];
@@ -826,9 +825,10 @@ void write_symbols(int symbols_fd, const char* symbols[], int count, const char 
         if (!SymFromName(h2, szSymbolName, pSymbol)) {
             warn("write_symbols: %d: SymFromName '%s' failed, error: %d", i, szSymbolName, GetLastError());
         } else {
-            snprintf(buf, BUFLEN, "%s %llx\n", szSymbolName, pSymbol->Address);
+            snprintf(buf, BUFLEN, "%s %llx", szSymbolName, pSymbol->Address);
             logv("write_symbols: %d: %s", i, buf);
             write0(symbols_fd, buf);
+            write0(symbols_fd, "\n");
         }
     }
     e = SymCleanup(h2);
@@ -843,6 +843,12 @@ void write_symbols(int symbols_fd, const char* symbols[], int count, const char 
 
 bool create_directory_pd(char* dirname) {
     return _mkdir(dirname) == 0;
+}
+
+void delete_file_pd(char* filename) {
+    if (!DeleteFile(filename)) {
+        warn("%s: delete failed: %d", filename, GetLastError());
+    }
 }
 
 
@@ -869,7 +875,7 @@ void write_sharedlib_mappings(int mappings_fd, MiniDump* dump) {
 }
 
 void copy_and_relocate(const char* srcfile, const char* destdir, uint64_t address) {
-    char copy_path[BUFLEN];
+    char copy_path[BUFLEN]; // destination
     memset(copy_path, 0, BUFLEN);
     strncpy(copy_path, destdir, BUFLEN - 1);
     strncat(copy_path, FILE_SEPARATOR, BUFLEN - 1);
@@ -886,7 +892,6 @@ void copy_and_relocate(const char* srcfile, const char* destdir, uint64_t addres
     if (p != nullptr) {
         // It is a dll, check for .pdb and .map files.
         // JDK builds now create e.g. file.dll.pdb  but also check for just file.pdb
-        //
         snprintf(p, BUFLEN, ".pdb"); // Append to debuginfo_path in place of .dll
         if (file_exists_pd(debuginfo_path)) {
             // file.pdb exists
@@ -914,7 +919,13 @@ void copy_and_relocate(const char* srcfile, const char* destdir, uint64_t addres
     }
     // Relocate the copy: address of 0 will avoid any relocation.
     if (address != 0) {
-        relocate_sharedlib_pd(copy_path, (void*) address);
+        int e = relocate_sharedlib_pd(copy_path, (void*) address);
+        if (e < 0) {
+            // Relocate failed, delete the file so it can be retried:
+            logv("Relocate of copied file failed, delete '%s'", copy_path);
+            delete_file_pd(copy_path);
+            exitForRetry();
+        }
     }
 }
 
