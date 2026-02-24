@@ -1350,7 +1350,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   // the overwhelmingly major case.
   if (_needs_load_ref_barrier) {
     __ bind(L_lrb_slow);
-    __ pop(tmp); // Immediately pop tmp to make sure the stack is aligned.
+    __ pop(tmp); // Immediately pop tmp to make sure the stack is aligned
 
       // If object is narrow, we need to decode it first.
     if (_narrow) {
@@ -1433,7 +1433,6 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
   Register tmp2 = select_temp_register(_dst, _src, _tmp);
 
   Register preval = _tmp;
-  Register slot = tmp2;
 
   // Load value from memory
   if (_dst_narrow) {
@@ -1455,6 +1454,7 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
   Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
 
+  Register slot = tmp2;
   __ push(tmp2);
   __ movptr(slot, index);
   __ testptr(slot, slot);
@@ -1463,14 +1463,14 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ movptr(index, slot);
   __ addptr(slot, buffer);
   __ movptr(Address(slot, 0), preval);
-
-  // Pop temps and exit
   __ pop(tmp2);
+
+  // Exit here
   __ bind(L_preval_null);
   __ jmp(*continuation());
 
   __ bind(L_runtime);
-  __ pop(tmp2);
+  __ pop(tmp2); // Immediately pop tmp to make sure the stack is aligned
   {
     SaveLiveRegisters save_registers(&masm, this);
     if (c_rarg0 != preval) {
