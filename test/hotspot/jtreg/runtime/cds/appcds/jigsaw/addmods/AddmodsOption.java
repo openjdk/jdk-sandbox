@@ -48,8 +48,8 @@ public class AddmodsOption {
         final String loggingOption = "-Xlog:aot=debug,aot+module=debug,aot+heap=info,cds=debug,module=trace";
         final String versionPattern = "java.[0-9][0-9].*";
         final String subgraphCannotBeUsed = "subgraph jdk.internal.module.ArchivedBootLayer cannot be used because full module graph is disabled";
-        final String warningIncubatorPattern =
-            "^WARNING: Using incubator modules: jdk\\.incubator\\.(vector|json), jdk\\.incubator\\.(?!\\1)(vector|json).*";
+        final String incubatorPattern = "jdk\\.incubator\\.(vector|json),\\s*jdk\\.incubator\\.(?!\\1)(vector|json)";
+        final String warningIncubatorPattern = "^WARNING: Using incubator modules: " + incubatorPattern + ".*";
         String archiveName = TestCommon.getNewArchiveName("addmods-option");
         TestCommon.setCurrentArchiveName(archiveName);
 
@@ -82,7 +82,7 @@ public class AddmodsOption {
             "-version");
         oa.shouldHaveExitValue(0)
           .shouldContain("Mismatched values for property jdk.module.addmods")
-          .shouldContain("runtime jdk.incubator.json,jdk.incubator.vector dump time jdk.jconsole")
+          .shouldMatch("runtime " + incubatorPattern + " dump time jdk\\.jconsole")
           .shouldContain(subgraphCannotBeUsed);
 
         // no module specified during runtime
@@ -137,7 +137,7 @@ public class AddmodsOption {
         oa.shouldContain("full module graph: disabled")
           // module is not restored from archive
           .shouldContain("define_module(): creation of module: jdk.incubator.vector")
-          .stderrShouldMatch(warningIncubatorPattern)
+          .shouldMatch(warningIncubatorPattern)
           .shouldContain("subgraph jdk.internal.module.ArchivedBootLayer is not recorde")
           .shouldHaveExitValue(0);
 
@@ -202,7 +202,7 @@ public class AddmodsOption {
             "-m", moduleOption,
             "-version");
         oa.shouldHaveExitValue(0)
-          .stderrShouldMatch(warningIncubatorPattern);
+          .shouldMatch(warningIncubatorPattern);
 
         // run with the same ALL-SYSTEM in --add-modules
         oa = TestCommon.execCommon(
@@ -212,7 +212,7 @@ public class AddmodsOption {
             "-version");
         oa.shouldHaveExitValue(0)
           // the jdk.incubator.vector was specified indirectly via ALL-SYSTEM
-          .stderrShouldMatch(warningIncubatorPattern)
+          .shouldMatch(warningIncubatorPattern)
           .shouldContain("full module graph cannot be loaded: archive was created without full module graph");
 
         // dump an archive with ALL-MODULE-PATH in -add-modules
