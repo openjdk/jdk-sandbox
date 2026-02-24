@@ -22,12 +22,91 @@
  */
 
 /*
+ * @test id=AbortOnException_Other
+ * @summary Test process revival for serviceability: jcmd on a core file (AbortVMOnException).
+ * @requires os.family == "linux" | os.family == "windows"
+ * @library /test/lib
+ *
+ * @run main/othervm JCmdRevival abortvmonexception help VM.version_UNEXPECTED_ARG VM.unknowncommand VM.flags_UNKNOWN_ARG
+ *
+ * @comment Test all jcmds using the AbortOnException crash method, split across several test definitions
+ * to avoid overflowing the log.
+ */
+
+/*
+ * @test id=AbortOnException_Compiler_1
+ * @summary Test process revival for serviceability: jcmd on a core file (AbortVMOnException).
+ * @requires os.family == "linux" | os.family == "windows"
+ * @library /test/lib
+ *
+ * @run main/othervm JCmdRevival abortvmonexception Compiler.CodeHeap_Analytics
+ *
+ * @comment Compiler.CodeHeap_Analytics alone is likely to overrun the log.
+ */
+
+/*
+ * @test id=AbortOnException_Compiler_2
+ * @summary Test process revival for serviceability: jcmd on a core file (AbortVMOnException).
+ * @requires os.family == "linux" | os.family == "windows"
+ * @library /test/lib
+ *
+ * @run main/othervm JCmdRevival abortvmonexception Compiler.codecache Compiler.codelist Compiler.memory
+ */
+
+/*
+ * @test id=AbortOnException_GC
+ * @summary Test process revival for serviceability: jcmd on a core file (AbortVMOnException).
+ * @requires os.family == "linux" | os.family == "windows"
+ * @library /test/lib
+ *
+ * @run main/othervm JCmdRevival abortvmonexception GC.class_histogram GC.heap_dump
+ */
+
+/*
+ * @test id=AbortOnException_Thread
+ * @summary Test process revival for serviceability: jcmd on a core file (AbortVMOnException).
+ * @requires os.family == "linux" | os.family == "windows"
+ * @library /test/lib
+ *
+ * @run main/othervm JCmdRevival abortvmonexception Thread.print
+ */
+
+/*
+ * @test id=AbortOnException_VM_1
+ * @summary Test process revival for serviceability: jcmd on a core file (AbortVMOnException).
+ * @requires os.family == "linux" | os.family == "windows"
+ * @library /test/lib
+ *
+ * @run main/othervm JCmdRevival abortvmonexception VM.version VM.class_hierarchy VM.classloader_stats VM.classloaders VM.command_line VM.dynlibs VM.events
+ */
+
+/*
+ * @test id=AbortOnException_VM_2
+ * @summary Test process revival for serviceability: jcmd on a core file (AbortVMOnException).
+ * @requires os.family == "linux" | os.family == "windows"
+ * @library /test/lib
+ *
+ * @run main/othervm JCmdRevival abortvmonexception VM.events VM.flags VM.metaspace VM.stringtable VM.symboltable VM.systemdictionary
+ */
+
+/*
+ * @test id=AbortOnException_VM_3
+ * @summary Test process revival for serviceability: jcmd on a core file (AbortVMOnException).
+ * @requires os.family == "linux" | os.family == "windows"
+ * @library /test/lib
+ *
+ * @run main/othervm JCmdRevival abortvmonexception VM.classes
+ */
+
+/*
  * @test id=OOM
  * @summary Test process revival for serviceability: jcmd on a core file (OOM crash).
  * @requires os.family == "linux" | os.family == "windows"
  * @library /test/lib
  *
- * @run main/othervm JCmdRevival oom VM.version help Thread.print GC.class_histogram GC.heap_dump Compiler.CodeHeap_Analytics Compiler.codecache Compiler.codelist Compiler.memory GC.heap_info VM.class_hierarchy VM.classes VM.classloader_stats VM.classloaders VM.command_line VM.dynlibs VM.events VM.flags VM.metaspace VM.stringtable VM.symboltable VM.systemdictionary VM.version_UNEXPECTED_ARG VM.unknowncommand VM.flags_UNKNOWN_ARG
+ * @run main/othervm JCmdRevival oom VM.version Thread.print GC.heap_dump GC.heap_info VM.command_line VM.dynlibs VM.events VM.flags VM.metaspace
+ *
+ * @comment Test a subset with the OOM crash method.
  */
 
 /*
@@ -37,19 +116,13 @@
  * @library /test/lib
  * @requires vm.debug == true
  *
- * @run main/othervm JCmdRevival cicrash VM.version help Thread.print GC.class_histogram GC.heap_dump Compiler.CodeHeap_Analytics Compiler.codecache Compiler.codelist Compiler.memory GC.heap_info VM.class_hierarchy VM.classes VM.classloader_stats VM.classloaders VM.command_line VM.dynlibs VM.events VM.flags VM.metaspace VM.stringtable VM.symboltable VM.systemdictionary VM.version_UNEXPECTED_ARG VM.unknowncommand VM.flags_UNKNOWN_ARG
+ * @run main/othervm JCmdRevival cicrash VM.version help Thread.print GC.heap_dump Compiler.CodeHeap_Analytics
  *
+ * @comment Test a subset with the CICrash crash method.
+ * @comment Compiler.CodeHeap_Analytics alone is likely to overrun the log.
  */
 
-/*
- * @test id=AbortOnException
- * @summary Test process revival for serviceability: jcmd on a core file (AbortVMOnException).
- * @requires os.family == "linux" | os.family == "windows"
- * @library /test/lib
- *
- * @run main/othervm JCmdRevival abortvmonexception VM.version help Thread.print GC.class_histogram GC.heap_dump Compiler.CodeHeap_Analytics Compiler.codecache Compiler.codelist Compiler.memory GC.heap_info VM.class_hierarchy VM.classes VM.classloader_stats VM.classloaders VM.command_line VM.dynlibs VM.events VM.flags VM.metaspace VM.stringtable VM.symboltable VM.systemdictionary VM.version_UNEXPECTED_ARG VM.unknowncommand VM.flags_UNKNOWN_ARG
- *
- */
+
 
 import java.io.File;
 import java.util.ArrayList;
