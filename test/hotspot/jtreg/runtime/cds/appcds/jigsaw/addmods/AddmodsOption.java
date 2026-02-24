@@ -115,7 +115,8 @@ public class AddmodsOption {
           .shouldMatch(versionPattern)
           .shouldContain(subgraphCannotBeUsed);
 
-        // dump an archive with an incubator module, -add-modules jdk.incubator.vector
+        // dump an archive with an incubator module,
+        // --add-modules jdk.incubator.vector,jdk.incubator.json
         archiveName = TestCommon.getNewArchiveName("incubator-module");
         TestCommon.setCurrentArchiveName(archiveName);
         oa = TestCommon.dumpBaseArchive(
@@ -137,6 +138,7 @@ public class AddmodsOption {
         oa.shouldContain("full module graph: disabled")
           // module is not restored from archive
           .shouldContain("define_module(): creation of module: jdk.incubator.vector")
+          .shouldContain("define_module(): creation of module: jdk.incubator.json")
           .shouldMatch(warningIncubatorPattern)
           .shouldContain("subgraph jdk.internal.module.ArchivedBootLayer is not recorde")
           .shouldHaveExitValue(0);
@@ -170,7 +172,7 @@ public class AddmodsOption {
             }
         }
 
-        // dump an archive with multiple modules in -add-modules
+        // dump an archive with multiple modules in --add-modules
         archiveName = TestCommon.getNewArchiveName("muti-modules");
         TestCommon.setCurrentArchiveName(archiveName);
         oa = TestCommon.dumpBaseArchive(
@@ -181,7 +183,7 @@ public class AddmodsOption {
             "-version");
         oa.shouldHaveExitValue(0);
 
-        // run with the same multiple modules with a duplicate module in --add-modules
+        // run with the same multiple modules with a duplicate module in ---add-modules
         oa = TestCommon.execCommon(
             loggingOption,
             "--add-modules", multiModules,
@@ -192,7 +194,7 @@ public class AddmodsOption {
           .shouldMatch("aot,module.*Restored from archive: entry.0x.*name jdk.compiler")
           .shouldMatch("aot,module.*Restored from archive: entry.0x.*name jdk.jconsole");
 
-        // dump an archive with ALL-SYSTEM in -add-modules
+        // dump an archive with ALL-SYSTEM in --add-modules
         archiveName = TestCommon.getNewArchiveName("muti-modules");
         TestCommon.setCurrentArchiveName(archiveName);
         oa = TestCommon.dumpBaseArchive(
@@ -211,11 +213,11 @@ public class AddmodsOption {
             "-m", moduleOption,
             "-version");
         oa.shouldHaveExitValue(0)
-          // the jdk.incubator.vector was specified indirectly via ALL-SYSTEM
+          // the jdk.incubator.vector and jdk.incubator.json were specified indirectly via ALL-SYSTEM
           .shouldMatch(warningIncubatorPattern)
           .shouldContain("full module graph cannot be loaded: archive was created without full module graph");
 
-        // dump an archive with ALL-MODULE-PATH in -add-modules
+        // dump an archive with ALL-MODULE-PATH in --add-modules
         archiveName = TestCommon.getNewArchiveName("muti-modules");
         TestCommon.setCurrentArchiveName(archiveName);
         oa = TestCommon.dumpBaseArchive(
