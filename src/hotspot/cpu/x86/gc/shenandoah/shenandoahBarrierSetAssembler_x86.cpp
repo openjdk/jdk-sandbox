@@ -1075,7 +1075,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
     ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, dst, src, narrow);
 
     char check = 0;
-    check |= ShenandoahLoadBarrierStubC2::needs_satb_barrier(node)          ? ShenandoahHeap::MARKING : 0;
+    check |= ShenandoahLoadBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
     check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier_weak(node) ? ShenandoahHeap::WEAK_ROOTS : 0;
     gc_state_check_c2(masm, check, stub);
@@ -1091,7 +1091,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   if (!ShenandoahSkipBarrierStubs && ShenandoahStoreBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
-    if (ShenandoahStoreBarrierStubC2::needs_satb_barrier(node)) {
+    if (ShenandoahStoreBarrierStubC2::needs_keep_alive_barrier(node)) {
       ShenandoahStoreBarrierStubC2* const stub = ShenandoahStoreBarrierStubC2::create(node, dst, dst_narrow, src, src_narrow, tmp);
       stub->dont_preserve(tmp); // temp, no need to preserve it
 
@@ -1245,7 +1245,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   Register tmp = select_temp_register(_src, _dst);
 
   Label L_lrb_done, L_lrb_slow;
-  Label L_satb_done, L_satb_pack_and_done, L_satb_slow;
+  Label L_keepalive_done, L_keepalive_pack_and_done, L_keepalive_slow;
   Label L_done;
 
   // If the object is null, there is no point in applying barriers.
@@ -1254,7 +1254,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   } else {
     __ testptr(_dst, _dst);
   }
-  if (!_needs_satb_barrier && _needs_load_ref_barrier) {
+  if (!_needs_keep_alive_barrier && _needs_load_ref_barrier) {
     __ jccb(Assembler::equal, L_done);
   } else {
     __ jcc(Assembler::equal, L_done);
@@ -1264,13 +1264,13 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   // that can be done without going to slowpath calls. This also allows doing
   // shorter branches, where possible.
 
-  if (_needs_satb_barrier) {
-    // Runtime check for SATB, in case the other barrier is enabled.
+  if (_needs_keep_alive_barrier) {
+    // Runtime check for keep-alive, in case the other barrier is enabled.
     // Otherwise the fastpath check already checked it.
     if (_needs_load_ref_barrier) {
       Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
       __ testb(gc_state, ShenandoahHeap::MARKING);
-      __ jccb(Assembler::zero, L_satb_done);
+      __ jccb(Assembler::zero, L_keepalive_done);
     }
 
     // If object is narrow, we need to decode it first.
@@ -1286,7 +1286,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
     __ push(tmp);
     __ movptr(tmp, index);
     __ testptr(tmp, tmp);
-    __ jcc(Assembler::zero, L_satb_slow);
+    __ jcc(Assembler::zero, L_keepalive_slow);
     // The buffer is not full, store value into it.
     __ subptr(tmp, wordSize);
     __ movptr(index, tmp);
@@ -1294,19 +1294,19 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
     __ movptr(Address(tmp, 0), _dst);
     __ pop(tmp);
 
-    __ bind(L_satb_pack_and_done);
+    __ bind(L_keepalive_pack_and_done);
     if (_narrow) {
       __ encode_heap_oop(_dst);
     }
-    __ bind(L_satb_done);
+    __ bind(L_keepalive_done);
   }
 
   if (_needs_load_ref_barrier) {
     bool is_weak = (_node->barrier_data() & ShenandoahBitStrong) == 0;
 
-    // Runtime check for SATB, in case the other barrier is enabled.
+    // Runtime check for KA, in case the other barrier is enabled.
     // Otherwise the fastpath check already checked it.
-    if (_needs_satb_barrier) {
+    if (_needs_keep_alive_barrier) {
       Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
       __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED | (is_weak ? ShenandoahHeap::WEAK_ROOTS : 0));
       __ jccb(Assembler::zero, L_lrb_done);
@@ -1404,8 +1404,8 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
     __ jmp(L_lrb_done);
   }
 
-  if (_needs_satb_barrier) {
-    __ bind(L_satb_slow);
+  if (_needs_keep_alive_barrier) {
+    __ bind(L_keepalive_slow);
     __ pop(tmp); // Immediately pop to make sure the stack is aligned
 
     preserve(_dst); // For SATB we must preserve _dst
@@ -1416,7 +1416,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
       }
       __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre)), rax);
     }
-    __ jmp(L_satb_pack_and_done);
+    __ jmp(L_keepalive_pack_and_done);
   }
 }
 

@@ -721,7 +721,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   if (!ShenandoahSkipBarrierStubs && ShenandoahStoreBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
-    if (ShenandoahStoreBarrierStubC2::needs_satb_barrier(node)) {
+    if (ShenandoahStoreBarrierStubC2::needs_keep_alive_barrier(node)) {
       Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
       __ ldrb(rscratch1, gcs_addr);
 

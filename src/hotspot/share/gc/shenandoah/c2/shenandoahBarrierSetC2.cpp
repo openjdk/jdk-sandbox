@@ -83,7 +83,7 @@ static void set_barrier_data(C2Access& access, bool load, bool store) {
 
   if (store) {
     if (ShenandoahSATBBarrier) {
-      barrier_data |= ShenandoahBitSATB;
+      barrier_data |= ShenandoahBitKeepAlive;
     }
     if (ShenandoahCardBarrier && in_heap) {
       barrier_data |= ShenandoahBitCardMark;
@@ -107,15 +107,14 @@ Node* ShenandoahBarrierSetC2::load_at_resolved(C2Access& access, const Type* val
   set_barrier_data(access, /* load = */ true, /* store = */ false);
 
   // 3. Correction: If we are reading the value of the referent field of
-  // a Reference object, we need to record the referent resurrection
-  // through SATB.
+  // a Reference object, we need to record the referent resurrection.
   DecoratorSet decorators = access.decorators();
   bool on_weak = (decorators & ON_WEAK_OOP_REF) != 0;
   bool on_phantom = (decorators & ON_PHANTOM_OOP_REF) != 0;
   bool no_keepalive = (decorators & AS_NO_KEEPALIVE) != 0;
-  bool needs_satb = ((on_weak || on_phantom) && !no_keepalive);
-  if (needs_satb) {
-    uint8_t barriers = access.barrier_data() | (ShenandoahSATBBarrier ? ShenandoahBitSATB : 0);
+  bool needs_keepalive = ((on_weak || on_phantom) && !no_keepalive);
+  if (needs_keepalive) {
+    uint8_t barriers = access.barrier_data() | (ShenandoahSATBBarrier ? ShenandoahBitKeepAlive : 0);
     access.set_barrier_data(barriers);
   }
 
@@ -131,12 +130,11 @@ Node* ShenandoahBarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue&
   // 2. Set barrier data for store
   set_barrier_data(access, /* load = */ false, /* store = */ true);
 
-  // 3. Correction: SATB cannot be applied to no-keepalive accesses,
-  // otherwise it will resurrect the object.
+  // 3. Correction: avoid keep-alive barriers that should not do keep-alive.
   DecoratorSet decorators = access.decorators();
   bool no_keepalive = (decorators & AS_NO_KEEPALIVE) != 0;
   if (no_keepalive) {
-    access.set_barrier_data(access.barrier_data() & ~ShenandoahBitSATB);
+    access.set_barrier_data(access.barrier_data() & ~ShenandoahBitKeepAlive);
   }
 
   return BarrierSetC2::store_at_resolved(access, val);
@@ -633,9 +631,9 @@ void ShenandoahBarrierSetC2::print_barrier_data(outputStream* os, uint8_t data) 
     os->print("elided ");
   }
 
-  if ((data & ShenandoahBitSATB) != 0) {
-    data &= ~ShenandoahBitSATB;
-    os->print("satb ");
+  if ((data & ShenandoahBitKeepAlive) != 0) {
+    data &= ~ShenandoahBitKeepAlive;
+    os->print("keepalive ");
   }
 
   if ((data & ShenandoahBitCardMark) != 0) {
