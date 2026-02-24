@@ -138,6 +138,9 @@ protected:
   static bool is_heap_access(const MachNode* node) {
     return (node->barrier_data() & ShenandoahBitNative) == 0;
   }
+
+  static Register select_temp_register(Address addr, Register reg1 = noreg, Register reg2 = noreg);
+
 public:
   virtual void emit_code(MacroAssembler& masm) = 0;
 };

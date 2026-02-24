@@ -999,6 +999,25 @@ void ShenandoahBarrierSetAssembler::generate_c1_load_reference_barrier_runtime_s
 #undef __
 #define __ masm->
 
+Register ShenandoahBarrierStubC2::select_temp_register(Address addr, Register reg1, Register reg2) {
+  Register tmp = noreg;
+  for (int i = 0; i < 8; i++) {
+    Register r = as_Register(i);
+    if (r != rsp && r != rbp && r != reg1 && r != reg2 && r != addr.base() && r != addr.index()) {
+      if (tmp == noreg) {
+        tmp = r;
+        break;
+      }
+    }
+  }
+
+  assert(tmp != noreg, "successfully allocated");
+  assert_different_registers(tmp, reg1, reg2);
+  assert_different_registers(tmp, addr.base());
+  assert_different_registers(tmp, addr.index());
+  return tmp;
+}
+
 void ShenandoahBarrierSetAssembler::gc_state_check_c2(MacroAssembler* masm, const char test_state, BarrierStubC2* slow_stub) {
   if (ShenandoahNopGCState) {
     // In the ideal world, we would hot-patch the branch to slow stub with a single
@@ -1223,20 +1242,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   __ bind(*entry());
 
-  // Choose a temp register that does not clash with dst or any component in src.
-  Register tmp = noreg;
-  for (int i = 0; i < 8; i++) {
-    Register r = as_Register(i);
-    if (r != rsp && r != rbp && r != _dst && r != _src.base() && r != _src.index()) {
-      if (tmp == noreg) {
-        tmp = r;
-        break;
-      }
-    }
-  }
-
-  assert(tmp != noreg, "tmp allocated");
-  assert_different_registers(tmp, _dst, _src.base(), _src.index());
+  Register tmp = select_temp_register(_src, _dst);
 
   Label L_lrb_done, L_lrb_slow;
   Label L_satb_done, L_satb_pack_and_done, L_satb_slow;
@@ -1424,19 +1430,7 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
   // We need 2 temp registers for this code to work.
   // _tmp is already allocated and will carry preval for the call.
   // Allocate the other one now.
-  Register tmp2 = noreg;
-  for (int i = 0; i < 8; i++) {
-    Register r = as_Register(i);
-    if (r != rsp && r != rbp && r != _src && r != _tmp) {
-      if (tmp2 == noreg) {
-        tmp2 = r;
-        break;
-      }
-    }
-  }
-
-  assert(tmp2 != noreg, "tmp2 allocated");
-  assert_different_registers(_tmp, tmp2, _src);
+  Register tmp2 = select_temp_register(_dst, _src, _tmp);
 
   Register preval = _tmp;
   Register slot = tmp2;
