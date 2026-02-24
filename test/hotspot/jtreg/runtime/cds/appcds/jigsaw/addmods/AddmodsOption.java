@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,7 +40,7 @@ public class AddmodsOption {
 
     public static void main(String[] args) throws Exception {
         final String moduleOption = "jdk.httpserver/sun.net.httpserver.simpleserver.Main";
-        final String incubatorModule = "jdk.incubator.vector";
+        final String incubatorModules = "jdk.incubator.vector,jdk.incubator.json";
         final String jconsoleModule = "jdk.jconsole";
         final String multiModules = ",,jdk.jconsole,jdk.compiler,,";
         final String allSystem = "ALL-SYSTEM";
@@ -48,7 +48,8 @@ public class AddmodsOption {
         final String loggingOption = "-Xlog:aot=debug,aot+module=debug,aot+heap=info,cds=debug,module=trace";
         final String versionPattern = "java.[0-9][0-9].*";
         final String subgraphCannotBeUsed = "subgraph jdk.internal.module.ArchivedBootLayer cannot be used because full module graph is disabled";
-        final String warningIncubator = "WARNING: Using incubator modules: jdk.incubator.vector";
+        final String warningIncubatorPattern =
+            "^WARNING: Using incubator modules: jdk\\.incubator\\.(vector|json), jdk\\.incubator\\.(?!\\1)(vector|json).*";
         String archiveName = TestCommon.getNewArchiveName("addmods-option");
         TestCommon.setCurrentArchiveName(archiveName);
 
@@ -76,12 +77,12 @@ public class AddmodsOption {
         // different --add-modules specified during runtime
         oa = TestCommon.execCommon(
             loggingOption,
-            "--add-modules", incubatorModule,
+            "--add-modules", incubatorModules,
             "-m", moduleOption,
             "-version");
         oa.shouldHaveExitValue(0)
           .shouldContain("Mismatched values for property jdk.module.addmods")
-          .shouldContain("runtime jdk.incubator.vector dump time jdk.jconsole")
+          .shouldContain("runtime jdk.incubator.json,jdk.incubator.vector dump time jdk.jconsole")
           .shouldContain(subgraphCannotBeUsed);
 
         // no module specified during runtime
@@ -120,7 +121,7 @@ public class AddmodsOption {
         oa = TestCommon.dumpBaseArchive(
             archiveName,
             loggingOption,
-            "--add-modules", incubatorModule,
+            "--add-modules", incubatorModules,
             "-m", moduleOption,
             "-version");
         oa.shouldHaveExitValue(0)
@@ -130,13 +131,13 @@ public class AddmodsOption {
         // run with the same incubator module
         oa = TestCommon.execCommon(
             loggingOption,
-            "--add-modules", incubatorModule,
+            "--add-modules", incubatorModules,
             "-m", moduleOption,
             "-version");
         oa.shouldContain("full module graph: disabled")
           // module is not restored from archive
           .shouldContain("define_module(): creation of module: jdk.incubator.vector")
-          .shouldContain("WARNING: Using incubator modules: jdk.incubator.vector")
+          .stderrShouldMatch(warningIncubatorPattern)
           .shouldContain("subgraph jdk.internal.module.ArchivedBootLayer is not recorde")
           .shouldHaveExitValue(0);
 
@@ -201,7 +202,7 @@ public class AddmodsOption {
             "-m", moduleOption,
             "-version");
         oa.shouldHaveExitValue(0)
-          .shouldContain(warningIncubator);
+          .stderrShouldMatch(warningIncubatorPattern);
 
         // run with the same ALL-SYSTEM in --add-modules
         oa = TestCommon.execCommon(
@@ -211,7 +212,7 @@ public class AddmodsOption {
             "-version");
         oa.shouldHaveExitValue(0)
           // the jdk.incubator.vector was specified indirectly via ALL-SYSTEM
-          .shouldContain(warningIncubator)
+          .stderrShouldMatch(warningIncubatorPattern)
           .shouldContain("full module graph cannot be loaded: archive was created without full module graph");
 
         // dump an archive with ALL-MODULE-PATH in -add-modules
