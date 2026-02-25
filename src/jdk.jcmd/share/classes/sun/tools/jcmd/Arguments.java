@@ -140,7 +140,7 @@ class Arguments {
 
     public static void usage() {
         System.out.println("Usage: jcmd <pid | main class> <command ...|PerfCounter.print|-f file>");
-        System.out.println("   or: jcmd [ -c ] [ -L PATH ] <corefile> <command... | -f file>");
+        System.out.println("   or: jcmd [ -c ] [ -L LIB_PATH ] [ -R CACHE_PATH] <corefile> <command... | -f file>");
         System.out.println("   or: jcmd -l                                                    ");
         System.out.println("   or: jcmd -h                                                    ");
         System.out.println("                                                                  ");
@@ -152,20 +152,19 @@ class Arguments {
         System.out.println("                                                                  ");
         System.out.println("  If no options are given, lists Java processes (same as -l).     ");
         System.out.println("                                                                  ");
-        System.out.println("  Using core files (post-mortem analysis):                        ");
-        System.out.println("    -c or --core forces reading a core file, in case of a clash with");
-        System.out.println("                 a live process name.                               ");
-        System.out.println("    -L PATH must be given if the core file originates from another  ");
-        System.out.println("            system, or the JDK at the path in the core has changed. ");
-        System.out.println("            PATH must point to a copy of the same JDK that the corefile originated from.");
-        System.out.println("            When analyzing a corefile a corefile.revival directory is ");
-        System.out.println("            created, containing cache files. -L is not required once the cache is created.");
-        System.out.println("                                                                  ");
-        System.out.println("    -R PATH should be specified when the core file is in a non-writable");
-        System.out.println("            location, to give a path where cache files may be stored.  ");
-        System.out.println("            this must be specified on subsequent invocation.           ");
-        System.out.println("                                                                  ");
-        System.out.println("                                                                  ");
+        System.out.println(
+"""
+  Using a core file (Linux) or MiniDump (Windows) for post-mortem analysis:
+    -c  forces reading a core file, only required in case of a clash with a live process name.
+    -L  LIB_PATH must be given if the core file originates from another system, or the
+            JDK at the path in the core has changed.
+            LIB_PATH must name a directory containing a copy of the same JDK that the corefile originated from.
+            When analyzing a corefile a corefile.revival cache directory is
+            created.  -L is not required once the cache is created.
+
+    -R  CACHE_PATH should be specified when the core file is in a read-only location, to give a path
+            where cache files may be stored.  This must be specified on subsequent invocations.
+""");
         System.out.println("  PerfCounter.print display the counters exposed by this process  ");
         System.out.println("  -f  read and execute commands from the file                     ");
         System.out.println("  -l  list JVM processes on the local machine                     ");
