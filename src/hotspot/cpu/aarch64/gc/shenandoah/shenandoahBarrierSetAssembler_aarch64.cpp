@@ -1144,7 +1144,7 @@ void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
 
 
     __ b(*continuation());
-  }
+}
 #undef __
 #define __ masm->
 #endif // COMPILER2

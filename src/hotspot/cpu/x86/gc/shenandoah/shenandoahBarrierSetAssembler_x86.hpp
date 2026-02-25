@@ -95,9 +95,12 @@ public:
   void cmpxchg_oop_c2(const MachNode* node, MacroAssembler* masm,
                       Register res, Address addr, Register oldval, Register newval, Register tmp1, Register tmp2,
                       bool exchange);
+  void cae_c2(const MachNode* node, MacroAssembler* masm, Register res, Address addr, Register oldval, Register newval,
+              Register tmp1, Register tmp2,
+              bool exchange, bool maybe_null, bool narrow, bool acquire, bool release, bool weak);
   void load_c2(const MachNode* node, MacroAssembler* masm,
                Register dst, Address src, bool narrow);
-  void store_c2(const MachNode* node, MacroAssembler* masm, 
+  void store_c2(const MachNode* node, MacroAssembler* masm,
                 Address dst, bool dst_narrow, Register src, bool src_narrow, Register tmp);
 #endif
 };

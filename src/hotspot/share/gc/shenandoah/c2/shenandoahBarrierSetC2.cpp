@@ -832,6 +832,19 @@ ShenandoahCASBarrierSlowStubC2* ShenandoahCASBarrierSlowStubC2::create(const Mac
   return stub;
 }
 
+// next two methods are temporary
+ShenandoahNewCASBarrierSlowStubC2* ShenandoahNewCASBarrierSlowStubC2::create(const MachNode* node, Register addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae, bool maybe_null, bool acquire, bool release, bool weak) {
+  auto* stub = new (Compile::current()->comp_arena()) ShenandoahNewCASBarrierSlowStubC2(node, addr, Address(), expected, new_val, result, tmp1, tmp2, narrow, cae, maybe_null, acquire, release, weak);
+  stub->register_stub();
+  return stub;
+}
+
+ShenandoahNewCASBarrierSlowStubC2* ShenandoahNewCASBarrierSlowStubC2::create(const MachNode* node, Address addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae) {
+  auto* stub = new (Compile::current()->comp_arena()) ShenandoahNewCASBarrierSlowStubC2(node, noreg, addr, expected, new_val, result, tmp1, tmp2, narrow, cae, true, false, false, false);
+  stub->register_stub();
+  return stub;
+}
+
 ShenandoahSATBAndLRBBarrierSlowStubC2* ShenandoahSATBAndLRBBarrierSlowStubC2::create(const MachNode* node, Register obj, Register addr, bool narrow, bool maybe_null) {
   auto* stub = new (Compile::current()->comp_arena()) ShenandoahSATBAndLRBBarrierSlowStubC2(node, obj, addr, narrow, maybe_null);
   stub->register_stub();
