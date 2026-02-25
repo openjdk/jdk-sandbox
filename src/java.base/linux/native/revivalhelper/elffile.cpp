@@ -605,12 +605,11 @@ void ELFFile::relocate(long displacement) {
 
 void ELFFile::write_symbols(int symbols_fd, const char* symbols[], int count) {
     Elf64_Shdr* strtab = section_by_name(".strtab");
-    char* SYMTAB_BUFFER = (char *) m + strtab->sh_offset;
-
     Elf64_Shdr* symtab = section_by_name(".symtab");
-    if (symtab == nullptr) {
+    if (strtab == nullptr || symtab == nullptr) {
         return;
     }
+    char* SYMTAB_BUFFER = (char *) m + strtab->sh_offset;
     for (long unsigned int i = 0; i < symtab->sh_size / symtab->sh_entsize; i++) {
         Elf64_Sym* sym = (Elf64_Sym*) ((uint64_t) m + (symtab->sh_offset + i * symtab->sh_entsize));
 
