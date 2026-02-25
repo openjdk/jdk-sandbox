@@ -289,6 +289,15 @@ class ShenandoahCASBarrierStubC2 : public ShenandoahBarrierStubC2 {
 
 public:
   static bool needs_barrier(const MachNode* node) {
+    return needs_card_barrier(node) || needs_load_ref_barrier(node) || needs_keep_alive_barrier(node);
+  }
+  static bool needs_keep_alive_barrier(const MachNode* node) {
+    return (node->barrier_data() & ShenandoahBitKeepAlive) != 0;
+  }
+  static bool needs_card_barrier(const MachNode* node) {
+    return (node->barrier_data() & ShenandoahBitCardMark) != 0;
+  }
+  static bool needs_load_ref_barrier(const MachNode* node) {
     return (node->barrier_data() & ShenandoahBitStrong) != 0;
   }
 

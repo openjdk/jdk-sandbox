@@ -1171,9 +1171,10 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
     assert(res == noreg, "no result expected");
   }
 
-  if (!ShenandoahSkipBarrierStubs && (ShenandoahCASBarrierStubC2::needs_barrier(node) || ShenandoahStoreBarrierStubC2::needs_card_barrier(node))) {
-    if (ShenandoahCASBarrierStubC2::needs_barrier(node)) {
-      Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+  if (!ShenandoahSkipBarrierStubs && ShenandoahCASBarrierStubC2::needs_barrier(node)) {
+    Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+
+    if (ShenandoahCASBarrierStubC2::needs_load_ref_barrier(node) || ShenandoahCASBarrierStubC2::needs_keep_alive_barrier(node)) {
       ShenandoahCASBarrierStubC2* const stub = ShenandoahCASBarrierStubC2::create(node, addr, oldval, newval, res, tmp1, tmp2, narrow, exchange);
       if (res != noreg) {
         stub->dont_preserve(res);  // set at the end, no need to save
@@ -1188,12 +1189,14 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
         __ setcc(Assembler::equal, tmp1);
       }
 
-      gc_state_check_c2(masm, ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::MARKING, stub);
+      char state = 0;
+      state |= ShenandoahCASBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
+      state |= ShenandoahCASBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
+      gc_state_check_c2(masm, state, stub);
       __ bind(*stub->continuation());
     }
 
     if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
-      Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
       __ lea(tmp1, addr);
       card_barrier_c2(node, masm, noreg, tmp1, tmp2);
     }
