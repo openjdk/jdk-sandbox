@@ -263,28 +263,20 @@ instruct compareAndExchangeN_shenandoah(indirect mem,
 
   ins_encode %{
     guarantee(UseCompressedOops, "must be compressed oops");
-    if (ShenandoahSATBBarrierStubC2::needs_barrier(this)) {
-      __ movl($tmp1$$Register, $oldval$$Register);
-      __ decode_heap_oop($tmp1$$Register);
-      ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                         noreg /* addr */,
-                                                         $tmp1$$Register /* pre_val */,
-                                                         $tmp2$$Register /* tmp */);
-    }
-    ShenandoahBarrierSet::assembler()->cmpxchg_oop_c2(this, masm,
-                                                      noreg, $mem$$Address, $oldval$$Register, $newval$$Register, $tmp1$$Register, $tmp2$$Register,
-                                                      /*exchange*/ true);
-    ShenandoahBarrierSet::assembler()->load_ref_barrier_c2(this, masm,
-                                                           $oldval$$Register /* obj */,
-                                                           $mem$$Register /* addr */,
-                                                           $tmp1$$Register /* tmp1 */,
-                                                           $tmp2$$Register /* tmp2 */,
-                                                           $tmp3$$Register /* tmp3 */,
-                                                           true /* narrow */);
-    ShenandoahBarrierSet::assembler()->card_barrier_c2(this, masm,
-                                                       $mem$$Register /* addr */,
-                                                       $tmp1$$Register /* addr_tmp */,
-                                                       $tmp2$$Register /* tmp */);
+
+    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
+                                                noreg,
+                                                $mem$$Address,
+                                                $oldval$$Register,
+                                                $newval$$Register,
+                                                $tmp1$$Register,
+                                                $tmp2$$Register,
+                                                /* exchange */ true,
+                                                /* maybe_null */ true,
+                                                /* narrow */ true,
+                                                /* acquire */ false,
+                                                /* release */ false,
+                                                /* weak */ false);
   %}
   ins_pipe( pipe_cmpxchg );
 %}
@@ -302,24 +294,19 @@ instruct compareAndExchangeP_shenandoah(indirect mem,
   format %{ "shenandoah_cas_oop $mem,$newval" %}
 
   ins_encode %{
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                       noreg /* addr */,
-                                                       $oldval$$Register /* pre_val */,
-                                                       $tmp2$$Register /* tmp */);
-    ShenandoahBarrierSet::assembler()->cmpxchg_oop_c2(this, masm,
-                                                      noreg, $mem$$Address, $oldval$$Register, $newval$$Register, $tmp1$$Register, $tmp2$$Register,
-                                                      /*exchange*/ true);
-    ShenandoahBarrierSet::assembler()->load_ref_barrier_c2(this, masm,
-                                                           $oldval$$Register /* obj */,
-                                                           $mem$$Register /* addr */,
-                                                           noreg /* tmp1 */,
-                                                           $tmp1$$Register /* tmp2 */,
-                                                           $tmp2$$Register /* tmp3 */,
-                                                           false /* narrow */);
-    ShenandoahBarrierSet::assembler()->card_barrier_c2(this, masm,
-                                                       $mem$$Register /* addr */,
-                                                       $tmp1$$Register /* addr_tmp */,
-                                                       $tmp2$$Register /* tmp */);
+    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
+                                                noreg,
+                                                $mem$$Address,
+                                                $oldval$$Register,
+                                                $newval$$Register,
+                                                $tmp1$$Register,
+                                                $tmp2$$Register,
+                                                /* exchange */ true,
+                                                /* maybe_null */ true,
+                                                /* narrow */ false,
+                                                /* acquire */ false,
+                                                /* release */ false,
+                                                /* weak */ false);
   %}
   ins_pipe( pipe_cmpxchg );
 %}

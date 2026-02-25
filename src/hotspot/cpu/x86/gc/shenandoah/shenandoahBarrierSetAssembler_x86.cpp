@@ -1860,7 +1860,9 @@ void ShenandoahNewCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
             __ jmp(*continuation());
 
             __ bind(runtime);
-            preserve(_result);
+            if (_result != noreg) {
+              preserve(_result);
+            }
             {
               SaveLiveRegisters save_registers(&masm, this);
               if (c_rarg0 != _expected) {
