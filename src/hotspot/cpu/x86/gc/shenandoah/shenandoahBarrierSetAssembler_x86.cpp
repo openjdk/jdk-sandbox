@@ -1181,7 +1181,7 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
       }
       stub->dont_preserve(oldval); // saved explicitly
       stub->dont_preserve(tmp1);   // temp, no need to save
-      stub->dont_preserve(tmp2);   // temp, no need to save
+      stub->preserve(tmp2);        // carries oldval for final retry, must be saved
 
       // On success, we need to write to SATB if MARKING is set in GCState.
       // On failure, we need to run LRB and retry CAS if HAS_FORWARDED is set in GCState.
