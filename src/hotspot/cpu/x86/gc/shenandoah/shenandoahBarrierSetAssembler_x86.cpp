@@ -1700,35 +1700,51 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
             Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
             Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
 
-            Label runtime;
+            Label L_satb_done, L_satb_pack_and_done, L_runtime;
 
             Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
             __ testb(gc_state, ShenandoahHeap::MARKING);
-            __ jcc(Assembler::zero, *continuation());
+            __ jcc(Assembler::zero, L_satb_done);
+
+            // Paranoia: CAS has succeded, so what was in memory is definitely oldval.
+            // Instead of pulling it from other code paths, pull it from stashed value.
+            // TODO: Figure out better way to do this.
+            __ movptr(_expected, _tmp2);
 
             // Is the previous value null?
             __ cmpptr(_expected, NULL_WORD);
-            __ jcc(Assembler::equal, *continuation());
+            __ jccb(Assembler::equal, L_satb_done);
+
+            if (_narrow) {
+              __ decode_heap_oop_not_null(_expected);
+            }
 
             // Can we store a value in the given thread's buffer?
             // (The index field is typed as size_t.)
             __ movptr(_tmp1, index);
             __ testptr(_tmp1, _tmp1);
-            __ jccb(Assembler::zero, runtime);
+            __ jccb(Assembler::zero, L_runtime);
             // The buffer is not full, store value into it.
             __ subptr(_tmp1, wordSize);
             __ movptr(index, _tmp1);
             __ addptr(_tmp1, buffer);
             __ movptr(Address(_tmp1, 0), _expected);
 
+            __ bind(L_satb_pack_and_done);
+            if (_narrow) {
+              __ encode_heap_oop_not_null(_expected);
+            }
+            __ bind(L_satb_done);
             __ jmp(*continuation());
 
-            __ bind(runtime);
+            __ bind(L_runtime);
+
+            // Expected register should not be clobbered.
+            preserve(_expected);
 
             // Carry the CAS/CAE result over the slowpath call
             if (_cae) {
               assert(_result == noreg, "no result expected");
-              preserve(_expected);
             } else {
               assert(_result != noreg, "need result register");
               preserve(_result);
@@ -1745,8 +1761,7 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
               // either case, it is safe to use it here as a call scratch register.
               __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre)), rax);
             }
-
-
+            __ jmp(L_satb_pack_and_done);
 
     __ jmp(*continuation());
 }
