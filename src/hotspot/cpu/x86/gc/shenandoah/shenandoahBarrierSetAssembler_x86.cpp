@@ -1860,7 +1860,13 @@ void ShenandoahNewCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
             __ jmp(*continuation());
 
             __ bind(runtime);
-            if (_result != noreg) {
+
+            // Carry the CAS/CAE result over the slowpath call
+            if (_cae) {
+              assert(_result == noreg, "no result expected");
+              preserve(_expected);
+            } else {
+              assert(_result != noreg, "need result register");
               preserve(_result);
             }
             {
