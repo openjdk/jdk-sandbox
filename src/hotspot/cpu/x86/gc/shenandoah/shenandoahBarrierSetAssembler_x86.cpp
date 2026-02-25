@@ -1642,10 +1642,6 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
             // CASes over non-strong locations.
             assert((_node->barrier_data() & ShenandoahBitStrong) != 0, "Only strong references for CASes");
 
-            // Fast-path stashed original oldval to tmp2 for us. We need to save it
-            // for the final retry. This frees up tmp2 for cset check below.
-            __ push(_tmp2);
-
             // (Compressed) failure witness is in _expected.
             // Unpack it and check if it is in collection set.
             __ movptr(_tmp1, _expected);
@@ -1653,9 +1649,8 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
               __ decode_heap_oop(_tmp1);
             }
             __ shrptr(_tmp1, ShenandoahHeapRegion::region_size_bytes_shift_jint());
-            __ movptr(_tmp2, (intptr_t) ShenandoahHeap::in_cset_fast_test_addr());
-            __ movbool(_tmp1, Address(_tmp1, _tmp2, Address::times_1));
-            __ testbool(_tmp1);
+            __ addptr(_tmp1, (intptr_t) ShenandoahHeap::in_cset_fast_test_addr());
+            __ cmpb(Address(_tmp1, 0), 0);
             __ jcc(Assembler::zero, L_final);
 
             {
@@ -1682,7 +1677,7 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
 
             // Try to CAS again with the original expected value.
             // At this point, there can no longer be false negatives.
-            __ pop(_expected);
+            __ movptr(_expected, _tmp2);
             __ lock();
             if (_narrow) {
               __ cmpxchgl(_new_val, _addr);
