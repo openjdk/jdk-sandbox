@@ -635,10 +635,10 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
   // EQ flag set iff success.
   __ cset(exchange ? rscratch2 : res, Assembler::EQ);
 
-  if (!ShenandoahSkipBarrierStubs && (ShenandoahCASBarrierSlowStubC2::needs_barrier(node) || ShenandoahStoreBarrierStubC2::needs_card_barrier(node))) {
+  if (!ShenandoahSkipBarrierStubs && (ShenandoahCASBarrierStubC2::needs_barrier(node) || ShenandoahStoreBarrierStubC2::needs_card_barrier(node))) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
-    if (ShenandoahCASBarrierSlowStubC2::needs_barrier(node)) {
+    if (ShenandoahCASBarrierStubC2::needs_barrier(node)) {
       // Load GC state in rscratch1
       Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
       __ ldrb(rscratch1, gcs_addr);
@@ -649,7 +649,7 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
       __ lsrv(rscratch1, rscratch1, exchange ? rscratch2 : res);
 
       // Assuming just for now that we need both barriers
-      ShenandoahCASBarrierSlowStubC2* cmpx = ShenandoahCASBarrierSlowStubC2::create(node, addr, oldval, newval, res, noreg, noreg, narrow, exchange, maybe_null, acquire, release, weak);
+      ShenandoahCASBarrierStubC2* cmpx = ShenandoahCASBarrierStubC2::create(node, addr, oldval, newval, res, noreg, noreg, narrow, exchange, maybe_null, acquire, release, weak);
 
       // Test bit '0' of rscratch1, which at this point will be FORWARDING bit if CAS
       // failed, or SATB bit if CAS succeded.
@@ -1029,7 +1029,7 @@ void ShenandoahSATBAndLRBBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
   __ b(*continuation());
 }
 
-void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
+void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
   __ bind(*entry());

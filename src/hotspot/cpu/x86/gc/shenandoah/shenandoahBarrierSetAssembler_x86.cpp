@@ -1149,7 +1149,7 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
 
   // Remember oldval for retry logic in slow path. We need to do it here,
   // because it will be overwritten by the fast-path CAS.
-  if (ShenandoahCASBarrierSlowStubC2::needs_barrier(node)) {
+  if (ShenandoahCASBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
     __ movptr(tmp2, oldval);
   }
@@ -1171,10 +1171,10 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
     assert(res == noreg, "no result expected");
   }
 
-  if (!ShenandoahSkipBarrierStubs && (ShenandoahCASBarrierSlowStubC2::needs_barrier(node) || ShenandoahStoreBarrierStubC2::needs_card_barrier(node))) {
-    if (ShenandoahCASBarrierSlowStubC2::needs_barrier(node)) {
+  if (!ShenandoahSkipBarrierStubs && (ShenandoahCASBarrierStubC2::needs_barrier(node) || ShenandoahStoreBarrierStubC2::needs_card_barrier(node))) {
+    if (ShenandoahCASBarrierStubC2::needs_barrier(node)) {
       Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
-      ShenandoahCASBarrierSlowStubC2* const stub = ShenandoahCASBarrierSlowStubC2::create(node, addr, oldval, newval, res, tmp1, tmp2, narrow, exchange);
+      ShenandoahCASBarrierStubC2* const stub = ShenandoahCASBarrierStubC2::create(node, addr, oldval, newval, res, tmp1, tmp2, narrow, exchange);
       if (res != noreg) {
         stub->dont_preserve(res);  // set at the end, no need to save
       }
@@ -1606,7 +1606,7 @@ void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ jmp(*continuation());
 }
 
-void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
+void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
   __ bind(*entry());

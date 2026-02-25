@@ -266,7 +266,7 @@ public:
   void emit_code(MacroAssembler& masm) override;
 };
 
-class ShenandoahCASBarrierSlowStubC2 : public ShenandoahBarrierStubC2 {
+class ShenandoahCASBarrierStubC2 : public ShenandoahBarrierStubC2 {
   Register _addr_reg;
   Address  _addr;
   Register _expected;
@@ -281,7 +281,7 @@ class ShenandoahCASBarrierSlowStubC2 : public ShenandoahBarrierStubC2 {
   bool     const _release;
   bool     const _weak;
 
-  explicit ShenandoahCASBarrierSlowStubC2(const MachNode* node, Register addr_reg, Address addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae, bool maybe_null, bool acquire, bool release, bool weak) :
+  explicit ShenandoahCASBarrierStubC2(const MachNode* node, Register addr_reg, Address addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae, bool maybe_null, bool acquire, bool release, bool weak) :
     ShenandoahBarrierStubC2(node),
     _addr_reg(addr_reg), _addr(addr), _expected(expected), _new_val(new_val), _result(result), _tmp1(tmp1), _tmp2(tmp2), _narrow(narrow), _cae(cae), _maybe_null(maybe_null), _acquire(acquire), _release(release),  _weak(weak) {
       assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
@@ -292,8 +292,8 @@ public:
     return (node->barrier_data() & ShenandoahBitStrong) != 0;
   }
 
-  static ShenandoahCASBarrierSlowStubC2* create(const MachNode* node, Register addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae, bool maybe_null, bool acquire, bool release, bool weak);
-  static ShenandoahCASBarrierSlowStubC2* create(const MachNode* node, Address addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae);
+  static ShenandoahCASBarrierStubC2* create(const MachNode* node, Register addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae, bool maybe_null, bool acquire, bool release, bool weak);
+  static ShenandoahCASBarrierStubC2* create(const MachNode* node, Address addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae);
   void emit_code(MacroAssembler& masm) override;
 };
 
