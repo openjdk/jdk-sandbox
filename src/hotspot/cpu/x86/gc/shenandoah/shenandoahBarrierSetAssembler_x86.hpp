@@ -92,9 +92,6 @@ public:
                        Register addr, Register preval, Register tmp);
   void card_barrier_c2(const MachNode* node, MacroAssembler* masm,
                        Register addr, Register addr_tmp, Register tmp);
-  void cmpxchg_oop_c2(const MachNode* node, MacroAssembler* masm,
-                      Register res, Address addr, Register oldval, Register newval, Register tmp1, Register tmp2,
-                      bool exchange);
   void cae_c2(const MachNode* node, MacroAssembler* masm, Register res, Address addr, Register oldval, Register newval,
               Register tmp1, Register tmp2,
               bool exchange, bool maybe_null, bool narrow, bool acquire, bool release, bool weak);
