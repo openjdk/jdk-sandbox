@@ -1174,7 +1174,7 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
   if (!ShenandoahSkipBarrierStubs && (ShenandoahCASBarrierSlowStubC2::needs_barrier(node) || ShenandoahStoreBarrierStubC2::needs_card_barrier(node))) {
     if (ShenandoahCASBarrierSlowStubC2::needs_barrier(node)) {
       Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
-      ShenandoahNewCASBarrierSlowStubC2* const stub = ShenandoahNewCASBarrierSlowStubC2::create(node, addr, oldval, newval, res, tmp1, tmp2, narrow, exchange);
+      ShenandoahCASBarrierSlowStubC2* const stub = ShenandoahCASBarrierSlowStubC2::create(node, addr, oldval, newval, res, tmp1, tmp2, narrow, exchange);
       if (res != noreg) {
         stub->dont_preserve(res);  // set at the end, no need to save
       }
@@ -1607,11 +1607,6 @@ void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
 }
 
 void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
-  ShouldNotReachHere();
-}
-
-
-void ShenandoahNewCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
   __ bind(*entry());
