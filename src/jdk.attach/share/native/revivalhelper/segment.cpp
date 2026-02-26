@@ -62,7 +62,7 @@ int Segment::write_mapping(int fd) {
 /**
  * Write this Segment, formatted as a core.mappings line, to the given fd.
  */
-int Segment::write_mapping(int fd, const char *type) {
+int Segment::write_mapping(int fd, const char* type) {
     // Text format:
     // type vaddr endaddress fileoffset filesize memsize perms
     // e.g.
@@ -83,8 +83,8 @@ int Segment::write_mapping(int fd, const char *type) {
     return 0;
 }
 
-char *Segment::toString() {
-    char* buf = (char *) malloc(BUFLEN);
+char* Segment::toString() {
+    char* buf = (char*) malloc(BUFLEN);
     snprintf(buf, BUFLEN, "Segment: %llx - %llx '%s' off: %llx len:%llx",
              (unsigned long long) vaddr,
              (unsigned long long) end(), // vaddr + length,

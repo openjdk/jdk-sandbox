@@ -40,16 +40,19 @@ void usageExit(const char* s) {
 }
 
 
-int main(int argc, char **argv) {
-    char *corename;
-    const char *libdir = nullptr;
-    const char *revival_data = nullptr;
+int main(int argc, char** argv) {
+    char* corename;
+    const char* libdir = nullptr;
+    const char* revival_data = nullptr;
     char command[BUFLEN];
     char javahome[BUFLEN];
     memset(command, 0, BUFLEN);
     memset(javahome, 0, BUFLEN);
     int n = 1;
 
+    if (argc < 4) {
+        usageExit(argv[0]);
+    }
     // Deduce JDK home from our executable name.
     // This program is in the JDK lib directory.
 #ifdef WINDOWS
@@ -57,7 +60,7 @@ int main(int argc, char **argv) {
 #else
 #define MY_NAME "/lib/revivalhelper"
 #endif
-    char *s = strstr(argv[0], MY_NAME);
+    char* s = strstr(argv[0], MY_NAME);
     if (s != nullptr) {
         strncpy(javahome, argv[0], (s - argv[0]));
         logv("revivalhelper: Using JDK home: '%s'\n", javahome);
@@ -66,9 +69,6 @@ int main(int argc, char **argv) {
         error("revivalhelper: cannot find JDK home from '%s'.\n", argv[0]);
     }
 
-    if (argc < 4) {
-        usageExit(argv[0]);
-    }
     // Arguments:
     while (true) {
         if (strncmp(argv[n], "-L", 2) == 0) {
@@ -111,7 +111,6 @@ int main(int argc, char **argv) {
     }
 
     int e = revive_image(corename, javahome, libdir, revival_data);
-
     if (e < 0) {
         fprintf(stderr, "Error: revive failed: %d\n", e);
         // Will call _exit below, don't call error().

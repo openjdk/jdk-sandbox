@@ -71,11 +71,11 @@ class ELFFile {
     const char* libdir;
     int fd;
     long long length;
-    void *m;            // Address of mapped ELF file
+    void* m;            // Address of mapped ELF file
     Elf64_Ehdr* hdr;    // Main ELF Header
     Elf64_Phdr* ph;     // First Program Header absolute address
     Elf64_Shdr* sh;     // First Section Header absolute address or nullptr
-    char *shdr_strings;
+    char* shdr_strings;
 
     std::list<Segment> libs;
 

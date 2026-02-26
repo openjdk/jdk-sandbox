@@ -344,7 +344,7 @@ int revival_mapping_copy(void* vaddr, size_t length, size_t offset, bool allocat
     }
 
     // Copy data to allocation:
-    FILE *f = fopen(filename, "rb");
+    FILE* f = fopen(filename, "rb");
     if (!f) {
         warn("revival_mapping_copy: cannot open: '%s': %d: %s", filename, errno, strerror(errno));
         return -1;
@@ -356,7 +356,7 @@ int revival_mapping_copy(void* vaddr, size_t length, size_t offset, bool allocat
         return -1;
     }
     // Copy bytes from file offset to vaddr (not to a changed/aligned vaddr):
-    int *p = (int*) vaddr;
+    int* p = (int*) vaddr;
     *p = 123;
 
     // Read.  --> todo: use ptr to destination, read to there directly...
@@ -393,12 +393,10 @@ void* load_sharedlibrary_fromdir(const char* dirname, const char* libname, void*
  * Map (revive) memory segments described by the file, into the current process.
  *
  * The core.mappings little language:
-
-M 	map directly from core                      revival_mapping_mmap(vaddr, length, offset, lines, core_filename, core_fd);
-m 	map allocation, not backed by core          revival_mapping_allocate(void* vaddr, size_t length);
-C 	copy data (into an earlier "m" allocation)  revival_mapping_copy(vaddr, length, offset, false, core_filename, core_fd);
-
  *
+ * M 	map directly from core                      revival_mapping_mmap(vaddr, length, offset, lines, core_filename, core_fd);
+ * m 	map allocation, not backed by core          revival_mapping_allocate(void* vaddr, size_t length);
+ * C 	copy data (into an earlier "m" allocation)  revival_mapping_copy(vaddr, length, offset, false, core_filename, core_fd);
  */
 int mappings_file_read(const char* corename, const char* dirname, const char* mappings_filename) {
     int e = 0;
@@ -414,7 +412,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
     int C_bad = 0;
     memset(s1, 0, BUFLEN);
 
-    FILE *f = fopen(mappings_filename, "r"); 
+    FILE* f = fopen(mappings_filename, "r");
     if (!f) {
         warn("cannot open: '%s': %s", mappings_filename, strerror(errno));
         return -1;
@@ -577,7 +575,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
     return 0;
 }
 
-/*
+/**
  * Lookup a symbol in the symbols file in a given direcory.
  */
 void* symbol_resolve_from_symbol_file(const char* dirname, const char* sym) {
@@ -585,7 +583,7 @@ void* symbol_resolve_from_symbol_file(const char* dirname, const char* sym) {
     snprintf(buf, BUFLEN, "%s/%s", dirname, SYMBOLS_FILENAME);
     int e = 0;
     void* addr = (void*) -1;
-    FILE *f = fopen((char*)&buf, "r"); 
+    FILE* f = fopen((char*)&buf, "r");
     if (!f) {
         return (void*) -1;
     }
@@ -626,7 +624,6 @@ void* symbol_deref(const char* sym) {
 }
 
 /**
- * symbol 
  * Lookup a symbol, return as a void* or (void*) -1 on failure.
  *
  * Try symbol.mappings first, then a live, platform-specific lookup.

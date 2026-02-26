@@ -108,7 +108,7 @@ class JavaThread;
 //       - this->entry_point()  // set differently for each kind of JavaThread
 
 extern "C" {
-JNIEXPORT void * process_revival();
+JNIEXPORT void* process_revival();
 }
 
 class Thread: public ThreadShadow {
@@ -279,11 +279,11 @@ class Thread: public ThreadShadow {
   // Manage Thread::current()
   void initialize_thread_current();
   static void clear_thread_current(); // TLS cleanup needed before threads terminate
-  void revive_thread_current(); // Process Revival for Serviceability
 
-  // Process Revival for Serviceability:
+  // Process Revival:
   JNIEXPORT static void* process_revival();
   JNIEXPORT static bool is_revived() { return _revived_vm; }
+  void revive_thread_current();
  private:
   static jboolean _revived_vm;
 

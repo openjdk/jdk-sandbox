@@ -40,5 +40,5 @@ int clock_gettime(clockid_t clockid, struct timespec *tp);
  * pthread_getcpuclockid may crash when given an unknown thread during revival.
  * This needs to fail gracefully.
  */
-int pthread_getcpuclockid(pthread_t thread, clockid_t *clockid);
+int pthread_getcpuclockid(pthread_t thread, clockid_t* clockid);
 

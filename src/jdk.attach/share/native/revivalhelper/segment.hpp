@@ -32,8 +32,7 @@
 
 // Don't inlude revival.hpp, just:
 #define BUFLEN 2048
-void write0(int fd, const char *buf);
-
+void write0(int fd, const char* buf);
 
 /**
  * A Segment describes a memory range.  It may have a name, and may describe from what offset in a file its contents can be read.
@@ -42,13 +41,13 @@ void write0(int fd, const char *buf);
  */
 class Segment {
     public:
-        Segment(char* n, void *v, size_t len) :
+        Segment(char* n, void* v, size_t len) :
             name(n), vaddr(v), length(len), file_offset(0), file_length(0) {}
 
-        Segment(char* n, void *v, size_t len, size_t offset, size_t file_len) :
+        Segment(char* n, void* v, size_t len, size_t offset, size_t file_len) :
             name(n), vaddr(v), length(len), file_offset(offset), file_length(file_len) {}
 
-        Segment(void *v, size_t len, size_t offset, size_t file_len) :
+        Segment(void* v, size_t len, size_t offset, size_t file_len) :
             name(nullptr), vaddr(v), length(len), file_offset(offset), file_length(file_len) {}
 
         Segment(Segment* s) :
@@ -69,15 +68,14 @@ class Segment {
         void set_length(uint64_t len) { length = len; file_length = len; }
         void move_start(long dist);
 
-        bool contains(Segment *seg);
+        bool contains(Segment* seg);
         bool contains(uint64_t addr);
 
         bool is_relevant();
         int write_mapping(int fd);
         int write_mapping(int fd, const char* type);
 
-        char *toString();
+        char* toString();
 };
-
 #endif
 

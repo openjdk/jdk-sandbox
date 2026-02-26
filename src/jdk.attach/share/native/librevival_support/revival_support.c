@@ -72,9 +72,9 @@ void set_revival_time_ns(unsigned long long t) {
  * clock_gettime which will return our set time, not the real time.
  */
 JNIEXPORT
-int clock_gettime(clockid_t clockid, struct timespec *tp) {
+int clock_gettime(clockid_t clockid, struct timespec* tp) {
 
-    static int (*func)(clockid_t, struct timespec *); // real function
+    static int (*func)(clockid_t, struct timespec*); // real function
 
     if (!clock_enabled) {
         if (!func) {
@@ -91,7 +91,7 @@ int clock_gettime(clockid_t clockid, struct timespec *tp) {
 }
 
 JNIEXPORT
-int pthread_getcpuclockid(pthread_t thread, clockid_t *clockid) {
+int pthread_getcpuclockid(pthread_t thread, clockid_t* clockid) {
     return ENOENT;
 }
 

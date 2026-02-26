@@ -98,7 +98,7 @@ void remove_handler();
 
 #include "pefile.hpp"
 
-void normalize_path_pd(char *s);
+void normalize_path_pd(char* s);
 void tls_fixup_pd(void* tlsPtr);
 void tls_revert_pd();
 
@@ -126,10 +126,10 @@ struct revival_data {
   uint64_t size_this;
   uint64_t status;
 
-  const char *runtime_name;
-  const char *runtime_version;
-  const char *runtime_vendor_version;
-  const char *jdk_debug_level;
+  const char* runtime_name;
+  const char* runtime_version;
+  const char* runtime_vendor_version;
+  const char* jdk_debug_level;
 
   uint64_t tls_index;
   uint64_t initial_time_count; // Linux: clock_gettime MONOTONIC (since system boot)
@@ -165,7 +165,7 @@ int revive_image(const char* corefile, const char* javahome, const char* libdir,
  * Calls into the revived JVM:
  * void DCmd::parse_and_execute(DCmdSource source, outputStream* out, const char* cmdline, char delim, TRAPS)
  */
-int revival_dcmd(const char *command);
+int revival_dcmd(const char* command);
 
 /**
  * Perform any cleanup after revival operation.
@@ -182,15 +182,15 @@ extern int logLevel;            // set from env: REVIVAL_LOG
 extern int versionCheckEnabled; // set from env: REVIVAL_SKIPVERSIONCHECK
 
 // Revival prep state:
-extern char *core_filename;
+extern char* core_filename;
 extern int core_fd;
-extern const char *revivaldir;
+extern const char* revivaldir;
 extern bool allLibraries;
 
 // Set during actual revival:
-extern char *jvm_filename;
-extern void *jvm_address;
-extern void *h; // Opaque handle to libjvm
+extern char* jvm_filename;
+extern void* jvm_address;
+extern void* h; // Opaque handle to libjvm
 extern std::list<Segment> writableSegments;
 extern std::list<Segment> failedSegments;
 extern struct revival_data* rdata;
@@ -211,26 +211,26 @@ bool try_init_jvm_filename_if_exists(const char* path, const char* suffix);
 void init_jvm_filename_from_libdir(const char* libdir);
 
 // Symbol lookup
-void *symbol(const char *symbol);
-void *symbol_deref(const char *symbol);
+void* symbol(const char* symbol);
+void* symbol_deref(const char* symbol);
 
 /**
  * Platform-specific symbol lookup.
  * Return symbol information as a pointer.
  * Implementations can print platform-specfic error info and then
  * return (void*) -1 on failure.
- */
-void *symbol_dynamiclookup_pd(void *h, const char*str);
+*/
+void* symbol_dynamiclookup_pd(void* h, const char*str);
 
 /**
  * Make a call to an address in a named symbol.  Variants to pass arguments.
  */
-void *symbol_call(const char *sym);
-void *symbol_call1(const char *sym, void *arg);
-void *symbol_call2(const char *sym, void *arg1, void *arg2);
-void *symbol_call3(const char *sym, void *arg1, void *arg2, void *arg3);
-void *symbol_call4(const char *sym, void *arg1, void *arg2, void *arg3, void *arg4);
-void *symbol_call5(const char *sym, void *arg1, void *arg2, void *arg3, void *arg4, void *arg5);
+void* symbol_call(const char* sym);
+void* symbol_call1(const char* sym, void* arg);
+void* symbol_call2(const char* sym, void* arg1, void* arg2);
+void* symbol_call3(const char* sym, void* arg1, void* arg2, void* arg3);
+void* symbol_call4(const char* sym, void* arg1, void* arg2, void* arg3, void* arg4);
+void* symbol_call5(const char* sym, void* arg1, void* arg2, void* arg3, void* arg4, void* arg5);
 
 uint64_t align_down(uint64_t ptr, uint64_t mask);
 uint64_t align_up(uint64_t ptr, uint64_t mask);
@@ -247,20 +247,20 @@ void init_pd();
 /**
  * Create a memory mapping, from a file.
  * Return address of allocation, or -1 for failure.
- */
-void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offset);
+*/
+void* do_mmap_pd(void* addr, size_t length, char* filename, int fd, size_t offset);
 
 /**
  * Create a memory mapped allocation at a given address, length.
  */
-void *do_map_allocate_pd(void *addr, size_t length);
+void* do_map_allocate_pd(void* addr, size_t length);
 
-int do_munmap_pd(void *addr, size_t length);
+int do_munmap_pd(void* addr, size_t length);
 
 /**
  * Return the VMThread created.
  */
-void *revived_vm_thread();
+void* revived_vm_thread();
 
 /**
  * Utilities to return a boolean for file or directory existence.
@@ -274,44 +274,44 @@ char* find_filename_in_libdir(const char* libdir, const char* filename);
 
 unsigned long long file_size(const char* filename);
 
-int revival_mapping_allocate(void *vaddr, size_t length);
+int revival_mapping_allocate(void* vaddr, size_t length);
 
-int revival_mapping_copy(void *vaddr, size_t length, size_t offset, bool allocate, char *filename, int fd);
+int revival_mapping_copy(void* vaddr, size_t length, size_t offset, bool allocate, char* filename, int fd);
 
-int relocate_sharedlib_pd(const char* filename, const void *addr);
+int relocate_sharedlib_pd(const char* filename, const void* addr);
 
-int create_revival_cache_pd(const char* corename, const char* javahome, const char* dirname, const char *libdir);
+int create_revival_cache_pd(const char* corename, const char* javahome, const char* dirname, const char* libdir);
 
 /**
  * Create the named "core.mappings" file and write the header.
  * Return the fd so other code can write the library and memory mapping lines.
  * Return a negative value on error.
  */
-int mappings_file_create(const char *filename, const char *corename);
+int mappings_file_create(const char* filename, const char* corename);
 
 /**
  * Create jvm.symbols file
  * Return the fd so other code can write the symbols lines.
  */
-int symbols_file_create(const char *filename);
+int symbols_file_create(const char* filename);
 
-int generate_symbols_pd(const char *name, int fd);
+int generate_symbols_pd(const char* name, int fd);
 
 /**
- *  Load a shared library.  Return an opaque handle (not the load address), or -1 for error.
+ * Load a shared library.  Return an opaque handle (not the load address), or -1 for error.
  */
-void *load_sharedobject_pd(const char *name, void *vaddr);
+void* load_sharedobject_pd(const char* name, void* vaddr);
 
 /**
  * Unload a shared library identified by handle.  Return zero on success. 
  */
-int unload_sharedobject_pd(void *h);
+int unload_sharedobject_pd(void* h);
 
-bool mem_canwrite_pd(void *vaddr, size_t length);
+bool mem_canwrite_pd(void* vaddr, size_t length);
 
-int revival_checks_pd(const char *dirname);
-int dangerous0(void *vaddr, unsigned long long length, uint64_t xaddr);
-const char *dangerous( void *vaddr, unsigned long long length);
+int revival_checks_pd(const char* dirname);
+int dangerous0(void* vaddr, unsigned long long length, uint64_t xaddr);
+const char* dangerous( void* vaddr, unsigned long long length);
 
 /**
  * If we know an upper limit on process virtual address, return it, or return 0 if not known.
@@ -322,8 +322,10 @@ unsigned long long max_user_vaddr_pd();
  * Diagnostics:
  */
 
-// Simple pause for debugging when REVIVAL_WAIT is set in env.
-// Only for when revivalhelper is run manually at command-line, as requires stdin.
+/**
+ * Simple pause for debugging when REVIVAL_WAIT is set in env.
+ * Only for when revivalhelper is run manually at command-line, as requires stdin.
+ */
 void waitHitRet();
 
 // Avoid "error: format string is not a string literal [-Werror,-Wformat-nonliteral]"
@@ -334,24 +336,24 @@ void waitHitRet();
 #define ATTRIBUTE_PRINTF(fmt,vargs)  __attribute__((format(printf, fmt, vargs)))
 
 // Write string fully to fd, log if error.
-void write0(int fd, const char *buf);
+void write0(int fd, const char* buf);
 
-void writef(int fd, const char *format, ...) ATTRIBUTE_PRINTF(2, 3);
+void writef(int fd, const char* format, ...) ATTRIBUTE_PRINTF(2, 3);
 
 // Log to stderr.  Adds timestamp and newline to given message.
 // logv, logd and warn and error all call this method.
-void log(const char *format, ...) ATTRIBUTE_PRINTF(1, 2);
+void log(const char* format, ...) ATTRIBUTE_PRINTF(1, 2);
 
 // Log if we are "verbose".
-void logv(const char *format, ...) ATTRIBUTE_PRINTF(1, 2);
+void logv(const char* format, ...) ATTRIBUTE_PRINTF(1, 2);
 
 // Log if we are "debug".
-void logd(const char *format, ...) ATTRIBUTE_PRINTF(1, 2);
+void logd(const char* format, ...) ATTRIBUTE_PRINTF(1, 2);
 
 // Write to stderr.
-void warn(const char *format, ...) ATTRIBUTE_PRINTF(1, 2);
+void warn(const char* format, ...) ATTRIBUTE_PRINTF(1, 2);
 
 // Write to stderr and exit.
-void error(const char *format, ...) ATTRIBUTE_PRINTF(1, 2);
+void error(const char* format, ...) ATTRIBUTE_PRINTF(1, 2);
 
 #endif /* REVIVAL_H */
