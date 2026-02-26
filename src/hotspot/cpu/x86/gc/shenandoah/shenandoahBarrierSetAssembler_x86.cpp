@@ -1072,7 +1072,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
     }
 
     if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
-      card_barrier_c2(node, masm, dst, tmp);
+      card_barrier_c2(masm, dst, tmp);
     }
   }
 
@@ -1158,7 +1158,7 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
     }
 
     if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
-      card_barrier_c2(node, masm, addr, tmp1);
+      card_barrier_c2(masm, addr, tmp1);
     }
   }
 }
@@ -1190,28 +1190,32 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     }
 
     if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
-      card_barrier_c2(node, masm, addr, tmp);
+      card_barrier_c2(masm, addr, tmp);
     }
   }
 }
 
-void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroAssembler* masm, Address dst, Register tmp) {
+void ShenandoahBarrierSetAssembler::card_barrier_c2(MacroAssembler* masm, Address dst, Register tmp) {
+  // TODO: Might be a good place to implement some filters here.
+  // For example, G1 only flips card marks for stores within a single region.
+
   __ lea(tmp, dst);
   __ shrptr(tmp, CardTable::card_shift());
   __ addptr(tmp, Address(r15_thread, in_bytes(ShenandoahThreadLocalData::card_table_offset())));
+  Address card_address(tmp, 0);
 
   assert(CardTable::dirty_card_val() == 0, "Encoding assumption");
-  Label L_card_done;
+  Label L_done;
   if (UseCondCardMark) {
-    __ cmpb(Address(tmp, 0), CardTable::dirty_card_val());
-    __ jccb(Assembler::equal, L_card_done);
+    __ cmpb(card_address, 0);
+    __ jccb(Assembler::equal, L_done);
   }
   if (UseCompressedOops && CompressedOops::base() == nullptr) {
-    __ movb(Address(tmp, 0), r12);
+    __ movb(card_address, r12);
   } else {
-    __ movb(Address(tmp, 0), CardTable::dirty_card_val());
+    __ movb(card_address, 0);
   }
-  __ bind(L_card_done);
+  __ bind(L_done);
 }
 
 #undef __

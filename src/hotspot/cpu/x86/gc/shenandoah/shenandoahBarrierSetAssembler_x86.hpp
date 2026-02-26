@@ -83,14 +83,16 @@ public:
 #endif
 
 #ifdef COMPILER2
-  void gc_state_check_c2(MacroAssembler* masm, const char test_state, BarrierStubC2* slow_stub);
-  void card_barrier_c2(const MachNode* node, MacroAssembler* masm, Address dst, Register tmp);
-  void cae_c2(const MachNode* node, MacroAssembler* masm, Register res, Address addr, Register oldval, Register newval,
-              Register tmp1, Register tmp2, bool exchange, bool maybe_null, bool narrow);
-  void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register newval, Address addr, Register tmp);
+  // Entry points from Matcher
   void load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src);
   void store_c2(const MachNode* node, MacroAssembler* masm,
                 Address dst, bool dst_narrow, Register src, bool src_narrow, Register tmp);
+  void cae_c2(const MachNode* node, MacroAssembler* masm, Register res, Address addr, Register oldval, Register newval,
+              Register tmp1, Register tmp2, bool exchange, bool maybe_null, bool narrow);
+  void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register newval, Address addr, Register tmp);
+
+  void gc_state_check_c2(MacroAssembler* masm, const char test_state, BarrierStubC2* slow_stub);
+  void card_barrier_c2(MacroAssembler* masm, Address dst, Register tmp);
 #endif
 };
 
