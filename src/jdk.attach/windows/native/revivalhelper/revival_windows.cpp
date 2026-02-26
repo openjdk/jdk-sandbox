@@ -462,7 +462,7 @@ void *do_map_allocate_pd_MapViewOfFile(void *vaddr, size_t length) {
     printf("    Access denied, retry\n");
     p = MapViewOfFileEx(h, mapViewAccess, 0, 0, length, (void *) vaddrAligned);
     }
-    if ((void*) p != (void*) vaddrAligned) { 
+    if ((void*) p != (void*) vaddrAligned) {
 
     printf("    do_map_allocate_pd_MapViewOfFile: first alloc attempt 0x%p len 0x%zx : returns = 0x%p, error = 0x%lx\n",
     (void *) vaddrAligned, length, p, GetLastError());
@@ -816,12 +816,12 @@ void write_symbols(int symbols_fd, const char* symbols[], int count, const char 
     TCHAR szSymbolName[MAX_SYM_NAME];
     ULONG64 buffer[(sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR) + sizeof(ULONG64) - 1) / sizeof(ULONG64)];
     PSYMBOL_INFO pSymbol = (PSYMBOL_INFO) buffer;
- 	pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
-   	pSymbol->MaxNameLen = MAX_SYM_NAME;
+    pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+    pSymbol->MaxNameLen = MAX_SYM_NAME;
     char buf[MAX_SYM_NAME];
 
     for (int i = 0; i < count; i++) {
-    	strncpy(szSymbolName, symbols[i], MAX_SYM_NAME);
+        strncpy(szSymbolName, symbols[i], MAX_SYM_NAME);
         if (!SymFromName(h2, szSymbolName, pSymbol)) {
             warn("write_symbols: %d: SymFromName '%s' failed, error: %d", i, szSymbolName, GetLastError());
         } else {

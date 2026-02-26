@@ -168,7 +168,7 @@ MINIDUMP_DIRECTORY* MiniDump::find_stream(int stream) {
             lseek(fd, md->Location.Rva, SEEK_SET);
             result = md;
             break;
-        }     
+        }
     }
     return result;
 }
@@ -418,7 +418,6 @@ uint64_t MiniDump::file_offset_for_vaddr(uint64_t addr) {
     }
     return 0;
 }
-
 
 char* MiniDump::readstring_at_address(uint64_t addr) {
     uint64_t offset = file_offset_for_vaddr(addr);

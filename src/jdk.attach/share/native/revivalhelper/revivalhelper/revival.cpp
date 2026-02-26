@@ -221,7 +221,7 @@ int clash(uint64_t v1, uint64_t v2, uint64_t t1, uint64_t t2) {
     // Either end of region v1, v2 is inside region t1, t2:
     if ((v2 > t1 && v2 < t2)
             || (v1 > t1 && v1 < t2)) {
-        return true; 
+        return true;
     }
     // No clash:
     return false;
@@ -380,7 +380,7 @@ int revival_mapping_copy(void* vaddr, size_t length, size_t offset, bool allocat
  */
 void* load_sharedlibrary_fromdir(const char* dirname, const char* libname, void* vaddr, char* sum) {
     char buf[BUFLEN];
-    snprintf(buf, BUFLEN, "%s/%s", dirname, libname); 
+    snprintf(buf, BUFLEN, "%s/%s", dirname, libname);
     void* a = load_sharedobject_pd(buf, vaddr);
     logv("load_sharedobject_pd: %s: returns %p", buf, a);
     return a;
@@ -414,14 +414,14 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
     int C_bad = 0;
     memset(s1, 0, BUFLEN);
 
-    FILE *f = fopen(mappings_filename, "r"); 
+    FILE *f = fopen(mappings_filename, "r");
     if (!f) {
         warn("cannot open: '%s': %s", mappings_filename, strerror(errno));
         return -1;
     }
     // Read corefile details:
     // Use generous sizes for scanf string destinations, easily within BUFLEN.
-    e = fscanf(f, "core %1024s %32s\n", s1 /* core filename */, s2 /* length */); 
+    e = fscanf(f, "core %1024s %32s\n", s1 /* core filename */, s2 /* length */);
     if (e != 2) {
         warn("mappings_file_read: unrecognised header in: %s", mappings_filename);
         return -1;
@@ -519,13 +519,13 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
                 warn("mappings_file_read: danger 0x%llx", (unsigned long long) vaddr);
                 exitForRetry();
                 continue;
-            } 
+            }
             if (strstr(s7, "W") != nullptr) {
                 // Write permission: add to record of writable Segments:
                 Segment* thisSeg = new Segment(vaddr, length, offset, length_file);
                 writableSegments.push_back(*thisSeg);
             } 
-            if (strncmp(s1, "M", 1) == 0) { 
+            if (strncmp(s1, "M", 1) == 0) {
                 // Map memory from core:
                 int e = revival_mapping_mmap(vaddr, length, offset, lines, core_filename, core_fd);
                 // Windows: will try revival_mapping_copy (allocate) on failure.
@@ -544,7 +544,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
                 } else {
                     m_good++;
                 }
-            } else if (strncmp(s1, "C", 1) == 0) { 
+            } else if (strncmp(s1, "C", 1) == 0) {
                 // Copy, no allocation needed:
                 int e = revival_mapping_copy(vaddr, length, offset, false, core_filename, core_fd);
                 if (e < 0) {
@@ -558,7 +558,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
                 error("mappings_file_read: unrecognised mapping line %d: '%s'", lines, s1);
             }
             continue;
-        } 
+        }
         if (strlen(s1) > 0) {
             error("mappings_file_read: unrecognised line %d: '%s'", lines, s1);
         }
@@ -585,7 +585,7 @@ void* symbol_resolve_from_symbol_file(const char* dirname, const char* sym) {
     snprintf(buf, BUFLEN, "%s/%s", dirname, SYMBOLS_FILENAME);
     int e = 0;
     void* addr = (void*) -1;
-    FILE *f = fopen((char*)&buf, "r"); 
+    FILE *f = fopen((char*)&buf, "r");
     if (!f) {
         return (void*) -1;
     }
@@ -626,7 +626,6 @@ void* symbol_deref(const char* sym) {
 }
 
 /**
- * symbol 
  * Lookup a symbol, return as a void* or (void*) -1 on failure.
  *
  * Try symbol.mappings first, then a live, platform-specific lookup.
@@ -822,7 +821,7 @@ int mappings_file_create(const char* dirname, const char* corename) {
 // Create file and header lines:
 // core FILENAME size
 // time 123213123
-// 
+//
 // Shared libraries written later:
 // L jvm addresshex 0   (0 is placeholder for possible checksum)
     char buf[BUFLEN];
@@ -887,7 +886,7 @@ int revive_image_cooperative() {
     if (s == (void*) -1) {
         warn("revive_image: JVM helper function not found.");
         return -1;
-    }  
+    }
 
     logv("revive_image: calling JVM revival helper method %p", s);
     void*(*helper)() = (void*(*)()) s;

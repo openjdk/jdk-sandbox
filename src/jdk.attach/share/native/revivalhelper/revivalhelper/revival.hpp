@@ -303,7 +303,7 @@ int generate_symbols_pd(const char *name, int fd);
 void *load_sharedobject_pd(const char *name, void *vaddr);
 
 /**
- * Unload a shared library identified by handle.  Return zero on success. 
+ * Unload a shared library identified by handle.  Return zero on success.
  */
 int unload_sharedobject_pd(void *h);
 
