@@ -690,7 +690,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
       Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
       __ ldrb(rscratch1, gcs_addr);
 
-      ShenandoahSATBAndLRBBarrierSlowStubC2* const stub = ShenandoahSATBAndLRBBarrierSlowStubC2::create(node, preval, addr, narrow, maybe_null);
+      ShenandoahSATBAndLRBBarrierSlowStubC2* const stub = ShenandoahSATBAndLRBBarrierSlowStubC2::create(node, preval, addr, noreg, noreg, narrow, maybe_null);
 
       // rscratch1[0] = gc_state[ShenandoahHeap::HAS_FORWARDED_BITPOS] | gc_state[ShenandoahHeap::MARKING_BITPOS]
       __ orr(rscratch1, rscratch1, rscratch1, Assembler::LSR, ShenandoahHeap::MARKING_BITPOS);
@@ -790,7 +790,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
     Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ ldrb(rscratch1, gcs_addr);
 
-    ShenandoahSATBAndLRBBarrierSlowStubC2* const stub = ShenandoahSATBAndLRBBarrierSlowStubC2::create(node, dst, addr, is_narrow, maybe_null);
+    ShenandoahSATBAndLRBBarrierSlowStubC2* const stub = ShenandoahSATBAndLRBBarrierSlowStubC2::create(node, dst, addr, noreg, noreg, is_narrow, maybe_null);
 
     stub->preserve(addr);
     stub->dont_preserve(dst);
