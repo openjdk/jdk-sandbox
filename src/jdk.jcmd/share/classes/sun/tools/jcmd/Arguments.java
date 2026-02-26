@@ -68,16 +68,16 @@ class Arguments {
                 args[i].equals("-help")) {
                 showUsage = true;
                 return;
-            } else if (args[i].equals("-c") || args[i].equals("--core")) {
+            } else if (args[i].equals("-c")) {
                 forceCore = true;
-            } else if (args[i].equals("-L") || args[i].equals("--libdir")) {
+            } else if (args[i].equals("-L")) {
                 i++;
                 if (libDirs == null) {
                     libDirs = args[i];
                 } else {
                     libDirs = libDirs + File.pathSeparatorChar + args[i];
                 }
-            } else if (args[i].equals("-R") || args[i].equals("--revivaldata")) {
+            } else if (args[i].equals("-R")) {
                 i++;
                 revivalCachePath = args[i];
             } else {
