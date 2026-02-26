@@ -1030,10 +1030,7 @@ void ShenandoahBarrierSetAssembler::gc_state_check_c2(MacroAssembler* masm, cons
   }
 }
 
-void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm,
-                                            Register dst,
-                                            Address src,
-                                            bool narrow) {
+void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src, bool narrow) {
   // Do the actual load. This load is the candidate for implicit null check, and MUST come first.
   if (narrow) {
     __ movl(dst, src);
@@ -1203,20 +1200,6 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     }
   }
 
-}
-
-void ShenandoahBarrierSetAssembler::satb_barrier_c2(const MachNode* node, MacroAssembler* masm,
-                                                    Register addr, Register preval, Register tmp) {
-  if (ShenandoahSkipBarrierStubs || !ShenandoahSATBBarrierStubC2::needs_barrier(node)) {
-    return;
-  }
-
-  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
-
-  ShenandoahSATBBarrierStubC2* const stub = ShenandoahSATBBarrierStubC2::create(node, addr, preval, tmp, /* TODO: */ false);
-
-  gc_state_check_c2(masm, ShenandoahHeap::MARKING, stub);
-  __ bind(*stub->continuation());
 }
 
 void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroAssembler* masm,

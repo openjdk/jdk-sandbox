@@ -43,7 +43,7 @@ instruct loadP_shenandoah(rRegP dst, memory mem, rFlagsReg cr)
     ShenandoahBarrierSet::assembler()->load_c2(this, masm,
       $dst$$Register,
       $mem$$Address,
-      /* narrow = */ false
+      /* narrow = */ (this->bottom_type()->isa_narrowoop())
     );
   %}
   ins_cost(125);
@@ -62,7 +62,7 @@ instruct loadN_shenandoah(rRegN dst, memory mem, rFlagsReg cr)
     ShenandoahBarrierSet::assembler()->load_c2(this, masm,
       $dst$$Register,
       $mem$$Address,
-      /* narrow = */ true
+      /* narrow = */ (this->bottom_type()->isa_narrowoop())
     );
   %}
   ins_cost(125);
@@ -285,7 +285,7 @@ instruct getAndSetP_shenandoah(indirect mem, rRegP newval, rRegP tmp1, rRegP tmp
          $tmp1$$Register,
          $tmp2$$Register,
          /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
-         /* is_narrow */ false);
+         /* is_narrow */ (this->bottom_type()->isa_narrowoop()));
   %}
   ins_pipe(pipe_cmpxchg);
 %}
@@ -305,7 +305,7 @@ instruct getAndSetN_shenandoah(indirect mem, rRegN newval, rRegP tmp1, rRegP tmp
          $tmp1$$Register,
          $tmp2$$Register,
          /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
-         /* is_narrow */ true);
+         /* is_narrow */ (this->bottom_type()->isa_narrowoop()));
   %}
   ins_pipe(pipe_cmpxchg);
 %}
