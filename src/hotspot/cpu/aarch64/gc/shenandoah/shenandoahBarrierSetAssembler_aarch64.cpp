@@ -914,9 +914,10 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
 }
 
 void ShenandoahSATBAndLRBBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
+  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
+
   __ bind(*entry());
 
-  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
   Label lrb;
 
   if (_narrow) {
@@ -932,7 +933,6 @@ void ShenandoahSATBAndLRBBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
   }
 
   { // SATB
-
     Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ ldrb(rscratch1, gcs_addr);
     __ tbz(rscratch1, ShenandoahHeap::MARKING_BITPOS, lrb);

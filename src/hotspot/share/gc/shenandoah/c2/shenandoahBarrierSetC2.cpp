@@ -832,8 +832,8 @@ ShenandoahCASBarrierStubC2* ShenandoahCASBarrierStubC2::create(const MachNode* n
   return stub;
 }
 
-ShenandoahSATBAndLRBBarrierSlowStubC2* ShenandoahSATBAndLRBBarrierSlowStubC2::create(const MachNode* node, Register obj, Register addr, bool narrow, bool maybe_null) {
-  auto* stub = new (Compile::current()->comp_arena()) ShenandoahSATBAndLRBBarrierSlowStubC2(node, obj, addr, narrow, maybe_null);
+ShenandoahSATBAndLRBBarrierSlowStubC2* ShenandoahSATBAndLRBBarrierSlowStubC2::create(const MachNode* node, Register obj, Register addr, Register tmp1, Register tmp2, bool narrow, bool maybe_null) {
+  auto* stub = new (Compile::current()->comp_arena()) ShenandoahSATBAndLRBBarrierSlowStubC2(node, obj, addr, tmp1, tmp2, narrow, maybe_null);
   stub->register_stub();
   return stub;
 }

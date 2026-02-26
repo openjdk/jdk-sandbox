@@ -1030,33 +1030,6 @@ void ShenandoahBarrierSetAssembler::gc_state_check_c2(MacroAssembler* masm, cons
   }
 }
 
-void ShenandoahBarrierSetAssembler::load_ref_barrier_c2(const MachNode* node, MacroAssembler* masm, Register obj, Register addr, Register tmp1, Register tmp2, Register tmp3, bool narrow) {
-  if (ShenandoahSkipBarrierStubs || !ShenandoahLoadRefBarrierStubC2::needs_barrier(node)) {
-    return;
-  }
-
-  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
-
-  ShenandoahLoadRefBarrierStubC2* const stub = ShenandoahLoadRefBarrierStubC2::create(node, obj, addr, tmp1, tmp2, tmp3, narrow);
-  stub->dont_preserve(obj);    // set at the end, no need to save
-  if (tmp1 != noreg) {
-    stub->dont_preserve(tmp1); // temp, no need to save
-  }
-  if (tmp2 != noreg) {
-    stub->dont_preserve(tmp2); // temp, no need to save
-  }
-  if (tmp3 != noreg) {
-    stub->dont_preserve(tmp3); // temp, no need to save
-  }
-
-  int flags = ShenandoahHeap::HAS_FORWARDED;
-  if ((node->barrier_data() & ShenandoahBitStrong) == 0) {
-    flags |= ShenandoahHeap::WEAK_ROOTS;
-  }
-  gc_state_check_c2(masm, flags, stub);
-  __ bind(*stub->continuation());
-}
-
 void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm,
                                             Register dst,
                                             Address src,
@@ -1141,7 +1114,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
 
 void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler* masm,
               Register res, Address addr, Register oldval, Register newval,
-              Register tmp1, Register tmp2, bool exchange, bool maybe_null, bool narrow, bool acquire, bool release, bool weak) {
+              Register tmp1, Register tmp2, bool exchange, bool maybe_null, bool narrow) {
 
   assert(oldval == rax, "must be in rax for implicit use in cmpxchg");
   assert_different_registers(oldval, tmp1, tmp2);
@@ -1201,6 +1174,35 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
       card_barrier_c2(node, masm, noreg, tmp1, tmp2);
     }
   }
+}
+
+void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register newval, Register addr, Register tmp1, Register tmp2, bool maybe_null, bool narrow) {
+  __ xchgq(newval, Address(addr, 0));
+
+  if (narrow) {
+    __ xchgl(newval, Address(addr, 0));
+  } else {
+    __ xchgq(newval, Address(addr, 0));
+  }
+
+  if (!ShenandoahSkipBarrierStubs && (ShenandoahSATBAndLRBBarrierSlowStubC2::needs_barrier(node) || ShenandoahStoreBarrierStubC2::needs_card_barrier(node))) {
+    Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+
+    if (ShenandoahSATBAndLRBBarrierSlowStubC2::needs_barrier(node)) {
+      ShenandoahSATBAndLRBBarrierSlowStubC2* const stub = ShenandoahSATBAndLRBBarrierSlowStubC2::create(node, newval, addr, tmp1, tmp2, narrow, maybe_null);
+
+      char check = 0;
+      check |= ShenandoahLoadBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
+      check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
+      check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier_weak(node) ? ShenandoahHeap::WEAK_ROOTS : 0;
+      gc_state_check_c2(masm, check, stub);
+    }
+
+    if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
+      card_barrier_c2(node, masm, addr, tmp1, tmp2);
+    }
+  }
+
 }
 
 void ShenandoahBarrierSetAssembler::satb_barrier_c2(const MachNode* node, MacroAssembler* masm,
@@ -1767,7 +1769,133 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
 }
 
 void ShenandoahSATBAndLRBBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
-  Unimplemented();
+  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
+
+  __ bind(*entry());
+
+  Label lrb;
+
+  if (_narrow) {
+    if (_maybe_null) {
+      __ decode_heap_oop(_obj);
+
+      // FIXME: See if it is possible to merge this null-check with decoding
+      __ cmpptr(_obj, NULL_WORD);
+      __ jcc(Assembler::equal, lrb);
+    } else {
+      __ decode_heap_oop_not_null(_obj);
+    }
+  } else {
+    __ cmpptr(_obj, NULL_WORD);
+    __ jcc(Assembler::equal, lrb);
+  }
+
+  { // SATB
+    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+    __ testb(gc_state, ShenandoahHeap::MARKING);
+    __ jcc(Assembler::zero, lrb);
+
+    Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
+    Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
+    Label runtime;
+
+    // Can we store a value in the given thread's buffer?
+    // (The index field is typed as size_t.)
+    __ movptr(_tmp1, index);
+    __ testptr(_tmp1, _tmp1);
+    __ jccb(Assembler::zero, runtime);
+
+    // The buffer is not full, store value into it.
+    __ subptr(_tmp1, wordSize);
+    __ movptr(index, _tmp1);
+    __ addptr(_tmp1, buffer);
+    __ movptr(Address(_tmp1, 0), _obj);
+    __ jmp(lrb);
+
+    __ bind(runtime);
+
+    preserve(_obj);
+    {
+      SaveLiveRegisters save_registers(&masm, this);
+      if (c_rarg0 != _obj) {
+        __ mov(c_rarg0, _obj);
+      }
+      // rax is a caller-saved, non-argument-passing register, so it does not
+      // interfere with c_rarg0 or c_rarg1. If it contained any live value before
+      // entering this stub, it is saved at this point, and restored after the
+      // call. If it did not contain any live value, it is free to be used. In
+      // either case, it is safe to use it here as a call scratch register.
+      __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre)), rax);
+    }
+  }
+
+  __ bind(lrb); { // LRB
+    Label lrb_end;
+
+    // Weak/phantom loads always need to go to runtime, otherwise check for
+    // object in cset.
+    if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
+      __ movptr(_tmp2, _obj);
+      __ shrptr(_tmp2, ShenandoahHeapRegion::region_size_bytes_shift_jint());
+      __ movptr(_tmp1, (intptr_t) ShenandoahHeap::in_cset_fast_test_addr());
+      __ movbool(_tmp2, Address(_tmp2, _tmp1, Address::times_1));
+      __ testbool(_tmp2);
+      __ jcc(Assembler::zero, lrb_end);
+
+      Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+      __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED);
+      __ jcc(Assembler::zero, lrb_end);
+    }
+
+    dont_preserve(_obj);
+    {
+      SaveLiveRegisters save_registers(&masm, this);
+      if (c_rarg0 != _obj) {
+        if (c_rarg0 == _addr) {
+          __ movptr(_tmp2, _addr);
+          _addr = _tmp2;
+        }
+        __ movptr(c_rarg0, _obj);
+      }
+      if (c_rarg1 != _addr) {
+        __ movptr(c_rarg1, _addr);
+      }
+
+      address entry;
+      if (_narrow) {
+        if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
+          entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow);
+        } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
+          entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow);
+        } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
+          entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow);
+        }
+      } else {
+        if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
+          entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong);
+        } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
+          entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak);
+        } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
+          entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom);
+        }
+      }
+      __ call(RuntimeAddress(entry), rax);
+      assert(!save_registers.contains(_obj), "must not save result register");
+      __ movptr(_obj, rax);
+    }
+
+    __ bind(lrb_end);
+  }
+
+  if (_narrow) {
+    if (_maybe_null) {
+      __ encode_heap_oop(_obj);
+    } else {
+      __ encode_heap_oop_not_null(_obj);
+    }
+  }
+
+  __ jmp(*continuation());
 }
 
 #undef __
