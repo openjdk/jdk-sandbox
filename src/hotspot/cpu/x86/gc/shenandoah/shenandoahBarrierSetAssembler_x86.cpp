@@ -1116,9 +1116,12 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
               Register tmp1, Register tmp2, bool exchange, bool maybe_null, bool narrow) {
 
   assert(oldval == rax, "must be in rax for implicit use in cmpxchg");
-  assert_different_registers(oldval, tmp1, tmp2);
-  assert_different_registers(newval, tmp1, tmp2);
   assert(narrow == UseCompressedOops, "should match");
+
+  // Oldval and newval can be in the same register, but all other registers should be
+  // distinct for extra safety, as we shuffle register values around.
+  assert_different_registers(oldval, tmp1, tmp2, addr.base(), addr.index());
+  assert_different_registers(newval, tmp1, tmp2, addr.base(), addr.index());
 
   // Remember oldval for retry logic in slow path. We need to do it here,
   // because it will be overwritten by the fast-path CAS.

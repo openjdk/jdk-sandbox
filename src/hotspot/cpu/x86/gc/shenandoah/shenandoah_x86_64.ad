@@ -120,7 +120,7 @@ instruct encodePAndStoreN_shenandoah(memory mem, any_RegP src, rRegP tmp, rFlags
 
 // ---------------------- LOAD-STORES -----------------------------------
 
-instruct compareAndSwapP_shenandoah(rRegI res, indirect mem, rRegP tmp1, rRegP tmp2, rax_RegP oldval, rRegP newval, rFlagsReg cr)
+instruct compareAndSwapP_shenandoah(rRegI res, memory mem, rRegP tmp1, rRegP tmp2, rax_RegP oldval, rRegP newval, rFlagsReg cr)
 %{
   match(Set res (CompareAndSwapP mem (Binary oldval newval)));
   match(Set res (WeakCompareAndSwapP mem (Binary oldval newval)));
@@ -142,7 +142,7 @@ instruct compareAndSwapP_shenandoah(rRegI res, indirect mem, rRegP tmp1, rRegP t
   ins_pipe(pipe_cmpxchg);
 %}
 
-instruct compareAndSwapN_shenandoah(rRegI res, indirect mem, rRegP tmp1, rRegP tmp2, rax_RegN oldval, rRegN newval, rFlagsReg cr)
+instruct compareAndSwapN_shenandoah(rRegI res, memory mem, rRegP tmp1, rRegP tmp2, rax_RegN oldval, rRegN newval, rFlagsReg cr)
 %{
   match(Set res (CompareAndSwapN mem (Binary oldval newval)));
   match(Set res (WeakCompareAndSwapN mem (Binary oldval newval)));
@@ -164,7 +164,7 @@ instruct compareAndSwapN_shenandoah(rRegI res, indirect mem, rRegP tmp1, rRegP t
   ins_pipe(pipe_cmpxchg);
 %}
 
-instruct compareAndExchangeP_shenandoah(indirect mem, rax_RegP oldval, rRegP newval, rRegP tmp1, rRegP tmp2, rFlagsReg cr)
+instruct compareAndExchangeP_shenandoah(memory mem, rax_RegP oldval, rRegP newval, rRegP tmp1, rRegP tmp2, rFlagsReg cr)
 %{
   match(Set oldval (CompareAndExchangeP mem (Binary oldval newval)));
   predicate(UseShenandoahGC && n->as_LoadStore()->barrier_data() != 0);
@@ -186,7 +186,7 @@ instruct compareAndExchangeP_shenandoah(indirect mem, rax_RegP oldval, rRegP new
   ins_pipe(pipe_cmpxchg);
 %}
 
-instruct compareAndExchangeN_shenandoah(indirect mem, rax_RegN oldval, rRegN newval, rRegP tmp1, rRegP tmp2, rFlagsReg cr)
+instruct compareAndExchangeN_shenandoah(memory mem, rax_RegN oldval, rRegN newval, rRegP tmp1, rRegP tmp2, rFlagsReg cr)
 %{
   match(Set oldval (CompareAndExchangeN mem (Binary oldval newval)));
   predicate(UseShenandoahGC && n->as_LoadStore()->barrier_data() != 0);
