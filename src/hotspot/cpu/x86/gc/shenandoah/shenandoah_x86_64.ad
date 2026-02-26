@@ -207,7 +207,7 @@ instruct compareAndExchangeN_shenandoah(memory mem, rax_RegN oldval, rRegN newva
   ins_pipe(pipe_cmpxchg);
 %}
 
-instruct getAndSetP_shenandoah(indirect mem, rRegP newval, rRegP tmp1, rRegP tmp2, rFlagsReg cr)
+instruct getAndSetP_shenandoah(memory mem, rRegP newval, rRegP tmp1, rRegP tmp2, rFlagsReg cr)
 %{
   match(Set newval (GetAndSetP mem newval));
   predicate(UseShenandoahGC && n->as_LoadStore()->barrier_data() != 0);
@@ -216,7 +216,7 @@ instruct getAndSetP_shenandoah(indirect mem, rRegP newval, rRegP tmp1, rRegP tmp
   ins_encode %{
     ShenandoahBarrierSet::assembler()->get_and_set_c2(this, masm,
       $newval$$Register,
-      $mem$$Register,
+      $mem$$Address,
       $tmp1$$Register,
       $tmp2$$Register
     );
@@ -224,7 +224,7 @@ instruct getAndSetP_shenandoah(indirect mem, rRegP newval, rRegP tmp1, rRegP tmp
   ins_pipe(pipe_cmpxchg);
 %}
 
-instruct getAndSetN_shenandoah(indirect mem, rRegN newval, rRegP tmp1, rRegP tmp2, rFlagsReg cr)
+instruct getAndSetN_shenandoah(memory mem, rRegN newval, rRegP tmp1, rRegP tmp2, rFlagsReg cr)
 %{
   match(Set newval (GetAndSetN mem newval));
   predicate(UseShenandoahGC && n->as_LoadStore()->barrier_data() != 0);
@@ -233,7 +233,7 @@ instruct getAndSetN_shenandoah(indirect mem, rRegN newval, rRegP tmp1, rRegP tmp
   ins_encode %{
     ShenandoahBarrierSet::assembler()->get_and_set_c2(this, masm,
       $newval$$Register,
-      $mem$$Register,
+      $mem$$Address,
       $tmp1$$Register,
       $tmp2$$Register
     );

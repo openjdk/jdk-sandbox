@@ -1163,23 +1163,23 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
   }
 }
 
-void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register newval, Register addr, Register tmp1, Register tmp2) {
-  assert_different_registers(newval, addr, tmp1, tmp2);
+void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register newval, Address addr, Register tmp1, Register tmp2) {
+  assert_different_registers(newval, tmp1, tmp2, addr.base(), addr.index());
 
   bool maybe_null = node->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull;
   bool narrow = node->bottom_type()->isa_narrowoop();
 
   if (narrow) {
-    __ xchgl(newval, Address(addr, 0));
+    __ xchgl(newval, addr);
   } else {
-    __ xchgq(newval, Address(addr, 0));
+    __ xchgq(newval, addr);
   }
 
   if (!ShenandoahSkipBarrierStubs && (ShenandoahLoadBarrierStubC2::needs_barrier(node) || ShenandoahStoreBarrierStubC2::needs_card_barrier(node))) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
     if (ShenandoahLoadBarrierStubC2::needs_barrier(node)) {
-      ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, newval, Address(addr, 0), narrow);
+      ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, newval, addr, narrow);
 
       char check = 0;
       check |= ShenandoahLoadBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
@@ -1190,7 +1190,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     }
 
     if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
-      card_barrier_c2(node, masm, Address(addr, 0), tmp1);
+      card_barrier_c2(node, masm, addr, tmp1);
     }
   }
 }
