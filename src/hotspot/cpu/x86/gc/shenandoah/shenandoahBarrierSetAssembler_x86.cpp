@@ -1163,8 +1163,8 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
   }
 }
 
-void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register newval, Address addr, Register tmp1, Register tmp2) {
-  assert_different_registers(newval, tmp1, tmp2, addr.base(), addr.index());
+void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register newval, Address addr, Register tmp) {
+  assert_different_registers(newval, tmp, addr.base(), addr.index());
 
   bool maybe_null = node->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull;
   bool narrow = node->bottom_type()->isa_narrowoop();
@@ -1190,7 +1190,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     }
 
     if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
-      card_barrier_c2(node, masm, addr, tmp1);
+      card_barrier_c2(node, masm, addr, tmp);
     }
   }
 }

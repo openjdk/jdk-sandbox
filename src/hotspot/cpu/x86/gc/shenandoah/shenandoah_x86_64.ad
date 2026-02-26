@@ -207,35 +207,33 @@ instruct compareAndExchangeN_shenandoah(memory mem, rax_RegN oldval, rRegN newva
   ins_pipe(pipe_cmpxchg);
 %}
 
-instruct getAndSetP_shenandoah(memory mem, rRegP newval, rRegP tmp1, rRegP tmp2, rFlagsReg cr)
+instruct getAndSetP_shenandoah(memory mem, rRegP newval, rRegP tmp, rFlagsReg cr)
 %{
   match(Set newval (GetAndSetP mem newval));
   predicate(UseShenandoahGC && n->as_LoadStore()->barrier_data() != 0);
-  effect(TEMP tmp1, TEMP tmp2, KILL cr);
+  effect(TEMP tmp, KILL cr);
   format %{ "shenandoah_gas $newval, $mem\t# ptr" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->get_and_set_c2(this, masm,
       $newval$$Register,
       $mem$$Address,
-      $tmp1$$Register,
-      $tmp2$$Register
+      $tmp$$Register
     );
   %}
   ins_pipe(pipe_cmpxchg);
 %}
 
-instruct getAndSetN_shenandoah(memory mem, rRegN newval, rRegP tmp1, rRegP tmp2, rFlagsReg cr)
+instruct getAndSetN_shenandoah(memory mem, rRegN newval, rRegP tmp, rFlagsReg cr)
 %{
   match(Set newval (GetAndSetN mem newval));
   predicate(UseShenandoahGC && n->as_LoadStore()->barrier_data() != 0);
-  effect(TEMP tmp1, TEMP tmp2, KILL cr);
+  effect(TEMP tmp, KILL cr);
   format %{ "shenandoah_gas $newval, $mem\t# compressed ptr" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->get_and_set_c2(this, masm,
       $newval$$Register,
       $mem$$Address,
-      $tmp1$$Register,
-      $tmp2$$Register
+      $tmp$$Register
     );
   %}
   ins_pipe(pipe_cmpxchg);
