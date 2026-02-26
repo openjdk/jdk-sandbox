@@ -1118,6 +1118,7 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
   assert(oldval == rax, "must be in rax for implicit use in cmpxchg");
   assert_different_registers(oldval, tmp1, tmp2);
   assert_different_registers(newval, tmp1, tmp2);
+  assert(narrow == UseCompressedOops, "should match");
 
   // Remember oldval for retry logic in slow path. We need to do it here,
   // because it will be overwritten by the fast-path CAS.
@@ -1176,6 +1177,8 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
 }
 
 void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register newval, Register addr, Register tmp1, Register tmp2) {
+  assert_different_registers(newval, addr, tmp1, tmp2);
+
   bool maybe_null = node->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull;
   bool narrow = node->bottom_type()->isa_narrowoop();
 
