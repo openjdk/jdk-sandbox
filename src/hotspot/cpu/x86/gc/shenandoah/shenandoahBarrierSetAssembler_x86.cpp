@@ -1030,7 +1030,9 @@ void ShenandoahBarrierSetAssembler::gc_state_check_c2(MacroAssembler* masm, cons
   }
 }
 
-void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src, bool narrow) {
+void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src) {
+  bool narrow = node->bottom_type()->isa_narrowoop();
+
   // Do the actual load. This load is the candidate for implicit null check, and MUST come first.
   if (narrow) {
     __ movl(dst, src);
@@ -1173,8 +1175,9 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
   }
 }
 
-void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register newval, Register addr, Register tmp1, Register tmp2, bool maybe_null, bool narrow) {
-  __ xchgq(newval, Address(addr, 0));
+void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register newval, Register addr, Register tmp1, Register tmp2) {
+  bool maybe_null = node->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull;
+  bool narrow = node->bottom_type()->isa_narrowoop();
 
   if (narrow) {
     __ xchgl(newval, Address(addr, 0));
@@ -1199,11 +1202,9 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
       card_barrier_c2(node, masm, addr, tmp1, tmp2);
     }
   }
-
 }
 
-void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroAssembler* masm,
-                                                    Register addr, Register addr_tmp, Register tmp) {
+void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroAssembler* masm, Register addr, Register addr_tmp, Register tmp) {
   if (ShenandoahSkipBarrierStubs || (node->barrier_data() & ShenandoahBitCardMark) == 0) {
     return;
   }

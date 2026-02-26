@@ -40,11 +40,7 @@ instruct loadP_shenandoah(rRegP dst, memory mem, rFlagsReg cr)
   ins_is_late_expanded_null_check_candidate(true);
   format %{ "movq    $dst, $mem\t# ptr" %}
   ins_encode %{
-    ShenandoahBarrierSet::assembler()->load_c2(this, masm,
-      $dst$$Register,
-      $mem$$Address,
-      /* narrow = */ (this->bottom_type()->isa_narrowoop())
-    );
+    ShenandoahBarrierSet::assembler()->load_c2(this, masm, $dst$$Register, $mem$$Address);
   %}
   ins_cost(125);
   ins_pipe(ialu_cr_reg_mem);
@@ -59,11 +55,7 @@ instruct loadN_shenandoah(rRegN dst, memory mem, rFlagsReg cr)
   ins_is_late_expanded_null_check_candidate(true);
   format %{ "movl    $dst, $mem\t# compressed ptr" %}
   ins_encode %{
-    ShenandoahBarrierSet::assembler()->load_c2(this, masm,
-      $dst$$Register,
-      $mem$$Address,
-      /* narrow = */ (this->bottom_type()->isa_narrowoop())
-    );
+    ShenandoahBarrierSet::assembler()->load_c2(this, masm, $dst$$Register, $mem$$Address);
   %}
   ins_cost(125);
   ins_pipe(ialu_cr_reg_mem);
@@ -278,14 +270,7 @@ instruct getAndSetP_shenandoah(indirect mem, rRegP newval, rRegP tmp1, rRegP tmp
   format %{ "xchgq    $newval, $mem" %}
   ins_encode %{
     assert_different_registers($mem$$Register, $newval$$Register);
-
-    ShenandoahBarrierSet::assembler()->get_and_set_c2(this, masm,
-         $newval$$Register,
-         $mem$$Register,
-         $tmp1$$Register,
-         $tmp2$$Register,
-         /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
-         /* is_narrow */ (this->bottom_type()->isa_narrowoop()));
+    ShenandoahBarrierSet::assembler()->get_and_set_c2(this, masm, $newval$$Register, $mem$$Register, $tmp1$$Register, $tmp2$$Register);
   %}
   ins_pipe(pipe_cmpxchg);
 %}
@@ -298,14 +283,7 @@ instruct getAndSetN_shenandoah(indirect mem, rRegN newval, rRegP tmp1, rRegP tmp
   format %{ "xchgq    $newval, $mem" %}
   ins_encode %{
     assert_different_registers($mem$$Register, $newval$$Register);
-
-    ShenandoahBarrierSet::assembler()->get_and_set_c2(this, masm,
-         $newval$$Register,
-         $mem$$Register,
-         $tmp1$$Register,
-         $tmp2$$Register,
-         /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
-         /* is_narrow */ (this->bottom_type()->isa_narrowoop()));
+    ShenandoahBarrierSet::assembler()->get_and_set_c2(this, masm, $newval$$Register, $mem$$Register, $tmp1$$Register, $tmp2$$Register);
   %}
   ins_pipe(pipe_cmpxchg);
 %}
