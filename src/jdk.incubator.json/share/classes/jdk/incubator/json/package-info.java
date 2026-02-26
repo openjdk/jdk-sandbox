@@ -38,18 +38,17 @@
  *
  * <h2><a>Retrieving JSON values</a></h2>
  *
- * Retrieving values from a JSON document involves two steps: first navigating
- * the document structure using a chain of "access" methods, and then converting
- * the result to the desired type using a "conversion" method. For example,
+ * Retrieving a value from a JSON document is a two-step process: first navigate
+ * the document structure by chaining "access" methods, then convert the result
+ * to the desired type using a "conversion" method. For example:
  * {@snippet lang=java:
  * var name = doc.get("foo").get("bar").element(0).string();
  * }
- * By chaining access methods, the "foo" object is retrieved from the root object,
- * then the "bar" array from "foo" object, followed by the element at index 0 from
- * "bar" array. The navigation process leads to a leaf JSON string value. The
- * final call to the {@code string()} conversion method returns the corresponding
- * String object. For more
- * details on these methods, see {@link JsonValue JsonValue}.
+ * Here, {@code get("foo")} retrieves the {@code "foo"} object from the root,
+ * {@code get("bar")} retrieves the {@code "bar"} array from {@code "foo"},
+ * and {@code element(0)} selects the value at index {@code 0}. The final call
+ * to {@code string()} converts that JSON value to a {@link String}.
+ * For details on available access and conversion methods, see {@link JsonValue}.
  *
  * <h2><a>Generating JSON documents</a></h2>
  *
