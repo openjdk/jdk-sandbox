@@ -1072,22 +1072,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
     }
 
     if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
-      __ lea(tmp, dst);
-      __ shrptr(tmp, CardTable::card_shift());
-      __ addptr(tmp, Address(r15_thread, in_bytes(ShenandoahThreadLocalData::card_table_offset())));
-
-      assert(CardTable::dirty_card_val() == 0, "Encoding assumption");
-      Label L_card_done;
-      if (UseCondCardMark) {
-        __ cmpb(Address(tmp, 0), CardTable::dirty_card_val());
-        __ jccb(Assembler::equal, L_card_done);
-      }
-      if (UseCompressedOops && CompressedOops::base() == nullptr) {
-        __ movb(Address(tmp, 0), r12);
-      } else {
-        __ movb(Address(tmp, 0), CardTable::dirty_card_val());
-      }
-      __ bind(L_card_done);
+      card_barrier_c2(node, masm, dst, tmp);
     }
   }
 
@@ -1173,8 +1158,7 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
     }
 
     if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
-      __ lea(tmp1, addr);
-      card_barrier_c2(node, masm, noreg, tmp1, tmp2);
+      card_barrier_c2(node, masm, addr, tmp1);
     }
   }
 }
@@ -1206,37 +1190,28 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     }
 
     if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
-      card_barrier_c2(node, masm, addr, tmp1, tmp2);
+      card_barrier_c2(node, masm, Address(addr, 0), tmp1);
     }
   }
 }
 
-void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroAssembler* masm, Register addr, Register addr_tmp, Register tmp) {
-  if (ShenandoahSkipBarrierStubs || (node->barrier_data() & ShenandoahBitCardMark) == 0) {
-    return;
-  }
+void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroAssembler* masm, Address dst, Register tmp) {
+  __ lea(tmp, dst);
+  __ shrptr(tmp, CardTable::card_shift());
+  __ addptr(tmp, Address(r15_thread, in_bytes(ShenandoahThreadLocalData::card_table_offset())));
 
-  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
-
-  if (addr != noreg) {
-    __ mov(addr_tmp, addr);
-  }
-  __ shrptr(addr_tmp, CardTable::card_shift());
-
-  Address curr_ct_holder_addr(r15_thread, in_bytes(ShenandoahThreadLocalData::card_table_offset()));
-  __ movptr(tmp, curr_ct_holder_addr);
-  Address card_addr(tmp, addr_tmp, Address::times_1);
-
-  int dirty = CardTable::dirty_card_val();
+  assert(CardTable::dirty_card_val() == 0, "Encoding assumption");
+  Label L_card_done;
   if (UseCondCardMark) {
-    Label L_already_dirty;
-    __ cmpb(card_addr, dirty);
-    __ jccb(Assembler::equal, L_already_dirty);
-    __ movb(card_addr, dirty);
-    __ bind(L_already_dirty);
-  } else {
-    __ movb(card_addr, dirty);
+    __ cmpb(Address(tmp, 0), CardTable::dirty_card_val());
+    __ jccb(Assembler::equal, L_card_done);
   }
+  if (UseCompressedOops && CompressedOops::base() == nullptr) {
+    __ movb(Address(tmp, 0), r12);
+  } else {
+    __ movb(Address(tmp, 0), CardTable::dirty_card_val());
+  }
+  __ bind(L_card_done);
 }
 
 #undef __

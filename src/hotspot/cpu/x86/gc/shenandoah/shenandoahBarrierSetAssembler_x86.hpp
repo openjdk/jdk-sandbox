@@ -84,7 +84,7 @@ public:
 
 #ifdef COMPILER2
   void gc_state_check_c2(MacroAssembler* masm, const char test_state, BarrierStubC2* slow_stub);
-  void card_barrier_c2(const MachNode* node, MacroAssembler* masm, Register addr, Register addr_tmp, Register tmp);
+  void card_barrier_c2(const MachNode* node, MacroAssembler* masm, Address dst, Register tmp);
   void cae_c2(const MachNode* node, MacroAssembler* masm, Register res, Address addr, Register oldval, Register newval,
               Register tmp1, Register tmp2, bool exchange, bool maybe_null, bool narrow);
   void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register newval, Register addr, Register tmp1, Register tmp2);
