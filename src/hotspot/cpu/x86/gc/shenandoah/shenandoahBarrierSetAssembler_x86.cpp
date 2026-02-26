@@ -1196,6 +1196,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
       check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
       check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier_weak(node) ? ShenandoahHeap::WEAK_ROOTS : 0;
       gc_state_check_c2(masm, check, stub);
+      __ bind(*stub->continuation());
     }
 
     if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
