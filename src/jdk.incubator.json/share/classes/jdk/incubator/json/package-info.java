@@ -44,10 +44,11 @@
  * {@snippet lang=java:
  * var name = doc.get("foo").get("bar").element(0).string();
  * }
- * By chaining access methods, the "foo" member is retrieved from the root object,
- * then the "bar" member from "foo", followed by the element at index 0 from "bar".
- * The navigation process leads to a leaf JSON string element. The final call to the
- * {@code string()} conversion method returns the corresponding String object. For more
+ * By chaining access methods, the "foo" object is retrieved from the root object,
+ * then the "bar" array from "foo" object, followed by the element at index 0 from
+ * "bar" array. The navigation process leads to a leaf JSON string value. The
+ * final call to the {@code string()} conversion method returns the corresponding
+ * String object. For more
  * details on these methods, see {@link JsonValue JsonValue}.
  *
  * <h2><a>Generating JSON documents</a></h2>

@@ -39,7 +39,7 @@ import java.util.Optional;
  * ##conversion conversion} methods. The {@link ##generation generation} method
  * produces the JSON compliant text from the {@code JsonValue}.
  * <h2 id="access">Navigating JSON documents</h2>
- * Use the access methods to navigate to the desired JSON element. {@link
+ * Use the access methods to navigate to the desired JSON value. {@link
  * #get(String)} is provided for JSON object and {@link #element(int)} for JSON array.
  * Given the JSON document:
  * {@snippet lang=java:
@@ -55,7 +55,7 @@ import java.util.Optional;
  * calling {@code get(String)} on a JSON array), a {@code JsonAssertionException}
  * is thrown.
  * <p>
- * Once the desired JSON element is reached, call the corresponding conversion
+ * Once the desired JSON value is reached, call the corresponding conversion
  * method to retrieve an appropriate Java value from the {@code JsonValue}.
  * <h2 id=conversion>Converting JSON values to Java values</h2>
  * Use the conversion methods to produce a Java value from the {@code
@@ -81,15 +81,15 @@ import java.util.Optional;
  *     keys nor null values. If the JSON object contains no members, an empty
  *     map is returned.
  *     </li>
- *     <li>{@code elements()} returns an unmodifiable list of {@code JsonValue}
+ *     <li>{@code elements()} returns an unmodifiable list of {@code JsonValue}s
  *     for JSON array, guaranteed to contain non-null values. If the JSON array
- *     contains no elements, an empty list is returned.</li>
+ *     contains no values, an empty list is returned.</li>
  * </ul>
  * For example,
  * {@snippet lang=java:
  * String bar = foo0.string();
  * }
- * The code above retrieves the Java String "bar" from the JSON element {@code foo0}.
+ * The code above retrieves the Java String "bar" from the JSON value {@code foo0}.
  * If an incorrect conversion method is used, which does not correspond to the matching
  * JSON type, for example {@code foo0.bool()}, a {@code JsonAssertionException} is thrown.
  * <p>
@@ -150,7 +150,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      * {@return the String representation of this {@code JsonValue} that conforms
      * to the JSON syntax} If this {@code JsonValue} is created by parsing a
      * JSON document, it preserves the text representation of the corresponding
-     * JSON element, except that the returned string does not contain any white
+     * JSON value, except that the returned string does not contain any white
      * spaces or newlines to produce a compact representation.
      * For a String representation suitable for display, use
      * {@link Json#toDisplayString(JsonValue, int)}.
@@ -264,7 +264,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
     }
 
     /**
-     * {@return an unmodifiable list of the {@code JsonValue} elements if this
+     * {@return an unmodifiable list of the {@code JsonValue}s if this
      * {@code JsonValue} is an instance of {@link JsonArray}} Otherwise, throws an
      * {@code JsonAssertionException}.
      *
