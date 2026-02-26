@@ -1019,9 +1019,12 @@ Register ShenandoahBarrierStubC2::select_temp_register(Address addr, Register re
 }
 
 void ShenandoahBarrierSetAssembler::gc_state_check_c2(MacroAssembler* masm, const char test_state, BarrierStubC2* slow_stub) {
-  if (ShenandoahNopGCState) {
+  if (ShenandoahGCStateCheckRemove) {
+    // Unrealistic: remove all barrier fastpath checks.
+  } else if (ShenandoahGCStateCheckHotpatch) {
     // In the ideal world, we would hot-patch the branch to slow stub with a single
-    // (unconditional) long jump or nop, based on our current GC state.
+    // (unconditional) jump or nop, based on our current GC state. Jump to near target
+    // within the nmethod (at 32-bit offset) takes 6 bytes.
     __ nop(6);
   } else {
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
@@ -1041,7 +1044,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
   }
 
   // Emit barrier if needed
-  if (!ShenandoahSkipBarrierStubs && ShenandoahLoadBarrierStubC2::needs_barrier(node)) {
+  if (!ShenandoahSkipBarriers && ShenandoahLoadBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
     ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, dst, src, narrow);
@@ -1060,7 +1063,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
                                              Register src, bool src_narrow,
                                              Register tmp) {
   // Emit barrier if needed
-  if (!ShenandoahSkipBarrierStubs && ShenandoahStoreBarrierStubC2::needs_barrier(node)) {
+  if (!ShenandoahSkipBarriers && ShenandoahStoreBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
     if (ShenandoahStoreBarrierStubC2::needs_keep_alive_barrier(node)) {
@@ -1132,7 +1135,7 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
     assert(res == noreg, "no result expected");
   }
 
-  if (!ShenandoahSkipBarrierStubs && ShenandoahCASBarrierStubC2::needs_barrier(node)) {
+  if (!ShenandoahSkipBarriers && ShenandoahCASBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
     if (ShenandoahCASBarrierStubC2::needs_load_ref_barrier(node) || ShenandoahCASBarrierStubC2::needs_keep_alive_barrier(node)) {
@@ -1175,7 +1178,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     __ xchgq(newval, addr);
   }
 
-  if (!ShenandoahSkipBarrierStubs && (ShenandoahLoadBarrierStubC2::needs_barrier(node) || ShenandoahStoreBarrierStubC2::needs_card_barrier(node))) {
+  if (!ShenandoahSkipBarriers && (ShenandoahLoadBarrierStubC2::needs_barrier(node) || ShenandoahStoreBarrierStubC2::needs_card_barrier(node))) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
     if (ShenandoahLoadBarrierStubC2::needs_barrier(node)) {

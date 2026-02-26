@@ -517,11 +517,20 @@
   product(bool, ShenandoahCloneRuntime, false, DIAGNOSTIC,                  \
           "Handle clone in runtime instead of in copy stubs.")              \
                                                                             \
-  product(bool, ShenandoahNopGCState, false, EXPERIMENTAL,                  \
-          "DANGEROUS, ONLY WITH PASSIVE MODE: NOP out GC state checks.")    \
+  product(bool, ShenandoahGCStateCheckHotpatch, false, EXPERIMENTAL,        \
+          "DANGEROUS, USE ONLY WITH PASSIVE MODE: Replace GC state checks " \
+          "with hot-patchable sequence in barrier fast-paths. Measures "    \
+          "potential improvement from GC state hot-patching.")              \
                                                                             \
-  product(bool, ShenandoahSkipBarrierStubs, false, EXPERIMENTAL,            \
-          "DANGEROUS, ONLY WITH PASSIVE MODE: skip slow barrier stubs.")    \
+  product(bool, ShenandoahGCStateCheckRemove, false, EXPERIMENTAL,          \
+          "DANGEROUS, USE ONLY WITH PASSIVE MODE: Remove GC state checks "  \
+          "in barrier fast-paths. Measures code density impact from GC "    \
+          "state checks.")                                                  \
+                                                                            \
+  product(bool, ShenandoahSkipBarriers, false, EXPERIMENTAL,                \
+          "DANGEROUS, USE ONLY WITH PASSIVE MODE: Skip all barriers after " \
+          "expansion. Measures code density impact from additional code "   \
+          "at both fast- and slow-paths.")                                  \
                                                                             \
   develop(bool, ShenandoahVerifyOptoBarriers, trueInDebug,                  \
           "Verify no missing barriers in C2.")                              \

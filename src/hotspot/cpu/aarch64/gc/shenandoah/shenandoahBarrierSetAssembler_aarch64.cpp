@@ -635,7 +635,7 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
   // EQ flag set iff success.
   __ cset(exchange ? rscratch2 : res, Assembler::EQ);
 
-  if (!ShenandoahSkipBarrierStubs && (ShenandoahCASBarrierStubC2::needs_barrier(node) || ShenandoahStoreBarrierStubC2::needs_card_barrier(node))) {
+  if (!ShenandoahSkipBarriers && (ShenandoahCASBarrierStubC2::needs_barrier(node) || ShenandoahStoreBarrierStubC2::needs_card_barrier(node))) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
     if (ShenandoahCASBarrierStubC2::needs_barrier(node)) {
@@ -683,7 +683,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     }
   }
 
-  if (!ShenandoahSkipBarrierStubs && (ShenandoahSATBAndLRBBarrierSlowStubC2::needs_barrier(node) || ShenandoahStoreBarrierStubC2::needs_card_barrier(node))) {
+  if (!ShenandoahSkipBarriers && (ShenandoahSATBAndLRBBarrierSlowStubC2::needs_barrier(node) || ShenandoahStoreBarrierStubC2::needs_card_barrier(node))) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
     if (ShenandoahSATBAndLRBBarrierSlowStubC2::needs_barrier(node)) {
@@ -718,7 +718,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
                                              bool is_volatile) {
 
   // Emit barrier if needed
-  if (!ShenandoahSkipBarrierStubs && ShenandoahStoreBarrierStubC2::needs_barrier(node)) {
+  if (!ShenandoahSkipBarriers && ShenandoahStoreBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
     if (ShenandoahStoreBarrierStubC2::needs_keep_alive_barrier(node)) {
@@ -784,7 +784,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
   }
 
   // FIXME: Maybe match the name with x86? There is ShenandoahLoadBarrierStubC2.
-  if (!ShenandoahSkipBarrierStubs && ShenandoahSATBAndLRBBarrierSlowStubC2::needs_barrier(node)) {
+  if (!ShenandoahSkipBarriers && ShenandoahSATBAndLRBBarrierSlowStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
     Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));

@@ -132,7 +132,7 @@ public:
 class ShenandoahBarrierStubC2 : public BarrierStubC2 {
 protected:
   explicit ShenandoahBarrierStubC2(const MachNode* node) : BarrierStubC2(node) {
-    assert(!ShenandoahSkipBarrierStubs, "Do not touch stubs when disabled");
+    assert(!ShenandoahSkipBarriers, "Do not touch stubs when disabled");
   }
   void register_stub();
   static bool is_heap_access(const MachNode* node) {
