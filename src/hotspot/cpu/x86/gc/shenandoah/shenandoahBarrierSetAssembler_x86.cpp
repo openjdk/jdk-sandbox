@@ -1467,114 +1467,11 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
 }
 
 void ShenandoahLoadRefBarrierStubC2::emit_code(MacroAssembler& masm) {
-  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
-
-  __ bind(*entry());
-
-  Register obj = _obj;
-  if (_narrow) {
-    __ movl(_tmp1, _obj);
-    __ decode_heap_oop(_tmp1);
-    obj = _tmp1;
-  }
-
-  // Weak/phantom loads always need to go to runtime.
-  if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-    __ movptr(_tmp2, obj);
-    __ shrptr(_tmp2, ShenandoahHeapRegion::region_size_bytes_shift_jint());
-    __ movptr(_tmp3, (intptr_t) ShenandoahHeap::in_cset_fast_test_addr());
-    __ movbool(_tmp2, Address(_tmp2, _tmp3, Address::times_1));
-    __ testbool(_tmp2);
-    __ jcc(Assembler::zero, *continuation());
-  }
-
-  {
-    SaveLiveRegisters save_registers(&masm, this);
-    if (c_rarg0 != obj) {
-      if (c_rarg0 == _addr) {
-        __ movptr(_tmp2, _addr);
-        _addr = _tmp2;
-      }
-      __ movptr(c_rarg0, obj);
-    }
-    if (c_rarg1 != _addr) {
-      __ movptr(c_rarg1, _addr);
-    }
-
-    address entry;
-    if (_narrow) {
-      if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-        entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow);
-      } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
-        entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow);
-      } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
-        entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow);
-      }
-    } else {
-      if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-        entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong);
-      } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
-        entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak);
-      } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
-        entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom);
-      }
-    }
-    __ call(RuntimeAddress(entry), rax);
-    assert(!save_registers.contains(_obj), "must not save result register");
-    __ movptr(_obj, rax);
-  }
-  if (_narrow) {
-    __ encode_heap_oop(_obj);
-  }
-
-  __ jmp(*continuation());
+  Unimplemented();
 }
 
 void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
-  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
-
-  __ bind(*entry());
-
-  Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
-  Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
-
-  Label runtime;
-
-  // Do we need to load the previous value?
-  if (_addr != noreg) {
-    __ load_heap_oop(_preval, Address(_addr, 0), noreg, AS_RAW);
-  }
-  // Is the previous value null?
-  __ cmpptr(_preval, NULL_WORD);
-  __ jcc(Assembler::equal, *continuation());
-
-  // Can we store a value in the given thread's buffer?
-  // (The index field is typed as size_t.)
-  __ movptr(_tmp, index);
-  __ testptr(_tmp, _tmp);
-  __ jccb(Assembler::zero, runtime);
-  // The buffer is not full, store value into it.
-  __ subptr(_tmp, wordSize);
-  __ movptr(index, _tmp);
-  __ addptr(_tmp, buffer);
-  __ movptr(Address(_tmp, 0), _preval);
-
-  __ jmp(*continuation());
-
-  __ bind(runtime);
-  {
-    SaveLiveRegisters save_registers(&masm, this);
-    if (c_rarg0 != _preval) {
-      __ mov(c_rarg0, _preval);
-    }
-    // rax is a caller-saved, non-argument-passing register, so it does not
-    // interfere with c_rarg0 or c_rarg1. If it contained any live value before
-    // entering this stub, it is saved at this point, and restored after the
-    // call. If it did not contain any live value, it is free to be used. In
-    // either case, it is safe to use it here as a call scratch register.
-    __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre)), rax);
-  }
-  __ jmp(*continuation());
+  Unimplemented();
 }
 
 void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
