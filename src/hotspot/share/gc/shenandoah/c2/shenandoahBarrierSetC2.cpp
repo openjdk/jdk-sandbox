@@ -811,18 +811,6 @@ ShenandoahStoreBarrierStubC2* ShenandoahStoreBarrierStubC2::create(const MachNod
   return stub;
 }
 
-ShenandoahLoadRefBarrierStubC2* ShenandoahLoadRefBarrierStubC2::create(const MachNode* node, Register obj, Register addr, Register tmp1, Register tmp2, Register tmp3, bool narrow) {
-  auto* stub = new (Compile::current()->comp_arena()) ShenandoahLoadRefBarrierStubC2(node, obj, addr, tmp1, tmp2, tmp3, narrow);
-  stub->register_stub();
-  return stub;
-}
-
-ShenandoahSATBBarrierStubC2* ShenandoahSATBBarrierStubC2::create(const MachNode* node, Register addr, Register preval, Register tmp, bool encoded_preval) {
-  auto* stub = new (Compile::current()->comp_arena()) ShenandoahSATBBarrierStubC2(node, addr, preval, tmp, encoded_preval);
-  stub->register_stub();
-  return stub;
-}
-
 ShenandoahCASBarrierStubC2* ShenandoahCASBarrierStubC2::create(const MachNode* node, Register addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae, bool maybe_null, bool acquire, bool release, bool weak) {
   auto* stub = new (Compile::current()->comp_arena()) ShenandoahCASBarrierStubC2(node, addr, Address(), expected, new_val, result, tmp1, tmp2, narrow, cae, maybe_null, acquire, release, weak);
   stub->register_stub();
@@ -835,20 +823,11 @@ ShenandoahCASBarrierStubC2* ShenandoahCASBarrierStubC2::create(const MachNode* n
   return stub;
 }
 
-ShenandoahSATBAndLRBBarrierSlowStubC2* ShenandoahSATBAndLRBBarrierSlowStubC2::create(const MachNode* node, Register obj, Register addr, Register tmp1, Register tmp2, bool narrow, bool maybe_null) {
-  auto* stub = new (Compile::current()->comp_arena()) ShenandoahSATBAndLRBBarrierSlowStubC2(node, obj, addr, tmp1, tmp2, narrow, maybe_null);
-  stub->register_stub();
-  return stub;
-}
-
 bool ShenandoahBarrierSetC2State::needs_liveness_data(const MachNode* mach) const {
   // Must ask all stubs!
   return ShenandoahLoadBarrierStubC2::needs_barrier(mach) ||
          ShenandoahStoreBarrierStubC2::needs_barrier(mach) ||
-         ShenandoahLoadRefBarrierStubC2::needs_barrier(mach) ||
-         ShenandoahSATBBarrierStubC2::needs_barrier(mach) ||
-         ShenandoahCASBarrierStubC2::needs_barrier(mach) ||
-         ShenandoahSATBAndLRBBarrierSlowStubC2::needs_barrier(mach);
+         ShenandoahCASBarrierStubC2::needs_barrier(mach);
 }
 
 bool ShenandoahBarrierSetC2State::needs_livein_data() const {

@@ -1473,14 +1473,6 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ jmp(*continuation());
 }
 
-void ShenandoahLoadRefBarrierStubC2::emit_code(MacroAssembler& masm) {
-  Unimplemented();
-}
-
-void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
-  Unimplemented();
-}
-
 void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
@@ -1633,10 +1625,5 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
 
     __ jmp(*continuation());
 }
-
-void ShenandoahSATBAndLRBBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
-  Unimplemented();
-}
-
 #undef __
 #endif

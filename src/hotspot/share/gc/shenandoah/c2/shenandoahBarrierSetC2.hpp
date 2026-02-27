@@ -212,62 +212,6 @@ public:
   void emit_code(MacroAssembler& masm) override;
 };
 
-
-class ShenandoahLoadRefBarrierStubC2 : public ShenandoahBarrierStubC2 {
-  Register _obj;
-  Register _addr;
-  Register _tmp1;
-  Register _tmp2;
-  Register _tmp3;
-  bool _narrow;
-  ShenandoahLoadRefBarrierStubC2(const MachNode* node, Register obj, Register addr, Register tmp1, Register tmp2, Register tmp3, bool narrow) :
-    ShenandoahBarrierStubC2(node), _obj(obj), _addr(addr), _tmp1(tmp1), _tmp2(tmp2), _tmp3(tmp3), _narrow(narrow) {
-      assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
-    }
-public:
-  static bool needs_barrier(const MachNode* node) {
-    return (node->barrier_data() & (ShenandoahBitStrong | ShenandoahBitWeak | ShenandoahBitPhantom)) != 0;
-  }
-  static ShenandoahLoadRefBarrierStubC2* create(const MachNode* node, Register obj, Register addr, Register tmp1, Register tmp2, Register tmp3, bool narrow);
-  void emit_code(MacroAssembler& masm) override;
-};
-
-class ShenandoahSATBAndLRBBarrierSlowStubC2 : public ShenandoahBarrierStubC2 {
-  Register _obj;
-  Register _addr;
-  Register _tmp1;
-  Register _tmp2;
-  bool _narrow;
-  bool _maybe_null;
-  ShenandoahSATBAndLRBBarrierSlowStubC2(const MachNode* node, Register obj, Register addr, Register tmp1, Register tmp2, bool narrow, bool maybe_null) :
-    ShenandoahBarrierStubC2(node), _obj(obj), _addr(addr), _tmp1(tmp1), _tmp2(tmp2), _narrow(narrow), _maybe_null(maybe_null) {
-      assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
-    }
-public:
-  static bool needs_barrier(const MachNode* node) {
-    return (node->barrier_data() & (ShenandoahBitKeepAlive | ShenandoahBitStrong | ShenandoahBitWeak | ShenandoahBitPhantom)) != 0;
-  }
-  static ShenandoahSATBAndLRBBarrierSlowStubC2* create(const MachNode* node, Register obj, Register addr, Register tmp1, Register tmp2, bool narrow, bool maybe_null);
-  void emit_code(MacroAssembler& masm) override;
-};
-
-class ShenandoahSATBBarrierStubC2 : public ShenandoahBarrierStubC2 {
-  Register _addr;
-  Register _preval;
-  Register _tmp;
-  bool _encoded_preval;
-  ShenandoahSATBBarrierStubC2(const MachNode* node, Register addr, Register preval, Register tmp, bool encoded_preval) :
-    ShenandoahBarrierStubC2(node), _addr(addr), _preval(preval), _tmp(tmp), _encoded_preval(encoded_preval) {}
-
-public:
-  static bool needs_barrier(const MachNode* node) {
-    return (node->barrier_data() & ShenandoahBitKeepAlive) != 0;
-  }
-  static ShenandoahSATBBarrierStubC2* create(const MachNode* node, Register addr, Register preval, Register tmp, bool encoded_preval);
-
-  void emit_code(MacroAssembler& masm) override;
-};
-
 class ShenandoahCASBarrierStubC2 : public ShenandoahBarrierStubC2 {
   Register _addr_reg;
   Address  _addr;
@@ -307,5 +251,4 @@ public:
   static ShenandoahCASBarrierStubC2* create(const MachNode* node, Address addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae);
   void emit_code(MacroAssembler& masm) override;
 };
-
 #endif // SHARE_GC_SHENANDOAH_C2_SHENANDOAHBARRIERSETC2_HPP
