@@ -1516,10 +1516,10 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
 
             // (Compressed) failure witness is in _expected.
             // Unpack it and check if it is in collection set.
-            __ movptr(_tmp1, _expected);
             if (_narrow) {
-              __ decode_heap_oop(_tmp1);
+              __ decode_heap_oop(_expected);
             }
+            __ movptr(_tmp1, _expected);
             __ shrptr(_tmp1, ShenandoahHeapRegion::region_size_bytes_shift_jint());
             __ addptr(_tmp1, (intptr_t) ShenandoahHeap::in_cset_fast_test_addr());
             __ cmpb(Address(_tmp1, 0), 0);
@@ -1530,9 +1530,6 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
               // Load up failure witness again.
               if (c_rarg0 != _expected) {
                 __ movptr(c_rarg0, _expected);
-              }
-              if (_narrow) {
-                __ decode_heap_oop(c_rarg0);
               }
               __ lea(c_rarg1, _addr);
 
