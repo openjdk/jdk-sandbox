@@ -288,6 +288,9 @@ public:
 
 // ---------- GC state machinery
 //
+// Important: Do not change the values of these flags. AArch64 GC barriers
+// depend on the flags having specific values.
+//
 // GC state describes the important parts of collector state, that may be
 // used to make barrier selection decisions in the native and generated code.
 // Multiple bits can be set at once.
