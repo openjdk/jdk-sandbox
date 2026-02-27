@@ -1800,9 +1800,6 @@ void PhaseOutput::fill_buffer(C2_MacroAssembler* masm, uint* blk_starts) {
     return;
   }
 
-  // FIXME: Count any trail in code section as non-real instructions.
-  // masm->register_skipped(checked_cast<int>(masm->code()->insts_capacity() - masm->code()->insts_size()));
-
 #if defined(SUPPORT_ABSTRACT_ASSEMBLY) || defined(SUPPORT_ASSEMBLY) || defined(SUPPORT_OPTO_ASSEMBLY)
   if (C->print_assembly()) {
     tty->cr();
