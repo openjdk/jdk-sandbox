@@ -1572,11 +1572,11 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
             Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
             Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
 
-            Label L_satb_done, L_satb_pack_and_done, L_runtime;
+            Label L_satb_pack_and_done, L_runtime;
 
             Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
             __ testb(gc_state, ShenandoahHeap::MARKING);
-            __ jcc(Assembler::zero, L_satb_done);
+            __ jcc(Assembler::zero, *continuation());
 
             // Paranoia: CAS has succeded, so what was in memory is definitely oldval.
             // Instead of pulling it from other code paths, pull it from stashed value.
@@ -1585,7 +1585,7 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
 
             // Is the previous value null?
             __ cmpptr(_expected, NULL_WORD);
-            __ jccb(Assembler::equal, L_satb_done);
+            __ jcc(Assembler::equal, *continuation());
 
             if (_narrow) {
               __ decode_heap_oop_not_null(_expected);
@@ -1606,7 +1606,6 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
             if (_narrow) {
               __ encode_heap_oop_not_null(_expected);
             }
-            __ bind(L_satb_done);
             __ jmp(*continuation());
 
             __ bind(L_runtime);
