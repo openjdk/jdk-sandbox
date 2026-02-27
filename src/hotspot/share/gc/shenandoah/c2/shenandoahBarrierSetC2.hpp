@@ -147,13 +147,15 @@ public:
 
 class ShenandoahLoadBarrierStubC2 : public ShenandoahBarrierStubC2 {
   Register const _dst;
+  Register _addr;
   Address  const _src;
   const bool _narrow;
+  const bool _maybe_null;
   const bool _needs_load_ref_barrier;
   const bool _needs_keep_alive_barrier;
 
-  ShenandoahLoadBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow) :
-    ShenandoahBarrierStubC2(node), _dst(dst), _src(src), _narrow(narrow),
+  ShenandoahLoadBarrierStubC2(const MachNode* node, Register dst, Register addr, Address src, bool narrow) :
+    ShenandoahBarrierStubC2(node), _dst(dst), _addr(addr), _src(src), _narrow(narrow), _maybe_null(!src_not_null(node)),
     _needs_load_ref_barrier(needs_load_ref_barrier(node)), _needs_keep_alive_barrier(needs_keep_alive_barrier(node)) {
       assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
     }
@@ -176,20 +178,22 @@ public:
   }
 
   static ShenandoahLoadBarrierStubC2* create(const MachNode* node, Register dst, Address src, bool narrow);
+  static ShenandoahLoadBarrierStubC2* create(const MachNode* node, Register dst, Register addr, bool narrow);
 
   void emit_code(MacroAssembler& masm) override;
 };
 
 
 class ShenandoahStoreBarrierStubC2 : public ShenandoahBarrierStubC2 {
+  Register const _addr;
   Address const _dst;
   Register const _src;
   Register const _tmp;
   const bool _dst_narrow;
   const bool _src_narrow;
 
-  ShenandoahStoreBarrierStubC2(const MachNode* node, Address dst, bool dst_narrow, Register src, bool src_narrow, Register tmp) :
-    ShenandoahBarrierStubC2(node), _dst(dst), _src(src), _tmp(tmp), _dst_narrow(dst_narrow), _src_narrow(src_narrow) {
+  ShenandoahStoreBarrierStubC2(const MachNode* node, Register addr, Address dst, bool dst_narrow, Register src, bool src_narrow, Register tmp) :
+    ShenandoahBarrierStubC2(node), _addr(addr), _dst(dst), _src(src), _tmp(tmp), _dst_narrow(dst_narrow), _src_narrow(src_narrow) {
       assert(!_dst_narrow || is_heap_access(node), "Only heap accesses can be narrow");
     }
 
@@ -208,6 +212,7 @@ public:
   }
 
   static ShenandoahStoreBarrierStubC2* create(const MachNode* node, Address dst, bool dst_narrow, Register src, bool src_narrow, Register tmp);
+  static ShenandoahStoreBarrierStubC2* create(const MachNode* node, Register addr, bool dst_narrow);
 
   void emit_code(MacroAssembler& masm) override;
 };
@@ -247,7 +252,7 @@ public:
     return (node->barrier_data() & ShenandoahBitStrong) != 0;
   }
 
-  static ShenandoahCASBarrierStubC2* create(const MachNode* node, Register addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae, bool maybe_null, bool acquire, bool release, bool weak);
+  static ShenandoahCASBarrierStubC2* create(const MachNode* node, Register addr, Register expected, Register new_val, Register result, bool narrow, bool cae, bool maybe_null, bool acquire, bool release, bool weak);
   static ShenandoahCASBarrierStubC2* create(const MachNode* node, Address addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae);
   void emit_code(MacroAssembler& masm) override;
 };

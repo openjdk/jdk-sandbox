@@ -649,7 +649,7 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
       __ lsrv(rscratch1, rscratch1, exchange ? rscratch2 : res);
 
       // Assuming just for now that we need both barriers
-      ShenandoahCASBarrierStubC2* cmpx = ShenandoahCASBarrierStubC2::create(node, addr, oldval, newval, res, noreg, noreg, narrow, exchange, maybe_null, acquire, release, weak);
+      ShenandoahCASBarrierStubC2* cmpx = ShenandoahCASBarrierStubC2::create(node, addr, oldval, newval, res, narrow, exchange, maybe_null, acquire, release, weak);
 
       // Test bit '0' of rscratch1, which at this point will be FORWARDING bit if CAS
       // failed, or SATB bit if CAS succeded.
@@ -668,7 +668,7 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
   }
 }
 
-void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr, bool maybe_null, bool narrow, bool acquire) {
+void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr, bool narrow, bool acquire) {
   if (narrow) {
     if (acquire) {
       __ atomic_xchgalw(preval, newval, addr);
@@ -683,14 +683,14 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     }
   }
 
-  if (!ShenandoahSkipBarriers && (ShenandoahSATBAndLRBBarrierSlowStubC2::needs_barrier(node) || ShenandoahStoreBarrierStubC2::needs_card_barrier(node))) {
+  if (!ShenandoahSkipBarriers && (ShenandoahLoadBarrierStubC2::needs_barrier(node) || ShenandoahStoreBarrierStubC2::needs_card_barrier(node))) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
-    if (ShenandoahSATBAndLRBBarrierSlowStubC2::needs_barrier(node)) {
+    if (ShenandoahLoadBarrierStubC2::needs_barrier(node)) {
       Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
       __ ldrb(rscratch1, gcs_addr);
 
-      ShenandoahSATBAndLRBBarrierSlowStubC2* const stub = ShenandoahSATBAndLRBBarrierSlowStubC2::create(node, preval, addr, noreg, noreg, narrow, maybe_null);
+      ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, preval, addr, narrow);
 
       // rscratch1[0] = gc_state[ShenandoahHeap::HAS_FORWARDED_BITPOS] | gc_state[ShenandoahHeap::MARKING_BITPOS]
       __ orr(rscratch1, rscratch1, rscratch1, Assembler::LSR, ShenandoahHeap::MARKING_BITPOS);
@@ -725,7 +725,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
       Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
       __ ldrb(rscratch1, gcs_addr);
 
-      ShenandoahSATBBarrierStubC2* const stub = ShenandoahSATBBarrierStubC2::create(node, addr, noreg, noreg, dst_narrow);
+      ShenandoahStoreBarrierStubC2* const stub = ShenandoahStoreBarrierStubC2::create(node, addr, dst_narrow);
 
       // Check if GC marking is in progress, otherwise we don't have to do
       // anything.
@@ -768,7 +768,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
 }
 
 void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm,
-                                            Register dst, Register addr, bool maybe_null, bool is_narrow, bool acquire) {
+                                            Register dst, Register addr, bool is_narrow, bool acquire) {
   if (is_narrow) {
     if (acquire) {
       __ ldarw(dst, addr);
@@ -783,14 +783,13 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
     }
   }
 
-  // FIXME: Maybe match the name with x86? There is ShenandoahLoadBarrierStubC2.
-  if (!ShenandoahSkipBarriers && ShenandoahSATBAndLRBBarrierSlowStubC2::needs_barrier(node)) {
+  if (!ShenandoahSkipBarriers && ShenandoahLoadBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
     Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ ldrb(rscratch1, gcs_addr);
 
-    ShenandoahSATBAndLRBBarrierSlowStubC2* const stub = ShenandoahSATBAndLRBBarrierSlowStubC2::create(node, dst, addr, noreg, noreg, is_narrow, maybe_null);
+    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, dst, addr, is_narrow);
 
     stub->preserve(addr);
     stub->dont_preserve(dst);
@@ -847,11 +846,7 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroA
 #undef __
 #define __ masm.
 
-void ShenandoahLoadRefBarrierStubC2::emit_code(MacroAssembler& masm) {
-  Unimplemented();
-}
-
-void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
+void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
   __ bind(*entry());
 
@@ -867,7 +862,7 @@ void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
   if (_addr != noreg) {
     __ load_heap_oop(rscratch3, Address(rscratch3, 0), noreg, noreg, AS_RAW);
   } else {
-    if (_encoded_preval) {
+    if (_dst_narrow) {
       __ decode_heap_oop(rscratch3);
     }
   }
@@ -906,14 +901,6 @@ void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
 }
 
 void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
-  Unimplemented();
-}
-
-void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
-  Unimplemented();
-}
-
-void ShenandoahSATBAndLRBBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
   __ bind(*entry());
@@ -922,14 +909,14 @@ void ShenandoahSATBAndLRBBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
 
   if (_narrow) {
     if (_maybe_null) {
-      __ decode_heap_oop(_obj);
+      __ decode_heap_oop(_dst);
       // FIXME: See if it is possible to merge this null-check with decoding
-      __ cbz(_obj, lrb);
+      __ cbz(_dst, lrb);
     } else {
-      __ decode_heap_oop_not_null(_obj);
+      __ decode_heap_oop_not_null(_dst);
     }
   } else {
-    __ cbz(_obj, lrb);
+    __ cbz(_dst, lrb);
   }
 
   { // SATB
@@ -951,16 +938,16 @@ void ShenandoahSATBAndLRBBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
     __ sub(rscratch1, rscratch1, wordSize);
     __ str(rscratch1, index);
     __ ldr(rscratch2, buffer);
-    __ str(_obj, Address(rscratch2, rscratch1));
+    __ str(_dst, Address(rscratch2, rscratch1));
     __ b(lrb);
 
     // Runtime call
     __ bind(runtime);
 
-    preserve(_obj);
+    preserve(_dst);
     {
       SaveLiveRegisters save_registers(&masm, this);
-      __ mov(c_rarg0, _obj);
+      __ mov(c_rarg0, _dst);
       __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre));
       __ blr(rscratch1);
     }
@@ -973,7 +960,7 @@ void ShenandoahSATBAndLRBBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
     // object in cset.
     if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
       __ mov(rscratch2, ShenandoahHeap::in_cset_fast_test_addr());
-      __ lsr(rscratch1, _obj, ShenandoahHeapRegion::region_size_bytes_shift_jint());
+      __ lsr(rscratch1, _dst, ShenandoahHeapRegion::region_size_bytes_shift_jint());
       __ ldrb(rscratch2, Address(rscratch2, rscratch1));
       __ cbz(rscratch2, lrb_end);
 
@@ -982,15 +969,15 @@ void ShenandoahSATBAndLRBBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
       __ tbz(rscratch1, ShenandoahHeap::HAS_FORWARDED_BITPOS, lrb_end);
     }
 
-    dont_preserve(_obj);
+    dont_preserve(_dst);
     {
       SaveLiveRegisters save_registers(&masm, this);
-      if (c_rarg0 != _obj) {
+      if (c_rarg0 != _dst) {
         if (c_rarg0 == _addr) {
           __ mov(rscratch1, _addr);
           _addr = rscratch1;
         }
-        __ mov(c_rarg0, _obj);
+        __ mov(c_rarg0, _dst);
       }
       __ mov(c_rarg1, _addr);
 
@@ -1012,7 +999,7 @@ void ShenandoahSATBAndLRBBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
         }
       }
       __ blr(rscratch1);
-      __ mov(_obj, r0);
+      __ mov(_dst, r0);
     }
 
     __ bind(lrb_end);
@@ -1020,9 +1007,9 @@ void ShenandoahSATBAndLRBBarrierSlowStubC2::emit_code(MacroAssembler& masm) {
 
   if (_narrow) {
     if (_maybe_null) {
-      __ encode_heap_oop(_obj);
+      __ encode_heap_oop(_dst);
     } else {
-      __ encode_heap_oop_not_null(_obj);
+      __ encode_heap_oop_not_null(_dst);
     }
   }
 

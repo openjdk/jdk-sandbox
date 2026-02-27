@@ -545,7 +545,6 @@ instruct getAndSet_P_Normal_shenandoah(indirect mem, iRegP newval, iRegPNoSp pre
       $preval$$Register,
       $newval$$Register,
       $mem$$Register,
-      /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
       /* is_narrow */ false,
       /* acquire */ false);
   %}
@@ -566,7 +565,6 @@ instruct getAndSet_P_Volatile_shenandoah(indirect mem, iRegP newval, iRegPNoSp p
       $preval$$Register,
       $newval$$Register,
       $mem$$Register,
-      /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
       /* is_narrow */ false,
       /* acquire */ true);
   %}
@@ -587,7 +585,6 @@ instruct getAndSet_N_Normal_shenandoah(indirect mem, iRegN newval, iRegNNoSp pre
       $preval$$Register,
       $newval$$Register,
       $mem$$Register,
-      /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
       /* is_narrow */ true,
       /* acquire */ false);
   %}
@@ -608,7 +605,6 @@ instruct getAndSet_N_Volatile_shenandoah(indirect mem, iRegN newval, iRegNNoSp p
       $preval$$Register,
       $newval$$Register,
       $mem$$Register,
-      /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
       /* is_narrow */ true,
       /* acquire */ true);
   %}
@@ -629,7 +625,6 @@ instruct load_P_Normal_shenandoah(iRegPNoSp dst, indirect mem, rFlagsReg cr)
     ShenandoahBarrierSet::assembler()->load_c2(this, masm,
       $dst$$Register,
       $mem$$Register,
-      /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
       /* is_narrow */ false,
       /* acquire */ false);
   %}
@@ -649,7 +644,6 @@ instruct load_P_Volatile_shenandoah(iRegPNoSp dst, indirect mem, rFlagsReg cr)
     ShenandoahBarrierSet::assembler()->load_c2(this, masm,
       $dst$$Register,
       $mem$$Register,
-      /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
       /* is_narrow */ false,
       /* acquire */ true);
   %}
@@ -669,7 +663,6 @@ instruct load_N_Normal_shenandoah(iRegNNoSp dst, indirect mem, rFlagsReg cr)
     ShenandoahBarrierSet::assembler()->load_c2(this, masm,
       $dst$$Register,
       $mem$$Register,
-      /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
       /* is_narrow */ true,
       /* acquire */ false);
   %}
@@ -689,7 +682,6 @@ instruct load_N_Volatile_shenandoah(iRegNNoSp dst, indirect mem, rFlagsReg cr)
     ShenandoahBarrierSet::assembler()->load_c2(this, masm,
       $dst$$Register,
       $mem$$Register,
-      /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
       /* is_narrow */ true,
       /* acquire */ true);
   %}

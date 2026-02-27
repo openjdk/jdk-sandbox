@@ -800,19 +800,31 @@ void ShenandoahBarrierStubC2::register_stub() {
 }
 
 ShenandoahLoadBarrierStubC2* ShenandoahLoadBarrierStubC2::create(const MachNode* node, Register dst, Address src, bool narrow) {
-  auto* stub = new (Compile::current()->comp_arena()) ShenandoahLoadBarrierStubC2(node, dst, src, narrow);
+  auto* stub = new (Compile::current()->comp_arena()) ShenandoahLoadBarrierStubC2(node, dst, noreg, src, narrow);
+  stub->register_stub();
+  return stub;
+}
+
+ShenandoahLoadBarrierStubC2* ShenandoahLoadBarrierStubC2::create(const MachNode* node, Register dst, Register addr, bool narrow) {
+  auto* stub = new (Compile::current()->comp_arena()) ShenandoahLoadBarrierStubC2(node, dst, addr, Address(), narrow);
   stub->register_stub();
   return stub;
 }
 
 ShenandoahStoreBarrierStubC2* ShenandoahStoreBarrierStubC2::create(const MachNode* node, Address dst, bool dst_narrow, Register src, bool src_narrow, Register tmp) {
-  auto* stub = new (Compile::current()->comp_arena()) ShenandoahStoreBarrierStubC2(node, dst, dst_narrow, src, src_narrow, tmp);
+  auto* stub = new (Compile::current()->comp_arena()) ShenandoahStoreBarrierStubC2(node, noreg, dst, dst_narrow, src, src_narrow, tmp);
   stub->register_stub();
   return stub;
 }
 
-ShenandoahCASBarrierStubC2* ShenandoahCASBarrierStubC2::create(const MachNode* node, Register addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae, bool maybe_null, bool acquire, bool release, bool weak) {
-  auto* stub = new (Compile::current()->comp_arena()) ShenandoahCASBarrierStubC2(node, addr, Address(), expected, new_val, result, tmp1, tmp2, narrow, cae, maybe_null, acquire, release, weak);
+ShenandoahStoreBarrierStubC2* ShenandoahStoreBarrierStubC2::create(const MachNode* node, Register addr, bool dst_narrow) {
+  auto* stub = new (Compile::current()->comp_arena()) ShenandoahStoreBarrierStubC2(node, addr, Address(), dst_narrow, noreg, false, noreg);
+  stub->register_stub();
+  return stub;
+}
+
+ShenandoahCASBarrierStubC2* ShenandoahCASBarrierStubC2::create(const MachNode* node, Register addr, Register expected, Register new_val, Register result, bool narrow, bool cae, bool maybe_null, bool acquire, bool release, bool weak) {
+  auto* stub = new (Compile::current()->comp_arena()) ShenandoahCASBarrierStubC2(node, addr, Address(), expected, new_val, result, noreg, noreg, narrow, cae, maybe_null, acquire, release, weak);
   stub->register_stub();
   return stub;
 }
