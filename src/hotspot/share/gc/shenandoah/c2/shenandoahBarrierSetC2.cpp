@@ -766,7 +766,11 @@ void ShenandoahBarrierSetC2::emit_stubs(CodeBuffer& cb) const {
   GrowableArray<ShenandoahBarrierStubC2*>* const stubs = barrier_set_state()->stubs();
   barrier_set_state()->set_stubs_start_offset(masm.offset());
 
-  int slack_before = cb.insts_capacity() - cb.insts_size();
+  // Stub generation uses nested skipped counters that can double-count.
+  // Calculate the actual skipped amount by the real PC before/after stub generation.
+  // FIXME: This should be handled upstream.
+  int offset_before = masm.offset();
+  int skipped_before = masm.get_skipped();
 
   for (int i = 0; i < stubs->length(); i++) {
     // Make sure there is enough space in the code buffer
@@ -778,16 +782,15 @@ void ShenandoahBarrierSetC2::emit_stubs(CodeBuffer& cb) const {
     stubs->at(i)->emit_code(masm);
   }
 
-  // Extra slack due to MAX_inst_size resize should be skipped for inlining decisions.
-  // We fix it here to simplify performance comparisons with mainline.
-  // FIXME: (Upstream) This should be fixed in PhaseOutput::fill_buffer, see FIXME there.
-  int slack_after = cb.insts_capacity() - cb.insts_size();
-  if (slack_after > slack_before) {
-    masm.register_skipped(slack_after - slack_before);
-  }
+  int offset_after = masm.offset();
+
+  // The real stubs section is coming up after this, so we have to account for alignment
+  // padding there. See CodeSection::alignment().
+  offset_after = align_up(offset_after, HeapWordSize);
+
+  masm.set_skipped(skipped_before + (offset_after - offset_before));
 
   masm.flush();
-
 }
 
 void ShenandoahBarrierStubC2::register_stub() {

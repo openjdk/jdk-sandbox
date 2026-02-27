@@ -217,6 +217,14 @@ class CodeSection {
     _skipped_instructions_size += size;
   }
 
+  void set_skipped(int size) {
+    _skipped_instructions_size = size;
+  }
+
+  int get_skipped() {
+    return _skipped_instructions_size;
+  }
+
   // Code emission
   void emit_int8(uint8_t x1) {
     address curr = end();

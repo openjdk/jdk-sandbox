@@ -27,7 +27,20 @@ if [ ! -d $DACAPO ]; then
 fi
 W="-jar $DACAPO/dacapo-23.11-MR2-chopin.jar $*"
 
-OPTS="-XX:+UseShenandoahGC -Xmx10g -Xms10g -XX:+AlwaysPreTouch -XX:-TieredCompilation -XX:+UseTransparentHugePages -XX:+UseCompactObjectHeaders -XX:+UnlockDiagnosticVMOptions -XX:ShenandoahGCMode=passive -XX:+UnlockExperimentalVMOptions"
+OPTS="-XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions"
+
+# Only C2, only COH
+OPTS="$OPTS -XX:-TieredCompilation -XX:+UseCompactObjectHeaders"
+
+# Heap config
+OPTS="$OPTS -Xmx10g -Xms10g -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch"
+
+# GC config
+OPTS="$OPTS -XX:+UseShenandoahGC -XX:ShenandoahGCMode=passive"
+
+# Mitigate code cache effects
+OPTS="$OPTS -XX:ReservedCodeCacheSize=256M"
+
 
 OPTS_ALL="$OPTS -XX:+ShenandoahLoadRefBarrier -XX:+ShenandoahSATBBarrier -XX:+ShenandoahCASBarrier -XX:+ShenandoahCloneBarrier"
 
