@@ -27,6 +27,8 @@ package jdk.incubator.json.impl;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 
 import jdk.incubator.json.JsonObject;
 import jdk.incubator.json.JsonValue;
@@ -52,9 +54,27 @@ public final class JsonObjectImpl implements JsonObject, JsonValueImpl {
         doc = d;
     }
 
+    // Conversion override
     @Override
     public Map<String, JsonValue> members() {
         return Collections.unmodifiableMap(theMembers);
+    }
+
+    // Navigation overrides (on default) -> bypass the unmodifiable wrap
+    @Override
+    public JsonValue get(String name) {
+        Objects.requireNonNull(name);
+        return switch (theMembers.get(name)) {
+            case JsonValue jv -> jv;
+            case null -> throw Utils.composeError(this,
+                    "JsonObject member \"%s\" does not exist.".formatted(name));
+        };
+    }
+
+    @Override
+    public Optional<JsonValue> getOrAbsent(String name) {
+        Objects.requireNonNull(name);
+        return Optional.ofNullable(theMembers.get(name));
     }
 
     @Override

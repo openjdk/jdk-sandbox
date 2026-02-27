@@ -52,9 +52,22 @@ public final class JsonArrayImpl implements JsonArray, JsonValueImpl {
         doc = d;
     }
 
+    // Conversion override
     @Override
     public List<JsonValue> elements() {
         return Collections.unmodifiableList(theValues);
+    }
+
+    // Navigation overrides (on default) -> bypass the unmodifiable wrap
+    @Override
+    public JsonValue element(int index) {
+        try {
+            return theValues.get(index);
+        } catch (IndexOutOfBoundsException _) {
+            throw Utils.composeError(this,
+                    "JsonArray index %d out of bounds for length %d."
+                            .formatted(index, theValues.size()));
+        }
     }
 
     @Override
