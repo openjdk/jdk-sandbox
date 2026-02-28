@@ -91,6 +91,7 @@ public:
   void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr, bool narrow, bool acquire);
   void load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Register addr, bool narrow, bool acquire);
 
+  void gc_state_check_c2(MacroAssembler* masm, Register rscratch, const unsigned char test_state, BarrierStubC2* slow_stub);
   void card_barrier_c2(const MachNode* node, MacroAssembler* masm, Register addr, Register cond);
 #endif
 };

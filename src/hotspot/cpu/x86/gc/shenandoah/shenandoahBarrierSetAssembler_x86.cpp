@@ -1030,6 +1030,7 @@ void ShenandoahBarrierSetAssembler::gc_state_check_c2(MacroAssembler* masm, cons
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ testb(gc_state, test_state);
     __ jcc(Assembler::notZero, *slow_stub->entry());
+    __ bind(*slow_stub->continuation());
   }
 }
 
@@ -1054,7 +1055,6 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
     check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
     check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier_weak(node) ? ShenandoahHeap::WEAK_ROOTS : 0;
     gc_state_check_c2(masm, check, stub);
-    __ bind(*stub->continuation());
   }
 }
 
@@ -1071,7 +1071,6 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
       stub->dont_preserve(tmp); // temp, no need to preserve it
 
       gc_state_check_c2(masm, ShenandoahHeap::MARKING, stub);
-      __ bind(*stub->continuation());
     }
 
     if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
@@ -1157,7 +1156,6 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
       state |= ShenandoahCASBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
       state |= ShenandoahCASBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
       gc_state_check_c2(masm, state, stub);
-      __ bind(*stub->continuation());
     }
 
     if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
@@ -1189,7 +1187,6 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
       check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
       check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier_weak(node) ? ShenandoahHeap::WEAK_ROOTS : 0;
       gc_state_check_c2(masm, check, stub);
-      __ bind(*stub->continuation());
     }
 
     if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {

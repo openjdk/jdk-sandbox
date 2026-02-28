@@ -606,6 +606,61 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop(MacroAssembler* masm,
 }
 
 #ifdef COMPILER2
+void ShenandoahBarrierSetAssembler::gc_state_check_c2(MacroAssembler* masm, Register rscratch, const unsigned char test_state, BarrierStubC2* slow_stub) {
+  if (ShenandoahGCStateCheckRemove) {
+    // Unrealistic: remove all barrier fastpath checks.
+  } else if (ShenandoahGCStateCheckHotpatch) {
+    // In the ideal world, we would hot-patch the branch to slow stub with a single
+    // (unconditional) jump or nop, based on our current GC state.
+    // FIXME: we may need more than one nop. to discuss.
+    __ nop();
+  } else {
+#ifdef ASSERT
+    const unsigned char allowed = (unsigned char)(ShenandoahHeap::MARKING | ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::WEAK_ROOTS);
+    const unsigned char only_valid_flags = test_state & (unsigned char) ~allowed;
+    assert(test_state > 0x0, "Invalid test_state asked: %x", test_state);
+    assert(only_valid_flags == 0x0, "Invalid test_state asked: %x", test_state);
+#endif
+
+    Label L_short_branch;
+
+    bool one_bit = (test_state & (test_state - 1)) == 0;
+    char no_weak_set = (test_state & (~ShenandoahHeap::WEAK_ROOTS));
+
+    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+    __ ldrb(rscratch, gcs_addr);
+
+    // if only one bit is required then we can always use tbz
+    if (one_bit) {
+      int bit = __builtin_ctz((unsigned)test_state);
+      __ tbz(rscratch, bit, *slow_stub->continuation());
+    } else if (no_weak_set == test_state) {
+      __ ands(rscratch, rscratch, test_state);
+      __ cbz(rscratch, *slow_stub->continuation());
+    } else {
+      // One single 'ands' isn't possible because weak is set, making the
+      // immediate pattern invalid. One single tbz/tbnz doesn't work because we
+      // have 2 or more bits set.
+      //
+      // We'll tackle this by breaking the problem in two parts. First we only
+      // check for weak_roots and then we check for the other flags using
+      // 'ands' without the weak bit set.
+      __ tbnz(rscratch, ShenandoahHeap::WEAK_ROOTS_BITPOS, L_short_branch);
+
+      // We cleared the weak bit earlier on
+      __ ands(rscratch, rscratch, no_weak_set);
+      __ cbz(rscratch, *slow_stub->continuation());
+    }
+
+    __ bind(L_short_branch);
+    __ b(*slow_stub->entry());
+
+    // This is were the stub will return to or the code above will jump to if
+    // the checks are false
+    __ bind(*slow_stub->continuation());
+  }
+}
+
 /**
  * The logic implemented here relies on certain flags being on specific
  * positions of the GCState. Also note that all pointer values in register are
@@ -639,25 +694,12 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
     if (ShenandoahCASBarrierStubC2::needs_barrier(node)) {
-      // Load GC state in rscratch1
-      Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-      __ ldrb(rscratch1, gcs_addr);
+      ShenandoahCASBarrierStubC2* stub = ShenandoahCASBarrierStubC2::create(node, addr, oldval, newval, res, narrow, exchange, maybe_null, acquire, release, weak);
 
-      // Shift GCState right according to result of previous CAS. Luckily, the
-      // boolean result of the CAS also matches the index of the bit that we need
-      // to test later on.
-      assert(ShenandoahHeap::HAS_FORWARDED_BITPOS == 0 && ShenandoahHeap::MARKING_BITPOS == 1, "The code below assume specific values for GC State bit positions.");
-      __ lsrv(rscratch1, rscratch1, exchange ? rscratch2 : res);
-
-      // Assuming just for now that we need both barriers
-      ShenandoahCASBarrierStubC2* cmpx = ShenandoahCASBarrierStubC2::create(node, addr, oldval, newval, res, narrow, exchange, maybe_null, acquire, release, weak);
-
-      // Test bit '0' of rscratch1, which at this point will be FORWARDING bit if CAS
-      // failed, or SATB bit if CAS succeded.
-      assert(ShenandoahHeap::HAS_FORWARDED_BITPOS == 0, "The code below assume specific values for GC State bit positions.");
-      __ tbz(rscratch1, 0x0, *cmpx->continuation());
-      __ b(*cmpx->entry());
-      __ bind(*cmpx->continuation());
+      char check = 0;
+      check |= ShenandoahLoadBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
+      check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
+      gc_state_check_c2(masm, rscratch1, check, stub);
     }
 
     if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
@@ -689,25 +731,13 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
     if (ShenandoahLoadBarrierStubC2::needs_barrier(node)) {
-      Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-      __ ldrb(rscratch1, gcs_addr);
-
       ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, preval, addr, narrow);
 
-      // rscratch1[0] = gc_state[ShenandoahHeap::HAS_FORWARDED_BITPOS] | gc_state[ShenandoahHeap::MARKING_BITPOS]
-      __ orr(rscratch1, rscratch1, rscratch1, Assembler::LSR, ShenandoahHeap::MARKING_BITPOS);
-
-      bool is_strong = (node->barrier_data() & ShenandoahBitStrong) != 0;
-      if (!is_strong) {
-        // rscratch1[0] = rscratch1[0] | gc_state[ShenandoahHeap::WEAK_ROOTS_BITPOS]
-        assert(ShenandoahHeap::WEAK_ROOTS_BITPOS > ShenandoahHeap::MARKING_BITPOS, "The code below assume specific values for GC State bit positions.");
-        __ orr(rscratch1, rscratch1, rscratch1, Assembler::LSR, ShenandoahHeap::WEAK_ROOTS_BITPOS - ShenandoahHeap::MARKING_BITPOS);
-      }
-
-      assert(ShenandoahHeap::HAS_FORWARDED_BITPOS == 0, "The code below assume specific values for GC State bit positions.");
-      __ tbz(rscratch1, 0x0, *stub->continuation());
-      __ b(*stub->entry());
-      __ bind(*stub->continuation());
+      char check = 0;
+      check |= ShenandoahLoadBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
+      check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
+      check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier_weak(node) ? ShenandoahHeap::WEAK_ROOTS : 0;
+      gc_state_check_c2(masm, rscratch1, check, stub);
     }
 
     if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
@@ -726,16 +756,9 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
     if (ShenandoahStoreBarrierStubC2::needs_keep_alive_barrier(node)) {
-      Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-      __ ldrb(rscratch1, gcs_addr);
-
       ShenandoahStoreBarrierStubC2* const stub = ShenandoahStoreBarrierStubC2::create(node, addr, dst_narrow);
 
-      // Check if GC marking is in progress, otherwise we don't have to do
-      // anything.
-      __ tbz(rscratch1, ShenandoahHeap::MARKING_BITPOS, *stub->continuation());
-      __ b(*stub->entry());
-      __ bind(*stub->continuation());
+      gc_state_check_c2(masm, rscratch1, ShenandoahHeap::MARKING, stub);
     }
 
     if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
@@ -790,28 +813,15 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
   if (!ShenandoahSkipBarriers && ShenandoahLoadBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb(rscratch1, gcs_addr);
-
     ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, dst, addr, is_narrow);
-
     stub->preserve(addr);
     stub->dont_preserve(dst);
 
-    // rscratch1[0] = gc_state[ShenandoahHeap::HAS_FORWARDED_BITPOS] | gc_state[ShenandoahHeap::MARKING_BITPOS]
-    __ orr(rscratch1, rscratch1, rscratch1, Assembler::LSR, ShenandoahHeap::MARKING_BITPOS);
-
-    bool is_strong = (node->barrier_data() & ShenandoahBitStrong) != 0;
-    if (!is_strong) {
-      // rscratch1[0] = rscratch1[0] | gc_state[ShenandoahHeap::WEAK_ROOTS_BITPOS]
-      assert(ShenandoahHeap::WEAK_ROOTS_BITPOS > ShenandoahHeap::MARKING_BITPOS, "The code below assume specific values for GC State bit positions.");
-      __ orr(rscratch1, rscratch1, rscratch1, Assembler::LSR, ShenandoahHeap::WEAK_ROOTS_BITPOS - ShenandoahHeap::MARKING_BITPOS);
-    }
-
-      assert(ShenandoahHeap::HAS_FORWARDED_BITPOS == 0, "The code below assume specific values for GC State bit positions.");
-    __ tbz(rscratch1, 0x0, *stub->continuation());
-    __ b(*stub->entry());
-    __ bind(*stub->continuation());
+    char check = 0;
+    check |= ShenandoahLoadBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
+    check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
+    check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier_weak(node) ? ShenandoahHeap::WEAK_ROOTS : 0;
+    gc_state_check_c2(masm, rscratch1, check, stub);
   }
 }
 
