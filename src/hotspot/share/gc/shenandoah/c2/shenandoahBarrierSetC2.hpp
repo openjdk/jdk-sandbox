@@ -143,6 +143,7 @@ protected:
     return (node->barrier_data() & ShenandoahBitNative) == 0;
   }
   void satb(MacroAssembler* masm, ShenandoahBarrierStubC2* stub, Register scratch1, Register scratch2, Register scratch3, Label* L_done);
+  void lrb(MacroAssembler* masm, ShenandoahBarrierStubC2* stub, Register obj, Register addr, Label* L_done, bool narrow);
   static Register select_temp_register(Address addr, Register reg1 = noreg, Register reg2 = noreg);
 
 public:

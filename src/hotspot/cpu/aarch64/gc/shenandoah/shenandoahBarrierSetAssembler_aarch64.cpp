@@ -924,51 +924,14 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ bind(L_lrb); { // LRB
     Label L_lrb_end;
 
-    // Weak/phantom loads always need to go to runtime, otherwise check for
-    // object in cset.
     if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-      __ mov(rscratch2, ShenandoahHeap::in_cset_fast_test_addr());
-      __ lsr(rscratch1, _dst, ShenandoahHeapRegion::region_size_bytes_shift_jint());
-      __ ldrb(rscratch2, Address(rscratch2, rscratch1));
-      __ cbz(rscratch2, L_lrb_end);
-
       Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
       __ ldrb(rscratch1, gcs_addr);
       __ tbz(rscratch1, ShenandoahHeap::HAS_FORWARDED_BITPOS, L_lrb_end);
     }
 
     dont_preserve(_dst);
-    {
-      SaveLiveRegisters save_registers(&masm, this);
-      if (c_rarg0 != _dst) {
-        if (c_rarg0 == _addr_reg) {
-          __ mov(rscratch1, _addr_reg);
-          _addr_reg = rscratch1;
-        }
-        __ mov(c_rarg0, _dst);
-      }
-      __ mov(c_rarg1, _addr_reg);
-
-      if (_narrow) {
-        if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-          __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow));
-        } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
-          __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow));
-        } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
-          __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow));
-        }
-      } else {
-        if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-          __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong));
-        } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
-          __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak));
-        } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
-          __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom));
-        }
-      }
-      __ blr(rscratch1);
-      __ mov(_dst, r0);
-    }
+    lrb(&masm, this, _dst, _addr_reg, &L_lrb_end, _narrow);
 
     __ bind(L_lrb_end);
   }
@@ -1012,26 +975,7 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
             __ decode_heap_oop(_result);
           }
 
-          __ mov(rscratch1, ShenandoahHeap::in_cset_fast_test_addr());
-          __ lsr(rscratch2, _result, ShenandoahHeapRegion::region_size_bytes_shift_jint());
-          __ ldrb(rscratch1, Address(rscratch1, rscratch2));
-          __ cbz(rscratch1, L_final);
-
-          {
-            SaveLiveRegisters save_registers(&masm, this);
-
-            __ mov(c_rarg0, _result);
-            __ mov(c_rarg1, _addr_reg);
-
-            if (_narrow) {
-              __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow), 2);
-            } else {
-              __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong), 2);
-            }
-
-            // We have called LRB to fix up the heap location. We do not care about its
-            // result, as we will just try to CAS the location again.
-          }
+          lrb(&masm, this, _result, _addr_reg, &L_final, _narrow);
 
           __ bind(L_final);
 
@@ -1082,30 +1026,71 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
 }
 
 void ShenandoahBarrierStubC2::satb(MacroAssembler* masm, ShenandoahBarrierStubC2* stub, Register scratch1, Register scratch2, Register scratch3, Label* L_done) {
-    Address index(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
-    Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
-    Label L_runtime;
+  Address index(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
+  Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
+  Label L_runtime;
 
-    // If buffer is full, call into runtime.
-    masm->ldr(scratch1, index);
-    masm->cbz(scratch1, L_runtime);
+  // If buffer is full, call into runtime.
+  masm->ldr(scratch1, index);
+  masm->cbz(scratch1, L_runtime);
 
-    // The buffer is not full, store value into it.
-    masm->sub(scratch1, scratch1, wordSize);
-    masm->str(scratch1, index);
-    masm->ldr(scratch2, buffer);
-    masm->str(scratch3, Address(scratch2, scratch1));
-    masm->b(*L_done);
+  // The buffer is not full, store value into it.
+  masm->sub(scratch1, scratch1, wordSize);
+  masm->str(scratch1, index);
+  masm->ldr(scratch2, buffer);
+  masm->str(scratch3, Address(scratch2, scratch1));
+  masm->b(*L_done);
 
-    // Runtime call
-    masm->bind(L_runtime);
-    {
-      SaveLiveRegisters save_registers(masm, stub);
-      masm->mov(c_rarg0, scratch3);
-      masm->mov(scratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre));
-      masm->blr(scratch1);
-    }
+  // Runtime call
+  masm->bind(L_runtime);
+  {
+    SaveLiveRegisters save_registers(masm, stub);
+    masm->mov(c_rarg0, scratch3);
+    masm->mov(scratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre));
+    masm->blr(scratch1);
   }
+}
+
+void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, ShenandoahBarrierStubC2* stub, Register obj, Register addr, Label* L_done, bool narrow) {
+  // Weak/phantom loads always need to go to runtime, otherwise check for
+  // object in cset.
+  if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
+    masm->mov(rscratch2, ShenandoahHeap::in_cset_fast_test_addr());
+    masm->lsr(rscratch1, obj, ShenandoahHeapRegion::region_size_bytes_shift_jint());
+    masm->ldrb(rscratch2, Address(rscratch2, rscratch1));
+    masm->cbz(rscratch2, *L_done);
+  }
+
+  {
+    SaveLiveRegisters save_registers(masm, stub);
+    assert(obj != addr, "sanity address and obj can't be the same.");
+    assert(c_rarg0 != addr, "need to be separate registers, otherwise we override data.");
+    assert(c_rarg1 != obj, "sanity");
+
+    masm->mov(c_rarg0, obj);
+    masm->mov(c_rarg1, addr);
+
+    if (narrow) {
+      if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
+        masm->mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow));
+      } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
+        masm->mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow));
+      } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
+        masm->mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow));
+      }
+    } else {
+      if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
+        masm->mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong));
+      } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
+        masm->mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak));
+      } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
+        masm->mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom));
+      }
+    }
+    masm->blr(rscratch1);
+    masm->mov(obj, r0);
+  }
+}
 
 #undef __
 #define __ masm->
