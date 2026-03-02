@@ -1080,6 +1080,33 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
 
     __ b(*continuation());
 }
+
+static void ShenandoahCASBarrierStubC2::satb(MacroAssembler* masm, ShenandoahBarrierStubC2* stub, Register scratch1, Register scratch2, Register scratch3, Label* L_done) {
+    Address index(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
+    Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
+    Label L_runtime;
+
+    // If buffer is full, call into runtime.
+    masm->ldr(scratch1, index);
+    masm->cbz(scratch1, L_runtime);
+
+    // The buffer is not full, store value into it.
+    masm->sub(scratch1, scratch1, wordSize);
+    masm->str(scratch1, index);
+    masm->ldr(scratch2, buffer);
+    masm->str(scratch3, Address(scratch2, scratch1));
+    masm->b(*L_done);
+
+    // Runtime call
+    masm->bind(L_runtime);
+    {
+      SaveLiveRegisters save_registers(masm, stub);
+      masm->mov(c_rarg0, scratch3);
+      masm->mov(scratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre));
+      masm->blr(scratch1);
+    }
+  }
+
 #undef __
 #define __ masm->
 #endif // COMPILER2

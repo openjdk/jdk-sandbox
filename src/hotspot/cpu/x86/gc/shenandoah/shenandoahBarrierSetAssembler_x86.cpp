@@ -1036,7 +1036,7 @@ void ShenandoahBarrierSetAssembler::gc_state_check_c2(MacroAssembler* masm, cons
 
 void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src) {
   // Do the actual load. This load is the candidate for implicit null check, and MUST come first.
-  if (narrow) {
+  if (node->bottom_type()->isa_narrowoop()) {
     __ movl(dst, src);
   } else {
     __ movq(dst, src);
