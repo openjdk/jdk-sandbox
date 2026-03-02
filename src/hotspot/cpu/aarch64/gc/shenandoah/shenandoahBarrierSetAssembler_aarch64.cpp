@@ -877,14 +877,15 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
   // Do we need to load the previous value?
   if (_addr_reg != noreg) {
     __ load_heap_oop(rscratch3, Address(rscratch3, 0), noreg, noreg, AS_RAW);
+    // FIXME: We can merge this on the load above
+    __ cbz(rscratch3, L_done);
   } else {
     if (_dst_narrow) {
-      __ decode_heap_oop(rscratch3);
+      __ decode_heap_oop(rscratch3, &L_done);
+    } else {
+      __ cbz(rscratch3, L_done);
     }
   }
-
-  // FIXME: See if it is possible to merge this null-check with decoding
-  __ cbz(rscratch3, L_done);
 
   satb(&masm, this, rscratch1, rscratch2, rscratch3, &L_done);
 
@@ -902,9 +903,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   if (_narrow) {
     if (_maybe_null) {
-      __ decode_heap_oop(_dst);
-      // FIXME: See if it is possible to merge this null-check with decoding
-      __ cbz(_dst, L_lrb);
+      __ decode_heap_oop(_dst, &L_lrb);
     } else {
       __ decode_heap_oop_not_null(_dst);
     }
@@ -1009,13 +1008,11 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
               __ push(saved, sp);
 
               if (_narrow) {
-                __ decode_heap_oop(rscratch3, _expected);
+                __ decode_heap_oop(rscratch3, _expected, &L_done);
               } else {
                 __ mov(rscratch3, _expected);
+                __ cbz(rscratch3, L_done);
               }
-
-                // FIXME: See if it is possible to merge this null-check with decoding
-              __ cbz(rscratch3, L_done);
 
               satb(&masm, this, rscratch1, rscratch2, rscratch3, &L_done);
 
