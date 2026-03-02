@@ -27,6 +27,9 @@
 
 #include "gc/shared/c2/barrierSetC2.hpp"
 #include "gc/shared/gc_globals.hpp"
+#include "gc/shenandoah/shenandoahBarrierSetAssembler.hpp"
+#include "gc/shenandoah/shenandoahRuntime.hpp"
+#include "gc/shenandoah/shenandoahThreadLocalData.hpp"
 #include "utilities/growableArray.hpp"
 
 static const uint8_t ShenandoahBitStrong    = 1 << 0; // Barrier: LRB, strong
@@ -139,6 +142,31 @@ protected:
   static bool is_heap_access(const MachNode* node) {
     return (node->barrier_data() & ShenandoahBitNative) == 0;
   }
+  static void satb(MacroAssembler* masm, ShenandoahBarrierStubC2* stub, Register scratch1, Register scratch2, Register scratch3, Label* L_done) {
+    Address index(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
+    Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
+    Label L_runtime;
+
+    // If buffer is full, call into runtime.
+    masm->ldr(scratch1, index);
+    masm->cbz(scratch1, L_runtime);
+
+    // The buffer is not full, store value into it.
+    masm->sub(scratch1, scratch1, wordSize);
+    masm->str(scratch1, index);
+    masm->ldr(scratch2, buffer);
+    masm->str(scratch3, Address(scratch2, scratch1));
+    masm->b(*L_done);
+
+    // Runtime call
+    masm->bind(L_runtime);
+    {
+      SaveLiveRegisters save_registers(masm, stub);
+      masm->mov(c_rarg0, scratch3);
+      masm->mov(scratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre));
+      masm->blr(scratch1);
+    }
+  }
 
   static Register select_temp_register(Address addr, Register reg1 = noreg, Register reg2 = noreg);
 
@@ -155,9 +183,10 @@ class ShenandoahLoadBarrierStubC2 : public ShenandoahBarrierStubC2 {
   const bool _needs_load_ref_barrier;
   const bool _needs_keep_alive_barrier;
 
-  ShenandoahLoadBarrierStubC2(const MachNode* node, Register dst, Register addr_reg, Address src, bool narrow) :
-    ShenandoahBarrierStubC2(node), _dst(dst), _addr_reg(addr_reg), _src(src), _narrow(narrow), _maybe_null(!src_not_null(node)),
-    _needs_load_ref_barrier(needs_load_ref_barrier(node)), _needs_keep_alive_barrier(needs_keep_alive_barrier(node)) {
+  ShenandoahLoadBarrierStubC2(const MachNode* node, Register dst, Register addr_reg, Address src) :
+    ShenandoahBarrierStubC2(node), _dst(dst), _addr_reg(addr_reg), _src(src), _narrow(is_narrow_result(node)),
+    _maybe_null(!src_not_null(node)), _needs_load_ref_barrier(needs_load_ref_barrier(node)),
+    _needs_keep_alive_barrier(needs_keep_alive_barrier(node)) {
       assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
     }
 
@@ -177,9 +206,12 @@ public:
   static bool src_not_null(const MachNode* node) {
     return (node->barrier_data() & ShenandoahBitNotNull) != 0;
   }
+  static bool is_narrow_result(const MachNode* node) {
+    return node->bottom_type()->isa_narrowoop();
+  }
 
-  static ShenandoahLoadBarrierStubC2* create(const MachNode* node, Register dst, Address src, bool narrow);
-  static ShenandoahLoadBarrierStubC2* create(const MachNode* node, Register dst, Register addr, bool narrow);
+  static ShenandoahLoadBarrierStubC2* create(const MachNode* node, Register dst, Address src);
+  static ShenandoahLoadBarrierStubC2* create(const MachNode* node, Register dst, Register addr);
 
   void emit_code(MacroAssembler& masm) override;
 };

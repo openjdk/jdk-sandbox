@@ -545,7 +545,6 @@ instruct getAndSet_P_Normal_shenandoah(indirect mem, iRegP newval, iRegPNoSp pre
       $preval$$Register,
       $newval$$Register,
       $mem$$Register,
-      /* is_narrow */ false,
       /* acquire */ false);
   %}
   ins_pipe(pipe_serial);
@@ -565,7 +564,6 @@ instruct getAndSet_P_Volatile_shenandoah(indirect mem, iRegP newval, iRegPNoSp p
       $preval$$Register,
       $newval$$Register,
       $mem$$Register,
-      /* is_narrow */ false,
       /* acquire */ true);
   %}
   ins_pipe(pipe_serial);
@@ -585,7 +583,6 @@ instruct getAndSet_N_Normal_shenandoah(indirect mem, iRegN newval, iRegNNoSp pre
       $preval$$Register,
       $newval$$Register,
       $mem$$Register,
-      /* is_narrow */ true,
       /* acquire */ false);
   %}
   ins_pipe(pipe_serial);
@@ -605,7 +602,6 @@ instruct getAndSet_N_Volatile_shenandoah(indirect mem, iRegN newval, iRegNNoSp p
       $preval$$Register,
       $newval$$Register,
       $mem$$Register,
-      /* is_narrow */ true,
       /* acquire */ true);
   %}
   ins_pipe(pipe_serial);
@@ -625,7 +621,6 @@ instruct load_P_Normal_shenandoah(iRegPNoSp dst, indirect mem, rFlagsReg cr)
     ShenandoahBarrierSet::assembler()->load_c2(this, masm,
       $dst$$Register,
       $mem$$Register,
-      /* is_narrow */ false,
       /* acquire */ false);
   %}
   ins_pipe(pipe_class_memory);
@@ -644,7 +639,6 @@ instruct load_P_Volatile_shenandoah(iRegPNoSp dst, indirect mem, rFlagsReg cr)
     ShenandoahBarrierSet::assembler()->load_c2(this, masm,
       $dst$$Register,
       $mem$$Register,
-      /* is_narrow */ false,
       /* acquire */ true);
   %}
   ins_pipe(pipe_class_memory);
@@ -663,7 +657,6 @@ instruct load_N_Normal_shenandoah(iRegNNoSp dst, indirect mem, rFlagsReg cr)
     ShenandoahBarrierSet::assembler()->load_c2(this, masm,
       $dst$$Register,
       $mem$$Register,
-      /* is_narrow */ true,
       /* acquire */ false);
   %}
   ins_pipe(pipe_class_memory);
@@ -682,7 +675,6 @@ instruct load_N_Volatile_shenandoah(iRegNNoSp dst, indirect mem, rFlagsReg cr)
     ShenandoahBarrierSet::assembler()->load_c2(this, masm,
       $dst$$Register,
       $mem$$Register,
-      /* is_narrow */ true,
       /* acquire */ true);
   %}
   ins_pipe(pipe_class_memory);

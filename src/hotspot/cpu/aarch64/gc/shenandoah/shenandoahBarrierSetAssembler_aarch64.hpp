@@ -88,8 +88,8 @@ public:
 #ifdef COMPILER2
   void store_c2(const MachNode* node, MacroAssembler* masm, Register dst, bool dst_narrow, Register src, bool src_narrow, bool is_volatile);
   void cae_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval, Register newval, bool exchange, bool maybe_null, bool narrow, bool acquire, bool release, bool weak);
-  void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr, bool narrow, bool acquire);
-  void load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Register addr, bool narrow, bool acquire);
+  void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr, bool acquire);
+  void load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Register addr, bool acquire);
 
   void gc_state_check_c2(MacroAssembler* masm, Register rscratch, const unsigned char test_state, BarrierStubC2* slow_stub);
   void card_barrier_c2(const MachNode* node, MacroAssembler* masm, Register addr, Register cond);
