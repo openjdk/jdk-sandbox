@@ -44,11 +44,8 @@
 #include <winternl.h>
 
 #include "revival.hpp"
-
 #include "minidump.hpp"
 #include "pefile.hpp"
-
-
 
 /**
  * Read a MINIDUMP_STRING, which is:
@@ -157,22 +154,22 @@ MINIDUMP_DIRECTORY* MiniDump::find_stream(int stream) {
         error("MiniDump not open");
     }
     MINIDUMP_DIRECTORY* result = nullptr;
-
-    // Read MiniDump directory:
-    lseek(fd, hdr.StreamDirectoryRva, SEEK_SET);
     MINIDUMP_DIRECTORY* md = (MINIDUMP_DIRECTORY*) malloc(sizeof(MINIDUMP_DIRECTORY));
-
+    if (md == nullptr) {
+        warn("malloc failed for MINIDUMP_DIRECTORY");
+        return nullptr;
+    }
+    lseek(fd, hdr.StreamDirectoryRva, SEEK_SET);
     for (unsigned int i = 0; i < hdr.NumberOfStreams; i++) {
         int e = read(fd, md, sizeof(*md));
         if (md->StreamType == stream) {
             lseek(fd, md->Location.Rva, SEEK_SET);
-            result = md;
-            break;
+            return md;
         }
     }
-    return result;
+    free(md);
+    return nullptr;
 }
-
 
 uint64_t MiniDump::resolve_teb() {
     // Find MiniDump ThreadListStream, read _MINIDUMP_THREAD, read TEB
@@ -207,7 +204,6 @@ uint64_t MiniDump::resolve_teb() {
     free(md);
     return teb;
 }
-
 
 /*
  * Read shared library list from ModuleListStream.
@@ -309,7 +305,6 @@ void MiniDump::prepare_memory_ranges() {
     free(md);
 }
 
-
 /**
  * Read the next MiniDump Memory Descriptor.
  * Return a Segment* and update the output parameters.  current RVA will be the dump file offset of the next segment.
@@ -399,7 +394,6 @@ Segment* MiniDump::readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRV
     return seg;
 }
 
-
 uint64_t MiniDump::file_offset_for_vaddr(uint64_t addr) {
     // Find data segment for address.
     this->prepare_memory_ranges();
@@ -427,4 +421,3 @@ char* MiniDump::readstring_at_address(uint64_t addr) {
         return readstring_at_offset_pd(this->filename, offset);
     }
 }
-
