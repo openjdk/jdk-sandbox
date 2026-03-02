@@ -609,8 +609,8 @@ void relocate_sharedlib_pd(const char* filename, const uint64_t address) {
 }
 
 
-void write_mem_mappings(ELFFile& core, int mappings_fd, const char* binary) {
-    core.write_mem_mappings(mappings_fd, binary);
+void write_mem_mappings(ELFFile& core, int mappings_fd) {
+    core.write_mem_mappings(mappings_fd);
 }
 
 
@@ -754,7 +754,7 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
     }
     // Write mappings file:
     write_sharedlib_mappings(core, mappings_fd);
-    write_mem_mappings(core, mappings_fd, "bin/java");
+    write_mem_mappings(core, mappings_fd);
     close(mappings_fd);
 
     // Copy jvm/libraries into core.revival dir
