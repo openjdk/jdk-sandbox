@@ -376,8 +376,6 @@ bool mem_canwrite_pd(void *vaddr, size_t length) {
  * Can be complicated if file offset is not aligned as required.
  */
 void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offset) {
-    // TODO test FILE_MAP_COPY (COW)
-
     // Fail quickly if unaligned:
     uint64_t offsetAligned = align_down(offset, vaddr_alignment_pd());
     if (offsetAligned != offset) {
@@ -393,6 +391,7 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offse
     h = CreateFile(filename, createFileDesiredAccess, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (h == nullptr) {
         logv("    do_mmap_pd: CreateFile failed: %s: 0x%lx", filename, GetLastError());
+        return (void *) -1;
     } else {
         h2 = CreateFileMapping(h, nullptr, mappingProt, 0, 0, nullptr);
         if (h2 == nullptr) {
@@ -825,7 +824,7 @@ void write_symbols(int symbols_fd, const char* symbols[], int count, const char 
         if (!SymFromName(h2, szSymbolName, pSymbol)) {
             warn("write_symbols: %d: SymFromName '%s' failed, error: %d", i, szSymbolName, GetLastError());
         } else {
-            snprintf(buf, BUFLEN, "%s %llx", szSymbolName, pSymbol->Address);
+            snprintf(buf, MAX_SYM_NAME, "%s %llx", szSymbolName, pSymbol->Address);
             logv("write_symbols: %d: %s", i, buf);
             write0(symbols_fd, buf);
             write0(symbols_fd, "\n");

@@ -123,28 +123,38 @@ bool PEFile::relocate(const char* filename, uint64_t address) {
     NewImageBase = address + NewImageSize;
 
     // ReBaseImage64 occasionally does not honour the request.
-    // Retrying in a loop here does not resolve it (suggesting it could be an address space clash).
-    e = ReBaseImage64(filename, SymbolPath, TRUE /* fReBase */, TRUE /* system file */, TRUE /* rebase downwards */,
-                        0 /* max size */, &OldImageSize, &OldImageBase, &NewImageSize, &NewImageBase, 0 /* TimeStamp */);
+    // Retrying in a loop here may not resolve it (suggesting it could be an address space clash).
+    int count = 0;
+    while (count < 10) {
+        e = ReBaseImage64(filename, SymbolPath, TRUE /* fReBase */, TRUE /* system file */, TRUE /* rebase downwards */,
+                            0 /* max size */, &OldImageSize, &OldImageBase, &NewImageSize, &NewImageBase, 0 /* TimeStamp */);
 
-    logv("ReBaseImage64 (2): OldImageSize 0x%llx  OldImageBase 0x%llx  NewImageSize 0x%llx  NewImageBase 0x%llx",
-        OldImageSize, OldImageBase, NewImageSize, NewImageBase);
-    if (!e) {
-        error("ReBaseImage64 (2) failed: %d", GetLastError());
-    }
-    if (NewImageBase != address) {
-        warn("Relocate failed: new base 0x%llx != required 0x%llx", NewImageBase, address);
-        e = ReBaseImage64(filename, SymbolPath, TRUE /* fReBase */, TRUE /* system file */, FALSE /* rebase downwards */,
-                        0 /* max size */, &OldImageSize, &OldImageBase, &NewImageSize, &NewImageBase, 0 /* TimeStamp */);
+        logv("ReBaseImage64 (2): OldImageSize 0x%llx  OldImageBase 0x%llx  NewImageSize 0x%llx  NewImageBase 0x%llx",
+            OldImageSize, OldImageBase, NewImageSize, NewImageBase);
         if (!e) {
-            error("ReBaseImage64 (2) retry failed: %d", GetLastError());
+            error("ReBaseImage64 (2) failed: %d", GetLastError());
         }
-        if (NewImageBase != address) {
-            warn("Relocate failed: (2) new base 0x%llx != required 0x%llx", NewImageBase, address);
-            // We are relocating the copy in the revival cache directory.  Our caller can delete the file so it can retry.
-            e = false;
+        if (NewImageBase == address) {
+            if (count > 0 ) {
+                logv("ReBaseImage64 OK after tries: %d", count);
+            }
+            break;
+        } else {
+            warn("PEFile::relocate count %d", count);
+            warn("Relocate failed: new base 0x%llx != required 0x%llx", NewImageBase, address);
+            e = ReBaseImage64(filename, SymbolPath, TRUE /* fReBase */, TRUE /* system file */, FALSE /* rebase downwards */,
+                            0 /* max size */, &OldImageSize, &OldImageBase, &NewImageSize, &NewImageBase, 0 /* TimeStamp */);
+            if (!e) {
+                error("ReBaseImage64 (2) retry failed: %d", GetLastError());
+            }
+            if (NewImageBase != address) {
+                warn("Relocate failed: (2) new base 0x%llx != required 0x%llx", NewImageBase, address);
+                // We are relocating the copy in the revival cache directory.  Our caller can delete the file so it can retry.
+                e = false;
+            }
+            waitHitRet();
         }
-        waitHitRet();
+        count++;
     }
     return e;
 }
