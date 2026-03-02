@@ -1081,7 +1081,7 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
     __ b(*continuation());
 }
 
-static void ShenandoahCASBarrierStubC2::satb(MacroAssembler* masm, ShenandoahBarrierStubC2* stub, Register scratch1, Register scratch2, Register scratch3, Label* L_done) {
+void ShenandoahBarrierStubC2::satb(MacroAssembler* masm, ShenandoahBarrierStubC2* stub, Register scratch1, Register scratch2, Register scratch3, Label* L_done) {
     Address index(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
     Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
     Label L_runtime;
