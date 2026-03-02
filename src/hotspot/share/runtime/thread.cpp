@@ -606,7 +606,7 @@ struct revival_data {
 
 struct revival_data vm_revival_data;
 
-// VM Process Revival for Serviceability
+// VM Process Revival
 void* Thread::process_revival() {
   _revived_vm = true;
 #ifdef LINUX
@@ -616,29 +616,24 @@ void* Thread::process_revival() {
   os::win32::revive_init();
 #endif
   // A Thread object is needed to call the dcmd parser.
-  // Use a VMThread so commands invoking a VMOperation will run it themselves.
-  VMThread *t = VMThread::vm_thread(); // Access the _vm_thread singleton
+  // Use the VMThread so threads invoking a VMOperation will run it themselves.
+  VMThread* t = VMThread::vm_thread();
   if (t == nullptr) {
     return nullptr;
   }
-
   t->record_stack_base_and_size();
   t->set_osthread(new OSThread());
 
   // Reset current thread:
   int tls_index = ThreadLocalStorage::revive(t);
   t->revive_thread_current();
-
   Thread *c = Thread::current_or_null(); // Verify TLS
   if (c == nullptr) {
     return nullptr;
   }
-
   ostream_revive(); // Fix tty
-
   // Set flag that we are at a Safepoint:
   SafepointSynchronize::set_is_at_safepoint();
-
   // VM options:
   DisplayVMOutput = 1;
   LogVMOutput = 0;

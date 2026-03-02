@@ -101,7 +101,7 @@ void init_pd() {
 }
 
 
-bool dir_exists_pd(const char *dirname) {
+bool dir_exists_pd(const char* dirname) {
     int fd = open(dirname, O_DIRECTORY);
     if (fd < 0) {
         if (errno != ENOENT) {
@@ -114,7 +114,7 @@ bool dir_exists_pd(const char *dirname) {
     return false;
 }
 
-bool dir_isempty_pd(const char *dirname) {
+bool dir_isempty_pd(const char* dirname) {
     int count = 0;
     DIR* dir = opendir(dirname);
     if (dir != nullptr) {
@@ -132,7 +132,7 @@ bool dir_isempty_pd(const char *dirname) {
     return false;
 }
 
-bool file_exists_pd(const char *filename) {
+bool file_exists_pd(const char* filename) {
     int fd = open(filename, O_RDONLY);
     if (fd < 0) {
         if (errno != ENOENT) {
@@ -178,15 +178,15 @@ char* readstring_from_core_at_vaddr_pd(const char* filename, uint64_t addr) {
     }
 }
 
-bool mem_canwrite_pd(void *vaddr, size_t length) {
+bool mem_canwrite_pd(void* vaddr, size_t length) {
     return true;
 }
 
-void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offset) {
+void* do_mmap_pd(void* addr, size_t length, char* filename, int fd, size_t offset) {
     int flags = MAP_SHARED | MAP_PRIVATE | MAP_FIXED;
     int prot = PROT_READ | PROT_EXEC;
     // Try with literal values.  Should work for a regular Linux core file.
-    void *e = mmap(addr, length, prot, flags, fd, offset);
+    void* e = mmap(addr, length, prot, flags, fd, offset);
     if (e == (void*) -1L) {
         if (errno == EINVAL) {
             // EINVAL is likely on a Linux gcore (gdb) due to unaligned file offsets.
@@ -197,7 +197,7 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offse
             size_t offset_aligned = align_down((uint64_t) offset, align_mask);
             size_t shift = (offset - offset_aligned);
             size_t length_aligned = length + shift;
-            void *addr_aligned = (void*) (((unsigned long long) addr) - shift);
+            void* addr_aligned = (void*) (((unsigned long long) addr) - shift);
             logv(" offset_alignment = %p offset = %zu offset aligned = %zu shift = %zu new length = %zu new addr = %p",
                  (void*) align_mask, offset, offset_aligned, shift, length_aligned, addr_aligned);
             e = mmap(addr_aligned, length_aligned, prot, flags, fd, offset_aligned);
@@ -225,7 +225,7 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offse
     return e;
 }
 
-int do_munmap_pd(void *addr, size_t length) {
+int do_munmap_pd(void* addr, size_t length) {
     int e = munmap(addr, length);
     if (e) {
         warn("munmap_pd: %p failed: returns: %d: errno = %d: %s",  addr, e, errno, strerror(errno));
@@ -236,16 +236,16 @@ int do_munmap_pd(void *addr, size_t length) {
 /**
  * Create a memory mapping at a given address, length.
  */
-void *do_map_allocate_pd(void *vaddr, size_t length) {
+void* do_map_allocate_pd(void* vaddr, size_t length) {
     int prot = PROT_READ | PROT_WRITE;
     int flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED | MAP_NORESERVE;
     int fd = -1;
     size_t offset = 0;
 
-    void *h = mmap(vaddr, length, prot, flags, fd, offset);
+    void* h = mmap(vaddr, length, prot, flags, fd, offset);
     logv("do_map_allocate: mmap(%p, %zu, %d, %d, %d, %zu) returns: %p",
           vaddr, length, prot, flags, fd, offset, h);
-    if (h == (void *) -1) {
+    if (h == (void*) -1) {
         warn("do_map_allocate: mmap(%p, %zu, %d, %d, %d, %zu) failed: returns: %p: errno = %d: %s",
              vaddr, length, prot, flags, fd, offset, h, errno, strerror(errno));
     }
@@ -253,38 +253,38 @@ void *do_map_allocate_pd(void *vaddr, size_t length) {
 }
 
 
-int revival_checks_pd(const char *dirname) {
+int revival_checks_pd(const char* dirname) {
     // Check LD_USE_LOAD_BIAS is set:
-    char * env = getenv("LD_USE_LOAD_BIAS");
+    char* env = getenv("LD_USE_LOAD_BIAS");
     if (env == NULL || strncmp(env, "1", 1) != 0) {
         error("Error: LD_USE_LOAD_BIAS not set.");
     }
     return 0;
 }
 
-void *symbol_dynamiclookup_pd(void *h, const char *str) {
-    void *s = dlsym(RTLD_NEXT, str);
+void* symbol_dynamiclookup_pd(void* h, const char* str) {
+    void* s = dlsym(RTLD_NEXT, str);
     logv("symbol_dynamiclookup: %s = %p", str, s);
     if (s == 0) {
         if (logLevel >= LOG_VERBOSE) {
             warn("dlsym: %s", dlerror());
         }
-        return (void *) -1;
+        return (void*) -1;
     }
     return s;
 }
 
 
-/*
+/**
  * Create a file name for the core page file, in the revivaldir.
  * Delete any existing file, otherwise it grows without limit.
  */
-const char *createTempFilename() {
-    char *tempName  = (char*) calloc(1, BUFLEN); // never free'd
+const char* createTempFilename() {
+    char* tempName  = (char*) calloc(1, BUFLEN); // never free'd
     if (tempName == NULL) {
         error("createTempFilename: calloc failed");
     }
-    char *p = strncat(tempName, revivaldir, BUFLEN - 1);
+    char* p = strncat(tempName, revivaldir, BUFLEN - 1);
     p = strncat(p, "/revivaltemp", BUFLEN - 1);
     logv("core page file: '%s'", tempName);
     int fdTemp = open(tempName, O_WRONLY | O_CREAT | O_EXCL, 0600);
@@ -305,12 +305,12 @@ const char *createTempFilename() {
 }
 
 
-const char *corePageFilename;
+const char* corePageFilename;
 
-/*
+/**
  * Return the name of the temp file to use for writing.
  */
-const char *getCorePageFilename() {
+const char* getCorePageFilename() {
     if (corePageFilename == NULL) {
         // Create filename on demand.
         corePageFilename = createTempFilename();
@@ -321,11 +321,11 @@ const char *getCorePageFilename() {
     return corePageFilename;
 }
 
-/*
+/**
  * Open a named file and append data for a Segment from the core.
  * Return the offset at which we wrote, or negative on error.
  */
-size_t writeTempFileBytes(const char *tempName, Segment seg) {
+size_t writeTempFileBytes(const char* tempName, Segment seg) {
     int fdTemp = open(tempName, O_WRONLY | O_APPEND);
     if (fdTemp < 0) {
         return fdTemp;
@@ -344,13 +344,13 @@ size_t writeTempFileBytes(const char *tempName, Segment seg) {
     return (size_t) pos;
 }
 
-/*
+/**
  * remap a segment
  * Copy bytes from core file to temp file,
  * map writable.
  */
 void remap(Segment seg) {
-    const char *tempName = getCorePageFilename();
+    const char* tempName = getCorePageFilename();
     if (tempName == NULL) {
         error("remap: failed to create temp filename. errno = %d: %s",  errno, strerror(errno));
     }
@@ -371,7 +371,7 @@ void remap(Segment seg) {
     }
     int flags = MAP_PRIVATE | MAP_FIXED; // previously also MAP_SHARED
     int prot = PROT_READ | PROT_EXEC | PROT_WRITE; // should use mappings file info
-    void * e = mmap(seg.vaddr, seg.length, prot, flags, fd, offset);
+    void* e = mmap(seg.vaddr, seg.length, prot, flags, fd, offset);
     if ((long long) e < 0) {
         warn("remap: mmap 0x%p failed: returns: 0x%p: errno = %d: %s",  seg.vaddr, e, errno, strerror(errno));
         abort();
@@ -380,14 +380,14 @@ void remap(Segment seg) {
 }
 
 
-/*
+/**
  * Signal handler.
  * Catch errors and do mapping of writeable areas on demand.
  *
  * Could be used to map all memory lazily, for faster startup.
  */
-void handler(int sig, siginfo_t *info, void *ucontext) {
-    void * addr  = (void *) info->si_addr;
+void handler(int sig, siginfo_t* info, void* ucontext) {
+    void* addr  = (void*) info->si_addr;
     logv("revival: handler: sig = %d for address %p", sig, addr);
 
     if (addr == nullptr) {
@@ -423,9 +423,8 @@ void handler(int sig, siginfo_t *info, void *ucontext) {
     abort();
 }
 
-/*
+/**
  * Install the signal hander.
- *
  */
 void install_handler() {
     struct sigaction sa, old_sa;
@@ -450,17 +449,17 @@ void install_handler() {
  * Actually, this returns the difference from the preferred address.
  * For a file with no preferred address, that IS the loaded address.
  */
-void *base_address_for_sharedobject_live(void *h) {
+void* base_address_for_sharedobject_live(void* h) {
     struct link_map lm;
-    struct link_map *lp = &lm;
-    struct link_map **lpp = &lp;
+    struct link_map* lp = &lm;
+    struct link_map** lpp = &lp;
 
     int e = dlinfo(h, RTLD_DI_LINKMAP, (struct link_map **) lpp);
     if (e == -1) {
         warn("base_address_for_sharedobject_live: dlinfo error %d: %s", e, dlerror());
-        return (void *) -1;
+        return (void*) -1;
     }
-    return (void *) (*lpp)->l_addr;
+    return (void*) (*lpp)->l_addr;
 }
 
 /**
@@ -470,41 +469,35 @@ void *base_address_for_sharedobject_live(void *h) {
  * Return the opaque handle from dlopen, which is not the load address.
  * Return -1 for error.
  */
-void *load_sharedobject_verify_pd(const char *name, void *vaddr) {
+void* load_sharedobject_verify_pd(const char* name, void* vaddr) {
 
-    void *actual = nullptr;
+    void* actual = nullptr;
     int max_tries = 1; // Retrying, even when allocating to force a new address, is not usually succesfull.
 
     for (int i = 0; i < max_tries; i++) {
-        void *h = dlopen(name,  RTLD_NOW | RTLD_GLOBAL);
-
+        void* h = dlopen(name,  RTLD_NOW | RTLD_GLOBAL);
         if (!h) {
             warn("load_sharedobject_pd: dlopen failed: %s: %s", name, dlerror());
-            return (void *) -1;
+            return (void*) -1;
         }
 
         actual = base_address_for_sharedobject_live(h);
         logv("load_sharedobject_pd %d: actual = %p", i, actual);
-
-        if (actual == (void *) 0 || actual == vaddr) {
+        if (actual == (void*) 0 || actual == vaddr) {
             return h;
         }
-
         // Wrong address:
         // Most likely, Address Space Layout Randomisation has given us an inhospitable layout,
         // e.g. libc where we want to have libjvm.
+        // Trying dlclose and forcing retry is not successful.
         // Terminate with a value that means caller should retry:
         exitForRetry();
-
-        // dlclose and map/block.  Not successful.
-        unload_sharedobject_pd(h);
-        /* void *block = */ do_map_allocate_pd(actual, vaddr_alignment_pd());
     }
 
-    if (actual != (void *) 0 && actual != vaddr) {
+    if (actual != (void*) 0 && actual != vaddr) {
         warn("load_sharedobject_pd: %s: failed, loads at %p", name, actual);
         unload_sharedobject_pd(h);
-        return (void *) -1;
+        return (void*) -1;
     }
 
     return h;
@@ -514,19 +507,19 @@ void *load_sharedobject_verify_pd(const char *name, void *vaddr) {
  * Experimental loading shared object by mmap, then fixing up.  Not fully implemented.
  * Fixing up the shared object and using dlopen is easier.
  */
-void *load_sharedobject_mmap_pd(const char *filename, void *vaddr) {
+void* load_sharedobject_mmap_pd(const char* filename, void* vaddr) {
     int loaded = 0;
     int fd = open(filename, O_RDONLY);
     if (fd < 0) {
         warn("load_sharedobject_mmap_pd: cannot open %s", filename);
-        return (void *) -1;
+        return (void*) -1;
     }
     // Read ELF header, find Program Headers.
     Elf64_Ehdr hdr;
     size_t e = read(fd, &hdr, sizeof(hdr));
     if (e < sizeof(hdr)) {
         warn("load_sharedobject_mmap_pd: failed to read ELF header %s: %ld", filename, e);
-        return (void *) -1;
+        return (void*) -1;
     }
     lseek(fd, hdr.e_phoff, SEEK_SET);
     // Read ELF Program Headers.  Look for PT_LOAD.
@@ -535,7 +528,7 @@ void *load_sharedobject_mmap_pd(const char *filename, void *vaddr) {
         e = read(fd, &phdr, sizeof(phdr));
         if (e < sizeof(phdr)) {
             warn("load_sharedobject_mmap_pd: failed to read ELF Program Header %s: %ld", filename, e);
-            return (void *) -1;
+            return (void*) -1;
         }
         warn("load_sharedobject_mmap_pd: PH %d: type 0x%x flags 0x%x vaddr 0x%lx", i, phdr.p_type, phdr.p_flags, phdr.p_vaddr);
         if (phdr.p_type == PT_LOAD) {
@@ -543,8 +536,8 @@ void *load_sharedobject_mmap_pd(const char *filename, void *vaddr) {
                 // Expect a non-prelinked/relocated library, with zero base address.
                 // Map PH at the given vaddr plus PH vaddr.
                 uint64_t va = (uint64_t) vaddr + (uint64_t) phdr.p_vaddr;
-                warn("load_sharedobject_mmap_pd: LOAD offset %lx vaddr %p", phdr.p_offset, (void *) va);
-                void * a = do_mmap_pd((void *) va, (size_t) phdr.p_filesz, (char *) filename, fd, (size_t) phdr.p_offset);
+                warn("load_sharedobject_mmap_pd: LOAD offset %lx vaddr %p", phdr.p_offset, (void*) va);
+                void* a = do_mmap_pd((void*) va, (size_t) phdr.p_filesz, (char*) filename, fd, (size_t) phdr.p_offset);
                 warn("load_sharedobject_mmap_pd: %s: %p", filename, a);
                 if ((uint64_t) a > 0) {
                     warn("load_sharedobject_mmap_pd OK");
@@ -561,11 +554,11 @@ void *load_sharedobject_mmap_pd(const char *filename, void *vaddr) {
     if (loaded > 0) {
         return vaddr;
     } else {
-        return (void *) -1;
+        return (void*) -1;
     }
 }
 
-void *load_sharedobject_pd(const char *name, void *vaddr) {
+void* load_sharedobject_pd(const char* name, void* vaddr) {
 
     bool verify = true;
     bool mmap = false;
@@ -575,20 +568,20 @@ void *load_sharedobject_pd(const char *name, void *vaddr) {
     } else if (mmap) {
         return load_sharedobject_mmap_pd(name, vaddr);
     } else {
-        void *h = dlopen(name,  RTLD_NOW | RTLD_GLOBAL);
+        void* h = dlopen(name,  RTLD_NOW | RTLD_GLOBAL);
         if (!h) {
             warn("load_sharedobject_pd: %s: %s", name, dlerror());
-            return (void *) -1;
+            return (void*) -1;
         }
         return h;
     }
 }
 
-int unload_sharedobject_pd(void *h) {
+int unload_sharedobject_pd(void* h) {
     return dlclose(h); // zero on success
 }
 
-void copy_file_pd(const char *srcfile, const char *destfile) {
+void copy_file_pd(const char* srcfile, const char* destfile) {
     int fd_src = open(srcfile, O_RDONLY, S_IRUSR);
     if (fd_src < 0) {
         error("Cannot open source file %s: %s", srcfile, strerror(errno));
@@ -606,7 +599,7 @@ void copy_file_pd(const char *srcfile, const char *destfile) {
     close(fd_dest);
 }
 
-void relocate_sharedlib_pd(const char *filename, const uint64_t address) {
+void relocate_sharedlib_pd(const char* filename, const uint64_t address) {
     ELFFile lib(filename, nullptr);
     if (lib.is_valid()) {
         logv("Relocate %s to 0x%lx", filename, address);
@@ -622,11 +615,11 @@ void write_mem_mappings(ELFFile& core, int mappings_fd, const char* binary) {
 
 
 const int N_JVM_SYMS = 2;
-const char *JVM_SYMS[N_JVM_SYMS] = {
+const char* JVM_SYMS[N_JVM_SYMS] = {
     SYM_REVIVE_VM, SYM_VM_RELEASE
 };
 
-void write_symbols(int symbols_fd, const char* symbols[], int count, const char *revival_dirname) {
+void write_symbols(int symbols_fd, const char* symbols[], int count, const char* revival_dirname) {
     char buf[BUFLEN];
     memset(buf, 0, BUFLEN);
     strncpy(buf, revival_dirname, BUFLEN - 1);
@@ -661,7 +654,7 @@ bool create_directory_pd(char* dirname) {
 
 void write_sharedlib_mapping(int mappings_fd, char* filename, void* address) {
         char buf[BUFLEN];
-        const char *checksum = "0"; // possible enhancement
+        const char* checksum = "0"; // possible enhancement
         snprintf(buf, BUFLEN, "L %s %llx %s\n", basename(filename), (unsigned long long) address, checksum);
         write0(mappings_fd, buf);
 }
@@ -687,7 +680,7 @@ void copy_and_relocate(const char* srcfile, const char* destdir, uint64_t addres
     memset(copy_path, 0, BUFLEN);
     strncpy(copy_path, destdir, BUFLEN - 1);
     strncat(copy_path, "/", BUFLEN - 1);
-    char *basefilename = basename((char*) srcfile);
+    char* basefilename = basename((char*) srcfile);
     strncat(copy_path, basefilename, BUFLEN - 1);
     logv("Copying %s to %s", srcfile, copy_path);
     copy_file_pd(srcfile, copy_path);
@@ -696,7 +689,7 @@ void copy_and_relocate(const char* srcfile, const char* destdir, uint64_t addres
     char debuginfo_path[BUFLEN];
     char debuginfo_copy_path[BUFLEN];
     snprintf(debuginfo_path, BUFLEN, "%s", srcfile);
-    char *p = strstr(debuginfo_path, ".so");
+    char* p = strstr(debuginfo_path, ".so");
     if (p != nullptr) {
         snprintf(p, BUFLEN, ".debuginfo"); // Append to debuginfo_path in place of .so
         if (file_exists_pd(debuginfo_path)) {

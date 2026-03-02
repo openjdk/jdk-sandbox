@@ -222,6 +222,7 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
                     // Other errors
                     System.out.print(out);
                     System.out.println("ERROR (" + e + ")");
+                    continue; // ...and retry.
                 }
                 // Success.
 

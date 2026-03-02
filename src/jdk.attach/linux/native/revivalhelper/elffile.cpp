@@ -170,7 +170,7 @@ ELFFile::ELFFile(const char* filename, const char* libdir) {
 
     // Open for writing as we may be relocating:
     m = mmap(0, length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (m == (void *) -1) {
+    if (m == (void*) -1) {
         warn("ELFFile: mmap of ELF file '%s' failed: %s", filename, strerror(errno));
         m = nullptr;
         return; // invalid ELF file
@@ -184,14 +184,14 @@ ELFFile::ELFFile(const char* filename, const char* libdir) {
 
     // Set absolute ph and sh pointers for ease.
     // Careful with ptr arithmetic, do NOT use:
-    // = (Elf64_Phdr*) (char *) m + (hdr->e_phoff);
+    // = (Elf64_Phdr*) (char*) m + (hdr->e_phoff);
     // But use:
-    ph = (Elf64_Phdr*) ((char *) m + (hdr->e_phoff));
+    ph = (Elf64_Phdr*) ((char*) m + (hdr->e_phoff));
 
     if (hdr->e_shoff > 0) {
-        sh = (Elf64_Shdr*) ((char *) m + (hdr->e_shoff));
+        sh = (Elf64_Shdr*) ((char*) m + (hdr->e_shoff));
         Elf64_Shdr* strndx_shdr = section_by_index(hdr->e_shstrndx);
-        shdr_strings = (char *) m + strndx_shdr->sh_offset;
+        shdr_strings = (char*) m + strndx_shdr->sh_offset;
     } else {
         // cores don't usually have Sections
         sh = nullptr;
@@ -248,11 +248,11 @@ bool ELFFile::section_name_is(Elf64_Shdr* shdr, const char* name) {
 }
 
 Elf64_Shdr* ELFFile::next_sh(Elf64_Shdr* s) {
-    return (Elf64_Shdr*) ((char *) s + hdr->e_shentsize);
+    return (Elf64_Shdr*) ((char*) s + hdr->e_shentsize);
 }
 
 Elf64_Phdr* ELFFile::next_ph(Elf64_Phdr* p) {
-   return (Elf64_Phdr*) ((char *) p + hdr->e_phentsize);
+   return (Elf64_Phdr*) ((char*) p + hdr->e_phentsize);
 }
 
 Elf64_Shdr* ELFFile::section_by_name(const char* name) {
@@ -450,10 +450,10 @@ char* ELFFile::find_note_data(Elf64_Phdr* notes_ph, Elf64_Word type) {
 
     while (nhdr < end) {
         logd("NOTE at %p type 0x%x namesz %x descsz %x", nhdr, nhdr->n_type, nhdr->n_namesz, nhdr->n_descsz);
-        char *pos = (char*) nhdr;
+        char* pos = (char*) nhdr;
         pos += sizeof(Elf64_Nhdr);
         if (nhdr->n_namesz > 0) {
-            char *name = (char *) pos;
+            char* name = (char*) pos;
             logd("NOTE name='%s'", name);
             pos += nhdr->n_namesz; // n_namesz includes terminator
         }
@@ -471,7 +471,7 @@ char* ELFFile::find_note_data(Elf64_Phdr* notes_ph, Elf64_Word type) {
     return nullptr;
 }
 
-/*
+/**
  * Read shared library list from the NT_FILE NOTE in a core file.
  */
 void ELFFile::read_sharedlibs() {
@@ -609,7 +609,7 @@ void ELFFile::write_symbols(int symbols_fd, const char* symbols[], int count) {
     if (strtab == nullptr || symtab == nullptr) {
         return;
     }
-    char* SYMTAB_BUFFER = (char *) m + strtab->sh_offset;
+    char* SYMTAB_BUFFER = (char*) m + strtab->sh_offset;
     for (long unsigned int i = 0; i < symtab->sh_size / symtab->sh_entsize; i++) {
         Elf64_Sym* sym = (Elf64_Sym*) ((uint64_t) m + (symtab->sh_offset + i * symtab->sh_entsize));
 
