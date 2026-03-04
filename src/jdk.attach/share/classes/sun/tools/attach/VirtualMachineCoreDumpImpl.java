@@ -189,10 +189,6 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
         // Run the helper.
         // Be prepared for it to fail, e.g. if Address Space Layout Randomization is unkind and causes
         // a clash, recognise from the process return value and retry.
-        //
-        // This method returns an InputStream, although until recently there was no streaming from jcmd,
-        // the full output was written to a buffer and then printed.
-        // Read the whole output, and only return it if it is a successful run.
         int tries = Integer.getInteger("jdk.attach.core.tries", HELPER_TRIES);
         String out = null;
 
@@ -208,10 +204,11 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
                 // Future<String> stderr = executor.submit(() -> drain(p.getErrorStream()));
                 int e = p.waitFor();
                 out = stdout.get(5, TimeUnit.SECONDS);
+
                 if (e == 1) {
                     // Actual error from JCmd, e.g. Exception thrown by command implementation.
                     System.out.print(out);
-                    throw new IOException("jcmd returned an error");  // JCmd caller will call System.exit(1);
+                    throw new IOException("jcmd returned an error");  // JCmd caller will call System.exit(1)
                 } else if (e == HELPER_RETRY) {
                     if (verbose) {
                         System.err.print(out);
@@ -222,7 +219,7 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
                     // Other errors
                     System.out.print(out);
                     System.out.println("ERROR (" + e + ")");
-                    continue; // ...and retry.
+                    continue; // retry
                 }
                 // Success.
 
