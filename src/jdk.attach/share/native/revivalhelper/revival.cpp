@@ -767,7 +767,6 @@ char* find_filename_in_one_dir(const char* dir, const char* filename) {
 
     while (true) {
         snprintf(path, BUFLEN - 1, "%s%s%s", dir, FILE_SEPARATOR, p);
-        logv("find_filename_in_one_dir: checking %s", path);
         if (file_exists_pd(path)) {
            return strdup(path);
         }
@@ -780,7 +779,7 @@ char* find_filename_in_one_dir(const char* dir, const char* filename) {
             break;
         }
     }
-    warn("Could not find %s in %s", filename, dir);
+    logd("find_filename_in_one_dir: Could not find '%s' in '%s'", filename, dir);
     return nullptr;
 }
 
@@ -792,8 +791,8 @@ char* find_filename_in_one_dir(const char* dir, const char* filename) {
 char* find_filename_in_libdir(const char* libdir, const char* filename) {
     char dir[BUFLEN];
     char* result = nullptr;
-
     logv("find_filename_in_libdir: checking libdir %s", libdir);
+    // On Windows, filename may begin with "C:\", which does not work inside libdir, but is removed on next iteration.
     char* start = (char*) libdir;
     char* end = strstr(start, PATH_SEPARATOR);
     while (end != nullptr) {
@@ -804,6 +803,7 @@ char* find_filename_in_libdir(const char* libdir, const char* filename) {
             dir[len] = 0;
             result = find_filename_in_one_dir(dir, filename);
             if (result != nullptr) {
+                logv("find_filename_in_libdir: query '%s' found '%s'", filename, result);
                 return result;
             }
         }

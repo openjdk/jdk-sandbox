@@ -104,57 +104,34 @@ uint64_t PEFile::file_offset_for_reladdr(uint64_t reladdr) {
 }
 
 // static
-bool PEFile::relocate(const char* filename, uint64_t address) {
-    logv("PEFile::relocate: %s to 0x%llx", filename, address);
-
+bool PEFile::rebase(const char* filename, uint64_t address) {
+    logv("PEFile::rebase: %s to 0x%llx", filename, address);
     // Use RebaseImage64: once to find image size, then again to rebase.
-    PCSTR SymbolPath = nullptr;
     ULONG OldImageSize;
     ULONG64 OldImageBase;
     ULONG NewImageSize;
     ULONG64 NewImageBase;
-    BOOL e = ReBaseImage64(filename, SymbolPath, FALSE /* fReBase */, TRUE /* system file */, FALSE /* rebase downwards */,
-                           0 /* max size */, &OldImageSize, &OldImageBase, &NewImageSize, &NewImageBase, 0 /* TimeStamp */);
-    warn("ReBaseImage64 (1): OldImageSize 0x%llx  OldImageBase 0x%llx  NewImageSize 0x%llx  NewImageBase 0x%llx",
-          OldImageSize, OldImageBase, NewImageSize, NewImageBase);
+    BOOL e = ReBaseImage64(filename, nullptr /* SymbolPath */, FALSE /* fReBase */, TRUE /* fRebaseSysfileOk */, FALSE /* fGoingDown */,
+                           0 /* CheckImageSize */, &OldImageSize, &OldImageBase, &NewImageSize, &NewImageBase, 0 /* TimeStamp */);
     if (!e) {
+        warn("ReBaseImage64 (1): OldImageSize 0x%llx  OldImageBase 0x%llx  NewImageSize 0x%llx  NewImageBase 0x%llx",
+          OldImageSize, OldImageBase, NewImageSize, NewImageBase);
         error("ReBaseImage64 (1) failed: %d", GetLastError());
     }
     NewImageBase = address + NewImageSize;
-
-    // ReBaseImage64 occasionally does not honour the request.
-    // Retrying in a loop here may not resolve it (suggesting it could be an address space clash).
-    int count = 0;
-    while (count < 10) {
-        e = ReBaseImage64(filename, SymbolPath, TRUE /* fReBase */, TRUE /* system file */, TRUE /* rebase downwards */,
-                            0 /* max size */, &OldImageSize, &OldImageBase, &NewImageSize, &NewImageBase, 0 /* TimeStamp */);
-
-        logv("ReBaseImage64 (2): OldImageSize 0x%llx  OldImageBase 0x%llx  NewImageSize 0x%llx  NewImageBase 0x%llx",
-            OldImageSize, OldImageBase, NewImageSize, NewImageBase);
-        if (!e) {
-            error("ReBaseImage64 (2) failed: %d", GetLastError());
-        }
-        if (NewImageBase == address) {
-            if (count > 0 ) {
-                logv("ReBaseImage64 OK after tries: %d", count);
-            }
-            break;
-        } else {
-            warn("PEFile::relocate count %d", count);
-            warn("Relocate failed: new base 0x%llx != required 0x%llx", NewImageBase, address);
-            e = ReBaseImage64(filename, SymbolPath, TRUE /* fReBase */, TRUE /* system file */, FALSE /* rebase downwards */,
-                            0 /* max size */, &OldImageSize, &OldImageBase, &NewImageSize, &NewImageBase, 0 /* TimeStamp */);
-            if (!e) {
-                error("ReBaseImage64 (2) retry failed: %d", GetLastError());
-            }
-            if (NewImageBase != address) {
-                warn("Relocate failed: (2) new base 0x%llx != required 0x%llx", NewImageBase, address);
-                // We are relocating the copy in the revival cache directory.  Our caller can delete the file so it can retry.
-                e = false;
-            }
-            waitHitRet();
-        }
-        count++;
+    e = ReBaseImage64(filename, nullptr /* SymbolPath */, TRUE /* fReBase */, TRUE /* fRebaseSysfileOk */, TRUE /* fGoingDown */,
+                      0 /* CheckImageSize */, &OldImageSize, &OldImageBase, &NewImageSize, &NewImageBase, 0 /* TimeStamp */);
+    if (!e) {
+        warn("ReBaseImage64 (2): OldImageSize 0x%llx  OldImageBase 0x%llx  NewImageSize 0x%llx  NewImageBase 0x%llx",
+          OldImageSize, OldImageBase, NewImageSize, NewImageBase);
+        error("ReBaseImage64 (2) failed: %d", GetLastError());
+    }
+    if (NewImageBase != address) {
+        // Would be great to verify if NewImageBase == address but that is not reliable.
+        // Sometimes (particularly for a "high" address like 0x7fff9fbd0000) NewImageBase gets set to a different address, and retrying
+        // never sees the desired address, but on inspecting the file ImageBase was set as requested.
+        warn("ReBaseImage64: NewImageBase 0x%llx != requested 0x%llx (info only, does not mean ImageBase was not set as requested)",
+             NewImageBase, address);
     }
     return e;
 }

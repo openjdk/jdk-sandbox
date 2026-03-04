@@ -124,11 +124,11 @@ unsigned long long max_user_vaddr_pd() {
 }
 
 void tls_initial_save_pd() {
-    warn("tls: PID %ld thread: 0x%lx", _getpid(), GetCurrentThreadId());
+    logv("tls: PID %ld thread: 0x%lx", _getpid(), GetCurrentThreadId());
     cur_teb = (uint64_t*) NtCurrentTeb();           // TEB pointer on x64 in GS reg.
     cur_tls = (uint64_t*) ((char*) cur_teb + 0x58); // Read TLS ptr at offset. Or: tls =  __readgsqword(0x58);
     saved_tls = *cur_tls;
-    warn("tls: current teb = 0x%llx tls ptr at 0x%llx contains 0x%llx", cur_teb, cur_tls, saved_tls);
+    logv("tls: current teb = 0x%llx tls ptr at 0x%llx contains 0x%llx", cur_teb, cur_tls, saved_tls);
     waitHitRet();
 }
 
@@ -140,19 +140,19 @@ void tls_fixup_pd(void *core_teb) {
 
     // Replace current TLS with that from MiniDump:
     *cur_tls = *core_tls;
-    warn("tls_fixup: fixed, cur teb = 0x%llx new tls = 0x%llx contains 0x%llx", cur_teb, cur_tls, *cur_tls);
+    logv("tls_fixup: fixed, cur teb = 0x%llx new tls = 0x%llx contains 0x%llx", cur_teb, cur_tls, *cur_tls);
     waitHitRet();
 }
 
 void tls_revert_pd() {
-    warn("tls: index  0x%llx", rdata->tls_index);
+    logv("tls: index  0x%llx", rdata->tls_index);
     uint64_t* cur_teb_refetch = (uint64_t*) NtCurrentTeb();
     if (cur_teb != cur_teb_refetch) {
         warn("tls_fixup: cur teb = 0x%llx != refetched = 0x%llx", cur_teb, cur_teb_refetch);
     }
-    warn("tls_fixup: revert: cur teb = 0x%llx tls ptr at 0x%llx contains 0x%llx", cur_teb, cur_tls, *cur_tls);
+    logv("tls_fixup: revert: cur teb = 0x%llx tls ptr at 0x%llx contains 0x%llx", cur_teb, cur_tls, *cur_tls);
     *cur_tls = 0; // saved_tls;
-    warn("tls_fixup: reverted, cur teb = 0x%llx tls ptr at 0x%llx contains 0x%llx", cur_teb, cur_tls, *cur_tls);
+    logv("tls_fixup: reverted, cur teb = 0x%llx tls ptr at 0x%llx contains 0x%llx", cur_teb, cur_tls, *cur_tls);
     waitHitRet();
 }
 
@@ -225,17 +225,15 @@ LONG WINAPI topLevelUnhandledExceptionFilter(struct _EXCEPTION_POINTERS* excepti
     // _M_ARM64 would be: pc = exceptionInfo->ContextRecord->Pc;
     error("revival: handler: unsupported platform");
 #endif
-
     uint64_t addr = (uint64_t) exceptionInfo->ExceptionRecord->ExceptionInformation[1];
     warn("revival: handler: PID %ld thread: 0x%lx pc 0x%llx address 0x%llx ", _getpid(), GetCurrentThreadId(), pc, addr);
 
-    // Note any access to areas we failed to map:
+    // Note any access to areas we failed to map: only informational, does not change our behavior.
     std::list<Segment>::iterator iter;
     for (iter = failedSegments.begin(); iter != failedSegments.end(); iter++) {
         if (addr >= (uint64_t) iter->vaddr &&
                 (unsigned long long) addr < (unsigned long long) (iter->vaddr) + (unsigned long long)(iter->length) ) {
             warn("Access to segment that failed to revive: si_addr = %p in failed segment %p", addr, iter->vaddr);
-            exitForRetry();
         }
     }
     waitHitRet();
@@ -250,7 +248,7 @@ void install_handler() {
 void remove_handler() {
     LPTOP_LEVEL_EXCEPTION_FILTER prev = SetUnhandledExceptionFilter(nullptr);
     if (prev != previousUnhandledExceptionFilter) {
-        warn("huh");
+        warn("remove_handler: Not the expected previous handler.");
     }
 }
 
@@ -655,7 +653,7 @@ char* check_editbin() {
 int relocate_sharedlib_pd(const char *filename, const void *addr) {
     if (editbin == nullptr) {
         // Normal usage, editbin not specified:
-        if (!PEFile::relocate(filename, (long long) addr)) {
+        if (!PEFile::rebase(filename, (long long) addr)) {
             return -1;
         }
         if (!PEFile::remove_dynamicbase(filename)) {
@@ -845,6 +843,7 @@ bool create_directory_pd(char* dirname) {
 }
 
 void delete_file_pd(char* filename) {
+    logv("delete_file_pd: %s", filename);
     if (!DeleteFile(filename)) {
         warn("%s: delete failed: %d", filename, GetLastError());
     }

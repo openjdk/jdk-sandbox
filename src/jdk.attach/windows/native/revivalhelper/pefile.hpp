@@ -61,9 +61,9 @@ class PEFile {
     // Locate data segments in named file.  Populate output parameters.
     bool find_data_segs(void* address, Segment** _data, Segment** _rdata, Segment** _iat);
 
-    // Relocate a file to a new absolute load address.
+    // Rebase a file to a new absolute load address.
     // *Destructive*: changes the actual named file.
-    static bool relocate(const char* filename, uint64_t address);
+    static bool rebase(const char* filename, uint64_t address);
 
     // Unset DLLCharacteristic IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
     // *Destructive*: changes the actual named file.
@@ -78,5 +78,4 @@ class PEFile {
 
     void imageLoad();
 };
-
 #endif

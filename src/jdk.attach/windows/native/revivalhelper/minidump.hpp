@@ -80,7 +80,6 @@ class MiniDump {
     const char* libdir;
     int fd;
     _MINIDUMP_HEADER hdr;
-
     std::list<Segment> libs;
     void read_sharedlibs(); // populate module list, and locate jvm
 
