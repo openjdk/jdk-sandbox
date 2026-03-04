@@ -59,7 +59,7 @@ class ELFFile {
     void relocate(long displacement);
 
     // Write the list of memory mappings in the core.
-    void write_mem_mappings(int mappings_fd, const char* exec_name);
+    void write_mem_mappings(int mappings_fd);
 
     // Write symbol list for revived process.
     void write_symbols(int symbols_fd, const char* symbols[], int count);

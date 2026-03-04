@@ -655,15 +655,10 @@ std::list<Segment> ELFFile::get_library_mappings() {
 }
 
 
-void ELFFile::write_mem_mappings(int mappings_fd, const char* exec_name) {
-   /* For each program header:
-    *   Skip if:
-    *     filesize or memsize is zero
-    *     it touches an unwanted mapping
-    *     not writeable and inOtherMapping
-    *
-    *   Create a Segment, call Segment::write_mapping(int fd) to write an "M" entry.
-    */
+void ELFFile::write_mem_mappings(int mappings_fd) {
+    // For each Program Header, create a Segment, call Segment::write_mapping(int fd) to write an "M" entry.
+    // Skip if PH is trivial, i.e. filesize or memsize is zero.
+    // Skip if PH is non-writable, and clashes with a library mapping (i.e. we only want library data).
     logv("write_mem_mappings");
     if (!is_core()) {
         warn("write_mem_mappings: Not writing mappings for non-core file: %s", filename);
@@ -683,31 +678,8 @@ void ELFFile::write_mem_mappings(int mappings_fd, const char* exec_name) {
             break; // Kernel mapping?  Not something we can map in.  Phdrs are in ascending address order.
         }
 
-        // Now we want to exclude this mapping if it touches any unwanted mapping.
-        // Let's start with /bin/java #1
-        // If the virtaddr is between start and end, it touches, exclude it
-        bool skip = false;
-
-        std::list<Segment>::iterator iter;
-        for (iter = libs.begin(); iter != libs.end(); iter++) {
-            Segment lib = *iter;
-
-            if (is_inside(phdr, lib.start(), lib.end())
-                && strstr(lib.name, exec_name) /*|| false //!(phdr.p_flags & PF_W)) */
-               ) {
-                skip = true;
-                break;
-            }
-        }
-        if (skip) {
-            logd("Skipping due to %s at 0x%lx", exec_name, phdr->p_vaddr);
-            n_skipped++;
-            phdr = next_ph(phdr);
-            continue;
-        }
-
+		bool skip = false;
         if (!(phdr->p_flags & PF_W)) {
-            skip = false;
             std::list<Segment>::iterator iter;
             for (iter = libs.begin(); iter != libs.end(); iter++) {
                 Segment lib = *iter;
@@ -727,7 +699,6 @@ void ELFFile::write_mem_mappings(int mappings_fd, const char* exec_name) {
         s.write_mapping(mappings_fd);
         phdr = next_ph(phdr);
     }
-
     logv("write_mem_mappings done.  Skipped = %i", n_skipped);
 }
 
