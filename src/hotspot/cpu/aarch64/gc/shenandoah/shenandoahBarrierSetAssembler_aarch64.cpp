@@ -875,17 +875,10 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ push(saved, sp);
 
   // Do we need to load the previous value?
-  if (_addr_reg != noreg) {
-    __ load_heap_oop(rscratch3, Address(rscratch3, 0), noreg, noreg, AS_RAW);
-    // FIXME: We can merge this on the load above
-    __ cbz(rscratch3, L_done);
-  } else {
-    if (_dst_narrow) {
-      __ decode_heap_oop(rscratch3, &L_done);
-    } else {
-      __ cbz(rscratch3, L_done);
-    }
-  }
+  __ load_heap_oop(rscratch3, Address(rscratch3, 0), noreg, noreg, AS_RAW);
+
+  // FIXME: We can merge this on the load above
+  __ cbz(rscratch3, L_done);
 
   satb(&masm, this, rscratch1, rscratch2, rscratch3, &L_done);
 
@@ -903,12 +896,12 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   if (_narrow) {
     if (_maybe_null) {
-      __ decode_heap_oop(_dst, &L_lrb);
+      __ decode_heap_oop(_dst, continuation());
     } else {
       __ decode_heap_oop_not_null(_dst);
     }
   } else {
-    __ cbz(_dst, L_lrb);
+    __ cbz(_dst, *continuation());
   }
 
   { // SATB
@@ -1061,10 +1054,14 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, ShenandoahBarrierStubC2*
   {
     SaveLiveRegisters save_registers(masm, stub);
     assert(obj != addr, "sanity address and obj can't be the same.");
-    assert(c_rarg0 != addr, "need to be separate registers, otherwise we override data.");
-    assert(c_rarg1 != obj, "sanity");
 
-    masm->mov(c_rarg0, obj);
+    if (c_rarg0 != obj) {
+      if (c_rarg0 == addr) {
+        masm->mov(rscratch1, addr);
+        addr = rscratch1;
+      }
+      masm->mov(c_rarg0, obj);
+    }
     masm->mov(c_rarg1, addr);
 
     if (narrow) {

@@ -5278,11 +5278,14 @@ void  MacroAssembler::decode_heap_oop(Register d, Register s, Label* L_null_targ
     } else if (d != s) {
       mov(d, s);
     }
+    if (L_null_target != nullptr) {
+      cbz(d, *L_null_target);
+    }
   } else {
     Label done;
     if (d != s)
       mov(d, s);
-    cbz(s, L_null_target != nullptr ? *L_null_target : done);
+    cbz(d, L_null_target != nullptr ? *L_null_target : done);
     add(d, rheapbase, s, Assembler::LSL, LogMinObjAlignmentInBytes);
     bind(done);
   }
