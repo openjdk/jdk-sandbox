@@ -656,6 +656,9 @@ int relocate_sharedlib_pd(const char *filename, const void *addr) {
         if (!PEFile::rebase(filename, (long long) addr)) {
             return -1;
         }
+        if (!PEFile::rebase(filename, (long long) addr)) {
+            return -1;
+        }
         if (!PEFile::remove_dynamicbase(filename)) {
             return -1;
         }
