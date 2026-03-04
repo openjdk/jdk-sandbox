@@ -1007,6 +1007,8 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
                 __ cbz(rscratch3, L_done);
               }
 
+              preserve(_expected);
+              preserve(_result);
               satb(&masm, this, rscratch1, rscratch2, rscratch3, &L_done);
 
               __ bind(L_done);
