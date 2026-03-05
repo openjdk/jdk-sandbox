@@ -26,7 +26,6 @@
 #ifndef REVIVAL_H
 #define REVIVAL_H
 
-
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -168,9 +167,9 @@ int revive_image(const char* corefile, const char* javahome, const char* libdir,
 int revival_dcmd(const char* command);
 
 /**
- * Perform any cleanup after revival operation.
+ * Perform any cleanup after revival operation and exit process.
  */
-int revival_done();
+void revival_exit(int e);
 
 //
 // Revival internals:

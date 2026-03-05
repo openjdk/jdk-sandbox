@@ -124,7 +124,7 @@ unsigned long long max_user_vaddr_pd() {
 }
 
 void tls_initial_save_pd() {
-    logv("tls: PID %ld thread: 0x%lx", _getpid(), GetCurrentThreadId());
+    warn("tls: PID %ld thread: 0x%lx", _getpid(), GetCurrentThreadId());
     cur_teb = (uint64_t*) NtCurrentTeb();           // TEB pointer on x64 in GS reg.
     cur_tls = (uint64_t*) ((char*) cur_teb + 0x58); // Read TLS ptr at offset. Or: tls =  __readgsqword(0x58);
     saved_tls = *cur_tls;
@@ -140,7 +140,7 @@ void tls_fixup_pd(void *core_teb) {
 
     // Replace current TLS with that from MiniDump:
     *cur_tls = *core_tls;
-    logv("tls_fixup: fixed, cur teb = 0x%llx new tls = 0x%llx contains 0x%llx", cur_teb, cur_tls, *cur_tls);
+    warn("tls_fixup: fixed, cur teb = 0x%llx new tls = 0x%llx contains 0x%llx", cur_teb, cur_tls, *cur_tls);
     waitHitRet();
 }
 
@@ -179,7 +179,6 @@ void init_pd() {
     install_kernelbase_1803_symbol_or_exit(pMapViewOfFile3, "MapViewOfFile3");
 }
 
-
 void normalize_path_pd(char *s) {
     for (char *p = s; *p != '\0'; p++) {
         if (*p == '/') *p = '\\';
@@ -212,7 +211,6 @@ int revival_checks_pd(const char *dirname) {
 
 
 // Exception handler:
-
 LPTOP_LEVEL_EXCEPTION_FILTER previousUnhandledExceptionFilter = nullptr;
 
 LONG WINAPI topLevelUnhandledExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo) {
@@ -281,7 +279,6 @@ void *symbol_dynamiclookup_pd(void *h, const char*str) {
     return (void*) s;
 }
 
-
 void *load_sharedobject_pd(const char *name, void *vaddr) {
     int max_tries = 1; // Retrying, even when allocating to force a new address, is not usually succesfull.
 
@@ -346,7 +343,6 @@ bool mem_canwrite_pd(void *vaddr, size_t length) {
     HANDLE hProc = GetCurrentProcess();
     size_t q = VirtualQueryEx(hProc, vaddr, &meminfo, sizeof(meminfo));
 
-
     if (q == sizeof(meminfo)) {
         if (meminfo.Protect == PAGE_EXECUTE_READWRITE
             || meminfo.Protect == PAGE_EXECUTE_WRITECOPY
@@ -358,7 +354,7 @@ bool mem_canwrite_pd(void *vaddr, size_t length) {
             logd("    mem_canwrite_pd: %p protect: 0x%lx: NO", vaddr, meminfo.Protect);
             //fprintf(stderr, "    ");
             //printMemBasicInfo(meminfo);
-            set_prot(vaddr, length);
+            // set_prot(vaddr, length);
             return false;
         }
     } else {
@@ -366,8 +362,6 @@ bool mem_canwrite_pd(void *vaddr, size_t length) {
     }
     return false;
 }
-
-
 
 /**
  * Map a file into memory.
@@ -564,12 +558,11 @@ void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length) {
     return p;
 }
 
-
 void *do_map_allocate_pd(void *vaddr, size_t length) {
     // mappings file is created with minidump addresses, not necessarily 64k aligned.
 
     uint64_t vaddr_aligned = align_down((uint64_t) vaddr, vaddr_alignment_pd());
-    uint64_t diff = (uint64_t) vaddr -  (uint64_t) vaddr_aligned;
+    uint64_t diff = (uint64_t) vaddr - (uint64_t) vaddr_aligned;
     size_t length_aligned = length + diff;
     length_aligned = align_up(length_aligned, vaddr_alignment_pd());
 
@@ -581,13 +574,12 @@ void *do_map_allocate_pd(void *vaddr, size_t length) {
 
     // Accept the aligned down address and return as if the requested vaddr was honoured.
     if (r == vaddr_aligned) {
-        set_prot(vaddr, length);
+        // set_prot((void*) vaddr_aligned, length_aligned);
         return vaddr;
     } else {
         return (void*) r;
     }
 }
-
 
 char* readstring_at_offset_pd(const char* filename, uint64_t offset) {
    int fd = open(filename, O_RDONLY | O_BINARY);
@@ -611,9 +603,7 @@ char* readstring_from_core_at_vaddr_pd(const char* filename, uint64_t addr) {
     return dump.readstring_at_address(addr);
 }
 
-
 void copy_file_pd(const char *srcfile, const char *destfile) {
-
     // Normalise paths
     char* s = (char *) malloc(strlen(srcfile) + 1); // or strdup
     char* d = (char *) malloc(strlen(destfile) + 1);
@@ -649,7 +639,6 @@ char* check_editbin() {
     }
 }
 
-
 int relocate_sharedlib_pd(const char *filename, const void *addr) {
     if (editbin == nullptr) {
         // Normal usage, editbin not specified:
@@ -681,7 +670,6 @@ int relocate_sharedlib_pd(const char *filename, const void *addr) {
         return e;
     }
 }
-
 
 void write_mem_mappings(MiniDump* dump, int fd, const char *corename,
                        Segment* jvm_data_seg, Segment* jvm_rdata_seg, Segment* jvm_iat_seg) {

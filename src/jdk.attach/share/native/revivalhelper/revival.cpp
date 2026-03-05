@@ -25,8 +25,6 @@
 
 #include "revival.hpp"
 
-// Behavior settings:
-
 // Diagnostics
 int logLevel = 0;
 int debugPause = false;
@@ -60,7 +58,6 @@ uint64_t align_up(uint64_t ptr, uint64_t mask) {
     return (ptr & ~mask) + mask + 1;
 }
 
-
 void write0(int fd, const char* buf) {
     size_t len = strlen(buf);
     int e = (int) write(fd, buf, (unsigned int) len);
@@ -82,7 +79,6 @@ void writef(int fd, const char* format, ...) {
     write0(fd, buffer);
 }
 
-
 /**
  * Read a char string from an fd.
  */
@@ -102,7 +98,6 @@ char* readstring(int fd) {
     return buf;
 }
 
-
 void log0(const char* msg) {
     // Add timestamp and newline to message, write on stderr.
     char buffer[BUFLEN];
@@ -113,7 +108,6 @@ void log0(const char* msg) {
 #else
     // TODO timestamp on Windows
     snprintf(buffer, BUFLEN - 1, "%s\n", msg);
-
 #endif
     write0(2 /* stderr */, buffer);
 }
@@ -276,16 +270,7 @@ int revival_mapping_mmap(void* vaddr, size_t length, size_t offset, int lines, c
     logv("  revival_mapping_mmap: map %d: " PTR_FORMAT " (to " PTR_FORMAT ") len=0x%zx fileoffset=0x%llx",
          lines, (uintptr_t) vaddr, (uintptr_t) ((uint64_t) vaddr + length), length, (long long) offset);
 
-    /*if (unmapFirst) {
-        logv("  revival_mapping_mmap: try UNMAP %p len=0x%zx", vaddr, length);
-        e = do_munmap_pd(vaddr, length);
-        if (e) {
-            warn("  revival_mapping_mmap: unmap %d failed: vaddr %p: returns: %d", lines, vaddr, e);
-        }
-    }*/
-
     void* mapped_addr = do_mmap_pd(vaddr, length, filename, fd, offset);
-
     // Accept the wanted address, or if it was aligned-down:
     if (mapped_addr != vaddr && mapped_addr != (void*) align_down((uint64_t) vaddr, vaddr_alignment_pd())) {
         logv("  revival_mapping_mmap: line %d: mapping failed: wanted vaddr: %p returned: %p", lines, vaddr, mapped_addr);
@@ -305,7 +290,6 @@ int revival_mapping_mmap(void* vaddr, size_t length, size_t offset, int lines, c
     return e;
 }
 
-
 int revival_mapping_allocate(void* vaddr, size_t length) {
     void* e = do_map_allocate_pd(vaddr, length);
     if (e != vaddr) {
@@ -313,7 +297,6 @@ int revival_mapping_allocate(void* vaddr, size_t length) {
     }
     return 0;
 }
-
 
 /**
  * revival_mapping_copy
@@ -342,7 +325,6 @@ int revival_mapping_copy(void* vaddr, size_t length, size_t offset, bool allocat
         warn("  revival_mapping_copy: cannot write at vaddr 0x%p length " SIZE_FORMAT_X_0, vaddr, length);
         return -1;
     }
-
     // Copy data to allocation:
     FILE* f = fopen(filename, "rb");
     if (!f) {
@@ -373,7 +355,6 @@ int revival_mapping_copy(void* vaddr, size_t length, size_t offset, bool allocat
     return 0;
 }
 
-
 /**
  * Load a shared library, using directory name and library name, at the given address.
  * Returns the value from load_sharedobject_pd(), which is an opaque handle (not necessarily the address), or -1 for error.
@@ -385,7 +366,6 @@ void* load_sharedlibrary_fromdir(const char* dirname, const char* libname, void*
     logv("load_sharedobject_pd: %s: returns %p", buf, a);
     return a;
 }
-
 
 /**
  * Read and process the "core.mappings" file.
@@ -454,7 +434,6 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
         return -1;
     }
 #endif
-
     waitHitRet();
 
     // Read and process the mappings:
@@ -614,7 +593,6 @@ void* symbol_resolve_from_symbol_file(const char* dirname, const char* sym) {
     }
 }
 
-
 void* symbol_deref(const char* sym) {
     void* s = symbol(sym);
     if (s != (void*) -1) {
@@ -726,7 +704,6 @@ void* symbol_call5(const char* sym, void* arg1, void* arg2, void* arg3, void* ar
     return call5(s, arg1, arg2, arg3, arg4, arg5);
 }
 
-
 /**
  * Resolve a symbol, and store the given value in that location.
  */
@@ -747,7 +724,6 @@ int symbol_set(const char* sym, int value) {
     *(int*) s = value;
     return 0;
 }
-
 
 /**
  * Attempt to find the given filename/path in the given directory.
@@ -814,7 +790,6 @@ char* find_filename_in_libdir(const char* libdir, const char* filename) {
     return find_filename_in_one_dir(start, filename);
 }
 
-
 int mappings_file_create(const char* dirname, const char* corename) {
 // Create file and header lines:
 // core FILENAME size
@@ -860,7 +835,6 @@ int symbols_file_create(const char* dirname) {
     return fd;
 }
 
-
 /**
  * Return true if the given character pointer is a valid, set
  * environment variable (one which exists and is not null).
@@ -872,7 +846,6 @@ bool env_check(char* s) {
     }
     return false;
 }
-
 
 /**
  * Complete the revival using a helper method in the target JVM.
@@ -933,23 +906,18 @@ int revive_image_cooperative() {
     return 0;
 }
 
-
 /**
- * create_revival_cache
- *
- * Create and populate the revival data directory.
+ * Populate the revival cache data directory.
  * Only called when the directory (core.revival) does not exist.
  * Return zero on success.
  */
 int create_revival_cache(const char* corename, const char* javahome, const char* dirname, const char* libdir) {
-
     // Call the platform-dependent implementations.
-
-    // find libjvm and its load address from core
-    // copy libjvm into .revival dir
-    // relocate copy of libjvm
-    // read core file to create core.mappings file
-
+    //   find libjvm and its load address from core
+    //   copy libjvm into given cache dirname
+    //   relocate copy of libjvm
+    //   read core file to create memory mappings list
+    //   lookup symbols, create symbol file
     int e = create_revival_cache_pd(corename, javahome, dirname, libdir);
     return e;
 }
@@ -963,7 +931,6 @@ char* revival_dirname(const char* corename, const char* revival_data_path) {
     if (!buf) {
         error("Failed to allocate buffer for revival directory name.");
     }
-
     int len;
     if (revival_data_path != nullptr) {
         len = snprintf(buf, BUFLEN, "%s%s%s%s", revival_data_path, FILE_SEPARATOR, basename_pd((char*) corename), REVIVAL_SUFFIX);
@@ -990,14 +957,12 @@ char* mappings_filename_set(const char* revival_data_path) {
 
 /**
  * Read version string pointed to by some symbol, from both core and binary, and compare.
- *
- * filename parameter is the name of a file in the given directory.
- *
- * Memory mappings are in place. jvm_filename and jvm_address are set.
+ * filename parameter names a file (.so or .dll) in the given directory (the revival cache directory).
  */
 void doVersionCheck(const char* corename, const char* directory, const char* filename, void* base_address,
                     const char* version_symbol) {
 
+    // Called when memory mappings are in place, jvm_filename and jvm_address are set.
     void* ver = symbol_resolve_from_symbol_file(directory, version_symbol);
     if (ver == nullptr || ver == (void*) -1) {
         warn("No version symbol '%s' found, no version check.", version_symbol);
@@ -1039,7 +1004,6 @@ void doVersionCheck(const char* corename, const char* directory, const char* fil
     }
 }
 
-
 /**
  * Check presence of 'core.mappings' in revival directory, and copy of JVM.
  * If either are missing, revival cache is rebuilt.
@@ -1055,7 +1019,6 @@ bool revival_cache_exists(char* dirname, const char* mappings_filename) {
     }
     return true;
 }
-
 
 int revive_image(const char* corename, const char* javahome, const char* libdir, const char* revival_data_path) {
     int e;
@@ -1198,9 +1161,10 @@ int revival_dcmd(const char* command) {
     return 0;
 }
 
-int revival_done() {
+void revival_exit(int e) {
 #ifdef WINDOWS
-    tls_revert_pd();
+    // tls_revert_pd();
+    TerminateProcess(GetCurrentProcess(), e);
 #endif
-    return 0;
+    _exit(e);
 }

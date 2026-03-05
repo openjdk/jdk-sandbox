@@ -5078,7 +5078,11 @@ void os::exit(int num) {
 }
 
 void os::_exit(int num) {
-  exit_process_or_thread(EPT_PROCESS_DIE, num);
+  if (!Thread::is_revived()) {
+    exit_process_or_thread(EPT_PROCESS_DIE, num);
+  } else {
+    TerminateProcess(GetCurrentProcess(), num);
+  }
 }
 
 // Is a (classpath) directory empty?

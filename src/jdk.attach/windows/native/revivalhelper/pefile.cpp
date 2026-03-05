@@ -219,7 +219,6 @@ bool PEFile::remove_dynamicbase(const char* filename) {
     return TRUE;
 }
 
-
 bool PEFile::find_data_segs(void* address, Segment** _data, Segment** _rdata, Segment** _iat) {
     logv("PEFile::find_data_segs");
     imageLoad();
@@ -265,8 +264,6 @@ bool PEFile::find_data_segs(void* address, Segment** _data, Segment** _rdata, Se
     *_data = data;
     return true;
 }
-
-
 
 /**
  * Locate the .data section of a PE file.
