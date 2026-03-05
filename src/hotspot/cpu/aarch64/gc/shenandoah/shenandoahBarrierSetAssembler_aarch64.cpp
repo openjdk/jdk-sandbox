@@ -694,7 +694,7 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
     if (ShenandoahCASBarrierStubC2::needs_barrier(node)) {
-      ShenandoahCASBarrierStubC2* stub = ShenandoahCASBarrierStubC2::create(node, addr, oldval, newval, res, narrow, exchange, maybe_null, acquire, release, weak);
+      ShenandoahCASBarrierStubC2* stub = ShenandoahCASBarrierStubC2::create(node, Address(addr, 0), oldval, newval, res, noreg, noreg, narrow, exchange, maybe_null, acquire, release, weak);
 
       char check = 0;
       check |= ShenandoahLoadBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
@@ -731,7 +731,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
     if (ShenandoahLoadBarrierStubC2::needs_barrier(node)) {
-      ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, preval, addr);
+      ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, preval, Address(addr, 0));
 
       char check = 0;
       check |= ShenandoahLoadBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
@@ -756,7 +756,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
     if (ShenandoahStoreBarrierStubC2::needs_keep_alive_barrier(node)) {
-      ShenandoahStoreBarrierStubC2* const stub = ShenandoahStoreBarrierStubC2::create(node, addr, dst_narrow);
+      ShenandoahStoreBarrierStubC2* const stub = ShenandoahStoreBarrierStubC2::create(node, addr, dst_narrow, noreg, false, noreg);
 
       gc_state_check_c2(masm, rscratch1, ShenandoahHeap::MARKING, stub);
     }
@@ -810,16 +810,17 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
     }
   }
 
+  // FIXME: move all these checks into a new method in the stub
   if (!ShenandoahSkipBarriers && ShenandoahLoadBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
-    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, dst, addr);
+    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, dst, Address(addr, 0));
     stub->preserve(addr);
     stub->dont_preserve(dst);
 
     char check = 0;
-    check |= ShenandoahLoadBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
+    check |= ShenandoahLoadBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier_weak(node) ? ShenandoahHeap::WEAK_ROOTS : 0;
     gc_state_check_c2(masm, rscratch1, check, stub);
   }
@@ -887,6 +888,8 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ b(*continuation());
 }
 
+// FIXME: It would probably be a good idea to split the SATB and LRB in
+// separate stubs; if nothing else, it would at least make the code simpler.
 void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 

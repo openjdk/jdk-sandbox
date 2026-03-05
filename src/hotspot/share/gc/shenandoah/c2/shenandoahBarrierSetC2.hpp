@@ -186,8 +186,7 @@ public:
     return node->bottom_type()->isa_narrowoop();
   }
 
-  static ShenandoahLoadBarrierStubC2* create(const MachNode* node, Register dst, Address src);
-  static ShenandoahLoadBarrierStubC2* create(const MachNode* node, Register dst, Register addr);
+  static ShenandoahLoadBarrierStubC2* create(const MachNode* node, Register dst, Address addr);
 
   void emit_code(MacroAssembler& masm) override;
 };
@@ -219,8 +218,7 @@ public:
     return (node->barrier_data() & ShenandoahBitNotNull) != 0;
   }
 
-  static ShenandoahStoreBarrierStubC2* create(const MachNode* node, Address dst, bool dst_narrow, Register src, bool src_narrow, Register tmp);
-  static ShenandoahStoreBarrierStubC2* create(const MachNode* node, Register addr, bool dst_narrow);
+  static ShenandoahStoreBarrierStubC2* create(const MachNode* node, Address addr, bool dst_narrow, Register src, bool src_narrow, Register tmp);
 
   void emit_code(MacroAssembler& masm) override;
 };
@@ -260,8 +258,7 @@ public:
     return (node->barrier_data() & ShenandoahBitStrong) != 0;
   }
 
-  static ShenandoahCASBarrierStubC2* create(const MachNode* node, Register addr, Register expected, Register new_val, Register result, bool narrow, bool cae, bool maybe_null, bool acquire, bool release, bool weak);
-  static ShenandoahCASBarrierStubC2* create(const MachNode* node, Address addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae);
+  static ShenandoahCASBarrierStubC2* create(const MachNode* node, Address addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae, bool maybe_null, bool acquire, bool release, bool weak);
   void emit_code(MacroAssembler& masm) override;
 };
 #endif // SHARE_GC_SHENANDOAH_C2_SHENANDOAHBARRIERSETC2_HPP
