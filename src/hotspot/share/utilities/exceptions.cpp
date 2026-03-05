@@ -117,7 +117,7 @@ bool Exceptions::special_exception(JavaThread* thread, const char* file, int lin
   if (Thread::is_revived()) {
     const char* exc_name = h_name != nullptr ? h_name->as_C_string() : "Exception";
     fprintf(stderr, "%s: %s\n", exc_name, (message == nullptr) ? "" : message);
-    os::_exit(1); // _exit for Windows avoids some shutdown complexity
+    os::_exit(1);
   }
 
   // bootstrapping check

@@ -46,8 +46,16 @@ std::list<Segment> writableSegments;
 std::list<Segment> failedSegments;
 struct revival_data* rdata; // Data from revived JVM
 
+void revival_exit(int e) {
+#ifdef WINDOWS
+	warn("Calling TerminateProcess %d", e);
+    TerminateProcess(GetCurrentProcess(), e);
+#endif
+    _exit(e);
+}
+
 void exitForRetry() {
-    _exit(EXIT_SUGGEST_RETRY);
+    revival_exit(EXIT_SUGGEST_RETRY);
 }
 
 uint64_t align_down(uint64_t ptr, uint64_t mask) {
@@ -448,9 +456,8 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
         e = fscanf(f, "L %32s %32s %32s\n", s1, s2, s3);
         if (e == 3) {
             void* vaddr = (void*) strtoull(s2, nullptr, 16);
-            logv("Load library '%s' required at %p...", s1, vaddr);
+            warn("Load library '%s' required at %p...", s1, vaddr);
             h = load_sharedlibrary_fromdir(dirname, s1, vaddr, s3);
-            logv("load_sharedlibrary_fromdir returns: %p", h);
             if (h == (void*) -1) {
                 warn("Load library '%s' failed to load at %p", s1, vaddr);
                 return -1;
@@ -1161,10 +1168,3 @@ int revival_dcmd(const char* command) {
     return 0;
 }
 
-void revival_exit(int e) {
-#ifdef WINDOWS
-    // tls_revert_pd();
-    TerminateProcess(GetCurrentProcess(), e);
-#endif
-    _exit(e);
-}

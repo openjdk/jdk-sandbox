@@ -2106,7 +2106,7 @@ void os::init(void) {
 }
 
 void os::revive_init(void) {
-
+  // Process revival, not implemented on BSD.
 }
 
 // To install functions for atexit system call

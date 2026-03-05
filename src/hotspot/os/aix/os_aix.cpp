@@ -2275,7 +2275,7 @@ jint os::init_2(void) {
 }
 
 void os::revive_init(void) {
-
+  // Process revival, not implemented on AIX.
 }
 
 int os::active_processor_count() {

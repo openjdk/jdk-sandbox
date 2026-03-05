@@ -124,7 +124,6 @@ unsigned long long max_user_vaddr_pd() {
 }
 
 void tls_initial_save_pd() {
-    warn("tls: PID %ld thread: 0x%lx", _getpid(), GetCurrentThreadId());
     cur_teb = (uint64_t*) NtCurrentTeb();           // TEB pointer on x64 in GS reg.
     cur_tls = (uint64_t*) ((char*) cur_teb + 0x58); // Read TLS ptr at offset. Or: tls =  __readgsqword(0x58);
     saved_tls = *cur_tls;
@@ -158,6 +157,7 @@ void tls_revert_pd() {
 
 void init_pd() {
     int x;
+    warn("init_pd: PID %ld thread: 0x%lx", _getpid(), GetCurrentThreadId());
     tls_initial_save_pd(); // Save before JVM is loaded
 
     _SYSTEM_INFO systemInfo;

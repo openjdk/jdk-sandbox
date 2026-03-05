@@ -502,7 +502,7 @@ void ELFFile::read_sharedlibs() {
 
     Segment* sharedlibs = (Segment*) malloc(sizeof(Segment) * sharedlibs_count); // new Segment[sharedlibs_count];
 
-    // Two passes to read numerical data then library names.
+    // Two passes to read numerical data, then library names.
     // NT_FILE lists can contain multiple entries for the same filename.
     for (int i = 0; i < sharedlibs_count; i++) {
         sharedlibs[i].vaddr= (void*) *(long*) note_nt_file;
