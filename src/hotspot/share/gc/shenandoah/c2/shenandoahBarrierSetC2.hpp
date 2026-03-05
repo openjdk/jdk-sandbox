@@ -142,7 +142,7 @@ protected:
   static bool is_heap_access(const MachNode* node) {
     return (node->barrier_data() & ShenandoahBitNative) == 0;
   }
-  void satb(MacroAssembler* masm, ShenandoahBarrierStubC2* stub, Register scratch1, Register scratch2, Register scratch3, Label* L_done);
+  void satb(MacroAssembler* masm, ShenandoahBarrierStubC2* stub, Register scratch1, Register scratch2, Register scratch3);
   void lrb(MacroAssembler* masm, ShenandoahBarrierStubC2* stub, Register obj, Register addr, Label* L_done, bool narrow);
   static Register select_temp_register(Address addr, Register reg1 = noreg, Register reg2 = noreg);
 
@@ -160,8 +160,13 @@ class ShenandoahLoadBarrierStubC2 : public ShenandoahBarrierStubC2 {
   const bool _needs_keep_alive_barrier;
 
   ShenandoahLoadBarrierStubC2(const MachNode* node, Register dst, Register addr_reg, Address src) :
-    ShenandoahBarrierStubC2(node), _dst(dst), _addr_reg(addr_reg), _src(src), _narrow(is_narrow_result(node)),
-    _maybe_null(!src_not_null(node)), _needs_load_ref_barrier(needs_load_ref_barrier(node)),
+    ShenandoahBarrierStubC2(node),
+    _dst(dst),
+    _addr_reg(addr_reg),
+    _src(src),
+    _narrow(is_narrow_result(node)),
+    _maybe_null(!src_not_null(node)),
+    _needs_load_ref_barrier(needs_load_ref_barrier(node)),
     _needs_keep_alive_barrier(needs_keep_alive_barrier(node)) {
       assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
     }
@@ -183,7 +188,7 @@ public:
     return (node->barrier_data() & ShenandoahBitNotNull) != 0;
   }
   static bool is_narrow_result(const MachNode* node) {
-    return node->bottom_type()->isa_narrowoop();
+    return node->bottom_type()->isa_narrowoop() || node->ideal_Opcode() == Op_DecodeN;
   }
 
   static ShenandoahLoadBarrierStubC2* create(const MachNode* node, Register dst, Address addr);

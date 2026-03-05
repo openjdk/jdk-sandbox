@@ -734,8 +734,8 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
       ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, preval, Address(addr, 0));
 
       char check = 0;
-      check |= ShenandoahLoadBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
       check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
+      check |= ShenandoahLoadBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
       check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier_weak(node) ? ShenandoahHeap::WEAK_ROOTS : 0;
       gc_state_check_c2(masm, rscratch1, check, stub);
     }
@@ -796,7 +796,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
 
 void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm,
                                             Register dst, Register addr, bool acquire) {
-  if (node->bottom_type()->isa_narrowoop()) {
+  if (node->ideal_Opcode() == Op_DecodeN || node->bottom_type()->isa_narrowoop()) {
     if (acquire) {
       __ ldarw(dst, addr);
     } else {
@@ -823,6 +823,10 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
     check |= ShenandoahLoadBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier_weak(node) ? ShenandoahHeap::WEAK_ROOTS : 0;
     gc_state_check_c2(masm, rscratch1, check, stub);
+  }
+
+  if (node->ideal_Opcode() == Op_DecodeN) {
+    __ decode_heap_oop(dst);
   }
 }
 
@@ -881,7 +885,7 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
   // FIXME: We can merge this on the load above
   __ cbz(rscratch3, L_done);
 
-  satb(&masm, this, rscratch1, rscratch2, rscratch3, &L_done);
+  satb(&masm, this, rscratch1, rscratch2, rscratch3);
 
   __ bind(L_done);
   __ pop(saved, sp);
@@ -913,7 +917,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
     __ tbz(rscratch1, ShenandoahHeap::MARKING_BITPOS, L_lrb);
 
     preserve(_dst);
-    satb(&masm, this, rscratch1, rscratch2, _dst, &L_lrb);
+    satb(&masm, this, rscratch1, rscratch2, _dst);
   }
 
   __ bind(L_lrb); { // LRB
@@ -1012,7 +1016,7 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
 
               preserve(_expected);
               preserve(_result);
-              satb(&masm, this, rscratch1, rscratch2, rscratch3, &L_done);
+              satb(&masm, this, rscratch1, rscratch2, rscratch3);
 
               __ bind(L_done);
               __ pop(saved, sp);
@@ -1020,10 +1024,11 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
     __ b(*continuation());
 }
 
-void ShenandoahBarrierStubC2::satb(MacroAssembler* masm, ShenandoahBarrierStubC2* stub, Register scratch1, Register scratch2, Register scratch3, Label* L_done) {
+void ShenandoahBarrierStubC2::satb(MacroAssembler* masm, ShenandoahBarrierStubC2* stub, Register scratch1, Register scratch2, Register scratch3) {
   Address index(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
   Label L_runtime;
+  Label L_done;
 
   // If buffer is full, call into runtime.
   masm->ldr(scratch1, index);
@@ -1034,7 +1039,7 @@ void ShenandoahBarrierStubC2::satb(MacroAssembler* masm, ShenandoahBarrierStubC2
   masm->str(scratch1, index);
   masm->ldr(scratch2, buffer);
   masm->str(scratch3, Address(scratch2, scratch1));
-  masm->b(*L_done);
+  masm->b(L_done);
 
   // Runtime call
   masm->bind(L_runtime);
@@ -1044,6 +1049,8 @@ void ShenandoahBarrierStubC2::satb(MacroAssembler* masm, ShenandoahBarrierStubC2
     masm->mov(scratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre));
     masm->blr(scratch1);
   }
+
+  masm->bind(L_done);
 }
 
 void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, ShenandoahBarrierStubC2* stub, Register obj, Register addr, Label* L_done, bool narrow) {
