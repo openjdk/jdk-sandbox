@@ -697,6 +697,7 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
   Assembler::operand_size op_size = narrow ? Assembler::word : Assembler::xword;
 
   // Issue cmpxchg first, res will have the failure witness if CAS fails
+  // Note: the last parameter can't be rscratch1.
   __ cmpxchg(addr, oldval, newval, op_size, acquire, /* release */ true, weak, exchange ? res : rscratch2);
 
   // First CAS attempt. If successful, then we are done.
@@ -727,8 +728,9 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
 
 void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr) {
   bool acquire = needs_acquiring_load_exclusive(node);
+  bool narrow = node->bottom_type()->isa_narrowoop();
 
-  if (node->bottom_type()->isa_narrowoop()) {
+  if (narrow) {
     if (acquire) {
       __ atomic_xchgalw(preval, newval, addr);
     } else {
@@ -974,6 +976,10 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   Label L_final;
   Label L_succeded;
+  Label L_short_branch;
+  Label L_done;
+
+  Assembler::operand_size size = _narrow ? Assembler::word : Assembler::xword;
 
   // check if first CAS succeded, if it did we just need to write to SATB
   __ cbnz(_cae ? rscratch2 : _result, L_succeded);
@@ -995,12 +1001,12 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
 
           __ bind(L_final);
 
-          Assembler::operand_size size = _narrow ? Assembler::word : Assembler::xword;
           __ cmpxchg(_addr_reg, _expected, _new_val, size, _acquire, /* release */ true, _weak, _result);
 
           if (!_cae) {
             __ cset(_result, Assembler::EQ);
           }
+
           // If the retry did not succeed skip SATB
           __ br(Assembler::NE, *continuation());
 
@@ -1009,14 +1015,12 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
 
     // SATB
     __ bind(L_succeded);
-              Label short_branch;
-              Label L_done;
 
               Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
               __ ldrb(rscratch1, gcs_addr);
-              __ tbnz(rscratch1, ShenandoahHeap::MARKING_BITPOS, short_branch);
+              __ tbnz(rscratch1, ShenandoahHeap::MARKING_BITPOS, L_short_branch);
               __ b(*continuation());
-              __ bind(short_branch);
+              __ bind(L_short_branch);
 
               // We'll use "_addr_reg" register as third scratch register
               assert(_addr_reg != noreg, "should be");
@@ -1027,8 +1031,8 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
               if (_narrow) {
                 __ decode_heap_oop(rscratch3, _expected, &L_done);
               } else {
+                __ cbz(_expected, L_done);
                 __ mov(rscratch3, _expected);
-                __ cbz(rscratch3, L_done);
               }
 
               preserve(_expected);
