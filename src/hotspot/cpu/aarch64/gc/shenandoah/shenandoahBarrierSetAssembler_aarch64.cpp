@@ -47,6 +47,18 @@
 
 #define __ masm->
 
+bool needs_acquiring_load_exclusive(const MachNode *n) {
+  assert(n->is_CAS(true), "expecting a compare and swap");
+  if (n->is_CAS(false)) {
+    assert(n->has_trailing_membar() != nullptr, "expected trailing membar");
+  } else {
+    return n->has_trailing_membar();
+  }
+
+  // so we can just return true here
+  return true;
+}
+
 void ShenandoahBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, bool is_oop,
                                                        Register src, Register dst, Register count, RegSet saved_regs) {
   if (is_oop) {
@@ -680,11 +692,12 @@ void ShenandoahBarrierSetAssembler::gc_state_check_c2(MacroAssembler* masm, Regi
  *      too for CAS succeed too.
  *    - If FORWARDING bit is clear there is nothing else to do.
  */
-void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval, Register newval, bool exchange, bool maybe_null, bool narrow, bool acquire, bool release, bool weak) {
+void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval, Register newval, bool exchange, bool maybe_null, bool narrow, bool weak) {
+  bool acquire = needs_acquiring_load_exclusive(node);
   Assembler::operand_size op_size = narrow ? Assembler::word : Assembler::xword;
 
   // Issue cmpxchg first, res will have the failure witness if CAS fails
-  __ cmpxchg(addr, oldval, newval, op_size, acquire, release, weak, exchange ? res : rscratch2);
+  __ cmpxchg(addr, oldval, newval, op_size, acquire, /* release */ true, weak, exchange ? res : rscratch2);
 
   // First CAS attempt. If successful, then we are done.
   // EQ flag set iff success.
@@ -694,7 +707,7 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
     if (ShenandoahCASBarrierStubC2::needs_barrier(node)) {
-      ShenandoahCASBarrierStubC2* stub = ShenandoahCASBarrierStubC2::create(node, Address(addr, 0), oldval, newval, res, noreg, noreg, narrow, exchange, maybe_null, acquire, release, weak);
+      ShenandoahCASBarrierStubC2* stub = ShenandoahCASBarrierStubC2::create(node, Address(addr, 0), oldval, newval, res, noreg, noreg, narrow, exchange, maybe_null, acquire, weak);
 
       char check = 0;
       check |= ShenandoahLoadBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
@@ -712,7 +725,9 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
   }
 }
 
-void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr, bool acquire) {
+void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr) {
+  bool acquire = needs_acquiring_load_exclusive(node);
+
   if (node->bottom_type()->isa_narrowoop()) {
     if (acquire) {
       __ atomic_xchgalw(preval, newval, addr);
@@ -748,8 +763,8 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
 
 void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm,
                                              Register addr, bool dst_narrow,
-                                             Register src, bool src_narrow,
-                                             bool is_volatile) {
+                                             Register src, bool src_narrow) {
+  bool is_volatile = node->has_trailing_membar();
 
   // Emit barrier if needed
   if (!ShenandoahSkipBarriers && ShenandoahStoreBarrierStubC2::needs_barrier(node)) {
@@ -794,9 +809,11 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   }
 }
 
-void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm,
-                                            Register dst, Register addr, bool acquire) {
-  if (node->ideal_Opcode() == Op_DecodeN || node->bottom_type()->isa_narrowoop()) {
+void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Register addr) {
+  bool acquire = node->memory_order() == MemNode::MemOrd::acquire;
+  bool narrow = node->ideal_Opcode() == Op_DecodeN || node->bottom_type()->isa_narrowoop();
+
+  if (narrow) {
     if (acquire) {
       __ ldarw(dst, addr);
     } else {
@@ -979,7 +996,7 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
           __ bind(L_final);
 
           Assembler::operand_size size = _narrow ? Assembler::word : Assembler::xword;
-          __ cmpxchg(_addr_reg, _expected, _new_val, size, _acquire, _release, _weak, _result);
+          __ cmpxchg(_addr_reg, _expected, _new_val, size, _acquire, /* release */ true, _weak, _result);
 
           if (!_cae) {
             __ cset(_result, Assembler::EQ);

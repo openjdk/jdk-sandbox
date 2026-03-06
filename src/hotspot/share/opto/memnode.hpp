@@ -129,6 +129,8 @@ public:
   // Return the barrier data of n, if available, or 0 otherwise.
   static uint8_t barrier_data(const Node* n);
 
+  static MemOrd memory_order(const Node* n);
+
   // Map a load or store opcode to its corresponding store opcode.
   // (Return -1 if unknown.)
   virtual int store_Opcode() const { return -1; }
@@ -230,6 +232,9 @@ public:
   inline bool is_unsigned() const {
     int lop = Opcode();
     return (lop == Op_LoadUB) || (lop == Op_LoadUS);
+  }
+  inline MemOrd memory_order() const {
+    return _mo;
   }
 
   // Polymorphic factory method:
@@ -602,7 +607,9 @@ public:
     assert((_mo == unordered || _mo == release), "unexpected");
     return _mo == release;
   }
-
+  inline MemOrd memory_order() const {
+    return _mo;
+  }
   // Conservatively release stores of object references in order to
   // ensure visibility of object initialization.
   static inline MemOrd release_if_reference(const BasicType t) {

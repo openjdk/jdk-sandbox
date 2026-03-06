@@ -28,98 +28,40 @@ source %{
 #include "gc/shenandoah/c2/shenandoahBarrierSetC2.hpp"
 %}
 
-
-// BEGIN This section of the file is automatically generated from shenandoah_aarch64.m4.
-
-
-
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct store_P_Normal_shenandoah(indirect mem, iRegP src, rFlagsReg cr)
+instruct store_P_shenandoah(indirect mem, iRegP src, rFlagsReg cr)
 %{
   match(Set mem (StoreP mem src));
-  predicate(UseShenandoahGC && !needs_releasing_store(n) && n->as_Store()->barrier_data() != 0);
-  effect(KILL cr);
-  ins_cost(3*INSN_COST);
-  format %{ "str $src, $mem" %}
-  ins_encode %{
-    ShenandoahBarrierSet::assembler()->store_c2(this, masm,
-      $mem$$Register, /* dst_narrow  = */ false,
-      $src$$Register, /* src_narrow  = */ false,
-      /* is_volatile = */ false);
-  %}
-  ins_pipe(pipe_class_memory);
-%}
-
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct store_P_Volatile_shenandoah(indirect mem, iRegP src, rFlagsReg cr)
-%{
-  match(Set mem (StoreP mem src));
-  predicate(UseShenandoahGC && needs_releasing_store(n) && n->as_Store()->barrier_data() != 0);
+  predicate(UseShenandoahGC && n->as_Store()->barrier_data() != 0);
   effect(KILL cr);
   ins_cost(VOLATILE_REF_COST);
   format %{ "str $src, $mem" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
       $mem$$Register, /* dst_narrow  = */ false,
-      $src$$Register, /* src_narrow  = */ false,
-      /* is_volatile = */ true);
+      $src$$Register, /* src_narrow  = */ false);
   %}
   ins_pipe(pipe_class_memory);
 %}
 
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct store_N_Normal_shenandoah(indirect mem, iRegN src, rFlagsReg cr)
+instruct store_N_shenandoah(indirect mem, iRegN src, rFlagsReg cr)
 %{
   match(Set mem (StoreN mem src));
-  predicate(UseShenandoahGC && !needs_releasing_store(n) && n->as_Store()->barrier_data() != 0);
+  predicate(UseShenandoahGC && n->as_Store()->barrier_data() != 0);
   effect(KILL cr);
   ins_cost(3*INSN_COST);
   format %{ "str $src, $mem" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
       $mem$$Register, /* dst_narrow  = */ true,
-      $src$$Register, /* src_narrow  = */ true,
-      /* is_volatile = */ false);
+      $src$$Register, /* src_narrow  = */ true);
   %}
   ins_pipe(pipe_class_memory);
 %}
 
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct store_N_Volatile_shenandoah(indirect mem, iRegN src, rFlagsReg cr)
-%{
-  match(Set mem (StoreN mem src));
-  predicate(UseShenandoahGC && needs_releasing_store(n) && n->as_Store()->barrier_data() != 0);
-  effect(KILL cr);
-  ins_cost(VOLATILE_REF_COST);
-  format %{ "str $src, $mem" %}
-  ins_encode %{
-    ShenandoahBarrierSet::assembler()->store_c2(this, masm,
-      $mem$$Register, /* dst_narrow  = */ true,
-      $src$$Register, /* src_narrow  = */ true,
-      /* is_volatile = */ true);
-  %}
-  ins_pipe(pipe_class_memory);
-%}
-
-
-
-
-
-
-
-
-
-
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct encodePAndStoreN_Normal_shenandoah(indirect mem, iRegP src, rFlagsReg cr)
+instruct encodePAndStoreN_shenandoah(indirect mem, iRegP src, rFlagsReg cr)
 %{
   match(Set mem (StoreN mem (EncodeP src)));
-  predicate(UseShenandoahGC && !needs_releasing_store(n) && n->as_Store()->barrier_data() != 0);
+  predicate(UseShenandoahGC && n->as_Store()->barrier_data() != 0);
   effect(KILL cr);
   ins_cost(4*INSN_COST);
   format %{ "encode_heap_oop tmp, $src\n\t"
@@ -127,50 +69,19 @@ instruct encodePAndStoreN_Normal_shenandoah(indirect mem, iRegP src, rFlagsReg c
   ins_encode %{
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
       $mem$$Register, /* dst_narrow  = */ true,
-      $src$$Register, /* src_narrow  = */ false,
-      /* is_volatile = */ false);
+      $src$$Register, /* src_narrow  = */ false);
   %}
   ins_pipe(pipe_class_memory);
 %}
 
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct encodePAndStoreN_Volatile_shenandoah(indirect mem, iRegP src, rFlagsReg cr)
-%{
-  match(Set mem (StoreN mem (EncodeP src)));
-  predicate(UseShenandoahGC && needs_releasing_store(n) && n->as_Store()->barrier_data() != 0);
-  effect(KILL cr);
-  ins_cost(VOLATILE_REF_COST);
-  format %{ "encode_heap_oop tmp, $src\n\t"
-            "str  tmp, $mem\t# compressed ptr" %}
-  ins_encode %{
-    ShenandoahBarrierSet::assembler()->store_c2(this, masm,
-      $mem$$Register, /* dst_narrow  = */ true,
-      $src$$Register, /* src_narrow  = */ false,
-      /* is_volatile = */ true);
-  %}
-  ins_pipe(pipe_class_memory);
-%}
-
-
-
-
-
-
-
-
-
-
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct compareAndSwap_P_Normal_shenandoah(iRegINoSp res, indirect mem, iRegPNoSp oldval, iRegP newval, rFlagsReg cr)
+instruct compareAndSwap_P_shenandoah(iRegINoSp res, indirect mem, iRegPNoSp oldval, iRegP newval, rFlagsReg cr)
 %{
   match(Set res (CompareAndSwapP mem (Binary oldval newval)));
-  predicate(UseShenandoahGC && !needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
+  predicate(UseShenandoahGC && n->as_LoadStore()->barrier_data() != 0);
   ins_cost(VOLATILE_REF_COST);
   effect(TEMP_DEF res, KILL cr);
   format %{
-    "cmpxchg_P_Normal_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
+    "cmpxchg_P_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
   %}
   ins_encode %{
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
@@ -183,24 +94,20 @@ instruct compareAndSwap_P_Normal_shenandoah(iRegINoSp res, indirect mem, iRegPNo
       /* exchange */ false,
       /* maybe_null */ true,
       /* is_narrow */ false,
-      /* acquire */ false,
-      /* release */ true,
       /* weak */ false);
   %}
 
   ins_pipe(pipe_slow);
 %}
 
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct compareAndSwap_N_Normal_shenandoah(iRegINoSp res, indirect mem, iRegNNoSp oldval, iRegN newval, rFlagsReg cr)
+instruct compareAndSwap_N_shenandoah(iRegINoSp res, indirect mem, iRegNNoSp oldval, iRegN newval, rFlagsReg cr)
 %{
   match(Set res (CompareAndSwapN mem (Binary oldval newval)));
-  predicate(UseShenandoahGC && !needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
+  predicate(UseShenandoahGC && n->as_LoadStore()->barrier_data() != 0);
   ins_cost(VOLATILE_REF_COST);
   effect(TEMP_DEF res, KILL cr);
   format %{
-    "cmpxchg_N_Normal_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
+    "cmpxchg_N_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
   %}
   ins_encode %{
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
@@ -213,89 +120,20 @@ instruct compareAndSwap_N_Normal_shenandoah(iRegINoSp res, indirect mem, iRegNNo
       /* exchange */ false,
       /* maybe_null */ true,
       /* is_narrow */ true,
-      /* acquire */ false,
-      /* release */ true,
       /* weak */ false);
   %}
 
   ins_pipe(pipe_slow);
 %}
 
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct compareAndSwap_P_Volatile_shenandoah(iRegINoSp res, indirect mem, iRegPNoSp oldval, iRegP newval, rFlagsReg cr)
-%{
-  match(Set res (CompareAndSwapP mem (Binary oldval newval)));
-  predicate(UseShenandoahGC && needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
-  ins_cost(VOLATILE_REF_COST + 3*INSN_COST);
-  effect(TEMP_DEF res, KILL cr);
-  format %{
-    "cmpxchg_P_Volatile_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
-  %}
-  ins_encode %{
-    guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
-
-    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
-      $res$$Register,
-      $mem$$base$$Register,
-      $oldval$$Register,
-      $newval$$Register,
-      /* exchange */ false,
-      /* maybe_null */ true,
-      /* is_narrow */ false,
-      /* acquire */ true,
-      /* release */ true,
-      /* weak */ false);
-  %}
-
-  ins_pipe(pipe_slow);
-%}
-
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct compareAndSwap_N_Volatile_shenandoah(iRegINoSp res, indirect mem, iRegNNoSp oldval, iRegN newval, rFlagsReg cr)
-%{
-  match(Set res (CompareAndSwapN mem (Binary oldval newval)));
-  predicate(UseShenandoahGC && needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
-  ins_cost(VOLATILE_REF_COST + 3*INSN_COST);
-  effect(TEMP_DEF res, KILL cr);
-  format %{
-    "cmpxchg_N_Volatile_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
-  %}
-  ins_encode %{
-    guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
-
-    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
-      $res$$Register,
-      $mem$$base$$Register,
-      $oldval$$Register,
-      $newval$$Register,
-      /* exchange */ false,
-      /* maybe_null */ true,
-      /* is_narrow */ true,
-      /* acquire */ true,
-      /* release */ true,
-      /* weak */ false);
-  %}
-
-  ins_pipe(pipe_slow);
-%}
-
-
-
-
-
-
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct compareAndExchange_N_Normal_shenandoah(iRegNNoSp res, indirect mem, iRegN oldval, iRegN newval, rFlagsReg cr)
+instruct compareAndExchange_N_shenandoah(iRegNNoSp res, indirect mem, iRegN oldval, iRegN newval, rFlagsReg cr)
 %{
   match(Set res (CompareAndExchangeN mem (Binary oldval newval)));
-  predicate(UseShenandoahGC && !needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
+  predicate(UseShenandoahGC && n->as_LoadStore()->barrier_data() != 0);
   ins_cost(2*VOLATILE_REF_COST);
   effect(TEMP_DEF res, KILL cr);
   format %{
-    "cae_N_Normal_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
+    "cae_N_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
   %}
   ins_encode %{
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
@@ -308,23 +146,19 @@ instruct compareAndExchange_N_Normal_shenandoah(iRegNNoSp res, indirect mem, iRe
       /* exchange */ true,
       /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
       /* is_narrow */ true,
-      /* acquire */ false,
-      /* release */ true,
       /* weak */ false);
   %}
   ins_pipe(pipe_slow);
 %}
 
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct compareAndExchange_P_Normal_shenandoah(iRegPNoSp res, indirect mem, iRegP oldval, iRegP newval, rFlagsReg cr)
+instruct compareAndExchange_P_shenandoah(iRegPNoSp res, indirect mem, iRegP oldval, iRegP newval, rFlagsReg cr)
 %{
   match(Set res (CompareAndExchangeP mem (Binary oldval newval)));
-  predicate(UseShenandoahGC && !needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
+  predicate(UseShenandoahGC && n->as_LoadStore()->barrier_data() != 0);
   ins_cost(2*VOLATILE_REF_COST);
   effect(TEMP_DEF res, KILL cr);
   format %{
-    "cae_P_Normal_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
+    "cae_P_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
   %}
   ins_encode %{
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
@@ -337,88 +171,19 @@ instruct compareAndExchange_P_Normal_shenandoah(iRegPNoSp res, indirect mem, iRe
       /* exchange */ true,
       /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
       /* is_narrow */ false,
-      /* acquire */ false,
-      /* release */ true,
       /* weak */ false);
   %}
   ins_pipe(pipe_slow);
 %}
 
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct compareAndExchange_N_Volatile_shenandoah(iRegNNoSp res, indirect mem, iRegN oldval, iRegN newval, rFlagsReg cr)
-%{
-  match(Set res (CompareAndExchangeN mem (Binary oldval newval)));
-  predicate(UseShenandoahGC && needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
-  ins_cost(VOLATILE_REF_COST + 3*INSN_COST);
-  effect(TEMP_DEF res, KILL cr);
-  format %{
-    "cae_N_Volatile_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
-  %}
-  ins_encode %{
-    guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
-
-    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
-      $res$$Register,
-      $mem$$base$$Register,
-      $oldval$$Register,
-      $newval$$Register,
-      /* exchange */ true,
-      /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
-      /* is_narrow */ true,
-      /* acquire */ true,
-      /* release */ true,
-      /* weak */ false);
-  %}
-  ins_pipe(pipe_slow);
-%}
-
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct compareAndExchange_P_Volatile_shenandoah(iRegPNoSp res, indirect mem, iRegP oldval, iRegP newval, rFlagsReg cr)
-%{
-  match(Set res (CompareAndExchangeP mem (Binary oldval newval)));
-  predicate(UseShenandoahGC && needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
-  ins_cost(VOLATILE_REF_COST + 3*INSN_COST);
-  effect(TEMP_DEF res, KILL cr);
-  format %{
-    "cae_P_Volatile_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
-  %}
-  ins_encode %{
-    guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
-
-    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
-      $res$$Register,
-      $mem$$base$$Register,
-      $oldval$$Register,
-      $newval$$Register,
-      /* exchange */ true,
-      /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
-      /* is_narrow */ false,
-      /* acquire */ true,
-      /* release */ true,
-      /* weak */ false);
-  %}
-  ins_pipe(pipe_slow);
-%}
-
-
-
-
-
-
-
-
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct weakCompareAndSwap_N_Normal_shenandoah(iRegINoSp res, indirect mem, iRegNNoSp oldval, iRegN newval, rFlagsReg cr)
+instruct weakCompareAndSwap_N_shenandoah(iRegINoSp res, indirect mem, iRegNNoSp oldval, iRegN newval, rFlagsReg cr)
 %{
   match(Set res (WeakCompareAndSwapN mem (Binary oldval newval)));
-  predicate(UseShenandoahGC && !needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
+  predicate(UseShenandoahGC && n->as_LoadStore()->barrier_data() != 0);
   ins_cost(VOLATILE_REF_COST);
   effect(TEMP_DEF res, KILL cr);
   format %{
-    "cae_N_Normal_weak_shenandoah $res = $mem, $oldval, $newval\t# (N, weak, Normal) if $mem == $oldval then $mem <-- $newval\n\t"
+    "cae_N_weak_shenandoah $res = $mem, $oldval, $newval\t# (N, weak) if $mem == $oldval then $mem <-- $newval\n\t"
     "csetw $res, EQ\t# $res <-- (EQ ? 1 : 0)"
   %}
   ins_encode %{
@@ -432,23 +197,19 @@ instruct weakCompareAndSwap_N_Normal_shenandoah(iRegINoSp res, indirect mem, iRe
       /* exchange */ false,
       /* maybe_null */ true,
       /* is_narrow */ true,
-      /* acquire */ false,
-      /* release */ true,
       /* weak */ true);
   %}
   ins_pipe(pipe_slow);
 %}
 
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct weakCompareAndSwap_P_Normal_shenandoah(iRegINoSp res, indirect mem, iRegPNoSp oldval, iRegP newval, rFlagsReg cr)
+instruct weakCompareAndSwap_P_shenandoah(iRegINoSp res, indirect mem, iRegPNoSp oldval, iRegP newval, rFlagsReg cr)
 %{
   match(Set res (WeakCompareAndSwapP mem (Binary oldval newval)));
-  predicate(UseShenandoahGC && !needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
+  predicate(UseShenandoahGC && n->as_LoadStore()->barrier_data() != 0);
   ins_cost(VOLATILE_REF_COST);
   effect(TEMP_DEF res, KILL cr);
   format %{
-    "cae_P_Normal_weak_shenandoah $res = $mem, $oldval, $newval\t# (P, weak, Normal) if $mem == $oldval then $mem <-- $newval\n\t"
+    "cae_P_weak_shenandoah $res = $mem, $oldval, $newval\t# (P, weak) if $mem == $oldval then $mem <-- $newval\n\t"
     "csetw $res, EQ\t# $res <-- (EQ ? 1 : 0)"
   %}
   ins_encode %{
@@ -462,258 +223,78 @@ instruct weakCompareAndSwap_P_Normal_shenandoah(iRegINoSp res, indirect mem, iRe
       /* exchange */ false,
       /* maybe_null */ true,
       /* is_narrow */ false,
-      /* acquire */ false,
-      /* release */ true,
       /* weak */ true);
   %}
   ins_pipe(pipe_slow);
 %}
 
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct weakCompareAndSwap_N_Volatile_shenandoah(iRegINoSp res, indirect mem, iRegNNoSp oldval, iRegN newval, rFlagsReg cr)
-%{
-  match(Set res (WeakCompareAndSwapN mem (Binary oldval newval)));
-  predicate(UseShenandoahGC && needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
-  ins_cost(VOLATILE_REF_COST);
-  effect(TEMP_DEF res, KILL cr);
-  format %{
-    "cae_N_Volatile_weak_shenandoah $res = $mem, $oldval, $newval\t# (N, weak, Volatile) if $mem == $oldval then $mem <-- $newval\n\t"
-    "csetw $res, EQ\t# $res <-- (EQ ? 1 : 0)"
-  %}
-  ins_encode %{
-    guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
-
-    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
-      $res$$Register,
-      $mem$$base$$Register,
-      $oldval$$Register,
-      $newval$$Register,
-      /* exchange */ false,
-      /* maybe_null */ true,
-      /* is_narrow */ true,
-      /* acquire */ true,
-      /* release */ true,
-      /* weak */ true);
-  %}
-  ins_pipe(pipe_slow);
-%}
-
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct weakCompareAndSwap_P_Volatile_shenandoah(iRegINoSp res, indirect mem, iRegPNoSp oldval, iRegP newval, rFlagsReg cr)
-%{
-  match(Set res (WeakCompareAndSwapP mem (Binary oldval newval)));
-  predicate(UseShenandoahGC && needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
-  ins_cost(VOLATILE_REF_COST);
-  effect(TEMP_DEF res, KILL cr);
-  format %{
-    "cae_P_Volatile_weak_shenandoah $res = $mem, $oldval, $newval\t# (P, weak, Volatile) if $mem == $oldval then $mem <-- $newval\n\t"
-    "csetw $res, EQ\t# $res <-- (EQ ? 1 : 0)"
-  %}
-  ins_encode %{
-    guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
-
-    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
-      $res$$Register,
-      $mem$$base$$Register,
-      $oldval$$Register,
-      $newval$$Register,
-      /* exchange */ false,
-      /* maybe_null */ true,
-      /* is_narrow */ false,
-      /* acquire */ true,
-      /* release */ true,
-      /* weak */ true);
-  %}
-  ins_pipe(pipe_slow);
-%}
-
-
-
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct getAndSet_P_Normal_shenandoah(indirect mem, iRegP newval, iRegPNoSp preval, rFlagsReg cr)
+instruct getAndSet_P_shenandoah(indirect mem, iRegP newval, iRegPNoSp preval, rFlagsReg cr)
 %{
   match(Set preval (GetAndSetP mem newval));
-  predicate(UseShenandoahGC && !needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
+  predicate(UseShenandoahGC && n->as_LoadStore()->barrier_data() != 0);
   effect(TEMP_DEF preval, KILL cr);
   ins_cost(2*VOLATILE_REF_COST);
-  format %{ "get_and_set_P_Normal $preval, $newval, [$mem]" %}
+  format %{ "get_and_set_P $preval, $newval, [$mem]" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->get_and_set_c2(this, masm,
       $preval$$Register,
       $newval$$Register,
-      $mem$$Register,
-      /* acquire */ false);
+      $mem$$Register);
   %}
   ins_pipe(pipe_serial);
 %}
 
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct getAndSet_P_Volatile_shenandoah(indirect mem, iRegP newval, iRegPNoSp preval, rFlagsReg cr)
-%{
-  match(Set preval (GetAndSetP mem newval));
-  predicate(UseShenandoahGC && needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
-  effect(TEMP_DEF preval, KILL cr);
-  ins_cost(VOLATILE_REF_COST + 3*INSN_COST);
-  format %{ "get_and_set_P_Volatile $preval, $newval, [$mem]" %}
-  ins_encode %{
-    ShenandoahBarrierSet::assembler()->get_and_set_c2(this, masm,
-      $preval$$Register,
-      $newval$$Register,
-      $mem$$Register,
-      /* acquire */ true);
-  %}
-  ins_pipe(pipe_serial);
-%}
-
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct getAndSet_N_Normal_shenandoah(indirect mem, iRegN newval, iRegNNoSp preval, rFlagsReg cr)
+instruct getAndSet_N_shenandoah(indirect mem, iRegN newval, iRegNNoSp preval, rFlagsReg cr)
 %{
   match(Set preval (GetAndSetN mem newval));
-  predicate(UseShenandoahGC && !needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
+  predicate(UseShenandoahGC && n->as_LoadStore()->barrier_data() != 0);
   effect(TEMP_DEF preval, KILL cr);
   ins_cost(2*VOLATILE_REF_COST);
-  format %{ "get_and_set_N_Normal $preval, $newval, [$mem]" %}
+  format %{ "get_and_set_N $preval, $newval, [$mem]" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->get_and_set_c2(this, masm,
       $preval$$Register,
       $newval$$Register,
-      $mem$$Register,
-      /* acquire */ false);
+      $mem$$Register);
   %}
   ins_pipe(pipe_serial);
 %}
 
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct getAndSet_N_Volatile_shenandoah(indirect mem, iRegN newval, iRegNNoSp preval, rFlagsReg cr)
-%{
-  match(Set preval (GetAndSetN mem newval));
-  predicate(UseShenandoahGC && needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
-  effect(TEMP_DEF preval, KILL cr);
-  ins_cost(VOLATILE_REF_COST + 3*INSN_COST);
-  format %{ "get_and_set_N_Volatile $preval, $newval, [$mem]" %}
-  ins_encode %{
-    ShenandoahBarrierSet::assembler()->get_and_set_c2(this, masm,
-      $preval$$Register,
-      $newval$$Register,
-      $mem$$Register,
-      /* acquire */ true);
-  %}
-  ins_pipe(pipe_serial);
-%}
-
-
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct load_P_Normal_shenandoah(iRegPNoSp dst, indirect mem, rFlagsReg cr)
+instruct load_P_shenandoah(iRegPNoSp dst, indirect mem, rFlagsReg cr)
 %{
   match(Set dst (LoadP mem));
-  predicate(UseShenandoahGC && !needs_acquiring_load(n) && n->as_Load()->barrier_data() != 0);
+  predicate(UseShenandoahGC && n->as_Load()->barrier_data() != 0);
   effect(TEMP_DEF dst, KILL cr);
   ins_cost(3*INSN_COST);
   format %{ "ldr  $dst, $mem\t# ptr" %}
   ins_encode %{
-    ShenandoahBarrierSet::assembler()->load_c2(this, masm,
-      $dst$$Register,
-      $mem$$Register,
-      /* acquire */ false);
+    ShenandoahBarrierSet::assembler()->load_c2(this, masm, $dst$$Register, $mem$$Register);
   %}
   ins_pipe(pipe_class_memory);
 %}
 
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct load_P_Volatile_shenandoah(iRegPNoSp dst, indirect mem, rFlagsReg cr)
-%{
-  match(Set dst (LoadP mem));
-  predicate(UseShenandoahGC && needs_acquiring_load(n) && n->as_Load()->barrier_data() != 0);
-  effect(TEMP_DEF dst, KILL cr);
-  ins_cost(VOLATILE_REF_COST);
-  format %{ "ldar  $dst, $mem\t# ptr" %}
-  ins_encode %{
-    ShenandoahBarrierSet::assembler()->load_c2(this, masm,
-      $dst$$Register,
-      $mem$$Register,
-      /* acquire */ true);
-  %}
-  ins_pipe(pipe_class_memory);
-%}
-
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct load_N_Normal_shenandoah(iRegNNoSp dst, indirect mem, rFlagsReg cr)
+instruct load_N_shenandoah(iRegNNoSp dst, indirect mem, rFlagsReg cr)
 %{
   match(Set dst (LoadN mem));
-  predicate(UseShenandoahGC && !needs_acquiring_load(n) && n->as_Load()->barrier_data() != 0);
+  predicate(UseShenandoahGC && n->as_Load()->barrier_data() != 0);
   effect(TEMP_DEF dst, KILL cr);
   ins_cost(3*INSN_COST);
   format %{ "ldrw  $dst, $mem\t# ptr" %}
   ins_encode %{
-    ShenandoahBarrierSet::assembler()->load_c2(this, masm,
-      $dst$$Register,
-      $mem$$Register,
-      /* acquire */ false);
+    ShenandoahBarrierSet::assembler()->load_c2(this, masm, $dst$$Register, $mem$$Register);
   %}
   ins_pipe(pipe_class_memory);
 %}
 
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct load_N_Volatile_shenandoah(iRegNNoSp dst, indirect mem, rFlagsReg cr)
-%{
-  match(Set dst (LoadN mem));
-  predicate(UseShenandoahGC && needs_acquiring_load(n) && n->as_Load()->barrier_data() != 0);
-  effect(TEMP_DEF dst, KILL cr);
-  ins_cost(VOLATILE_REF_COST);
-  format %{ "ldarw  $dst, $mem\t# ptr" %}
-  ins_encode %{
-    ShenandoahBarrierSet::assembler()->load_c2(this, masm,
-      $dst$$Register,
-      $mem$$Register,
-      /* acquire */ true);
-  %}
-  ins_pipe(pipe_class_memory);
-%}
-
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct load_N_Normal_And_Decode(iRegPNoSp dst, indirect mem, rFlagsReg cr)
+instruct load_N_And_Decode(iRegPNoSp dst, indirect mem, rFlagsReg cr)
 %{
   match(Set dst (DecodeN (LoadN mem)));
-  predicate(UseShenandoahGC && !needs_acquiring_load(n->in(1)) && n->in(1)->as_Load()->barrier_data() != 0);
+  predicate(UseShenandoahGC && n->in(1)->as_Load()->barrier_data() != 0);
   effect(TEMP_DEF dst, KILL cr);
   ins_cost(4*INSN_COST);
-  format %{ "ldrw  $dst, $mem\t# ptr" %}
+  format %{ "decn ldrw  $dst, $mem\t# ptr" %}
   ins_encode %{
-    ShenandoahBarrierSet::assembler()->load_c2(this, masm,
-      $dst$$Register,
-      $mem$$Register,
-      /* acquire */ false);
+    ShenandoahBarrierSet::assembler()->load_c2(this, masm, $dst$$Register, $mem$$Register);
   %}
   ins_pipe(pipe_class_memory);
 %}
-
-// This pattern is generated automatically from shenandoah_aarch64.m4.
-// DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct load_N_Volatile_And_Decode(iRegPNoSp dst, indirect mem, rFlagsReg cr)
-%{
-  match(Set dst (DecodeN (LoadN mem)));
-  predicate(UseShenandoahGC && needs_acquiring_load(n->in(1)) && n->in(1)->as_Load()->barrier_data() != 0);
-  effect(TEMP_DEF dst, KILL cr);
-  ins_cost(4*INSN_COST);
-  format %{ "ldrw  $dst, $mem\t# ptr" %}
-  ins_encode %{
-    ShenandoahBarrierSet::assembler()->load_c2(this, masm,
-      $dst$$Register,
-      $mem$$Register,
-      /* acquire */ true);
-  %}
-  ins_pipe(pipe_class_memory);
-%}
-
-// END This section of the file is automatically generated from shenandoah_aarch64.m4.

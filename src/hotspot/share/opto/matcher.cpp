@@ -1804,6 +1804,8 @@ MachNode *Matcher::ReduceInst( State *s, int rule, Node *&mem ) {
 
   // Have mach nodes inherit GC barrier data
   mach->set_barrier_data(MemNode::barrier_data(leaf));
+  mach->set_memory_order(MemNode::memory_order(leaf));
+  mach->set_trailing_membar(leaf);
 
   return ex;
 }

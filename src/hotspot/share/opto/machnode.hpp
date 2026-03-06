@@ -237,6 +237,21 @@ public:
   uint8_t barrier_data() const { return _barrier; }
   void set_barrier_data(uint8_t data) { _barrier = data; }
 
+  void set_memory_order(MemNode::MemOrd mo) { _mo = mo; }
+  MemNode::MemOrd memory_order() const { return _mo; }
+
+  void set_trailing_membar(Node* n) {
+    if (n->is_Store()) {
+      _has_trailing_membar = n->as_Store()->trailing_membar() != nullptr;
+    } else if (n->is_LoadStore()) {
+      _has_trailing_membar = n->as_LoadStore()->trailing_membar() != nullptr;
+    } else {
+      _has_trailing_membar = false;
+    }
+  }
+
+  bool has_trailing_membar() const { return _has_trailing_membar; }
+
   // Copy index, inputs, and operands to a new version of the instruction.
   // Called from cisc_version() and short_branch_version().
   void fill_new_machnode(MachNode *n) const;
@@ -284,6 +299,11 @@ public:
 
   // The GC might require some barrier metadata for machine code emission.
   uint8_t _barrier;
+
+  MemNode::MemOrd _mo;
+
+  bool _has_trailing_membar;
+
 
   // Array of complex operand pointers.  Each corresponds to zero or
   // more leafs.  Must be set by MachNode constructor to point to an
@@ -380,6 +400,8 @@ public:
 
   // Should we clone rather than spill this instruction?
   bool rematerialize() const;
+
+  bool is_CAS(bool maybe_volatile) const;
 
   // Get the pipeline info
   static const Pipeline *pipeline_class();

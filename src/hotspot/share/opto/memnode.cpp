@@ -878,6 +878,15 @@ uint8_t MemNode::barrier_data(const Node* n) {
   return 0;
 }
 
+MemNode::MemOrd MemNode::memory_order(const Node* n) {
+  if (n->is_Load()) {
+    return n->as_Load()->memory_order();
+  } else if (n->is_Store()) {
+    return n->as_Store()->memory_order();;
+  }
+  return MemNode::MemOrd::seqcst;
+}
+
 //=============================================================================
 // Should LoadNode::Ideal() attempt to remove control edges?
 bool LoadNode::can_remove_control() const {
