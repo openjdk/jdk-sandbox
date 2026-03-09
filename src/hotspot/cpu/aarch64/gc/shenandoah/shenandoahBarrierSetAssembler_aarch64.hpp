@@ -93,7 +93,7 @@ public:
   void load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Register addr);
 
   void gc_state_check_c2(MacroAssembler* masm, Register rscratch, const unsigned char test_state, BarrierStubC2* slow_stub);
-  void card_barrier_c2(const MachNode* node, MacroAssembler* masm, Register addr, Register cond);
+  void card_barrier_c2(const MachNode* node, MacroAssembler* masm, Register addr);
   virtual void try_resolve_weak_handle_in_c2(MacroAssembler* masm, Register obj, Register tmp, Label& slow_path);
 #endif
 };

@@ -112,10 +112,23 @@ uint8_t BarrierStubC2::barrier_data() const {
   return _node->barrier_data();
 }
 
+void BarrierStubC2::preserve(RegSet set) {
+  for (RegSetIterator<Register> it = set.begin(); *it != noreg; ++it) {
+    preserve(*it);
+  }
+}
+
 void BarrierStubC2::preserve(Register r) {
   const VMReg vm_reg = r->as_VMReg();
   assert(vm_reg->is_Register(), "r must be a general-purpose register");
   _preserve.insert(OptoReg::as_OptoReg(vm_reg));
+}
+
+
+void BarrierStubC2::dont_preserve(RegSet set) {
+  for (RegSetIterator<Register> it = set.begin(); *it != noreg; ++it) {
+    dont_preserve(*it);
+  }
 }
 
 void BarrierStubC2::dont_preserve(Register r) {

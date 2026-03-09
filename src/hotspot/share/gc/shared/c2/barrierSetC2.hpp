@@ -259,8 +259,12 @@ public:
 
   // Preserve the value in reg across runtime calls in this barrier.
   void preserve(Register reg);
+  void preserve(RegSet set);
+
   // Do not preserve the value in reg across runtime calls in this barrier.
   void dont_preserve(Register reg);
+  void dont_preserve(RegSet set);
+
   // Set of registers whose value needs to be preserved across runtime calls in this barrier.
   const RegMask& preserve_set() const;
 };

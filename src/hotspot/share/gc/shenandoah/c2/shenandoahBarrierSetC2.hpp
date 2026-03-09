@@ -31,6 +31,7 @@
 #include "gc/shenandoah/shenandoahRuntime.hpp"
 #include "gc/shenandoah/shenandoahThreadLocalData.hpp"
 #include "utilities/growableArray.hpp"
+#include "opto/machnode.hpp"
 
 static const uint8_t ShenandoahBitStrong    = 1 << 0; // Barrier: LRB, strong
 static const uint8_t ShenandoahBitWeak      = 1 << 1; // Barrier: LRB, weak
@@ -99,7 +100,8 @@ public:
   virtual void clone_at_expansion(PhaseMacroExpand* phase, ArrayCopyNode* ac) const;
 
   // These are general helper methods used by C2
-  virtual bool array_copy_requires_gc_barriers(bool tightly_coupled_alloc, BasicType type, bool is_clone, bool is_clone_instance, ArrayCopyPhase phase) const;
+  virtual bool array_copy_requires_gc_barriers(bool tightly_coupled_alloc, BasicType type, bool is_clone,
+      bool is_clone_instance, ArrayCopyPhase phase) const;
 
   // Support for GC barriers emitted during parsing
   virtual bool expand_barriers(Compile* C, PhaseIterGVN& igvn) const;
@@ -147,6 +149,8 @@ protected:
   static Register select_temp_register(Address addr, Register reg1 = noreg, Register reg2 = noreg);
 
 public:
+  static void gc_state_check_c2(MacroAssembler* masm, Register rscratch, const unsigned char test_state,
+      BarrierStubC2* slow_stub);
   virtual void emit_code(MacroAssembler& masm) = 0;
 };
 
@@ -190,9 +194,9 @@ public:
   static bool is_narrow_result(const MachNode* node) {
     return node->bottom_type()->isa_narrowoop() || node->ideal_Opcode() == Op_DecodeN;
   }
-
   static ShenandoahLoadBarrierStubC2* create(const MachNode* node, Register dst, Address addr);
-
+  static void check_and_insert(const MachNode* node, MacroAssembler* masm, Register dst, Register addr,
+      RegSet regsToPreserve = RegSet(), RegSet regsDontPreserve = RegSet());
   void emit_code(MacroAssembler& masm) override;
 };
 
@@ -204,8 +208,10 @@ class ShenandoahStoreBarrierStubC2 : public ShenandoahBarrierStubC2 {
   const bool _dst_narrow;
   const bool _src_narrow;
 
-  ShenandoahStoreBarrierStubC2(const MachNode* node, Register addr_reg, Address dst, bool dst_narrow, Register src, bool src_narrow, Register tmp) :
-    ShenandoahBarrierStubC2(node), _addr_reg(addr_reg), _dst(dst), _src(src), _tmp(tmp), _dst_narrow(dst_narrow), _src_narrow(src_narrow) {
+  ShenandoahStoreBarrierStubC2(const MachNode* node, Register addr_reg, Address dst, bool dst_narrow, Register src,
+      bool src_narrow, Register tmp) :
+    ShenandoahBarrierStubC2(node), _addr_reg(addr_reg), _dst(dst), _src(src), _tmp(tmp), _dst_narrow(dst_narrow),
+      _src_narrow(src_narrow) {
       assert(!_dst_narrow || is_heap_access(node), "Only heap accesses can be narrow");
     }
 
@@ -222,9 +228,10 @@ public:
   static bool src_not_null(const MachNode* node) {
     return (node->barrier_data() & ShenandoahBitNotNull) != 0;
   }
-
-  static ShenandoahStoreBarrierStubC2* create(const MachNode* node, Address addr, bool dst_narrow, Register src, bool src_narrow, Register tmp);
-
+  static ShenandoahStoreBarrierStubC2* create(const MachNode* node, Address addr, bool dst_narrow, Register src,
+      bool src_narrow, Register tmp);
+  static void check_and_insert(const MachNode* node, MacroAssembler* masm, Register addr, bool dst_narrow, Register src,
+      bool src_narrow, Register tmp, RegSet regsToPreserve = RegSet(), RegSet regsDontPreserve = RegSet());
   void emit_code(MacroAssembler& masm) override;
 };
 
@@ -242,13 +249,20 @@ class ShenandoahCASBarrierStubC2 : public ShenandoahBarrierStubC2 {
   bool     const _acquire;
   bool     const _weak;
 
-  explicit ShenandoahCASBarrierStubC2(const MachNode* node, Register addr_reg, Address addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae, bool maybe_null, bool acquire, bool weak) :
-    ShenandoahBarrierStubC2(node),
-    _addr_reg(addr_reg), _addr(addr), _expected(expected), _new_val(new_val), _result(result), _tmp1(tmp1), _tmp2(tmp2), _narrow(narrow), _cae(cae), _maybe_null(maybe_null), _acquire(acquire),  _weak(weak) {
+  explicit ShenandoahCASBarrierStubC2(const MachNode* node, Register addr_reg, Address addr, Register expected,
+      Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae, bool maybe_null,
+      bool acquire, bool weak) :
+    ShenandoahBarrierStubC2(node), _addr_reg(addr_reg), _addr(addr), _expected(expected), _new_val(new_val),
+      _result(result), _tmp1(tmp1), _tmp2(tmp2), _narrow(narrow), _cae(cae), _maybe_null(maybe_null),
+      _acquire(acquire),  _weak(weak) {
       assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
     }
 
 public:
+  static void check_and_insert(const MachNode* node, MacroAssembler* masm,
+      Register res, Register addr, Register oldval, Register newval, bool exchange, bool maybe_null, bool narrow,
+      bool weak, bool acquire, RegSet regsToPreserve = RegSet(), RegSet regsDontPreserve = RegSet());
+
   static bool needs_barrier(const MachNode* node) {
     return needs_card_barrier(node) || needs_load_ref_barrier(node) || needs_keep_alive_barrier(node);
   }
@@ -262,7 +276,8 @@ public:
     return (node->barrier_data() & ShenandoahBitStrong) != 0;
   }
 
-  static ShenandoahCASBarrierStubC2* create(const MachNode* node, Address addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae, bool maybe_null, bool acquire, bool weak);
+  static ShenandoahCASBarrierStubC2* create(const MachNode* node, Address addr, Register expected, Register new_val,
+      Register result, Register tmp1, Register tmp2, bool narrow, bool cae, bool maybe_null, bool acquire, bool weak);
   void emit_code(MacroAssembler& masm) override;
 };
 #endif // SHARE_GC_SHENANDOAH_C2_SHENANDOAHBARRIERSETC2_HPP
