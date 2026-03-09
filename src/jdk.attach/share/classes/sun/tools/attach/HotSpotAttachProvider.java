@@ -139,7 +139,7 @@ public abstract class HotSpotAttachProvider extends AttachProvider {
             mvm = host.getMonitoredVm(vmid);
 
             if (MonitoredVmUtil.isAttachable(mvm)) {
-                // it's attachable; so return
+                // it's attachable; so return false
                 return;
             }
         } catch (Throwable t) {
