@@ -129,6 +129,20 @@ import java.util.Optional;
  * }
  * This example only prints the value if the member named "baz" is not a JSON
  * null.
+ * <h2>Handling variance</h2>
+ * There may be times when a JSON document can vary, but providing a fallback
+ * value is preferable to throwing an exception. For example:
+ * {@snippet lang=java:
+ * Optional.of(json)
+ *     .filter(j -> j instanceof JsonObject)
+ *     .flatMap(j -> j.getOrAbsent("foo"))
+ *     .filter(j -> j instanceof JsonString)
+ *     .map(JsonValue::string)
+ *     .orElse("bar");
+ * }
+ * The code above ensures that if the root JSON document is not an object,
+ * the member "foo" does not exist, or if "foo" is not a String, that the "bar"
+ * fallback value is used over throwing an exception.
  * <h2 id="generation">Generating JSON documents</h2>
  * {@code JsonValue} overrides {@link Object#toString()} to generate RFC 8259 compliant
  * JSON text in a compact representation with white spaces eliminated.
