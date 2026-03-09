@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018, 2021, Red Hat, Inc. All rights reserved.
  * Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -93,6 +94,7 @@ public:
 
   void gc_state_check_c2(MacroAssembler* masm, const char test_state, BarrierStubC2* slow_stub);
   void card_barrier_c2(MacroAssembler* masm, Address dst, Register tmp);
+  virtual void try_resolve_weak_handle_in_c2(MacroAssembler* masm, Register obj, Label& slowpath);
 #endif
 };
 
