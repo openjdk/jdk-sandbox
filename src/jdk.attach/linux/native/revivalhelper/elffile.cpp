@@ -112,7 +112,6 @@ bool verify_file(int fd) {
     }
 }
 
-
 bool ELFFile::verify() {
     verify_header(hdr);
 #if defined(__aarch64__)
@@ -135,20 +134,20 @@ bool ELFFile::verify() {
         return false;
     }
 /*
-        // Sanity check the pointer arithmetic:
-        Elf64_Phdr* p0 = program_header(0);
-        Elf64_Phdr* p1 = program_header(1);
-        long diff = (long) ((uint64_t) p1 - (uint64_t) p0);
-        Elf64_Phdr* p1a = next_ph(p0);
-        assert(p1 == p1a);
-        assert(diff == hdr->e_phentsize);
+    // Sanity check the pointer arithmetic:
+    Elf64_Phdr* p0 = program_header(0);
+    Elf64_Phdr* p1 = program_header(1);
+    long diff = (long) ((uint64_t) p1 - (uint64_t) p0);
+    Elf64_Phdr* p1a = next_ph(p0);
+    assert(p1 == p1a);
+    assert(diff == hdr->e_phentsize);
 
-        Elf64_Shdr* s0 = section_header(0);
-        Elf64_Shdr* s1 = section_header(1);
-        diff = (long) ((uint64_t) s1 - (uint64_t) s0);
-        Elf64_Shdr* s1a = next_sh(s0);
-        assert(s1 == s1a);
-        assert(diff == hdr->e_shentsize);
+    Elf64_Shdr* s0 = section_header(0);
+    Elf64_Shdr* s1 = section_header(1);
+    diff = (long) ((uint64_t) s1 - (uint64_t) s0);
+    Elf64_Shdr* s1a = next_sh(s0);
+    assert(s1 == s1a);
+    assert(diff == hdr->e_shentsize);
  */
     return true;
 }

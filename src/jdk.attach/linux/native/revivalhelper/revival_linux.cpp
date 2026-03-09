@@ -44,7 +44,6 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
-
 #include <list>
 #include <array>
 
@@ -80,16 +79,6 @@ unsigned long long max_user_vaddr_pd() {
 }
 
 void init_pd() {
-    // Manually computed from adding fields in elf.h
-    // This is to guard against the compiler adding padding without us noticing, which would break parsing.
-    assert(sizeof(Elf64_Ehdr) == 64);
-    assert(sizeof(Elf64_Phdr) == 56);
-    assert(sizeof(Elf64_Shdr) == 64);
-    assert(sizeof(Elf64_Dyn) == 16);
-    assert(sizeof(Elf64_Sym) == 24);
-    assert(sizeof(Elf64_Rela) == 24);
-    assert(sizeof(Elf64_Rel) == 16);
-
     // pagesize, expect 0x1000
     long value = sysconf(_SC_PAGESIZE);
     if (value < 0) {
@@ -99,7 +88,6 @@ void init_pd() {
     vaddr_align = value;
     logv("revival: init_pd: vaddr_alignment = 0x%llx", (unsigned long long) vaddr_alignment_pd());
 }
-
 
 bool dir_exists_pd(const char* dirname) {
     int fd = open(dirname, O_DIRECTORY);
@@ -382,9 +370,7 @@ void remap(Segment seg) {
 
 /**
  * Signal handler.
- * Catch errors and do mapping of writeable areas on demand.
- *
- * Could be used to map all memory lazily, for faster startup.
+ * Catch errors and do mapping of writable areas on demand.
  */
 void handler(int sig, siginfo_t* info, void* ucontext) {
     void* addr  = (void*) info->si_addr;
@@ -406,7 +392,7 @@ void handler(int sig, siginfo_t* info, void* ucontext) {
     }
 
     // Handle writing to the core:
-    // Check again if PRIVATE mapping makes this unnecessary. XXXX
+    // Check again if PRIVATE mapping makes this unnecessary.
     //
     // If this is a fault in an address covered by an area we mapped from the core,
     // which should be writable, then create a new mapping that can be written
@@ -469,8 +455,7 @@ void* base_address_for_sharedobject_live(void* h) {
  * Return the opaque handle from dlopen, which is not the load address.
  * Return -1 for error.
  */
-void* load_sharedobject_verify_pd(const char* name, void* vaddr) {
-
+void* load_sharedobject_pd(const char* name, void* vaddr) {
     void* actual = nullptr;
     int max_tries = 1; // Retrying, even when allocating to force a new address, is not usually succesfull.
 
@@ -499,83 +484,9 @@ void* load_sharedobject_verify_pd(const char* name, void* vaddr) {
         unload_sharedobject_pd(h);
         return (void*) -1;
     }
-
     return h;
 }
 
-/**
- * Experimental loading shared object by mmap, then fixing up.  Not fully implemented.
- * Fixing up the shared object and using dlopen is easier.
- */
-void* load_sharedobject_mmap_pd(const char* filename, void* vaddr) {
-    int loaded = 0;
-    int fd = open(filename, O_RDONLY);
-    if (fd < 0) {
-        warn("load_sharedobject_mmap_pd: cannot open %s", filename);
-        return (void*) -1;
-    }
-    // Read ELF header, find Program Headers.
-    Elf64_Ehdr hdr;
-    size_t e = read(fd, &hdr, sizeof(hdr));
-    if (e < sizeof(hdr)) {
-        warn("load_sharedobject_mmap_pd: failed to read ELF header %s: %ld", filename, e);
-        return (void*) -1;
-    }
-    lseek(fd, hdr.e_phoff, SEEK_SET);
-    // Read ELF Program Headers.  Look for PT_LOAD.
-    Elf64_Phdr phdr;
-    for (int i = 0; i < hdr.e_phnum; i++) {
-        e = read(fd, &phdr, sizeof(phdr));
-        if (e < sizeof(phdr)) {
-            warn("load_sharedobject_mmap_pd: failed to read ELF Program Header %s: %ld", filename, e);
-            return (void*) -1;
-        }
-        warn("load_sharedobject_mmap_pd: PH %d: type 0x%x flags 0x%x vaddr 0x%lx", i, phdr.p_type, phdr.p_flags, phdr.p_vaddr);
-        if (phdr.p_type == PT_LOAD) {
-            if (phdr.p_flags == (PF_X | PF_R) || phdr.p_flags == (PF_R | PF_W)) {
-                // Expect a non-prelinked/relocated library, with zero base address.
-                // Map PH at the given vaddr plus PH vaddr.
-                uint64_t va = (uint64_t) vaddr + (uint64_t) phdr.p_vaddr;
-                warn("load_sharedobject_mmap_pd: LOAD offset %lx vaddr %p", phdr.p_offset, (void*) va);
-                void* a = do_mmap_pd((void*) va, (size_t) phdr.p_filesz, (char*) filename, fd, (size_t) phdr.p_offset);
-                warn("load_sharedobject_mmap_pd: %s: %p", filename, a);
-                if ((uint64_t) a > 0) {
-                    warn("load_sharedobject_mmap_pd OK");
-                    loaded++;
-                }
-            }
-        }
-    }
-    // Not done yet. We need to do the job of the runtime linker.
-    // Calls via pltgot need fixing for the new base address.
-    // That includes a table of relocations into ourself, and that requires resolving from all other libraries.
-    // A prelink-like edit of the binary is easier, and lets the runtime linker do this.
-    // That is still quite a bit of work, but relocations are by a fixed amount, no lookups in other librarires required.
-    if (loaded > 0) {
-        return vaddr;
-    } else {
-        return (void*) -1;
-    }
-}
-
-void* load_sharedobject_pd(const char* name, void* vaddr) {
-
-    bool verify = true;
-    bool mmap = false;
-
-    if (verify) {
-        return load_sharedobject_verify_pd(name, vaddr);
-    } else if (mmap) {
-        return load_sharedobject_mmap_pd(name, vaddr);
-    } else {
-        void* h = dlopen(name,  RTLD_NOW | RTLD_GLOBAL);
-        if (!h) {
-            warn("load_sharedobject_pd: %s: %s", name, dlerror());
-            return (void*) -1;
-        }
-        return h;
-    }
-}
 
 int unload_sharedobject_pd(void* h) {
     return dlclose(h); // zero on success

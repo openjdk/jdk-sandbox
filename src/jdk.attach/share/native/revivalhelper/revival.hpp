@@ -99,7 +99,6 @@ void remove_handler();
 
 void normalize_path_pd(char* s);
 void tls_fixup_pd(void* tlsPtr);
-void tls_revert_pd();
 
 #define JVM_FILENAME "jvm.dll"
 #define FILE_SEPARATOR  "\\"

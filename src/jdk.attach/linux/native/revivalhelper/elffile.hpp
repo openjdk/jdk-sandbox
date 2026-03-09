@@ -76,7 +76,6 @@ class ELFFile {
     Elf64_Phdr* ph;     // First Program Header absolute address
     Elf64_Shdr* sh;     // First Section Header absolute address or nullptr
     char* shdr_strings;
-
     std::list<Segment> libs;
 
     bool verify();
@@ -121,11 +120,9 @@ class ELFFile {
     bool section_name_is(Elf64_Shdr* shdr, const char* name);
 
     Elf64_Shdr* next_sh(Elf64_Shdr* s);
-
     Elf64_Phdr* next_ph(Elf64_Phdr* p);
 
     Elf64_Shdr* section_by_name(const char* name);
-
     Elf64_Shdr* section_by_index(unsigned long index);
 
     // Returns the first phdr where predicate returns true.
@@ -133,29 +130,23 @@ class ELFFile {
 
     Elf64_Phdr* program_header_by_type(Elf32_Word type);
 
-    // Relocation methods
-    void relocate_execution_header(long displacement);
-
-    void relocate_program_headers(long displacement);
-
-    bool should_relocate_section_header(Elf64_Shdr* shdr);
-
-    void relocate_section_headers(long displacement);
-
-    void relocate_relocation_table(long displacement, const char* name);
-
     uint64_t find_dynamic_value(Elf64_Shdr* s, int tag);
 
-    // Relocate e.g. INIT_ARRAY contents.
-    void relocate_dyn_array(long displacement, Elf64_Dyn* dyn, int count);
+    // Relocation methods
+    bool should_relocate_section_header(Elf64_Shdr* shdr);
+    bool should_relocate_symbol(Elf64_Sym* sym);
+
+    void relocate_execution_header(long displacement);
+    void relocate_program_headers(long displacement);
+    void relocate_section_headers(long displacement);
+    void relocate_relocation_table(long displacement, const char* name);
 
     void relocate_dynamic_table(long displacement);
-
-    bool should_relocate_symbol(Elf64_Sym* sym);
+    // Relocate e.g. INIT_ARRAY contents.
+    void relocate_dyn_array(long displacement, Elf64_Dyn* dyn, int count);
 
     void relocate_symbol_table(long displacement, const char* name);
 
     void read_bytes_at(unsigned long at, ssize_t bytes, char* buffer);
-
     void read_bytes(ssize_t bytes, char* buffer);
 };
