@@ -51,7 +51,7 @@
 bool needs_acquiring_load_exclusive(const MachNode *n) {
   assert(n->is_CAS(true), "expecting a compare and swap");
   if (n->is_CAS(false)) {
-    assert(n->has_trailing_membar() != nullptr, "expected trailing membar");
+    assert(n->has_trailing_membar(), "expected trailing membar");
   } else {
     return n->has_trailing_membar();
   }
