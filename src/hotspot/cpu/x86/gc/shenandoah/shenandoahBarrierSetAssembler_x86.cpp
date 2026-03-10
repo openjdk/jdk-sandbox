@@ -1236,6 +1236,18 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(MacroAssembler* masm, Addres
   __ bind(L_done);
 }
 
+void ShenandoahBarrierStubC2::keepalive_fast(MacroAssembler* masm, Register obj, Register tmp, Label* L_slow) {
+  Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
+  Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
+  __ movptr(tmp, index);
+  __ testptr(tmp, tmp);
+  __ jcc(Assembler::zero, *L_slow); // TODO: Always short?
+  __ subptr(tmp, wordSize);
+  __ movptr(index, tmp);
+  __ addptr(tmp, buffer);
+  __ movptr(Address(tmp, 0), obj);
+}
+
 #undef __
 #define __ masm.
 
@@ -1247,7 +1259,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   Register tmp = select_temp_register(_src, _dst);
 
   Label L_lrb_entry, L_lrb_done, L_lrb_slow;
-  Label L_keepalive_done, L_keepalive_pack_and_done, L_keepalive_slow;
+  Label L_keepalive_done, L_keepalive_slow;
   Label L_done;
 
   // If the object is null, there is no point in applying barriers.
@@ -1283,27 +1295,17 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
       __ decode_heap_oop_not_null(_dst);
     }
 
-    // Can we store a value in the given thread's buffer?
-    // (The index field is typed as size_t.)
-    Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
-    Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
-
     __ push(tmp);
-    __ movptr(tmp, index);
-    __ testptr(tmp, tmp);
-    __ jcc(Assembler::zero, L_keepalive_slow);
-    // The buffer is not full, store value into it.
-    __ subptr(tmp, wordSize);
-    __ movptr(index, tmp);
-    __ addptr(tmp, buffer);
-    __ movptr(Address(tmp, 0), _dst);
+    keepalive_fast(&masm, _dst, tmp, &L_keepalive_slow);
     __ pop(tmp);
 
-    __ bind(L_keepalive_pack_and_done);
+    // Slow path re-enters here.
+    __ bind(L_keepalive_done);
+
+    // If object is narrow, we need to encode it after we are done.
     if (_narrow) {
       __ encode_heap_oop(_dst);
     }
-    __ bind(L_keepalive_done);
   }
 
   if (_needs_load_ref_barrier) {
@@ -1350,7 +1352,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
     __ bind(L_lrb_slow);
     __ pop(tmp); // Immediately pop tmp to make sure the stack is aligned
 
-      // If object is narrow, we need to decode it first.
+    // If object is narrow, we need to decode it first.
     if (_narrow) {
       __ decode_heap_oop_not_null(_dst);
     }
@@ -1414,7 +1416,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
       }
       __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre)), rax);
     }
-    __ jmp(L_keepalive_pack_and_done);
+    __ jmp(L_keepalive_done);
   }
 }
 
@@ -1423,7 +1425,7 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   __ bind(*entry());
 
-  Label L_runtime, L_preval_null;
+  Label L_slow, L_done;
 
   // We need 2 temp registers for this code to work.
   // _tmp is already allocated and will carry preval for the call.
@@ -1441,33 +1443,21 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   // Is the previous value null?
   __ testptr(preval, preval);
-  __ jccb(Assembler::equal, L_preval_null);
+  __ jccb(Assembler::equal, L_done);
 
+  // If object is narrow, we need to decode it first.
   if (_dst_narrow) {
     __ decode_heap_oop_not_null(preval);
   }
 
-  // Can we store a value in the given thread's buffer?
-  // (The index field is typed as size_t.)
-  Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
-  Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
-
-  Register slot = tmp2;
   __ push(tmp2);
-  __ movptr(slot, index);
-  __ testptr(slot, slot);
-  __ jccb(Assembler::zero, L_runtime);
-  __ subptr(slot, wordSize);
-  __ movptr(index, slot);
-  __ addptr(slot, buffer);
-  __ movptr(Address(slot, 0), preval);
+  keepalive_fast(&masm, preval, tmp2, &L_slow);
   __ pop(tmp2);
 
-  // Exit here
-  __ bind(L_preval_null);
+  __ bind(L_done);
   __ jmp(*continuation());
 
-  __ bind(L_runtime);
+  __ bind(L_slow);
   __ pop(tmp2); // Immediately pop tmp to make sure the stack is aligned
   {
     SaveLiveRegisters save_registers(&masm, this);
@@ -1569,9 +1559,6 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
 
     // SATB
     __ bind(L_succeded);
-            Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
-            Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
-
             Label L_satb_done, L_satb_pack_and_done, L_runtime;
 
             Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
@@ -1587,22 +1574,17 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
             __ cmpptr(_expected, NULL_WORD);
             __ jccb(Assembler::equal, L_satb_done);
 
+            // If object is narrow, we need to decode it first.
             if (_narrow) {
               __ decode_heap_oop_not_null(_expected);
             }
 
-            // Can we store a value in the given thread's buffer?
-            // (The index field is typed as size_t.)
-            __ movptr(_tmp1, index);
-            __ testptr(_tmp1, _tmp1);
-            __ jccb(Assembler::zero, L_runtime);
-            // The buffer is not full, store value into it.
-            __ subptr(_tmp1, wordSize);
-            __ movptr(index, _tmp1);
-            __ addptr(_tmp1, buffer);
-            __ movptr(Address(_tmp1, 0), _expected);
+            keepalive_fast(&masm, _expected, _tmp1, &L_runtime);
 
+            // Slow-path re-enters here.
             __ bind(L_satb_pack_and_done);
+
+            // If object is narrow, we need to encode it at the end.
             if (_narrow) {
               __ encode_heap_oop_not_null(_expected);
             }
