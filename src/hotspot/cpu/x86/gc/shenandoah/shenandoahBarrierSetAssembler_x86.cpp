@@ -1158,7 +1158,8 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
     if (ShenandoahCASBarrierStubC2::needs_load_ref_barrier(node) || ShenandoahCASBarrierStubC2::needs_keep_alive_barrier(node)) {
-      ShenandoahCASBarrierStubC2* const stub = ShenandoahCASBarrierStubC2::create(node, addr, oldval, newval, res, tmp1, tmp2, narrow, exchange);
+      ShenandoahCASBarrierStubC2* const stub = ShenandoahCASBarrierStubC2::create(node, addr, oldval, newval, res, tmp1, tmp2, narrow, exchange, maybe_null, false, false);
+
       if (res != noreg) {
         stub->dont_preserve(res);  // set at the end, no need to save
       }
