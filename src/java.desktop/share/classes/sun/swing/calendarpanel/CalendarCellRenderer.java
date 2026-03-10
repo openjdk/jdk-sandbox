@@ -144,6 +144,7 @@ class CalendarCellRenderer extends DefaultTableCellRenderer {
                                                   boolean isWeekNumber) {
         LocalDate localDate = LocalDate.of(calendar.get(Calendar.YEAR),
                 calendar.get(Calendar.MONTH) + 1, selectedDay);
+        isCurrentDateCell = false;
         if (isWeekNumber) {
             label.setBackground(calendarPanel.getGridBackground());
             label.setForeground(calendarPanel.getWeekNumberForeground());
@@ -153,8 +154,12 @@ class CalendarCellRenderer extends DefaultTableCellRenderer {
         } else if (!isWeekNumber && currentCalendar.get(Calendar.DATE) == selectedDay
                 && currentCalendar.get(Calendar.MONTH) == calendar.get(Calendar.MONTH)
                 && currentCalendar.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)) {
-            currentCellBGColor = CalendarUtilities.getLighterColor(calendarPanel.getGridCurrentDateBackground(), 0.6);
-            isCurrentDateCell = true;
+            currentCellBGColor = calendarPanel.getGridCurrentDateBackground();
+            if (currentCellBGColor == null) {
+                label.setBackground(calendarPanel.getGridBackground());
+            } else {
+                isCurrentDateCell = true;
+            }
             label.setForeground(calendarPanel.getGridCurrentDateForeground());
         } else {
             label.setBackground(calendarPanel.getGridBackground());
@@ -230,10 +235,9 @@ class CalendarCellRenderer extends DefaultTableCellRenderer {
             graphics2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
                     RenderingHints.VALUE_ANTIALIAS_ON);
             graphics2D.setColor(currentCellBGColor);
-            graphics2D.fillOval(2, 2, getWidth() - 4, getHeight() - 4);
+            graphics2D.fillRect(0, 0, getWidth(), getHeight());
             graphics2D.dispose();
         }
-        isCurrentDateCell = false;
         super.paintComponent(g);
 
     }

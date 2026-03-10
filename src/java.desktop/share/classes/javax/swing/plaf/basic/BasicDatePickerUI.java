@@ -76,7 +76,6 @@ import javax.swing.event.DocumentListener;
 import javax.swing.plaf.DatePickerUI;
 import javax.swing.plaf.ComponentUI;
 
-import jdk.internal.javac.PreviewFeature;
 import sun.swing.DefaultLookup;
 
 /**
@@ -86,7 +85,6 @@ import sun.swing.DefaultLookup;
  *
  */
 
-@PreviewFeature(feature = PreviewFeature.Feature.JDATEPICKER)
 @SuppressWarnings("serial")
 public class BasicDatePickerUI extends DatePickerUI {
     private static final int MIN_WIDTH = 150;
@@ -464,6 +462,7 @@ public class BasicDatePickerUI extends DatePickerUI {
                                 datePicker.getLocale())));
             }
         }
+        formattedTextField.setCaretPosition(0);
     }
 
     private void resetDateToTextField() {

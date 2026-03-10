@@ -25,8 +25,6 @@
 
 package javax.swing;
 
-import jdk.internal.javac.PreviewFeature;
-
 import java.time.LocalDate;
 import java.util.Calendar;
 import java.util.Locale;
@@ -42,7 +40,6 @@ import javax.swing.event.EventListenerList;
  * @since 99
  */
 
-@PreviewFeature(feature = PreviewFeature.Feature.JDATEPICKER)
 public class DefaultDateSelectionModel implements DateSelectionModel {
 
     /**
@@ -119,9 +116,9 @@ public class DefaultDateSelectionModel implements DateSelectionModel {
             }
         }
         if (commit) {
-            calendar.set(selectionDateRange.first().getYear(),
-                    selectionDateRange.first().getMonthValue() - 1,
-                    selectionDateRange.first().getDayOfMonth());
+            calendar.set(selectionDateRange.last().getYear(),
+                    selectionDateRange.last().getMonthValue() - 1,
+                    selectionDateRange.last().getDayOfMonth());
             setEventType(EventType.DATE_SELECTION);
             fireStateChanged();
         }

@@ -25,8 +25,6 @@
 
 package javax.swing;
 
-import jdk.internal.javac.PreviewFeature;
-
 import java.awt.Dimension;
 import java.beans.PropertyChangeListener;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -38,7 +36,6 @@ import javax.swing.table.DefaultTableCellRenderer;
  * @since 99
  */
 
-@PreviewFeature(feature = PreviewFeature.Feature.JDATEPICKER)
 @SuppressWarnings("serial")
 public abstract class AbstractCalendarPanel extends JPanel {
     static final int CELL_WIDTH = 50;

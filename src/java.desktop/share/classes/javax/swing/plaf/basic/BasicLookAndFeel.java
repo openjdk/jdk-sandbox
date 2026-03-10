@@ -1843,27 +1843,6 @@ public abstract class BasicLookAndFeel extends LookAndFeel implements Serializab
                 "DatePicker.showGridLines", false,  // show grid
                 "DatePicker.calendarIcon", (LazyValue) t ->
                 new CalendarIcon(Color.GRAY),
-                "DatePicker.ancestorInputMap.calendarPanel",
-                new UIDefaults.LazyInputMap(new Object[] {
-                        "ENTER", "acceptSelection",
-                        "ESCAPE", "cancelSelection",
-                        "LEFT", "navigateLeft",
-                        "KP_LEFT", "navigateLeft",
-                        "RIGHT", "navigateRight",
-                        "KP_RIGHT", "navigateRight",
-                        "UP", "navigateUp",
-                        "KP_UP", "navigateUp",
-                        "DOWN", "navigateDown",
-                        "KP_DOWN", "navigateDown",
-                        "shift LEFT","navigateShiftLeft",
-                        "shift KP_LEFT","navigateShiftLeft",
-                        "shift RIGHT","navigateShiftRight",
-                        "shift KP_RIGHT","navigateShiftRight",
-                        "shift UP","navigateShiftUp",
-                        "shift KP_UP","navigateShiftUp",
-                        "shift DOWN","navigateShiftDown",
-                        "shift KP_DOWN","navigateShiftDown",
-                }),
         };
 
         table.putDefaults(defaults);

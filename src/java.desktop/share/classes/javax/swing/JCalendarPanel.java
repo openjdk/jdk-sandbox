@@ -43,7 +43,6 @@ import javax.swing.event.ChangeListener;
 import javax.swing.plaf.CalendarPanelUI;
 import javax.swing.table.DefaultTableCellRenderer;
 
-import jdk.internal.javac.PreviewFeature;
 import sun.swing.calendarpanel.CalendarPanelComponentFactory;
 import sun.swing.calendarpanel.CalendarUtilities;
 import sun.swing.calendarpanel.DefaultDateSelectionPanel;
@@ -57,7 +56,6 @@ import sun.swing.calendarpanel.DefaultDateSelectionPanel;
  * @since 99
  */
 
-@PreviewFeature(feature = PreviewFeature.Feature.JDATEPICKER)
 @JavaBean(defaultProperty = "UI",
         description = "A component that supports selecting a Date.")
 @SwingContainer(false)

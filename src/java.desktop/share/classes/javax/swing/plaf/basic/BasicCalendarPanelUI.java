@@ -53,9 +53,9 @@ import javax.swing.plaf.CalendarPanelUI;
 import javax.swing.plaf.ComponentUI;
 import javax.swing.plaf.UIResource;
 
-import jdk.internal.javac.PreviewFeature;
 import sun.swing.DefaultLookup;
 import sun.swing.calendarpanel.CalendarPanelComponentFactory;
+import sun.swing.calendarpanel.CalendarUtilities;
 
 /**
  * Provides the basic look and feel for a JCalendarPanel.
@@ -63,7 +63,6 @@ import sun.swing.calendarpanel.CalendarPanelComponentFactory;
  * @since 99
  */
 
-@PreviewFeature(feature = PreviewFeature.Feature.JDATEPICKER)
 @SuppressWarnings("serial")
 public class BasicCalendarPanelUI extends CalendarPanelUI {
     // Preferred and Minimum sizes for the dialog box
@@ -196,8 +195,8 @@ public class BasicCalendarPanelUI extends CalendarPanelUI {
         calendarPanel.setGridBackground(UIManager.getColor("DatePicker.gridBackground"));
         calendarPanel.setGridSelectionForeground(UIManager.getColor("DatePicker.gridSelectionForeground"));
         calendarPanel.setGridSelectionBackground(UIManager.getColor("DatePicker.gridSelectionBackground"));
-        calendarPanel.setGridCurrentDateForeground(UIManager.getColor("DatePicker.gridCurrentDateForeground"));
-        calendarPanel.setGridCurrentDateBackground(UIManager.getColor("DatePicker.gridCurrentDateBackground"));
+        calendarPanel.setGridCurrentDateForeground(UIManager.getColor("DatePicker.gridForeground"));
+        calendarPanel.setGridCurrentDateBackground(CalendarUtilities.getDarkerColor(UIManager.getColor("DatePicker.gridBackground"), 0.05));
         calendarPanel.setGridHeaderCellFont(UIManager.getFont("DatePicker.gridHeaderCellFont"));
         calendarPanel.setGridHeaderForeground(UIManager.getColor("DatePicker.gridHeaderForeground"));
         calendarPanel.setGridHeaderBackground(UIManager.getColor("DatePicker.gridHeaderBackground"));
@@ -222,17 +221,6 @@ public class BasicCalendarPanelUI extends CalendarPanelUI {
 
         previewListener = getHandler();
         calendarPanel.getDateSelectionModel().addChangeListener(previewListener);
-        InputMap inputMap = getInputMap(JComponent.WHEN_FOCUSED);
-        SwingUtilities.replaceUIInputMap(calendarPanel, JComponent.
-                WHEN_FOCUSED, inputMap);
-    }
-
-    InputMap getInputMap(int condition) {
-        if (condition == JComponent.WHEN_FOCUSED) {
-            return (InputMap) DefaultLookup.get(calendarPanel, this,
-                    "DatePicker.ancestorInputMap.calendarPanel");
-        }
-        return null;
     }
 
     private BasicCalendarPanelUI.Handler getHandler() {

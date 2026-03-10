@@ -693,27 +693,6 @@ public class SynthLookAndFeel extends BasicLookAndFeel {
         table.put("DatePicker.weekNumberForeground", Color.blue);
         table.put("DatePicker.gridColor", Color.white);  // grid line color
         table.put("DatePicker.showGridLines", false);  // show grid
-        table.put("DatePicker.ancestorInputMap.calendarPanel",
-                new UIDefaults.LazyInputMap(new Object[]{
-                        "ENTER", "acceptSelection",
-                        "ESCAPE", "cancelSelection",
-                        "LEFT", "navigateLeft",
-                        "KP_LEFT", "navigateLeft",
-                        "RIGHT", "navigateRight",
-                        "KP_RIGHT", "navigateRight",
-                        "UP", "navigateUp",
-                        "KP_UP", "navigateUp",
-                        "DOWN", "navigateDown",
-                        "KP_DOWN", "navigateDown",
-                        "shift LEFT", "navigateShiftLeft",
-                        "shift KP_LEFT", "navigateShiftLeft",
-                        "shift RIGHT", "navigateShiftRight",
-                        "shift KP_RIGHT", "navigateShiftRight",
-                        "shift UP", "navigateShiftUp",
-                        "shift KP_UP", "navigateShiftUp",
-                        "shift DOWN", "navigateShiftDown",
-                        "shift KP_DOWN", "navigateShiftDown",
-                }));
 
         // enabled antialiasing depending on desktop settings
         flushUnreferenced();

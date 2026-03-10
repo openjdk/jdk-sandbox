@@ -29,10 +29,9 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.Font;
+import java.awt.Rectangle;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.event.FocusEvent;
@@ -58,11 +57,11 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
-import javax.swing.border.EmptyBorder;
+import javax.swing.UIManager;import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import sun.swing.calendarpanel.CalendarUtilities;
@@ -212,11 +211,21 @@ public final class DefaultYearSelectionPanel extends AbstractCalendarPanel {
      * installKeyboardActions
      */
     private void installKeyboardActions() {
-        InputMap inputMap = calendarPanel.getInputMap(JComponent.WHEN_FOCUSED);
-        SwingUtilities.replaceUIInputMap(calendarTable, JComponent.
-                WHEN_FOCUSED, inputMap);
-        SwingUtilities.replaceUIInputMap(backButton, JComponent.
-                WHEN_FOCUSED, inputMap);
+        InputMap tableInputMap = calendarTable.getInputMap(JComponent.WHEN_FOCUSED);
+        InputMap backButtonInputMap = backButton.getInputMap(JComponent.WHEN_FOCUSED);
+
+        tableInputMap.put(KeyStroke.getKeyStroke("ENTER"), "acceptSelection");
+        tableInputMap.put(KeyStroke.getKeyStroke("ESCAPE"), "cancelSelection");
+        tableInputMap.put(KeyStroke.getKeyStroke("LEFT"), "navigateLeft");
+        tableInputMap.put(KeyStroke.getKeyStroke("KP_LEFT"), "navigateLeft");
+        tableInputMap.put(KeyStroke.getKeyStroke("RIGHT"), "navigateRight");
+        tableInputMap.put(KeyStroke.getKeyStroke("KP_RIGHT"), "navigateRight");
+        tableInputMap.put(KeyStroke.getKeyStroke("UP"), "navigateUp");
+        tableInputMap.put(KeyStroke.getKeyStroke("KP_UP"), "navigateUp");
+        tableInputMap.put(KeyStroke.getKeyStroke("DOWN"), "navigateDown");
+        tableInputMap.put(KeyStroke.getKeyStroke("KP_DOWN"), "navigateDown");
+        backButtonInputMap.put(KeyStroke.getKeyStroke("ENTER"), "acceptSelection");
+
         ActionMap tableActionMap = calendarTable.getActionMap();
         ActionMap backbuttonActionMap = backButton.getActionMap();
 
@@ -300,8 +309,12 @@ public final class DefaultYearSelectionPanel extends AbstractCalendarPanel {
                 label.setForeground(calendarPanel.getGridSelectionForeground());
                 label.setBackground(calendarPanel.getGridSelectionBackground());
             } else if (label.getText().equals(String.valueOf(getCurrentYear()))) {
-                currentCellBGColor = CalendarUtilities.getLighterColor(calendarPanel.getGridCurrentDateBackground(), 0.6);
-                isCurrentDateCell = true;
+                currentCellBGColor = calendarPanel.getGridCurrentDateBackground();
+                if (currentCellBGColor == null) {
+                    label.setBackground(calendarPanel.getGridBackground());
+                } else {
+                    isCurrentDateCell = true;
+                }
                 label.setForeground(calendarPanel.getGridCurrentDateForeground());
             } else if (isSelected) {
                 label.setBackground(calendarPanel.getGridSelectionBackground());
@@ -320,10 +333,9 @@ public final class DefaultYearSelectionPanel extends AbstractCalendarPanel {
                 graphics2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
                         RenderingHints.VALUE_ANTIALIAS_ON);
                 graphics2D.setColor(currentCellBGColor);
-                graphics2D.fillOval(2, 2, getWidth() - 4, getHeight() - 4);
+                graphics2D.fillRect(0, 1, getWidth(), getHeight());
                 graphics2D.dispose();
             }
-            isCurrentDateCell = false;
             super.paintComponent(g);
         }
     }

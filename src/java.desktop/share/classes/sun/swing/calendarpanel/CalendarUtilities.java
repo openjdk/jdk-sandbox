@@ -61,6 +61,20 @@ public class CalendarUtilities {
     }
 
     /**
+     * Returns Darker color
+     * @param color color
+     * @param factor factor of lightness
+     * @return color
+     */
+    public static Color getDarkerColor(Color color, double factor) {
+        factor = Math.min(1, Math.max(0, factor));
+        int red = (int) (color.getRed() * (1 - factor));
+        int green = (int) (color.getGreen() * (1 - factor));
+        int blue = (int) (color.getBlue() * (1 - factor));
+        return new Color(red, green, blue, color.getAlpha());
+    }
+
+    /**
      * Returns Lighter color
      * @param color color
      * @param factor factor of lightness

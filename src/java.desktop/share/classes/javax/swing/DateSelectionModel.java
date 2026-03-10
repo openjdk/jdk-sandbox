@@ -1,7 +1,5 @@
 package javax.swing;
 
-import jdk.internal.javac.PreviewFeature;
-
 import java.time.LocalDate;
 import java.util.Calendar;
 import java.util.Locale;
@@ -14,7 +12,6 @@ import javax.swing.event.ChangeListener;
  * @since 99
  */
 
-@PreviewFeature(feature = PreviewFeature.Feature.JDATEPICKER)
 public interface DateSelectionModel {
     /**
      * Date Selection Modes

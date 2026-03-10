@@ -25,15 +25,12 @@
 
 package javax.swing.plaf;
 
-import jdk.internal.javac.PreviewFeature;
-
 /**
  * Pluggable look and feel interface for {@code JCalendarPanel}
  *
  * @since 99
  */
 
-@PreviewFeature(feature = PreviewFeature.Feature.JDATEPICKER)
 public abstract class CalendarPanelUI extends ComponentUI {
     /**
      * Constructor for subclasses to call.

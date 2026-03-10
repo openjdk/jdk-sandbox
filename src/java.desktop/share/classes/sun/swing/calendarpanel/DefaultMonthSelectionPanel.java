@@ -29,7 +29,7 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.Font;
+import java.awt.Rectangle;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -40,6 +40,7 @@ import java.awt.event.MouseEvent;
 import java.beans.PropertyChangeEvent;
 import java.io.Serializable;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
@@ -57,6 +58,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
@@ -103,7 +105,7 @@ public final class DefaultMonthSelectionPanel extends AbstractCalendarPanel {
     public void buildCalendar() {
         Dimension buttonSize = new Dimension(50, HEADER_PANEL_HEIGHT - 10);
         installStrings();
-        DefaultTableCellRenderer cellRenderer = new DefaultMonthSelectionPanel.CalendarMonthCellRenderer();
+        DefaultTableCellRenderer cellRenderer = new CalendarMonthCellRenderer();
         cellRenderer.setHorizontalAlignment(SwingConstants.CENTER);
         setDefaultTableCellRenderer(cellRenderer);
         calendar = (Calendar) calendarPanel.getDateSelectionModel().getCalendar().clone();
@@ -199,11 +201,21 @@ public final class DefaultMonthSelectionPanel extends AbstractCalendarPanel {
      * installKeyboardActions
      */
     private void installKeyboardActions() {
-        InputMap inputMap = calendarPanel.getInputMap(JComponent.WHEN_FOCUSED);
-        SwingUtilities.replaceUIInputMap(calendarTable, JComponent.
-                WHEN_FOCUSED, inputMap);
-        SwingUtilities.replaceUIInputMap(backButton, JComponent.
-                WHEN_FOCUSED, inputMap);
+        InputMap tableInputMap = calendarTable.getInputMap(JComponent.WHEN_FOCUSED);
+        InputMap backButtonInputMap = backButton.getInputMap(JComponent.WHEN_FOCUSED);
+
+        tableInputMap.put(KeyStroke.getKeyStroke("ENTER"), "acceptSelection");
+        tableInputMap.put(KeyStroke.getKeyStroke("ESCAPE"), "cancelSelection");
+        tableInputMap.put(KeyStroke.getKeyStroke("LEFT"), "navigateLeft");
+        tableInputMap.put(KeyStroke.getKeyStroke("KP_LEFT"), "navigateLeft");
+        tableInputMap.put(KeyStroke.getKeyStroke("RIGHT"), "navigateRight");
+        tableInputMap.put(KeyStroke.getKeyStroke("KP_RIGHT"), "navigateRight");
+        tableInputMap.put(KeyStroke.getKeyStroke("UP"), "navigateUp");
+        tableInputMap.put(KeyStroke.getKeyStroke("KP_UP"), "navigateUp");
+        tableInputMap.put(KeyStroke.getKeyStroke("DOWN"), "navigateDown");
+        tableInputMap.put(KeyStroke.getKeyStroke("KP_DOWN"), "navigateDown");
+        backButtonInputMap.put(KeyStroke.getKeyStroke("ENTER"), "acceptSelection");
+
         ActionMap tableActionMap = calendarTable.getActionMap();
         ActionMap backbuttonActionMap = backButton.getActionMap();
 
@@ -216,7 +228,6 @@ public final class DefaultMonthSelectionPanel extends AbstractCalendarPanel {
         tableActionMap.put("navigateRight", new TableKeyBoardAction(JCalendarPanel.ACTION_RIGHT_ARROW_KEY));
 
         backbuttonActionMap.put("acceptSelection", new BackButtonAction());
-
     }
 
     /**
@@ -277,8 +288,12 @@ public final class DefaultMonthSelectionPanel extends AbstractCalendarPanel {
                 label.setForeground(calendarPanel.getGridSelectionForeground());
                 label.setBackground(calendarPanel.getGridSelectionBackground());
             } else if (label.getText().compareToIgnoreCase(getCurrentMonth()) == 0) {
-                isCurrentDateCell = true;
-                currentCellBGColor = CalendarUtilities.getLighterColor(calendarPanel.getGridCurrentDateBackground(), 0.6);
+                currentCellBGColor = calendarPanel.getGridCurrentDateBackground();
+                if (currentCellBGColor == null) {
+                    label.setBackground(calendarPanel.getGridBackground());
+                } else {
+                    isCurrentDateCell = true;
+                }
                 label.setForeground(calendarPanel.getGridCurrentDateForeground());
             } else if (isSelected) {
                 label.setBackground(calendarPanel.getGridSelectionBackground());
@@ -297,11 +312,10 @@ public final class DefaultMonthSelectionPanel extends AbstractCalendarPanel {
                 graphics2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
                         RenderingHints.VALUE_ANTIALIAS_ON);
                 graphics2D.setColor(currentCellBGColor);
-                graphics2D.fillOval(2, 2, getWidth() - 5, getHeight() - 4);
+                graphics2D.fillRect(0, 2, getWidth(), getHeight());
                 graphics2D.dispose();
             }
             super.paintComponent(g);
-
         }
     }
 

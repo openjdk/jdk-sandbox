@@ -25,8 +25,6 @@
 
 package javax.swing;
 
-import jdk.internal.javac.PreviewFeature;
-
 import java.beans.BeanProperty;
 import java.beans.JavaBean;
 import java.time.LocalDate;
@@ -49,7 +47,6 @@ import javax.swing.plaf.DatePickerUI;
  *
  * @since 99
  */
-@PreviewFeature(feature = PreviewFeature.Feature.JDATEPICKER)
 @JavaBean(defaultProperty = "UI", description = "A component that supports selecting a Date.")
 @SwingContainer(false)
 @SuppressWarnings("serial")

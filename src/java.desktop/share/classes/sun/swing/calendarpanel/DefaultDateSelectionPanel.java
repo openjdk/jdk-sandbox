@@ -31,6 +31,8 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Graphics;
+import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.FocusEvent;
 import java.awt.event.MouseAdapter;
@@ -43,6 +45,7 @@ import java.time.Month;
 import java.util.Calendar;
 import java.util.Locale;
 import java.util.Objects;
+
 import javax.swing.AbstractAction;
 import javax.swing.AbstractCalendarPanel;
 import javax.swing.ActionMap;
@@ -56,8 +59,10 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.KeyStroke;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
@@ -179,21 +184,40 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
      * installKeyboardActions
      */
     private void installKeyboardActions() {
-        InputMap inputMap = calendarPanel.getInputMap(JComponent.WHEN_FOCUSED);
-        SwingUtilities.replaceUIInputMap(calendarTable, JComponent.
-                WHEN_FOCUSED, inputMap);
-        SwingUtilities.replaceUIInputMap(prevMonth, JComponent.
-                WHEN_FOCUSED, inputMap);
-        SwingUtilities.replaceUIInputMap(nextMonth, JComponent.
-                WHEN_FOCUSED, inputMap);
-        SwingUtilities.replaceUIInputMap(prevYear, JComponent.
-                WHEN_FOCUSED, inputMap);
-        SwingUtilities.replaceUIInputMap(nextYear, JComponent.
-                WHEN_FOCUSED, inputMap);
-        SwingUtilities.replaceUIInputMap(yearLabel, JComponent.
-                WHEN_FOCUSED, inputMap);
-        SwingUtilities.replaceUIInputMap(monthLabel, JComponent.
-                WHEN_FOCUSED, inputMap);
+        InputMap tableInputMap = calendarTable.getInputMap(JComponent.WHEN_FOCUSED);
+        InputMap prevMonthInputMap = prevMonth.getInputMap(JComponent.WHEN_FOCUSED);
+        InputMap nextMonthInputMap = nextMonth.getInputMap(JComponent.WHEN_FOCUSED);
+        InputMap prevYearInputMap = prevYear.getInputMap(JComponent.WHEN_FOCUSED);
+        InputMap nextYearInputMap = nextYear.getInputMap(JComponent.WHEN_FOCUSED);
+        InputMap yearLabelInputMap = yearLabel.getInputMap(JComponent.WHEN_FOCUSED);
+        InputMap monthLabelInputMap = monthLabel.getInputMap(JComponent.WHEN_FOCUSED);
+
+        tableInputMap.put(KeyStroke.getKeyStroke("ENTER"), "acceptSelection");
+        tableInputMap.put(KeyStroke.getKeyStroke("ESCAPE"), "cancelSelection");
+        tableInputMap.put(KeyStroke.getKeyStroke("LEFT"), "navigateLeft");
+        tableInputMap.put(KeyStroke.getKeyStroke("KP_LEFT"), "navigateLeft");
+        tableInputMap.put(KeyStroke.getKeyStroke("RIGHT"), "navigateRight");
+        tableInputMap.put(KeyStroke.getKeyStroke("KP_RIGHT"), "navigateRight");
+        tableInputMap.put(KeyStroke.getKeyStroke("UP"), "navigateUp");
+        tableInputMap.put(KeyStroke.getKeyStroke("KP_UP"), "navigateUp");
+        tableInputMap.put(KeyStroke.getKeyStroke("DOWN"), "navigateDown");
+        tableInputMap.put(KeyStroke.getKeyStroke("KP_DOWN"), "navigateDown");
+        tableInputMap.put(KeyStroke.getKeyStroke("shift LEFT"), "navigateShiftLeft");
+        tableInputMap.put(KeyStroke.getKeyStroke("shift KP_LEFT"), "navigateShiftLeft");
+        tableInputMap.put(KeyStroke.getKeyStroke("shift RIGHT"), "navigateShiftRight");
+        tableInputMap.put(KeyStroke.getKeyStroke("shift KP_RIGHT"), "navigateShiftRight");
+        tableInputMap.put(KeyStroke.getKeyStroke("shift UP"), "navigateShiftRight");
+        tableInputMap.put(KeyStroke.getKeyStroke("shift KP_UP"), "navigateShiftRight");
+        tableInputMap.put(KeyStroke.getKeyStroke("shift DOWN"), "navigateShiftDown");
+        tableInputMap.put(KeyStroke.getKeyStroke("shift KP_DOWN"), "navigateShiftDown");
+
+        prevMonthInputMap.put(KeyStroke.getKeyStroke("ENTER"), "acceptSelection");
+        nextMonthInputMap.put(KeyStroke.getKeyStroke("ENTER"), "acceptSelection");
+        prevYearInputMap.put(KeyStroke.getKeyStroke("ENTER"), "acceptSelection");
+        nextYearInputMap.put(KeyStroke.getKeyStroke("ENTER"), "acceptSelection");
+        yearLabelInputMap.put(KeyStroke.getKeyStroke("ENTER"), "acceptSelection");
+        monthLabelInputMap.put(KeyStroke.getKeyStroke("ENTER"), "acceptSelection");
+
         ActionMap tableActionMap = calendarTable.getActionMap();
         ActionMap prevMonthActionMap = prevMonth.getActionMap();
         ActionMap nextMonthActionMap = nextMonth.getActionMap();
@@ -361,6 +385,9 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
     private class CalendarTableMouseListener extends MouseAdapter implements Serializable {
         boolean isMousePressed = false;
         private LocalDate firstSelectedDate;
+        private LocalDate lastSelectedDate;
+        private Timer nextMonthDragTimer = new Timer(750, e -> switchToNextMonth());
+        private Timer prevMonthDragTimer = new Timer(750, e -> switchToPrevMonth());
 
         @Override
         public void mousePressed(MouseEvent e) {
@@ -404,24 +431,21 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
                     int col = calendarTable.columnAtPoint(e.getPoint());
                     Object value = calendarTable.getValueAt(row, col);
                     Calendar cal = (Calendar) calendarPanel.getDateSelectionModel().getCalendar().clone();
-                    LocalDate lastSelectedDate;
                     Integer day = (Integer) value;
                     lastSelectedDate = getLocalDateFromValue(day, cal);
                     if (lastSelectedDate.getYear() < calendarPanel.getYearSelectionLimit().getFirst() ||
                             lastSelectedDate.getYear() > calendarPanel.getYearSelectionLimit().getLast() ) {
-                        System.out.println("return");
                         return;
                     }
                     if (calendarPanel.isWithinSelectableDateRange(lastSelectedDate)) {
-                        calendar.set(firstSelectedDate.getYear(),
-                                firstSelectedDate.getMonthValue() - 1,
-                                firstSelectedDate.getDayOfMonth());
                         calendarPanel.getDateSelectionModel().setSelectedDates(firstSelectedDate,
                                 lastSelectedDate, true);
                         calendarPanel.getDateSelectionModel().setCalendar(calendar);
                         updateCalendar();
                     }
                 }
+                nextMonthDragTimer.stop();
+                prevMonthDragTimer.stop();
             }
 
             isMousePressed = false;
@@ -440,7 +464,6 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
                     }
                     Object value = calendarTable.getValueAt(row, col);
                     Calendar cal = (Calendar) calendar.clone();
-                    LocalDate lastSelectedDate;
                     Integer day = (Integer) value;
 
                     lastSelectedDate = getLocalDateFromValue(day, cal);
@@ -453,7 +476,43 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
                                 lastSelectedDate, false);
                         calendarTable.repaint();
                     }
+
+                    Point p = e.getPoint();
+                    Rectangle bounds = calendarTable.getBounds();
+
+                    if (p.y >= bounds.height - 5) {
+                        if (!nextMonthDragTimer.isRunning()) {
+                            nextMonthDragTimer.start();
+                        }
+                    } else {
+                        nextMonthDragTimer.stop();
+                    }
+
+                    if (p.y <= 5) {
+                        if (!prevMonthDragTimer.isRunning()) {
+                            prevMonthDragTimer.start();
+                        }
+                    } else {
+                        prevMonthDragTimer.stop();
+                    }
                 }
+            }
+        }
+
+        private void switchToNextMonth() {
+            calendar.add(Calendar.MONTH, 1);
+            calendarPanel.getDateSelectionModel().setCalendar(calendar);
+            updateCalendar();
+            calendarPanel.getDateSelectionModel().setEventType(DateSelectionModel.EventType.MONTH_NAVIGATION);
+        }
+
+        private void switchToPrevMonth() {
+            int firstMonth = getDateSelectionModel().getSelectedDates().first().getMonthValue();
+            if (calendar.get(Calendar.MONTH) >= firstMonth) {
+                calendar.add(Calendar.MONTH, -1);
+                calendarPanel.getDateSelectionModel().setCalendar(calendar);
+                updateCalendar();
+                calendarPanel.getDateSelectionModel().setEventType(DateSelectionModel.EventType.MONTH_NAVIGATION);
             }
         }
     }
@@ -561,6 +620,8 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
         private static boolean isShiftKeyPressed = false;
         private static LocalDate startDateSelected;
         String actionKey;
+        private int lastSelectedRow = 0;
+        private int lastSelectedCol = 0;
 
         /**
          * Constructs an {@code TableKeyBoardAction}.
@@ -577,6 +638,11 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
         public void actionPerformed(ActionEvent e) {
             int row = calendarTable.getSelectedRow();
             int col = calendarTable.getSelectedColumn();
+            if (row == -1 && col == -1) {
+                row = lastSelectedRow;
+                col = lastSelectedCol;
+            }
+
             switch (actionKey) {
                 case JCalendarPanel.ACTION_ENTER_KEY -> {
                     confirmSelection();
@@ -673,6 +739,8 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
                             commitSelection);
                     calendarTable.repaint();
                 }
+                lastSelectedRow = row;
+                lastSelectedCol = col;
             }
         }
 
@@ -682,6 +750,9 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
                         == DateSelectionModel.SelectionMode.RANGE_SELECTION) {
                     int[] rows = calendarTable.getSelectedRows();
                     int[] cols = calendarTable.getSelectedColumns();
+                    if (rows.length <= 0 || cols.length <= 0) {
+                        return;
+                    }
                     Object value = calendarTable.getValueAt(rows[rows.length - 1],
                             cols[cols.length - 1]);
 
@@ -701,6 +772,8 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
                                 curSelectedDate, false);
                         calendarTable.repaint();
                     }
+                    lastSelectedRow = rows[rows.length - 1];
+                    lastSelectedCol = cols[cols.length - 1];
                 }
             }
         }
@@ -724,6 +797,9 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
                         == DateSelectionModel.SelectionMode.RANGE_SELECTION) {
                     int[] rows = calendarTable.getSelectedRows();
                     int[] cols = calendarTable.getSelectedColumns();
+                    if (rows.length <= 0 || cols.length <= 0) {
+                        return;
+                    }
                     Object value = calendarTable.getValueAt(rows[rows.length - 1], cols[cols.length - 1]);
                     Calendar cal = (Calendar) calendarPanel.getDateSelectionModel().getCalendar().clone();
                     LocalDate lastSelectedDate;
@@ -734,14 +810,13 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
                         return;
                     }
                     if (calendarPanel.isWithinSelectableDateRange(lastSelectedDate)) {
-                        calendar.set(startDateSelected.getYear(),
-                                startDateSelected.getMonthValue() - 1,
-                                startDateSelected.getDayOfMonth());
                         calendarPanel.getDateSelectionModel().setSelectedDates(startDateSelected,
                                 lastSelectedDate, true);
                         calendarPanel.getDateSelectionModel().setCalendar(calendar);
                         updateCalendar();
                     }
+                    lastSelectedRow = rows[rows.length - 1];
+                    lastSelectedCol = cols[cols.length - 1];
                 }
             }
             isShiftKeyPressed = false;
@@ -791,6 +866,8 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
                 calendarPanel.getDateSelectionModel().setEventType(DateSelectionModel.EventType.MONTH_NAVIGATION);
             }
             calendarTable.changeSelection(r, c, false, false);
+            lastSelectedRow = r;
+            lastSelectedCol = c;
         }
     }
 

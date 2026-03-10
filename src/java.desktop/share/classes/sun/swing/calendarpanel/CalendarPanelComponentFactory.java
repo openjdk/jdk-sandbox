@@ -29,8 +29,6 @@ import java.util.HashMap;
 import javax.swing.AbstractCalendarPanel;
 import javax.swing.DateSelectionModel;
 
-import jdk.internal.javac.PreviewFeature;
-
 /**
  * A class designed to produce preconfigured "accessory" objects to
  * insert into calendar panels.
@@ -38,7 +36,6 @@ import jdk.internal.javac.PreviewFeature;
  * @since 99
  */
 
-@PreviewFeature(feature = PreviewFeature.Feature.JDATEPICKER)
 public class CalendarPanelComponentFactory {
     private CalendarPanelComponentFactory() {
     }
